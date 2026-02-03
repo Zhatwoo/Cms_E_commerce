@@ -117,15 +117,15 @@ export function DashboardSidebar({ mobile = false, onClose, activeId }: Dashboar
     return (
         <aside
             className={`
-          ${mobile
+            ${mobile
                     ? 'fixed inset-y-0 left-0 z-50 w-72 bg-black/90 border-r border-gray-800 shadow-2xl'
-                    : 'hidden lg:flex lg:flex-col lg:w-72 lg:shrink-0 lg:border-r lg:border-gray-800 lg:bg-black/50 lg:backdrop-blur-xl lg:shadow-inner'
+                    : 'hidden lg:flex lg:flex-col lg:w-72 lg:shrink-0 lg:border-r lg:border-gray-800 lg:bg-black/50 lg:backdrop-blur-xl lg:shadow-inner lg:h-screen lg:sticky lg:top-0'
                 }
-          h-full text-gray-100 transition-all duration-300
-        `}
+            text-gray-100
+          `}
         >
             {/* Header / Brand */}
-            <div className="flex items-center justify-between border-b border-gray-800 px-6 py-5">
+            <div className="flex items-center justify-between border-b border-gray-800 px-6 py-5 shrink-0">
                 <div className="flex items-center gap-3">
                     <div className="h-9 w-9 rounded-xl bg-gray-700 flex items-center justify-center font-bold text-gray-200 shadow-md">
                         CMD
@@ -145,7 +145,7 @@ export function DashboardSidebar({ mobile = false, onClose, activeId }: Dashboar
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 px-3 py-6">
+            <nav className="flex-1 px-3 py-6 flex flex-col">
                 <ul className="space-y-1">
                     {navItems.map((item) => {
                         const isActive = activeId ? item.id === activeId : false;
