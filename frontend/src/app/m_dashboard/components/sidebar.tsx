@@ -1,5 +1,6 @@
 'use client';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const HomeIcon = () => (
     <svg
@@ -94,8 +95,6 @@ type SidebarItem = {
     id: string;
     label: string;
     icon: React.ReactNode;
-    href?: string; // optional – prepare for <Link> later
-    active?: boolean;
 };
 
 const navItems: SidebarItem[] = [
@@ -103,89 +102,127 @@ const navItems: SidebarItem[] = [
     { id: 'web-builder', label: 'Web Builder', icon: <WebBuilderIcon /> },
     { id: 'templates', label: 'Templates', icon: <TemplatesIcon /> },
     { id: 'domains', label: 'Domains', icon: <DomainsIcon /> },
-    { id: 'settings', label: 'Settings', icon: <SettingsIcon />, href: '/settings' },
+    { id: 'settings', label: 'Settings', icon: <SettingsIcon /> },
 ];
 
 type DashboardSidebarProps = {
     mobile?: boolean;
     onClose?: () => void;
-    // You can later pass currentPath or activeId from parent / usePathname
-    activeId?: string;
 };
 
-export function DashboardSidebar({ mobile = false, onClose, activeId }: DashboardSidebarProps) {
-    return (
-        <aside
-            className={`
-            ${mobile
-                    ? 'fixed inset-y-0 left-0 z-50 w-72 bg-black/90 border-r border-gray-800 shadow-2xl'
-                    : 'hidden lg:flex lg:flex-col lg:w-72 lg:shrink-0 lg:border-r lg:border-gray-800 lg:bg-black/50 lg:backdrop-blur-xl lg:shadow-inner lg:h-screen lg:sticky lg:top-0'
-                }
-            text-gray-100
-          `}
-        >
-            {/* Header / Brand */}
-            <div className="flex items-center justify-between border-b border-gray-800 px-6 py-5 shrink-0">
-                <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-xl bg-gray-700 flex items-center justify-center font-bold text-gray-200 shadow-md">
-                        CMD
-                    </div>
-                    <span className="text-xl font-semibold tracking-tight text-gray-100">CallMeDaddy</span>
-                </div>
+export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarProps) {
+    const [isHovered, setIsHovered] = useState(false);
 
-                {mobile && (
+    // Widths — adjust to your taste
+    const COLLAPSED_WIDTH = 72;   // icon-only
+    const EXPANDED_WIDTH = 280;  // full labels
+
+    // For mobile → keep full drawer (no hover behavior)
+    if (mobile) {
+        return (
+            <aside
+                className="fixed inset-y-0 left-0 z-50 w-72 bg-black/90 border-r border-gray-800 shadow-2xl h-full text-gray-100 flex flex-col"
+            >
+
+                {/* Mobile header with close */}
+                <div className="flex items-center justify-between border-b border-gray-800 px-6 py-5 shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-xl bg-gray-700 flex items-center justify-center font-bold text-gray-200">
+                            L
+                        </div>
+                        <span className="text-xl font-semibold text-gray-100">Lumapak</span>
+                    </div>
                     <button
                         onClick={onClose}
-                        className="rounded-lg p-2 text-gray-500 hover:bg-gray-800 hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500/40"
+                        className="rounded-lg p-2 text-gray-500 hover:bg-gray-800 hover:text-gray-200"
                         aria-label="Close sidebar"
                     >
                         <CloseIcon />
                     </button>
-                )}
+                </div>
+
+                <nav className="flex-1 px-3 py-6 overflow-y-auto">
+                    {/* Full labels for mobile */}
+                    {navItems.map((item) => (
+                        <button
+                            key={item.id}
+                            className="w-full flex items-center gap-4 px-4 py-3 rounded-lg text-gray-300 hover:bg-gray-800/40 hover:text-gray-100 transition-colors"
+                        >
+                            <span className="flex h-6 w-6 items-center justify-center text-gray-400">
+                                {item.icon}
+                            </span>
+                            <span className="text-sm font-medium">{item.label}</span>
+                        </button>
+                    ))}
+                </nav>
+            </aside>
+        );
+    }
+
+    // Desktop: hover-expand version
+    return (
+        <motion.aside
+            className="hidden lg:flex lg:flex-col lg:border-r lg:border-gray-800 lg:bg-black/50 lg:backdrop-blur-xl lg:shadow-inner lg:h-screen lg:sticky lg:top-0 overflow-hidden text-gray-100"
+            animate={{ width: isHovered ? EXPANDED_WIDTH : COLLAPSED_WIDTH }}
+            transition={{
+                duration: 0.48,
+                ease: [0.34, 0.69, 0.1, 1.0], // smooth overshoot feel
+                type: 'spring',
+                stiffness: 200,
+                damping: 25,
+            }}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+        >
+            {/* Brand header — always visible, centered icons when collapsed */}
+            <div className="flex items-center justify-center border-b border-gray-800 py-5 shrink-0">
+                <div className="h-9 w-9 rounded-xl bg-gray-700 flex items-center justify-center font-bold text-gray-200 shadow-md">
+                    L
+                </div>
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 px-3 py-6 flex flex-col">
-                <ul className="space-y-1">
-                    {navItems.map((item) => {
-                        const isActive = activeId ? item.id === activeId : false;
+            <nav className="flex-1 py-6 flex flex-col items-center">
+                {navItems.map((item) => (
+                    <motion.button
+                        key={item.id}
+                        className={`
+                group relative flex items-center rounded-lg transition-colors
+                ${isHovered ? 'w-full px-6 gap-4 justify-start' : 'w-12 h-12 justify-center'}
+                py-3 text-gray-300 hover:bg-gray-800/40
+            `}
+                        whileHover={{ scale: 1.04 }}
+                        whileTap={{ scale: 0.98 }}
+                    >
+                        <span className="flex h-6 w-6 items-center justify-center text-gray-400 group-hover:text-gray-200 shrink-0">
+                            {item.icon}
+                        </span>
 
-                        return (
-                            <li key={item.id}>
-                                <button
-                                    type="button"
-                                    className={`
-                      group relative flex w-full items-center gap-3.5 rounded-lg px-4 py-3 text-sm font-medium transition-all
-                      ${isActive
-                                            ? 'bg-gray-800/50 text-gray-100 border-l-4 border-gray-400'
-                                            : 'text-gray-400 hover:bg-gray-800/30 hover:text-gray-200 focus:bg-gray-700/40 focus:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500/40'
-                                        }
-                    `}
-                                    aria-current={isActive ? 'page' : undefined}
+                        <AnimatePresence mode="wait">
+                            {isHovered && (
+                                <motion.span
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    transition={{
+                                        duration: isHovered ? 0.24 : 0.14,
+                                        ease: "easeOut",
+                                    }}
+                                    className="text-sm font-medium whitespace-nowrap ml-3"
                                 >
-                                    <span
-                                        className={`flex h-5 w-5 items-center justify-center transition-colors ${isActive ? 'text-gray-300' : 'text-gray-500 group-hover:text-gray-300'
-                                            }`}
-                                    >
-                                        {item.icon}
-                                    </span>
-                                    <span>{item.label}</span>
-
-                                    {isActive && (
-                                        <span className="absolute left-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-r-full bg-gray-400" />
-                                    )}
-                                </button>
-                            </li>
-                        );
-                    })}
-                </ul>
+                                    {item.label}
+                                </motion.span>
+                            )}
+                        </AnimatePresence>
+                    </motion.button>
+                ))}
             </nav>
 
-            {!mobile && (
-                <div className="border-t border-gray-800 px-6 py-4 text-xs text-gray-600">
-                    v1.0.0 • © 2026
-                </div>
-            )}
-        </aside>
+            {/* Optional bottom area */}
+            <div className="border-t border-gray-800 py-4 text-xs text-gray-600 shrink-0 flex justify-center">
+                v1.0
+            </div>
+        </motion.aside>
+
     );
 }
