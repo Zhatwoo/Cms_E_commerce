@@ -145,7 +145,7 @@ export function DashboardSidebar({ mobile = false, onClose, activeId }: Dashboar
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 overflow-y-auto px-3 py-6">
+            <nav className="flex-1 px-3 py-6">
                 <ul className="space-y-1">
                     {navItems.map((item) => {
                         const isActive = activeId ? item.id === activeId : false;
