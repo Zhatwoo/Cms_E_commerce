@@ -22,12 +22,9 @@ export function Testimonials() {
       />
       <div className="relative z-10 mx-auto max-w-6xl">
         {/* 3D Globe — right 30% of section (from github-globe-main) */}
-        <div
-          className="pointer-events-none absolute inset-0 z-0 flex items-center"
-          aria-hidden
-        >
+        <div className="absolute inset-0 z-0 flex items-center" aria-hidden>
           <div
-            className="absolute left-[100%] top-[85%] aspect-square h-[min(126.72vmin,66.528rem)] w-[min(126.72vmin,66.528rem)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full md:h-[min(142.56vmin,76.032rem)] md:w-[min(142.56vmin,76.032rem)]"
+            className="pointer-events-auto absolute left-[100%] top-[85%] aspect-square h-[min(126.72vmin,66.528rem)] w-[min(126.72vmin,66.528rem)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full md:h-[min(142.56vmin,76.032rem)] md:w-[min(142.56vmin,76.032rem)]"
             style={{ isolation: 'isolate' }}
           >
             <Globe3D className="absolute inset-0 size-full" />

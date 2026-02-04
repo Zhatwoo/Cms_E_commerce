@@ -7,8 +7,15 @@ import type { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.j
 const GLOBE_DATA_URL = '/globe-data-min.json';
 
 const ARC_LAND_INTERVAL_MS = 2500;
-const MAX_LANDINGS = 10;
-const LANDING_SPREAD_DEG = 1.2;
+const MAX_LANDINGS = 5;
+// Fixed offsets per slot so 5 cards stay in different regions and don't overlap
+const SLOT_OFFSETS: { lat: number; lng: number }[] = [
+  { lat: 2, lng: 2 },
+  { lat: -2, lng: 3 },
+  { lat: 3, lng: -2 },
+  { lat: -3, lng: -1 },
+  { lat: 1, lng: -3 },
+];
 
 const DUMMY_TESTIMONIALS = [
   { quote: 'Great platform.', title: 'Jane D.', description: 'CEO' },
@@ -82,15 +89,46 @@ interface GlobeInstance {
 }
 
 // Simple arcs for globe (inspired by github-globe-main)
+const PH = { lat: 14.5995, lng: 120.9842 };
+const PH_ARCS = [
+  { endLat: 35.6762, endLng: 139.6503 }, // Tokyo
+  { endLat: 37.5665, endLng: 126.978 }, // Seoul
+  { endLat: 40.7128, endLng: -74.006 }, // NYC
+  { endLat: 51.5074, endLng: -0.1278 }, // London
+  { endLat: -33.8688, endLng: 151.2093 }, // Sydney
+  { endLat: 34.0522, endLng: -118.2437 }, // LA
+  { endLat: 25.2048, endLng: 55.2708 }, // Dubai
+  { endLat: 39.9042, endLng: 116.4074 }, // Beijing
+  { endLat: 1.3521, endLng: 103.8198 }, // Singapore
+  { endLat: 28.6139, endLng: 77.209 }, // New Delhi
+];
+
 const ARCS = [
-  { startLat: 14.5995, startLng: 120.9842, endLat: 35.6762, endLng: 139.6503, order: 1 },
-  { startLat: 40.7128, startLng: -74.006, endLat: 51.5074, endLng: -0.1278, order: 2 },
-  { startLat: -33.8688, startLng: 151.2093, endLat: 34.0522, endLng: -118.2437, order: 3 },
-  { startLat: 1.3521, startLng: 103.8198, endLat: 25.2048, endLng: 55.2708, order: 4 },
-  { startLat: 55.7558, startLng: 37.6173, endLat: 39.9042, endLng: 116.4074, order: 5 },
-  { startLat: 41.9028, startLng: 12.4964, endLat: 48.8566, endLng: 2.3522, order: 6 },
-  { startLat: 28.6139, startLng: 77.209, endLat: 24.8607, endLng: 67.0011, order: 7 },
-  { startLat: 22.3193, startLng: 114.1694, endLat: 37.5665, endLng: 126.978, order: 8 },
+  ...PH_ARCS.map((dest, idx) => ({
+    startLat: PH.lat,
+    startLng: PH.lng,
+    endLat: dest.endLat,
+    endLng: dest.endLng,
+    order: idx + 1,
+  })),
+  { startLat: 40.7128, startLng: -74.006, endLat: 51.5074, endLng: -0.1278, order: 11 },
+  { startLat: -33.8688, startLng: 151.2093, endLat: 34.0522, endLng: -118.2437, order: 12 },
+  { startLat: 1.3521, startLng: 103.8198, endLat: 25.2048, endLng: 55.2708, order: 13 },
+  { startLat: 55.7558, startLng: 37.6173, endLat: 39.9042, endLng: 116.4074, order: 14 },
+  { startLat: 41.9028, startLng: 12.4964, endLat: 48.8566, endLng: 2.3522, order: 15 },
+  { startLat: 28.6139, startLng: 77.209, endLat: 24.8607, endLng: 67.0011, order: 16 },
+  { startLat: 22.3193, startLng: 114.1694, endLat: 37.5665, endLng: 126.978, order: 17 },
+];
+
+const ARC_DATA = [
+  ...ARCS,
+  ...ARCS.map((arc, idx) => ({
+    startLat: arc.endLat,
+    startLng: arc.endLng,
+    endLat: arc.startLat,
+    endLng: arc.startLng,
+    order: (arc.order ?? idx + 1) + ARCS.length,
+  })),
 ];
 
 type GlobeData = { type?: string; features?: unknown[] };
@@ -173,22 +211,13 @@ export function Globe3D({ className }: { className?: string }) {
       globe
         .hexPolygonsData(features)
         .hexPolygonResolution(3)
-        .hexPolygonMargin(0.7)
+        .hexPolygonMargin(0.60)
         .showAtmosphere(true)
         .atmosphereColor('#3a228a')
         .atmosphereAltitude(0.25)
-        .hexPolygonColor((e: { properties?: { ISO_A3?: string } }) => {
-          if (
-            ['KGZ', 'KOR', 'THA', 'RUS', 'UZB', 'IDN', 'KAZ', 'MYS'].includes(
-              e.properties?.ISO_A3 ?? ''
-            )
-          ) {
-            return 'rgba(255,255,255, 1)';
-          }
-          return 'rgba(255,255,255, 0.7)';
-        });
+        .hexPolygonColor(() => 'rgba(80, 255, 120, 0.9)');
 
-      globe.arcsData(ARCS)
+      globe.arcsData(ARC_DATA)
         .arcColor(() => '#ffffff')
         .arcAltitude((e: { arcAlt?: number }) => (e as { arcAlt?: number }).arcAlt ?? 0.2)
         .arcStroke(0.5)
@@ -201,7 +230,6 @@ export function Globe3D({ className }: { className?: string }) {
       const landings: LandingDatum[] = [];
       let arcLandIndex = 0;
       let landingId = 0;
-      const spread = () => (Math.random() - 0.5) * 2 * LANDING_SPREAD_DEG;
 
       globe
         .htmlElementsData(landings)
@@ -229,12 +257,14 @@ export function Globe3D({ className }: { className?: string }) {
       globe.setPointOfView(camera);
 
       const arcLandInterval = setInterval(() => {
-        const arc = ARCS[arcLandIndex % ARCS.length];
+        const slotIndex = landings.length % MAX_LANDINGS;
+        const arc = ARCS[slotIndex];
+        const off = SLOT_OFFSETS[slotIndex];
         const testimonial = DUMMY_TESTIMONIALS[arcLandIndex % DUMMY_TESTIMONIALS.length];
         landings.push({
           id: landingId++,
-          lat: arc.endLat + spread(),
-          lng: arc.endLng + spread(),
+          lat: arc.endLat + off.lat,
+          lng: arc.endLng + off.lng,
           quote: testimonial.quote,
           title: testimonial.title,
           description: testimonial.description,
@@ -277,14 +307,15 @@ export function Globe3D({ className }: { className?: string }) {
       };
       animate();
 
-      // First card after a short delay
+      // First card after a short delay (slot 0)
       setTimeout(() => {
         const arc = ARCS[0];
+        const off = SLOT_OFFSETS[0];
         const t = DUMMY_TESTIMONIALS[0];
         landings.push({
           id: landingId++,
-          lat: arc.endLat + spread(),
-          lng: arc.endLng + spread(),
+          lat: arc.endLat + off.lat,
+          lng: arc.endLng + off.lng,
           quote: t.quote,
           title: t.title,
           description: t.description,
