@@ -18,7 +18,7 @@
   "author": "Zhanarbek Osmonaliev",
   "license": "ISC",
   "dependencies": {
-    "three": "^0.128.0",
+    "three": "^0.152.0",
     "three-globe": "^2.18.8",
     "three-glow-mesh": "^0.1.2"
   },
@@ -27,6 +27,6 @@
     "json-loader": "^0.5.7",
     "webpack": "^5.15.0",
     "webpack-cli": "^4.3.1",
-    "webpack-dev-server": "^3.11.2"
+    "webpack-dev-server": "^4.15.2"
   }
 }
