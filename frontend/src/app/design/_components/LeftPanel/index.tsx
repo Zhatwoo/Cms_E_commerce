@@ -1,63 +1,73 @@
-import React from "react";
-import { useEditor, Element } from "@craftjs/core";
-import { Container } from "../../_blocks/Container/Container";
-import { Text } from "../../_blocks/Text/Text";
+import React, { useState } from "react";
+import { ChevronDown, PanelLeft, Search } from "lucide-react";
+import { FilesPanel } from "./FilesPanel";
+import { ComponentsPanel } from "./ComponentsPanel";
+import { AssetsPanel } from "./AssetsPanel";
 
 export const LeftPanel = () => {
-  const { connectors } = useEditor();
+  const [activePanel, setActivePanel] = useState("files");
 
   return (
-    <div className="w-80 bg-brand-dark m-4 rounded-3xl p-6 flex flex-col gap-4 h-[calc(100vh-2rem)] shadow-xl overflow-y-auto">
+    <div className="w-80 bg-brand-dark/75 backdrop-blur-lg rounded-3xl p-6 flex flex-col gap-4 h-full overflow-y-auto border border-white/10"
+      style={{ boxShadow: 'inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)' }}>
+      {/* Left Panel Header */}
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-white font-bold text-lg">Inspire</h3>
-        <span className="text-brand-light">icon</span>
-      </div>
-
-      <div className="mb-4">
-        <label className="text-brand-light text-xs uppercase tracking-wider font-semibold mb-2 block">Project Title:</label>
-        <div className="flex gap-2 mb-4 border-b border-brand-medium pb-2">
-          <button className="text-white border-b-2 border-white pb-1">Components</button>
-          <button className="text-brand-light pb-1">Assets</button>
+        <div className="flex items-center gap-2">
+          <h3 className="text-white font-bold text-lg">Inspire</h3>
+          <ChevronDown className="w-4 h-4" />
         </div>
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Search Assets"
-            className="w-full bg-transparent border border-brand-medium rounded-lg p-2 text-sm text-white focus:outline-none focus:border-brand-light"
-          />
-          <span className="absolute right-3 top-2.5 text-brand-light">🔍</span>
+        {/* Toggle left panel Icon */}
+        <div className="relative group">
+          <PanelLeft className="w-4 h-4 cursor-pointer" />
+          {/* Tooltip for Toggle left panel Icon */}
+          <span className="absolute right-0 top-full mt-2 px-2 py-1 rounded bg-brand-medium/50 text-white text-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-10">
+            Toggle left panel
+          </span>
         </div>
       </div>
 
-      <div className="flex flex-col gap-4 overflow-y-auto pr-2">
-        {/* Draggable Button for Container */}
-        <div className="flex flex-col gap-2">
-          <div
-            ref={(ref) => {
-              if (ref) connectors.create(ref, <Element is={Container} background="#27272a" padding={20} canvas />);
-            }}
-            className="bg-brand-white/5 p-4 rounded-xl hover:bg-brand-white/10 transition cursor-move border border-brand-medium/30 group"
-          >
-            <div className="h-20 bg-brand-medium/20 rounded-lg mb-2 border border-dashed border-brand-medium/50 flex items-center justify-center text-brand-light text-xs">
-              Container Preview
-            </div>
-            <span className="text-sm text-brand-lighter font-medium">Container Block</span>
-          </div>
+      {/* Project Title */}
+      <label className="text-brand-white text-lg tracking-wider font-semibold">Project Title</label>
 
-          {/* Draggable Button for Text */}
-          <div
-            ref={(ref) => {
-              if (ref) connectors.create(ref, <Text text="New Text" fontSize={16} />);
-            }}
-            className="bg-brand-white/5 p-4 rounded-xl hover:bg-brand-white/10 transition cursor-move border border-brand-medium/30 group"
-          >
-            <div className="h-20 bg-brand-medium/20 rounded-lg mb-2 border border-dashed border-brand-medium/50 flex items-center justify-center text-brand-light text-xs">
-              Text Preview
-            </div>
-            <span className="text-sm text-brand-lighter font-medium">Text Block</span>
-          </div>
-        </div>
+      {/* Navigation Tabs */}
+      <div className="flex justify-between text-sm items-center py-1.5 px-4 border-y border-brand-medium">
+        <button
+          onClick={() => setActivePanel("files")}
+          className={activePanel === "files" ? "text-white bg-brand-medium/50 rounded-lg px-2.5 py-1" : "text-brand-light hover:text-brand-lighter px-2.5 py-1"}
+        >
+          Files
+        </button>
+        <button
+          onClick={() => setActivePanel("components")}
+          className={activePanel === "components" ? "text-white bg-brand-medium/50 rounded-lg px-2.5 py-1" : "text-brand-light hover:text-brand-lighter px-2.5 py-1"}
+        >
+          Component
+        </button>
+        <button
+          onClick={() => setActivePanel("assets")}
+          className={activePanel === "assets" ? "text-white bg-brand-medium/50 rounded-lg px-2.5 py-1" : "text-brand-light hover:text-brand-lighter px-2.5 py-1"}
+        >
+          Assets
+        </button>
       </div>
+
+
+      {activePanel === "files" && (
+        // {/* Search Files */ }
+        //   <div className="flex items-center px-4">
+        //     <input
+        //       type="text"
+        //       placeholder="Search Files"
+        //       className="w-full bg-transparent text-sm text-white focus:outline-none pl-2 placeholder:text-brand-light"
+        //     />
+        //     <span className="text-brand-light"><Search className="w-4 h-4" /></span>
+        //   </div>
+        <FilesPanel />
+      )}
+
+      {activePanel === "assets" && <AssetsPanel />}
+
+      {activePanel === "components" && <ComponentsPanel />}
     </div>
   );
 };

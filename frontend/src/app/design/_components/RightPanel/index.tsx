@@ -19,7 +19,7 @@ export const RightPanel = () => {
   });
 
   return (
-    <div className="w-80 bg-brand-dark m-4 rounded-3xl p-6 h-[calc(100vh-2rem)] shadow-xl overflow-y-auto">
+    <div className="w-80 bg-brand-dark/75 backdrop-blur-lg rounded-3xl p-6 h-full shadow-2xl overflow-y-auto border border-white/10">
       <div className="flex items-center justify-between mb-6">
         <span className="text-brand-light">icon</span>
         <h3 className="text-white font-bold text-lg">Configs</h3>
