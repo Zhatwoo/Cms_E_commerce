@@ -27,7 +27,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      router.push('/');
+      router.push('/m_dashboard');
       router.refresh();
     } catch (err: unknown) {
       const message = err && typeof err === 'object' && 'code' in err
