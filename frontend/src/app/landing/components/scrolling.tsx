@@ -53,7 +53,7 @@ export function useScrollGate() {
   const { gateProgress, scrollContainerRef } = useLandingScroll();
   return {
     progress: gateProgress,
-    allowInnerScroll: false,
+    allowInnerScroll: gateProgress >= 0.95,
     scrollContainerRef,
   };
 }
@@ -177,27 +177,16 @@ export function FrontLayerEntranceSpacer() {
 /** Wrapper for Pricing + Testimonials + Footer: fixed overlay, tumataas from below and overlaps entirely sa MercatoTools. */
 export function FrontLayerWrapper({ children }: { children: React.ReactNode }) {
   const { frontLayerProgress } = useLandingScroll();
-  const [viewportHeight, setViewportHeight] = useState(
-    typeof window !== 'undefined' ? window.innerHeight : 700
-  );
-  useEffect(() => {
-    const onResize = () => setViewportHeight(window.innerHeight);
-    onResize();
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
-  const entranceY = (1 - frontLayerProgress) * viewportHeight;
+  const translateY = `${(1 - frontLayerProgress) * 100}vh`;
   return (
     <div
-      className="fixed left-0 right-0 top-0 z-20 overflow-y-auto overflow-x-hidden rounded-t-3xl bg-[#020205] transition-transform duration-500 ease-out"
+      className="fixed left-0 right-0 top-0 z-20 overflow-y-auto overflow-x-hidden rounded-t-3xl bg-[#020205] transition-transform duration-500 ease-out will-change-transform"
       style={{
         height: '100vh',
         minHeight: '100dvh',
-        transform: `translateY(${entranceY}px)`,
-        willChange: 'transform',
+        transform: `translateY(${translateY})`,
       }}
     >
-      {/* Parent: single bg #020205 fills to bottom; sections extend to bottom via flex */}
       <div className="flex min-h-full min-h-screen flex-col bg-[#020205]">
         {children}
       </div>
