@@ -40,3 +40,10 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Builder Styles */
+.component-selected {
+  outline: 2px solid #3b82f6 !important;
+  /* Blue 500 */
+  position: relative;
+}
