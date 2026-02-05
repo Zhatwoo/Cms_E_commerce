@@ -126,12 +126,14 @@ const THEMES = {
 // ── 3D Scene ─────────────────────────────────────────────────────────────────
 const Dashboard3DScene: React.FC<{ metrics: DashboardInfraMetrics; colors: typeof THEMES.dark; theme: 'dark' | 'light' }> = ({ metrics, colors, theme }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  });
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setReducedMotion(mq.matches);
     const onChange = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
@@ -345,7 +347,7 @@ export function DashboardContent() {
   useEffect(() => {
     document.documentElement.classList.remove('dark', 'light');
     document.documentElement.classList.add(theme);
-    (document.documentElement.style as any).colorScheme = theme;
+    (document.documentElement.style as CSSStyleDeclaration & { colorScheme: string }).colorScheme = theme;
   }, [theme]);
 
   useEffect(() => {
@@ -370,7 +372,7 @@ export function DashboardContent() {
     const newTheme = theme === "dark" ? "light" : "dark";
 
     if (
-      !(document as any).startViewTransition ||
+      !('startViewTransition' in document) ||
       window.matchMedia("(prefers-reduced-motion: reduce)").matches
     ) {
       setTheme(newTheme);
@@ -384,7 +386,7 @@ export function DashboardContent() {
       Math.max(y, window.innerHeight - y)
     );
 
-    const transition = (document as any).startViewTransition(() => setTheme(newTheme));
+    const transition = (document as Document & { startViewTransition: (cb: () => void) => { ready: Promise<void> } }).startViewTransition(() => setTheme(newTheme));
 
     transition.ready.then(() => {
       const clipPath = [
