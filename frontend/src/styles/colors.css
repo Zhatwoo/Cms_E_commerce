@@ -1,0 +1,19 @@
+:root {
+  /* Custom Color Palette */
+  --brand-black: #000000;
+  --brand-dark: #1D1D21;
+  --brand-medium: #66666E;
+  --brand-light: #9999A1;
+  --brand-lighter: #E6E6E9;
+  --brand-white: #F4F4F6;
+}
+
+@theme inline {
+  /* Custom Color Palette Utilities */
+  --color-brand-black: var(--brand-black);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-medium: var(--brand-medium);
+  --color-brand-light: var(--brand-light);
+  --color-brand-lighter: var(--brand-lighter);
+  --color-brand-white: var(--brand-white);
+}
