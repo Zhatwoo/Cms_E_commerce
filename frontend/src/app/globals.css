@@ -14,6 +14,17 @@
   --font-mono: var(--font-geist-mono);
 }
 
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: marquee 40s linear infinite;
+}
+.pause-marquee:hover {
+  animation-play-state: paused;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
