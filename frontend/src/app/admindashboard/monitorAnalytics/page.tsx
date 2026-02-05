@@ -1,16 +1,32 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, type Variants } from 'framer-motion';
 import { AdminSidebar } from '../components/sidebar';
 import { AdminHeader } from '../components/header';
 import { AnimatePresence } from 'framer-motion';
+import Chart from 'chart.js/auto';
 
 const ChevronRightIcon = () => (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
     </svg>
 );
+
+const polarToCartesian = (cx: number, cy: number, r: number, angle: number) => {
+    const rad = ((angle - 90) * Math.PI) / 180;
+    return {
+        x: cx + r * Math.cos(rad),
+        y: cy + r * Math.sin(rad),
+    };
+};
+
+const describeArc = (cx: number, cy: number, r: number, startAngle: number, endAngle: number) => {
+    const start = polarToCartesian(cx, cy, r, endAngle);
+    const end = polarToCartesian(cx, cy, r, startAngle);
+    const largeArcFlag = endAngle - startAngle <= 180 ? '0' : '1';
+    return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArcFlag} 0 ${end.x} ${end.y} L ${cx} ${cy} Z`;
+};
 
 const cardVariants: Variants = {
     hidden: { opacity: 0, y: 16, scale: 0.96 },
@@ -31,44 +47,127 @@ const containerVariants: Variants = {
 export default function MonitoringAnalyticsPage() {
     const [activeTab, setActiveTab] = useState('platform');
     const [timePeriod, setTimePeriod] = useState('7days');
-    const [hoveredPoint, setHoveredPoint] = useState<{ date: string; mobile: number; desktop: number } | null>(null);
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const trafficChartRef = useRef<HTMLCanvasElement>(null);
+    const chartInstanceRef = useRef<Chart | null>(null);
+
+    // Initialize traffic chart on mount and when time period changes
+    useEffect(() => {
+        if (!trafficChartRef.current) return;
+
+        const getChartData = () => {
+            if (timePeriod === '7days') {
+                return {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    visitors: [270, 300, 360, 330, 410, 380, 450],
+                    signups: [120, 150, 180, 170, 210, 200, 240],
+                };
+            } else if (timePeriod === '30days') {
+                return {
+                    labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                    visitors: [2100, 2450, 2890, 3200],
+                    signups: [850, 980, 1120, 1350],
+                };
+            } else {
+                return {
+                    labels: ['Jan', 'Feb', 'Mar'],
+                    visitors: [8500, 9200, 10100],
+                    signups: [3200, 3800, 4200],
+                };
+            }
+        };
+
+        // Destroy previous chart if it exists
+        if (chartInstanceRef.current) {
+            chartInstanceRef.current.destroy();
+        }
+
+        const chartData = getChartData();
+
+        const ctx = trafficChartRef.current.getContext('2d');
+        if (!ctx) return;
+
+        chartInstanceRef.current = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartData.labels,
+                datasets: [
+                    {
+                        label: 'Visitors',
+                        data: chartData.visitors,
+                        borderColor: '#1d4ed8',
+                        backgroundColor: 'rgba(29, 78, 216, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                    },
+                    {
+                        label: 'Signups',
+                        data: chartData.signups,
+                        borderColor: '#64748b',
+                        backgroundColor: 'rgba(100, 116, 139, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                    },
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(226, 232, 240, 0.5)',
+                        },
+                    },
+                    x: {
+                        grid: {
+                            display: false,
+                        },
+                    },
+                },
+            },
+        });
+
+        return () => {
+            if (chartInstanceRef.current) {
+                chartInstanceRef.current.destroy();
+            }
+        };
+    }, [timePeriod]);
 
     const tabNames: Record<string, string> = {
-        platform: 'Platform Activities',
-        engagement: 'Engagement',
-        trends: 'Trends & Anomalies',
+        platform: 'Platform Traffic',
+        engagement: 'Revenue Growth',
+        trends: 'Subscription Distribution',
     };
 
-    // Generate visitor data based on time period
-    const getVisitorData = () => {
-        if (timePeriod === '7days') {
-            return [
-                { date: 'Feb 1', mobile: 280, desktop: 420 },
-                { date: 'Feb 2', mobile: 320, desktop: 380 },
-                { date: 'Feb 3', mobile: 380, desktop: 434 },
-                { date: 'Feb 4', mobile: 350, desktop: 460 },
-                { date: 'Feb 5', mobile: 420, desktop: 490 },
-                { date: 'Feb 6', mobile: 390, desktop: 510 },
-                { date: 'Feb 7', mobile: 450, desktop: 540 },
-            ];
-        } else if (timePeriod === '30days') {
-            return Array.from({ length: 8 }).map((_, i) => ({
-                date: `Day ${i * 4 + 1}`,
-                mobile: 300 + Math.random() * 150,
-                desktop: 400 + Math.random() * 200,
-            }));
-        } else {
-            return Array.from({ length: 12 }).map((_, i) => ({
-                date: ['Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov'][i],
-                mobile: 250 + Math.random() * 200,
-                desktop: 350 + Math.random() * 250,
-            }));
-        }
-    };
-
-    const visitorData = getVisitorData();
-    const maxVisitors = Math.max(...visitorData.flatMap(d => [d.mobile, d.desktop]));
+    const subscriptionData = [
+        { label: 'Free', value: 35, color: '#94a3b8' },
+        { label: 'Basic', value: 30, color: '#2563eb' },
+        { label: 'Pro', value: 25, color: '#22c55e' },
+        { label: 'Enterprise', value: 10, color: '#f59e0b' },
+    ];
+    const totalSubscriptions = subscriptionData.reduce((sum, item) => sum + item.value, 0);
+    let cumulativeAngle = 0;
+    const subscriptionSegments = subscriptionData.map((item) => {
+        const startAngle = (cumulativeAngle / totalSubscriptions) * 360;
+        cumulativeAngle += item.value;
+        const endAngle = (cumulativeAngle / totalSubscriptions) * 360;
+        return { ...item, startAngle, endAngle };
+    });
 
     return (
         <div className="min-h-screen bg-gray-100 flex">
@@ -115,8 +214,8 @@ export default function MonitoringAnalyticsPage() {
                 >
                     {[
                         { label: 'Daily Active Users', value: '3,000', change: '+5.2% today' },
-                        { label: 'New Sign-ups', value: '1,247', change: '+12.8% this week' },
-                        { label: 'Reports Generated', value: '89', change: '+2.4% vs last week' },
+                        { label: 'Revenue', value: '1,247', change: '+12.8% this week' },
+                        { label: 'Published Websites', value: '89', change: '+2.4% vs last week' },
                     ].map((card) => (
                         <motion.div
                             key={card.label}
@@ -153,9 +252,9 @@ export default function MonitoringAnalyticsPage() {
                     <div className="border-b border-slate-200">
                         <div className="flex gap-8 px-6 pt-6">
                             {[
-                                { id: 'platform', label: 'Platform Activities' },
-                                { id: 'engagement', label: 'Engagement' },
-                                { id: 'trends', label: 'Trends & Anomalies' },
+                                { id: 'platform', label: 'Platform Traffic' },
+                                { id: 'engagement', label: 'Revenue Growth' },
+                                { id: 'trends', label: 'Subscription Distribution' },
                             ].map((tab) => (
                                 <button
                                     key={tab.id}
@@ -174,7 +273,7 @@ export default function MonitoringAnalyticsPage() {
 
                     {/* Content Section */}
                     <div className="p-6">
-                        {/* Platform Activities Tab */}
+                        {/* Platform Traffic Tab */}
                         {activeTab === 'platform' && (
                             <motion.div
                                 initial={{ opacity: 0 }}
@@ -183,19 +282,16 @@ export default function MonitoringAnalyticsPage() {
                                 className="space-y-6"
                             >
                                 <div>
-                                    {/* Header with Time Period Filter */}
                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
                                         <div>
-                                            <h2 className="text-2xl font-semibold text-slate-900">Total Visitors</h2>
-                                            <p className="text-sm text-slate-500 mt-1">
-                                                Total for the last {timePeriod === '7days' ? '7 days' : timePeriod === '30days' ? '30 days' : '3 months'}
-                                            </p>
+                                            <h2 className="text-2xl font-semibold text-slate-900">Platform Traffic</h2>
+                                            <p className="text-sm text-slate-500 mt-1">Visitors and signups performance</p>
                                         </div>
                                         <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
                                             {[
-                                                { id: '3months', label: 'Last 3 months' },
-                                                { id: '30days', label: 'Last 30 days' },
                                                 { id: '7days', label: 'Last 7 days' },
+                                                { id: '30days', label: 'Last 30 days' },
+                                                { id: '3months', label: 'Last 3 months' },
                                             ].map((period) => (
                                                 <button
                                                     key={period.id}
@@ -212,191 +308,14 @@ export default function MonitoringAnalyticsPage() {
                                         </div>
                                     </div>
 
-                                    {/* Chart Container */}
-                                    <div className="bg-white rounded-xl p-8 border border-slate-200 relative">
-                                        <svg
-                                            viewBox="0 0 800 400"
-                                            className="w-full"
-                                            style={{ aspectRatio: '800/400' }}
-                                            onMouseLeave={() => setHoveredPoint(null)}
-                                        >
-                                            <defs>
-                                                {/* Gradient for Desktop area */}
-                                                <linearGradient id="desktopGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                                    <stop offset="0%" stopColor="#64748b" stopOpacity="0.15" />
-                                                    <stop offset="100%" stopColor="#64748b" stopOpacity="0.02" />
-                                                </linearGradient>
-                                                {/* Gradient for Mobile area */}
-                                                <linearGradient id="mobileGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                                    <stop offset="0%" stopColor="#2563eb" stopOpacity="0.2" />
-                                                    <stop offset="100%" stopColor="#2563eb" stopOpacity="0.03" />
-                                                </linearGradient>
-                                            </defs>
-
-                                            {/* Grid lines */}
-                                            {[...Array(5)].map((_, i) => (
-                                                <line
-                                                    key={`grid-${i}`}
-                                                    x1="60"
-                                                    y1={50 + i * 70}
-                                                    x2="760"
-                                                    y2={50 + i * 70}
-                                                    stroke="#e2e8f0"
-                                                    strokeWidth="1"
-                                                    opacity="1"
-                                                />
-                                            ))}
-
-                                            {/* Y-axis labels */}
-                                            {[Math.round(maxVisitors), Math.round(maxVisitors * 0.75), Math.round(maxVisitors * 0.5), Math.round(maxVisitors * 0.25), 0].map((label, i) => (
-                                                <text
-                                                    key={`y-${i}`}
-                                                    x="45"
-                                                    y={50 + i * 70 + 5}
-                                                    fontSize="12"
-                                                    fill="#94a3b8"
-                                                    textAnchor="end"
-                                                >
-                                                    {label}
-                                                </text>
-                                            ))}
-
-                                            {/* Desktop area (bottom layer) */}
-                                            <path
-                                                d={(() => {
-                                                    const points = visitorData.map((d, i) => {
-                                                        const x = 60 + (i / (visitorData.length - 1)) * 700;
-                                                        const y = 330 - ((d.desktop / maxVisitors) * 280);
-                                                        return `${x},${y}`;
-                                                    });
-                                                    const startX = 60;
-                                                    const endX = 760;
-                                                    return `M${startX},330 L${points.join(' L')} L${endX},330 Z`;
-                                                })()}
-                                                fill="url(#desktopGradient)"
-                                            />
-
-                                            {/* Desktop line */}
-                                            <polyline
-                                                points={visitorData.map((d, i) => {
-                                                    const x = 60 + (i / (visitorData.length - 1)) * 700;
-                                                    const y = 330 - ((d.desktop / maxVisitors) * 280);
-                                                    return `${x},${y}`;
-                                                }).join(' ')}
-                                                fill="none"
-                                                stroke="#64748b"
-                                                strokeWidth="2.5"
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                            />
-
-                                            {/* Mobile area (top layer) */}
-                                            <path
-                                                d={(() => {
-                                                    const points = visitorData.map((d, i) => {
-                                                        const x = 60 + (i / (visitorData.length - 1)) * 700;
-                                                        const y = 330 - ((d.mobile / maxVisitors) * 280);
-                                                        return `${x},${y}`;
-                                                    });
-                                                    const startX = 60;
-                                                    const endX = 760;
-                                                    return `M${startX},330 L${points.join(' L')} L${endX},330 Z`;
-                                                })()}
-                                                fill="url(#mobileGradient)"
-                                            />
-
-                                            {/* Mobile line */}
-                                            <polyline
-                                                points={visitorData.map((d, i) => {
-                                                    const x = 60 + (i / (visitorData.length - 1)) * 700;
-                                                    const y = 330 - ((d.mobile / maxVisitors) * 280);
-                                                    return `${x},${y}`;
-                                                }).join(' ')}
-                                                fill="none"
-                                                stroke="#2563eb"
-                                                strokeWidth="2.5"
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                            />
-
-                                            {/* Interactive points */}
-                                            {visitorData.map((d, i) => {
-                                                const x = 60 + (i / (visitorData.length - 1)) * 700;
-                                                const yMobile = 330 - ((d.mobile / maxVisitors) * 280);
-                                                const yDesktop = 330 - ((d.desktop / maxVisitors) * 280);
-                                                
-                                                return (
-                                                    <g key={`point-${i}`}>
-                                                        {/* Invisible larger circle for better hover */}
-                                                        <circle
-                                                            cx={x}
-                                                            cy={yMobile}
-                                                            r="20"
-                                                            fill="transparent"
-                                                            style={{ cursor: 'pointer' }}
-                                                            onMouseEnter={() => setHoveredPoint(d)}
-                                                        />
-                                                        {/* Desktop point */}
-                                                        <circle
-                                                            cx={x}
-                                                            cy={yDesktop}
-                                                            r="4"
-                                                            fill="#64748b"
-                                                        />
-                                                        {/* Mobile point */}
-                                                        <circle
-                                                            cx={x}
-                                                            cy={yMobile}
-                                                            r="4"
-                                                            fill="#2563eb"
-                                                        />
-                                                    </g>
-                                                );
-                                            })}
-
-                                            {/* X-axis labels */}
-                                            {visitorData.map((d, i) => (
-                                                <text
-                                                    key={`x-${i}`}
-                                                    x={60 + (i / (visitorData.length - 1)) * 700}
-                                                    y="360"
-                                                    fontSize="12"
-                                                    fill="#94a3b8"
-                                                    textAnchor="middle"
-                                                >
-                                                    {d.date}
-                                                </text>
-                                            ))}
-                                        </svg>
-
-                                        {/* Tooltip */}
-                                        {hoveredPoint && (
-                                            <motion.div
-                                                initial={{ opacity: 0, scale: 0.95 }}
-                                                animate={{ opacity: 1, scale: 1 }}
-                                                className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-white border border-slate-200 rounded-lg p-4 shadow-xl"
-                                            >
-                                                <div className="text-sm font-semibold text-slate-900 mb-2">{hoveredPoint.date}</div>
-                                                <div className="space-y-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-3 h-3 rounded-sm bg-blue-600"></div>
-                                                        <span className="text-sm text-slate-600">Mobile</span>
-                                                        <span className="text-sm font-semibold text-slate-900 ml-auto">{hoveredPoint.mobile}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-3 h-3 rounded-sm bg-slate-500"></div>
-                                                        <span className="text-sm text-slate-600">Desktop</span>
-                                                        <span className="text-sm font-semibold text-slate-900 ml-auto">{hoveredPoint.desktop}</span>
-                                                    </div>
-                                                </div>
-                                            </motion.div>
-                                        )}
+                                    <div className="bg-white rounded-xl p-8 border border-slate-200">
+                                        <canvas ref={trafficChartRef} height="80"></canvas>
                                     </div>
                                 </div>
                             </motion.div>
                         )}
 
-                        {/* Engagement Tab */}
+                        {/* Revenue Growth Tab */}
                         {activeTab === 'engagement' && (
                             <motion.div
                                 initial={{ opacity: 0 }}
@@ -407,14 +326,15 @@ export default function MonitoringAnalyticsPage() {
                                 <div>
                                     <div className="bg-slate-50 rounded-xl p-8 border border-slate-200 min-h-[400px] flex items-center justify-center">
                                         <div className="text-center">
-                                            <p className="text-slate-500">Engagement metrics coming soon</p>
+                                            <h2 className="text-2xl font-semibold text-slate-900 mb-2">Revenue Growth</h2>
+                                            <p className="text-sm text-slate-500">Revenue insights coming soon</p>
                                         </div>
                                     </div>
                                 </div>
                             </motion.div>
                         )}
 
-                        {/* Trends & Anomalies Tab */}
+                        {/* Subscription Distribution Tab */}
                         {activeTab === 'trends' && (
                             <motion.div
                                 initial={{ opacity: 0 }}
@@ -423,9 +343,43 @@ export default function MonitoringAnalyticsPage() {
                                 className="space-y-6"
                             >
                                 <div>
-                                    <div className="bg-slate-50 rounded-xl p-8 border border-slate-200 min-h-[400px] flex items-center justify-center">
-                                        <div className="text-center">
-                                            <p className="text-slate-500">Trends analysis data coming soon</p>
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+                                        <div>
+                                            <h2 className="text-2xl font-semibold text-slate-900">Subscription Distribution</h2>
+                                            <p className="text-sm text-slate-500 mt-1">Current plan mix across the platform</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white rounded-xl p-8 border border-slate-200">
+                                        <div className="flex flex-col lg:flex-row items-center gap-10">
+                                            <svg viewBox="0 0 360 360" className="w-full max-w-[280px]" style={{ aspectRatio: '360/360' }}>
+                                                {subscriptionSegments.map((segment) => (
+                                                    <path
+                                                        key={segment.label}
+                                                        d={describeArc(180, 180, 120, segment.startAngle, segment.endAngle)}
+                                                        fill={segment.color}
+                                                    />
+                                                ))}
+                                                <circle cx="180" cy="180" r="68" fill="#ffffff" />
+                                                <text x="180" y="175" fontSize="16" fill="#0f172a" textAnchor="middle" fontWeight="600">
+                                                    Total
+                                                </text>
+                                                <text x="180" y="200" fontSize="20" fill="#0f172a" textAnchor="middle" fontWeight="700">
+                                                    {totalSubscriptions}%
+                                                </text>
+                                            </svg>
+
+                                            <div className="space-y-4 w-full">
+                                                {subscriptionSegments.map((segment) => (
+                                                    <div key={`legend-${segment.label}`} className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="h-3 w-3 rounded-full" style={{ backgroundColor: segment.color }} />
+                                                            <span className="text-sm font-medium text-slate-700">{segment.label}</span>
+                                                        </div>
+                                                        <span className="text-sm font-semibold text-slate-900">{segment.value}%</span>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -434,68 +388,30 @@ export default function MonitoringAnalyticsPage() {
                     </div>
                 </motion.div>
 
-                {/* Additional Analytics Cards */}
+                {/* Workspace Statistics */}
                 <motion.div
-                    className="grid grid-cols-1 lg:grid-cols-2 gap-4"
                     initial={{ opacity: 0, y: 18 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.55, delay: 0.48, ease: [0.22, 0.84, 0.25, 1] }}
                 >
-                    {/* Top Pages */}
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_12px_36px_rgba(15,23,42,0.08)] p-6">
-                        <h3 className="text-lg font-semibold text-slate-900 mb-4">Top Pages</h3>
-                        <div className="space-y-3">
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_12px_36px_rgba(15,23,42,0.08)] p-8">
+                        <h3 className="text-lg font-semibold text-slate-900 mb-6">Workspace Statistics</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                             {[
-                                { name: 'Dashboard', views: '2,847', change: '+5.2%' },
-                                { name: 'Builder', views: '2,104', change: '+3.1%' },
-                                { name: 'Settings', views: '1,623', change: '-2.4%' },
-                            ].map((page, idx) => (
+                                { label: 'Total Projects', value: '4,500' },
+                                { label: 'Draft Sites', value: '1,200' },
+                                { label: 'Custom Domains', value: '830' },
+                                { label: 'Avg Sites/User', value: '2.1' },
+                            ].map((stat, idx) => (
                                 <motion.div
-                                    key={page.name}
-                                    className="flex items-center justify-between py-2 border-b border-slate-200 last:border-b-0"
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
+                                    key={stat.label}
+                                    className="flex flex-col border-l-4 border-blue-500 pl-4"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.35, delay: 0.5 + 0.05 * idx }}
                                 >
-                                    <span className="text-sm font-medium text-slate-900">{page.name}</span>
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-sm text-slate-600">{page.views}</span>
-                                        <span className="text-xs text-blue-600 font-semibold">{page.change}</span>
-                                    </div>
-                                </motion.div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Recent Events */}
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_12px_36px_rgba(15,23,42,0.08)] p-6">
-                        <h3 className="text-lg font-semibold text-slate-900 mb-4">Recent Events</h3>
-                        <div className="space-y-3">
-                            {[
-                                { event: 'High traffic detected', time: '2 min ago', status: 'info' },
-                                { event: 'New user registration spike', time: '15 min ago', status: 'success' },
-                                { event: 'API response time increased', time: '1 hour ago', status: 'warning' },
-                            ].map((item, idx) => (
-                                <motion.div
-                                    key={item.event}
-                                    className="flex gap-3 py-3 border-b border-slate-200 last:border-b-0"
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ duration: 0.35, delay: 0.55 + 0.05 * idx }}
-                                >
-                                    <div
-                                        className={`h-2 w-2 rounded-full flex-shrink-0 mt-1.5 ${
-                                            item.status === 'success'
-                                                ? 'bg-emerald-600'
-                                                : item.status === 'warning'
-                                                ? 'bg-amber-600'
-                                                : 'bg-blue-600'
-                                        }`}
-                                    />
-                                    <div className="flex-1">
-                                        <p className="text-sm font-medium text-slate-900">{item.event}</p>
-                                        <p className="text-xs text-slate-500">{item.time}</p>
-                                    </div>
+                                    <p className="text-sm text-slate-600 font-medium mb-1">{stat.label}</p>
+                                    <p className="text-2xl font-bold text-slate-900">{stat.value}</p>
                                 </motion.div>
                             ))}
                         </div>
