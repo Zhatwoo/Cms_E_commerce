@@ -1,5 +1,6 @@
 'use client';
 import React from 'react';
+import Link from 'next/link';
 
 const BellIcon = () => (
     <svg
@@ -73,9 +74,13 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                             <p className="text-sm font-medium text-white">Juan Dela Cruz</p>
                             <p className="text-xs text-gray-400">Website Owner</p>
                         </div>
-                        <div className="h-10 w-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-gray-300 shadow-lg">
+                        <Link
+                            href="/m_dashboard/profile"
+                            className="h-10 w-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-gray-300 shadow-lg hover:bg-white/20 transition-colors"
+                            aria-label="Profile"
+                        >
                             <UserIcon />
-                        </div>
+                        </Link>
                     </div>
                 </div>
             </div>
