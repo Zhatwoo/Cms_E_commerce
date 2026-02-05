@@ -40,8 +40,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070812] flex flex-col items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md">
+    <div className="w-full max-w-md">
         <Link
           href="/"
           className="inline-block text-2xl font-medium tracking-wide text-white mb-8"
@@ -94,7 +93,6 @@ export default function ForgotPasswordPage() {
             </Link>
           </p>
         </div>
-      </div>
     </div>
   );
 }

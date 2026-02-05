@@ -24,16 +24,18 @@ exports.protect = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // Get user from database (excluding password)
-    req.user = await User.findById(decoded.id).select('-password');
-    
-    if (!req.user) {
+    // Get user from database
+    const user = await User.findById(decoded.id);
+    if (!user) {
       return res.status(401).json({
         success: false,
         message: 'User not found'
       });
     }
-    
+    // Strip password from req.user
+    req.user = { ...user };
+    delete req.user.password;
+
     // Check if user is active
     if (!req.user.isActive) {
       return res.status(403).json({
@@ -53,7 +55,7 @@ exports.protect = async (req, res, next) => {
 
 // Check if user is admin
 exports.admin = (req, res, next) => {
-  if (req.user && req.user.role === 'admin') {
+  if (req.user && req.user.role === 'Admin') {
     next();
   } else {
     return res.status(403).json({
