@@ -1,12 +1,12 @@
 import React, { useRef, useState, useEffect } from "react";
 import { Editor, Frame, Element } from "@craftjs/core";
-import { RenderBlocks } from "../_blocks";
-import { LeftPanel } from "./LeftPanel";
-import { RightPanel } from "./RightPanel";
-import { Container } from "../_blocks/Container/Container";
-import { Text } from "../_blocks/Text/Text";
-import { Page } from "../_blocks/Page/Page";
-import { Viewport } from "../_blocks/Viewport/Viewport";
+import { RenderBlocks } from "../_assets";
+import { LeftPanel } from "./leftPanel";
+import { RightPanel } from "./rightPanel";
+import { Container } from "../_assets/Container/Container";
+import { Text } from "../_assets/Text/Text";
+import { Page } from "../_assets/Page/Page";
+import { Viewport } from "../_assets/Viewport/Viewport";
 import { RenderNode } from "./RenderNode";
 
 export const EditorShell = () => {
