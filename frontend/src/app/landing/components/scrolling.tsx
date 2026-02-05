@@ -67,7 +67,8 @@ export function ScrollGate({ children }: { children: React.ReactNode }) {
   const contentWrapperRef = useRef<HTMLDivElement>(null);
   const { setGateProgress, setGateEndScrollY } = useLandingScrollSetter();
 
-  const [viewportHeight, setViewportHeight] = useState(getViewportHeight());
+  const [viewportHeight, setViewportHeight] = useState(0);
+  const [isMounted, setIsMounted] = useState(false);
   const [contentHeight, setContentHeight] = useState(0);
   const [progress, setProgress] = useState(0);
 
@@ -84,6 +85,7 @@ export function ScrollGate({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    setIsMounted(true);
     measure();
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
@@ -132,7 +134,7 @@ export function ScrollGate({ children }: { children: React.ReactNode }) {
         className="sticky w-full overflow-hidden rounded-t-3xl"
         style={{
           top: 0,
-          height: viewportHeight,
+          height: isMounted ? viewportHeight : '100vh',
           minHeight: '100vh',
         }}
       >

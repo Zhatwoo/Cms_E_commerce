@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { AdminSidebar } from './components/sidebar';
 import { AdminHeader } from './components/header';
 import { AdminDashboard } from './components/dashboard';
+import ModerationCompliance from './components/moderationComplieance';
 
 export default function AdminDashboardPage() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -32,6 +33,7 @@ export default function AdminDashboardPage() {
             <div className="flex-1 flex flex-col min-h-screen">
                 <AdminHeader onMenuClick={() => setSidebarOpen(true)} />
                 <AdminDashboard />
+                <ModerationCompliance />
             </div>
         </div>
     );

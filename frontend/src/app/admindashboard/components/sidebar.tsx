@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 
 const DashboardIcon = () => (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -66,7 +67,7 @@ const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
     { id: 'monitoring', label: 'Monitoring & Analytics', icon: <MonitoringIcon /> },
     { id: 'website', label: 'Website Management', icon: <WebsiteIcon /> },
-    { id: 'moderation', label: 'Moderation & Compliance', icon: <ModerationIcon /> },
+    { id: 'moderation', label: 'Moderation & Compliance', icon: <ModerationIcon />, href: '/admindashboard/moderationCompliance' },
     { id: 'templates', label: 'Templates & Assets Management', icon: <TemplatesIcon /> },
     { id: 'user', label: 'User & Account Management', icon: <UserIcon /> },
 ];
@@ -99,20 +100,39 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
                 </div>
 
                 <nav className="flex-1 px-3 py-4 overflow-y-auto">
-                    {navItems.map((item) => (
-                        <button
-                            key={item.id}
-                            onClick={() => setActiveItem(item.id)}
-                            className={`w-full flex items-start gap-3 px-4 py-3 rounded-lg text-sm transition-colors mb-1 ${
-                                activeItem === item.id
-                                    ? 'bg-gray-800 text-white'
-                                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                            }`}
-                        >
-                            <span className="flex-shrink-0 mt-0.5">{item.icon}</span>
-                            <span className="font-normal text-left leading-tight">{item.label}</span>
-                        </button>
-                    ))}
+                    {navItems.map((item) =>
+                        item.href ? (
+                            <Link
+                                key={item.id}
+                                href={item.href}
+                                onClick={() => {
+                                    setActiveItem(item.id);
+                                    onClose?.();
+                                }}
+                                className={`w-full flex items-start gap-3 px-4 py-3 rounded-lg text-sm transition-colors mb-1 ${
+                                    activeItem === item.id
+                                        ? 'bg-gray-800 text-white'
+                                        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                                }`}
+                            >
+                                <span className="flex-shrink-0 mt-0.5">{item.icon}</span>
+                                <span className="font-normal text-left leading-tight">{item.label}</span>
+                            </Link>
+                        ) : (
+                            <button
+                                key={item.id}
+                                onClick={() => setActiveItem(item.id)}
+                                className={`w-full flex items-start gap-3 px-4 py-3 rounded-lg text-sm transition-colors mb-1 ${
+                                    activeItem === item.id
+                                        ? 'bg-gray-800 text-white'
+                                        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                                }`}
+                            >
+                                <span className="flex-shrink-0 mt-0.5">{item.icon}</span>
+                                <span className="font-normal text-left leading-tight">{item.label}</span>
+                            </button>
+                        )
+                    )}
 
                     {/* More dropdown */}
                     <div className="mt-1">
@@ -154,20 +174,36 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
 
             {/* Navigation */}
             <nav className="flex-1 px-3 py-4 overflow-y-auto">
-                {navItems.map((item) => (
-                    <button
-                        key={item.id}
-                        onClick={() => setActiveItem(item.id)}
-                        className={`w-full flex items-start gap-3 px-4 py-3 rounded-lg text-sm transition-colors mb-1 ${
-                            activeItem === item.id
-                                ? 'bg-gray-800 text-white'
-                                : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                        }`}
-                    >
-                        <span className="flex-shrink-0 mt-0.5">{item.icon}</span>
-                        <span className="font-normal text-left leading-tight">{item.label}</span>
-                    </button>
-                ))}
+                {navItems.map((item) =>
+                    item.href ? (
+                        <Link
+                            key={item.id}
+                            href={item.href}
+                            onClick={() => setActiveItem(item.id)}
+                            className={`w-full flex items-start gap-3 px-4 py-3 rounded-lg text-sm transition-colors mb-1 ${
+                                activeItem === item.id
+                                    ? 'bg-gray-800 text-white'
+                                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                            }`}
+                        >
+                            <span className="flex-shrink-0 mt-0.5">{item.icon}</span>
+                            <span className="font-normal text-left leading-tight">{item.label}</span>
+                        </Link>
+                    ) : (
+                        <button
+                            key={item.id}
+                            onClick={() => setActiveItem(item.id)}
+                            className={`w-full flex items-start gap-3 px-4 py-3 rounded-lg text-sm transition-colors mb-1 ${
+                                activeItem === item.id
+                                    ? 'bg-gray-800 text-white'
+                                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                            }`}
+                        >
+                            <span className="flex-shrink-0 mt-0.5">{item.icon}</span>
+                            <span className="font-normal text-left leading-tight">{item.label}</span>
+                        </button>
+                    )
+                )}
 
                 {/* More dropdown */}
                 <div className="mt-1">
