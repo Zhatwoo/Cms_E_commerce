@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const DashboardIcon = () => (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -66,7 +67,7 @@ const CloseIcon = () => (
 
 const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon />, href: '/admindashboard' },
-    { id: 'monitoring', label: 'Monitoring & Analytics', icon: <MonitoringIcon /> },
+    { id: 'monitoring', label: 'Monitoring & Analytics', icon: <MonitoringIcon />, href: '/admindashboard/monitorAnalytics' },
     { id: 'website', label: 'Website Management', icon: <WebsiteIcon /> },
     { id: 'moderation', label: 'Moderation & Compliance', icon: <ModerationIcon />, href: '/admindashboard/moderationCompliance' },
     { id: 'templates', label: 'Templates & Assets Management', icon: <TemplatesIcon /> },
@@ -80,9 +81,14 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
     const [moreExpanded, setMoreExpanded] = useState(false);
+    const [isHovered, setIsHovered] = useState(false);
     const pathname = usePathname();
 
+    const COLLAPSED_WIDTH = 72;
+    const EXPANDED_WIDTH = 320;
+
     const getActiveItem = () => {
+        if (pathname.includes('monitorAnalytics')) return 'monitoring';
         if (pathname.includes('moderationCompliance')) return 'moderation';
         if (pathname.includes('admindashboard') && !pathname.includes('moderationCompliance')) return 'dashboard';
         return 'dashboard';
@@ -91,7 +97,25 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
     // For mobile → keep full drawer
     if (mobile) {
         return (
-            <aside className="fixed inset-y-0 left-0 z-50 w-64 bg-black text-white h-full flex flex-col">
+            <>
+                {/* Backdrop */}
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    onClick={onClose}
+                    className="fixed inset-0 bg-black/50 z-40"
+                />
+                
+                {/* Sidebar */}
+                <motion.aside
+                    initial={{ x: '-100%' }}
+                    animate={{ x: 0 }}
+                    exit={{ x: '-100%' }}
+                    transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                    className="fixed inset-y-0 left-0 z-50 w-64 bg-black text-white h-full flex flex-col"
+                >
                 {/* Mobile header with close */}
                 <div className="flex items-center justify-between border-b border-gray-800 px-6 py-4 shrink-0">
                     <div className="flex items-center gap-3">
@@ -166,76 +190,140 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
                         <span className="font-normal text-left">Log out</span>
                     </button>
                 </div>
-            </aside>
+            </motion.aside>
+            </>
         );
     }
 
-    // Desktop version
+    // Desktop: hover-expand version
     return (
-        <aside className="w-64 bg-black text-white h-screen flex flex-col sticky top-0">
-            {/* Logo */}
-            <div className="flex items-center px-6 py-4 border-b border-gray-800">
-                <div className="text-base font-semibold">Web Builder</div>
+        <motion.aside
+            className="hidden lg:flex lg:flex-col lg:border-r lg:border-gray-800 lg:bg-black lg:shadow-inner lg:h-screen lg:sticky lg:top-0 overflow-hidden text-white z-20"
+            initial={false}
+            animate={{ width: isHovered ? EXPANDED_WIDTH : COLLAPSED_WIDTH }}
+            transition={{
+                type: 'spring',
+                stiffness: 300,
+                damping: 28,
+                mass: 0.8,
+            }}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+        >
+            {/* Brand header */}
+            <div className="flex items-center justify-center border-b border-gray-800 py-5 shrink-0">
+                <div className="h-9 w-9 rounded-xl bg-gray-700 flex items-center justify-center font-bold text-gray-200 shadow-md">
+                    W
+                </div>
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 px-3 py-4 overflow-y-auto">
-                {navItems.map((item) =>
-                    item.href ? (
-                        <Link
-                            key={item.id}
-                            href={item.href}
-                            className={`w-full flex items-start gap-3 px-4 py-3 rounded-lg text-sm transition-colors mb-1 ${
-                                getActiveItem() === item.id
-                                    ? 'bg-gray-800 text-white'
-                                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                            }`}
-                        >
-                            <span className="flex-shrink-0 mt-0.5">{item.icon}</span>
-                            <span className="font-normal text-left leading-tight">{item.label}</span>
+            <nav className="flex-1 py-6 flex flex-col">
+                {navItems.map((item) => {
+                    const isActive = getActiveItem() === item.id;
+                    
+                    const content = (
+                        <div className={`
+                            group relative flex items-center rounded-lg transition-colors
+                            w-full px-4 py-3
+                            ${
+                                isActive
+                                    ? 'bg-gray-800/70 text-white'
+                                    : 'text-gray-300 hover:bg-gray-800/50 hover:text-white'
+                            }
+                        `}>
+                            {/* Fixed icon position */}
+                            <div className="w-12 flex items-center justify-center shrink-0">
+                                <span className="flex h-5 w-5 items-center justify-center text-gray-400 group-hover:text-gray-200 transition-colors">
+                                    {item.icon}
+                                </span>
+                            </div>
+
+                            {/* Label slide-in */}
+                            <AnimatePresence>
+                                {isHovered && (
+                                    <motion.span
+                                        initial={{ opacity: 0, x: -12 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -12 }}
+                                        transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                                        className="ml-3 text-sm font-medium whitespace-nowrap"
+                                    >
+                                        {item.label}
+                                    </motion.span>
+                                )}
+                            </AnimatePresence>
+
+                            {/* Active indicator when collapsed */}
+                            {isActive && !isHovered && (
+                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-blue-500 rounded-r-full" />
+                            )}
+                        </div>
+                    );
+
+                    return item.href ? (
+                        <Link key={item.id} href={item.href}>
+                            {content}
                         </Link>
                     ) : (
-                        <button
-                            key={item.id}
-                            onClick={() => {}}
-                            className={`w-full flex items-start gap-3 px-4 py-3 rounded-lg text-sm transition-colors mb-1 ${
-                                getActiveItem() === item.id
-                                    ? 'bg-gray-800 text-white'
-                                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                            }`}
-                        >
-                            <span className="flex-shrink-0 mt-0.5">{item.icon}</span>
-                            <span className="font-normal text-left leading-tight">{item.label}</span>
+                        <button key={item.id} type="button" className="w-full text-left">
+                            {content}
                         </button>
-                    )
-                )}
+                    );
+                })}
 
-                {/* More dropdown */}
-                <div className="mt-1">
-                    <button
-                        onClick={() => setMoreExpanded(!moreExpanded)}
-                        className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
-                    >
-                        <div className="flex items-start gap-3">
-                            <span className="flex-shrink-0 mt-0.5">
-                                <MoreIcon />
-                            </span>
-                            <span className="font-normal text-left">More</span>
-                        </div>
-                        <ChevronDownIcon />
-                    </button>
-                </div>
+                {/* More button */}
+                <button
+                    type="button"
+                    className="group relative flex items-center rounded-lg transition-colors w-full px-4 py-3 text-gray-300 hover:bg-gray-800/50 hover:text-white"
+                >
+                    <div className="w-12 flex items-center justify-center shrink-0">
+                        <span className="flex h-5 w-5 items-center justify-center text-gray-400 group-hover:text-gray-200 transition-colors">
+                            <MoreIcon />
+                        </span>
+                    </div>
+                    <AnimatePresence>
+                        {isHovered && (
+                            <motion.span
+                                initial={{ opacity: 0, x: -12 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -12 }}
+                                transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                                className="ml-3 text-sm font-medium whitespace-nowrap"
+                            >
+                                More
+                            </motion.span>
+                        )}
+                    </AnimatePresence>
+                </button>
             </nav>
 
             {/* Log out */}
-            <div className="border-t border-gray-800 p-3">
-                <button className="w-full flex items-start gap-3 px-4 py-3 rounded-lg text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
-                    <span className="flex-shrink-0 mt-0.5">
-                        <LogoutIcon />
-                    </span>
-                    <span className="font-normal text-left">Log out</span>
+            <div className="border-t border-gray-800 py-4 shrink-0">
+                <button
+                    type="button"
+                    className="group relative flex items-center rounded-lg transition-colors w-full px-4 py-3 text-gray-300 hover:bg-gray-800/50 hover:text-white"
+                >
+                    <div className="w-12 flex items-center justify-center shrink-0">
+                        <span className="flex h-5 w-5 items-center justify-center text-gray-400 group-hover:text-gray-200 transition-colors">
+                            <LogoutIcon />
+                        </span>
+                    </div>
+                    <AnimatePresence>
+                        {isHovered && (
+                            <motion.span
+                                initial={{ opacity: 0, x: -12 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -12 }}
+                                transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                                className="ml-3 text-sm font-medium whitespace-nowrap"
+                            >
+                                Log out
+                            </motion.span>
+                        )}
+                    </AnimatePresence>
                 </button>
             </div>
-        </aside>
+        </motion.aside>
     );
 }
