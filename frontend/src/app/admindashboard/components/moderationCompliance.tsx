@@ -8,7 +8,7 @@ export default function Board() {
 	return (
 		<div className="space-y-6">
 			<div className="mb-2">
-				<h1 className="text-3xl font-bold">Moderation & Compliance</h1>
+				<h1 className="text-3xl font-bold text-gray-900 mb-1">Moderation & Compliance</h1>
 				<div className="text-sm text-gray-600 mt-1">Moderation & Compliance &gt; Web Reviews</div>
 			</div>
 
@@ -48,7 +48,7 @@ export default function Board() {
 					</div>
 
 					<div className="bg-white border border-gray-200 rounded-b-lg p-6 min-h-[360px]">
-						<h3 className="text-lg font-semibold mb-4">Pending / Flagged Websites</h3>
+						<h3 className="text-lg font-semibold mb-4 text-gray-900 mb-1">Pending / Flagged Websites</h3>
 
 						<div className="border border-gray-200 rounded-lg p-4">
 							<div className="flex items-center justify-between">
@@ -59,7 +59,7 @@ export default function Board() {
 										</svg>
 									</div>
 									<div>
-										<div className="font-semibold">example-site.com</div>
+										<div className="font-semibold text-gray-900 mb-1">example-site.com</div>
 										<div className="text-sm text-gray-400">Pending</div>
 									</div>
 								</div>

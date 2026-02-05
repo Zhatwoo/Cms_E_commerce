@@ -19,9 +19,9 @@ const MailIcon = () => (
 );
 
 const SettingsIcon = () => (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="12" cy="12" r="3" />
-        <path d="M12 1v3m0 14v3M5.6 5.6l2.1 2.1m8.5 8.5l2.1 2.1M1 12h3m14 0h3M5.6 18.4l2.1-2.1m8.5-8.5l2.1-2.1" />
+    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+        <path d="M12 8.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7z" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M19.4 15a1.8 1.8 0 00.35 2l.02.02a2 2 0 01-2.83 2.83l-.02-.02a1.8 1.8 0 00-2-.35 1.8 1.8 0 00-1 1.6V21a2 2 0 01-4 0v-.01a1.8 1.8 0 00-1-1.6 1.8 1.8 0 00-2 .35l-.02.02a2 2 0 01-2.83-2.83l.02-.02a1.8 1.8 0 00.35-2 1.8 1.8 0 00-1.6-1H3a2 2 0 010-4h.01a1.8 1.8 0 001.6-1 1.8 1.8 0 00-.35-2l-.02-.02a2 2 0 012.83-2.83l.02.02a1.8 1.8 0 002 .35h.01a1.8 1.8 0 001-1.6V3a2 2 0 014 0v.01a1.8 1.8 0 001 1.6 1.8 1.8 0 002-.35l.02-.02a2 2 0 012.83 2.83l-.02.02a1.8 1.8 0 00-.35 2v.01a1.8 1.8 0 001.6 1H21a2 2 0 010 4h-.01a1.8 1.8 0 00-1.6 1z" stroke="currentColor" strokeWidth="1.5" />
     </svg>
 );
 

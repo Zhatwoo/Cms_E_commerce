@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 const DashboardIcon = () => (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -64,7 +65,7 @@ const CloseIcon = () => (
 );
 
 const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
+    { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon />, href: '/admindashboard' },
     { id: 'monitoring', label: 'Monitoring & Analytics', icon: <MonitoringIcon /> },
     { id: 'website', label: 'Website Management', icon: <WebsiteIcon /> },
     { id: 'moderation', label: 'Moderation & Compliance', icon: <ModerationIcon />, href: '/admindashboard/moderationCompliance' },
@@ -79,7 +80,13 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
     const [moreExpanded, setMoreExpanded] = useState(false);
-    const [activeItem, setActiveItem] = useState('dashboard');
+    const pathname = usePathname();
+
+    const getActiveItem = () => {
+        if (pathname.includes('moderationCompliance')) return 'moderation';
+        if (pathname.includes('admindashboard') && !pathname.includes('moderationCompliance')) return 'dashboard';
+        return 'dashboard';
+    };
 
     // For mobile → keep full drawer
     if (mobile) {
@@ -106,11 +113,10 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
                                 key={item.id}
                                 href={item.href}
                                 onClick={() => {
-                                    setActiveItem(item.id);
                                     onClose?.();
                                 }}
                                 className={`w-full flex items-start gap-3 px-4 py-3 rounded-lg text-sm transition-colors mb-1 ${
-                                    activeItem === item.id
+                                    getActiveItem() === item.id
                                         ? 'bg-gray-800 text-white'
                                         : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                                 }`}
@@ -121,9 +127,9 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
                         ) : (
                             <button
                                 key={item.id}
-                                onClick={() => setActiveItem(item.id)}
+                                onClick={() => {}}
                                 className={`w-full flex items-start gap-3 px-4 py-3 rounded-lg text-sm transition-colors mb-1 ${
-                                    activeItem === item.id
+                                    getActiveItem() === item.id
                                         ? 'bg-gray-800 text-white'
                                         : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                                 }`}
@@ -179,9 +185,8 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
                         <Link
                             key={item.id}
                             href={item.href}
-                            onClick={() => setActiveItem(item.id)}
                             className={`w-full flex items-start gap-3 px-4 py-3 rounded-lg text-sm transition-colors mb-1 ${
-                                activeItem === item.id
+                                getActiveItem() === item.id
                                     ? 'bg-gray-800 text-white'
                                     : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                             }`}
@@ -192,9 +197,9 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
                     ) : (
                         <button
                             key={item.id}
-                            onClick={() => setActiveItem(item.id)}
+                            onClick={() => {}}
                             className={`w-full flex items-start gap-3 px-4 py-3 rounded-lg text-sm transition-colors mb-1 ${
-                                activeItem === item.id
+                                getActiveItem() === item.id
                                     ? 'bg-gray-800 text-white'
                                     : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                             }`}
