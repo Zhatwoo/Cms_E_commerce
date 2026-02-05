@@ -1,51 +1,36 @@
 // controllers/userController.js
 const User = require('../models/User');
 
+const stripPassword = (user) => {
+  if (!user) return user;
+  const { password, ...rest } = user;
+  return rest;
+};
+
 // @desc    Get all users with filters
 // @route   GET /api/users
 // @access  Private/Admin
 exports.getAllUsers = async (req, res) => {
   try {
     const { search, role, status, page = 1, limit = 10 } = req.query;
-    
-    // Build query
-    const query = {};
-    
-    // Search by name or email
-    if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } }
-      ];
-    }
-    
-    // Filter by role
-    if (role) {
-      query.role = role;
-    }
-    
-    // Filter by status
-    if (status) {
-      query.status = status;
-    }
-    
-    // Pagination
-    const skip = (page - 1) * limit;
-    
-    const users = await User.find(query)
-      .select('-password')
-      .sort('-createdAt')
-      .skip(skip)
-      .limit(parseInt(limit));
-    
-    const total = await User.countDocuments(query);
-    
+    const filters = {};
+    if (role) filters.role = role;
+    if (status) filters.status = status;
+    if (search) filters.search = search;
+
+    const allUsers = await User.findAll(filters);
+    const total = allUsers.length;
+    const limitNum = Math.max(1, parseInt(limit) || 10);
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const skip = (pageNum - 1) * limitNum;
+    const users = allUsers.slice(skip, skip + limitNum).map(stripPassword);
+
     res.status(200).json({
       success: true,
       count: users.length,
       total,
-      page: parseInt(page),
-      totalPages: Math.ceil(total / limit),
+      page: pageNum,
+      totalPages: Math.ceil(total / limitNum),
       users
     });
   } catch (error) {
@@ -62,18 +47,16 @@ exports.getAllUsers = async (req, res) => {
 // @access  Private/Admin
 exports.getUserById = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('-password');
-    
+    const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found'
       });
     }
-    
     res.status(200).json({
       success: true,
-      user
+      user: stripPassword(user)
     });
   } catch (error) {
     res.status(500).json({
@@ -90,25 +73,22 @@ exports.getUserById = async (req, res) => {
 exports.createUser = async (req, res) => {
   try {
     const { name, email, password, role, status, phone, bio, avatar } = req.body;
-    
-    // Validate input
+
     if (!name || !email || !password) {
       return res.status(400).json({
         success: false,
         message: 'Please provide name, email, and password'
       });
     }
-    
-    // Check if user exists
-    const existingUser = await User.findOne({ email });
+
+    const existingUser = await User.findByEmail(email);
     if (existingUser) {
       return res.status(400).json({
         success: false,
         message: 'User with this email already exists'
       });
     }
-    
-    // Create user
+
     const user = await User.create({
       name,
       email,
@@ -119,20 +99,11 @@ exports.createUser = async (req, res) => {
       bio,
       avatar
     });
-    
+
     res.status(201).json({
       success: true,
       message: 'User created successfully',
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        status: user.status,
-        phone: user.phone,
-        bio: user.bio,
-        avatar: user.avatar
-      }
+      user: stripPassword(user)
     });
   } catch (error) {
     res.status(500).json({
@@ -149,42 +120,29 @@ exports.createUser = async (req, res) => {
 exports.updateUser = async (req, res) => {
   try {
     const { name, email, role, status, phone, bio, avatar, isActive } = req.body;
-    
     const user = await User.findById(req.params.id);
-    
     if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found'
       });
     }
-    
-    // Update fields
-    if (name) user.name = name;
-    if (email) user.email = email;
-    if (role) user.role = role;
-    if (status) user.status = status;
-    if (phone !== undefined) user.phone = phone;
-    if (bio !== undefined) user.bio = bio;
-    if (avatar !== undefined) user.avatar = avatar;
-    if (isActive !== undefined) user.isActive = isActive;
-    
-    await user.save();
-    
+
+    const updates = {};
+    if (name !== undefined) updates.name = name;
+    if (email !== undefined) updates.email = email.toLowerCase();
+    if (role !== undefined) updates.role = role;
+    if (status !== undefined) updates.status = status;
+    if (phone !== undefined) updates.phone = phone;
+    if (bio !== undefined) updates.bio = bio;
+    if (avatar !== undefined) updates.avatar = avatar;
+    if (isActive !== undefined) updates.isActive = isActive;
+
+    const updated = await User.update(req.params.id, updates);
     res.status(200).json({
       success: true,
       message: 'User updated successfully',
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        status: user.status,
-        phone: user.phone,
-        bio: user.bio,
-        avatar: user.avatar,
-        isActive: user.isActive
-      }
+      user: stripPassword(updated)
     });
   } catch (error) {
     res.status(500).json({
@@ -201,24 +159,20 @@ exports.updateUser = async (req, res) => {
 exports.deleteUser = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
-    
     if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found'
       });
     }
-    
-    // Prevent deleting own account
-    if (req.user._id.toString() === req.params.id) {
+    if (req.user.id === req.params.id) {
       return res.status(400).json({
         success: false,
         message: 'You cannot delete your own account'
       });
     }
-    
-    await user.deleteOne();
-    
+
+    await User.delete(req.params.id);
     res.status(200).json({
       success: true,
       message: 'User deleted successfully'
@@ -238,35 +192,26 @@ exports.deleteUser = async (req, res) => {
 exports.updateUserRole = async (req, res) => {
   try {
     const { role } = req.body;
-    
     if (!['Admin', 'Support', 'Client'].includes(role)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid role. Must be Admin, Support, or Client'
       });
     }
-    
+
     const user = await User.findById(req.params.id);
-    
     if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found'
       });
     }
-    
-    user.role = role;
-    await user.save();
-    
+
+    const updated = await User.update(req.params.id, { role });
     res.status(200).json({
       success: true,
       message: 'User role updated successfully',
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role
-      }
+      user: stripPassword(updated)
     });
   } catch (error) {
     res.status(500).json({
@@ -283,37 +228,29 @@ exports.updateUserRole = async (req, res) => {
 exports.updateUserStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    
     if (!['Published', 'Restricted', 'Suspended'].includes(status)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid status. Must be Published, Restricted, or Suspended'
       });
     }
-    
+
     const user = await User.findById(req.params.id);
-    
     if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found'
       });
     }
-    
-    user.status = status;
-    user.isActive = status === 'Published';
-    await user.save();
-    
+
+    const updated = await User.update(req.params.id, {
+      status,
+      isActive: status === 'Published'
+    });
     res.status(200).json({
       success: true,
       message: 'User status updated successfully',
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        status: user.status,
-        isActive: user.isActive
-      }
+      user: stripPassword(updated)
     });
   } catch (error) {
     res.status(500).json({
@@ -329,30 +266,10 @@ exports.updateUserStatus = async (req, res) => {
 // @access  Private/Admin
 exports.getUserStats = async (req, res) => {
   try {
-    const totalUsers = await User.countDocuments();
-    const publishedUsers = await User.countDocuments({ status: 'Published' });
-    const restrictedUsers = await User.countDocuments({ status: 'Restricted' });
-    const suspendedUsers = await User.countDocuments({ status: 'Suspended' });
-    
-    const adminCount = await User.countDocuments({ role: 'Admin' });
-    const supportCount = await User.countDocuments({ role: 'Support' });
-    const clientCount = await User.countDocuments({ role: 'Client' });
-    
+    const stats = await User.getStats();
     res.status(200).json({
       success: true,
-      stats: {
-        total: totalUsers,
-        byStatus: {
-          published: publishedUsers,
-          restricted: restrictedUsers,
-          suspended: suspendedUsers
-        },
-        byRole: {
-          admin: adminCount,
-          support: supportCount,
-          client: clientCount
-        }
-      }
+      stats
     });
   } catch (error) {
     res.status(500).json({

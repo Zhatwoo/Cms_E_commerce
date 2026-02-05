@@ -1,12 +1,18 @@
 // controllers/authController.js
 const User = require('../models/User');
+const PasswordReset = require('../models/PasswordReset');
 const jwt = require('jsonwebtoken');
 
-// Generate JWT Token
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRE || '7d'
   });
+};
+
+const stripPassword = (user) => {
+  if (!user) return user;
+  const { password, ...rest } = user;
+  return rest;
 };
 
 // @desc    Register new user
@@ -15,25 +21,22 @@ const generateToken = (id) => {
 exports.register = async (req, res) => {
   try {
     const { name, email, password, role, phone, bio } = req.body;
-    
-    // Validate input
+
     if (!name || !email || !password) {
       return res.status(400).json({
         success: false,
         message: 'Please provide name, email, and password'
       });
     }
-    
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
+
+    const existingUser = await User.findByEmail(email);
     if (existingUser) {
       return res.status(400).json({
         success: false,
         message: 'User with this email already exists'
       });
     }
-    
-    // Create user
+
     const user = await User.create({
       name,
       email,
@@ -44,23 +47,14 @@ exports.register = async (req, res) => {
       status: 'Published',
       isActive: true
     });
-    
-    // Generate token
-    const token = generateToken(user._id);
-    
+
+    const token = generateToken(user.id);
+
     res.status(201).json({
       success: true,
       message: 'User registered successfully',
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        status: user.status,
-        phone: user.phone,
-        bio: user.bio
-      }
+      user: stripPassword(user)
     });
   } catch (error) {
     res.status(500).json({
@@ -77,79 +71,58 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    
-    // Validate input
+
     if (!email || !password) {
       return res.status(400).json({
         success: false,
         message: 'Please provide email and password'
       });
     }
-    
-    // Find user by email (include password field)
-    const user = await User.findOne({ email }).select('+password');
-    
+
+    const user = await User.findByEmail(email);
     if (!user) {
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
       });
     }
-    
-    // Check if user is active and not suspended
+
     if (!user.isActive) {
       return res.status(403).json({
         success: false,
         message: 'Your account has been deactivated'
       });
     }
-    
     if (user.status === 'Suspended') {
       return res.status(403).json({
         success: false,
         message: 'Your account has been suspended. Please contact support.'
       });
     }
-    
     if (user.status === 'Restricted') {
       return res.status(403).json({
         success: false,
         message: 'Your account has restricted access. Please contact support.'
       });
     }
-    
-    // Check password
-    const isPasswordMatch = await user.comparePassword(password);
-    
+
+    const isPasswordMatch = await User.comparePassword(password, user.password);
     if (!isPasswordMatch) {
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
       });
     }
-    
-    // Update last login
-    user.lastLogin = new Date();
-    await user.save();
-    
-    // Generate token
-    const token = generateToken(user._id);
-    
+
+    await User.update(user.id, { lastLogin: new Date().toISOString() });
+
+    const token = generateToken(user.id);
+
     res.status(200).json({
       success: true,
       message: 'Login successful',
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        status: user.status,
-        avatar: user.avatar,
-        phone: user.phone,
-        bio: user.bio,
-        lastLogin: user.lastLogin
-      }
+      user: stripPassword(user)
     });
   } catch (error) {
     res.status(500).json({
@@ -165,24 +138,16 @@ exports.login = async (req, res) => {
 // @access  Private
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
-    
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
     res.status(200).json({
       success: true,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        status: user.status,
-        avatar: user.avatar,
-        phone: user.phone,
-        bio: user.bio,
-        isActive: user.isActive,
-        lastLogin: user.lastLogin,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt
-      }
+      user: stripPassword(user)
     });
   } catch (error) {
     res.status(500).json({
@@ -199,37 +164,17 @@ exports.getMe = async (req, res) => {
 exports.updateProfile = async (req, res) => {
   try {
     const { name, phone, bio, avatar } = req.body;
-    
-    const user = await User.findById(req.user._id);
-    
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-    
-    // Update fields
-    if (name) user.name = name;
-    if (phone !== undefined) user.phone = phone;
-    if (bio !== undefined) user.bio = bio;
-    if (avatar !== undefined) user.avatar = avatar;
-    
-    await user.save();
-    
+    const updates = {};
+    if (name !== undefined) updates.name = name;
+    if (phone !== undefined) updates.phone = phone;
+    if (bio !== undefined) updates.bio = bio;
+    if (avatar !== undefined) updates.avatar = avatar;
+
+    const user = await User.update(req.user.id, updates);
     res.status(200).json({
       success: true,
       message: 'Profile updated successfully',
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        status: user.status,
-        avatar: user.avatar,
-        phone: user.phone,
-        bio: user.bio
-      }
+      user: stripPassword(user)
     });
   } catch (error) {
     res.status(500).json({
@@ -246,45 +191,126 @@ exports.updateProfile = async (req, res) => {
 exports.changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    
+
     if (!currentPassword || !newPassword) {
       return res.status(400).json({
         success: false,
         message: 'Please provide current and new password'
       });
     }
-    
     if (newPassword.length < 6) {
       return res.status(400).json({
         success: false,
         message: 'New password must be at least 6 characters'
       });
     }
-    
-    // Get user with password
-    const user = await User.findById(req.user._id).select('+password');
-    
-    // Check current password
-    const isPasswordMatch = await user.comparePassword(currentPassword);
-    
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const isPasswordMatch = await User.comparePassword(currentPassword, user.password);
     if (!isPasswordMatch) {
       return res.status(401).json({
         success: false,
         message: 'Current password is incorrect'
       });
     }
-    
-    // Update password
-    user.password = newPassword;
-    await user.save();
-    
-    // Generate new token
-    const token = generateToken(user._id);
-    
+
+    await User.updatePassword(req.user.id, newPassword);
+
     res.status(200).json({
       success: true,
       message: 'Password changed successfully',
-      token
+      token: generateToken(req.user.id)
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Forgot password - create reset token
+// @route   POST /api/auth/forgot-password
+// @access  Public
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide email'
+      });
+    }
+
+    const user = await User.findByEmail(email);
+    if (user) {
+      await PasswordReset.create(user.id, user.email);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('Password reset token created for', user.email);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'If an account exists with that email, you will receive instructions to reset your password.'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Reset password with token
+// @route   POST /api/auth/reset-password
+// @access  Public
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide token and new password'
+      });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters'
+      });
+    }
+
+    const record = await PasswordReset.findByToken(token);
+    if (!record) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired reset token'
+      });
+    }
+    if (new Date(record.expiresAt) < new Date()) {
+      await PasswordReset.deleteByDocId(record.id);
+      return res.status(400).json({
+        success: false,
+        message: 'Reset token has expired'
+      });
+    }
+
+    await User.updatePassword(record.userId, newPassword);
+    await PasswordReset.deleteByDocId(record.id);
+
+    res.status(200).json({
+      success: true,
+      message: 'Password has been reset successfully'
     });
   } catch (error) {
     res.status(500).json({
