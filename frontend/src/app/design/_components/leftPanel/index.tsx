@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { ChevronDown, PanelLeft, Search } from "lucide-react";
-import { FilesPanel } from "./FilesPanel";
-import { ComponentsPanel } from "./ComponentsPanel";
-import { AssetsPanel } from "./AssetsPanel";
+import { FilesPanel } from "./filesPanel";
+import { ComponentsPanel } from "./componentsPanel";
+import { AssetsPanel } from "./assetsPanel";
 
 export const LeftPanel = () => {
   const [activePanel, setActivePanel] = useState("files");

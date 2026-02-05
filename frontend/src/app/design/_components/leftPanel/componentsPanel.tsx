@@ -1,8 +1,8 @@
 import React from "react";
 import { useEditor, Element } from "@craftjs/core";
-import { Container } from "../../_blocks/Container/Container";
-import { Text } from "../../_blocks/Text/Text";
-import { Page } from "../../_blocks/Page/Page";
+import { Container } from "../../_assets/Container/Container";
+import { Text } from "../../_assets/Text/Text";
+import { Page } from "../../_assets/Page/Page";
 
 export const ComponentsPanel = () => {
   const { connectors } = useEditor();

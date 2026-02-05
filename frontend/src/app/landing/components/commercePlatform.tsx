@@ -9,6 +9,75 @@ const IN_OFFSET_Y = 48;
 const IN_OFFSET_X_LEFT = -24;
 const IN_OFFSET_X_RIGHT = 24;
 
+/** Fade in/out + parallax for the hero text block based on scroll position and direction */
+function useTextScrollParallax(sectionRef: React.RefObject<HTMLElement | null>) {
+  const textRef = useRef<HTMLDivElement>(null);
+  const [style, setStyle] = useState<{ opacity: number; transform: string }>({
+    opacity: 0,
+    transform: 'translateY(0px)',
+  });
+  const lastScrollY = useRef(0);
+  const scrollDirection = useRef<'up' | 'down'>('down');
+
+  useEffect(() => {
+    const section = sectionRef.current;
+    const textEl = textRef.current;
+    if (!section || !textEl) return;
+
+    const PARALLAX_FACTOR = 0.08;
+    const FADE_RANGE = 0.4;
+
+    const update = () => {
+      const scrollY = window.scrollY;
+      const viewHeight = window.innerHeight;
+      const rect = section.getBoundingClientRect();
+      const sectionCenter = rect.top + rect.height / 2;
+      const viewportCenter = viewHeight / 2;
+
+      scrollDirection.current = scrollY >= lastScrollY.current ? 'down' : 'up';
+      lastScrollY.current = scrollY;
+
+      // Parallax: text moves slower than scroll (offset by distance from viewport center)
+      const parallaxY = (viewportCenter - sectionCenter) * PARALLAX_FACTOR;
+      const clampedParallax = Math.max(-40, Math.min(40, parallaxY));
+
+      // How much the section is “in view” (0 = just entering from bottom, 1 = centered, then fades as it exits top)
+      const entryProgress = rect.bottom <= viewHeight
+        ? 1
+        : Math.max(0, 1 - (rect.bottom - viewHeight) / (viewHeight * FADE_RANGE));
+      const exitProgress = rect.top >= 0
+        ? 0
+        : rect.bottom < viewHeight
+          ? 1
+          : Math.min(1, -rect.top / (viewHeight * FADE_RANGE));
+
+      let opacity: number;
+      if (scrollDirection.current === 'down') {
+        opacity = Math.min(1, entryProgress * (1 - exitProgress * 0.5));
+      } else {
+        opacity = Math.min(1, (1 - exitProgress) * 0.9 + 0.1);
+      }
+      // Clamp so we don’t go fully invisible too early
+      opacity = Math.max(0.15, opacity);
+
+      setStyle({
+        opacity,
+        transform: `translateY(${clampedParallax}px)`,
+      });
+    };
+
+    update();
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, [sectionRef]);
+
+  return { textRef, textStyle: style };
+}
+
 function useScrollProgress() {
   const sectionRef = useRef<HTMLElement>(null);
   const [progressIn, setProgressIn] = useState(0);
@@ -100,6 +169,7 @@ function useScrollProgress() {
 export function CommercePlatform() {
   const { sectionRef, progressIn, progressOut } = useScrollProgress();
   const { progress: gateProgress } = useScrollGate();
+  const { textRef, textStyle } = useTextScrollParallax(sectionRef);
 
   const dissolveOut = 1 - progressOut;
   // When gate progress is 0 we're at top of gate — show CommercePlatform; otherwise use scroll-based opacity
@@ -135,7 +205,15 @@ export function CommercePlatform() {
           borderTopRightRadius: '1.5rem',
         }}
       >
-        <div className="mx-auto max-w-3xl text-center">
+        <div
+          ref={textRef}
+          className="mx-auto max-w-3xl text-center"
+          style={{
+            opacity: textStyle.opacity,
+            transform: textStyle.transform,
+            transition: 'opacity 0.35s ease-out, transform 0.2s ease-out',
+          }}
+        >
           <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl lg:text-5xl">
             The commerce platform behind everything we build
           </h2>
