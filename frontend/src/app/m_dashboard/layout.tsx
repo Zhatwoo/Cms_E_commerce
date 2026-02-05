@@ -47,7 +47,7 @@ export default function MDashboardLayout({
             {/* Main content area */}
             <div className="flex-1 flex flex-col min-h-screen">
                 <DashboardHeader onMenuToggle={() => setSidebarOpen(true)} />
-                <main className="flex-1 px-6 py-6">{children}</main>
+                <main className="flex-1 px-6 py-6 overflow-x-hidden min-w-0">{children}</main>
             </div>
         </div>
     );

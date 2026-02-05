@@ -20,32 +20,23 @@ const templates: Template[] = [
   { id: 7, title: 'Blog Pro', desc: 'Advanced article layout', comingSoon: false },
 ];
 
-// Reusable Marquee Component
-const Marquee = <T,>({ items, renderItem }: { items: T[], renderItem: (item: T, index: number) => React.ReactNode }) => {
+// Carousel row — one row, infinite marquee animation, no side scrolling
+function TemplateCarousel<T>({ items, renderItem }: { items: T[]; renderItem: (item: T, index: number) => React.ReactNode }) {
   const doubledItems = [...items, ...items];
-
   return (
-    <div className="relative w-full overflow-hidden">
-      <div
-        className={`
-          flex animate-marquee gap-5 md:gap-6 py-4
-          hover:pause-marquee group
-          select-none pointer-events-auto
-        `}
-      >
+    <div className="relative w-full overflow-hidden max-w-full min-w-0">
+      <div className="flex animate-marquee gap-5 md:gap-6 py-4 hover:pause-marquee group select-none flex-nowrap w-max">
         {doubledItems.map((item, index) => (
           <React.Fragment key={index}>
             {renderItem(item, index)}
           </React.Fragment>
         ))}
       </div>
-
-      {/* Edge fades */}
       <div className="pointer-events-none absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-gray-950 to-transparent" />
       <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-gray-950 to-transparent" />
     </div>
   );
-};
+}
 
 // Card Component
 const TemplateCard = ({ template }: { template: Template }) => (
@@ -98,7 +89,7 @@ const TemplateCard = ({ template }: { template: Template }) => (
 
 export default function TemplatesPage() {
   return (
-    <section className="space-y-8 overflow-hidden">
+    <section className="space-y-8 overflow-x-hidden max-w-full min-w-0">
       <header>
         <h1 className="text-2xl md:text-3xl font-semibold text-white">Templates</h1>
         <p className="mt-2 text-sm md:text-base text-gray-400">
@@ -106,15 +97,11 @@ export default function TemplatesPage() {
         </p>
       </header>
 
-      <div>
-      <Marquee 
-        items={templates} 
-        renderItem={(template) => <TemplateCard template={template} />} 
+      <TemplateCarousel
+        items={templates}
+        renderItem={(template) => <TemplateCard template={template} />}
       />
-</div>
-      <div className="text-xs text-gray-500 text-center mt-4">
-        <p>Hover to pause animation</p>
-      </div>
+      <p className="text-xs text-gray-500 text-center mt-4">Hover to pause animation</p>
     </section>
   );
 }
