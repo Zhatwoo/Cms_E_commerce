@@ -35,18 +35,6 @@ const TemplatesIcon = () => (
     </svg>
 );
 
-const MoreIcon = () => (
-    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-        <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-    </svg>
-);
-
-const ChevronDownIcon = () => (
-    <svg className="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-    </svg>
-);
-
 const LogoutIcon = () => (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -73,7 +61,6 @@ interface AdminSidebarProps {
 }
 
 export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
-    const [moreExpanded, setMoreExpanded] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const pathname = usePathname();
 
@@ -159,22 +146,6 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
                             </button>
                         )
                     )}
-
-                    {/* More dropdown */}
-                    <div className="mt-1">
-                        <button
-                            onClick={() => setMoreExpanded(!moreExpanded)}
-                            className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
-                        >
-                            <div className="flex items-start gap-3">
-                                <span className="flex-shrink-0 mt-0.5">
-                                    <MoreIcon />
-                                </span>
-                                <span className="font-normal text-left">More</span>
-                            </div>
-                            <ChevronDownIcon />
-                        </button>
-                    </div>
                 </nav>
 
                 {/* Log out */}
@@ -268,32 +239,6 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
                         </button>
                     );
                 })}
-
-                {/* More button */}
-                <button
-                    type="button"
-                    className="group relative flex items-center rounded-lg transition-colors w-full px-4 py-3 text-gray-300 hover:bg-gray-800/50 hover:text-white"
-                    suppressHydrationWarning
-                >
-                    <div className="w-12 flex items-center justify-center shrink-0">
-                        <span className="flex h-5 w-5 items-center justify-center text-gray-400 group-hover:text-gray-200 transition-colors">
-                            <MoreIcon />
-                        </span>
-                    </div>
-                    <AnimatePresence>
-                        {isHovered && (
-                            <motion.span
-                                initial={{ opacity: 0, x: -12 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -12 }}
-                                transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-                                className="ml-3 text-sm font-medium whitespace-nowrap"
-                            >
-                                More
-                            </motion.span>
-                        )}
-                    </AnimatePresence>
-                </button>
             </nav>
 
             {/* Log out */}
