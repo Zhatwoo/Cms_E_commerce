@@ -1,7 +1,11 @@
 // controllers/authController.js
-const User = require('../models/User');
+// Users are stored in Firebase Authentication only (not Firestore users collection)
+const { getAuth } = require('../config/firebase');
 const PasswordReset = require('../models/PasswordReset');
 const jwt = require('jsonwebtoken');
+
+const COOKIE_NAME = 'mercato_token';
+const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -9,18 +13,36 @@ const generateToken = (id) => {
   });
 };
 
-const stripPassword = (user) => {
-  if (!user) return user;
-  const { password, ...rest } = user;
-  return rest;
+const setAuthCookie = (res, token) => {
+  res.cookie(COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: COOKIE_MAX_AGE_MS,
+    path: '/'
+  });
 };
 
-// @desc    Register new user
+const clearAuthCookie = (res) => {
+  res.clearCookie(COOKIE_NAME, { path: '/', httpOnly: true });
+};
+
+const authUserToResponse = (userRecord) => {
+  if (!userRecord) return null;
+  return {
+    id: userRecord.uid,
+    email: userRecord.email,
+    name: userRecord.displayName || userRecord.email || '',
+    avatar: userRecord.photoURL || null
+  };
+};
+
+// @desc    Register new user (saves to Firebase Authentication only)
 // @route   POST /api/auth/register
 // @access  Public
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, role, phone, bio } = req.body;
+    const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({
@@ -29,152 +51,147 @@ exports.register = async (req, res) => {
       });
     }
 
-    const existingUser = await User.findByEmail(email);
-    if (existingUser) {
+    const auth = getAuth();
+    try {
+      await auth.getUserByEmail(email.toLowerCase());
       return res.status(400).json({
         success: false,
         message: 'User with this email already exists'
       });
+    } catch (e) {
+      if (e.code !== 'auth/user-not-found') throw e;
     }
 
-    const user = await User.create({
-      name,
-      email,
+    const userRecord = await auth.createUser({
+      email: email.toLowerCase(),
       password,
-      role: role || 'Client',
-      phone,
-      bio,
-      status: 'Published',
-      isActive: true
+      displayName: name.trim()
     });
 
-    const token = generateToken(user.id);
+    const token = generateToken(userRecord.uid);
+    const user = authUserToResponse(userRecord);
+    setAuthCookie(res, token);
 
     res.status(201).json({
       success: true,
       message: 'User registered successfully',
-      token,
-      user: stripPassword(user)
+      user
     });
   } catch (error) {
+    const code = error.code || (error.errorInfo && error.errorInfo.code);
+    const msg = error.message || (error.errorInfo && error.errorInfo.message) || 'Server error';
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Register error:', code || msg, error);
+    }
+    if (code === 'auth/email-already-exists') {
+      return res.status(400).json({ success: false, message: 'User with this email already exists' });
+    }
+    if (code === 'auth/invalid-email') {
+      return res.status(400).json({ success: false, message: 'Invalid email address' });
+    }
+    if (code === 'auth/weak-password') {
+      return res.status(400).json({ success: false, message: 'Password should be at least 6 characters' });
+    }
+    if (code === 'auth/operation-not-allowed') {
+      return res.status(500).json({ success: false, message: 'Email/password sign-in is not enabled in Firebase Console' });
+    }
+    // 403: service account missing Service Usage Consumer (or Identity Toolkit API not enabled)
+    if (code === 'auth/internal-error' && (String(msg).includes('PERMISSION_DENIED') || String(msg).includes('serviceusage.serviceUsageConsumer'))) {
+      return res.status(503).json({
+        success: false,
+        message: 'Firebase Auth is not fully set up. Grant the service account the "Service Usage Consumer" role in Google Cloud IAM, enable the Identity Toolkit API, then retry in a few minutes.',
+        link: 'https://console.developers.google.com/iam-admin/iam?project=cms-e-commerce-75653'
+      });
+    }
     res.status(500).json({
       success: false,
       message: 'Server error',
-      error: error.message
+      error: process.env.NODE_ENV === 'production' ? undefined : msg
     });
   }
 };
 
-// @desc    Login user
+// @desc    Login user (expects Firebase idToken from frontend)
 // @route   POST /api/auth/login
 // @access  Public
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { idToken } = req.body;
 
-    if (!email || !password) {
+    if (!idToken) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide email and password'
+        message: 'Please provide idToken (from Firebase sign-in)'
       });
     }
 
-    const user = await User.findByEmail(email);
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
-    }
+    const auth = getAuth();
+    const decoded = await auth.verifyIdToken(idToken);
+    const userRecord = await auth.getUser(decoded.uid);
 
-    if (!user.isActive) {
-      return res.status(403).json({
-        success: false,
-        message: 'Your account has been deactivated'
-      });
-    }
-    if (user.status === 'Suspended') {
-      return res.status(403).json({
-        success: false,
-        message: 'Your account has been suspended. Please contact support.'
-      });
-    }
-    if (user.status === 'Restricted') {
-      return res.status(403).json({
-        success: false,
-        message: 'Your account has restricted access. Please contact support.'
-      });
-    }
-
-    const isPasswordMatch = await User.comparePassword(password, user.password);
-    if (!isPasswordMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
-    }
-
-    await User.update(user.id, { lastLogin: new Date().toISOString() });
-
-    const token = generateToken(user.id);
+    const token = generateToken(userRecord.uid);
+    const user = authUserToResponse(userRecord);
+    setAuthCookie(res, token);
 
     res.status(200).json({
       success: true,
       message: 'Login successful',
-      token,
-      user: stripPassword(user)
+      user
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    const code = error.code || (error.errorInfo && error.errorInfo.code);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Login error:', code || error.message, error.message);
+    }
+    const message = code === 'auth/id-token-expired' ? 'Session expired' : code === 'auth/argument-error' ? 'Invalid idToken' : 'Invalid credentials';
+    res.status(401).json({ success: false, message });
   }
 };
 
-// @desc    Get current logged in user
+// @desc    Get current logged in user (from Firebase Auth)
 // @route   GET /api/auth/me
 // @access  Private
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
+    const auth = getAuth();
+    const userRecord = await auth.getUser(req.user.id);
     res.status(200).json({
       success: true,
-      user: stripPassword(user)
+      user: authUserToResponse(userRecord)
     });
   } catch (error) {
-    res.status(500).json({
+    res.status(404).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: 'User not found'
     });
   }
 };
 
-// @desc    Update user profile
+// @desc    Logout – clear auth cookie (token stored in HttpOnly cookie)
+// @route   POST /api/auth/logout
+// @access  Public
+exports.logout = (req, res) => {
+  clearAuthCookie(res);
+  res.status(200).json({ success: true, message: 'Logged out' });
+};
+
+// @desc    Update user profile (Firebase Auth)
 // @route   PUT /api/auth/profile
 // @access  Private
 exports.updateProfile = async (req, res) => {
   try {
-    const { name, phone, bio, avatar } = req.body;
+    const { name, avatar } = req.body;
     const updates = {};
-    if (name !== undefined) updates.name = name;
-    if (phone !== undefined) updates.phone = phone;
-    if (bio !== undefined) updates.bio = bio;
-    if (avatar !== undefined) updates.avatar = avatar;
+    if (name !== undefined) updates.displayName = name;
+    if (avatar !== undefined) updates.photoURL = avatar;
 
-    const user = await User.update(req.user.id, updates);
+    const auth = getAuth();
+    await auth.updateUser(req.user.id, updates);
+    const userRecord = await auth.getUser(req.user.id);
     res.status(200).json({
       success: true,
       message: 'Profile updated successfully',
-      user: stripPassword(user)
+      user: authUserToResponse(userRecord)
     });
   } catch (error) {
     res.status(500).json({
@@ -185,44 +202,22 @@ exports.updateProfile = async (req, res) => {
   }
 };
 
-// @desc    Change password
+// @desc    Change password (Firebase Auth)
 // @route   PUT /api/auth/change-password
 // @access  Private
 exports.changePassword = async (req, res) => {
   try {
-    const { currentPassword, newPassword } = req.body;
+    const { newPassword } = req.body;
 
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide current and new password'
-      });
-    }
-    if (newPassword.length < 6) {
+    if (!newPassword || newPassword.length < 6) {
       return res.status(400).json({
         success: false,
         message: 'New password must be at least 6 characters'
       });
     }
 
-    const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    const isPasswordMatch = await User.comparePassword(currentPassword, user.password);
-    if (!isPasswordMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Current password is incorrect'
-      });
-    }
-
-    await User.updatePassword(req.user.id, newPassword);
-
+    const auth = getAuth();
+    await auth.updateUser(req.user.id, { password: newPassword });
     res.status(200).json({
       success: true,
       message: 'Password changed successfully',
@@ -237,7 +232,7 @@ exports.changePassword = async (req, res) => {
   }
 };
 
-// @desc    Forgot password - create reset token
+// @desc    Forgot password (user looked up in Firebase Auth, reset token in Firestore)
 // @route   POST /api/auth/forgot-password
 // @access  Public
 exports.forgotPassword = async (req, res) => {
@@ -250,12 +245,15 @@ exports.forgotPassword = async (req, res) => {
       });
     }
 
-    const user = await User.findByEmail(email);
-    if (user) {
-      await PasswordReset.create(user.id, user.email);
+    const auth = getAuth();
+    try {
+      const userRecord = await auth.getUserByEmail(email.toLowerCase());
+      await PasswordReset.create(userRecord.uid, userRecord.email);
       if (process.env.NODE_ENV !== 'production') {
-        console.log('Password reset token created for', user.email);
+        console.log('Password reset token created for', userRecord.email);
       }
+    } catch (e) {
+      if (e.code !== 'auth/user-not-found') throw e;
     }
 
     res.status(200).json({
@@ -271,7 +269,7 @@ exports.forgotPassword = async (req, res) => {
   }
 };
 
-// @desc    Reset password with token
+// @desc    Reset password with token (updates Firebase Auth)
 // @route   POST /api/auth/reset-password
 // @access  Public
 exports.resetPassword = async (req, res) => {
@@ -305,7 +303,8 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
-    await User.updatePassword(record.userId, newPassword);
+    const auth = getAuth();
+    await auth.updateUser(record.userId, { password: newPassword });
     await PasswordReset.deleteByDocId(record.id);
 
     res.status(200).json({

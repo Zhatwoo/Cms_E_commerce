@@ -1,0 +1,65 @@
+# Firebase rules – ilagay sa Firebase Console kung may changes
+
+## Firestore Security Rules – COPY PASTE SA FIREBASE CONSOLE (Firestore → Rules)
+
+Backend naka-Firebase Admin SDK, so hindi dadaan sa client rules ang server. Ito deny-all para sa client (gamit backend API lang).
+
+--- COPY FROM BELOW (wag isama ang line na ito) ---
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+--- COPY UNTIL ABOVE ---
+
+
+## Optional: kung gusto mong i-allow authenticated users sa client SDK
+
+--- COPY FROM BELOW (wag isama) ---
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /passwordResets/{doc} {
+      allow read, write: if false;
+    }
+    match /pages/{doc} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+    match /posts/{doc} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+    match /products/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /orders/{doc} {
+      allow read, write: if request.auth != null;
+    }
+    match /templates/{doc} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+    match /domains/{doc} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+
+--- COPY UNTIL ABOVE ---
+
+
+## Notes
+
+- Firebase Authentication: users sa Auth, hindi sa Firestore. Sign-in method at domains sa Console → Authentication → Settings.
+- IAM: Service account kailangan Service Usage Consumer at naka-enable ang Identity Toolkit API (see BACKEND_INTEGRATION.md).

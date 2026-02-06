@@ -2,8 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { sendPasswordResetEmail } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { forgotPassword } from '@/lib/api';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -15,25 +14,17 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     setError('');
     setSuccess(false);
-    if (!auth) {
-      setError('Firebase is not configured. Check your .env.local.');
-      return;
-    }
     if (!email) {
       setError('Please enter your email.');
       return;
     }
     setLoading(true);
     try {
-      await sendPasswordResetEmail(auth, email);
+      const data = await forgotPassword(email);
       setSuccess(true);
-    } catch (err: unknown) {
-      const msg = err && typeof err === 'object' && 'code' in err
-        ? (err as { code: string }).code === 'auth/user-not-found'
-          ? 'No account found with this email.'
-          : (err as { message?: string }).message ?? 'Failed to send reset email.'
-        : 'Failed to send reset email.';
-      setError(msg);
+      if (data.message) setError(''); // backend returns generic message for security
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send reset email.');
     } finally {
       setLoading(false);
     }
@@ -60,9 +51,17 @@ export default function ForgotPasswordPage() {
               </p>
             )}
             {success && (
-              <p className="rounded-lg bg-green-500/20 border border-green-500/50 px-3 py-2 text-sm text-green-200">
-                Check your email for the reset link.
-              </p>
+              <>
+                <p className="rounded-lg bg-green-500/20 border border-green-500/50 px-3 py-2 text-sm text-green-200">
+                  If an account exists with that email, you will receive instructions to reset your password.
+                </p>
+                <p className="text-sm text-white/70">
+                  Have a reset token?{' '}
+                  <Link href="/auth/reset-password" className="font-medium text-violet-400 hover:text-violet-300">
+                    Set new password
+                  </Link>
+                </p>
+              </>
             )}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-white/90">
