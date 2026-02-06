@@ -110,6 +110,7 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
                     exit={{ x: '-100%' }}
                     transition={{ type: 'spring', damping: 30, stiffness: 300 }}
                     className="fixed inset-y-0 left-0 z-50 w-64 bg-black text-white h-full flex flex-col"
+                    suppressHydrationWarning
                 >
                 {/* Mobile header with close */}
                 <div className="flex items-center justify-between border-b border-gray-800 px-6 py-4 shrink-0">
@@ -204,6 +205,7 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
             }}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
+            suppressHydrationWarning
         >
             {/* Brand header */}
             <div className="flex items-center justify-center border-b border-gray-800 py-5 shrink-0">
@@ -213,7 +215,7 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 py-6 flex flex-col">
+            <nav className="flex-1 py-6 flex flex-col" suppressHydrationWarning>
                 {navItems.map((item) => {
                     const isActive = getActiveItem() === item.id;
                     
@@ -271,6 +273,7 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
                 <button
                     type="button"
                     className="group relative flex items-center rounded-lg transition-colors w-full px-4 py-3 text-gray-300 hover:bg-gray-800/50 hover:text-white"
+                    suppressHydrationWarning
                 >
                     <div className="w-12 flex items-center justify-center shrink-0">
                         <span className="flex h-5 w-5 items-center justify-center text-gray-400 group-hover:text-gray-200 transition-colors">
@@ -298,6 +301,7 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
                 <button
                     type="button"
                     className="group relative flex items-center rounded-lg transition-colors w-full px-4 py-3 text-gray-300 hover:bg-gray-800/50 hover:text-white"
+                    suppressHydrationWarning
                 >
                     <div className="w-12 flex items-center justify-center shrink-0">
                         <span className="flex h-5 w-5 items-center justify-center text-gray-400 group-hover:text-gray-200 transition-colors">
