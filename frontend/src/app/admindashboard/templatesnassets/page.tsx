@@ -152,7 +152,15 @@ export default function TemplatesAssetsPage() {
                           </h3>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {filteredBuiltInTemplates.map((template) => (
+                            {filteredBuiltInTemplates.map((template) => {
+                              const colorMap: Record<string, { bg: string; text: string }> = {
+                                'E-commerce': { bg: 'bg-slate-700', text: 'E-commerce' },
+                                'Business': { bg: 'bg-slate-600', text: 'Business' },
+                                'Portfolio': { bg: 'bg-slate-500', text: 'Portfolio' },
+                                'Blog': { bg: 'bg-slate-400', text: 'Blog' },
+                              };
+                              const colors = colorMap[template.category] || { bg: 'bg-gray-500', text: template.category };
+                              return (
                               <motion.div
                                 key={template.id}
                                 initial={{ opacity: 0, y: 10 }}
@@ -161,8 +169,8 @@ export default function TemplatesAssetsPage() {
                                 className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow"
                               >
                                 <div className="flex flex-col gap-3">
-                                  <div className="w-full h-32 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg flex items-center justify-center text-5xl">
-                                    {template.thumbnail}
+                                  <div className={`w-full h-32 ${colors.bg} rounded-lg flex items-center justify-center`}>
+                                    <span className="text-white text-xl font-semibold text-center">{colors.text}</span>
                                   </div>
                                   <div>
                                     <div className="font-semibold text-gray-900 mb-1">
@@ -190,7 +198,8 @@ export default function TemplatesAssetsPage() {
                                   </div>
                                 </div>
                               </motion.div>
-                            ))}
+                              );
+                            })}
                           </div>
 
                           {filteredBuiltInTemplates.length === 0 && (
@@ -214,7 +223,15 @@ export default function TemplatesAssetsPage() {
                           </h3>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {filteredUserTemplates.map((template) => (
+                            {filteredUserTemplates.map((template) => {
+                              const colorMap: Record<string, { bg: string; text: string }> = {
+                                'E-commerce': { bg: 'bg-slate-700', text: 'E-commerce' },
+                                'Business': { bg: 'bg-slate-600', text: 'Business' },
+                                'Portfolio': { bg: 'bg-slate-500', text: 'Portfolio' },
+                                'Blog': { bg: 'bg-slate-400', text: 'Blog' },
+                              };
+                              const colors = colorMap[template.category] || { bg: 'bg-gray-500', text: template.category };
+                              return (
                               <motion.div
                                 key={template.id}
                                 initial={{ opacity: 0, y: 10 }}
@@ -223,8 +240,8 @@ export default function TemplatesAssetsPage() {
                                 className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow"
                               >
                                 <div className="flex flex-col gap-3">
-                                  <div className="w-full h-32 bg-gradient-to-br from-green-50 to-blue-50 rounded-lg flex items-center justify-center text-5xl">
-                                    {template.thumbnail}
+                                  <div className={`w-full h-32 ${colors.bg} rounded-lg flex items-center justify-center`}>
+                                    <span className="text-white text-xl font-semibold text-center">{colors.text}</span>
                                   </div>
                                   <div>
                                     <div className="font-semibold text-gray-900 mb-1">
@@ -242,7 +259,8 @@ export default function TemplatesAssetsPage() {
                                   </div>
                                 </div>
                               </motion.div>
-                            ))}
+                              );
+                            })}
                           </div>
 
                           {filteredUserTemplates.length === 0 && (
