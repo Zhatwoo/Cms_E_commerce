@@ -1,4 +1,4 @@
-P// config/env.js - Validate required environment variables at startup
+// config/env.js - Validate required environment variables at startup
 const required = [
   'JWT_SECRET',
   'FIREBASE_PROJECT_ID',

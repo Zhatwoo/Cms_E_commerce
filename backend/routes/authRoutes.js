@@ -13,6 +13,8 @@ const {
 const { protect } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 
+const router = express.Router();
+
 // Public routes
 router.post('/register', [
   body('name').trim().notEmpty().withMessage('Name is required'),

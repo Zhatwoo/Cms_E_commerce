@@ -1,5 +1,6 @@
 // config/firebase.js
 const admin = require('firebase-admin');
+const serviceAccount = require('../cms-e-commerce-75653-firebase-adminsdk-fbsvc-5b7bf050e8.json');
 
 // Initialize Firebase Admin SDK
 const initializeFirebase = () => {
@@ -7,20 +8,19 @@ const initializeFirebase = () => {
     // Check if already initialized
     if (admin.apps.length === 0) {
       admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
-        }),
-        databaseURL: process.env.FIREBASE_DATABASE_URL
+        credential: admin.credential.cert(serviceAccount),
+        projectId: 'cms-e-commerce-75653'
       });
       
       console.log('✅ Firebase Admin SDK initialized');
+      console.log('📍 Project ID:', serviceAccount.project_id);
+      console.log('📧 Client Email:', serviceAccount.client_email);
     }
     
     return admin;
   } catch (error) {
     console.error('❌ Firebase initialization error:', error.message);
+    console.error('📋 Full error:', error);
     process.exit(1);
   }
 };
