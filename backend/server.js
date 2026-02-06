@@ -1,5 +1,53 @@
 // server.js
-require('dotenv').config();
+const path = require('path');
+const fs = require('fs');
+
+// Load backend/.env manually (works even when dotenv fails with encoding/special chars)
+const envPath = path.resolve(__dirname, '.env');
+if (!fs.existsSync(envPath)) {
+  console.error('❌ .env file not found at:', envPath);
+  process.exit(1);
+}
+const envContent = fs.readFileSync(envPath, 'utf8');
+if (!envContent || envContent.trim().length === 0) {
+  console.error('❌ .env file is empty. Add JWT_SECRET, FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY and save the file (e.g. backend/.env).');
+  process.exit(1);
+}
+// Parse .env with support for multi-line quoted values (e.g. FIREBASE_PRIVATE_KEY)
+const lines = envContent.split(/\r?\n/);
+let i = 0;
+while (i < lines.length) {
+  const line = lines[i];
+  const trimmed = line.trim();
+  if (!trimmed || trimmed.startsWith('#')) { i++; continue; }
+  const eq = trimmed.indexOf('=');
+  if (eq <= 0) { i++; continue; }
+  const key = trimmed.slice(0, eq).trim();
+  let value = trimmed.slice(eq + 1).trim();
+  const quote = value.startsWith('"') ? '"' : value.startsWith("'") ? "'" : null;
+  if (quote && (value.length === 1 || !value.endsWith(quote))) {
+    // Multi-line: collect lines until closing quote
+    value = value.slice(1);
+    while (i < lines.length) {
+      i++;
+      const next = i < lines.length ? lines[i] : '';
+      const endQuote = next.indexOf(quote);
+      if (endQuote >= 0) {
+        value += '\n' + next.slice(0, endQuote);
+        i++;
+        break;
+      }
+      value += '\n' + next;
+    }
+  } else if (quote && value.endsWith(quote)) {
+    value = value.slice(1, -1);
+    i++;
+  } else {
+    i++;
+  }
+  if (quote) value = value.replace(/\\n/g, '\n');
+  process.env[key] = value;
+}
 const { validateEnv } = require('./config/env');
 validateEnv();
 
@@ -8,6 +56,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const cookieParser = require('cookie-parser');
 const { initializeFirebase } = require('./config/firebase');
 
 const app = express();
@@ -27,10 +76,32 @@ const authLimiter = rateLimit({
 });
 app.use('/api/auth', authLimiter);
 
-// Middleware
-app.use(cors());
+// Middleware – CORS with credentials so browser sends cookies (frontend port may differ)
+const frontendOrigin = process.env.FRONTEND_URL || process.env.CORS_ORIGIN || 'http://localhost:3000';
+app.use(cors({
+  origin: frontendOrigin,
+  credentials: true
+}));
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Health check – para malaman kung naka-integrate / tumatakbo ang backend
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true, message: 'Backend running', timestamp: new Date().toISOString() });
+});
+
+// Firebase client config (from backend .env) – para iisa ang source, frontend dito kumukuha
+app.get('/api/config/firebase', (req, res) => {
+  res.json({
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || process.env.FIREBASE_CLIENT_API_KEY || '',
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || process.env.FIREBASE_AUTH_DOMAIN || '',
+    projectId: process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '',
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || process.env.FIREBASE_STORAGE_BUCKET || '',
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || process.env.FIREBASE_MESSAGING_SENDER_ID || '',
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || process.env.FIREBASE_APP_ID || ''
+  });
+});
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
@@ -64,9 +135,10 @@ app.get('/', (req, res) => {
       auth: {
         register: 'POST /api/auth/register',
         login: 'POST /api/auth/login',
+        logout: 'POST /api/auth/logout',
         forgotPassword: 'POST /api/auth/forgot-password',
         resetPassword: 'POST /api/auth/reset-password',
-        getMe: 'GET /api/auth/me (protected)',
+        getMe: 'GET /api/auth/me (protected, cookie or Bearer)',
         updateProfile: 'PUT /api/auth/profile (protected)',
         changePassword: 'PUT /api/auth/change-password (protected)'
       },
@@ -144,7 +216,9 @@ app.use((err, req, res, next) => {
 app.use((req, res) => {
   res.status(404).json({
     success: false,
-    message: 'Route not found'
+    message: 'Route not found',
+    requested: req.method + ' ' + req.originalUrl,
+    try: 'GET / or GET /api/health for API info'
   });
 });
 

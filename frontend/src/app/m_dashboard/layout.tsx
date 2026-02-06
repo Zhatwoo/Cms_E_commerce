@@ -1,14 +1,49 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { DashboardSidebar } from './components/sidebar';
 import { DashboardHeader } from './components/header';
+import { getMe, type User } from '@/lib/api';
 
 export default function MDashboardLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
+    const router = useRouter();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [mounted, setMounted] = useState(false);
+    const [authChecked, setAuthChecked] = useState(false);
+    const [user, setUser] = useState<User | null>(null);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    useEffect(() => {
+        if (!mounted) return;
+        getMe()
+            .then((res) => {
+                setAuthChecked(true);
+                if (res.success && res.user) {
+                    setUser(res.user);
+                } else {
+                    router.replace('/auth/login');
+                }
+            })
+            .catch(() => {
+                setAuthChecked(true);
+                router.replace('/auth/login');
+            });
+    }, [mounted, router]);
+
+    if (!mounted || !authChecked || !user) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white flex items-center justify-center">
+                <p className="text-white/70">Loading…</p>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white flex">
@@ -46,7 +81,7 @@ export default function MDashboardLayout({
 
             {/* Main content area */}
             <div className="flex-1 flex flex-col min-h-screen">
-                <DashboardHeader onMenuToggle={() => setSidebarOpen(true)} />
+                <DashboardHeader user={user} onMenuToggle={() => setSidebarOpen(true)} />
                 <main className="flex-1 px-6 py-6 overflow-x-hidden min-w-0">{children}</main>
             </div>
         </div>

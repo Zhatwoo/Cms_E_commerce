@@ -3,8 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { login } from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,25 +15,21 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!auth) {
-      setError('Firebase is not configured. Check your .env.local.');
-      return;
-    }
     if (!email || !password) {
       setError('Please enter email and password.');
       return;
     }
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      router.push('/m_dashboard');
-      router.refresh();
-    } catch (err: unknown) {
-      const code = err && typeof err === 'object' && 'code' in err ? (err as { code: string }).code : '';
-      const message = code === 'auth/invalid-credential' || code === 'auth/invalid-login-credentials'
-        ? 'Invalid email or password.'
-        : (err && typeof err === 'object' && 'message' in err ? (err as { message?: string }).message : null) ?? 'Login failed.';
-      setError(message);
+      const data = await login(email, password);
+      if (data.success) {
+        router.push('/m_dashboard');
+        router.refresh();
+      } else {
+        setError(data.message || 'Login failed.');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed.');
     } finally {
       setLoading(false);
     }

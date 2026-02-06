@@ -3,8 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { register as apiRegister } from '@/lib/api';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -17,33 +16,25 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!auth) {
-      setError('Firebase is not configured. Check your .env.local.');
-      return;
-    }
     if (!email || !password) {
       setError('Please enter email and password.');
       return;
     }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.');
       return;
     }
     setLoading(true);
     try {
-      const { user } = await createUserWithEmailAndPassword(auth, email, password);
-      if (name.trim()) {
-        await updateProfile(user, { displayName: name.trim() });
+      const data = await apiRegister({ name: name.trim() || email.split('@')[0], email, password });
+      if (data.success) {
+        router.push('/m_dashboard');
+        router.refresh();
+      } else {
+        setError(data.message || 'Sign up failed.');
       }
-      router.push('/');
-      router.refresh();
-    } catch (err: unknown) {
-      const msg = err && typeof err === 'object' && 'code' in err
-        ? (err as { code: string }).code === 'auth/email-already-in-use'
-          ? 'This email is already registered.'
-          : (err as { message?: string }).message ?? 'Sign up failed.'
-        : 'Sign up failed.';
-      setError(msg);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Sign up failed.');
     } finally {
       setLoading(false);
     }
@@ -110,7 +101,7 @@ export default function RegisterPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="mt-2 w-full rounded-lg border border-neutral-600 bg-neutral-900/80 px-4 py-3 text-white placeholder:text-neutral-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
               />
-              <p className="mt-1.5 text-xs text-white/60">At least 8 characters</p>
+              <p className="mt-1.5 text-xs text-white/60">At least 6 characters</p>
             </div>
             <button
               type="submit"
