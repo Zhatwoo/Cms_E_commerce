@@ -2,6 +2,9 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { motion, type Variants } from 'framer-motion';
+import CreateSite from './components/CreateSite';
+import TemplatesLibrary from './components/TemplatesLibrary';
+import ActivityFeed from './components/ActivityFeed';
 
 // ── Icons (unchanged) ────────────────────────────────────────────────────────
 const BriefcaseIcon = () => (
@@ -341,6 +344,7 @@ const cardVariants: Variants = {
 export function DashboardContent() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const colors = THEMES[theme];
+  const [showCreateSite, setShowCreateSite] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.remove('dark', 'light');
@@ -631,21 +635,37 @@ export function DashboardContent() {
                 Most active workspaces overview
               </p>
             </div>
-            <motion.button
-              className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-colors"
-              style={{
-                borderColor: colors.border.default,
-                color: colors.text.secondary,
-                backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.4)' : colors.bg.card,
-              }}
-              whileHover={{ scale: 1.03, backgroundColor: 'rgba(0,0,0,0.55)' }}
-              whileTap={{ scale: 0.97 }}
-            >
-              <span className="rounded-lg p-1.5" style={{ backgroundColor: colors.bg.elevated }}>
-                <FilterIcon />
-              </span>
-              Filters
-            </motion.button>
+            <div className="flex items-center gap-3">
+              <motion.button
+                onClick={() => setShowCreateSite(true)}
+                className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-colors"
+                style={{
+                  borderColor: colors.border.default,
+                  color: colors.text.secondary,
+                  backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.4)' : colors.bg.card,
+                }}
+                whileHover={{ scale: 1.03, backgroundColor: 'rgba(0,0,0,0.55)' }}
+                whileTap={{ scale: 0.97 }}
+              >
+                Create site
+              </motion.button>
+
+              <motion.button
+                className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-colors"
+                style={{
+                  borderColor: colors.border.default,
+                  color: colors.text.secondary,
+                  backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.4)' : colors.bg.card,
+                }}
+                whileHover={{ scale: 1.03, backgroundColor: 'rgba(0,0,0,0.55)' }}
+                whileTap={{ scale: 0.97 }}
+              >
+                <span className="rounded-lg p-1.5" style={{ backgroundColor: colors.bg.elevated }}>
+                  <FilterIcon />
+                </span>
+                Filters
+              </motion.button>
+            </div>
           </div>
 
           {/* Featured preview placeholder */}
@@ -704,6 +724,23 @@ export function DashboardContent() {
             </div>
           </motion.div>
 
+          {/* Templates library */}
+          <motion.div
+            className="rounded-2xl p-6 border"
+            style={{ background: `linear-gradient(135deg, ${colors.bg.card}, ${theme === 'dark' ? colors.bg.dark : colors.bg.elevated})`, borderColor: colors.border.default }}
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: colors.text.muted }}>Templates</p>
+                <p className="text-sm" style={{ color: colors.text.secondary }}>Quick-start templates for new sites</p>
+              </div>
+            </div>
+            <TemplatesLibrary onUse={(t) => console.log('Use template', t)} />
+          </motion.div>
+
           {/* Projects table */}
           <motion.div
             className="rounded-2xl border overflow-hidden shadow-2xl"
@@ -759,7 +796,18 @@ export function DashboardContent() {
               </div>
             </div>
           </motion.div>
+
+          {/* Activity feed */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <ActivityFeed />
+          </motion.div>
         </section>
+        
+        <CreateSite show={showCreateSite} onClose={() => setShowCreateSite(false)} onCreate={(d) => console.log('Created site', d)} />
       </div>
     </main>
   );
