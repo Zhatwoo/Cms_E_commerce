@@ -4,21 +4,41 @@ import { ContainerSettings } from "./ContainerSettings";
 
 interface ContainerProps {
   background?: string;
-  padding?: number | string; // Allow separate padding
+  // Padding
+  padding?: number | string;
   paddingLeft?: number;
   paddingRight?: number;
   paddingTop?: number;
   paddingBottom?: number;
+  // Margin
+  margin?: number | string;
+  marginLeft?: number;
+  marginRight?: number;
+  marginTop?: number;
+  marginBottom?: number;
+  // Dimensions
   width?: string;
   height?: string;
+  // Border & Radius
   borderRadius?: number;
+  radiusTopLeft?: number;
+  radiusTopRight?: number;
+  radiusBottomRight?: number;
+  radiusBottomLeft?: number;
   borderColor?: string;
   borderWidth?: number;
+  borderStyle?: string;
+  // Layout
   flexDirection?: "row" | "column";
   flexWrap?: "nowrap" | "wrap";
   alignItems?: "flex-start" | "center" | "flex-end" | "stretch";
   justifyContent?: "flex-start" | "center" | "flex-end" | "space-between" | "space-around";
   gap?: number;
+  // Effects
+  boxShadow?: string;
+  opacity?: number;
+  overflow?: string;
+  // Content
   children?: React.ReactNode;
 }
 
@@ -29,16 +49,29 @@ export const Container = ({
   paddingRight,
   paddingTop,
   paddingBottom,
+  margin = 0,
+  marginLeft,
+  marginRight,
+  marginTop,
+  marginBottom,
   width = "100%",
   height = "auto",
   borderRadius = 0,
+  radiusTopLeft,
+  radiusTopRight,
+  radiusBottomRight,
+  radiusBottomLeft,
   borderColor = "transparent",
   borderWidth = 0,
+  borderStyle = "solid",
   flexDirection = "column",
   flexWrap = "nowrap",
   alignItems = "flex-start",
   justifyContent = "flex-start",
   gap = 0,
+  boxShadow = "none",
+  opacity = 1,
+  overflow = "visible",
   children
 }: ContainerProps) => {
   const { connectors: { connect, drag } } = useNode();
@@ -50,28 +83,54 @@ export const Container = ({
   const pt = paddingTop !== undefined ? paddingTop : p;
   const pb = paddingBottom !== undefined ? paddingBottom : p;
 
+  // Resolve margin
+  const m = typeof margin === 'number' ? margin : 0;
+  const ml = marginLeft !== undefined ? marginLeft : m;
+  const mr = marginRight !== undefined ? marginRight : m;
+  const mt = marginTop !== undefined ? marginTop : m;
+  const mb = marginBottom !== undefined ? marginBottom : m;
+
+  // Resolve border radius
+  const br = borderRadius || 0;
+  const rtl = radiusTopLeft !== undefined ? radiusTopLeft : br;
+  const rtr = radiusTopRight !== undefined ? radiusTopRight : br;
+  const rbr = radiusBottomRight !== undefined ? radiusBottomRight : br;
+  const rbl = radiusBottomLeft !== undefined ? radiusBottomLeft : br;
+
   return (
     <div
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className="min-h-[50px] transition-all hover:outline hover:outline-blue-500 hover:outline-1"
+      className="min-h-[50px] transition-all hover:outline hover:outline-blue-500"
       style={{
-        background,
+        backgroundColor: background,
         paddingLeft: `${pl}px`,
         paddingRight: `${pr}px`,
         paddingTop: `${pt}px`,
         paddingBottom: `${pb}px`,
+        marginLeft: `${ml}px`,
+        marginRight: `${mr}px`,
+        marginTop: `${mt}px`,
+        marginBottom: `${mb}px`,
         width,
         height,
-        borderRadius: `${borderRadius}px`,
-        border: `${borderWidth}px solid ${borderColor}`,
+        borderTopLeftRadius: `${rtl}px`,
+        borderTopRightRadius: `${rtr}px`,
+        borderBottomRightRadius: `${rbr}px`,
+        borderBottomLeftRadius: `${rbl}px`,
+        borderWidth: `${borderWidth}px`,
+        borderColor,
+        borderStyle,
         display: "flex",
         flexDirection,
         flexWrap,
         alignItems,
         justifyContent,
-        gap: `${gap}px`
+        gap: `${gap}px`,
+        boxShadow,
+        opacity,
+        overflow
       }}
     >
       {children}
@@ -82,16 +141,21 @@ export const Container = ({
 export const ContainerDefaultProps = {
   background: "#27272a",
   padding: 20,
+  margin: 0,
   width: "100%",
   height: "auto",
   borderRadius: 0,
   borderColor: "transparent",
   borderWidth: 0,
+  borderStyle: "solid",
   flexDirection: "column",
   flexWrap: "nowrap",
   alignItems: "flex-start",
   justifyContent: "flex-start",
-  gap: 0
+  gap: 0,
+  boxShadow: "none",
+  opacity: 1,
+  overflow: "visible"
 };
 
 Container.craft = {
