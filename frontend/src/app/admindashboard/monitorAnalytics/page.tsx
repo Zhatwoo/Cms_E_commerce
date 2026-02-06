@@ -196,7 +196,7 @@ export default function MonitoringAnalyticsPage() {
                     transition={{ duration: 0.45, ease: [0.25, 0.8, 0.25, 1] }}
                 >
                     <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900">
-                        Monitoring & Analytics
+                        Monitoring and Analytics
                     </h1>
                     <div className="flex items-center gap-2 text-sm text-slate-500">
                         <span>Monitoring & Analytics</span>
@@ -423,3 +423,5 @@ export default function MonitoringAnalyticsPage() {
         </div>
     );
 }
+//hatdog
+
