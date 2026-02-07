@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useEditor } from "@craftjs/core";
-import { PanelRight } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { PanelRight, Play } from "lucide-react";
 
 type TabId = "design" | "settings" | "animation";
 
@@ -15,10 +16,13 @@ const TABS: Tab[] = [
   { id: "animation", label: "Animation" },
 ];
 
+const STORAGE_KEY = "craftjs_preview_json";
+
 export const RightPanel = () => {
   const [activeTab, setActiveTab] = useState<TabId>("design");
+  const router = useRouter();
 
-  const { selected } = useEditor((state) => {
+  const { selected, query } = useEditor((state) => {
     const [currentNodeId] = state.events.selected;
     let selected;
 
@@ -35,15 +39,27 @@ export const RightPanel = () => {
     return { selected };
   });
 
+  const handlePreview = () => {
+    const json = query.serialize();
+    sessionStorage.setItem(STORAGE_KEY, json);
+    window.open("/design/preview", "_blank");
+  };
+
   return (
     <div
       className="w-80 bg-brand-darker/75 backdrop-blur-lg rounded-3xl p-6 h-full shadow-2xl overflow-y-auto border border-white/10"
       style={{ boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)" }}
     >
       <div className="flex items-center justify-between mb-6">
-        <PanelRight className="text-brand-light w-5 h-5" />
+        <PanelRight strokeWidth={2} className="text-brand-light w-5 h-5" />
         <h3 className="text-white font-bold text-lg">Configs</h3>
-        <span className="text-brand-light">▶</span>
+        <button
+          onClick={handlePreview}
+          className="p-1 rounded-lg hover:bg-brand-medium/40 transition-colors cursor-pointer"
+          title="Preview JSON output"
+        >
+          <Play strokeWidth={2} className="text-brand-light w-5 h-5 hover:text-white transition-colors" />
+        </button>
       </div>
 
       {selected ? (
@@ -63,8 +79,8 @@ export const RightPanel = () => {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex-1 transition-colors ${activeTab === tab.id
-                    ? "text-white bg-brand-medium/50 rounded-lg py-1"
-                    : "text-brand-light hover:text-brand-lighter py-1"
+                  ? "text-white bg-brand-medium/50 rounded-lg py-1"
+                  : "text-brand-light hover:text-brand-lighter py-1"
                   }`}
               >
                 {tab.label}
