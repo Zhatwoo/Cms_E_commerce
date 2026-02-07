@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Scan, Plus, SquareRoundCorner } from "lucide-react";
+import { Scan, Plus, SquareRoundCorner, ImageIcon, X } from "lucide-react";
 import { NumericInput } from "./inputs/NumericInput";
 import { ColorInput } from "./inputs/ColorInput";
 import type { AppearanceProps, SetProp } from "../../../_types/components";
@@ -8,8 +8,31 @@ interface AppearanceGroupProps extends AppearanceProps {
   setProp: SetProp<AppearanceProps>;
 }
 
+const BG_SIZE_OPTIONS: { value: AppearanceProps["backgroundSize"]; label: string }[] = [
+  { value: "cover", label: "Cover" },
+  { value: "contain", label: "Contain" },
+  { value: "auto", label: "Auto" },
+];
+
+const BG_POSITION_OPTIONS = [
+  "center", "top", "bottom", "left", "right",
+  "top left", "top right", "bottom left", "bottom right",
+];
+
+const BG_REPEAT_OPTIONS: { value: AppearanceProps["backgroundRepeat"]; label: string }[] = [
+  { value: "no-repeat", label: "No Repeat" },
+  { value: "repeat", label: "Repeat" },
+  { value: "repeat-x", label: "Repeat X" },
+  { value: "repeat-y", label: "Repeat Y" },
+];
+
 export const AppearanceGroup = ({
   background = "transparent",
+  backgroundImage = "",
+  backgroundSize = "cover",
+  backgroundPosition = "center",
+  backgroundRepeat = "no-repeat",
+  backgroundOverlay = "",
   borderColor = "transparent",
   borderWidth = 0,
   borderStyle = "solid",
@@ -20,6 +43,7 @@ export const AppearanceGroup = ({
   setProp
 }: AppearanceGroupProps) => {
   const [expandRadius, setExpandRadius] = useState(false);
+  const [showBgImage, setShowBgImage] = useState(!!backgroundImage);
 
   const handleRadiusChange = (corner: string, val: number) => {
     setProp((props) => {
@@ -60,6 +84,99 @@ export const AppearanceGroup = ({
             className="flex-1"
           />
         </div>
+      </div>
+
+      {/* Background Image */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <label className="text-[12px] text-brand-lighter font-base">Background Image</label>
+          <button
+            onClick={() => {
+              if (showBgImage) {
+                setProp((props) => { props.backgroundImage = ""; });
+              }
+              setShowBgImage(!showBgImage);
+            }}
+            className="p-0.5 rounded text-brand-medium hover:text-white"
+            title={showBgImage ? "Remove background image" : "Add background image"}
+          >
+            {showBgImage ? <X size={12} /> : <ImageIcon size={12} />}
+          </button>
+        </div>
+
+        {showBgImage && (
+          <div className="flex flex-col gap-2">
+            {/* Image URL */}
+            <input
+              type="text"
+              value={backgroundImage}
+              onChange={(e) => setProp((props) => { props.backgroundImage = e.target.value; })}
+              onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+              placeholder="https://example.com/image.jpg"
+              className="w-full bg-brand-medium-dark rounded-lg text-xs text-white px-2.5 py-1.5 focus:outline-none placeholder:text-brand-medium"
+            />
+
+            {/* Size & Position Row */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] text-brand-light">Size</span>
+                <select
+                  value={backgroundSize}
+                  onChange={(e) => setProp((props) => { props.backgroundSize = e.target.value as AppearanceProps["backgroundSize"]; })}
+                  className="w-full bg-brand-medium-dark rounded-lg text-xs text-white px-2 py-1.5 focus:outline-none appearance-none"
+                >
+                  {BG_SIZE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value} className="bg-brand-dark">{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] text-brand-light">Position</span>
+                <select
+                  value={backgroundPosition}
+                  onChange={(e) => setProp((props) => { props.backgroundPosition = e.target.value; })}
+                  className="w-full bg-brand-medium-dark rounded-lg text-xs text-white px-2 py-1.5 focus:outline-none appearance-none"
+                >
+                  {BG_POSITION_OPTIONS.map((pos) => (
+                    <option key={pos} value={pos} className="bg-brand-dark capitalize">{pos}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Repeat */}
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] text-brand-light">Repeat</span>
+              <select
+                value={backgroundRepeat}
+                onChange={(e) => setProp((props) => { props.backgroundRepeat = e.target.value as AppearanceProps["backgroundRepeat"]; })}
+                className="w-full bg-brand-medium-dark rounded-lg text-xs text-white px-2 py-1.5 focus:outline-none appearance-none"
+              >
+                {BG_REPEAT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value} className="bg-brand-dark">{opt.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Overlay Color */}
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] text-brand-light">Overlay</span>
+              <div className="flex items-center gap-4 bg-brand-medium-dark rounded-lg px-2.5 py-1">
+                <input
+                  type="color"
+                  value={backgroundOverlay || "#000000"}
+                  onChange={(e) => setProp((props) => { props.backgroundOverlay = e.target.value + "80"; })}
+                  className="w-7 h-6 rounded cursor-pointer border-none bg-transparent"
+                />
+                <ColorInput
+                  value={backgroundOverlay || "transparent"}
+                  onChange={(val) => setProp((props) => { props.backgroundOverlay = val; })}
+                  className="flex-1"
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Stroke / Border */}

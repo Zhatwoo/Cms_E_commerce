@@ -5,6 +5,9 @@ import { Viewport } from "./Viewport/Viewport";
 import { Image } from "./Image/Image";
 import { Button } from "./Button/Button";
 import { Divider } from "./Divider/Divider";
+import { Section } from "./Section/Section";
+import { Row } from "./Row/Row";
+import { Column } from "./Column/Column";
 
 export const RenderBlocks = {
   Container,
@@ -14,4 +17,7 @@ export const RenderBlocks = {
   Image,
   Button,
   Divider,
+  Section,
+  Row,
+  Column,
 };

@@ -108,7 +108,7 @@ export const SizePositionGroup = ({
             ))}
           </div>
         ) : (
-          <div className="flex items-center gap-2 bg-brand-dark px-3 rounded-lg border border-brand-medium/20">
+          <div className="flex items-center gap-2 bg-brand-medium-dark px-3 rounded-lg border border-brand-medium/20">
             <Maximize size={12} className="text-brand-medium" />
             <NumericInput
               value={top}

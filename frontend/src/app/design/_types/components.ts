@@ -45,6 +45,11 @@ export interface SizeProps {
 /** Visual appearance properties → AppearanceGroup */
 export interface AppearanceProps {
   background?: string;
+  backgroundImage?: string;
+  backgroundSize?: "cover" | "contain" | "auto" | string;
+  backgroundPosition?: string;
+  backgroundRepeat?: "no-repeat" | "repeat" | "repeat-x" | "repeat-y";
+  backgroundOverlay?: string;
   borderColor?: string;
   borderWidth?: number;
   borderStyle?: string;
@@ -53,6 +58,28 @@ export interface AppearanceProps {
   radiusTopRight?: number;
   radiusBottomRight?: number;
   radiusBottomLeft?: number;
+}
+
+/** CSS Grid layout properties → GridLayoutGroup */
+export interface GridProps {
+  gridTemplateColumns?: string;
+  gridTemplateRows?: string;
+  gridGap?: number;
+  gridColumnGap?: number;
+  gridRowGap?: number;
+  gridAutoRows?: string;
+  gridAutoFlow?: "row" | "column" | "dense" | "row dense" | "column dense";
+}
+
+/** Position & display properties → PositionGroup */
+export interface PositionProps {
+  position?: "static" | "relative" | "absolute" | "fixed" | "sticky";
+  display?: "flex" | "grid" | "block" | "inline-block" | "none";
+  zIndex?: number;
+  top?: string;
+  right?: string;
+  bottom?: string;
+  left?: string;
 }
 
 /** Visual effects properties → EffectsGroup */
@@ -79,7 +106,7 @@ export interface TypographyProps {
 
 /** Container component props — combines all layout and visual property groups. */
 export interface ContainerProps
-  extends LayoutProps, SpacingProps, SizeProps, AppearanceProps, EffectsProps {
+  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps {
   children?: ReactNode;
 }
 

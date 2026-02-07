@@ -62,11 +62,12 @@ export const AutoLayoutGroup = ({
       <button
         key={`${h}-${v}`}
         onClick={() => handleAlignment(targetAlign, targetJustify)}
-        className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all ${active
+        className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${active
           ? "bg-brand-light text-brand-dark scale-110"
           : "bg-brand-medium/50 text-brand-light hover:bg-brand-medium/40"
           }`}
       >
+        {/* center dot */}
         <div className={`w-1.5 h-1.5 rounded-full ${active ? "bg-brand-darker" : "bg-brand-light"}`} />
       </button>
     );
@@ -103,7 +104,7 @@ export const AutoLayoutGroup = ({
       {/* Alignment Matrix & Gap */}
       <div className="flex gap-4">
         {/* 3x3 Matrix */}
-        <div className="bg-brand-medium-dark p-2 rounded-xl inline-grid grid-cols-3 gap-1.5">
+        <div className="bg-brand-medium-dark p-1.5 rounded-xl inline-grid grid-cols-3 gap-2">
           {["start", "center", "end"].map(v =>
             ["start", "center", "end"].map(h =>
               renderMatrixCell(h as "start" | "center" | "end", v as "start" | "center" | "end")

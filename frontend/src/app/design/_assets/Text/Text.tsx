@@ -81,9 +81,17 @@ export const TextDefaultProps: Partial<TextProps> = {
   letterSpacing: 0,
   textAlign: "left",
   textTransform: "none",
-  color: "#ffffff",
+  color: "#000000",
   margin: 0,
+  marginTop: 0,
+  marginRight: 0,
+  marginBottom: 0,
+  marginLeft: 0,
   padding: 0,
+  paddingTop: 0,
+  paddingRight: 0,
+  paddingBottom: 0,
+  paddingLeft: 0,
   opacity: 1,
   boxShadow: "none"
 };

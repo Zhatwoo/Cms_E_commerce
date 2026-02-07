@@ -111,6 +111,10 @@ export const ButtonDefaultProps: Partial<ButtonProps> = {
   paddingLeft: 24,
   paddingRight: 24,
   margin: 0,
+  marginTop: 0,
+  marginRight: 0,
+  marginBottom: 0,
+  marginLeft: 0,
   opacity: 1,
   boxShadow: "none",
 };
