@@ -80,7 +80,7 @@ export const SizePositionGroup = ({
     return (
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <label className="text-[10px] text-brand-lighter uppercase">{label}</label>
+          <label className="text-[10px] text-brand-lighter">{label}</label>
           <button
             onClick={() => setExpanded(!expanded)}
             className={`p-0.5 rounded ${expanded ? "bg-brand-light text-brand-dark" : "text-brand-medium hover:text-white"}`}
@@ -162,7 +162,7 @@ export const SizePositionGroup = ({
 
     return (
       <div className="flex flex-col gap-1">
-        <label className="text-[10px] text-brand-lighter uppercase">{dim}</label>
+        <label className="text-[10px] text-brand-lighter capitalize">{dim}</label>
         <div className="flex items-center bg-brand-medium-dark rounded-lg px-1.5">
           <input
             type="text"

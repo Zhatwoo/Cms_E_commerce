@@ -47,7 +47,7 @@ export const TypographyGroup = ({
       <div className="grid grid-cols-2 gap-3">
         {/* Weight */}
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] text-brand-lighter uppercase">Weight</label>
+          <label className="text-[10px] text-brand-lighter">Weight</label>
           <select
             value={fontWeight}
             onChange={(e) => setProp((props) => { props.fontWeight = e.target.value; })}
@@ -63,7 +63,7 @@ export const TypographyGroup = ({
 
         {/* Size */}
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] text-brand-lighter uppercase">Size</label>
+          <label className="text-[10px] text-brand-lighter">Size</label>
           <NumericInput
             value={fontSize}
             onChange={(val) => setProp((props) => { props.fontSize = val; })}
@@ -75,7 +75,7 @@ export const TypographyGroup = ({
       <div className="grid grid-cols-2 gap-3">
         {/* Line Height */}
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] text-brand-lighter uppercase">Line Height</label>
+          <label className="text-[10px] text-brand-lighter">Line Height</label>
           <NumericInput
             value={Number(lineHeight)}
             step={0.1}
@@ -85,7 +85,7 @@ export const TypographyGroup = ({
 
         {/* Letter Spacing */}
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] text-brand-lighter uppercase">Spacing</label>
+          <label className="text-[10px] text-brand-lighter">Spacing</label>
           <NumericInput
             value={Number(letterSpacing)}
             step={0.1}
@@ -127,7 +127,7 @@ export const TypographyGroup = ({
 
       {/* Color */}
       <div className="flex flex-col gap-1">
-        <label className="text-[10px] text-brand-lighter uppercase">Color</label>
+        <label className="text-[10px] text-brand-lighter">Color</label>
         <div className="flex items-center gap-2 bg-brand-black border border-brand-medium/30 rounded-md p-1">
           <input
             type="color"

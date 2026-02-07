@@ -26,7 +26,7 @@ export const DividerSettings = () => {
         <div className="flex flex-col gap-3">
           {/* Style */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter uppercase">Style</label>
+            <label className="text-[10px] text-brand-lighter">Style</label>
             <div className="grid grid-cols-3 gap-1 bg-brand-dark/30 p-1 rounded-lg border border-brand-medium/20">
               {(["solid", "dashed", "dotted"] as const).map((s) => (
                 <button
@@ -45,7 +45,7 @@ export const DividerSettings = () => {
 
           {/* Color */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter uppercase">Color</label>
+            <label className="text-[10px] text-brand-lighter">Color</label>
             <div className="flex items-center gap-2 bg-brand-black border border-brand-medium/30 rounded-md p-1">
               <input
                 type="color"
@@ -64,7 +64,7 @@ export const DividerSettings = () => {
           {/* Thickness & Width */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter uppercase">Thickness</label>
+              <label className="text-[10px] text-brand-lighter">Thickness</label>
               <NumericInput
                 value={thickness ?? 1}
                 onChange={(val) => typedSetProp((props) => { props.thickness = val; })}
@@ -73,7 +73,7 @@ export const DividerSettings = () => {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter uppercase">Width</label>
+              <label className="text-[10px] text-brand-lighter">Width</label>
               <select
                 value={width}
                 onChange={(e) => typedSetProp((props) => { props.width = e.target.value; })}
@@ -90,7 +90,7 @@ export const DividerSettings = () => {
           {/* Spacing */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter uppercase">Margin Top</label>
+              <label className="text-[10px] text-brand-lighter">Margin Top</label>
               <NumericInput
                 value={marginTop ?? 8}
                 onChange={(val) => typedSetProp((props) => { props.marginTop = val; })}
@@ -99,7 +99,7 @@ export const DividerSettings = () => {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter uppercase">Margin Bottom</label>
+              <label className="text-[10px] text-brand-lighter">Margin Bottom</label>
               <NumericInput
                 value={marginBottom ?? 8}
                 onChange={(val) => typedSetProp((props) => { props.marginBottom = val; })}

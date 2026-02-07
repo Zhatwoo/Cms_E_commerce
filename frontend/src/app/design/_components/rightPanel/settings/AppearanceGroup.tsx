@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Copy, Plus } from "lucide-react";
+import { Scan, Plus, SquareRoundCorner } from "lucide-react";
 import { NumericInput } from "./inputs/NumericInput";
 import { ColorInput } from "./inputs/ColorInput";
 import type { AppearanceProps, SetProp } from "../../../_types/components";
@@ -43,15 +43,16 @@ export const AppearanceGroup = ({
       {/* Fill */}
       <div className="flex flex-col gap-1">
         <div className="flex justify-between items-center">
-          <label className="text-[10px] text-brand-lighter uppercase">Fill</label>
-          <Plus size={12} className="text-brand-medium hover:text-white cursor-pointer" />
+          <label className="text-[12px] text-brand-lighter font-base">Fill</label>
+          <Plus size={12} className="text-brand-lighter hover:text-white cursor-pointer" />
         </div>
-        <div className="flex items-center gap-2 bg-brand-black border border-brand-medium/30 rounded-md p-1">
+        {/* Color Input */}
+        <div className="flex items-center gap-4 bg-brand-medium-dark rounded-lg px-2.5 py-1">
           <input
             type="color"
             value={background}
             onChange={(e) => setProp((props) => { props.background = e.target.value; })}
-            className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0"
+            className="w-7 h-6 rounded cursor-pointer border-none bg-transparent"
           />
           <ColorInput
             value={background}
@@ -63,14 +64,15 @@ export const AppearanceGroup = ({
 
       {/* Stroke / Border */}
       <div className="flex flex-col gap-2">
-        <label className="text-[10px] text-brand-lighter uppercase">Stroke</label>
+        <label className="text-[12px] text-brand-lighter font-base">Stroke</label>
         <div className="flex gap-2">
-          <div className="flex-1 flex items-center gap-2 bg-brand-black border border-brand-medium/30 rounded-md p-1">
+          {/* Color Input */}
+          <div className="flex-1 flex items-center gap-4 bg-brand-medium-dark rounded-lg px-2.5 appearance-none">
             <input
               type="color"
               value={borderColor}
               onChange={(e) => setProp((props) => { props.borderColor = e.target.value; })}
-              className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0"
+              className="w-7 h-6 rounded cursor-pointer bg-transparent"
             />
             <ColorInput
               value={borderColor}
@@ -78,7 +80,8 @@ export const AppearanceGroup = ({
               className="flex-1"
             />
           </div>
-          <div className="w-16">
+          {/* Thickness Input */}
+          <div className="w-16 bg-brand-medium-dark rounded-lg px-2.5">
             <NumericInput
               value={borderWidth}
               onChange={(val) => setProp((props) => { props.borderWidth = val; })}
@@ -89,7 +92,7 @@ export const AppearanceGroup = ({
         <select
           value={borderStyle}
           onChange={(e) => setProp((props) => { props.borderStyle = e.target.value; })}
-          className="w-full bg-brand-black border border-brand-medium/30 rounded-md text-xs text-white p-1.5 focus:outline-none"
+          className="w-full bg-brand-medium-dark rounded-lg text-xs text-white px-2.5 py-1.5 focus:outline-none appearance-none"
         >
           <option value="solid">Solid</option>
           <option value="dashed">Dashed</option>
@@ -100,44 +103,56 @@ export const AppearanceGroup = ({
       {/* Corner Radius */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <label className="text-[10px] text-brand-lighter uppercase">Corners</label>
+          <label className="text-[12px] text-brand-lighter">Corners</label>
           <button
             onClick={() => setExpandRadius(!expandRadius)}
             className={`p-0.5 rounded ${expandRadius ? "bg-brand-light text-brand-dark" : "text-brand-medium hover:text-white"}`}
           >
-            <Copy size={12} />
+            <Scan strokeWidth={2} size={12} className={`text-brand-lighter hover:text-white ${expandRadius ? "rotate-90" : "rotate-0"}`} />
           </button>
         </div>
 
         {expandRadius ? (
           <div className="grid grid-cols-2 gap-2">
-            <NumericInput
-              value={radiusTopLeft}
-              onChange={(val) => handleRadiusChange("tl", val)}
-              icon={<div className="w-2 h-2 border-t border-l border-brand-medium" />}
-            />
-            <NumericInput
-              value={radiusTopRight}
-              onChange={(val) => handleRadiusChange("tr", val)}
-              icon={<div className="w-2 h-2 border-t border-r border-brand-medium" />}
-            />
-            <NumericInput
-              value={radiusBottomLeft}
-              onChange={(val) => handleRadiusChange("bl", val)}
-              icon={<div className="w-2 h-2 border-b border-l border-brand-medium" />}
-            />
-            <NumericInput
-              value={radiusBottomRight}
-              onChange={(val) => handleRadiusChange("br", val)}
-              icon={<div className="w-2 h-2 border-b border-r border-brand-medium" />}
-            />
+            <div className="flex bg-brand-medium-dark rounded-lg px-2 items-center gap-2">
+
+              <NumericInput
+                value={radiusTopLeft}
+                onChange={(val) => handleRadiusChange("tl", val)}
+                icon={<div className="w-2 h-2 border-t border-l border-brand-medium mr-2" />}
+              />
+            </div>
+            <div className="flex bg-brand-medium-dark rounded-lg px-2 items-center gap-2">
+              <NumericInput
+                value={radiusTopRight}
+                onChange={(val) => handleRadiusChange("tr", val)}
+                icon={<div className="w-2 h-2 border-t border-r border-brand-medium mr-2" />}
+              />
+            </div>
+
+            <div className="flex bg-brand-medium-dark rounded-lg px-2 items-center gap-2">
+              <NumericInput
+                value={radiusBottomLeft}
+                onChange={(val) => handleRadiusChange("bl", val)}
+                icon={<div className="w-2 h-2 border-b border-l border-brand-medium mr-2" />}
+              />
+            </div>
+            <div className="flex bg-brand-medium-dark rounded-lg px-2 items-center gap-2">
+              <NumericInput
+                value={radiusBottomRight}
+                onChange={(val) => handleRadiusChange("br", val)}
+                icon={<div className="w-2 h-2 border-b border-r border-brand-medium mr-2" />}
+              />
+            </div>
           </div>
         ) : (
-          <NumericInput
-            value={radiusTopLeft}
-            onChange={(val) => handleRadiusChange("all", val)}
-            icon={<div className="w-3 h-3 border border-brand-medium rounded-sm" />}
-          />
+          <div className="flex bg-brand-medium-dark rounded-lg px-2 items-center gap-2">
+            <SquareRoundCorner size={16} className="text-brand-lighter mx-2.5" />
+            <NumericInput
+              value={radiusTopLeft}
+              onChange={(val) => handleRadiusChange("all", val)}
+            />
+          </div>
         )}
       </div>
     </div>

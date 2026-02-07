@@ -105,7 +105,7 @@ export const NumericInput = ({
 
   return (
     <div className={`flex items-center overflow-hidden${className}`}>
-      {icon && <div className="pl-2 text-brand-medium">{icon}</div>}
+      {icon && <div className="pl-4">{icon}</div>}
       <input
         type="text"
         value={localVal}
@@ -115,7 +115,7 @@ export const NumericInput = ({
         onKeyDown={handleKeyDown}
         className="w-full bg-transparent text-xs text-white p-1.5 focus:outline-none"
       />
-      {unit && <span className="text-[10px] text-brand-medium pr-2 select-none">{unit}</span>}
+      {unit && <span className="text-[10px] text-brand-lighter font-base pr-2 select-none">{unit}</span>}
 
       {/* Optional: We could add up/down buttons here if desired, but arrow keys are usually enough for power users */}
     </div>

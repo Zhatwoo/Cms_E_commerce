@@ -119,6 +119,14 @@ export interface ButtonProps extends SpacingProps, EffectsProps {
   height?: string;
 }
 
+/** Page component props — top-level page wrapper with dimensions and background. */
+export interface PageProps {
+  width?: string;
+  height?: string;
+  background?: string;
+  children?: ReactNode;
+}
+
 /** Divider component props — simple horizontal rule element. */
 export interface DividerProps {
   dividerStyle?: "solid" | "dashed" | "dotted";

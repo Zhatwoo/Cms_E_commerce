@@ -46,7 +46,7 @@ export const ImageSettings = () => {
         <div className="flex flex-col gap-3">
           {/* Source URL */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter uppercase">Source URL</label>
+            <label className="text-[10px] text-brand-lighter">Source URL</label>
             <input
               type="text"
               value={src}
@@ -58,7 +58,7 @@ export const ImageSettings = () => {
 
           {/* Alt Text */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter uppercase">Alt Text</label>
+            <label className="text-[10px] text-brand-lighter">Alt Text</label>
             <input
               type="text"
               value={alt}
@@ -70,7 +70,7 @@ export const ImageSettings = () => {
 
           {/* Object Fit */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter uppercase">Object Fit</label>
+            <label className="text-[10px] text-brand-lighter">Object Fit</label>
             <select
               value={objectFit}
               onChange={(e) => typedSetProp((props) => {

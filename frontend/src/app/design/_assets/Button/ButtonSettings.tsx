@@ -54,7 +54,7 @@ export const ButtonSettings = () => {
         <div className="flex flex-col gap-3">
           {/* Label */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter uppercase">Label</label>
+            <label className="text-[10px] text-brand-lighter">Label</label>
             <input
               type="text"
               value={label}
@@ -65,7 +65,7 @@ export const ButtonSettings = () => {
 
           {/* Link URL */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter uppercase">Link URL</label>
+            <label className="text-[10px] text-brand-lighter">Link URL</label>
             <input
               type="text"
               value={link}
@@ -77,7 +77,7 @@ export const ButtonSettings = () => {
 
           {/* Variant */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter uppercase">Variant</label>
+            <label className="text-[10px] text-brand-lighter">Variant</label>
             <div className="grid grid-cols-4 gap-1 bg-brand-dark/30 p-1 rounded-lg border border-brand-medium/20">
               {(["primary", "secondary", "outline", "ghost"] as const).map((v) => (
                 <button
@@ -101,7 +101,7 @@ export const ButtonSettings = () => {
           {/* Colors */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter uppercase">Background</label>
+              <label className="text-[10px] text-brand-lighter">Background</label>
               <div className="flex items-center gap-1 bg-brand-black border border-brand-medium/30 rounded-md p-1">
                 <input
                   type="color"
@@ -117,7 +117,7 @@ export const ButtonSettings = () => {
               </div>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter uppercase">Text Color</label>
+              <label className="text-[10px] text-brand-lighter">Text Color</label>
               <div className="flex items-center gap-1 bg-brand-black border border-brand-medium/30 rounded-md p-1">
                 <input
                   type="color"
@@ -137,7 +137,7 @@ export const ButtonSettings = () => {
           {/* Border & Radius */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter uppercase">Radius</label>
+              <label className="text-[10px] text-brand-lighter">Radius</label>
               <NumericInput
                 value={borderRadius ?? 8}
                 onChange={(val) => typedSetProp((props) => { props.borderRadius = val; })}
@@ -146,7 +146,7 @@ export const ButtonSettings = () => {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter uppercase">Border Width</label>
+              <label className="text-[10px] text-brand-lighter">Border Width</label>
               <NumericInput
                 value={borderWidth ?? 0}
                 onChange={(val) => typedSetProp((props) => { props.borderWidth = val; })}
@@ -159,7 +159,7 @@ export const ButtonSettings = () => {
           {/* Typography */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter uppercase">Font Size</label>
+              <label className="text-[10px] text-brand-lighter">Font Size</label>
               <NumericInput
                 value={fontSize ?? 14}
                 onChange={(val) => typedSetProp((props) => { props.fontSize = val; })}
@@ -168,7 +168,7 @@ export const ButtonSettings = () => {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter uppercase">Weight</label>
+              <label className="text-[10px] text-brand-lighter">Weight</label>
               <select
                 value={fontWeight}
                 onChange={(e) => typedSetProp((props) => { props.fontWeight = e.target.value; })}
