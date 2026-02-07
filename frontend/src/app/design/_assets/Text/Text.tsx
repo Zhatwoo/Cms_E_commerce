@@ -1,30 +1,7 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
 import { TextSettings } from "./TextSettings";
-
-interface TextProps {
-  text: string;
-  fontSize?: number;
-  fontFamily?: string;
-  fontWeight?: string;
-  lineHeight?: number | string;
-  letterSpacing?: number | string;
-  textAlign?: "left" | "center" | "right" | "justify";
-  textTransform?: "none" | "uppercase" | "lowercase" | "capitalize";
-  color?: string;
-  margin?: number;
-  marginTop?: number;
-  marginBottom?: number;
-  marginLeft?: number;
-  marginRight?: number;
-  padding?: number;
-  paddingTop?: number;
-  paddingBottom?: number;
-  paddingLeft?: number;
-  paddingRight?: number;
-  opacity?: number;
-  shadow?: string;
-}
+import type { TextProps } from "../../_types/components";
 
 export const Text = ({
   text,
@@ -47,17 +24,17 @@ export const Text = ({
   paddingLeft,
   paddingRight,
   opacity = 1,
-  shadow = "none"
+  boxShadow = "none"
 }: TextProps) => {
   const { connectors: { connect, drag } } = useNode();
 
-  const m = margin;
+  const m = typeof margin === "number" ? margin : 0;
   const mt = marginTop !== undefined ? marginTop : m;
   const mb = marginBottom !== undefined ? marginBottom : m;
   const ml = marginLeft !== undefined ? marginLeft : m;
   const mr = marginRight !== undefined ? marginRight : m;
 
-  const p = padding;
+  const p = typeof padding === "number" ? padding : 0;
   const pt = paddingTop !== undefined ? paddingTop : p;
   const pb = paddingBottom !== undefined ? paddingBottom : p;
   const pl = paddingLeft !== undefined ? paddingLeft : p;
@@ -86,7 +63,7 @@ export const Text = ({
         paddingLeft: `${pl}px`,
         paddingRight: `${pr}px`,
         opacity,
-        boxShadow: shadow
+        boxShadow
       }}
       className="hover:outline hover:outline-blue-500 cursor-pointer"
     >
@@ -95,7 +72,7 @@ export const Text = ({
   );
 };
 
-export const TextDefaultProps = {
+export const TextDefaultProps: Partial<TextProps> = {
   text: "Edit me!",
   fontSize: 16,
   fontFamily: "Inter",
@@ -108,7 +85,7 @@ export const TextDefaultProps = {
   margin: 0,
   padding: 0,
   opacity: 1,
-  shadow: "none"
+  boxShadow: "none"
 };
 
 Text.craft = {

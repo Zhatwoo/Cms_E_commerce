@@ -1,9 +1,11 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
+import { SettingsSection } from "../../_components/rightPanel/settings/SettingsSection";
 import { AutoLayoutGroup } from "../../_components/rightPanel/settings/AutoLayoutGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
+import type { ContainerProps, SetProp } from "../../_types/components";
 
 export const ContainerSettings = () => {
   const {
@@ -49,67 +51,60 @@ export const ContainerSettings = () => {
     cursor: node.data.props.cursor
   }));
 
-  // Logic to determine if Auto Layout is "enabled"
-  // For now, we assume if display is flex (which it is by default in our new component), it's enabled.
-  // We can add a toggle to "disable" it (switch to block) if needed, but per requirements:
-  // "Display this group ONLY if the user enables 'Auto Layout'"
-  // Since we default to flex, it's effectively enabled. We can add a toggle later if strict block mode is needed.
+  const typedSetProp = setProp as SetProp<ContainerProps>;
 
   return (
-    <div className="flex flex-col gap-6 pb-8">
+    <div className="flex flex-col pb-4">
+      <SettingsSection title="Auto Layout">
+        <AutoLayoutGroup
+          flexDirection={flexDirection}
+          flexWrap={flexWrap}
+          alignItems={alignItems}
+          justifyContent={justifyContent}
+          gap={gap}
+          setProp={typedSetProp}
+        />
+      </SettingsSection>
 
-      {/* Auto Layout Group */}
-      <AutoLayoutGroup
-        flexDirection={flexDirection}
-        flexWrap={flexWrap}
-        alignItems={alignItems}
-        justifyContent={justifyContent}
-        gap={gap}
-        setProp={setProp}
-      />
+      <SettingsSection title="Size & Position">
+        <SizePositionGroup
+          width={width}
+          height={height}
+          paddingLeft={paddingLeft}
+          paddingRight={paddingRight}
+          paddingTop={paddingTop}
+          paddingBottom={paddingBottom}
+          marginLeft={marginLeft}
+          marginRight={marginRight}
+          marginTop={marginTop}
+          marginBottom={marginBottom}
+          setProp={typedSetProp}
+        />
+      </SettingsSection>
 
-      <div className="w-full h-px bg-brand-medium/20"></div>
+      <SettingsSection title="Appearance">
+        <AppearanceGroup
+          background={background}
+          borderColor={borderColor}
+          borderWidth={borderWidth}
+          borderStyle={borderStyle}
+          radiusTopLeft={radiusTopLeft}
+          radiusTopRight={radiusTopRight}
+          radiusBottomRight={radiusBottomRight}
+          radiusBottomLeft={radiusBottomLeft}
+          setProp={typedSetProp}
+        />
+      </SettingsSection>
 
-      {/* Size & Position Group */}
-      <SizePositionGroup
-        width={width}
-        height={height}
-        paddingLeft={paddingLeft}
-        paddingRight={paddingRight}
-        paddingTop={paddingTop}
-        paddingBottom={paddingBottom}
-        marginLeft={marginLeft}
-        marginRight={marginRight}
-        marginTop={marginTop}
-        marginBottom={marginBottom}
-        setProp={setProp}
-      />
-
-      <div className="w-full h-px bg-brand-medium/20"></div>
-
-      {/* Appearance Group */}
-      <AppearanceGroup
-        background={background}
-        borderColor={borderColor}
-        borderWidth={borderWidth}
-        borderStyle={borderStyle}
-        radiusTopLeft={radiusTopLeft}
-        radiusTopRight={radiusTopRight}
-        radiusBottomRight={radiusBottomRight}
-        radiusBottomLeft={radiusBottomLeft}
-        setProp={setProp}
-      />
-
-      <div className="w-full h-px bg-brand-medium/20"></div>
-
-      {/* Effects Group */}
-      <EffectsGroup
-        opacity={opacity}
-        boxShadow={boxShadow}
-        overflow={overflow}
-        cursor={cursor}
-        setProp={setProp}
-      />
+      <SettingsSection title="Effects" defaultOpen={false}>
+        <EffectsGroup
+          opacity={opacity}
+          boxShadow={boxShadow}
+          overflow={overflow}
+          cursor={cursor}
+          setProp={typedSetProp}
+        />
+      </SettingsSection>
     </div>
   );
 };

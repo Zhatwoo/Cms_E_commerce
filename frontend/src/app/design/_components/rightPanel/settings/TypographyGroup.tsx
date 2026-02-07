@@ -1,18 +1,11 @@
-import React, { useState } from "react";
+import React from "react";
 import { AlignLeft, AlignCenter, AlignRight, AlignJustify } from "lucide-react";
 import { NumericInput } from "./inputs/NumericInput";
 import { ColorInput } from "./inputs/ColorInput";
+import type { TypographyProps, SetProp } from "../../../_types/components";
 
-interface TypographyGroupProps {
-  fontFamily?: string;
-  fontWeight?: string;
-  fontSize?: number;
-  lineHeight?: number | string;
-  letterSpacing?: number | string;
-  textAlign?: "left" | "center" | "right" | "justify";
-  textTransform?: "none" | "uppercase" | "lowercase" | "capitalize";
-  color?: string;
-  setProp: (cb: (props: any) => void) => void;
+interface TypographyGroupProps extends TypographyProps {
+  setProp: SetProp<TypographyProps>;
 }
 
 export const TypographyGroup = ({
@@ -27,17 +20,20 @@ export const TypographyGroup = ({
   setProp
 }: TypographyGroupProps) => {
 
+  const alignmentOptions: { val: NonNullable<TypographyProps["textAlign"]>; icon: typeof AlignLeft }[] = [
+    { val: "left", icon: AlignLeft },
+    { val: "center", icon: AlignCenter },
+    { val: "right", icon: AlignRight },
+    { val: "justify", icon: AlignJustify },
+  ];
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-brand-light uppercase tracking-wider">Typography</span>
-      </div>
-
       {/* Font Family */}
       <div className="flex flex-col gap-1">
         <select
           value={fontFamily}
-          onChange={(e) => setProp((props: any) => props.fontFamily = e.target.value)}
+          onChange={(e) => setProp((props) => { props.fontFamily = e.target.value; })}
           className="w-full bg-brand-black border border-brand-medium/30 rounded-md text-xs text-white p-2 focus:outline-none"
         >
           <option value="Inter">Inter</option>
@@ -54,7 +50,7 @@ export const TypographyGroup = ({
           <label className="text-[10px] text-brand-lighter uppercase">Weight</label>
           <select
             value={fontWeight}
-            onChange={(e) => setProp((props: any) => props.fontWeight = e.target.value)}
+            onChange={(e) => setProp((props) => { props.fontWeight = e.target.value; })}
             className="w-full bg-brand-black border border-brand-medium/30 rounded-md text-xs text-white p-1.5 focus:outline-none"
           >
             <option value="300">Light</option>
@@ -70,7 +66,7 @@ export const TypographyGroup = ({
           <label className="text-[10px] text-brand-lighter uppercase">Size</label>
           <NumericInput
             value={fontSize}
-            onChange={(val) => setProp((props: any) => props.fontSize = val)}
+            onChange={(val) => setProp((props) => { props.fontSize = val; })}
             unit="px"
           />
         </div>
@@ -83,7 +79,7 @@ export const TypographyGroup = ({
           <NumericInput
             value={Number(lineHeight)}
             step={0.1}
-            onChange={(val) => setProp((props: any) => props.lineHeight = val)}
+            onChange={(val) => setProp((props) => { props.lineHeight = val; })}
           />
         </div>
 
@@ -93,7 +89,7 @@ export const TypographyGroup = ({
           <NumericInput
             value={Number(letterSpacing)}
             step={0.1}
-            onChange={(val) => setProp((props: any) => props.letterSpacing = val)}
+            onChange={(val) => setProp((props) => { props.letterSpacing = val; })}
           />
         </div>
       </div>
@@ -101,15 +97,10 @@ export const TypographyGroup = ({
       {/* Alignment & Transform */}
       <div className="flex justify-between items-center bg-brand-dark/30 p-1.5 rounded-lg border border-brand-medium/20">
         <div className="flex gap-1">
-          {[
-            { val: "left", icon: AlignLeft },
-            { val: "center", icon: AlignCenter },
-            { val: "right", icon: AlignRight },
-            { val: "justify", icon: AlignJustify },
-          ].map(({ val, icon: Icon }) => (
+          {alignmentOptions.map(({ val, icon: Icon }) => (
             <button
               key={val}
-              onClick={() => setProp((props: any) => props.textAlign = val)}
+              onClick={() => setProp((props) => { props.textAlign = val; })}
               className={`p-1 rounded ${textAlign === val ? "bg-brand-light text-brand-dark" : "text-brand-medium hover:text-white"}`}
             >
               <Icon size={14} />
@@ -120,7 +111,9 @@ export const TypographyGroup = ({
         <div className="flex gap-1">
           <select
             value={textTransform}
-            onChange={(e) => setProp((props: any) => props.textTransform = e.target.value)}
+            onChange={(e) => setProp((props) => {
+              props.textTransform = e.target.value as TypographyProps["textTransform"];
+            })}
             className="bg-transparent text-xs text-brand-light hover:text-white focus:outline-none appearance-none"
             style={{ textAlignLast: 'right' }}
           >
@@ -139,12 +132,12 @@ export const TypographyGroup = ({
           <input
             type="color"
             value={color}
-            onChange={(e) => setProp((props: any) => props.color = e.target.value)}
+            onChange={(e) => setProp((props) => { props.color = e.target.value; })}
             className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0"
           />
           <ColorInput
             value={color}
-            onChange={(val) => setProp((props: any) => props.color = val)}
+            onChange={(val) => setProp((props) => { props.color = val; })}
             className="flex-1"
           />
         </div>

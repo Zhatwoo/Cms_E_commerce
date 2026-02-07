@@ -1,19 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Maximize, Move } from "lucide-react";
 import { NumericInput } from "./inputs/NumericInput";
+import type { SpacingProps, SizeProps, SetProp } from "../../../_types/components";
 
-interface SizePositionGroupProps {
-  width?: string;
-  height?: string;
-  paddingLeft?: number;
-  paddingRight?: number;
-  paddingTop?: number;
-  paddingBottom?: number;
-  marginLeft?: number;
-  marginRight?: number;
-  marginTop?: number;
-  marginBottom?: number;
-  setProp: (cb: (props: any) => void) => void;
+type SizePositionSettableProps = SizeProps & SpacingProps;
+
+interface SizePositionGroupProps extends SizePositionSettableProps {
+  setProp: SetProp<SizePositionSettableProps>;
 }
 
 export const SizePositionGroup = ({
@@ -58,7 +51,7 @@ export const SizePositionGroup = ({
   }, [height]);
 
   const handleSizeChange = (dim: "width" | "height", mode: string) => {
-    setProp((props: any) => {
+    setProp((props) => {
       if (mode === "fill") {
         props[dim] = "100%";
       } else if (mode === "hug") {
@@ -70,7 +63,16 @@ export const SizePositionGroup = ({
     });
   };
 
-  const BoxInput = ({ label, top, right, bottom, left, expanded, setExpanded, onChange }: any) => {
+  const BoxInput = ({ label, top, right, bottom, left, expanded, setExpanded, onChange }: {
+    label: string;
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+    expanded: boolean;
+    setExpanded: (val: boolean) => void;
+    onChange: (side: string, val: number) => void;
+  }) => {
     const handleAll = (val: number) => {
       onChange("all", val);
     };
@@ -95,8 +97,8 @@ export const SizePositionGroup = ({
               { label: "B", val: bottom, key: "bottom" },
               { label: "L", val: left, key: "left" }
             ].map((item) => (
-              <div key={item.key} className="flex items-center gap-1 bg-brand-black/50 p-1 rounded border border-brand-medium/20">
-                <span className="text-[10px] text-brand-medium w-3 text-center">{item.label}</span>
+              <div key={item.key} className="flex items-center gap-1 bg-brand-medium-dark px-1.5 rounded-lg">
+                <span className="text-[10px] text-brand-light text-center px-1.5">{item.label}</span>
                 <NumericInput
                   value={item.val}
                   onChange={(val) => onChange(item.key, val)}
@@ -106,7 +108,7 @@ export const SizePositionGroup = ({
             ))}
           </div>
         ) : (
-          <div className="flex items-center gap-2 bg-brand-dark px-3 rounded-xl border border-brand-medium/20">
+          <div className="flex items-center gap-2 bg-brand-dark px-3 rounded-lg border border-brand-medium/20">
             <Maximize size={12} className="text-brand-medium" />
             <NumericInput
               value={top}
@@ -120,9 +122,12 @@ export const SizePositionGroup = ({
   };
 
   const handlePaddingChange = (side: string, val: number) => {
-    setProp((props: any) => {
+    setProp((props) => {
       if (side === "all") {
-        props.paddingTop = props.paddingRight = props.paddingBottom = props.paddingLeft = val;
+        props.paddingTop = val;
+        props.paddingRight = val;
+        props.paddingBottom = val;
+        props.paddingLeft = val;
         props.padding = val;
       } else {
         if (side === "top") props.paddingTop = val;
@@ -134,9 +139,12 @@ export const SizePositionGroup = ({
   };
 
   const handleMarginChange = (side: string, val: number) => {
-    setProp((props: any) => {
+    setProp((props) => {
       if (side === "all") {
-        props.marginTop = props.marginRight = props.marginBottom = props.marginLeft = val;
+        props.marginTop = val;
+        props.marginRight = val;
+        props.marginBottom = val;
+        props.marginLeft = val;
         props.margin = val;
       } else {
         if (side === "top") props.marginTop = val;
@@ -155,16 +163,7 @@ export const SizePositionGroup = ({
     return (
       <div className="flex flex-col gap-1">
         <label className="text-[10px] text-brand-lighter uppercase">{dim}</label>
-        <div className="flex items-center bg-brand-black border border-brand-medium/30 rounded-md overflow-hidden">
-          <select
-            value={mode}
-            onChange={(e) => handleSizeChange(dim, e.target.value)}
-            className="bg-transparent text-xs text-brand-light p-1.5 border-r border-brand-medium/20 focus:outline-none appearance-none"
-          >
-            <option value="fixed">Fixed</option>
-            <option value="fill">Fill</option>
-            <option value="hug">Hug</option>
-          </select>
+        <div className="flex items-center bg-brand-medium-dark rounded-lg px-1.5">
           <input
             type="text"
             value={numVal}
@@ -172,7 +171,7 @@ export const SizePositionGroup = ({
             onChange={(e) => {
               const v = e.target.value;
               if (/^\d*$/.test(v)) {
-                setProp((props: any) => props[dim] = v + "px");
+                setProp((props) => { props[dim] = v + "px"; });
               }
             }}
             onFocus={(e) => e.target.select()}
@@ -181,8 +180,19 @@ export const SizePositionGroup = ({
                 e.currentTarget.blur();
               }
             }}
-            className={`w-full bg-transparent text-xs p-1.5 focus:outline-none ${mode !== "fixed" ? "text-brand-medium/50" : "text-white"}`}
+            className={`w-full bg-transparent text-xs p-1.5 focus:outline-none ${mode !== "fixed" ? "text-brand-light" : "text-white"}`}
           />
+          <div className="w-px h-4 bg-brand-medium mx-1" />
+
+          <select
+            value={mode}
+            onChange={(e) => handleSizeChange(dim, e.target.value)}
+            className="text-xs text-brand-light focus:outline-none appearance-none px-2 text-center"
+          >
+            <option value="fixed" className="text-brand-light bg-brand-dark">Fixed</option>
+            <option value="fill" className="text-brand-light bg-brand-dark">Fill</option>
+            <option value="hug" className="text-brand-light bg-brand-dark">Hug</option>
+          </select>
         </div>
       </div>
     );
@@ -190,10 +200,6 @@ export const SizePositionGroup = ({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-brand-light uppercase tracking-wider">Size & Position</span>
-      </div>
-
       <div className="grid grid-cols-2 gap-3">
         {renderSizeInput("width", width, setLastFixedWidth)}
         {renderSizeInput("height", height, setLastFixedHeight)}

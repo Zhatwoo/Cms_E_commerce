@@ -1,46 +1,7 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
 import { ContainerSettings } from "./ContainerSettings";
-
-interface ContainerProps {
-  background?: string;
-  // Padding
-  padding?: number | string;
-  paddingLeft?: number;
-  paddingRight?: number;
-  paddingTop?: number;
-  paddingBottom?: number;
-  // Margin
-  margin?: number | string;
-  marginLeft?: number;
-  marginRight?: number;
-  marginTop?: number;
-  marginBottom?: number;
-  // Dimensions
-  width?: string;
-  height?: string;
-  // Border & Radius
-  borderRadius?: number;
-  radiusTopLeft?: number;
-  radiusTopRight?: number;
-  radiusBottomRight?: number;
-  radiusBottomLeft?: number;
-  borderColor?: string;
-  borderWidth?: number;
-  borderStyle?: string;
-  // Layout
-  flexDirection?: "row" | "column";
-  flexWrap?: "nowrap" | "wrap";
-  alignItems?: "flex-start" | "center" | "flex-end" | "stretch";
-  justifyContent?: "flex-start" | "center" | "flex-end" | "space-between" | "space-around";
-  gap?: number;
-  // Effects
-  boxShadow?: string;
-  opacity?: number;
-  overflow?: string;
-  // Content
-  children?: React.ReactNode;
-}
+import type { ContainerProps } from "../../_types/components";
 
 export const Container = ({
   background,
@@ -72,6 +33,7 @@ export const Container = ({
   boxShadow = "none",
   opacity = 1,
   overflow = "visible",
+  cursor = "default",
   children
 }: ContainerProps) => {
   const { connectors: { connect, drag } } = useNode();
@@ -130,7 +92,8 @@ export const Container = ({
         gap: `${gap}px`,
         boxShadow,
         opacity,
-        overflow
+        overflow,
+        cursor
       }}
     >
       {children}
@@ -138,7 +101,7 @@ export const Container = ({
   );
 };
 
-export const ContainerDefaultProps = {
+export const ContainerDefaultProps: Partial<ContainerProps> = {
   background: "#27272a",
   padding: 20,
   margin: 0,
@@ -155,7 +118,8 @@ export const ContainerDefaultProps = {
   gap: 0,
   boxShadow: "none",
   opacity: 1,
-  overflow: "visible"
+  overflow: "visible",
+  cursor: "default"
 };
 
 Container.craft = {

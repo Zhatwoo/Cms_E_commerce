@@ -2,17 +2,10 @@ import React, { useState } from "react";
 import { Copy, Plus } from "lucide-react";
 import { NumericInput } from "./inputs/NumericInput";
 import { ColorInput } from "./inputs/ColorInput";
+import type { AppearanceProps, SetProp } from "../../../_types/components";
 
-interface AppearanceGroupProps {
-  background?: string;
-  borderColor?: string;
-  borderWidth?: number;
-  borderStyle?: string;
-  radiusTopLeft?: number;
-  radiusTopRight?: number;
-  radiusBottomRight?: number;
-  radiusBottomLeft?: number;
-  setProp: (cb: (props: any) => void) => void;
+interface AppearanceGroupProps extends AppearanceProps {
+  setProp: SetProp<AppearanceProps>;
 }
 
 export const AppearanceGroup = ({
@@ -29,9 +22,13 @@ export const AppearanceGroup = ({
   const [expandRadius, setExpandRadius] = useState(false);
 
   const handleRadiusChange = (corner: string, val: number) => {
-    setProp((props: any) => {
+    setProp((props) => {
       if (corner === "all") {
-        props.radiusTopLeft = props.radiusTopRight = props.radiusBottomRight = props.radiusBottomLeft = props.borderRadius = val;
+        props.radiusTopLeft = val;
+        props.radiusTopRight = val;
+        props.radiusBottomRight = val;
+        props.radiusBottomLeft = val;
+        props.borderRadius = val;
       } else {
         if (corner === "tl") props.radiusTopLeft = val;
         if (corner === "tr") props.radiusTopRight = val;
@@ -43,10 +40,6 @@ export const AppearanceGroup = ({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-brand-light uppercase tracking-wider">Appearance</span>
-      </div>
-
       {/* Fill */}
       <div className="flex flex-col gap-1">
         <div className="flex justify-between items-center">
@@ -57,12 +50,12 @@ export const AppearanceGroup = ({
           <input
             type="color"
             value={background}
-            onChange={(e) => setProp((props: any) => props.background = e.target.value)}
+            onChange={(e) => setProp((props) => { props.background = e.target.value; })}
             className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0"
           />
           <ColorInput
             value={background}
-            onChange={(val) => setProp((props: any) => props.background = val)}
+            onChange={(val) => setProp((props) => { props.background = val; })}
             className="flex-1"
           />
         </div>
@@ -76,26 +69,26 @@ export const AppearanceGroup = ({
             <input
               type="color"
               value={borderColor}
-              onChange={(e) => setProp((props: any) => props.borderColor = e.target.value)}
+              onChange={(e) => setProp((props) => { props.borderColor = e.target.value; })}
               className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0"
             />
             <ColorInput
               value={borderColor}
-              onChange={(val) => setProp((props: any) => props.borderColor = val)}
+              onChange={(val) => setProp((props) => { props.borderColor = val; })}
               className="flex-1"
             />
           </div>
           <div className="w-16">
             <NumericInput
               value={borderWidth}
-              onChange={(val) => setProp((props: any) => props.borderWidth = val)}
+              onChange={(val) => setProp((props) => { props.borderWidth = val; })}
               unit="px"
             />
           </div>
         </div>
         <select
           value={borderStyle}
-          onChange={(e) => setProp((props: any) => props.borderStyle = e.target.value)}
+          onChange={(e) => setProp((props) => { props.borderStyle = e.target.value; })}
           className="w-full bg-brand-black border border-brand-medium/30 rounded-md text-xs text-white p-1.5 focus:outline-none"
         >
           <option value="solid">Solid</option>

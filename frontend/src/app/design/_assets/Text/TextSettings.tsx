@@ -1,8 +1,10 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
+import { SettingsSection } from "../../_components/rightPanel/settings/SettingsSection";
 import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
+import type { TextProps, SetProp } from "../../_types/components";
 
 export const TextSettings = () => {
   const {
@@ -10,7 +12,7 @@ export const TextSettings = () => {
     fontSize, fontFamily, fontWeight, lineHeight, letterSpacing, textAlign, textTransform, color,
     margin, marginTop, marginBottom, marginLeft, marginRight,
     padding, paddingTop, paddingBottom, paddingLeft, paddingRight,
-    opacity, shadow,
+    opacity, boxShadow,
     actions: { setProp }
   } = useNode(node => ({
     text: node.data.props.text,
@@ -33,62 +35,58 @@ export const TextSettings = () => {
     paddingLeft: node.data.props.paddingLeft,
     paddingRight: node.data.props.paddingRight,
     opacity: node.data.props.opacity,
-    shadow: node.data.props.shadow
+    boxShadow: node.data.props.boxShadow
   }));
 
+  const typedSetProp = setProp as SetProp<TextProps>;
+
   return (
-    <div className="flex flex-col gap-6 pb-8">
-      {/* Content Input */}
-      <div className="flex flex-col gap-2">
-        <label className="text-xs font-semibold text-brand-light uppercase tracking-wider">Content</label>
+    <div className="flex flex-col pb-4">
+      <SettingsSection title="Content">
         <textarea
           value={text}
-          onChange={(e) => setProp((props: any) => props.text = e.target.value)}
+          onChange={(e) => typedSetProp((props) => { props.text = e.target.value; })}
           className="w-full bg-brand-black border border-brand-medium p-2 rounded-lg text-white focus:border-brand-light focus:outline-none resize-y min-h-[80px]"
         />
-      </div>
+      </SettingsSection>
 
-      <div className="w-full h-px bg-brand-medium/20"></div>
+      <SettingsSection title="Typography">
+        <TypographyGroup
+          fontFamily={fontFamily}
+          fontWeight={fontWeight}
+          fontSize={fontSize}
+          lineHeight={lineHeight}
+          letterSpacing={letterSpacing}
+          textAlign={textAlign}
+          textTransform={textTransform}
+          color={color}
+          setProp={typedSetProp}
+        />
+      </SettingsSection>
 
-      {/* Typography Group */}
-      <TypographyGroup
-        fontFamily={fontFamily}
-        fontWeight={fontWeight}
-        fontSize={fontSize}
-        lineHeight={lineHeight}
-        letterSpacing={letterSpacing}
-        textAlign={textAlign}
-        textTransform={textTransform}
-        color={color}
-        setProp={setProp}
-      />
+      <SettingsSection title="Size & Position">
+        <SizePositionGroup
+          width="auto"
+          height="auto"
+          paddingLeft={paddingLeft}
+          paddingRight={paddingRight}
+          paddingTop={paddingTop}
+          paddingBottom={paddingBottom}
+          marginLeft={marginLeft}
+          marginRight={marginRight}
+          marginTop={marginTop}
+          marginBottom={marginBottom}
+          setProp={typedSetProp}
+        />
+      </SettingsSection>
 
-      <div className="w-full h-px bg-brand-medium/20"></div>
-
-      {/* Size & Position Group (Margins/Paddings) */}
-      <SizePositionGroup
-        // For Text, width/height might be less relevant if it's inline-block, but we pass margins/padding
-        width="auto" // Text usually auto width unless blocked
-        height="auto"
-        paddingLeft={paddingLeft}
-        paddingRight={paddingRight}
-        paddingTop={paddingTop}
-        paddingBottom={paddingBottom}
-        marginLeft={marginLeft}
-        marginRight={marginRight}
-        marginTop={marginTop}
-        marginBottom={marginBottom}
-        setProp={setProp}
-      />
-
-      <div className="w-full h-px bg-brand-medium/20"></div>
-
-      {/* Effects Group */}
-      <EffectsGroup
-        opacity={opacity}
-        boxShadow={shadow}
-        setProp={setProp}
-      />
+      <SettingsSection title="Effects" defaultOpen={false}>
+        <EffectsGroup
+          opacity={opacity}
+          boxShadow={boxShadow}
+          setProp={typedSetProp}
+        />
+      </SettingsSection>
     </div>
   );
 };
