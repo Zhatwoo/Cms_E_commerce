@@ -1,4 +1,4 @@
-// c:\Users\echob\OJT\Cms_E_commerce\frontend\src\app\m_dashboard\theme-context.tsx
+
 'use client';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
