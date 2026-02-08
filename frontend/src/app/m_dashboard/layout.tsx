@@ -4,49 +4,23 @@ import { useRouter } from 'next/navigation';
 import { DashboardSidebar } from './components/sidebar';
 import { DashboardHeader } from './components/header';
 import { getMe, type User } from '@/lib/api';
+import { ThemeProvider, useTheme } from './components/theme-context';
 
-export default function MDashboardLayout({
+function DashboardLayoutContent({
     children,
+    user,
 }: {
     children: React.ReactNode;
+    user: User;
 }) {
-    const router = useRouter();
+    const { colors } = useTheme();
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [mounted, setMounted] = useState(false);
-    const [authChecked, setAuthChecked] = useState(false);
-    const [user, setUser] = useState<User | null>(null);
-
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-
-    useEffect(() => {
-        if (!mounted) return;
-        getMe()
-            .then((res) => {
-                setAuthChecked(true);
-                if (res.success && res.user) {
-                    setUser(res.user);
-                } else {
-                    router.replace('/auth/login');
-                }
-            })
-            .catch(() => {
-                setAuthChecked(true);
-                router.replace('/auth/login');
-            });
-    }, [mounted, router]);
-
-    if (!mounted || !authChecked || !user) {
-        return (
-            <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white flex items-center justify-center">
-                <p className="text-white/70">Loading…</p>
-            </div>
-        );
-    }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white flex">
+        <div
+            className="min-h-screen flex transition-colors duration-300"
+            style={{ backgroundColor: colors.bg.primary, color: colors.text.primary }}
+        >
             {/* Mobile sidebar drawer */}
             <div
                 className={`fixed inset-0 z-40 lg:hidden transition-[opacity] ${
@@ -81,10 +55,57 @@ export default function MDashboardLayout({
 
             {/* Main content area */}
             <div className="flex-1 flex flex-col min-h-screen">
-                <DashboardHeader user={user} onMenuToggle={() => setSidebarOpen(true)} />
+                <div className="sticky top-0 z-50" style={{ backgroundColor: colors.bg.primary }}>
+                    <DashboardHeader user={user} onMenuToggle={() => setSidebarOpen(true)} />
+                </div>
                 <main className="flex-1 px-6 py-6 overflow-x-hidden min-w-0">{children}</main>
             </div>
         </div>
     );
 }
 
+export default function MDashboardLayout({
+    children,
+}: {
+    children: React.ReactNode;
+}) {
+    const router = useRouter();
+    const [mounted, setMounted] = useState(false);
+    const [authChecked, setAuthChecked] = useState(false);
+    const [user, setUser] = useState<User | null>(null);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    useEffect(() => {
+        if (!mounted) return;
+        getMe()
+            .then((res) => {
+                setAuthChecked(true);
+                if (res.success && res.user) {
+                    setUser(res.user);
+                } else {
+                    router.replace('/auth/login');
+                }
+            })
+            .catch(() => {
+                setAuthChecked(true);
+                router.replace('/auth/login');
+            });
+    }, [mounted, router]);
+
+    if (!mounted || !authChecked || !user) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white flex items-center justify-center">
+                <p className="text-white/70">Loading…</p>
+            </div>
+        );
+    }
+
+    return (
+        <ThemeProvider>
+            <DashboardLayoutContent user={user}>{children}</DashboardLayoutContent>
+        </ThemeProvider>
+    );
+}
