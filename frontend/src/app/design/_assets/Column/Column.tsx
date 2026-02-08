@@ -2,6 +2,7 @@ import React from "react";
 import { useNode } from "@craftjs/core";
 import { ColumnSettings } from "./ColumnSettings";
 import type { ContainerProps } from "../../_types/components";
+import type { Node } from "@craftjs/core";
 
 /**
  * Column — a vertical flex child designed to live inside a Row.
@@ -121,6 +122,14 @@ export const ColumnDefaultProps: Partial<ContainerProps> = {
 Column.craft = {
   displayName: "Column",
   props: ColumnDefaultProps,
+  rules: {
+    canMoveIn: (incomingNodes: Node[]) =>
+      incomingNodes.every((node) =>
+        ["Container", "Text", "Image", "Button", "Divider"].includes(
+          node.data.displayName
+        )
+      ),
+  },
   related: {
     settings: ColumnSettings,
   },

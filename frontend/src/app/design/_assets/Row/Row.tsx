@@ -2,6 +2,7 @@ import React from "react";
 import { useNode } from "@craftjs/core";
 import { RowSettings } from "./RowSettings";
 import type { ContainerProps } from "../../_types/components";
+import type { Node } from "@craftjs/core";
 
 /**
  * Row — a horizontal flex container for creating multi-column layouts.
@@ -120,6 +121,10 @@ export const RowDefaultProps: Partial<ContainerProps> = {
 Row.craft = {
   displayName: "Row",
   props: RowDefaultProps,
+  rules: {
+    canMoveIn: (incomingNodes: Node[]) =>
+      incomingNodes.every((node) => node.data.displayName === "Column"),
+  },
   related: {
     settings: RowSettings,
   },

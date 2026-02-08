@@ -78,6 +78,12 @@ export const Container = ({
   const rbr = radiusBottomRight !== undefined ? radiusBottomRight : br;
   const rbl = radiusBottomLeft !== undefined ? radiusBottomLeft : br;
 
+  const isFlex = display === "flex";
+  const isGrid = display === "grid";
+  const flexGap = typeof gap === "number" ? gap : 0;
+  const resolvedColumnGap = isGrid ? (gridColumnGap ?? gridGap) : flexGap;
+  const resolvedRowGap = isGrid ? (gridRowGap ?? gridGap) : flexGap;
+
   return (
     <div
       ref={(ref) => {
@@ -119,18 +125,17 @@ export const Container = ({
         bottom: position !== "static" ? bottom : undefined,
         left: position !== "static" ? posLeft : undefined,
         // Flex properties
-        flexDirection: display === "flex" ? flexDirection : undefined,
-        flexWrap: display === "flex" ? flexWrap : undefined,
-        alignItems: display === "flex" || display === "grid" ? alignItems : undefined,
-        justifyContent: display === "flex" || display === "grid" ? justifyContent : undefined,
-        gap: display === "flex" ? `${gap}px` : undefined,
+        flexDirection: isFlex ? flexDirection : undefined,
+        flexWrap: isFlex ? flexWrap : undefined,
+        alignItems: isFlex || isGrid ? alignItems : undefined,
+        justifyContent: isFlex || isGrid ? justifyContent : undefined,
         // Grid properties
-        gridTemplateColumns: display === "grid" ? gridTemplateColumns : undefined,
-        gridTemplateRows: display === "grid" ? gridTemplateRows : undefined,
-        columnGap: display === "grid" ? `${gridColumnGap ?? gridGap}px` : undefined,
-        rowGap: display === "grid" ? `${gridRowGap ?? gridGap}px` : undefined,
-        gridAutoRows: display === "grid" ? gridAutoRows : undefined,
-        gridAutoFlow: display === "grid" ? gridAutoFlow : undefined,
+        gridTemplateColumns: isGrid ? gridTemplateColumns : undefined,
+        gridTemplateRows: isGrid ? gridTemplateRows : undefined,
+        columnGap: isFlex || isGrid ? `${resolvedColumnGap}px` : undefined,
+        rowGap: isFlex || isGrid ? `${resolvedRowGap}px` : undefined,
+        gridAutoRows: isGrid ? gridAutoRows : undefined,
+        gridAutoFlow: isGrid ? gridAutoFlow : undefined,
         boxShadow,
         opacity,
         overflow,

@@ -3,22 +3,23 @@ import { useNode, useEditor } from "@craftjs/core";
 import ReactDOM from "react-dom";
 
 export const RenderNode = ({ render }: { render: React.ReactElement }) => {
-  const { id } = useNode();
-  const { actions, query, isActive } = useEditor((_, query) => ({
-    isActive: query.getEvent('selected').contains(id),
-  }));
-
-  const {
-    isHover,
-    dom,
-    name,
-    parent,
-  } = useNode((node) => ({
+  const { id, dom, name, parent, isHover, isCanvas } = useNode((node) => ({
     isHover: node.events.hovered,
     dom: node.dom,
     name: node.data.custom.displayName || node.data.displayName,
     parent: node.data.parent,
+    isCanvas: node.data.isCanvas,
   }));
+  const { indicator, dragged, isActive } = useEditor((state, query) => ({
+    isActive: query.getEvent("selected").contains(id),
+    indicator: state.indicator,
+    dragged: state.events.dragged,
+  }));
+
+  const isDragging = dragged.size > 0 || !!indicator;
+  const indicatorParentId = indicator?.placement?.parent?.id;
+  const isIndicatorParent = indicatorParentId === id;
+  const isInvalidDrop = isIndicatorParent && !!indicator?.error;
 
   // Ensure portal only renders on client
   const [mounted, setMounted] = useState(false);
@@ -35,6 +36,28 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
       }
     }
   }, [dom, isActive, isHover]);
+
+  useEffect(() => {
+    if (!dom) return;
+
+    if (isDragging && isCanvas) {
+      dom.classList.add("canvas-drop-target");
+    } else {
+      dom.classList.remove("canvas-drop-target");
+    }
+
+    if (isDragging && isIndicatorParent && isCanvas) {
+      dom.classList.add("canvas-drop-active");
+    } else {
+      dom.classList.remove("canvas-drop-active");
+    }
+
+    if (isDragging && isInvalidDrop && isCanvas) {
+      dom.classList.add("canvas-drop-invalid");
+    } else {
+      dom.classList.remove("canvas-drop-invalid");
+    }
+  }, [dom, isDragging, isCanvas, isIndicatorParent, isInvalidDrop]);
 
   // Don't render label for Root
   if (parent === 'ROOT') {

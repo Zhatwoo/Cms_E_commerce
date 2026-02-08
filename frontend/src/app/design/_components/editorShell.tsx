@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useLayoutEffect, useCallback } from "react";
 import { Editor, Frame, Element } from "@craftjs/core";
 import { RenderBlocks } from "../_assets";
 import { LeftPanel } from "./leftPanel";
@@ -9,12 +9,29 @@ import { Page } from "../_assets/Page/Page";
 import { Viewport } from "../_assets/Viewport/Viewport";
 import { RenderNode } from "./RenderNode";
 
+const STORAGE_KEY = "craftjs_preview_json";
+
 /** Editor Shell */
 export const EditorShell = () => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const zoomAnchorRef = useRef<{
+    x: number;
+    y: number;
+    prevScale: number;
+    nextScale: number;
+  } | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [scale, setScale] = useState(1);
+  const [initialJson, setInitialJson] = useState<string | null | undefined>(undefined);
+  const [panelsReady, setPanelsReady] = useState(false);
+
+  const isEditableTarget = (target: EventTarget | null) => {
+    if (!target || !(target instanceof HTMLElement)) return false;
+    const tag = target.tagName;
+    return target.isContentEditable || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+  };
 
   // Handle Zoom
   useEffect(() => {
@@ -28,10 +45,16 @@ export const EditorShell = () => {
 
         const zoomSensitivity = 0.001;
         const delta = -e.deltaY * zoomSensitivity;
+        const rect = container.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
 
-        setScale(prevScale => {
-          const newScale = prevScale + delta;
-          return Math.min(Math.max(newScale, 0.3), 3); // Limit zoom between 0.2x and 3x
+        setScale((prevScale) => {
+          const newScale = Math.min(Math.max(prevScale + delta, 0.3), 3);
+          if (newScale !== prevScale) {
+            zoomAnchorRef.current = { x, y, prevScale, nextScale: newScale };
+          }
+          return newScale;
         });
       }
     };
@@ -43,10 +66,60 @@ export const EditorShell = () => {
     };
   }, []);
 
+  useEffect(() => {
+    const saved = sessionStorage.getItem(STORAGE_KEY);
+    if (!saved) {
+      setInitialJson(null);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(saved);
+      const isValid =
+        parsed &&
+        typeof parsed === "object" &&
+        parsed.ROOT &&
+        parsed.ROOT.type; // confirms it's a Craft.js serialized node
+
+      if (!isValid) {
+        sessionStorage.removeItem(STORAGE_KEY);
+        setInitialJson(null);
+        return;
+      }
+
+      setInitialJson(saved);
+    } catch {
+      sessionStorage.removeItem(STORAGE_KEY);
+      setInitialJson(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (initialJson === undefined) return;
+    const id = requestAnimationFrame(() => setPanelsReady(true));
+    return () => cancelAnimationFrame(id);
+  }, [initialJson]);
+
+  useLayoutEffect(() => {
+    const anchor = zoomAnchorRef.current;
+    const container = containerRef.current;
+    if (!anchor || !container) return;
+
+    const { x, y, prevScale, nextScale } = anchor;
+    const contentX = (container.scrollLeft + x) / prevScale;
+    const contentY = (container.scrollTop + y) / prevScale;
+
+    container.scrollLeft = contentX * nextScale - x;
+    container.scrollTop = contentY * nextScale - y;
+
+    zoomAnchorRef.current = null;
+  }, [scale]);
+
   // Handle Panning Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === "Space") {
+        if (isEditableTarget(e.target)) return;
         // Prevent default spacebar scrolling behavior
         if (e.target === document.body) {
           e.preventDefault();
@@ -70,9 +143,24 @@ export const EditorShell = () => {
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
+    window.removeEventListener("keyup", handleKeyUp);
     };
   }, [isSpacePressed]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const centerCanvas = () => {
+      const x = (container.scrollWidth - container.clientWidth) / 2;
+      const y = (container.scrollHeight - container.clientHeight) / 2;
+      container.scrollLeft = x;
+      container.scrollTop = y;
+    };
+
+    const id = requestAnimationFrame(centerCanvas);
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (isSpacePressed || e.button === 1) { // Space or Middle Click
@@ -92,11 +180,44 @@ export const EditorShell = () => {
     }
   };
 
+  const handleNodesChange = useCallback(
+    (query: { serialize: () => string }) => {
+      if (initialJson === undefined) return;
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => {
+        try {
+          const next = query.serialize();
+          const parsed = JSON.parse(next);
+          if (!parsed?.ROOT) return;
+          sessionStorage.setItem(STORAGE_KEY, next);
+        } catch {
+          // Ignore storage errors (quota, private mode, etc.)
+        }
+      }, 500);
+    },
+    [initialJson]
+  );
+
+  // Clean up debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, []);
+
   return (
     <div className="h-screen bg-brand-black text-white overflow-hidden font-sans relative">
       <Editor
         resolver={RenderBlocks}
         onRender={RenderNode}
+        onNodesChange={handleNodesChange}
+        indicator={{
+          success: "#22c55e",
+          error: "#ef4444",
+          transition: "120ms ease",
+          thickness: 2,
+          className: "craftjs-indicator",
+        }}
       >
         {/* Canvas Area (Background) */}
         <div
@@ -110,47 +231,54 @@ export const EditorShell = () => {
         >
           {/* Inner Content - Infinite Canvas */}
           <div
-            className="min-w-[200vw] min-h-[200vh] flex items-center justify-center p-40 transform-origin-center transition-transform duration-75 ease-out"
+            className="min-w-[200vw] min-h-[200vh] flex items-center justify-center p-40 transition-transform duration-75 ease-out"
             style={{
-              transform: `scale(${scale})`,
-              transformOrigin: 'center center' // Zooming from center is simpler for now
+              zoom: scale
             }}
           >
-            <Frame>
-              <Element is={Viewport} canvas>
-                {/* Page 1 */}
-                <Element is={Page} canvas>
-                  <Element is={Container} padding={40} background="#ffffff" canvas>
-                    <Text text="Page 1" fontSize={32} />
-                    <Text text="Subtitle here" fontSize={16} />
+            {initialJson === undefined ? null : initialJson ? (
+              <Frame data={initialJson} />
+            ) : (
+              <Frame>
+                <Element is={Viewport} canvas>
+                  {/* Page 1 */}
+                  <Element is={Page} canvas>
+                    <Element is={Container} padding={40} background="#ffffff" canvas>
+                      <Text text="Page 1" fontSize={32} />
+                      <Text text="Subtitle here" fontSize={16} />
+                    </Element>
                   </Element>
-                </Element>
 
-                {/* Page 2 */}
-                <Element is={Page} canvas>
-                  <Element is={Container} padding={40} background="#ffffff" canvas>
-                    <Text text="Page 2" fontSize={32} />
+                  {/* Page 2 */}
+                  <Element is={Page} canvas>
+                    <Element is={Container} padding={40} background="#ffffff" canvas>
+                      <Text text="Page 2" fontSize={32} />
+                    </Element>
                   </Element>
                 </Element>
-              </Element>
-            </Frame>
+              </Frame>
+            )}
           </div>
         </div>
 
         {/* Floating Panels */}
         {/* Left Panel */}
-        <div className="absolute top-4 left-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
-          <div className="pointer-events-auto h-full">
-            <LeftPanel />
+        {panelsReady && (
+          <div className="absolute top-4 left-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
+            <div className="pointer-events-auto h-full">
+              <LeftPanel />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Right Panel */}
-        <div className="absolute top-4 right-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
-          <div className="pointer-events-auto h-full">
-            <RightPanel />
+        {panelsReady && (
+          <div className="absolute top-4 right-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
+            <div className="pointer-events-auto h-full">
+              <RightPanel />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Canvas Controls Overlay */}
         <div className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">

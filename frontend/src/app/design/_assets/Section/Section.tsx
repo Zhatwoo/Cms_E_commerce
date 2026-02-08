@@ -2,6 +2,7 @@ import React from "react";
 import { useNode } from "@craftjs/core";
 import { SectionSettings } from "./SectionSettings";
 import type { ContainerProps } from "../../_types/components";
+import type { Node } from "@craftjs/core";
 
 /**
  * Section — a full-width page band (hero, content section, footer, etc.)
@@ -138,6 +139,14 @@ export const SectionDefaultProps: Partial<ContainerProps> = {
 Section.craft = {
   displayName: "Section",
   props: SectionDefaultProps,
+  rules: {
+    canMoveIn: (incomingNodes: Node[]) =>
+      incomingNodes.every((node) =>
+        ["Row", "Container", "Text", "Image", "Button", "Divider"].includes(
+          node.data.displayName
+        )
+      ),
+  },
   related: {
     settings: SectionSettings,
   },

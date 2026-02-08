@@ -2,6 +2,7 @@ import React from "react";
 import { useNode } from "@craftjs/core";
 import { PageSettings } from "./PageSettings";
 import type { PageProps } from "../../_types";
+import type { Node } from "@craftjs/core";
 
 export const Page = ({
   children,
@@ -43,6 +44,10 @@ Page.craft = {
   props: PageDefaultProps,
   rules: {
     canDrag: () => true,
+    canMoveIn: (incomingNodes: Node[]) =>
+      incomingNodes.every((node) =>
+        ["Section", "Container"].includes(node.data.displayName)
+      ),
   },
   related: {
     settings: PageSettings,
