@@ -1,180 +1,166 @@
-// models/User.js
-const bcrypt = require('bcryptjs');
-const { getFirestore } = require('../config/firebase');
+// models/User.js  —  Supabase Auth + profiles table
+const { supabase, supabaseAdmin } = require('../config/supabase');
+
+function isNotFound(err) {
+  return err && err.code === 'PGRST116';
+}
+
+/** Map DB row (snake_case) → app object (camelCase) */
+function fromRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    email: row.email,
+    displayName: row.full_name,
+    avatar: row.avatar_url,
+    phone: row.phone,
+    bio: row.bio,
+    username: row.username,
+    website: row.website,
+    role: row.role,
+    subscriptionPlan: row.subscription_plan,
+    status: row.status,
+    isActive: row.is_active,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
 
 class User {
-  constructor(data) {
-    this.id = data.id || null;
-    this.name = data.name || '';
-    this.email = data.email || '';
-    this.password = data.password || '';
-    this.role = data.role || 'Client';
-    this.status = data.status || 'Published';
-    this.avatar = data.avatar || null;
-    this.phone = data.phone || null;
-    this.bio = data.bio || null;
-    this.lastLogin = data.lastLogin || null;
-    this.isActive = data.isActive !== undefined ? data.isActive : true;
-    this.createdAt = data.createdAt || new Date().toISOString();
-    this.updatedAt = data.updatedAt || new Date().toISOString();
+  // ── Create (via Supabase Auth → trigger creates profile) ──
+  static async create({ name, email, password, role, status, phone, bio, avatar }) {
+    // 1. Create auth user (trigger auto-inserts profile row)
+    const { data: authData, error: authErr } = await supabaseAdmin.auth.admin.createUser({
+      email: email.toLowerCase().trim(),
+      password,
+      email_confirm: true,
+      user_metadata: {
+        full_name: (name || '').trim(),
+        role: role || 'client'
+      }
+    });
+    if (authErr) {
+      const err = new Error(authErr.message);
+      if (authErr.message.includes('already')) err.code = 'auth/email-already-exists';
+      throw err;
+    }
+    const uid = authData.user.id;
+
+    // 2. Update profile with extra fields the trigger didn't set
+    const extras = {};
+    if (status) extras.status = status;
+    if (phone) extras.phone = phone;
+    if (bio) extras.bio = bio;
+    if (avatar) extras.avatar_url = avatar;
+    if (Object.keys(extras).length) {
+      await supabaseAdmin.from('profiles').update(extras).eq('id', uid);
+    }
+
+    return this.findById(uid);
   }
 
-  // Hash password
-  static async hashPassword(password) {
-    const salt = await bcrypt.genSalt(10);
-    return await bcrypt.hash(password, salt);
-  }
-
-  // Compare password
-  static async comparePassword(enteredPassword, hashedPassword) {
-    return await bcrypt.compare(enteredPassword, hashedPassword);
-  }
-
-  // Get Firestore collection
-  static getCollection() {
-    const db = getFirestore();
-    return db.collection('users');
-  }
-
-  // Create new user
-  static async create(userData) {
-    const db = getFirestore();
-    const usersRef = db.collection('users');
-
-    // Hash password
-    const hashedPassword = await this.hashPassword(userData.password);
-
-    const newUser = {
-      name: userData.name,
-      email: userData.email.toLowerCase(),
-      password: hashedPassword,
-      role: userData.role || 'Client',
-      status: userData.status || 'Published',
-      avatar: userData.avatar || null,
-      phone: userData.phone || null,
-      bio: userData.bio || null,
-      lastLogin: null,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    const docRef = await usersRef.add(newUser);
-    return { id: docRef.id, ...newUser };
-  }
-
-  // Find user by email
+  // ── Finders ───────────────────────────────────────────────
   static async findByEmail(email) {
-    const usersRef = this.getCollection();
-    const snapshot = await usersRef.where('email', '==', email.toLowerCase()).limit(1).get();
-
-    if (snapshot.empty) {
-      return null;
-    }
-
-    const doc = snapshot.docs[0];
-    return { id: doc.id, ...doc.data() };
+    if (!email) return null;
+    const { data, error } = await supabaseAdmin
+      .from('profiles').select('*')
+      .eq('email', email.toLowerCase().trim())
+      .limit(1).single();
+    if (isNotFound(error)) return null;
+    if (error) throw error;
+    return fromRow(data);
   }
 
-  // Find user by ID
   static async findById(id) {
-    const usersRef = this.getCollection();
-    const doc = await usersRef.doc(id).get();
-
-    if (!doc.exists) {
-      return null;
-    }
-
-    return { id: doc.id, ...doc.data() };
+    if (!id) return null;
+    const { data, error } = await supabaseAdmin
+      .from('profiles').select('*')
+      .eq('id', id).single();
+    if (isNotFound(error)) return null;
+    if (error) throw error;
+    return fromRow(data);
   }
 
-  // Get all users with filters
+  /** Alias for auth middleware */
+  static async get(id) {
+    return this.findById(id);
+  }
+
   static async findAll(filters = {}) {
-    let query = this.getCollection();
-
-    // Apply filters
-    if (filters.role) {
-      query = query.where('role', '==', filters.role);
-    }
-
-    if (filters.status) {
-      query = query.where('status', '==', filters.status);
-    }
-
-    // Get results
-    const snapshot = await query.orderBy('createdAt', 'desc').get();
-
-    const users = [];
-    snapshot.forEach(doc => {
-      users.push({ id: doc.id, ...doc.data() });
-    });
-
-    // Apply search filter (client-side since Firestore doesn't support LIKE)
+    let query = supabaseAdmin.from('profiles').select('*');
+    if (filters.role) query = query.eq('role', filters.role.toLowerCase());
+    if (filters.status) query = query.eq('status', filters.status);
     if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      return users.filter(user => 
-        user.name.toLowerCase().includes(searchLower) ||
-        user.email.toLowerCase().includes(searchLower)
-      );
+      const s = String(filters.search).toLowerCase();
+      query = query.or(`full_name.ilike.%${s}%,email.ilike.%${s}%`);
     }
-
-    return users;
+    query = query.order('created_at', { ascending: false });
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data || []).map(fromRow);
   }
 
-  // Update user
-  static async update(id, updateData) {
-    const usersRef = this.getCollection();
-    
-    const updates = {
-      ...updateData,
-      updatedAt: new Date().toISOString()
+  // ── Update profile fields ────────────────────────────────
+  static async update(id, data) {
+    if (!id) throw new Error('Missing id');
+    const map = {
+      name: 'full_name', displayName: 'full_name',
+      avatar: 'avatar_url',
+      email: 'email', phone: 'phone', bio: 'bio',
+      username: 'username', website: 'website',
+      status: 'status', role: 'role',
+      isActive: 'is_active',
+      subscriptionPlan: 'subscription_plan'
     };
-
-    // Don't include password in regular updates
-    delete updates.password;
-
-    await usersRef.doc(id).update(updates);
-    return await this.findById(id);
+    const updates = {};
+    for (const [appKey, dbCol] of Object.entries(map)) {
+      if (data[appKey] !== undefined) {
+        updates[dbCol] = appKey === 'role' ? data[appKey].toLowerCase() : data[appKey];
+      }
+    }
+    if (Object.keys(updates).length === 0) return this.findById(id);
+    const { error } = await supabaseAdmin.from('profiles').update(updates).eq('id', id);
+    if (error) throw error;
+    return this.findById(id);
   }
 
-  // Update password
+  // ── Password (delegates to Supabase Auth) ────────────────
   static async updatePassword(id, newPassword) {
-    const usersRef = this.getCollection();
-    const hashedPassword = await this.hashPassword(newPassword);
-
-    await usersRef.doc(id).update({
-      password: hashedPassword,
-      updatedAt: new Date().toISOString()
-    });
+    if (!id) throw new Error('Missing id');
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(id, { password: newPassword });
+    if (error) throw error;
   }
 
-  // Delete user
+  /** Verify current password by attempting a sign-in */
+  static async verifyPassword(email, password) {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return !error;
+  }
+
+  // ── Delete (removes auth user → cascade deletes profile) ─
   static async delete(id) {
-    const usersRef = this.getCollection();
-    await usersRef.doc(id).delete();
+    if (!id) throw new Error('Missing id');
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(id);
+    if (error) throw error;
   }
 
-  // Count documents
-  static async count(filters = {}) {
-    const users = await this.findAll(filters);
-    return users.length;
-  }
-
-  // Get statistics
+  // ── Stats (dashboard) ───────────────────────────────────
   static async getStats() {
-    const allUsers = await this.findAll();
-
+    const { data, error } = await supabaseAdmin.from('profiles').select('status, role');
+    if (error) throw error;
+    const all = data || [];
     return {
-      total: allUsers.length,
+      total: all.length,
       byStatus: {
-        published: allUsers.filter(u => u.status === 'Published').length,
-        restricted: allUsers.filter(u => u.status === 'Restricted').length,
-        suspended: allUsers.filter(u => u.status === 'Suspended').length
+        active: all.filter(u => u.status === 'active').length,
+        published: all.filter(u => u.status === 'Published').length,
+        restricted: all.filter(u => u.status === 'Restricted').length,
+        suspended: all.filter(u => u.status === 'Suspended').length
       },
       byRole: {
-        admin: allUsers.filter(u => u.role === 'Admin').length,
-        support: allUsers.filter(u => u.role === 'Support').length,
-        client: allUsers.filter(u => u.role === 'Client').length
+        admin: all.filter(u => u.role === 'admin').length,
+        support: all.filter(u => u.role === 'support').length,
+        client: all.filter(u => u.role === 'client').length
       }
     };
   }

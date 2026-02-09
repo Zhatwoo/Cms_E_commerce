@@ -1,7 +1,14 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
+import { PageSettings } from "./PageSettings";
+import type { PageProps } from "../../_types";
 
-export const Page = ({ children, width = "800px", height = "auto" }: { children?: React.ReactNode; width?: string; height?: string }) => {
+export const Page = ({
+  children,
+  width = "1000px",
+  height = "auto",
+  background = "#ffffff",
+}: PageProps) => {
   const { connectors: { connect, drag } } = useNode();
 
   return (
@@ -9,11 +16,12 @@ export const Page = ({ children, width = "800px", height = "auto" }: { children?
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className="bg-white rounded-lg shadow-xl relative min-h-[600px] transition-all"
+      className="rounded-lg shadow-xl relative min-h-[600px] transition-all"
       style={{
-        width: width,
+        width,
         height: height === "auto" ? "auto" : height,
-        minHeight: "800px"
+        minHeight: "800px",
+        backgroundColor: background,
       }}
     >
       <div className="absolute -top-8 left-0 text-white font-bold text-2xl opacity-50 select-none">
@@ -24,15 +32,19 @@ export const Page = ({ children, width = "800px", height = "auto" }: { children?
   );
 };
 
-export const PageDefaultProps = {
+export const PageDefaultProps: Partial<PageProps> = {
   width: "1000px",
-  height: "auto"
+  height: "auto",
+  background: "#ffffff",
 };
 
 Page.craft = {
   displayName: "Page",
   props: PageDefaultProps,
   rules: {
-    canDrag: () => true, // Allow dragging pages? Ideally yes, to reorder.
-  }
+    canDrag: () => true,
+  },
+  related: {
+    settings: PageSettings,
+  },
 };

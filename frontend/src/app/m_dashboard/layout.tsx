@@ -1,17 +1,40 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { DashboardSidebar } from './components/sidebar';
 import { DashboardHeader } from './components/header';
+import { ThemeProvider, useTheme } from './components/theme-context';
+import { AuthProvider, useAuth } from './components/auth-context';
 
-export default function MDashboardLayout({
+function DashboardLayoutContent({
     children,
 }: {
     children: React.ReactNode;
 }) {
+    const { user, loading } = useAuth();
+    const router = useRouter();
+    const { colors } = useTheme();
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
+    useEffect(() => {
+        if (!loading && !user) {
+            router.replace('/auth/login');
+        }
+    }, [loading, user, router]);
+
+    if (loading || !user) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white flex items-center justify-center">
+                <p className="text-white/70">Loading...</p>
+            </div>
+        );
+    }
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white flex">
+        <div
+            className="min-h-screen flex transition-colors duration-300"
+            style={{ backgroundColor: colors.bg.primary, color: colors.text.primary }}
+        >
             {/* Mobile sidebar drawer */}
             <div
                 className={`fixed inset-0 z-40 lg:hidden transition-[opacity] ${
@@ -46,10 +69,25 @@ export default function MDashboardLayout({
 
             {/* Main content area */}
             <div className="flex-1 flex flex-col min-h-screen">
-                <DashboardHeader onMenuToggle={() => setSidebarOpen(true)} />
+                <div className="sticky top-0 z-50" style={{ backgroundColor: colors.bg.primary }}>
+                    <DashboardHeader onMenuToggle={() => setSidebarOpen(true)} />
+                </div>
                 <main className="flex-1 px-6 py-6 overflow-x-hidden min-w-0">{children}</main>
             </div>
         </div>
     );
 }
 
+export default function MDashboardLayout({
+    children,
+}: {
+    children: React.ReactNode;
+}) {
+    return (
+        <ThemeProvider>
+            <AuthProvider>
+                <DashboardLayoutContent>{children}</DashboardLayoutContent>
+            </AuthProvider>
+        </ThemeProvider>
+    );
+}

@@ -9,6 +9,7 @@ import { Page } from "../_assets/Page/Page";
 import { Viewport } from "../_assets/Viewport/Viewport";
 import { RenderNode } from "./RenderNode";
 
+/** Editor Shell */
 export const EditorShell = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPanning, setIsPanning] = useState(false);
@@ -30,7 +31,7 @@ export const EditorShell = () => {
 
         setScale(prevScale => {
           const newScale = prevScale + delta;
-          return Math.min(Math.max(newScale, 0.2), 3); // Limit zoom between 0.2x and 3x
+          return Math.min(Math.max(newScale, 0.3), 3); // Limit zoom between 0.2x and 3x
         });
       }
     };
@@ -100,7 +101,7 @@ export const EditorShell = () => {
         {/* Canvas Area (Background) */}
         <div
           ref={containerRef}
-          className="absolute inset-0 overflow-auto bg-brand-dark"
+          className="absolute inset-0 overflow-auto bg-brand-darker"
           style={{ cursor: isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : 'default' }}
           onMouseDown={handleMouseDown}
           onMouseUp={handleMouseUp}

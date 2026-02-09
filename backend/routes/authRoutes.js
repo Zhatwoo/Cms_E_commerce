@@ -4,6 +4,7 @@ const { body } = require('express-validator');
 const {
   register,
   login,
+  logout,
   getMe,
   updateProfile,
   changePassword,
@@ -12,6 +13,25 @@ const {
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
+
+const router = express.Router();
+
+// GET /api/auth – list auth endpoints (avoids 404 when hitting base path)
+router.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Auth API',
+    endpoints: {
+      register: 'POST /api/auth/register',
+      login: 'POST /api/auth/login',
+      forgotPassword: 'POST /api/auth/forgot-password',
+      resetPassword: 'POST /api/auth/reset-password',
+      getMe: 'GET /api/auth/me (Authorization: Bearer <token>)',
+      updateProfile: 'PUT /api/auth/profile',
+      changePassword: 'PUT /api/auth/change-password'
+    }
+  });
+});
 
 // Public routes
 router.post('/register', [
@@ -33,6 +53,8 @@ router.post('/reset-password', [
   body('token').notEmpty().withMessage('Token is required'),
   body('newPassword').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
 ], validate, resetPassword);
+
+router.post('/logout', logout);
 
 // Protected routes (require authentication)
 router.get('/me', protect, getMe);

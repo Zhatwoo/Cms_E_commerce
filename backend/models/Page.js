@@ -1,78 +1,74 @@
-// models/Page.js - Firestore collection 'pages'
-const { getFirestore } = require('../config/firebase');
+const { supabaseAdmin } = require('../config/supabase');
+const { keysToCamel } = require('../utils/caseHelper');
 
-function getCollection() {
-  return getFirestore().collection('pages');
-}
+const TABLE = 'pages';
+function isNotFound(e) { return e && e.code === 'PGRST116'; }
 
 async function create(data) {
-  const ref = getCollection();
   const doc = {
     title: data.title || '',
     slug: data.slug || '',
     content: data.content ?? '',
     status: data.status || 'Draft',
-    createdBy: data.createdBy || null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    created_by: data.createdBy || null
   };
-  const docRef = await ref.add(doc);
-  return { id: docRef.id, ...doc };
+  const { data: row, error } = await supabaseAdmin.from(TABLE).insert(doc).select('*').single();
+  if (error) throw error;
+  return keysToCamel(row);
 }
 
 async function findById(id) {
-  const doc = await getCollection().doc(id).get();
-  if (!doc.exists) return null;
-  return { id: doc.id, ...doc.data() };
+  const { data, error } = await supabaseAdmin.from(TABLE).select('*').eq('id', id).single();
+  if (isNotFound(error)) return null;
+  if (error) throw error;
+  return keysToCamel(data);
 }
 
 async function findBySlug(slug) {
-  const snapshot = await getCollection().where('slug', '==', slug).limit(1).get();
-  if (snapshot.empty) return null;
-  const doc = snapshot.docs[0];
-  return { id: doc.id, ...doc.data() };
+  const { data, error } = await supabaseAdmin.from(TABLE).select('*').eq('slug', slug).limit(1).single();
+  if (isNotFound(error)) return null;
+  if (error) throw error;
+  return keysToCamel(data);
 }
 
 async function findAll(filters = {}, pagination = {}) {
-  const snapshot = await getCollection().orderBy('createdAt', 'desc').get();
-  let items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-  if (filters.status) {
-    items = items.filter(p => p.status === filters.status);
-  }
-  if (filters.search) {
-    const s = filters.search.toLowerCase();
-    items = items.filter(p => (p.title || '').toLowerCase().includes(s) || (p.slug || '').toLowerCase().includes(s));
-  }
-  const total = items.length;
   const limit = Math.max(1, parseInt(pagination.limit) || 20);
   const page = Math.max(1, parseInt(pagination.page) || 1);
   const start = (page - 1) * limit;
-  items = items.slice(start, start + limit);
-  return { items, total, page, totalPages: Math.ceil(total / limit) };
+
+  let query = supabaseAdmin.from(TABLE).select('*', { count: 'exact' });
+  if (filters.status) query = query.eq('status', filters.status);
+  if (filters.search) {
+    const s = String(filters.search).toLowerCase();
+    query = query.or(`title.ilike.%${s}%,slug.ilike.%${s}%`);
+  }
+  query = query.order('created_at', { ascending: false }).range(start, start + limit - 1);
+
+  const { data, error, count: total } = await query;
+  if (error) throw error;
+  return { items: (data || []).map(keysToCamel), total: total || 0, page, totalPages: Math.ceil((total || 0) / limit) };
 }
 
 async function update(id, data) {
-  const updates = { ...data, updatedAt: new Date().toISOString() };
-  await getCollection().doc(id).update(updates);
+  const updates = {};
+  if (data.title !== undefined) updates.title = data.title;
+  if (data.slug !== undefined) updates.slug = data.slug;
+  if (data.content !== undefined) updates.content = data.content;
+  if (data.status !== undefined) updates.status = data.status;
+  if (data.createdBy !== undefined) updates.created_by = data.createdBy;
+  const { error } = await supabaseAdmin.from(TABLE).update(updates).eq('id', id);
+  if (error) throw error;
   return findById(id);
 }
 
 async function deleteById(id) {
-  await getCollection().doc(id).delete();
+  const { error } = await supabaseAdmin.from(TABLE).delete().eq('id', id);
+  if (error) throw error;
 }
 
 async function count(filters = {}) {
-  const { items } = await findAll(filters, { limit: 9999 });
-  return items.length;
+  const { total } = await findAll(filters, { limit: 1, page: 1 });
+  return total;
 }
 
-module.exports = {
-  getCollection,
-  create,
-  findById,
-  findBySlug,
-  findAll,
-  update,
-  delete: deleteById,
-  count
-};
+module.exports = { create, findById, findBySlug, findAll, update, delete: deleteById, count };

@@ -1,7 +1,11 @@
 'use client';
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { motion, type Variants } from 'framer-motion';
+import CreateSite from './components/CreateSite';
+import TemplatesLibrary from './components/TemplatesLibrary';
+import ActivityFeed from './components/ActivityFeed';
+import { useTheme, THEMES } from './components/theme-context';
 
 // ── Icons (unchanged) ────────────────────────────────────────────────────────
 const BriefcaseIcon = () => (
@@ -32,26 +36,6 @@ const FilterIcon = () => (
   </svg>
 );
 
-const SunIcon = () => (
-  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="5" />
-    <line x1="12" y1="1" x2="12" y2="3" />
-    <line x1="12" y1="21" x2="12" y2="23" />
-    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-    <line x1="1" y1="12" x2="3" y2="12" />
-    <line x1="21" y1="12" x2="23" y2="12" />
-    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-  </svg>
-);
-
-const MoonIcon = () => (
-  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-  </svg>
-);
-
 // ── Types & data ─────────────────────────────────────────────────────────────
 type DashboardInfraMetrics = {
   activeRegions: number;
@@ -67,60 +51,6 @@ const infraMetrics: DashboardInfraMetrics = {
   uptimePercent: 99.982,
   avgLatencyMs: 82,
   errorRatePercent: 0.4,
-};
-
-// ── Color theme constants ────────────────────────────────────────────────────
-const THEMES = {
-  dark: {
-    bg: {
-      primary: '#1D1D21',
-      dark: '#000000',
-      card: '#1D1D21',
-      elevated: '#26262C',
-      fog: '#0a0a0f',
-    },
-    text: {
-      primary: '#F4F4F6',
-      secondary: '#E6E6E9',
-      muted: '#9999A1',
-      subtle: '#66666E',
-    },
-    border: {
-      default: '#66666E',
-      faint: '#4A4A52',
-    },
-    status: {
-      good: '#A3E635',
-      warning: '#FCD34D',
-      error: '#FDA4AF',
-      info: '#93C5FD',
-    },
-  },
-  light: {
-    bg: {
-      primary: '#F3F4F6',
-      dark: '#FFFFFF',
-      card: '#FFFFFF',
-      elevated: '#F9FAFB',
-      fog: '#FFFFFF',
-    },
-    text: {
-      primary: '#111827',
-      secondary: '#374151',
-      muted: '#6B7280',
-      subtle: '#9CA3AF',
-    },
-    border: {
-      default: '#E5E7EB',
-      faint: '#D1D5DB',
-    },
-    status: {
-      good: '#65A30D',
-      warning: '#D97706',
-      error: '#DC2626',
-      info: '#2563EB',
-    },
-  },
 };
 
 // ── 3D Scene ─────────────────────────────────────────────────────────────────
@@ -426,13 +356,6 @@ export function DashboardContent() {
               Monitor deployments, domains and templates — live health & usage at a glance.
             </motion.p>
           </div>
-          <button
-            onClick={toggleTheme}
-            className="p-2 rounded-full hover:bg-white/10 transition-colors"
-            style={{ color: colors.text.secondary }}
-          >
-            {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-          </button>
         </div>
 
         {/* Summary Cards */}
@@ -633,21 +556,37 @@ export function DashboardContent() {
                 Most active workspaces overview
               </p>
             </div>
-            <motion.button
-              className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-colors"
-              style={{
-                borderColor: colors.border.default,
-                color: colors.text.secondary,
-                backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.4)' : colors.bg.card,
-              }}
-              whileHover={{ scale: 1.03, backgroundColor: 'rgba(0,0,0,0.55)' }}
-              whileTap={{ scale: 0.97 }}
-            >
-              <span className="rounded-lg p-1.5" style={{ backgroundColor: colors.bg.elevated }}>
-                <FilterIcon />
-              </span>
-              Filters
-            </motion.button>
+            <div className="flex items-center gap-3">
+              <motion.button
+                onClick={() => setShowCreateSite(true)}
+                className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-colors"
+                style={{
+                  borderColor: colors.border.default,
+                  color: colors.text.secondary,
+                  backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.4)' : colors.bg.card,
+                }}
+                whileHover={{ scale: 1.03, backgroundColor: 'rgba(0,0,0,0.55)' }}
+                whileTap={{ scale: 0.97 }}
+              >
+                Create site
+              </motion.button>
+
+              <motion.button
+                className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-colors"
+                style={{
+                  borderColor: colors.border.default,
+                  color: colors.text.secondary,
+                  backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.4)' : colors.bg.card,
+                }}
+                whileHover={{ scale: 1.03, backgroundColor: 'rgba(0,0,0,0.55)' }}
+                whileTap={{ scale: 0.97 }}
+              >
+                <span className="rounded-lg p-1.5" style={{ backgroundColor: colors.bg.elevated }}>
+                  <FilterIcon />
+                </span>
+                Filters
+              </motion.button>
+            </div>
           </div>
 
           {/* Featured preview placeholder */}
@@ -706,6 +645,23 @@ export function DashboardContent() {
             </div>
           </motion.div>
 
+          {/* Templates library */}
+          <motion.div
+            className="rounded-2xl p-6 border"
+            style={{ background: `linear-gradient(135deg, ${colors.bg.card}, ${theme === 'dark' ? colors.bg.dark : colors.bg.elevated})`, borderColor: colors.border.default }}
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: colors.text.muted }}>Templates</p>
+                <p className="text-sm" style={{ color: colors.text.secondary }}>Quick-start templates for new sites</p>
+              </div>
+            </div>
+            <TemplatesLibrary onUse={(t) => console.log('Use template', t)} />
+          </motion.div>
+
           {/* Projects table */}
           <motion.div
             className="rounded-2xl border overflow-hidden shadow-2xl"
@@ -761,7 +717,18 @@ export function DashboardContent() {
               </div>
             </div>
           </motion.div>
+
+          {/* Activity feed */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <ActivityFeed />
+          </motion.div>
         </section>
+        
+        <CreateSite show={showCreateSite} onClose={() => setShowCreateSite(false)} onCreate={(d) => console.log('Created site', d)} />
       </div>
     </main>
   );

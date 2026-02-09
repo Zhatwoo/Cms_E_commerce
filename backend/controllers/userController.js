@@ -1,9 +1,10 @@
 // controllers/userController.js
 const User = require('../models/User');
 
+// No password in profiles, but strip passwordHash if present
 const stripPassword = (user) => {
   if (!user) return user;
-  const { password, ...rest } = user;
+  const { password, passwordHash, ...rest } = user;
   return rest;
 };
 
@@ -89,11 +90,15 @@ exports.createUser = async (req, res) => {
       });
     }
 
+    const normalizedRole = (role && typeof role === 'string') ? role.toLowerCase().replace(/\s+/g, '_') : 'client';
+    if (!['admin', 'support', 'client', 'super_admin'].includes(normalizedRole)) {
+      return res.status(400).json({ success: false, message: 'Invalid role. Must be admin, support, client, or super_admin' });
+    }
     const user = await User.create({
       name,
       email,
       password,
-      role: role || 'Client',
+      role: normalizedRole,
       status: status || 'Published',
       phone,
       bio,
@@ -192,10 +197,11 @@ exports.deleteUser = async (req, res) => {
 exports.updateUserRole = async (req, res) => {
   try {
     const { role } = req.body;
-    if (!['Admin', 'Support', 'Client'].includes(role)) {
+    const normalized = role.toLowerCase().replace(/\s+/g, '_');
+    if (!['admin', 'support', 'client', 'super_admin'].includes(normalized)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid role. Must be Admin, Support, or Client'
+        message: 'Invalid role. Must be admin, support, client, or super_admin'
       });
     }
 
