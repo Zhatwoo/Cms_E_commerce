@@ -42,7 +42,8 @@ export const RightPanel = () => {
   const handlePreview = () => {
     const json = query.serialize();
     sessionStorage.setItem(STORAGE_KEY, json);
-    window.open("/design/preview", "_blank");
+    // window.open("/design/preview", "_blank");
+    router.push("/design/preview");
   };
 
   return (
@@ -52,13 +53,13 @@ export const RightPanel = () => {
     >
       <div className="flex items-center justify-between mb-6">
         <PanelRight strokeWidth={2} className="text-brand-light w-5 h-5" />
-        <h3 className="text-white font-bold text-lg">Configs</h3>
+        <h3 className="text-brand-lighter font-bold text-lg">Configs</h3>
         <button
           onClick={handlePreview}
           className="p-1 rounded-lg hover:bg-brand-medium/40 transition-colors cursor-pointer"
           title="Preview JSON output"
         >
-          <Play strokeWidth={2} className="text-brand-light w-5 h-5 hover:text-white transition-colors" />
+          <Play strokeWidth={2} className="text-brand-light w-5 h-5 hover:text-brand-lighter transition-colors" />
         </button>
       </div>
 
@@ -79,7 +80,7 @@ export const RightPanel = () => {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex-1 transition-colors ${activeTab === tab.id
-                  ? "text-white bg-brand-medium/50 rounded-lg py-1"
+                  ? "text-brand-lighter bg-brand-medium/50 rounded-lg py-1"
                   : "text-brand-light hover:text-brand-lighter py-1"
                   }`}
               >
@@ -94,26 +95,26 @@ export const RightPanel = () => {
               (selected.settings ? (
                 React.createElement(selected.settings)
               ) : (
-                <div className="flex flex-col items-center justify-center py-8 text-brand-light opacity-50">
+                <div className="flex flex-col items-center justify-center py-8 text-brand-lighter opacity-50">
                   <p className="text-sm">No design settings available</p>
                 </div>
               ))}
 
             {activeTab === "settings" && (
-              <div className="flex flex-col items-center justify-center py-8 text-brand-light opacity-50">
+              <div className="flex flex-col items-center justify-center py-8 text-brand-lighter opacity-50">
                 <p className="text-sm">Component settings coming soon</p>
               </div>
             )}
 
             {activeTab === "animation" && (
-              <div className="flex flex-col items-center justify-center py-8 text-brand-light opacity-50">
+              <div className="flex flex-col items-center justify-center py-8 text-brand-lighter opacity-50">
                 <p className="text-sm">Animation settings coming soon</p>
               </div>
             )}
           </div>
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center h-64 text-brand-light opacity-50">
+        <div className="flex flex-col items-center justify-center h-64 text-brand-lighter opacity-50">
           <p className="text-sm">Select an element to edit</p>
         </div>
       )}

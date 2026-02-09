@@ -66,7 +66,7 @@ export const PositionGroup = ({
               props.position = e.target.value as PositionProps["position"];
             })
           }
-          className="w-full bg-brand-medium-dark rounded-lg text-xs text-white px-2.5 py-1.5 focus:outline-none appearance-none"
+          className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none appearance-none"
         >
           {POSITION_OPTIONS.map((opt) => (
             <option
@@ -109,7 +109,7 @@ export const PositionGroup = ({
                   onKeyDown={(e) => {
                     if (e.key === "Enter") e.currentTarget.blur();
                   }}
-                  className="w-full bg-transparent text-xs text-white p-1.5 focus:outline-none placeholder:text-brand-medium"
+                  className="w-full bg-transparent text-xs text-brand-lighter p-1.5 focus:outline-none placeholder:text-brand-medium"
                 />
               </div>
             ))}
@@ -129,7 +129,7 @@ export const PositionGroup = ({
               props.display = e.target.value as PositionProps["display"];
             })
           }
-          className="w-full bg-brand-medium-dark rounded-lg text-xs text-white px-2.5 py-1.5 focus:outline-none appearance-none"
+          className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none appearance-none"
         >
           {DISPLAY_OPTIONS.map((opt) => (
             <option

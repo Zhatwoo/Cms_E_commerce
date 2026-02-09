@@ -1,6 +1,6 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
-import { SettingsSection } from "../../_components/rightPanel/settings/SettingsSection";
+import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
 import { ColorInput } from "../../_components/rightPanel/settings/inputs/ColorInput";
 import type { DividerProps, SetProp } from "../../_types/components";
@@ -22,7 +22,7 @@ export const DividerSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
-      <SettingsSection title="Divider">
+      <DesignSection title="Divider">
         <div className="flex flex-col gap-3">
           {/* Style */}
           <div className="flex flex-col gap-1">
@@ -33,8 +33,8 @@ export const DividerSettings = () => {
                   key={s}
                   onClick={() => typedSetProp((props) => { props.dividerStyle = s; })}
                   className={`text-[10px] py-1.5 rounded capitalize transition-colors ${dividerStyle === s
-                      ? "bg-brand-medium/50 text-white"
-                      : "text-brand-light hover:text-white"
+                    ? "bg-brand-medium/50 text-brand-lighter"
+                    : "text-brand-light hover:text-brand-lighter"
                     }`}
                 >
                   {s}
@@ -46,7 +46,7 @@ export const DividerSettings = () => {
           {/* Color */}
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-brand-lighter">Color</label>
-            <div className="flex items-center gap-2 bg-brand-black border border-brand-medium/30 rounded-md p-1">
+            <div className="flex items-center gap-2 bg-brand-medium-dark border border-brand-medium/30 rounded-md p-1">
               <input
                 type="color"
                 value={color}
@@ -77,7 +77,7 @@ export const DividerSettings = () => {
               <select
                 value={width}
                 onChange={(e) => typedSetProp((props) => { props.width = e.target.value; })}
-                className="w-full bg-brand-black border border-brand-medium/30 rounded-md text-xs text-white p-1.5 focus:outline-none"
+                className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none"
               >
                 <option value="100%">Full</option>
                 <option value="75%">75%</option>
@@ -109,7 +109,7 @@ export const DividerSettings = () => {
             </div>
           </div>
         </div>
-      </SettingsSection>
+      </DesignSection>
     </div>
   );
 };

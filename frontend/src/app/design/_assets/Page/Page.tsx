@@ -24,7 +24,7 @@ export const Page = ({
         backgroundColor: background,
       }}
     >
-      <div className="absolute -top-8 left-0 text-white font-bold text-2xl opacity-50 select-none">
+      <div className="absolute -top-8 left-0 text-brand-lighter font-bold text-2xl opacity-50 select-none">
         Page Name
       </div>
       {children}
@@ -35,7 +35,7 @@ export const Page = ({
 export const PageDefaultProps: Partial<PageProps> = {
   width: "1000px",
   height: "auto",
-  background: "#ffffff",
+  background: "#E6E6E9",
 };
 
 Page.craft = {
