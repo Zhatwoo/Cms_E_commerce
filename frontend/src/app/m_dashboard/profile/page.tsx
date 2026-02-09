@@ -3,7 +3,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { updateProfile } from '@/lib/api';
 import { useAuth } from '../components/auth-context';
 import { motion } from 'framer-motion';
-import { updateProfile, getMe } from '@/lib/api';
 
 // Icons
 const UserIcon = () => (
@@ -277,7 +276,6 @@ export default function ProfilePage() {
                     <textarea
                       name="bio"
                       rows={4}
-                      name="bio"
                       value={formData.bio}
                       onChange={handleInputChange}
                       placeholder="Tell us a little about yourself..."
@@ -290,7 +288,6 @@ export default function ProfilePage() {
                 {/* Action Buttons */}
                 <div className="flex items-center justify-end gap-4 pt-4 border-t border-slate-800/60">
                   <button 
-                    onClick={loadUserData}
                     className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-white transition-colors"
                   >
                     Cancel

@@ -84,10 +84,10 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Rate limit for auth (10 requests per 15 min per IP)
+// Rate limit for auth (stricter in production; relaxed in dev so you can retry)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: process.env.NODE_ENV === 'production' ? 10 : 100,
   message: { success: false, message: 'Too many attempts, please try again later' }
 });
 app.use('/api/auth', authLimiter);

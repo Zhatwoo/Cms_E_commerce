@@ -174,3 +174,16 @@ export async function updateProfile(data: {
     body: JSON.stringify(data),
   });
 }
+
+/** Create user (admin only). Role: 'admin' | 'client' | 'super_admin'. */
+export async function createUser(params: {
+  name: string;
+  email: string;
+  password: string;
+  role: 'admin' | 'client' | 'super_admin';
+}): Promise<{ success: boolean; message?: string; user?: User }> {
+  return apiFetch<{ success: boolean; message?: string; user?: User }>('/api/users', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}

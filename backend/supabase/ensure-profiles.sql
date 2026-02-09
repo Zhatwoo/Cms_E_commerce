@@ -2,7 +2,7 @@
 -- (Use when trigger fails with "relation public.profiles does not exist" or type errors.)
 
 -- Enums (ignore errors if they already exist)
-do $$ begin create type user_role as enum ('admin', 'support', 'client'); exception when duplicate_object then null; end $$;
+do $$ begin create type user_role as enum ('admin', 'support', 'client', 'super_admin'); exception when duplicate_object then null; end $$;
 do $$ begin create type subscription_tier as enum ('free', 'pro', 'enterprise', 'internal_admin'); exception when duplicate_object then null; end $$;
 
 -- Profiles table (exact columns the trigger inserts into)

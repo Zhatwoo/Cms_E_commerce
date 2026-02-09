@@ -35,12 +35,6 @@ const TemplatesIcon = () => (
     </svg>
 );
 
-const UserIcon = () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-    </svg>
-);
-
 const MoreIcon = () => (
     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
         <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
@@ -68,10 +62,9 @@ const CloseIcon = () => (
 const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon />, href: '/admindashboard' },
     { id: 'monitoring', label: 'Monitoring & Analytics', icon: <MonitoringIcon />, href: '/admindashboard/monitorAnalytics' },
-    { id: 'website', label: 'Website Management', icon: <WebsiteIcon /> },
+    { id: 'website', label: 'User & Website Management', icon: <WebsiteIcon />, href: '/admindashboard/usernweb' },
     { id: 'moderation', label: 'Moderation & Compliance', icon: <ModerationIcon />, href: '/admindashboard/moderationCompliance' },
-    { id: 'templates', label: 'Templates & Assets Management', icon: <TemplatesIcon /> },
-    { id: 'user', label: 'User & Account Management', icon: <UserIcon /> },
+    { id: 'templates', label: 'Templates & Assets Management', icon: <TemplatesIcon />, href: '/admindashboard/templatesnassets' },
 ];
 
 interface AdminSidebarProps {
@@ -90,7 +83,9 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
     const getActiveItem = () => {
         if (pathname.includes('monitorAnalytics')) return 'monitoring';
         if (pathname.includes('moderationCompliance')) return 'moderation';
-        if (pathname.includes('admindashboard') && !pathname.includes('moderationCompliance')) return 'dashboard';
+        if (pathname.includes('usernweb')) return 'website';
+        if (pathname.includes('templatesnassets')) return 'templates';
+        if (pathname.includes('admindashboard') && !pathname.includes('moderationCompliance') && !pathname.includes('usernweb') && !pathname.includes('templatesnassets')) return 'dashboard';
         return 'dashboard';
     };
 

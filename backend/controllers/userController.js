@@ -90,11 +90,15 @@ exports.createUser = async (req, res) => {
       });
     }
 
+    const normalizedRole = (role && typeof role === 'string') ? role.toLowerCase().replace(/\s+/g, '_') : 'client';
+    if (!['admin', 'support', 'client', 'super_admin'].includes(normalizedRole)) {
+      return res.status(400).json({ success: false, message: 'Invalid role. Must be admin, support, client, or super_admin' });
+    }
     const user = await User.create({
       name,
       email,
       password,
-      role: role || 'Client',
+      role: normalizedRole,
       status: status || 'Published',
       phone,
       bio,
@@ -193,11 +197,11 @@ exports.deleteUser = async (req, res) => {
 exports.updateUserRole = async (req, res) => {
   try {
     const { role } = req.body;
-    const normalized = role.toLowerCase();
-    if (!['admin', 'support', 'client'].includes(normalized)) {
+    const normalized = role.toLowerCase().replace(/\s+/g, '_');
+    if (!['admin', 'support', 'client', 'super_admin'].includes(normalized)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid role. Must be admin, support, or client'
+        message: 'Invalid role. Must be admin, support, client, or super_admin'
       });
     }
 
