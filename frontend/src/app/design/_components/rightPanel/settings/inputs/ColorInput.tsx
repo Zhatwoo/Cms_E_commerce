@@ -69,7 +69,7 @@ export const ColorInput = ({ value, onChange, className = "" }: ColorInputProps)
         onBlur={handleBlur}
         onFocus={handleFocus}
         onKeyDown={handleKeyDown}
-        className="w-full bg-transparent text-xs text-white focus:outline-none uppercase"
+        className="w-full bg-transparent text-[12px] text-white focus:outline-none tracking-widest"
         spellCheck={false}
       />
     </div>

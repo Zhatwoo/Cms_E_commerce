@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ChevronDown, PanelLeft, Search } from "lucide-react";
+import { ChevronDown, PanelLeft } from "lucide-react";
 import { FilesPanel } from "./filesPanel";
 import { ComponentsPanel } from "./componentsPanel";
 import { AssetsPanel } from "./assetsPanel";
