@@ -31,7 +31,7 @@ export function Footer() {
 
           {/* Quick links */}
           <div>
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-white/90">Quick Links</h3>
+            <h3 className="text-sm font-semibold tracking-wider text-white/90">Quick Links</h3>
             <ul className="mt-4 space-y-2">
               {QUICK_LINKS.map(({ label, href }) => (
                 <li key={href}>
@@ -48,7 +48,7 @@ export function Footer() {
 
           {/* Legal */}
           <div>
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-white/90">Legal</h3>
+            <h3 className="text-sm font-semibold tracking-wider text-white/90">Legal</h3>
             <ul className="mt-4 space-y-2">
               {LEGAL_LINKS.map(({ label, href }) => (
                 <li key={href}>
@@ -65,7 +65,7 @@ export function Footer() {
 
           {/* Contact */}
           <div>
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-white/90">Contact</h3>
+            <h3 className="text-sm font-semibold tracking-wider text-white/90">Contact</h3>
             <ul className="mt-4 space-y-2 text-sm text-white/70">
               <li>
                 <a href="mailto:hello@example.com" className="transition hover:text-white hover:underline">
