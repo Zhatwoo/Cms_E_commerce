@@ -113,10 +113,27 @@ export async function apiFetch<T>(
   return handleResponse<T>(res);
 }
 
-// --- Auth API helpers (backend email/password, no Firebase) ---
+// --- Auth API helpers (backend accepts idToken or email+password) ---
 
-/** Login: email + password → backend JWT (cookie) */
+/** Login with Firebase idToken (browser signs in; works even if backend API key is restricted). */
+export async function loginWithIdToken(idToken: string): Promise<AuthResponse> {
+  return apiFetch<AuthResponse>('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ idToken }),
+  });
+}
+
+/** Login: email + password. Prefer Firebase client sign-in then idToken; fallback to backend email/password. */
 export async function login(email: string, password: string): Promise<AuthResponse> {
+  const { signInAndGetIdToken, isFirebaseConfigured } = await import('@/lib/firebase');
+  if (isFirebaseConfigured()) {
+    try {
+      const idToken = await signInAndGetIdToken(email, password);
+      return loginWithIdToken(idToken);
+    } catch {
+      // Fallback: backend email/password (e.g. REST API)
+    }
+  }
   return apiFetch<AuthResponse>('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
