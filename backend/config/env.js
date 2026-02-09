@@ -1,12 +1,12 @@
 // config/env.js - Validate required environment variables at startup
 const required = [
   'JWT_SECRET',
-  'SUPABASE_URL',
-  'SUPABASE_ANON_KEY',
-  'SUPABASE_SERVICE_ROLE_KEY'
+  'FIREBASE_PROJECT_ID',
+  'FIREBASE_CLIENT_EMAIL',
+  'FIREBASE_PRIVATE_KEY'
 ];
 
-const optional = ['PORT', 'NODE_ENV'];
+const optional = ['PORT', 'NODE_ENV', 'NEXT_PUBLIC_FIREBASE_API_KEY', 'FIREBASE_API_KEY', 'CORS_ORIGIN', 'FRONTEND_URL'];
 
 const validateEnv = () => {
   const missing = required.filter(key => {

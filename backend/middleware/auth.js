@@ -2,7 +2,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-// Protect routes - verify JWT token (id is Supabase Auth user id)
+// Protect routes - verify JWT token (id is Firebase Auth uid)
 // Token from HttpOnly cookie (preferred) or Authorization header
 exports.protect = async (req, res, next) => {
   let token =
@@ -39,9 +39,9 @@ exports.protect = async (req, res, next) => {
   }
 };
 
-// Check if user is admin (role stored in profiles table)
+// Check if user is admin or super_admin (role from Firestore users)
 exports.admin = (req, res, next) => {
-  if (req.user && req.user.role === 'admin') {
+  if (req.user && (req.user.role === 'admin' || req.user.role === 'super_admin')) {
     next();
   } else {
     return res.status(403).json({ success: false, message: 'Access denied. Admin only.' });

@@ -1,8 +1,7 @@
-const { supabaseAdmin } = require('../config/supabase');
-const { keysToCamel } = require('../utils/caseHelper');
+const { db } = require('../config/firebase');
+const { docToObject } = require('../utils/firestoreHelper');
 
-const TABLE = 'posts';
-function isNotFound(e) { return e && e.code === 'PGRST116'; }
+const COLLECTION = 'posts';
 
 async function create(data) {
   const doc = {
@@ -13,43 +12,43 @@ async function create(data) {
     status: data.status || 'Draft',
     featured_image: data.featuredImage || null,
     author_id: data.authorId || null,
-    published_at: data.publishedAt || null
+    published_at: data.publishedAt || null,
+    created_at: new Date(),
+    updated_at: new Date(),
   };
-  const { data: row, error } = await supabaseAdmin.from(TABLE).insert(doc).select('*').single();
-  if (error) throw error;
-  return keysToCamel(row);
+  const ref = await db.collection(COLLECTION).add(doc);
+  const snap = await ref.get();
+  return docToObject(snap);
 }
 
 async function findById(id) {
-  const { data, error } = await supabaseAdmin.from(TABLE).select('*').eq('id', id).single();
-  if (isNotFound(error)) return null;
-  if (error) throw error;
-  return keysToCamel(data);
+  const snap = await db.collection(COLLECTION).doc(id).get();
+  return docToObject(snap);
 }
 
 async function findBySlug(slug) {
-  const { data, error } = await supabaseAdmin.from(TABLE).select('*').eq('slug', slug).limit(1).single();
-  if (isNotFound(error)) return null;
-  if (error) throw error;
-  return keysToCamel(data);
+  const snap = await db.collection(COLLECTION).where('slug', '==', slug).limit(1).get();
+  if (snap.empty) return null;
+  return docToObject(snap.docs[0]);
 }
 
 async function findAll(filters = {}, pagination = {}) {
   const limit = Math.max(1, parseInt(pagination.limit) || 20);
   const page = Math.max(1, parseInt(pagination.page) || 1);
-  const start = (page - 1) * limit;
 
-  let query = supabaseAdmin.from(TABLE).select('*', { count: 'exact' });
-  if (filters.status) query = query.eq('status', filters.status);
+  let ref = db.collection(COLLECTION).orderBy('created_at', 'desc');
+  if (filters.status) ref = ref.where('status', '==', filters.status);
+
+  const snap = await ref.get();
+  let items = snap.docs.map(d => docToObject(d));
   if (filters.search) {
     const s = String(filters.search).toLowerCase();
-    query = query.or(`title.ilike.%${s}%,slug.ilike.%${s}%`);
+    items = items.filter(p => (p.title && p.title.toLowerCase().includes(s)) || (p.slug && p.slug.toLowerCase().includes(s)));
   }
-  query = query.order('created_at', { ascending: false }).range(start, start + limit - 1);
-
-  const { data, error, count: total } = await query;
-  if (error) throw error;
-  return { items: (data || []).map(keysToCamel), total: total || 0, page, totalPages: Math.ceil((total || 0) / limit) };
+  const total = items.length;
+  const start = (page - 1) * limit;
+  items = items.slice(start, start + limit);
+  return { items, total, page, totalPages: Math.ceil(total / limit) };
 }
 
 async function update(id, data) {
@@ -62,14 +61,14 @@ async function update(id, data) {
   if (data.featuredImage !== undefined) updates.featured_image = data.featuredImage;
   if (data.authorId !== undefined) updates.author_id = data.authorId;
   if (data.publishedAt !== undefined) updates.published_at = data.publishedAt;
-  const { error } = await supabaseAdmin.from(TABLE).update(updates).eq('id', id);
-  if (error) throw error;
+  if (Object.keys(updates).length === 0) return findById(id);
+  updates.updated_at = new Date();
+  await db.collection(COLLECTION).doc(id).update(updates);
   return findById(id);
 }
 
 async function deleteById(id) {
-  const { error } = await supabaseAdmin.from(TABLE).delete().eq('id', id);
-  if (error) throw error;
+  await db.collection(COLLECTION).doc(id).delete();
 }
 
 async function count(filters = {}) {

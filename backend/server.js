@@ -10,7 +10,7 @@ if (!fs.existsSync(envPath)) {
 }
 const envContent = fs.readFileSync(envPath, 'utf8');
 if (!envContent || envContent.trim().length === 0) {
-  console.error('❌ .env file is empty. Add JWT_SECRET, SUPABASE_URL, SUPABASE_ANON_KEY and save the file (e.g. backend/.env).');
+  console.error('❌ .env file is empty. Add JWT_SECRET, FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY (e.g. backend/.env).');
   process.exit(1);
 }
 // Parse .env with support for multi-line quoted values (e.g. FIREBASE_PRIVATE_KEY)
@@ -57,12 +57,14 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
-const { supabase } = require('./config/supabase');
+const { auth } = require('./config/firebase');
 
 const app = express();
 
-// Initialize Supabase client (import ensures env is valid)
-void supabase;
+// Initialize Firebase (import ensures env is valid)
+void auth;
+const hasLoginKey = !!((process.env.FIREBASE_API_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '').trim());
+if (!hasLoginKey) console.warn('⚠️ Login API key missing. Set FIREBASE_API_KEY in backend .env for /api/auth/login.');
 
 // Security & logging
 app.use(helmet());
@@ -97,44 +99,15 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true, message: 'Backend running', timestamp: new Date().toISOString() });
 });
 
-// #region agent log — TEMPORARY diagnostic endpoint (remove after debugging)
+// Debug: Firebase connectivity
 app.get('/api/debug/db-state', async (req, res) => {
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  const isPlaceholder = !key || key === 'PASTE_YOUR_SERVICE_ROLE_KEY_HERE' || key.length < 40;
-  if (isPlaceholder) {
-    return res.json({
-      ok: true,
-      checks: {
-        serviceRoleKey: 'MISSING_OR_PLACEHOLDER',
-        hint: 'Add your real Service Role Key from Supabase Dashboard → Settings → API → service_role (secret) into backend/.env as SUPABASE_SERVICE_ROLE_KEY, then restart the backend.'
-      }
-    });
+  try {
+    const list = await require('./config/firebase').db.collection('users').limit(1).get();
+    res.json({ ok: true, checks: { firebase: 'connected', usersCount: list.size } });
+  } catch (e) {
+    res.json({ ok: true, checks: { firebase: 'error', error: e.message } });
   }
-  const { supabaseAdmin } = require('./config/supabase');
-  const checks = { serviceRoleKey: 'SET' };
-  try {
-    const { data: p, error: pe } = await supabaseAdmin.from('profiles').select('id').limit(1);
-    checks.profilesTable = pe ? { error: pe.message, code: pe.code } : { exists: true, rows: (p || []).length };
-  } catch (e) { checks.profilesTable = { error: e.message }; }
-  try {
-    const { data: d, error: de } = await supabaseAdmin.from('_trigger_debug').select('*').order('id', { ascending: false }).limit(5);
-    checks.triggerDebug = de ? { error: de.message, code: de.code } : { rows: d };
-  } catch (e) { checks.triggerDebug = { error: e.message }; }
-  try {
-    const { data: u, error: ue } = await supabaseAdmin.from('users').select('id').limit(1);
-    checks.usersTable = ue ? { error: ue.message, code: ue.code } : { exists: true, rows: (u || []).length };
-  } catch (e) { checks.usersTable = { error: e.message }; }
-  try {
-    const { error: ie } = await supabaseAdmin.from('profiles').insert({
-      id: '00000000-0000-0000-0000-000000000000',
-      email: 'test@debug.invalid'
-    }).select('id').single();
-    checks.profilesInsertTest = ie ? { error: ie.message, code: ie.code, details: ie.details, hint: ie.hint } : { success: true };
-    await supabaseAdmin.from('profiles').delete().eq('id', '00000000-0000-0000-0000-000000000000');
-  } catch (e) { checks.profilesInsertTest = { error: e.message }; }
-  res.json({ ok: true, checks });
 });
-// #endregion
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
@@ -162,8 +135,8 @@ app.use('/api/domains', domainRoutes);
 app.get('/', (req, res) => {
   res.json({
     success: true,
-    message: 'CMS E-commerce API with Supabase',
-    database: 'Supabase Postgres',
+    message: 'CMS E-commerce API with Firebase',
+    database: 'Firebase (Auth + Firestore)',
     endpoints: {
       auth: {
         register: 'POST /api/auth/register',
@@ -259,11 +232,12 @@ app.use((req, res) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log('========================================');
-  console.log('🚀 CMS E-commerce API with Supabase');
+  console.log('🚀 CMS E-commerce API with Firebase');
   console.log('========================================');
   console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Server: http://localhost:${PORT}`);
-  console.log('🔥 Database: Supabase Postgres');
+  console.log('🔥 Database: Firebase (Auth + Firestore)');
+  console.log(`🔑 Login API key: ${hasLoginKey ? 'set' : 'MISSING — set FIREBASE_API_KEY in .env'}`);
   console.log('========================================');
   console.log('📝 API: /api/auth | /api/users | /api/pages | /api/posts');
   console.log('       /api/dashboard | /api/products | /api/orders');
