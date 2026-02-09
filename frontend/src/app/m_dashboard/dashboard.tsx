@@ -56,12 +56,14 @@ const infraMetrics: DashboardInfraMetrics = {
 // ── 3D Scene ─────────────────────────────────────────────────────────────────
 const Dashboard3DScene: React.FC<{ metrics: DashboardInfraMetrics; colors: typeof THEMES.dark; theme: 'dark' | 'light' }> = ({ metrics, colors, theme }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  });
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setReducedMotion(mq.matches);
     const onChange = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
@@ -269,8 +271,64 @@ const cardVariants: Variants = {
 
 // ── Main Dashboard ───────────────────────────────────────────────────────────
 export function DashboardContent() {
-  const { theme, colors } = useTheme();
-  const [showCreateSite, setShowCreateSite] = useState(false);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const colors = THEMES[theme];
+
+  useEffect(() => {
+    document.documentElement.classList.remove('dark', 'light');
+    document.documentElement.classList.add(theme);
+    (document.documentElement.style as CSSStyleDeclaration & { colorScheme: string }).colorScheme = theme;
+  }, [theme]);
+
+  useEffect(() => {
+    // Inject CSS to disable the default browser fade animation for view transitions.
+    const styleId = 'view-transition-style';
+    if (document.getElementById(styleId)) return;
+
+    const css = `
+      ::view-transition-old(root),
+      ::view-transition-new(root) {
+        animation: none;
+        mix-blend-mode: normal;
+      }
+    `;
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = css;
+    document.head.appendChild(style);
+  }, []);
+
+  const toggleTheme = useCallback((e: React.MouseEvent) => {
+    const newTheme = theme === "dark" ? "light" : "dark";
+
+    if (
+      !('startViewTransition' in document) ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      setTheme(newTheme);
+      return;
+    }
+
+    const x = e.clientX;
+    const y = e.clientY;
+    const endRadius = Math.hypot(
+      Math.max(x, window.innerWidth - x),
+      Math.max(y, window.innerHeight - y)
+    );
+
+    const transition = (document as Document & { startViewTransition: (cb: () => void) => { ready: Promise<void> } }).startViewTransition(() => setTheme(newTheme));
+
+    transition.ready.then(() => {
+      const clipPath = [
+        `circle(0px at ${x}px ${y}px)`,
+        `circle(${endRadius}px at ${x}px ${y}px)`,
+      ];
+      document.documentElement.animate(
+        { clipPath },
+        { duration: 1000, easing: 'ease-in-out', pseudoElement: '::view-transition-new(root)' }
+      );
+    });
+  }, [theme]);
 
   return (
     <main className="flex-1 overflow-y-auto" style={{ backgroundColor: theme === 'dark' ? colors.bg.dark : colors.bg.primary, color: colors.text.primary }}>
