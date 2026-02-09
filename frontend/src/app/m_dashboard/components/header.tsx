@@ -1,8 +1,31 @@
+// c:\Users\echob\OJT\Cms_E_commerce\frontend\src\app\m_dashboard\components\header.tsx
+
 'use client';
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { logout, type User } from '@/lib/api';
+import { useTheme } from './theme-context';
+
+const SunIcon = () => (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="5" />
+        <line x1="12" y1="1" x2="12" y2="3" />
+        <line x1="12" y1="21" x2="12" y2="23" />
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+        <line x1="1" y1="12" x2="3" y2="12" />
+        <line x1="21" y1="12" x2="23" y2="12" />
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+    </svg>
+);
+
+const MoonIcon = () => (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+);
 
 const BellIcon = () => (
     <svg
@@ -43,6 +66,7 @@ type DashboardHeaderProps = {
 
 export function DashboardHeader({ user, onMenuToggle }: DashboardHeaderProps) {
     const router = useRouter();
+    const { theme, toggleTheme, colors } = useTheme();
     const [showMenu, setShowMenu] = useState(false);
     const userName = user?.name || user?.email || '';
 
@@ -54,12 +78,16 @@ export function DashboardHeader({ user, onMenuToggle }: DashboardHeaderProps) {
     };
 
     return (
-        <header className="border-b border-white/20 backdrop-blur-xl bg-black/25 sticky top-0 z-20">
+        <header 
+            className="border-b sticky top-0 z-20 transition-colors duration-300"
+            style={{ borderColor: colors.border.faint }}
+        >
             <div className="flex items-center justify-between px-6 py-4">
                 <div className="flex items-center">
                     <button
                         type="button"
-                        className="lg:hidden p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                        className="lg:hidden p-2 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+                        style={{ color: colors.text.secondary }}
                         onClick={onMenuToggle}
                         aria-label="Open menu"
                     >
@@ -74,7 +102,17 @@ export function DashboardHeader({ user, onMenuToggle }: DashboardHeaderProps) {
                 <div className="flex items-center gap-4">
                     <button
                         type="button"
-                        className="p-2 text-gray-400 hover:text-white transition-colors hover:bg-white/10 rounded-lg backdrop-blur-sm"
+                        onClick={toggleTheme}
+                        className="p-2 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+                        style={{ color: colors.text.secondary }}
+                        aria-label="Toggle theme"
+                    >
+                        {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+                    </button>
+                    <button
+                        type="button"
+                        className="p-2 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+                        style={{ color: colors.text.secondary }}
                         aria-label="Notifications"
                     >
                         <BellIcon />
@@ -82,14 +120,19 @@ export function DashboardHeader({ user, onMenuToggle }: DashboardHeaderProps) {
 
                     <div className="relative flex items-center gap-3">
                         <div className="text-right hidden sm:block">
-                            <p className="text-sm font-medium text-white">{userName || 'User'}</p>
-                            <p className="text-xs text-gray-400">Website Owner</p>
+                            <p className="text-sm font-medium" style={{ color: colors.text.primary }}>{userName || 'User'}</p>
+                            <p className="text-xs" style={{ color: colors.text.muted }}>Website Owner</p>
                         </div>
                         <div className="relative">
                             <button
                                 type="button"
                                 onClick={() => setShowMenu((v) => !v)}
-                                className="h-10 w-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-gray-300 shadow-lg hover:bg-white/20 transition-colors"
+                                className="h-10 w-10 rounded-full border flex items-center justify-center shadow-sm hover:opacity-80 transition-opacity"
+                                style={{ 
+                                    backgroundColor: colors.bg.elevated, 
+                                    borderColor: colors.border.faint,
+                                    color: colors.text.secondary
+                                }}
                                 aria-label="Profile menu"
                             >
                                 <UserIcon />
@@ -101,10 +144,17 @@ export function DashboardHeader({ user, onMenuToggle }: DashboardHeaderProps) {
                                         aria-hidden="true"
                                         onClick={() => setShowMenu(false)}
                                     />
-                                    <div className="absolute right-0 mt-2 w-48 rounded-lg border border-white/20 bg-[#0a0d14] py-1 shadow-xl z-20">
+                                    <div 
+                                        className="absolute right-0 mt-2 w-48 rounded-xl border py-1 shadow-xl z-20 backdrop-blur-md"
+                                        style={{ 
+                                            backgroundColor: theme === 'dark' ? 'rgba(29, 29, 33, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                                            borderColor: colors.border.faint
+                                        }}
+                                    >
                                         <Link
                                             href="/m_dashboard/profile"
-                                            className="block px-4 py-2 text-sm text-white hover:bg-white/10"
+                                            className="block px-4 py-2 text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+                                            style={{ color: colors.text.primary }}
                                             onClick={() => setShowMenu(false)}
                                         >
                                             Profile
@@ -112,7 +162,8 @@ export function DashboardHeader({ user, onMenuToggle }: DashboardHeaderProps) {
                                         <button
                                             type="button"
                                             onClick={handleLogout}
-                                            className="block w-full text-left px-4 py-2 text-sm text-red-300 hover:bg-white/10"
+                                            className="block w-full text-left px-4 py-2 text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+                                            style={{ color: colors.status.error }}
                                         >
                                             Log out
                                         </button>

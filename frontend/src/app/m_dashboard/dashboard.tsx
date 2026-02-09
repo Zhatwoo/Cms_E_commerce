@@ -1,10 +1,11 @@
 'use client';
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { motion, type Variants } from 'framer-motion';
 import CreateSite from './components/CreateSite';
 import TemplatesLibrary from './components/TemplatesLibrary';
 import ActivityFeed from './components/ActivityFeed';
+import { useTheme, THEMES } from './components/theme-context';
 
 // ── Icons (unchanged) ────────────────────────────────────────────────────────
 const BriefcaseIcon = () => (
@@ -35,26 +36,6 @@ const FilterIcon = () => (
   </svg>
 );
 
-const SunIcon = () => (
-  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="5" />
-    <line x1="12" y1="1" x2="12" y2="3" />
-    <line x1="12" y1="21" x2="12" y2="23" />
-    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-    <line x1="1" y1="12" x2="3" y2="12" />
-    <line x1="21" y1="12" x2="23" y2="12" />
-    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-  </svg>
-);
-
-const MoonIcon = () => (
-  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-  </svg>
-);
-
 // ── Types & data ─────────────────────────────────────────────────────────────
 type DashboardInfraMetrics = {
   activeRegions: number;
@@ -70,60 +51,6 @@ const infraMetrics: DashboardInfraMetrics = {
   uptimePercent: 99.982,
   avgLatencyMs: 82,
   errorRatePercent: 0.4,
-};
-
-// ── Color theme constants ────────────────────────────────────────────────────
-const THEMES = {
-  dark: {
-    bg: {
-      primary: '#1D1D21',
-      dark: '#000000',
-      card: '#1D1D21',
-      elevated: '#26262C',
-      fog: '#0a0a0f',
-    },
-    text: {
-      primary: '#F4F4F6',
-      secondary: '#E6E6E9',
-      muted: '#9999A1',
-      subtle: '#66666E',
-    },
-    border: {
-      default: '#66666E',
-      faint: '#4A4A52',
-    },
-    status: {
-      good: '#A3E635',
-      warning: '#FCD34D',
-      error: '#FDA4AF',
-      info: '#93C5FD',
-    },
-  },
-  light: {
-    bg: {
-      primary: '#F3F4F6',
-      dark: '#FFFFFF',
-      card: '#FFFFFF',
-      elevated: '#F9FAFB',
-      fog: '#FFFFFF',
-    },
-    text: {
-      primary: '#111827',
-      secondary: '#374151',
-      muted: '#6B7280',
-      subtle: '#9CA3AF',
-    },
-    border: {
-      default: '#E5E7EB',
-      faint: '#D1D5DB',
-    },
-    status: {
-      good: '#65A30D',
-      warning: '#D97706',
-      error: '#DC2626',
-      info: '#2563EB',
-    },
-  },
 };
 
 // ── 3D Scene ─────────────────────────────────────────────────────────────────
@@ -342,65 +269,8 @@ const cardVariants: Variants = {
 
 // ── Main Dashboard ───────────────────────────────────────────────────────────
 export function DashboardContent() {
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const colors = THEMES[theme];
+  const { theme, colors } = useTheme();
   const [showCreateSite, setShowCreateSite] = useState(false);
-
-  useEffect(() => {
-    document.documentElement.classList.remove('dark', 'light');
-    document.documentElement.classList.add(theme);
-    (document.documentElement.style as any).colorScheme = theme;
-  }, [theme]);
-
-  useEffect(() => {
-    // Inject CSS to disable the default browser fade animation for view transitions.
-    const styleId = 'view-transition-style';
-    if (document.getElementById(styleId)) return;
-
-    const css = `
-      ::view-transition-old(root),
-      ::view-transition-new(root) {
-        animation: none;
-        mix-blend-mode: normal;
-      }
-    `;
-    const style = document.createElement('style');
-    style.id = styleId;
-    style.textContent = css;
-    document.head.appendChild(style);
-  }, []);
-
-  const toggleTheme = useCallback((e: React.MouseEvent) => {
-    const newTheme = theme === "dark" ? "light" : "dark";
-
-    if (
-      !(document as any).startViewTransition ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
-      setTheme(newTheme);
-      return;
-    }
-
-    const x = e.clientX;
-    const y = e.clientY;
-    const endRadius = Math.hypot(
-      Math.max(x, window.innerWidth - x),
-      Math.max(y, window.innerHeight - y)
-    );
-
-    const transition = (document as any).startViewTransition(() => setTheme(newTheme));
-
-    transition.ready.then(() => {
-      const clipPath = [
-        `circle(0px at ${x}px ${y}px)`,
-        `circle(${endRadius}px at ${x}px ${y}px)`,
-      ];
-      document.documentElement.animate(
-        { clipPath },
-        { duration: 1000, easing: 'ease-in-out', pseudoElement: '::view-transition-new(root)' }
-      );
-    });
-  }, [theme]);
 
   return (
     <main className="flex-1 overflow-y-auto" style={{ backgroundColor: theme === 'dark' ? colors.bg.dark : colors.bg.primary, color: colors.text.primary }}>
@@ -428,13 +298,6 @@ export function DashboardContent() {
               Monitor deployments, domains and templates — live health & usage at a glance.
             </motion.p>
           </div>
-          <button
-            onClick={toggleTheme}
-            className="p-2 rounded-full hover:bg-white/10 transition-colors"
-            style={{ color: colors.text.secondary }}
-          >
-            {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-          </button>
         </div>
 
         {/* Summary Cards */}
