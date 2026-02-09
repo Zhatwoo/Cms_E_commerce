@@ -1,60 +1,56 @@
-// models/Domain.js - Firestore collection 'domains'
-const { getFirestore } = require('../config/firebase');
+const { supabaseAdmin } = require('../config/supabase');
+const { keysToCamel } = require('../utils/caseHelper');
 
-function getCollection() {
-  return getFirestore().collection('domains');
-}
+const TABLE = 'domains';
+function isNotFound(e) { return e && e.code === 'PGRST116'; }
 
 async function create(data) {
   const doc = {
-    userId: data.userId || null,
+    user_id: data.userId || null,
     domain: (data.domain || '').toLowerCase().trim(),
     status: data.status || 'Pending',
-    verifiedAt: data.verifiedAt || null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    verified_at: data.verifiedAt || null
   };
-  const docRef = await getCollection().add(doc);
-  return { id: docRef.id, ...doc };
+  const { data: row, error } = await supabaseAdmin.from(TABLE).insert(doc).select('*').single();
+  if (error) throw error;
+  return keysToCamel(row);
 }
 
 async function findById(id) {
-  const doc = await getCollection().doc(id).get();
-  if (!doc.exists) return null;
-  return { id: doc.id, ...doc.data() };
+  const { data, error } = await supabaseAdmin.from(TABLE).select('*').eq('id', id).single();
+  if (isNotFound(error)) return null;
+  if (error) throw error;
+  return keysToCamel(data);
 }
 
 async function findByUserId(userId) {
-  const snapshot = await getCollection().get();
-  return snapshot.docs
-    .map(d => ({ id: d.id, ...d.data() }))
-    .filter(d => d.userId === userId);
+  const { data, error } = await supabaseAdmin.from(TABLE).select('*').eq('user_id', userId);
+  if (error) throw error;
+  return (data || []).map(keysToCamel);
 }
 
 async function findAll(filters = {}) {
-  const snapshot = await getCollection().get();
-  let items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-  if (filters.userId) items = items.filter(d => d.userId === filters.userId);
-  if (filters.status) items = items.filter(d => d.status === filters.status);
-  return items;
+  let query = supabaseAdmin.from(TABLE).select('*');
+  if (filters.userId) query = query.eq('user_id', filters.userId);
+  if (filters.status) query = query.eq('status', filters.status);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []).map(keysToCamel);
 }
 
 async function update(id, data) {
-  const updates = { ...data, updatedAt: new Date().toISOString() };
-  await getCollection().doc(id).update(updates);
+  const updates = {};
+  if (data.domain !== undefined) updates.domain = data.domain;
+  if (data.status !== undefined) updates.status = data.status;
+  if (data.verifiedAt !== undefined) updates.verified_at = data.verifiedAt;
+  const { error } = await supabaseAdmin.from(TABLE).update(updates).eq('id', id);
+  if (error) throw error;
   return findById(id);
 }
 
 async function deleteById(id) {
-  await getCollection().doc(id).delete();
+  const { error } = await supabaseAdmin.from(TABLE).delete().eq('id', id);
+  if (error) throw error;
 }
 
-module.exports = {
-  getCollection,
-  create,
-  findById,
-  findByUserId,
-  findAll,
-  update,
-  delete: deleteById
-};
+module.exports = { create, findById, findByUserId, findAll, update, delete: deleteById };

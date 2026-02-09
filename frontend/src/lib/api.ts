@@ -113,20 +113,14 @@ export async function apiFetch<T>(
   return handleResponse<T>(res);
 }
 
-// --- Auth API helpers (backend uses Firebase Authentication; login sends idToken) ---
+// --- Auth API helpers (backend email/password, no Firebase) ---
 
-/** Login: config from backend → Firebase sign-in → idToken → backend JWT */
+/** Login: email + password → backend JWT (cookie) */
 export async function login(email: string, password: string): Promise<AuthResponse> {
-  const { getAuthAsync } = await import('@/lib/firebase');
-  const auth = await getAuthAsync();
-  const { signInWithEmailAndPassword } = await import('firebase/auth');
-  const userCred = await signInWithEmailAndPassword(auth, email, password);
-  const idToken = await userCred.user.getIdToken();
-  const data = await apiFetch<AuthResponse>('/api/auth/login', {
+  return apiFetch<AuthResponse>('/api/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ idToken }),
+    body: JSON.stringify({ email, password }),
   });
-  return data;
 }
 
 export async function register(params: {
