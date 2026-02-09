@@ -170,17 +170,13 @@ export async function getMe(): Promise<{ success: boolean; user?: User }> {
   return apiFetch<{ success: boolean; user?: User }>('/api/auth/me');
 }
 
-// Add this to your api.tsx file
-
-export async function updateProfile(params: {
+/** Update user profile (Name, Avatar) */
+export async function updateProfile(data: {
   name?: string;
   avatar?: string;
-  username?: string;
-  website?: string;
-  bio?: string;
 }): Promise<{ success: boolean; message?: string; user?: User }> {
-  return apiFetch('/api/auth/profile', {
+  return apiFetch<{ success: boolean; message?: string; user?: User }>('/api/auth/profile', {
     method: 'PUT',
-    body: JSON.stringify(params),
+    body: JSON.stringify(data),
   });
 }

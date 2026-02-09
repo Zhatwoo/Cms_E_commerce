@@ -1,5 +1,7 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
+import { updateProfile } from '@/lib/api';
+import { useAuth } from '../components/auth-context';
 import { motion } from 'framer-motion';
 import { updateProfile, getMe } from '@/lib/api';
 
@@ -49,47 +51,30 @@ const CameraIcon = () => (
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState('general');
   const [isLoading, setIsLoading] = useState(false);
+  const { user, setUser } = useAuth();
   const [avatarUrl, setAvatarUrl] = useState("https://api.dicebear.com/7.x/avataaars/svg?seed=Felix");
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Form state
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     username: '',
     website: '',
-    bio: '',
-    avatar: ''
+    bio: ''
   });
-  
-  const loadedRef = useRef(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (loadedRef.current) return;
-    loadedRef.current = true;
-    loadUserData();
-  }, []);
-
-  const loadUserData = async () => {
-    try {
-      const response = await getMe();
-      if (response.success && response.user) {
-        setFormData({
-          name: response.user.name || '',
-          email: response.user.email || '',
-          username: response.user.username || '',
-          website: response.user.website || '',
-          bio: response.user.bio || '',
-          avatar: response.user.avatar || ''
-        });
-        if (response.user.avatar) {
-          setAvatarUrl(response.user.avatar);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load user data:', error);
+    if (user) {
+      // Use avatar from backend if available, otherwise fallback to dicebear
+      setAvatarUrl(user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`);
+      setFormData({
+        name: user.name || '',
+        email: user.email || '',
+        username: user.name?.toLowerCase().replace(/\s/g, '') || '',
+        website: 'https://mercato.tools',
+        bio: 'Building the future of commerce. Love React, Three.js, and good coffee.'
+      });
     }
-  };
+  }, [user]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -98,32 +83,23 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     setIsLoading(true);
+    
     try {
-      const response = await updateProfile({
+      // Note: Backend currently only supports updating 'name' and 'avatar'
+      const res = await updateProfile({
         name: formData.name,
-        avatar: avatarUrl,
-        username: formData.username,
-        website: formData.website,
-        bio: formData.bio
+        avatar: avatarUrl // Sends the base64 string or URL
       });
 
-      if (response.success) {
-        // Show success message (you can add a toast notification here)
-        console.log('Profile updated successfully!');
-        
-        // Optionally update stored user data
-        if (response.user) {
-          // You might want to update your global state/context here
-          console.log('Updated user:', response.user);
-        }
+      if (res.success && res.user) {
+        setUser(res.user);
+        // Optional: Show success notification here
       }
-    } catch (error: any) {
-      // Show error message
-      console.error('Failed to update profile:', error.message);
-      alert(error.message || 'Failed to update profile');
-    } finally {
-      setIsLoading(false);
+    } catch (error) {
+      console.error("Failed to update profile", error);
+      // Optional: Show error notification here
     }
+    setIsLoading(false);
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -236,8 +212,8 @@ export default function ProfilePage() {
                   </div>
 
                   <div className="flex-1">
-                    <h3 className="text-xl font-semibold text-white">{formData.name || 'Loading...'}</h3>
-                    <p className="text-slate-400 text-sm">Senior Developer</p>
+                    <h3 className="text-xl font-semibold text-white">{formData.name || user?.name || 'User'}</h3>
+                    <p className="text-slate-400 text-sm">{formData.email || user?.email || 'Loading...'}</p>
                     <div className="flex items-center gap-2 mt-2">
                       <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-400 border border-emerald-500/20">
                         Pro Plan
@@ -256,6 +232,7 @@ export default function ProfilePage() {
                       name="name"
                       value={formData.name}
                       onChange={handleInputChange}
+                      placeholder="Your Name"
                       className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all placeholder:text-slate-600"
                     />
                   </div>
@@ -265,8 +242,9 @@ export default function ProfilePage() {
                       type="email"
                       name="email"
                       value={formData.email}
-                      disabled
-                      className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-400 cursor-not-allowed opacity-60"
+                      onChange={handleInputChange}
+                      placeholder="your@email.com"
+                      className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all placeholder:text-slate-600"
                     />
                   </div>
                   <div className="space-y-2">
@@ -278,6 +256,7 @@ export default function ProfilePage() {
                         name="username"
                         value={formData.username}
                         onChange={handleInputChange}
+                        placeholder="username"
                         className="w-full bg-slate-900/50 border border-slate-700 rounded-lg pl-8 pr-4 py-2.5 text-slate-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all placeholder:text-slate-600"
                       />
                     </div>
@@ -289,6 +268,7 @@ export default function ProfilePage() {
                       name="website"
                       value={formData.website}
                       onChange={handleInputChange}
+                      placeholder="https://your-website.com"
                       className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all placeholder:text-slate-600"
                     />
                   </div>
@@ -297,9 +277,10 @@ export default function ProfilePage() {
                     <textarea
                       name="bio"
                       rows={4}
+                      name="bio"
                       value={formData.bio}
                       onChange={handleInputChange}
-                      maxLength={240}
+                      placeholder="Tell us a little about yourself..."
                       className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all resize-none placeholder:text-slate-600"
                     />
                     <p className="text-xs text-slate-500 text-right">{240 - formData.bio.length} characters left</p>

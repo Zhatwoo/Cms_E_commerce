@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { logout, type User } from '@/lib/api';
 import { useTheme } from './theme-context';
+import { useAuth } from './auth-context';
 
 const SunIcon = () => (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -59,19 +60,27 @@ const UserIcon = () => (
     </svg>
 );
 
+const NOTIFICATIONS = [
+    { id: 1, text: "Project 'Mercato Launch' deployed successfully.", time: "2m ago", unread: true },
+    { id: 2, text: "New order #1023 received ($120.00).", time: "1h ago", unread: true },
+    { id: 3, text: "Domain verification failed for shop.mercato.tools", time: "5h ago", unread: false },
+];
+
 type DashboardHeaderProps = {
-    user: User | null;
     onMenuToggle: () => void;
 };
 
-export function DashboardHeader({ user, onMenuToggle }: DashboardHeaderProps) {
+export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     const router = useRouter();
+    const { user, setUser } = useAuth();
     const { theme, toggleTheme, colors } = useTheme();
     const [showMenu, setShowMenu] = useState(false);
+    const [showNotifications, setShowNotifications] = useState(false);
     const userName = user?.name || user?.email || '';
 
     const handleLogout = async () => {
         await logout();
+        setUser(null);
         setShowMenu(false);
         router.push('/auth/login');
         router.refresh();
@@ -109,14 +118,39 @@ export function DashboardHeader({ user, onMenuToggle }: DashboardHeaderProps) {
                     >
                         {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
                     </button>
-                    <button
-                        type="button"
-                        className="p-2 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10"
-                        style={{ color: colors.text.secondary }}
-                        aria-label="Notifications"
-                    >
-                        <BellIcon />
-                    </button>
+                    <div className="relative">
+                        <button
+                            type="button"
+                            onClick={() => setShowNotifications(!showNotifications)}
+                            className="p-2 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10 relative"
+                            style={{ color: colors.text.secondary }}
+                            aria-label="Notifications"
+                        >
+                            <BellIcon />
+                            <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 border border-white dark:border-black" />
+                        </button>
+                        {showNotifications && (
+                            <>
+                                <div className="fixed inset-0 z-10" onClick={() => setShowNotifications(false)} />
+                                <div 
+                                    className="absolute right-0 mt-2 w-80 rounded-xl border shadow-xl z-20 backdrop-blur-md overflow-hidden"
+                                    style={{ backgroundColor: theme === 'dark' ? 'rgba(29, 29, 33, 0.95)' : 'rgba(255, 255, 255, 0.95)', borderColor: colors.border.faint }}
+                                >
+                                    <div className="px-4 py-3 border-b" style={{ borderColor: colors.border.faint }}>
+                                        <p className="text-sm font-semibold" style={{ color: colors.text.primary }}>Notifications</p>
+                                    </div>
+                                    <div className="max-h-64 overflow-y-auto">
+                                        {NOTIFICATIONS.map(n => (
+                                            <div key={n.id} className="px-4 py-3 border-b last:border-0 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer" style={{ borderColor: colors.border.faint }}>
+                                                <p className="text-sm" style={{ color: colors.text.primary }}>{n.text}</p>
+                                                <p className="text-xs mt-1" style={{ color: colors.text.muted }}>{n.time}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </div>
 
                     <div className="relative flex items-center gap-3">
                         <div className="text-right hidden sm:block">
