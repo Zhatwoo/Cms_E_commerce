@@ -272,6 +272,7 @@ const cardVariants: Variants = {
 // ── Main Dashboard ───────────────────────────────────────────────────────────
 export function DashboardContent() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [showCreateSite, setShowCreateSite] = useState(false);
   const colors = THEMES[theme];
 
   useEffect(() => {
