@@ -1,46 +1,7 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
 import { ContainerSettings } from "./ContainerSettings";
-
-interface ContainerProps {
-  background?: string;
-  // Padding
-  padding?: number | string;
-  paddingLeft?: number;
-  paddingRight?: number;
-  paddingTop?: number;
-  paddingBottom?: number;
-  // Margin
-  margin?: number | string;
-  marginLeft?: number;
-  marginRight?: number;
-  marginTop?: number;
-  marginBottom?: number;
-  // Dimensions
-  width?: string;
-  height?: string;
-  // Border & Radius
-  borderRadius?: number;
-  radiusTopLeft?: number;
-  radiusTopRight?: number;
-  radiusBottomRight?: number;
-  radiusBottomLeft?: number;
-  borderColor?: string;
-  borderWidth?: number;
-  borderStyle?: string;
-  // Layout
-  flexDirection?: "row" | "column";
-  flexWrap?: "nowrap" | "wrap";
-  alignItems?: "flex-start" | "center" | "flex-end" | "stretch";
-  justifyContent?: "flex-start" | "center" | "flex-end" | "space-between" | "space-around";
-  gap?: number;
-  // Effects
-  boxShadow?: string;
-  opacity?: number;
-  overflow?: string;
-  // Content
-  children?: React.ReactNode;
-}
+import type { ContainerProps } from "../../_types/components";
 
 export const Container = ({
   background,
@@ -61,6 +22,11 @@ export const Container = ({
   radiusTopRight,
   radiusBottomRight,
   radiusBottomLeft,
+  backgroundImage = "",
+  backgroundSize = "cover",
+  backgroundPosition = "center",
+  backgroundRepeat = "no-repeat",
+  backgroundOverlay = "",
   borderColor = "transparent",
   borderWidth = 0,
   borderStyle = "solid",
@@ -69,9 +35,24 @@ export const Container = ({
   alignItems = "flex-start",
   justifyContent = "flex-start",
   gap = 0,
+  gridTemplateColumns = "1fr 1fr",
+  gridTemplateRows = "auto",
+  gridGap = 0,
+  gridColumnGap,
+  gridRowGap,
+  gridAutoRows = "auto",
+  gridAutoFlow = "row",
+  position = "static",
+  display = "flex",
+  zIndex = 0,
+  top = "auto",
+  right: posRight = "auto",
+  bottom = "auto",
+  left: posLeft = "auto",
   boxShadow = "none",
   opacity = 1,
   overflow = "visible",
+  cursor = "default",
   children
 }: ContainerProps) => {
   const { connectors: { connect, drag } } = useNode();
@@ -105,6 +86,14 @@ export const Container = ({
       className="min-h-[50px] transition-all hover:outline hover:outline-blue-500"
       style={{
         backgroundColor: background,
+        backgroundImage: backgroundImage
+          ? backgroundOverlay
+            ? `linear-gradient(${backgroundOverlay}, ${backgroundOverlay}), url(${backgroundImage})`
+            : `url(${backgroundImage})`
+          : undefined,
+        backgroundSize: backgroundImage ? backgroundSize : undefined,
+        backgroundPosition: backgroundImage ? backgroundPosition : undefined,
+        backgroundRepeat: backgroundImage ? backgroundRepeat : undefined,
         paddingLeft: `${pl}px`,
         paddingRight: `${pr}px`,
         paddingTop: `${pt}px`,
@@ -122,15 +111,30 @@ export const Container = ({
         borderWidth: `${borderWidth}px`,
         borderColor,
         borderStyle,
-        display: "flex",
-        flexDirection,
-        flexWrap,
-        alignItems,
-        justifyContent,
-        gap: `${gap}px`,
+        position,
+        display,
+        zIndex: zIndex !== 0 ? zIndex : undefined,
+        top: position !== "static" ? top : undefined,
+        right: position !== "static" ? posRight : undefined,
+        bottom: position !== "static" ? bottom : undefined,
+        left: position !== "static" ? posLeft : undefined,
+        // Flex properties
+        flexDirection: display === "flex" ? flexDirection : undefined,
+        flexWrap: display === "flex" ? flexWrap : undefined,
+        alignItems: display === "flex" || display === "grid" ? alignItems : undefined,
+        justifyContent: display === "flex" || display === "grid" ? justifyContent : undefined,
+        gap: display === "flex" ? `${gap}px` : undefined,
+        // Grid properties
+        gridTemplateColumns: display === "grid" ? gridTemplateColumns : undefined,
+        gridTemplateRows: display === "grid" ? gridTemplateRows : undefined,
+        columnGap: display === "grid" ? `${gridColumnGap ?? gridGap}px` : undefined,
+        rowGap: display === "grid" ? `${gridRowGap ?? gridGap}px` : undefined,
+        gridAutoRows: display === "grid" ? gridAutoRows : undefined,
+        gridAutoFlow: display === "grid" ? gridAutoFlow : undefined,
         boxShadow,
         opacity,
-        overflow
+        overflow,
+        cursor
       }}
     >
       {children}
@@ -138,12 +142,25 @@ export const Container = ({
   );
 };
 
-export const ContainerDefaultProps = {
+export const ContainerDefaultProps: Partial<ContainerProps> = {
   background: "#27272a",
   padding: 20,
+  paddingTop: 20,
+  paddingRight: 20,
+  paddingBottom: 20,
+  paddingLeft: 20,
   margin: 0,
+  marginTop: 0,
+  marginRight: 0,
+  marginBottom: 0,
+  marginLeft: 0,
   width: "100%",
   height: "auto",
+  backgroundImage: "",
+  backgroundSize: "cover",
+  backgroundPosition: "center",
+  backgroundRepeat: "no-repeat",
+  backgroundOverlay: "",
   borderRadius: 0,
   borderColor: "transparent",
   borderWidth: 0,
@@ -153,9 +170,24 @@ export const ContainerDefaultProps = {
   alignItems: "flex-start",
   justifyContent: "flex-start",
   gap: 0,
+  gridTemplateColumns: "1fr 1fr",
+  gridTemplateRows: "auto",
+  gridGap: 0,
+  gridColumnGap: 0,
+  gridRowGap: 0,
+  gridAutoRows: "auto",
+  gridAutoFlow: "row",
+  position: "static",
+  display: "flex",
+  zIndex: 0,
+  top: "auto",
+  right: "auto",
+  bottom: "auto",
+  left: "auto",
   boxShadow: "none",
   opacity: 1,
-  overflow: "visible"
+  overflow: "visible",
+  cursor: "default"
 };
 
 Container.craft = {

@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { updateProfile } from '@/lib/api';
 import { useAuth } from '../components/auth-context';
 import { motion } from 'framer-motion';
+import { updateProfile, getMe } from '@/lib/api';
 
 // Icons
 const UserIcon = () => (
@@ -274,6 +275,7 @@ export default function ProfilePage() {
                   <div className="md:col-span-2 space-y-2">
                     <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Bio</label>
                     <textarea
+                      name="bio"
                       rows={4}
                       name="bio"
                       value={formData.bio}
@@ -281,13 +283,18 @@ export default function ProfilePage() {
                       placeholder="Tell us a little about yourself..."
                       className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all resize-none placeholder:text-slate-600"
                     />
-                    <p className="text-xs text-slate-500 text-right">240 characters left</p>
+                    <p className="text-xs text-slate-500 text-right">{240 - formData.bio.length} characters left</p>
                   </div>
                 </div>
 
                 {/* Action Buttons */}
                 <div className="flex items-center justify-end gap-4 pt-4 border-t border-slate-800/60">
-                  <button className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-white transition-colors">Cancel</button>
+                  <button 
+                    onClick={loadUserData}
+                    className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-white transition-colors"
+                  >
+                    Cancel
+                  </button>
                   <button
                     onClick={handleSave}
                     disabled={isLoading}
@@ -304,55 +311,6 @@ export default function ProfilePage() {
               </motion.div>
             )}
 
-            {activeTab === 'security' && (
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3 }}
-                className="space-y-6 relative"
-              >
-                <div>
-                  <h3 className="text-lg font-medium text-white">Security Settings</h3>
-                  <p className="text-slate-400 text-sm mt-1">Manage your password and 2FA settings.</p>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/30 flex items-center justify-between">
-                    <div>
-                      <p className="text-slate-200 font-medium text-sm">Two-Factor Authentication</p>
-                      <p className="text-slate-500 text-xs mt-0.5">Add an extra layer of security to your account.</p>
-                    </div>
-                    <button className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs font-medium hover:bg-emerald-500/20 transition-colors">
-                      Enable
-                    </button>
-                  </div>
-
-                  <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/30">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <p className="text-slate-200 font-medium text-sm">Password</p>
-                        <p className="text-slate-500 text-xs mt-0.5">Last changed 3 months ago.</p>
-                      </div>
-                      <button className="px-3 py-1.5 bg-slate-800 text-slate-300 border border-slate-700 rounded-lg text-xs font-medium hover:bg-slate-700 transition-colors">
-                        Update
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-1 gap-4 pt-4 border-t border-slate-800/50">
-                      <input
-                        type="password"
-                        placeholder="Current Password"
-                        className="w-full bg-slate-950/50 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-violet-500 transition-all"
-                      />
-                      <input
-                        type="password"
-                        placeholder="New Password"
-                        className="w-full bg-slate-950/50 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-violet-500 transition-all"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
 
             {(activeTab === 'notifications' || activeTab === 'billing') && (
               <motion.div

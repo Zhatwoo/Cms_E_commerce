@@ -1,5 +1,6 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
+import type { Node } from "@craftjs/core";
 
 export const Viewport = ({ children }: { children?: React.ReactNode }) => {
   const { connectors: { connect, drag } } = useNode();
@@ -19,6 +20,7 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
 Viewport.craft = {
   displayName: "Viewport",
   rules: {
-    canMoveIn: (incomingNodes: any) => incomingNodes.every((node: any) => node.data.type.craft.displayName === "Page"),
+    canMoveIn: (incomingNodes: Node[]) =>
+      incomingNodes.every((node) => node.data.displayName === "Page"),
   }
 };

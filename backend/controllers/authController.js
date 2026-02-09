@@ -3,6 +3,9 @@
 const { getAuth } = require('../config/firebase');
 const PasswordReset = require('../models/PasswordReset');
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+const Client = require('../models/Client');
+const Admin = require('../models/Admin');
 
 const COOKIE_NAME = 'mercato_token';
 const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -37,7 +40,7 @@ const authUserToResponse = (userRecord) => {
   };
 };
 
-// @desc    Register new user (saves to Firebase Authentication only)
+// @desc    Register new user (saves to Firebase Authentication and Firestore collections)
 // @route   POST /api/auth/register
 // @access  Public
 exports.register = async (req, res) => {
@@ -66,6 +69,15 @@ exports.register = async (req, res) => {
       email: email.toLowerCase(),
       password,
       displayName: name.trim()
+    });
+
+    // Save to Firestore collections
+    await User.upsert(userRecord.uid, {
+      status: 'active',
+      role: 'client'
+    });
+    await Client.upsert(userRecord.uid, {
+      uid: userRecord.uid,
     });
 
     const token = generateToken(userRecord.uid);
@@ -155,9 +167,16 @@ exports.getMe = async (req, res) => {
   try {
     const auth = getAuth();
     const userRecord = await auth.getUser(req.user.id);
+    const clientProfile = await Client.get(req.user.id);
+
     res.status(200).json({
       success: true,
-      user: authUserToResponse(userRecord)
+      user: {
+        ...authUserToResponse(userRecord),
+        username: clientProfile?.username || '',
+        website: clientProfile?.website || '',
+        bio: clientProfile?.bio || '',
+      }
     });
   } catch (error) {
     res.status(404).json({
@@ -175,12 +194,12 @@ exports.logout = (req, res) => {
   res.status(200).json({ success: true, message: 'Logged out' });
 };
 
-// @desc    Update user profile (Firebase Auth)
+// @desc    Update user profile (Firebase Auth + Firestore Client)
 // @route   PUT /api/auth/profile
 // @access  Private
 exports.updateProfile = async (req, res) => {
   try {
-    const { name, avatar } = req.body;
+    const { name, avatar, username, website, bio } = req.body;
     const updates = {};
     if (name !== undefined) updates.displayName = name;
     if (avatar !== undefined) updates.photoURL = avatar;
@@ -188,6 +207,14 @@ exports.updateProfile = async (req, res) => {
     const auth = getAuth();
     await auth.updateUser(req.user.id, updates);
     const userRecord = await auth.getUser(req.user.id);
+
+    // Update Firestore client profile
+    await Client.upsert(req.user.id, {
+      username: typeof username === 'string' ? username.trim() : '',
+      website: typeof website === 'string' ? website.trim() : '',
+      bio: typeof bio === 'string' ? bio.trim() : ''
+    });
+
     res.status(200).json({
       success: true,
       message: 'Profile updated successfully',

@@ -18,6 +18,8 @@ export type User = {
   isActive?: boolean;
   createdAt?: string;
   lastLogin?: string;
+  username?: string;
+  website?: string;
 };
 
 export type AuthResponse = {
@@ -76,18 +78,38 @@ async function handleResponse<T>(res: Response): Promise<T> {
 }
 
 /** GET/POST etc. to API. Sends HttpOnly cookie (credentials) and optional Bearer token. */
+// export async function apiFetch<T>(
+//   path: string,
+//   options: RequestInit = {}
+// ): Promise<T> {
+//   const url = `${getApiUrl()}${path.startsWith('/') ? path : `/${path}`}`;
+//   const token = getToken();
+//   const headers: HeadersInit = {
+//     'Content-Type': 'application/json',
+//     ...(options.headers as Record<string, string>),
+//   };
+//   if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+//   const res = await fetch(url, { ...options, headers, credentials: 'include' });
+//   return handleResponse<T>(res);
+// }
+
 export async function apiFetch<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${getApiUrl()}${path.startsWith('/') ? path : `/${path}`}`;
-  const token = getToken();
+
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
   };
-  if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(url, { ...options, headers, credentials: 'include' });
+
+  const res = await fetch(url, {
+    ...options,
+    headers,
+    credentials: 'include', // ✅ cookie only
+  });
+
   return handleResponse<T>(res);
 }
 

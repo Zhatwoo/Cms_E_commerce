@@ -1,11 +1,8 @@
 import React from "react";
+import type { EffectsProps, SetProp } from "../../../_types/components";
 
-interface EffectsGroupProps {
-  opacity?: number;
-  boxShadow?: string;
-  overflow?: string;
-  cursor?: string;
-  setProp: (cb: (props: any) => void) => void;
+interface EffectsGroupProps extends EffectsProps {
+  setProp: SetProp<EffectsProps>;
 }
 
 export const EffectsGroup = ({
@@ -18,14 +15,10 @@ export const EffectsGroup = ({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-brand-light uppercase tracking-wider">Effects</span>
-      </div>
-
       {/* Opacity */}
       <div className="flex flex-col gap-1">
         <div className="flex justify-between">
-          <label className="text-[10px] text-brand-lighter uppercase">Opacity</label>
+          <label className="text-[12px] text-brand-lighter font-base">Opacity</label>
           <span className="text-[10px] text-brand-light">{Math.round(opacity * 100)}%</span>
         </div>
         <input
@@ -34,7 +27,7 @@ export const EffectsGroup = ({
           max="1"
           step="0.01"
           value={opacity}
-          onChange={(e) => setProp((props: any) => props.opacity = Number(e.target.value))}
+          onChange={(e) => setProp((props) => { props.opacity = Number(e.target.value); })}
           className="w-full accent-brand-light"
         />
       </div>
@@ -42,11 +35,11 @@ export const EffectsGroup = ({
       {/* Overflow & Cursor */}
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] text-brand-lighter uppercase">Overflow</label>
+          <label className="text-[12px] text-brand-lighter font-base">Overflow</label>
           <select
             value={overflow}
-            onChange={(e) => setProp((props: any) => props.overflow = e.target.value)}
-            className="w-full bg-brand-black border border-brand-medium/30 rounded-md text-xs text-white p-1.5 focus:outline-none"
+            onChange={(e) => setProp((props) => { props.overflow = e.target.value; })}
+            className="w-full bg-brand-medium-dark rounded-md text-xs text-white px-2.5 py-1.5 focus:outline-none appearance-none"
           >
             <option value="visible">Visible</option>
             <option value="hidden">Hidden</option>
@@ -56,11 +49,11 @@ export const EffectsGroup = ({
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] text-brand-lighter uppercase">Cursor</label>
+          <label className="text-[12px] text-brand-lighter font-base">Cursor</label>
           <select
             value={cursor}
-            onChange={(e) => setProp((props: any) => props.cursor = e.target.value)}
-            className="w-full bg-brand-black border border-brand-medium/30 rounded-md text-xs text-white p-1.5 focus:outline-none"
+            onChange={(e) => setProp((props) => { props.cursor = e.target.value; })}
+            className="w-full bg-brand-medium-dark rounded-md text-xs text-white px-2.5 py-1.5 focus:outline-none appearance-none"
           >
             <option value="default">Default</option>
             <option value="pointer">Pointer</option>
@@ -72,15 +65,15 @@ export const EffectsGroup = ({
 
       {/* Box Shadow (Simplified for now) */}
       <div className="flex flex-col gap-1">
-        <label className="text-[10px] text-brand-lighter uppercase">Shadow</label>
+        <label className="text-[12px] text-brand-lighter font-base">Shadow</label>
         <select
           value={boxShadow === "none" ? "none" : "sm"}
           onChange={(e) => {
             const val = e.target.value;
-            if (val === "none") setProp((props: any) => props.boxShadow = "none");
-            else setProp((props: any) => props.boxShadow = "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)");
+            if (val === "none") setProp((props) => { props.boxShadow = "none"; });
+            else setProp((props) => { props.boxShadow = "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)"; });
           }}
-          className="w-full bg-brand-black border border-brand-medium/30 rounded-md text-xs text-white p-1.5 focus:outline-none"
+          className="w-full bg-brand-medium-dark rounded-md text-xs text-white px-2.5 py-1.5 focus:outline-none appearance-none"
         >
           <option value="none">None</option>
           <option value="sm">Small Drop Shadow</option>

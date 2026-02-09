@@ -68,14 +68,6 @@ initializeFirebase();
 app.use(helmet());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
-// Rate limit for auth (10 requests per 15 min per IP)
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: { success: false, message: 'Too many attempts, please try again later' }
-});
-app.use('/api/auth', authLimiter);
-
 // Middleware – CORS with credentials so browser sends cookies (frontend port may differ)
 app.use(cors({
   origin: [
@@ -91,6 +83,14 @@ app.use(cors({
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Rate limit for auth (10 requests per 15 min per IP)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { success: false, message: 'Too many attempts, please try again later' }
+});
+app.use('/api/auth', authLimiter);
 
 // Health check – para malaman kung naka-integrate / tumatakbo ang backend
 app.get('/api/health', (req, res) => {
