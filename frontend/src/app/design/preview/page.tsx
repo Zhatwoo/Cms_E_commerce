@@ -1,0 +1,209 @@
+"use client";
+
+import React, { useEffect, useState, useMemo } from "react";
+import { ArrowLeft, Copy, Check, Download, Layers, Braces } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { serializeCraftToClean } from "../_lib/serializer";
+
+const STORAGE_KEY = "craftjs_preview_json";
+
+type ViewMode = "clean" | "raw";
+
+export default function PreviewPage() {
+  const router = useRouter();
+  const [rawJson, setRawJson] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("clean");
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (raw) setRawJson(raw);
+  }, []);
+
+  // Compute clean document from raw Craft.js JSON
+  const cleanDoc = useMemo(() => {
+    if (!rawJson) return null;
+    try {
+      return serializeCraftToClean(rawJson);
+    } catch {
+      return null;
+    }
+  }, [rawJson]);
+
+  const cleanJson = useMemo(
+    () => (cleanDoc ? JSON.stringify(cleanDoc, null, 2) : null),
+    [cleanDoc]
+  );
+
+  const rawFormatted = useMemo(() => {
+    if (!rawJson) return null;
+    try {
+      return JSON.stringify(JSON.parse(rawJson), null, 2);
+    } catch {
+      return rawJson;
+    }
+  }, [rawJson]);
+
+  const activeJson = viewMode === "clean" ? cleanJson : rawFormatted;
+
+  // ── Stats ──────────────────────────────────────────
+  const rawBytes = rawJson ? new Blob([rawJson]).size : 0;
+  const cleanBytes = cleanJson ? new Blob([cleanJson]).size : 0;
+  const rawMinBytes = rawJson
+    ? new Blob([JSON.stringify(JSON.parse(rawJson))]).size
+    : 0;
+  const cleanMinBytes = cleanDoc
+    ? new Blob([JSON.stringify(cleanDoc)]).size
+    : 0;
+  const reduction = rawMinBytes
+    ? Math.round((1 - cleanMinBytes / rawMinBytes) * 100)
+    : 0;
+
+  const rawNodeCount = rawJson
+    ? Object.keys(JSON.parse(rawJson)).length
+    : 0;
+  const cleanNodeCount = cleanDoc
+    ? Object.keys(cleanDoc.nodes).length
+    : 0;
+  const pageCount = cleanDoc ? cleanDoc.pages.length : 0;
+
+  const formatBytes = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  };
+
+  // ── Actions ────────────────────────────────────────
+  const handleCopy = async () => {
+    if (!activeJson) return;
+    await navigator.clipboard.writeText(activeJson);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownload = () => {
+    if (!activeJson) return;
+    const blob = new Blob([activeJson], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `page-${viewMode}-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans">
+      {/* Top Bar */}
+      <div className="sticky top-0 z-50 bg-[#0a0a0a]/90 backdrop-blur border-b border-white/10">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => router.back()}
+              className="flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors"
+            >
+              <ArrowLeft size={16} />
+              Back to Editor
+            </button>
+            <div className="w-px h-5 bg-white/10" />
+            <h1 className="text-lg font-semibold">JSON Output</h1>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
+            >
+              {copied ? (
+                <>
+                  <Check size={14} className="text-green-400" />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy size={14} />
+                  Copy
+                </>
+              )}
+            </button>
+            <button
+              onClick={handleDownload}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
+            >
+              <Download size={14} />
+              Download
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col gap-6">
+        {/* View Toggle + Stats */}
+        <div className="flex items-center justify-between">
+          {/* Toggle */}
+          <div className="flex items-center bg-[#111] rounded-lg border border-white/10 p-1">
+            <button
+              onClick={() => setViewMode("clean")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "clean"
+                  ? "bg-white/10 text-white"
+                  : "text-zinc-500 hover:text-zinc-300"
+                }`}
+            >
+              <Layers size={14} />
+              Clean
+            </button>
+            <button
+              onClick={() => setViewMode("raw")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "raw"
+                  ? "bg-white/10 text-white"
+                  : "text-zinc-500 hover:text-zinc-300"
+                }`}
+            >
+              <Braces size={14} />
+              Raw (Craft.js)
+            </button>
+          </div>
+
+          {/* Stats */}
+          <div className="flex items-center gap-6 text-xs text-zinc-500">
+            <div className="flex items-center gap-2">
+              <span>{pageCount} pages</span>
+              <span className="text-zinc-700">|</span>
+              <span>
+                {viewMode === "clean" ? cleanNodeCount : rawNodeCount} nodes
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-zinc-600">Raw:</span>
+              <span className="text-zinc-400">{formatBytes(rawMinBytes)}</span>
+              <span className="text-zinc-700">→</span>
+              <span className="text-zinc-600">Clean:</span>
+              <span className="text-emerald-400">{formatBytes(cleanMinBytes)}</span>
+              <span
+                className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${reduction > 0
+                    ? "bg-emerald-500/10 text-emerald-400"
+                    : "bg-zinc-500/10 text-zinc-400"
+                  }`}
+              >
+                -{reduction}%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* JSON Content */}
+        {activeJson ? (
+          <pre className="bg-[#111] rounded-xl border border-white/10 p-6 text-sm leading-relaxed overflow-auto max-h-[calc(100vh-200px)] font-mono text-zinc-300 whitespace-pre-wrap wrap-break-word">
+            {activeJson}
+          </pre>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-64 text-zinc-500">
+            <p className="text-lg mb-2">No JSON data found</p>
+            <p className="text-sm">
+              Go back to the editor and press the play button to generate output.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
