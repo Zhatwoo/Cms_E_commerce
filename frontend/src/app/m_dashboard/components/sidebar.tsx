@@ -142,7 +142,7 @@ type SidebarItem = {
 
 const navItems: SidebarItem[] = [
     { id: 'home', label: 'Home', icon: <HomeIcon />, href: '/m_dashboard' },
-    { id: 'web-builder', label: 'Web Builder', icon: <WebBuilderIcon /> },
+    { id: 'web-builder', label: 'Web Builder', icon: <WebBuilderIcon />, href: '/design' },
   { id: 'templates', label: 'Templates', icon: <TemplatesIcon />, href: '/m_dashboard/templates' },
   { id: 'projects', label: 'Projects', icon: <ProjectsIcon />, href: '/m_dashboard/projects' },
     { id: 'products', label: 'Products', icon: <ProductsIcon />, href: '/m_dashboard/products' },
@@ -196,7 +196,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
                             item.id === 'home'
                                 ? pathname === '/m_dashboard'
                                 : item.id === 'web-builder'
-                                    ? pathname.startsWith('/m_dashboard/web-builder')
+                                    ? pathname.startsWith('/design')
                                     : item.href
                                         ? pathname === item.href
                                         : false;
@@ -269,7 +269,7 @@ return (
           item.id === 'home'
             ? pathname === '/m_dashboard'
             : item.id === 'web-builder'
-              ? pathname.startsWith('/m_dashboard/web-builder')
+              ? pathname.startsWith('/design')
               : item.href
                 ? pathname === item.href
                 : false;

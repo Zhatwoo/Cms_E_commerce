@@ -9,7 +9,7 @@ create extension if not exists pgcrypto;
 -- ============================================================
 -- 1. Custom Enums
 -- ============================================================
-create type user_role as enum ('admin', 'support', 'client');
+create type user_role as enum ('admin', 'support', 'client', 'super_admin');
 create type subscription_tier as enum ('free', 'pro', 'enterprise', 'internal_admin');
 
 -- ============================================================

@@ -57,11 +57,18 @@ exports.register = async (req, res) => {
       });
     }
 
+    // Frontend base URL for confirmation email redirect (user lands on /auth/confirm after clicking link)
+    const frontendOrigin = process.env.FRONTEND_URL || process.env.CORS_ORIGIN || 'http://localhost:3000';
+    const confirmRedirectUrl = `${frontendOrigin.replace(/\/$/, '')}/auth/confirm`;
+
     // Sign up via Supabase Auth (trigger auto-creates profile)
     const { data: authData, error: authErr } = await supabase.auth.signUp({
       email: email.toLowerCase().trim(),
       password,
-      options: { data: { full_name: name.trim() } }
+      options: {
+        data: { full_name: name.trim() },
+        emailRedirectTo: confirmRedirectUrl
+      }
     });
 
     // #region agent log
@@ -155,19 +162,39 @@ exports.login = async (req, res) => {
       });
     }
 
+    const normEmail = email.toLowerCase().trim();
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.toLowerCase().trim(),
+      email: normEmail,
       password
     });
 
     if (error) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('Login Supabase error:', error.message, error.status);
+      }
+      const msg = error.message && error.message.includes('Email not confirmed')
+        ? 'Please confirm your email first. Check your inbox (and spam).'
+        : 'Invalid email or password.';
+      return res.status(401).json({ success: false, message: msg });
     }
 
     const uid = data.user.id;
-    const user = await User.findById(uid);
+    let user = await User.findById(uid);
     if (!user) {
-      return res.status(401).json({ success: false, message: 'Profile not found' });
+      // Profile missing (e.g. trigger was disabled at signup) — create it now
+      const meta = data.user.user_metadata || {};
+      const { error: insertErr } = await supabaseAdmin.from('profiles').insert({
+        id: uid,
+        email: data.user.email || normEmail,
+        full_name: (meta.full_name || '').trim() || data.user.email?.split('@')[0] || '',
+        avatar_url: meta.avatar_url || null,
+        role: 'client',
+        subscription_plan: 'free'
+      });
+      if (!insertErr) user = await User.findById(uid);
+    }
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Profile not found. Please try signing up again or contact support.' });
     }
     if (user.status === 'disabled' || !user.isActive) {
       return res.status(403).json({ success: false, message: 'Your account has been deactivated' });
