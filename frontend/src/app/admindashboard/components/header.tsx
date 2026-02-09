@@ -28,6 +28,10 @@ export function AdminHeader() {
         router.push('/admindashboard/userAccount');
     };
 
+    const handleNotificationsClick = () => {
+        router.push('/admindashboard/notifications');
+    };
+
     return (
         <header className="sticky top-0 z-40 bg-black text-white border-b border-gray-800">
             <div className="px-6 py-3 flex items-center justify-between gap-4">
@@ -49,6 +53,7 @@ export function AdminHeader() {
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
+                        onClick={handleNotificationsClick}
                         className="p-2 text-white hover:bg-gray-800 rounded-lg transition-colors"
                         aria-label="Notifications"
                     >
