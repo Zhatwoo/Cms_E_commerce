@@ -1,6 +1,6 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
-import { SettingsSection } from "../../_components/rightPanel/settings/SettingsSection";
+import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
 import { ColorInput } from "../../_components/rightPanel/settings/inputs/ColorInput";
 import type { DividerProps, SetProp } from "../../_types/components";
@@ -22,7 +22,7 @@ export const DividerSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
-      <SettingsSection title="Divider">
+      <DesignSection title="Divider">
         <div className="flex flex-col gap-3">
           {/* Style */}
           <div className="flex flex-col gap-1">
@@ -33,8 +33,8 @@ export const DividerSettings = () => {
                   key={s}
                   onClick={() => typedSetProp((props) => { props.dividerStyle = s; })}
                   className={`text-[10px] py-1.5 rounded capitalize transition-colors ${dividerStyle === s
-                      ? "bg-brand-medium/50 text-brand-lighter"
-                      : "text-brand-light hover:text-brand-lighter"
+                    ? "bg-brand-medium/50 text-brand-lighter"
+                    : "text-brand-light hover:text-brand-lighter"
                     }`}
                 >
                   {s}
@@ -109,7 +109,7 @@ export const DividerSettings = () => {
             </div>
           </div>
         </div>
-      </SettingsSection>
+      </DesignSection>
     </div>
   );
 };

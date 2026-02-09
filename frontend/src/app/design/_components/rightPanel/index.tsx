@@ -95,26 +95,26 @@ export const RightPanel = () => {
               (selected.settings ? (
                 React.createElement(selected.settings)
               ) : (
-                <div className="flex flex-col items-center justify-center py-8 text-brand-light opacity-50">
+                <div className="flex flex-col items-center justify-center py-8 text-brand-lighter opacity-50">
                   <p className="text-sm">No design settings available</p>
                 </div>
               ))}
 
             {activeTab === "settings" && (
-              <div className="flex flex-col items-center justify-center py-8 text-brand-light opacity-50">
+              <div className="flex flex-col items-center justify-center py-8 text-brand-lighter opacity-50">
                 <p className="text-sm">Component settings coming soon</p>
               </div>
             )}
 
             {activeTab === "animation" && (
-              <div className="flex flex-col items-center justify-center py-8 text-brand-light opacity-50">
+              <div className="flex flex-col items-center justify-center py-8 text-brand-lighter opacity-50">
                 <p className="text-sm">Animation settings coming soon</p>
               </div>
             )}
           </div>
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center h-64 text-brand-light opacity-50">
+        <div className="flex flex-col items-center justify-center h-64 text-brand-lighter opacity-50">
           <p className="text-sm">Select an element to edit</p>
         </div>
       )}

@@ -1,6 +1,6 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
-import { SettingsSection } from "../../_components/rightPanel/settings/SettingsSection";
+import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { AutoLayoutGroup } from "../../_components/rightPanel/settings/AutoLayoutGroup";
 import { GridLayoutGroup } from "../../_components/rightPanel/settings/GridLayoutGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
@@ -80,7 +80,7 @@ export const ContainerSettings = () => {
   return (
     <div className="flex flex-col pb-4">
       {display === "grid" ? (
-        <SettingsSection title="Grid Layout">
+        <DesignSection title="Grid Layout">
           <GridLayoutGroup
             gridTemplateColumns={gridTemplateColumns}
             gridTemplateRows={gridTemplateRows}
@@ -91,9 +91,9 @@ export const ContainerSettings = () => {
             gridAutoFlow={gridAutoFlow}
             setProp={typedSetProp}
           />
-        </SettingsSection>
+        </DesignSection>
       ) : display === "flex" ? (
-        <SettingsSection title="Auto Layout">
+        <DesignSection title="Auto Layout">
           <AutoLayoutGroup
             flexDirection={flexDirection}
             flexWrap={flexWrap}
@@ -102,10 +102,10 @@ export const ContainerSettings = () => {
             gap={gap}
             setProp={typedSetProp}
           />
-        </SettingsSection>
+        </DesignSection>
       ) : null}
 
-      <SettingsSection title="Size & Position">
+      <DesignSection title="Size & Position">
         <SizePositionGroup
           width={width}
           height={height}
@@ -119,9 +119,9 @@ export const ContainerSettings = () => {
           marginBottom={marginBottom}
           setProp={typedSetProp}
         />
-      </SettingsSection>
+      </DesignSection>
 
-      <SettingsSection title="Position & Display" defaultOpen={false}>
+      <DesignSection title="Position & Display" defaultOpen={false}>
         <PositionGroup
           position={position}
           display={display}
@@ -132,9 +132,9 @@ export const ContainerSettings = () => {
           left={left}
           setProp={typedSetProp}
         />
-      </SettingsSection>
+      </DesignSection>
 
-      <SettingsSection title="Appearance">
+      <DesignSection title="Appearance">
         <AppearanceGroup
           background={background}
           backgroundImage={backgroundImage}
@@ -151,9 +151,9 @@ export const ContainerSettings = () => {
           radiusBottomLeft={radiusBottomLeft}
           setProp={typedSetProp}
         />
-      </SettingsSection>
+      </DesignSection>
 
-      <SettingsSection title="Effects" defaultOpen={false}>
+      <DesignSection title="Effects" defaultOpen={false}>
         <EffectsGroup
           opacity={opacity}
           boxShadow={boxShadow}
@@ -161,7 +161,7 @@ export const ContainerSettings = () => {
           cursor={cursor}
           setProp={typedSetProp}
         />
-      </SettingsSection>
+      </DesignSection>
     </div>
   );
 };

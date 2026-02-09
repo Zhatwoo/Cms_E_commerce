@@ -1,6 +1,6 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
-import { SettingsSection } from "../../_components/rightPanel/settings/SettingsSection";
+import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
@@ -50,7 +50,7 @@ export const ButtonSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
-      <SettingsSection title="Button">
+      <DesignSection title="Button">
         <div className="flex flex-col gap-3">
           {/* Label */}
           <div className="flex flex-col gap-1">
@@ -84,8 +84,8 @@ export const ButtonSettings = () => {
                   key={v}
                   onClick={() => typedSetProp((props) => { props.variant = v; })}
                   className={`text-[10px] py-1.5 rounded capitalize transition-colors ${variant === v
-                      ? "bg-brand-medium/50 text-brand-lighter"
-                      : "text-brand-light hover:text-brand-lighter"
+                    ? "bg-brand-medium/50 text-brand-lighter"
+                    : "text-brand-light hover:text-brand-lighter"
                     }`}
                 >
                   {v}
@@ -94,9 +94,9 @@ export const ButtonSettings = () => {
             </div>
           </div>
         </div>
-      </SettingsSection>
+      </DesignSection>
 
-      <SettingsSection title="Style">
+      <DesignSection title="Style">
         <div className="flex flex-col gap-3">
           {/* Colors */}
           <div className="grid grid-cols-2 gap-3">
@@ -182,9 +182,9 @@ export const ButtonSettings = () => {
             </div>
           </div>
         </div>
-      </SettingsSection>
+      </DesignSection>
 
-      <SettingsSection title="Size & Position">
+      <DesignSection title="Size & Position">
         <SizePositionGroup
           width={width}
           height={height}
@@ -198,15 +198,15 @@ export const ButtonSettings = () => {
           marginBottom={marginBottom}
           setProp={typedSetProp}
         />
-      </SettingsSection>
+      </DesignSection>
 
-      <SettingsSection title="Effects" defaultOpen={false}>
+      <DesignSection title="Effects" defaultOpen={false}>
         <EffectsGroup
           opacity={opacity}
           boxShadow={boxShadow}
           setProp={typedSetProp}
         />
-      </SettingsSection>
+      </DesignSection>
     </div>
   );
 };

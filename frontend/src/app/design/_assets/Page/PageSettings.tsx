@@ -1,6 +1,6 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
-import { SettingsSection } from "../../_components/rightPanel/settings/SettingsSection";
+import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
 import { ColorInput } from "../../_components/rightPanel/settings/inputs/ColorInput";
 import type { PageProps, SetProp } from "../../_types";
@@ -19,7 +19,7 @@ export const PageSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
-      <SettingsSection title="Page">
+      <DesignSection title="Page">
         <div className="flex flex-col gap-3">
           <div className="flex flex-row gap-3">
             {/* Width */}
@@ -80,7 +80,7 @@ export const PageSettings = () => {
             </div>
           </div>
         </div>
-      </SettingsSection>
+      </DesignSection>
     </div>
   );
 };

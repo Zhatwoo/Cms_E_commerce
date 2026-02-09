@@ -1,6 +1,6 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
-import { SettingsSection } from "../../_components/rightPanel/settings/SettingsSection";
+import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
@@ -42,7 +42,7 @@ export const ImageSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
-      <SettingsSection title="Image">
+      <DesignSection title="Image">
         <div className="flex flex-col gap-3">
           {/* Source URL */}
           <div className="flex flex-col gap-1">
@@ -86,9 +86,9 @@ export const ImageSettings = () => {
             </select>
           </div>
         </div>
-      </SettingsSection>
+      </DesignSection>
 
-      <SettingsSection title="Size & Position">
+      <DesignSection title="Size & Position">
         <SizePositionGroup
           width={width}
           height={height}
@@ -102,9 +102,9 @@ export const ImageSettings = () => {
           marginBottom={marginBottom}
           setProp={typedSetProp}
         />
-      </SettingsSection>
+      </DesignSection>
 
-      <SettingsSection title="Corners">
+      <DesignSection title="Corners">
         <AppearanceGroup
           radiusTopLeft={radiusTopLeft}
           radiusTopRight={radiusTopRight}
@@ -112,15 +112,15 @@ export const ImageSettings = () => {
           radiusBottomLeft={radiusBottomLeft}
           setProp={typedSetProp}
         />
-      </SettingsSection>
+      </DesignSection>
 
-      <SettingsSection title="Effects" defaultOpen={false}>
+      <DesignSection title="Effects" defaultOpen={false}>
         <EffectsGroup
           opacity={opacity}
           boxShadow={boxShadow}
           setProp={typedSetProp}
         />
-      </SettingsSection>
+      </DesignSection>
     </div>
   );
 };
