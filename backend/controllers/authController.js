@@ -1,11 +1,9 @@
 // controllers/authController.js
-// Users are stored in Firebase Authentication only (not Firestore users collection)
-const { getAuth } = require('../config/firebase');
+// Auth via Supabase Auth — profile data in profiles table
+const { supabase, supabaseAdmin } = require('../config/supabase');
 const PasswordReset = require('../models/PasswordReset');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const Client = require('../models/Client');
-const Admin = require('../models/Admin');
 
 const COOKIE_NAME = 'mercato_token';
 const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -30,20 +28,25 @@ const clearAuthCookie = (res) => {
   res.clearCookie(COOKIE_NAME, { path: '/', httpOnly: true });
 };
 
-const authUserToResponse = (userRecord) => {
-  if (!userRecord) return null;
+const userToResponse = (user) => {
+  if (!user) return null;
   return {
-    id: userRecord.uid,
-    email: userRecord.email,
-    name: userRecord.displayName || userRecord.email || '',
-    avatar: userRecord.photoURL || null
+    id: user.id,
+    email: user.email,
+    name: user.displayName || user.email || '',
+    avatar: user.avatar || null,
+    role: user.role,
+    subscriptionPlan: user.subscriptionPlan
   };
 };
 
-// @desc    Register new user (saves to Firebase Authentication and Firestore collections)
+// @desc    Register new user (Supabase Auth → trigger creates profile)
 // @route   POST /api/auth/register
 // @access  Public
 exports.register = async (req, res) => {
+  // #region agent log
+  fetch('http://127.0.0.1:7252/ingest/54096819-82ad-4e94-be52-c4b24bc3f513',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'authController.js:register',message:'register entry',data:{hasName:!!req.body?.name,hasEmail:!!req.body?.email,hasPassword:!!req.body?.password},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   try {
     const { name, email, password } = req.body;
 
@@ -54,67 +57,82 @@ exports.register = async (req, res) => {
       });
     }
 
-    const auth = getAuth();
-    try {
-      await auth.getUserByEmail(email.toLowerCase());
-      return res.status(400).json({
-        success: false,
-        message: 'User with this email already exists'
-      });
-    } catch (e) {
-      if (e.code !== 'auth/user-not-found') throw e;
+    // Sign up via Supabase Auth (trigger auto-creates profile)
+    const { data: authData, error: authErr } = await supabase.auth.signUp({
+      email: email.toLowerCase().trim(),
+      password,
+      options: { data: { full_name: name.trim() } }
+    });
+
+    // #region agent log
+    fetch('http://127.0.0.1:7252/ingest/54096819-82ad-4e94-be52-c4b24bc3f513',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'authController.js:after signUp',message:'signUp result',data:{hasError:!!authErr,errorMessage:authErr?.message,errorCode:authErr?.code,errorStatus:authErr?.status,authUserId:authData?.user?.id,errorKeys:authErr?Object.keys(authErr):[]},timestamp:Date.now(),hypothesisId:'B,E'})}).catch(()=>{});
+    // #endregion
+
+    if (authErr) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('Register error:', authErr.message, authErr.status, JSON.stringify(authErr));
+      }
+      // #region agent log
+      fetch('http://127.0.0.1:7252/ingest/54096819-82ad-4e94-be52-c4b24bc3f513',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'authController.js:authErr branch',message:'error branch',data:{msgIncludesAlready:authErr.message.includes('already'),msgIncludesDbError:authErr.message.includes('Database error')},timestamp:Date.now(),hypothesisId:'A,E'})}).catch(()=>{});
+      // #endregion
+      if (authErr.message.includes('already')) {
+        return res.status(400).json({ success: false, message: 'User with this email already exists' });
+      }
+      if (authErr.message.includes('Database error')) {
+        return res.status(500).json({
+          success: false,
+          message: 'Database trigger error. In Supabase SQL Editor run: backend/supabase/drop-auth-trigger.sql (then try registering again).',
+          error: process.env.NODE_ENV === 'production' ? undefined : authErr.message
+        });
+      }
+      return res.status(400).json({ success: false, message: authErr.message });
     }
 
-    const userRecord = await auth.createUser({
-      email: email.toLowerCase(),
-      password,
-      displayName: name.trim()
-    });
+    const uid = authData.user.id;
 
-    // Save to Firestore collections
-    await User.upsert(userRecord.uid, {
-      status: 'active',
-      role: 'client'
-    });
-    await Client.upsert(userRecord.uid, {
-      uid: userRecord.uid,
-    });
+    // #region agent log
+    fetch('http://127.0.0.1:7252/ingest/54096819-82ad-4e94-be52-c4b24bc3f513',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'authController.js:before profile fetch',message:'no authErr',data:{uid},timestamp:Date.now(),hypothesisId:'C,D'})}).catch(()=>{});
+    // #endregion
 
-    const token = generateToken(userRecord.uid);
-    const user = authUserToResponse(userRecord);
+    // Small delay for trigger to complete, then fetch profile
+    await new Promise(r => setTimeout(r, 300));
+    let user = await User.findById(uid);
+
+    // If trigger didn't create profile (e.g. trigger disabled or failed), create it from backend
+    if (!user) {
+      const meta = authData.user.user_metadata || {};
+      const { error: insertErr } = await supabaseAdmin.from('profiles').insert({
+        id: uid,
+        email: authData.user.email || '',
+        full_name: (meta.full_name || name || '').trim() || '',
+        avatar_url: meta.avatar_url || null,
+        role: 'client',
+        subscription_plan: 'free'
+      });
+      if (insertErr && process.env.NODE_ENV !== 'production') {
+        console.error('Register: fallback profile insert failed', insertErr.message, insertErr);
+      }
+      user = insertErr ? null : await User.findById(uid);
+    }
+
+    // #region agent log
+    fetch('http://127.0.0.1:7252/ingest/54096819-82ad-4e94-be52-c4b24bc3f513',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'authController.js:after User.findById',message:'profile fetch',data:{uid,profileFound:!!user},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+
+    const token = generateToken(uid);
     setAuthCookie(res, token);
 
     res.status(201).json({
       success: true,
       message: 'User registered successfully',
-      user
+      user: userToResponse(user)
     });
   } catch (error) {
-    const code = error.code || (error.errorInfo && error.errorInfo.code);
-    const msg = error.message || (error.errorInfo && error.errorInfo.message) || 'Server error';
-    if (process.env.NODE_ENV !== 'production') {
-      console.error('Register error:', code || msg, error);
-    }
-    if (code === 'auth/email-already-exists') {
-      return res.status(400).json({ success: false, message: 'User with this email already exists' });
-    }
-    if (code === 'auth/invalid-email') {
-      return res.status(400).json({ success: false, message: 'Invalid email address' });
-    }
-    if (code === 'auth/weak-password') {
-      return res.status(400).json({ success: false, message: 'Password should be at least 6 characters' });
-    }
-    if (code === 'auth/operation-not-allowed') {
-      return res.status(500).json({ success: false, message: 'Email/password sign-in is not enabled in Firebase Console' });
-    }
-    // 403: service account missing Service Usage Consumer (or Identity Toolkit API not enabled)
-    if (code === 'auth/internal-error' && (String(msg).includes('PERMISSION_DENIED') || String(msg).includes('serviceusage.serviceUsageConsumer'))) {
-      return res.status(503).json({
-        success: false,
-        message: 'Firebase Auth is not fully set up. Grant the service account the "Service Usage Consumer" role in Google Cloud IAM, enable the Identity Toolkit API, then retry in a few minutes.',
-        link: 'https://console.developers.google.com/iam-admin/iam?project=cms-e-commerce-75653'
-      });
-    }
+    // #region agent log
+    fetch('http://127.0.0.1:7252/ingest/54096819-82ad-4e94-be52-c4b24bc3f513',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'authController.js:register catch',message:'register exception',data:{message:error?.message,name:error?.name},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    const msg = error.message || 'Server error';
+    if (process.env.NODE_ENV !== 'production') console.error('Register error:', msg, error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -123,70 +141,77 @@ exports.register = async (req, res) => {
   }
 };
 
-// @desc    Login user (expects Firebase idToken from frontend)
+// @desc    Login user (Supabase Auth email + password)
 // @route   POST /api/auth/login
 // @access  Public
 exports.login = async (req, res) => {
   try {
-    const { idToken } = req.body;
+    const { email, password } = req.body;
 
-    if (!idToken) {
+    if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide idToken (from Firebase sign-in)'
+        message: 'Please provide email and password'
       });
     }
 
-    const auth = getAuth();
-    const decoded = await auth.verifyIdToken(idToken);
-    const userRecord = await auth.getUser(decoded.uid);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.toLowerCase().trim(),
+      password
+    });
 
-    const token = generateToken(userRecord.uid);
-    const user = authUserToResponse(userRecord);
+    if (error) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
+
+    const uid = data.user.id;
+    const user = await User.findById(uid);
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Profile not found' });
+    }
+    if (user.status === 'disabled' || !user.isActive) {
+      return res.status(403).json({ success: false, message: 'Your account has been deactivated' });
+    }
+
+    const token = generateToken(uid);
     setAuthCookie(res, token);
 
     res.status(200).json({
       success: true,
       message: 'Login successful',
-      user
+      user: userToResponse(user)
     });
   } catch (error) {
-    const code = error.code || (error.errorInfo && error.errorInfo.code);
-    if (process.env.NODE_ENV !== 'production') {
-      console.error('Login error:', code || error.message, error.message);
-    }
-    const message = code === 'auth/id-token-expired' ? 'Session expired' : code === 'auth/argument-error' ? 'Invalid idToken' : 'Invalid credentials';
-    res.status(401).json({ success: false, message });
+    if (process.env.NODE_ENV !== 'production') console.error('Login error:', error.message);
+    res.status(401).json({ success: false, message: 'Invalid credentials' });
   }
 };
 
-// @desc    Get current logged in user (from Firebase Auth)
+// @desc    Get current logged in user (from Supabase profiles)
 // @route   GET /api/auth/me
 // @access  Private
 exports.getMe = async (req, res) => {
   try {
-    const auth = getAuth();
-    const userRecord = await auth.getUser(req.user.id);
-    const clientProfile = await Client.get(req.user.id);
+    const user = await User.get(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
 
     res.status(200).json({
       success: true,
       user: {
-        ...authUserToResponse(userRecord),
-        username: clientProfile?.username || '',
-        website: clientProfile?.website || '',
-        bio: clientProfile?.bio || '',
+        ...userToResponse(user),
+        username: user.username || '',
+        website: user.website || '',
+        bio: user.bio || ''
       }
     });
   } catch (error) {
-    res.status(404).json({
-      success: false,
-      message: 'User not found'
-    });
+    res.status(404).json({ success: false, message: 'User not found' });
   }
 };
 
-// @desc    Logout – clear auth cookie (token stored in HttpOnly cookie)
+// @desc    Logout – clear auth cookie
 // @route   POST /api/auth/logout
 // @access  Public
 exports.logout = (req, res) => {
@@ -194,93 +219,80 @@ exports.logout = (req, res) => {
   res.status(200).json({ success: true, message: 'Logged out' });
 };
 
-// @desc    Update user profile (Firebase Auth + Firestore Client)
+// @desc    Update user profile (Supabase profiles)
 // @route   PUT /api/auth/profile
 // @access  Private
 exports.updateProfile = async (req, res) => {
   try {
     const { name, avatar, username, website, bio } = req.body;
     const updates = {};
-    if (name !== undefined) updates.displayName = name;
-    if (avatar !== undefined) updates.photoURL = avatar;
+    if (name !== undefined) updates.name = name;
+    if (avatar !== undefined) updates.avatar = avatar;
+    if (username !== undefined) updates.username = username;
+    if (website !== undefined) updates.website = website;
+    if (bio !== undefined) updates.bio = bio;
 
-    const auth = getAuth();
-    await auth.updateUser(req.user.id, updates);
-    const userRecord = await auth.getUser(req.user.id);
+    if (Object.keys(updates).length > 0) {
+      await User.update(req.user.id, updates);
+    }
 
-    // Update Firestore client profile
-    await Client.upsert(req.user.id, {
-      username: typeof username === 'string' ? username.trim() : '',
-      website: typeof website === 'string' ? website.trim() : '',
-      bio: typeof bio === 'string' ? bio.trim() : ''
-    });
-
+    const user = await User.get(req.user.id);
     res.status(200).json({
       success: true,
       message: 'Profile updated successfully',
-      user: authUserToResponse(userRecord)
+      user: userToResponse(user)
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
 
-// @desc    Change password (Firebase Auth)
+// @desc    Change password (via Supabase Auth)
 // @route   PUT /api/auth/change-password
 // @access  Private
 exports.changePassword = async (req, res) => {
   try {
-    const { newPassword } = req.body;
+    const { currentPassword, newPassword } = req.body;
 
-    if (!newPassword || newPassword.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: 'New password must be at least 6 characters'
-      });
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Current password and new password are required' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'New password must be at least 6 characters' });
     }
 
-    const auth = getAuth();
-    await auth.updateUser(req.user.id, { password: newPassword });
-    res.status(200).json({
-      success: true,
-      message: 'Password changed successfully',
-      token: generateToken(req.user.id)
-    });
+    // Verify current password by attempting a sign-in
+    const user = await User.get(req.user.id);
+    const valid = await User.verifyPassword(user.email, currentPassword);
+    if (!valid) {
+      return res.status(401).json({ success: false, message: 'Current password is incorrect' });
+    }
+
+    await User.updatePassword(req.user.id, newPassword);
+    const token = generateToken(req.user.id);
+    setAuthCookie(res, token);
+    res.status(200).json({ success: true, message: 'Password changed successfully', token });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
 
-// @desc    Forgot password (user looked up in Firebase Auth, reset token in Firestore)
+// @desc    Forgot password (creates token in password_resets)
 // @route   POST /api/auth/forgot-password
 // @access  Public
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide email'
-      });
+      return res.status(400).json({ success: false, message: 'Please provide email' });
     }
 
-    const auth = getAuth();
-    try {
-      const userRecord = await auth.getUserByEmail(email.toLowerCase());
-      await PasswordReset.create(userRecord.uid, userRecord.email);
+    const user = await User.findByEmail(email);
+    if (user) {
+      await PasswordReset.create(user.id, user.email);
       if (process.env.NODE_ENV !== 'production') {
-        console.log('Password reset token created for', userRecord.email);
+        console.log('Password reset token created for', user.email);
       }
-    } catch (e) {
-      if (e.code !== 'auth/user-not-found') throw e;
     }
 
     res.status(200).json({
@@ -288,61 +300,37 @@ exports.forgotPassword = async (req, res) => {
       message: 'If an account exists with that email, you will receive instructions to reset your password.'
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
 
-// @desc    Reset password with token (updates Firebase Auth)
+// @desc    Reset password with token (updates via Supabase Auth)
 // @route   POST /api/auth/reset-password
 // @access  Public
 exports.resetPassword = async (req, res) => {
   try {
     const { token, newPassword } = req.body;
     if (!token || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide token and new password'
-      });
+      return res.status(400).json({ success: false, message: 'Please provide token and new password' });
     }
     if (newPassword.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: 'Password must be at least 6 characters'
-      });
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
     }
 
     const record = await PasswordReset.findByToken(token);
     if (!record) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid or expired reset token'
-      });
+      return res.status(400).json({ success: false, message: 'Invalid or expired reset token' });
     }
     if (new Date(record.expiresAt) < new Date()) {
       await PasswordReset.deleteByDocId(record.id);
-      return res.status(400).json({
-        success: false,
-        message: 'Reset token has expired'
-      });
+      return res.status(400).json({ success: false, message: 'Reset token has expired' });
     }
 
-    const auth = getAuth();
-    await auth.updateUser(record.userId, { password: newPassword });
+    await User.updatePassword(record.userId, newPassword);
     await PasswordReset.deleteByDocId(record.id);
 
-    res.status(200).json({
-      success: true,
-      message: 'Password has been reset successfully'
-    });
+    res.status(200).json({ success: true, message: 'Password has been reset successfully' });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };

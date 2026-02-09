@@ -41,7 +41,8 @@ router.post('/register', [
 ], validate, register);
 
 router.post('/login', [
-  body('idToken').notEmpty().withMessage('idToken from Firebase sign-in is required')
+  body('email').trim().isEmail().withMessage('Valid email is required'),
+  body('password').notEmpty().withMessage('Password is required')
 ], validate, login);
 
 router.post('/forgot-password', [

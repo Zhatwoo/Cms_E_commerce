@@ -1,8 +1,8 @@
 // middleware/auth.js
 const jwt = require('jsonwebtoken');
-const { getAuth } = require('../config/firebase');
+const User = require('../models/User');
 
-// Protect routes - verify JWT token (id is Firebase Auth uid)
+// Protect routes - verify JWT token (id is Supabase Auth user id)
 // Token from HttpOnly cookie (preferred) or Authorization header
 exports.protect = async (req, res, next) => {
   let token =
@@ -20,36 +20,30 @@ exports.protect = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const auth = getAuth();
-    const userRecord = await auth.getUser(decoded.id);
-    if (userRecord.disabled) {
-      return res.status(403).json({
-        success: false,
-        message: 'Your account has been deactivated'
-      });
+    const user = await User.get(decoded.id);
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Not authorized, user not found' });
+    }
+    if (user.status === 'disabled' || !user.isActive) {
+      return res.status(403).json({ success: false, message: 'Your account has been deactivated' });
     }
     req.user = {
-      id: userRecord.uid,
-      email: userRecord.email,
-      name: userRecord.displayName || userRecord.email
+      id: user.id,
+      email: user.email,
+      name: user.displayName || user.email,
+      role: user.role
     };
     next();
   } catch (error) {
-    return res.status(401).json({
-      success: false,
-      message: 'Not authorized, invalid token'
-    });
+    return res.status(401).json({ success: false, message: 'Not authorized, invalid token' });
   }
 };
 
-// Check if user is admin (requires custom claim in Firebase Auth if you use roles)
+// Check if user is admin (role stored in profiles table)
 exports.admin = (req, res, next) => {
-  if (req.user && req.user.role === 'Admin') {
+  if (req.user && req.user.role === 'admin') {
     next();
   } else {
-    return res.status(403).json({
-      success: false,
-      message: 'Access denied. Admin only.'
-    });
+    return res.status(403).json({ success: false, message: 'Access denied. Admin only.' });
   }
 };

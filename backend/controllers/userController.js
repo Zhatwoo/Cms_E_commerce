@@ -1,9 +1,10 @@
 // controllers/userController.js
 const User = require('../models/User');
 
+// No password in profiles, but strip passwordHash if present
 const stripPassword = (user) => {
   if (!user) return user;
-  const { password, ...rest } = user;
+  const { password, passwordHash, ...rest } = user;
   return rest;
 };
 
@@ -192,10 +193,11 @@ exports.deleteUser = async (req, res) => {
 exports.updateUserRole = async (req, res) => {
   try {
     const { role } = req.body;
-    if (!['Admin', 'Support', 'Client'].includes(role)) {
+    const normalized = role.toLowerCase();
+    if (!['admin', 'support', 'client'].includes(normalized)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid role. Must be Admin, Support, or Client'
+        message: 'Invalid role. Must be admin, support, or client'
       });
     }
 
