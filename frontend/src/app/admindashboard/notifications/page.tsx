@@ -377,3 +377,5 @@ export default function NotificationsPage() {
 		</div>
 	);
 }
+
+//added feature

@@ -221,3 +221,5 @@ export default function UserAccountPage() {
 		</div>
 	);
 }
+
+//Improved version with better animations and more polished UI.

@@ -73,3 +73,5 @@ export function AdminHeader() {
         </header>
     );
 }
+
+//removed settings icon and added it to account page
