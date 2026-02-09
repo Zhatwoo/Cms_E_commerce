@@ -94,7 +94,7 @@ const UserWebsiteManagement = () => {
             {/* Header Section */}
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                User & Website Management
+                User and Website Management
               </h1>
               <p className="text-gray-600 mb-6">Oversee all user accounts and published websites</p>
             </div>

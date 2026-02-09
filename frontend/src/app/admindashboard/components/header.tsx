@@ -1,4 +1,7 @@
+'use client';
+
 import React from 'react';
+import { useRouter } from 'next/navigation';
 
 const SearchIcon = () => (
     <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -6,16 +9,9 @@ const SearchIcon = () => (
     </svg>
 );
 
-const MailIcon = () => (
+const BellIcon = () => (
     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-    </svg>
-);
-
-const SettingsIcon = () => (
-    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
-        <path d="M12 8.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7z" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M19.4 15a1.8 1.8 0 00.35 2l.02.02a2 2 0 01-2.83 2.83l-.02-.02a1.8 1.8 0 00-2-.35 1.8 1.8 0 00-1 1.6V21a2 2 0 01-4 0v-.01a1.8 1.8 0 00-1-1.6 1.8 1.8 0 00-2 .35l-.02.02a2 2 0 01-2.83-2.83l.02-.02a1.8 1.8 0 00.35-2 1.8 1.8 0 00-1.6-1H3a2 2 0 010-4h.01a1.8 1.8 0 001.6-1 1.8 1.8 0 00-.35-2l-.02-.02a2 2 0 012.83-2.83l.02.02a1.8 1.8 0 002 .35h.01a1.8 1.8 0 001-1.6V3a2 2 0 014 0v.01a1.8 1.8 0 001 1.6 1.8 1.8 0 002-.35l.02-.02a2 2 0 012.83 2.83l-.02.02a1.8 1.8 0 00-.35 2v.01a1.8 1.8 0 001.6 1H21a2 2 0 010 4h-.01a1.8 1.8 0 00-1.6 1z" stroke="currentColor" strokeWidth="1.5" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
     </svg>
 );
 
@@ -26,8 +22,18 @@ const ProfileIcon = () => (
 );
 
 export function AdminHeader() {
+    const router = useRouter();
+
+    const handleProfileClick = () => {
+        router.push('/admindashboard/userAccount');
+    };
+
+    const handleNotificationsClick = () => {
+        router.push('/admindashboard/notifications');
+    };
+
     return (
-        <header className="bg-black text-white border-b border-gray-800">
+        <header className="sticky top-0 z-40 bg-black text-white border-b border-gray-800">
             <div className="px-6 py-3 flex items-center justify-between gap-4">
                 {/* Left: Search */}
                 <div className="flex-1 max-w-sm">
@@ -47,23 +53,17 @@ export function AdminHeader() {
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
+                        onClick={handleNotificationsClick}
                         className="p-2 text-white hover:bg-gray-800 rounded-lg transition-colors"
-                        aria-label="Mail"
+                        aria-label="Notifications"
                     >
-                        <MailIcon />
+                        <BellIcon />
                     </button>
 
                     <button
                         type="button"
-                        className="p-2 text-white hover:bg-gray-800 rounded-lg transition-colors"
-                        aria-label="Settings"
-                    >
-                        <SettingsIcon />
-                    </button>
-
-                    <button
-                        type="button"
-                        className="p-2 text-white hover:bg-gray-800 rounded-lg transition-colors"
+                        onClick={handleProfileClick}
+                        className="p-2 text-white hover:bg-gray-800 rounded-lg transition-colors cursor-pointer"
                         aria-label="Profile"
                     >
                         <ProfileIcon />
@@ -73,3 +73,5 @@ export function AdminHeader() {
         </header>
     );
 }
+
+//removed settings icon and added it to account page
