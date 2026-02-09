@@ -71,7 +71,8 @@ const navItems = [
     { id: 'website', label: 'Website Management', icon: <WebsiteIcon /> },
     { id: 'moderation', label: 'Moderation & Compliance', icon: <ModerationIcon />, href: '/admindashboard/moderationCompliance' },
     { id: 'templates', label: 'Templates & Assets Management', icon: <TemplatesIcon /> },
-    { id: 'user', label: 'User & Account Management', icon: <UserIcon /> },
+    { id: 'user', label: 'User & Account Management', icon: <UserIcon />, href: '/admindashboard/userAccount' },
+    { id: 'register', label: 'Register user', icon: <UserIcon />, href: '/admindashboard/register' },
 ];
 
 interface AdminSidebarProps {
@@ -88,9 +89,11 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
     const EXPANDED_WIDTH = 320;
 
     const getActiveItem = () => {
+        if (pathname.includes('admindashboard/register')) return 'register';
+        if (pathname.includes('userAccount')) return 'user';
         if (pathname.includes('monitorAnalytics')) return 'monitoring';
         if (pathname.includes('moderationCompliance')) return 'moderation';
-        if (pathname.includes('admindashboard') && !pathname.includes('moderationCompliance')) return 'dashboard';
+        if (pathname === '/admindashboard') return 'dashboard';
         return 'dashboard';
     };
 
