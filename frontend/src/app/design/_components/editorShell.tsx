@@ -110,13 +110,14 @@ export const EditorShell = () => {
         >
           {/* Inner Content - Infinite Canvas */}
           <div
-            className="min-w-[200vw] min-h-[200vh] flex items-center justify-center p-40 transform-origin-center transition-transform duration-75 ease-out"
+            className="min-w-[300vw] min-h-[200vh] flex wrap items-center justify-center p-40 transform-origin-center transition-transform duration-75 ease-out"
             style={{
               transform: `scale(${scale})`,
               transformOrigin: 'center center' // Zooming from center is simpler for now
             }}
           >
             <Frame>
+              {/* Viewport: inside nito is yung content ng lahat ng page... binabasa ba niyo to? (SenpaiAdri) */}
               <Element is={Viewport} canvas>
                 {/* Page 1 */}
                 <Element is={Page} canvas>
