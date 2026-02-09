@@ -39,7 +39,7 @@ export const FilesPanel = () => {
           }}
           className={`
             group flex items-center gap-2 py-1 px-1 rounded-md cursor-pointer transition-colors relative
-            ${isSelected ? "bg-blue-400/20 text-white" : "text-brand-light hover:bg-brand-medium/20 hover:text-white"}
+            ${isSelected ? "bg-blue-400/20 text-brand-lighter" : "text-brand-light hover:bg-brand-medium/20 hover:text-brand-lighter"}
           `}
           style={{ paddingLeft: `${depth * 10 + 5}px` }}
         >

@@ -53,13 +53,13 @@ export const RightPanel = () => {
     >
       <div className="flex items-center justify-between mb-6">
         <PanelRight strokeWidth={2} className="text-brand-light w-5 h-5" />
-        <h3 className="text-white font-bold text-lg">Configs</h3>
+        <h3 className="text-brand-lighter font-bold text-lg">Configs</h3>
         <button
           onClick={handlePreview}
           className="p-1 rounded-lg hover:bg-brand-medium/40 transition-colors cursor-pointer"
           title="Preview JSON output"
         >
-          <Play strokeWidth={2} className="text-brand-light w-5 h-5 hover:text-white transition-colors" />
+          <Play strokeWidth={2} className="text-brand-light w-5 h-5 hover:text-brand-lighter transition-colors" />
         </button>
       </div>
 
@@ -80,7 +80,7 @@ export const RightPanel = () => {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex-1 transition-colors ${activeTab === tab.id
-                  ? "text-white bg-brand-medium/50 rounded-lg py-1"
+                  ? "text-brand-lighter bg-brand-medium/50 rounded-lg py-1"
                   : "text-brand-light hover:text-brand-lighter py-1"
                   }`}
               >

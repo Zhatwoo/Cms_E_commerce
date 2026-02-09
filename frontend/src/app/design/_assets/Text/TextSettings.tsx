@@ -46,7 +46,7 @@ export const TextSettings = () => {
         <textarea
           value={text}
           onChange={(e) => typedSetProp((props) => { props.text = e.target.value; })}
-          className="w-full bg-brand-black border border-brand-medium p-2 rounded-lg text-white focus:border-brand-light focus:outline-none resize-y min-h-[80px]"
+          className="w-full bg-brand-medium-dark p-2 rounded-lg text-brand-lighter focus:border-brand-light focus:outline-none resize-y min-h-[40px]"
         />
       </SettingsSection>
 

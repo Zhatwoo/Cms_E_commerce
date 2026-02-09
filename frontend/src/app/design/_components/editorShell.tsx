@@ -212,7 +212,7 @@ export const EditorShell = () => {
   }, []);
 
   return (
-    <div className="h-screen bg-brand-black text-white overflow-hidden font-sans relative">
+    <div className="h-screen bg-brand-black text-brand-lighter overflow-hidden font-sans relative">
       <Editor
         resolver={RenderBlocks}
         onRender={RenderNode}

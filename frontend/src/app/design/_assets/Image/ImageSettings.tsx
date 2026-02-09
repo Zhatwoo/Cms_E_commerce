@@ -52,7 +52,7 @@ export const ImageSettings = () => {
               value={src}
               onChange={(e) => typedSetProp((props) => { props.src = e.target.value; })}
               placeholder="https://example.com/image.jpg"
-              className="w-full bg-brand-black border border-brand-medium/30 rounded-md text-xs text-white p-2 focus:outline-none focus:border-brand-light"
+              className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-2 focus:outline-none focus:border-brand-light"
             />
           </div>
 
@@ -64,7 +64,7 @@ export const ImageSettings = () => {
               value={alt}
               onChange={(e) => typedSetProp((props) => { props.alt = e.target.value; })}
               placeholder="Describe the image"
-              className="w-full bg-brand-black border border-brand-medium/30 rounded-md text-xs text-white p-2 focus:outline-none focus:border-brand-light"
+              className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-2 focus:outline-none focus:border-brand-light"
             />
           </div>
 
@@ -76,7 +76,7 @@ export const ImageSettings = () => {
               onChange={(e) => typedSetProp((props) => {
                 props.objectFit = e.target.value as ImageProps["objectFit"];
               })}
-              className="w-full bg-brand-black border border-brand-medium/30 rounded-md text-xs text-white p-1.5 focus:outline-none"
+              className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none"
             >
               <option value="cover">Cover</option>
               <option value="contain">Contain</option>
