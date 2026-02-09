@@ -77,10 +77,16 @@ const authLimiter = rateLimit({
 app.use('/api/auth', authLimiter);
 
 // Middleware – CORS with credentials so browser sends cookies (frontend port may differ)
-const frontendOrigin = process.env.FRONTEND_URL || process.env.CORS_ORIGIN || 'http://localhost:3000';
 app.use(cors({
-  origin: frontendOrigin,
-  credentials: true
+  origin: [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    process.env.FRONTEND_URL,
+    process.env.CORS_ORIGIN
+  ].filter(Boolean),
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(cookieParser());
 app.use(express.json());

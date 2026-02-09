@@ -147,3 +147,14 @@ export async function logout(): Promise<void> {
 export async function getMe(): Promise<{ success: boolean; user?: User }> {
   return apiFetch<{ success: boolean; user?: User }>('/api/auth/me');
 }
+
+/** Update user profile (Name, Avatar) */
+export async function updateProfile(data: {
+  name?: string;
+  avatar?: string;
+}): Promise<{ success: boolean; message?: string; user?: User }> {
+  return apiFetch<{ success: boolean; message?: string; user?: User }>('/api/auth/profile', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
