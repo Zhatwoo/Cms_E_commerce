@@ -42,7 +42,8 @@ export const RightPanel = () => {
   const handlePreview = () => {
     const json = query.serialize();
     sessionStorage.setItem(STORAGE_KEY, json);
-    window.open("/design/preview", "_blank");
+    // window.open("/design/preview", "_blank");
+    router.push("/design/preview");
   };
 
   return (
