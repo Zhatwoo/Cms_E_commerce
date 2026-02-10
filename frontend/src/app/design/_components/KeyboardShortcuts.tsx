@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useEditor } from "@craftjs/core";
 
+const STORAGE_KEY = "craftjs_preview_json";
+
 /** Node types that should never be deleted via keyboard shortcut */
 const PROTECTED = new Set(["Viewport"]);
 
@@ -29,9 +31,21 @@ export const KeyboardShortcuts = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isEditableTarget(e.target)) return;
-
       const ctrl = e.ctrlKey || e.metaKey;
+
+      // ── Save: Ctrl/Cmd + S (works even when focused on inputs) ──
+      if (ctrl && e.key === "s") {
+        e.preventDefault();
+        try {
+          const json = query.serialize();
+          sessionStorage.setItem(STORAGE_KEY, json);
+        } catch {
+          // storage error
+        }
+        return;
+      }
+
+      if (isEditableTarget(e.target)) return;
 
       // ── Undo: Ctrl/Cmd + Z ──
       if (ctrl && !e.shiftKey && e.key === "z") {
