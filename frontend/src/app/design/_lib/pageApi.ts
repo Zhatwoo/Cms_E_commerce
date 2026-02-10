@@ -111,8 +111,8 @@ export async function getDraft(projectId: string): Promise<{ success: boolean; d
             headers['Authorization'] = `Bearer ${token}`;
         }
 
-        // Pass projectId in query
-        const response = await fetch(`${API_BASE_URL}/pages/draft?projectId=${projectId}`, {
+        // Pass projectId in query with timestamp to avoid caching
+        const response = await fetch(`${API_BASE_URL}/pages/draft?projectId=${projectId}&t=${Date.now()}`, {
             method: 'GET',
             headers,
             credentials: 'include'

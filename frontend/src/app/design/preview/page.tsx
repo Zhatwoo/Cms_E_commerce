@@ -3,7 +3,8 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { serializeCraftToClean } from "../_lib/serializer";
+import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
+import { getDraft } from "../_lib/pageApi";
 import { templateService } from "@/lib/templateService";
 
 const PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
@@ -16,6 +17,7 @@ export default function PreviewPage() {
   const [copied, setCopied] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("clean");
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [templateName, setTemplateName] = useState("");
   const [templateCategory, setTemplateCategory] = useState("Landing Page");
   const [templateDescription, setTemplateDescription] = useState("");

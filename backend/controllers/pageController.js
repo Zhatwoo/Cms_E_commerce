@@ -191,6 +191,7 @@ exports.autoSave = async (req, res) => {
 // @route   GET /api/pages/draft
 // @access  Private
 exports.getDraft = async (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   try {
     const userId = req.user.id;
     const { projectId } = req.query;

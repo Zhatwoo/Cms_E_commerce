@@ -275,7 +275,8 @@ export const EditorShell = () => {
 
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
 
-      setSaveStatus('saving');
+      // Defer state update to avoid 'Cannot update a component while rendering a different component'
+      Promise.resolve().then(() => setSaveStatus('saving'));
 
       saveTimerRef.current = setTimeout(async () => {
         try {
