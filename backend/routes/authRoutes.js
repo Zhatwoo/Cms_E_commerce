@@ -40,9 +40,11 @@ router.post('/register', [
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
 ], validate, register);
 
+// Login: either idToken (from Firebase client) or email + password (backend REST)
 router.post('/login', [
-  body('email').trim().isEmail().withMessage('Valid email is required'),
-  body('password').notEmpty().withMessage('Password is required')
+  body('idToken').optional().isString().trim(),
+  body('email').optional().trim().isEmail().withMessage('Valid email is required'),
+  body('password').optional().notEmpty().withMessage('Password is required')
 ], validate, login);
 
 router.post('/forgot-password', [

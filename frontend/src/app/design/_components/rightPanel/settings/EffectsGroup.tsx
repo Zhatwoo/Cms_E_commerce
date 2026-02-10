@@ -39,7 +39,7 @@ export const EffectsGroup = ({
           <select
             value={overflow}
             onChange={(e) => setProp((props) => { props.overflow = e.target.value; })}
-            className="w-full bg-brand-medium-dark rounded-md text-xs text-white px-2.5 py-1.5 focus:outline-none appearance-none"
+            className="w-full bg-brand-medium-dark rounded-md text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none appearance-none"
           >
             <option value="visible">Visible</option>
             <option value="hidden">Hidden</option>
@@ -53,7 +53,7 @@ export const EffectsGroup = ({
           <select
             value={cursor}
             onChange={(e) => setProp((props) => { props.cursor = e.target.value; })}
-            className="w-full bg-brand-medium-dark rounded-md text-xs text-white px-2.5 py-1.5 focus:outline-none appearance-none"
+            className="w-full bg-brand-medium-dark rounded-md text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none appearance-none"
           >
             <option value="default">Default</option>
             <option value="pointer">Pointer</option>
@@ -73,7 +73,7 @@ export const EffectsGroup = ({
             if (val === "none") setProp((props) => { props.boxShadow = "none"; });
             else setProp((props) => { props.boxShadow = "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)"; });
           }}
-          className="w-full bg-brand-medium-dark rounded-md text-xs text-white px-2.5 py-1.5 focus:outline-none appearance-none"
+          className="w-full bg-brand-medium-dark rounded-md text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none appearance-none"
         >
           <option value="none">None</option>
           <option value="sm">Small Drop Shadow</option>

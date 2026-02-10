@@ -1,15 +1,16 @@
 import React from "react";
 import { useEditor, Element } from "@craftjs/core";
-import { Container } from "../../_assets/Container/Container";
-import { Text } from "../../_assets/Text/Text";
-import { Page } from "../../_assets/Page/Page";
-import { Image } from "../../_assets/Image/Image";
-import { Button } from "../../_assets/Button/Button";
-import { Divider } from "../../_assets/Divider/Divider";
-import { Section } from "../../_assets/Section/Section";
-import { Row } from "../../_assets/Row/Row";
-import { Column } from "../../_assets/Column/Column";
+import { Container } from "../../_designComponents/Container/Container";
+import { Text } from "../../_designComponents/Text/Text";
+import { Page } from "../../_designComponents/Page/Page";
+import { Image } from "../../_designComponents/Image/Image";
+import { Button } from "../../_designComponents/Button/Button";
+import { Divider } from "../../_designComponents/Divider/Divider";
+import { Section } from "../../_designComponents/Section/Section";
+import { Row } from "../../_designComponents/Row/Row";
+import { Column } from "../../_designComponents/Column/Column";
 
+// Dito naman ilalagay yung mga raw components na may default na properties
 interface ComponentEntry {
   label: string;
   preview: string;
@@ -23,7 +24,7 @@ const COMPONENTS: ComponentEntry[] = [
   {
     label: "New Page",
     preview: "Page Preview",
-    previewBg: "bg-white",
+    previewBg: "bg-brand-light",
     element: <Element is={Page} canvas />,
     category: "page",
   },
@@ -31,57 +32,57 @@ const COMPONENTS: ComponentEntry[] = [
   {
     label: "Section",
     preview: "━━ Section ━━",
-    previewBg: "bg-brand-medium/10",
+    previewBg: "bg-brand-medium-dark",
     element: <Element is={Section} canvas />,
     category: "layout",
   },
   {
     label: "Row",
     preview: "[ ═ ║ ═ ║ ═ ]",
-    previewBg: "bg-brand-medium/10",
+    previewBg: "bg-brand-medium-dark",
     element: <Element is={Row} canvas />,
     category: "layout",
   },
   {
     label: "Column",
     preview: "║ Column ║",
-    previewBg: "bg-brand-medium/10",
+    previewBg: "bg-brand-medium-dark",
     element: <Element is={Column} canvas />,
     category: "layout",
   },
   {
     label: "Container",
     preview: "Container Preview",
-    previewBg: "bg-brand-medium/20",
-    element: <Element is={Container} background="#27272a" padding={20} canvas />,
+    previewBg: "bg-brand-medium",
+    element: <Element is={Container} padding={20} canvas />,
     category: "layout",
   },
   // ─── Basic ─────────────────────────────────────────
   {
     label: "Text",
     preview: "Text Preview",
-    previewBg: "bg-brand-medium/20",
+    previewBg: "bg-brand-dark",
     element: <Text text="New Text" fontSize={16} />,
     category: "basic",
   },
   {
     label: "Image",
     preview: "Image Preview",
-    previewBg: "bg-brand-medium/20",
+    previewBg: "bg-red-500/10",
     element: <Image />,
     category: "basic",
   },
   {
     label: "Button",
     preview: "Button Preview",
-    previewBg: "bg-brand-medium/20",
+    previewBg: "bg-blue-500/10",
     element: <Button label="Click me" />,
     category: "basic",
   },
   {
     label: "Divider",
     preview: "── Divider ──",
-    previewBg: "bg-brand-medium/20",
+    previewBg: "bg-brand-darker",
     element: <Divider />,
     category: "basic",
   },
@@ -120,13 +121,13 @@ export const ComponentsPanel = () => {
                 >
                   <div
                     className={`h-20 ${comp.previewBg ?? "bg-brand-medium/20"} rounded-lg mb-2 border border-dashed border-brand-medium/50 flex items-center justify-center text-xs shadow-sm ${comp.previewBg === "bg-white"
-                        ? "text-brand-black"
-                        : "text-brand-light"
+                      ? "text-brand-black"
+                      : "text-brand-lighter"
                       }`}
                   >
                     {comp.preview}
                   </div>
-                  <span className="text-sm text-brand-lighter font-medium">
+                  <span className="text-sm text-brand-white font-medium">
                     {comp.label}
                   </span>
                 </div>

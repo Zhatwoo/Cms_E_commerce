@@ -1,18 +1,19 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
-import { SettingsSection } from "../../_components/rightPanel/settings/SettingsSection";
+import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { AutoLayoutGroup } from "../../_components/rightPanel/settings/AutoLayoutGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import type { ContainerProps, SetProp } from "../../_types/components";
 
-export const ColumnSettings = () => {
+export const SectionSettings = () => {
   const {
     background,
     paddingLeft, paddingRight, paddingTop, paddingBottom,
     marginLeft, marginRight, marginTop, marginBottom,
     width, height,
+    backgroundImage, backgroundSize, backgroundPosition, backgroundRepeat, backgroundOverlay,
     borderRadius, radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft,
     borderColor, borderWidth, borderStyle,
     flexDirection, flexWrap, alignItems, justifyContent, gap,
@@ -30,6 +31,11 @@ export const ColumnSettings = () => {
     marginBottom: node.data.props.marginBottom,
     width: node.data.props.width,
     height: node.data.props.height,
+    backgroundImage: node.data.props.backgroundImage,
+    backgroundSize: node.data.props.backgroundSize,
+    backgroundPosition: node.data.props.backgroundPosition,
+    backgroundRepeat: node.data.props.backgroundRepeat,
+    backgroundOverlay: node.data.props.backgroundOverlay,
     borderRadius: node.data.props.borderRadius,
     radiusTopLeft: node.data.props.radiusTopLeft,
     radiusTopRight: node.data.props.radiusTopRight,
@@ -52,7 +58,7 @@ export const ColumnSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
-      <SettingsSection title="Auto Layout">
+      <DesignSection title="Auto Layout">
         <AutoLayoutGroup
           flexDirection={flexDirection}
           flexWrap={flexWrap}
@@ -61,9 +67,9 @@ export const ColumnSettings = () => {
           gap={gap}
           setProp={typedSetProp}
         />
-      </SettingsSection>
+      </DesignSection>
 
-      <SettingsSection title="Size & Spacing">
+      <DesignSection title="Size & Spacing">
         <SizePositionGroup
           width={width}
           height={height}
@@ -77,11 +83,16 @@ export const ColumnSettings = () => {
           marginBottom={marginBottom}
           setProp={typedSetProp}
         />
-      </SettingsSection>
+      </DesignSection>
 
-      <SettingsSection title="Appearance">
+      <DesignSection title="Appearance">
         <AppearanceGroup
           background={background}
+          backgroundImage={backgroundImage}
+          backgroundSize={backgroundSize}
+          backgroundPosition={backgroundPosition}
+          backgroundRepeat={backgroundRepeat}
+          backgroundOverlay={backgroundOverlay}
           borderColor={borderColor}
           borderWidth={borderWidth}
           borderStyle={borderStyle}
@@ -91,16 +102,16 @@ export const ColumnSettings = () => {
           radiusBottomLeft={radiusBottomLeft}
           setProp={typedSetProp}
         />
-      </SettingsSection>
+      </DesignSection>
 
-      <SettingsSection title="Effects" defaultOpen={false}>
+      <DesignSection title="Effects" defaultOpen={false}>
         <EffectsGroup
           opacity={opacity}
           boxShadow={boxShadow}
           overflow={overflow}
           setProp={typedSetProp}
         />
-      </SettingsSection>
+      </DesignSection>
     </div>
   );
 };

@@ -79,14 +79,14 @@ export const AutoLayoutGroup = ({
       <div className="flex items-center gap-2 bg-brand-medium-dark rounded-[10px] border-2 border-brand-medium-dark p-.1">
         <button
           onClick={() => handleDirection("column")}
-          className={`p-1.5 rounded-lg flex-1 flex justify-center ${flexDirection === "column" ? "bg-brand-medium/50 text-white" : "text-brand-light hover:text-white"}`}
+          className={`p-1.5 rounded-lg flex-1 flex justify-center ${flexDirection === "column" ? "bg-brand-medium/50 text-brand-lighter" : "text-brand-light hover:text-brand-lighter"}`}
           title="Vertical (Column)"
         >
           <ArrowDown size={16} />
         </button>
         <button
           onClick={() => handleDirection("row")}
-          className={`p-1.5 rounded-lg flex-1 flex justify-center ${flexDirection === "row" ? "bg-brand-medium/50 text-white" : "text-brand-light hover:text-white"}`}
+          className={`p-1.5 rounded-lg flex-1 flex justify-center ${flexDirection === "row" ? "bg-brand-medium/50 text-brand-lighter" : "text-brand-light hover:text-brand-lighter"}`}
           title="Horizontal (Row)"
         >
           <ArrowRight size={16} />
@@ -94,7 +94,7 @@ export const AutoLayoutGroup = ({
         <div className="w-px h-4 bg-brand-medium mx-1" />
         <button
           onClick={handleWrap}
-          className={`p-1.5 rounded-lg flex-1 flex justify-center ${flexWrap === "wrap" ? "bg-brand-light text-brand-dark" : "text-brand-light hover:text-white"}`}
+          className={`p-1.5 rounded-lg flex-1 flex justify-center ${flexWrap === "wrap" ? "bg-brand-light text-brand-dark" : "text-brand-light hover:text-brand-lighter"}`}
           title="Wrap Items"
         >
           <WrapText size={16} />
@@ -130,7 +130,7 @@ export const AutoLayoutGroup = ({
             <label className="text-[12px] text-brand-lighter font-base">Distribute</label>
             <div className="bg-brand-medium-dark px-2 rounded-lg">
               <select
-                className="text-xs bg-brand-medium-dark text-white py-1.5 px-2.5 focus:outline-none appearance-none"
+                className="text-xs bg-brand-medium-dark text-brand-lighter py-1.5 px-2.5 focus:outline-none appearance-none"
                 value={justifyContent === "space-between" ? "space-between" : "packed"}
                 onChange={(e) => {
                   if (e.target.value === "space-between") {

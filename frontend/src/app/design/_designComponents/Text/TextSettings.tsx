@@ -1,6 +1,6 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
-import { SettingsSection } from "../../_components/rightPanel/settings/SettingsSection";
+import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
@@ -42,15 +42,15 @@ export const TextSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
-      <SettingsSection title="Content">
+      <DesignSection title="Content">
         <textarea
           value={text}
           onChange={(e) => typedSetProp((props) => { props.text = e.target.value; })}
-          className="w-full bg-brand-black border border-brand-medium p-2 rounded-lg text-white focus:border-brand-light focus:outline-none resize-y min-h-[80px]"
+          className="w-full bg-brand-medium-dark p-2 rounded-lg text-brand-lighter focus:border-brand-light focus:outline-none resize-y min-h-[40px]"
         />
-      </SettingsSection>
+      </DesignSection>
 
-      <SettingsSection title="Typography">
+      <DesignSection title="Typography">
         <TypographyGroup
           fontFamily={fontFamily}
           fontWeight={fontWeight}
@@ -62,9 +62,9 @@ export const TextSettings = () => {
           color={color}
           setProp={typedSetProp}
         />
-      </SettingsSection>
+      </DesignSection>
 
-      <SettingsSection title="Size & Position">
+      <DesignSection title="Size & Position">
         <SizePositionGroup
           width="auto"
           height="auto"
@@ -78,15 +78,15 @@ export const TextSettings = () => {
           marginBottom={marginBottom}
           setProp={typedSetProp}
         />
-      </SettingsSection>
+      </DesignSection>
 
-      <SettingsSection title="Effects" defaultOpen={false}>
+      <DesignSection title="Effects" defaultOpen={false}>
         <EffectsGroup
           opacity={opacity}
           boxShadow={boxShadow}
           setProp={typedSetProp}
         />
-      </SettingsSection>
+      </DesignSection>
     </div>
   );
 };

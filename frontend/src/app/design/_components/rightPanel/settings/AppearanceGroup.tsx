@@ -27,7 +27,7 @@ const BG_REPEAT_OPTIONS: { value: AppearanceProps["backgroundRepeat"]; label: st
 ];
 
 export const AppearanceGroup = ({
-  background = "transparent",
+  background,
   backgroundImage = "",
   backgroundSize = "cover",
   backgroundPosition = "center",
@@ -68,7 +68,7 @@ export const AppearanceGroup = ({
       <div className="flex flex-col gap-1">
         <div className="flex justify-between items-center">
           <label className="text-[12px] text-brand-lighter font-base">Fill</label>
-          <Plus size={12} className="text-brand-lighter hover:text-white cursor-pointer" />
+          <Plus size={12} className="text-brand-lighter hover:text-brand-lighter cursor-pointer" />
         </div>
         {/* Color Input */}
         <div className="flex items-center gap-4 bg-brand-medium-dark rounded-lg px-2.5 py-1">
@@ -79,7 +79,7 @@ export const AppearanceGroup = ({
             className="w-7 h-6 rounded cursor-pointer border-none bg-transparent"
           />
           <ColorInput
-            value={background}
+            value={background || "transparent"}
             onChange={(val) => setProp((props) => { props.background = val; })}
             className="flex-1"
           />
@@ -97,7 +97,7 @@ export const AppearanceGroup = ({
               }
               setShowBgImage(!showBgImage);
             }}
-            className="p-0.5 rounded text-brand-medium hover:text-white"
+            className="p-0.5 rounded text-brand-medium hover:text-brand-lighter"
             title={showBgImage ? "Remove background image" : "Add background image"}
           >
             {showBgImage ? <X size={12} /> : <ImageIcon size={12} />}
@@ -113,7 +113,7 @@ export const AppearanceGroup = ({
               onChange={(e) => setProp((props) => { props.backgroundImage = e.target.value; })}
               onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
               placeholder="https://example.com/image.jpg"
-              className="w-full bg-brand-medium-dark rounded-lg text-xs text-white px-2.5 py-1.5 focus:outline-none placeholder:text-brand-medium"
+              className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none placeholder:text-brand-medium"
             />
 
             {/* Size & Position Row */}
@@ -123,7 +123,7 @@ export const AppearanceGroup = ({
                 <select
                   value={backgroundSize}
                   onChange={(e) => setProp((props) => { props.backgroundSize = e.target.value as AppearanceProps["backgroundSize"]; })}
-                  className="w-full bg-brand-medium-dark rounded-lg text-xs text-white px-2 py-1.5 focus:outline-none appearance-none"
+                  className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2 py-1.5 focus:outline-none appearance-none"
                 >
                   {BG_SIZE_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value} className="bg-brand-dark">{opt.label}</option>
@@ -135,7 +135,7 @@ export const AppearanceGroup = ({
                 <select
                   value={backgroundPosition}
                   onChange={(e) => setProp((props) => { props.backgroundPosition = e.target.value; })}
-                  className="w-full bg-brand-medium-dark rounded-lg text-xs text-white px-2 py-1.5 focus:outline-none appearance-none"
+                  className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2 py-1.5 focus:outline-none appearance-none"
                 >
                   {BG_POSITION_OPTIONS.map((pos) => (
                     <option key={pos} value={pos} className="bg-brand-dark capitalize">{pos}</option>
@@ -150,7 +150,7 @@ export const AppearanceGroup = ({
               <select
                 value={backgroundRepeat}
                 onChange={(e) => setProp((props) => { props.backgroundRepeat = e.target.value as AppearanceProps["backgroundRepeat"]; })}
-                className="w-full bg-brand-medium-dark rounded-lg text-xs text-white px-2 py-1.5 focus:outline-none appearance-none"
+                className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2 py-1.5 focus:outline-none appearance-none"
               >
                 {BG_REPEAT_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value} className="bg-brand-dark">{opt.label}</option>
@@ -209,7 +209,7 @@ export const AppearanceGroup = ({
         <select
           value={borderStyle}
           onChange={(e) => setProp((props) => { props.borderStyle = e.target.value; })}
-          className="w-full bg-brand-medium-dark rounded-lg text-xs text-white px-2.5 py-1.5 focus:outline-none appearance-none"
+          className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none appearance-none"
         >
           <option value="solid">Solid</option>
           <option value="dashed">Dashed</option>
@@ -223,9 +223,9 @@ export const AppearanceGroup = ({
           <label className="text-[12px] text-brand-lighter">Corners</label>
           <button
             onClick={() => setExpandRadius(!expandRadius)}
-            className={`p-0.5 rounded ${expandRadius ? "bg-brand-light text-brand-dark" : "text-brand-medium hover:text-white"}`}
+            className={`p-0.5 rounded ${expandRadius ? "bg-brand-light text-brand-dark" : "text-brand-medium hover:text-brand-lighter"}`}
           >
-            <Scan strokeWidth={2} size={12} className={`text-brand-lighter hover:text-white ${expandRadius ? "rotate-90" : "rotate-0"}`} />
+            <Scan strokeWidth={2} size={12} className={`text-brand-lighter hover:text-brand-lighter ${expandRadius ? "rotate-90" : "rotate-0"}`} />
           </button>
         </div>
 

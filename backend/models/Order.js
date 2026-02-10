@@ -1,8 +1,7 @@
-const { supabaseAdmin } = require('../config/supabase');
-const { keysToCamel } = require('../utils/caseHelper');
+const { db } = require('../config/firebase');
+const { docToObject } = require('../utils/firestoreHelper');
 
-const TABLE = 'orders';
-function isNotFound(e) { return e && e.code === 'PGRST116'; }
+const COLLECTION = 'orders';
 
 async function create(data) {
   const doc = {
@@ -10,47 +9,46 @@ async function create(data) {
     items: Array.isArray(data.items) ? data.items : [],
     total: typeof data.total === 'number' ? data.total : parseFloat(data.total) || 0,
     status: data.status || 'Pending',
-    shipping_address: data.shippingAddress || null
+    shipping_address: data.shippingAddress || null,
+    created_at: new Date(),
+    updated_at: new Date(),
   };
-  const { data: row, error } = await supabaseAdmin.from(TABLE).insert(doc).select('*').single();
-  if (error) throw error;
-  return keysToCamel(row);
+  const ref = await db.collection(COLLECTION).add(doc);
+  const snap = await ref.get();
+  return docToObject(snap);
 }
 
 async function findById(id) {
-  const { data, error } = await supabaseAdmin.from(TABLE).select('*').eq('id', id).single();
-  if (isNotFound(error)) return null;
-  if (error) throw error;
-  return keysToCamel(data);
+  const snap = await db.collection(COLLECTION).doc(id).get();
+  return docToObject(snap);
 }
 
 async function findByUserId(userId, pagination = {}) {
   const limit = Math.max(1, parseInt(pagination.limit) || 20);
   const page = Math.max(1, parseInt(pagination.page) || 1);
-  const start = (page - 1) * limit;
 
-  const { data, error, count: total } = await supabaseAdmin
-    .from(TABLE).select('*', { count: 'exact' })
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .range(start, start + limit - 1);
-  if (error) throw error;
-  return { items: (data || []).map(keysToCamel), total: total || 0, page, totalPages: Math.ceil((total || 0) / limit) };
+  const snap = await db.collection(COLLECTION).where('user_id', '==', userId).get();
+  const all = snap.docs.map(d => docToObject(d)).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  const total = all.length;
+  const start = (page - 1) * limit;
+  const items = all.slice(start, start + limit);
+  return { items, total, page, totalPages: Math.ceil(total / limit) };
 }
 
 async function findAll(filters = {}, pagination = {}) {
   const limit = Math.max(1, parseInt(pagination.limit) || 20);
   const page = Math.max(1, parseInt(pagination.page) || 1);
+
+  let ref = db.collection(COLLECTION).orderBy('created_at', 'desc');
+  if (filters.status) ref = ref.where('status', '==', filters.status);
+  if (filters.userId) ref = ref.where('user_id', '==', filters.userId);
+
+  const snap = await ref.get();
+  let items = snap.docs.map(d => docToObject(d));
+  const total = items.length;
   const start = (page - 1) * limit;
-
-  let query = supabaseAdmin.from(TABLE).select('*', { count: 'exact' });
-  if (filters.status) query = query.eq('status', filters.status);
-  if (filters.userId) query = query.eq('user_id', filters.userId);
-  query = query.order('created_at', { ascending: false }).range(start, start + limit - 1);
-
-  const { data, error, count: total } = await query;
-  if (error) throw error;
-  return { items: (data || []).map(keysToCamel), total: total || 0, page, totalPages: Math.ceil((total || 0) / limit) };
+  items = items.slice(start, start + limit);
+  return { items, total, page, totalPages: Math.ceil(total / limit) };
 }
 
 async function update(id, data) {
@@ -59,19 +57,14 @@ async function update(id, data) {
   if (data.items !== undefined) updates.items = data.items;
   if (data.total !== undefined) updates.total = data.total;
   if (data.shippingAddress !== undefined) updates.shipping_address = data.shippingAddress;
-  const { error } = await supabaseAdmin.from(TABLE).update(updates).eq('id', id);
-  if (error) throw error;
+  if (Object.keys(updates).length === 0) return findById(id);
+  updates.updated_at = new Date();
+  await db.collection(COLLECTION).doc(id).update(updates);
   return findById(id);
 }
 
 async function deleteById(id) {
-  const { error } = await supabaseAdmin.from(TABLE).delete().eq('id', id);
-  if (error) throw error;
+  await db.collection(COLLECTION).doc(id).delete();
 }
 
-async function count(filters = {}) {
-  const { total } = await findAll(filters, { limit: 1, page: 1 });
-  return total;
-}
-
-module.exports = { create, findById, findByUserId, findAll, update, delete: deleteById, count };
+module.exports = { create, findById, findByUserId, findAll, update, delete: deleteById };

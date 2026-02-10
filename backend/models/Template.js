@@ -1,8 +1,8 @@
-const { supabaseAdmin } = require('../config/supabase');
-const { keysToCamel, keysToSnake } = require('../utils/caseHelper');
+const { db } = require('../config/firebase');
+const { keysToSnake } = require('../utils/caseHelper');
+const { docToObject } = require('../utils/firestoreHelper');
 
-const TABLE = 'templates';
-function isNotFound(e) { return e && e.code === 'PGRST116'; }
+const COLLECTION = 'templates';
 
 async function create(data) {
   const doc = {
@@ -11,42 +11,42 @@ async function create(data) {
     slug: data.slug || '',
     preview_image: data.previewImage || null,
     coming_soon: data.comingSoon === true,
-    sort_order: typeof data.sortOrder === 'number' ? data.sortOrder : parseInt(data.sortOrder, 10) || 0
+    sort_order: typeof data.sortOrder === 'number' ? data.sortOrder : parseInt(data.sortOrder, 10) || 0,
+    created_at: new Date(),
+    updated_at: new Date(),
   };
-  const { data: row, error } = await supabaseAdmin.from(TABLE).insert(doc).select('*').single();
-  if (error) throw error;
-  return keysToCamel(row);
+  const ref = await db.collection(COLLECTION).add(doc);
+  const snap = await ref.get();
+  return docToObject(snap);
 }
 
 async function findById(id) {
-  const { data, error } = await supabaseAdmin.from(TABLE).select('*').eq('id', id).single();
-  if (isNotFound(error)) return null;
-  if (error) throw error;
-  return keysToCamel(data);
+  const snap = await db.collection(COLLECTION).doc(id).get();
+  return docToObject(snap);
 }
 
 async function findAll() {
-  const { data, error } = await supabaseAdmin.from(TABLE).select('*').order('sort_order', { ascending: true });
-  if (error) throw error;
-  return (data || []).map(keysToCamel);
+  const snap = await db.collection(COLLECTION).orderBy('sort_order', 'asc').get();
+  return snap.docs.map(d => docToObject(d));
 }
 
 async function update(id, data) {
   const updates = keysToSnake(data);
-  const { error } = await supabaseAdmin.from(TABLE).update(updates).eq('id', id);
-  if (error) throw error;
+  delete updates.id;
+  delete updates.created_at;
+  if (Object.keys(updates).length === 0) return findById(id);
+  updates.updated_at = new Date();
+  await db.collection(COLLECTION).doc(id).update(updates);
   return findById(id);
 }
 
 async function deleteById(id) {
-  const { error } = await supabaseAdmin.from(TABLE).delete().eq('id', id);
-  if (error) throw error;
+  await db.collection(COLLECTION).doc(id).delete();
 }
 
 async function count() {
-  const { count: c, error } = await supabaseAdmin.from(TABLE).select('*', { count: 'exact', head: true });
-  if (error) throw error;
-  return c || 0;
+  const snap = await db.collection(COLLECTION).get();
+  return snap.size;
 }
 
 module.exports = { create, findById, findAll, update, delete: deleteById, count };

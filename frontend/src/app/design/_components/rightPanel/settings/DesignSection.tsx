@@ -1,21 +1,22 @@
 import React, { useState } from "react";
 import { ChevronDown } from "lucide-react";
 
-interface SettingsSectionProps {
+interface DesignSection {
   title: string;
   defaultOpen?: boolean;
   children: React.ReactNode;
 }
 
-export const SettingsSection = ({
+// Dito yung contents ng design section and also title ng mga tabs (SenpaiAdri)
+export const DesignSection = ({
   title,
   defaultOpen = true,
   children
-}: SettingsSectionProps) => {
+}: DesignSection) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
-    <div className="flex flex-col border-b border-brand-medium/20 last:border-b-0 pb-2">
+    <div className="flex flex-col border-b border-brand-medium-light last:border-b-0 pb-2">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center justify-between py-2 group cursor-pointer"
@@ -25,7 +26,7 @@ export const SettingsSection = ({
         </span>
         <ChevronDown
           size={14}
-          className={`text-brand-medium group-hover:text-brand-lighter transition-transform duration-200 ${isOpen ? "rotate-0" : "-rotate-90"
+          className={`text-brand-light group-hover:text-brand-lighter transition-transform duration-200 ${isOpen ? "rotate-0" : "-rotate-90"
             }`}
         />
       </button>

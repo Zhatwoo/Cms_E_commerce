@@ -13,14 +13,14 @@ export const LeftPanel = () => {
       {/* Left Panel Header */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <h3 className="text-white font-bold text-lg">Inspire</h3>
+          <h3 className="text-brand-lighter font-bold text-lg">Inspire</h3>
           <ChevronDown className="w-4 h-4" />
         </div>
         {/* Toggle left panel Icon */}
         <div className="relative group">
           <PanelLeft className="w-4 h-4 cursor-pointer" />
           {/* Tooltip for Toggle left panel Icon */}
-          <span className="absolute right-0 top-full mt-2 px-2 py-1 rounded bg-brand-medium/50 text-white text-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-10">
+          <span className="absolute right-0 top-full mt-2 px-2 py-1 rounded bg-brand-medium/50 text-brand-lighter text-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-10">
             Toggle left panel
           </span>
         </div>
@@ -33,19 +33,19 @@ export const LeftPanel = () => {
       <div className="flex justify-between text-sm items-center py-1.5 px-4 border-y border-brand-medium">
         <button
           onClick={() => setActivePanel("files")}
-          className={activePanel === "files" ? "text-white bg-brand-medium/50 rounded-lg px-2.5 py-1" : "text-brand-light hover:text-brand-lighter px-2.5 py-1"}
+          className={activePanel === "files" ? "text-brand-lighter bg-brand-medium/50 rounded-lg px-2.5 py-1" : "text-brand-light hover:text-brand-lighter px-2.5 py-1"}
         >
           Files
         </button>
         <button
           onClick={() => setActivePanel("components")}
-          className={activePanel === "components" ? "text-white bg-brand-medium/50 rounded-lg px-2.5 py-1" : "text-brand-light hover:text-brand-lighter px-2.5 py-1"}
+          className={activePanel === "components" ? "text-brand-lighter bg-brand-medium/50 rounded-lg px-2.5 py-1" : "text-brand-light hover:text-brand-lighter px-2.5 py-1"}
         >
           Component
         </button>
         <button
           onClick={() => setActivePanel("assets")}
-          className={activePanel === "assets" ? "text-white bg-brand-medium/50 rounded-lg px-2.5 py-1" : "text-brand-light hover:text-brand-lighter px-2.5 py-1"}
+          className={activePanel === "assets" ? "text-brand-lighter bg-brand-medium/50 rounded-lg px-2.5 py-1" : "text-brand-light hover:text-brand-lighter px-2.5 py-1"}
         >
           Assets
         </button>

@@ -1,13 +1,15 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
-import { SettingsSection } from "../../_components/rightPanel/settings/SettingsSection";
+import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { AutoLayoutGroup } from "../../_components/rightPanel/settings/AutoLayoutGroup";
+import { GridLayoutGroup } from "../../_components/rightPanel/settings/GridLayoutGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
+import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import type { ContainerProps, SetProp } from "../../_types/components";
 
-export const SectionSettings = () => {
+export const ContainerSettings = () => {
   const {
     background,
     paddingLeft, paddingRight, paddingTop, paddingBottom,
@@ -16,10 +18,14 @@ export const SectionSettings = () => {
     backgroundImage, backgroundSize, backgroundPosition, backgroundRepeat, backgroundOverlay,
     borderRadius, radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft,
     borderColor, borderWidth, borderStyle,
-    flexDirection, flexWrap, alignItems, justifyContent, gap,
-    boxShadow, opacity, overflow,
-    actions: { setProp },
-  } = useNode((node) => ({
+    flexDirection, flexWrap,
+    alignItems, justifyContent,
+    gap,
+    gridTemplateColumns, gridTemplateRows, gridGap, gridColumnGap, gridRowGap, gridAutoRows, gridAutoFlow,
+    position, display, zIndex, top, right, bottom, left,
+    boxShadow, opacity, overflow, cursor,
+    actions: { setProp }
+  } = useNode(node => ({
     background: node.data.props.background,
     paddingLeft: node.data.props.paddingLeft,
     paddingRight: node.data.props.paddingRight,
@@ -49,27 +55,57 @@ export const SectionSettings = () => {
     alignItems: node.data.props.alignItems,
     justifyContent: node.data.props.justifyContent,
     gap: node.data.props.gap,
+    gridTemplateColumns: node.data.props.gridTemplateColumns,
+    gridTemplateRows: node.data.props.gridTemplateRows,
+    gridGap: node.data.props.gridGap,
+    gridColumnGap: node.data.props.gridColumnGap,
+    gridRowGap: node.data.props.gridRowGap,
+    gridAutoRows: node.data.props.gridAutoRows,
+    gridAutoFlow: node.data.props.gridAutoFlow,
+    position: node.data.props.position,
+    display: node.data.props.display,
+    zIndex: node.data.props.zIndex,
+    top: node.data.props.top,
+    right: node.data.props.right,
+    bottom: node.data.props.bottom,
+    left: node.data.props.left,
     boxShadow: node.data.props.boxShadow,
     opacity: node.data.props.opacity,
     overflow: node.data.props.overflow,
+    cursor: node.data.props.cursor
   }));
 
   const typedSetProp = setProp as SetProp<ContainerProps>;
 
   return (
     <div className="flex flex-col pb-4">
-      <SettingsSection title="Auto Layout">
-        <AutoLayoutGroup
-          flexDirection={flexDirection}
-          flexWrap={flexWrap}
-          alignItems={alignItems}
-          justifyContent={justifyContent}
-          gap={gap}
-          setProp={typedSetProp}
-        />
-      </SettingsSection>
+      {display === "grid" ? (
+        <DesignSection title="Grid Layout">
+          <GridLayoutGroup
+            gridTemplateColumns={gridTemplateColumns}
+            gridTemplateRows={gridTemplateRows}
+            gridGap={gridGap}
+            gridColumnGap={gridColumnGap}
+            gridRowGap={gridRowGap}
+            gridAutoRows={gridAutoRows}
+            gridAutoFlow={gridAutoFlow}
+            setProp={typedSetProp}
+          />
+        </DesignSection>
+      ) : display === "flex" ? (
+        <DesignSection title="Auto Layout">
+          <AutoLayoutGroup
+            flexDirection={flexDirection}
+            flexWrap={flexWrap}
+            alignItems={alignItems}
+            justifyContent={justifyContent}
+            gap={gap}
+            setProp={typedSetProp}
+          />
+        </DesignSection>
+      ) : null}
 
-      <SettingsSection title="Size & Spacing">
+      <DesignSection title="Size & Position">
         <SizePositionGroup
           width={width}
           height={height}
@@ -83,9 +119,22 @@ export const SectionSettings = () => {
           marginBottom={marginBottom}
           setProp={typedSetProp}
         />
-      </SettingsSection>
+      </DesignSection>
 
-      <SettingsSection title="Appearance">
+      <DesignSection title="Position & Display" defaultOpen={false}>
+        <PositionGroup
+          position={position}
+          display={display}
+          zIndex={zIndex}
+          top={top}
+          right={right}
+          bottom={bottom}
+          left={left}
+          setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Appearance">
         <AppearanceGroup
           background={background}
           backgroundImage={backgroundImage}
@@ -102,16 +151,17 @@ export const SectionSettings = () => {
           radiusBottomLeft={radiusBottomLeft}
           setProp={typedSetProp}
         />
-      </SettingsSection>
+      </DesignSection>
 
-      <SettingsSection title="Effects" defaultOpen={false}>
+      <DesignSection title="Effects" defaultOpen={false}>
         <EffectsGroup
           opacity={opacity}
           boxShadow={boxShadow}
           overflow={overflow}
+          cursor={cursor}
           setProp={typedSetProp}
         />
-      </SettingsSection>
+      </DesignSection>
     </div>
   );
 };
