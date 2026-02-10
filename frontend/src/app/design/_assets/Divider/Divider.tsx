@@ -5,7 +5,7 @@ import type { DividerProps } from "../../_types/components";
 
 export const Divider = ({
   dividerStyle = "solid",
-  color = "#4a4a4a",
+  color = "brand-lighter",
   thickness = 1,
   width = "100%",
   marginTop = 8,

@@ -1,6 +1,5 @@
-// controllers/authController.js
-// Auth via Supabase Auth — profile data in profiles table
-const { supabase, supabaseAdmin } = require('../config/supabase');
+// controllers/authController.js — Firebase Auth + Firestore users
+const { auth } = require('../config/firebase');
 const PasswordReset = require('../models/PasswordReset');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
@@ -40,13 +39,46 @@ const userToResponse = (user) => {
   };
 };
 
-// @desc    Register new user (Supabase Auth → trigger creates profile)
+async function firebaseSignIn(email, password) {
+  const rawKey = process.env.FIREBASE_API_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+  const apiKey = (typeof rawKey === 'string' ? rawKey : '').trim();
+  if (!apiKey) return { error: new Error('MISSING_API_KEY'), rawError: { message: 'Backend .env: set FIREBASE_API_KEY (Web API key from Firebase Console)' } };
+
+  const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`;
+  let res;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: email.toLowerCase().trim(),
+        password,
+        returnSecureToken: true,
+      }),
+    });
+  } catch (err) {
+    if (process.env.NODE_ENV !== 'production') console.error('Login fetch error:', err.message);
+    return { error: new Error('NETWORK_ERROR'), rawError: { message: err.message } };
+  }
+
+  const data = await res.json().catch(() => ({}));
+  if (data.error) {
+    const message = (data.error.message || '').trim() || 'Invalid credentials';
+    return { error: new Error(message), rawError: data.error };
+  }
+  if (!res.ok) {
+    return { error: new Error('INVALID_RESPONSE'), rawError: { message: `HTTP ${res.status}`, status: res.status } };
+  }
+  if (!data.localId) {
+    return { error: new Error('INVALID_RESPONSE'), rawError: { message: 'No localId in response' } };
+  }
+  return { uid: data.localId };
+}
+
+// @desc    Register new user (Firebase Auth + Firestore)
 // @route   POST /api/auth/register
 // @access  Public
 exports.register = async (req, res) => {
-  // #region agent log
-  fetch('http://127.0.0.1:7252/ingest/54096819-82ad-4e94-be52-c4b24bc3f513',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'authController.js:register',message:'register entry',data:{hasName:!!req.body?.name,hasEmail:!!req.body?.email,hasPassword:!!req.body?.password},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   try {
     const { name, email, password } = req.body;
 
@@ -56,77 +88,15 @@ exports.register = async (req, res) => {
         message: 'Please provide name, email, and password'
       });
     }
-
-    // Frontend base URL for confirmation email redirect (user lands on /auth/confirm after clicking link)
-    const frontendOrigin = process.env.FRONTEND_URL || process.env.CORS_ORIGIN || 'http://localhost:3000';
-    const confirmRedirectUrl = `${frontendOrigin.replace(/\/$/, '')}/auth/confirm`;
-
-    // Sign up via Supabase Auth (trigger auto-creates profile)
-    const { data: authData, error: authErr } = await supabase.auth.signUp({
-      email: email.toLowerCase().trim(),
-      password,
-      options: {
-        data: { full_name: name.trim() },
-        emailRedirectTo: confirmRedirectUrl
-      }
-    });
-
-    // #region agent log
-    fetch('http://127.0.0.1:7252/ingest/54096819-82ad-4e94-be52-c4b24bc3f513',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'authController.js:after signUp',message:'signUp result',data:{hasError:!!authErr,errorMessage:authErr?.message,errorCode:authErr?.code,errorStatus:authErr?.status,authUserId:authData?.user?.id,errorKeys:authErr?Object.keys(authErr):[]},timestamp:Date.now(),hypothesisId:'B,E'})}).catch(()=>{});
-    // #endregion
-
-    if (authErr) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.error('Register error:', authErr.message, authErr.status, JSON.stringify(authErr));
-      }
-      // #region agent log
-      fetch('http://127.0.0.1:7252/ingest/54096819-82ad-4e94-be52-c4b24bc3f513',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'authController.js:authErr branch',message:'error branch',data:{msgIncludesAlready:authErr.message.includes('already'),msgIncludesDbError:authErr.message.includes('Database error')},timestamp:Date.now(),hypothesisId:'A,E'})}).catch(()=>{});
-      // #endregion
-      if (authErr.message.includes('already')) {
-        return res.status(400).json({ success: false, message: 'User with this email already exists' });
-      }
-      if (authErr.message.includes('Database error')) {
-        return res.status(500).json({
-          success: false,
-          message: 'Database trigger error. In Supabase SQL Editor run: backend/supabase/drop-auth-trigger.sql (then try registering again).',
-          error: process.env.NODE_ENV === 'production' ? undefined : authErr.message
-        });
-      }
-      return res.status(400).json({ success: false, message: authErr.message });
-    }
-
-    const uid = authData.user.id;
-
-    // #region agent log
-    fetch('http://127.0.0.1:7252/ingest/54096819-82ad-4e94-be52-c4b24bc3f513',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'authController.js:before profile fetch',message:'no authErr',data:{uid},timestamp:Date.now(),hypothesisId:'C,D'})}).catch(()=>{});
-    // #endregion
-
-    // Small delay for trigger to complete, then fetch profile
-    await new Promise(r => setTimeout(r, 300));
-    let user = await User.findById(uid);
-
-    // If trigger didn't create profile (e.g. trigger disabled or failed), create it from backend
-    if (!user) {
-      const meta = authData.user.user_metadata || {};
-      const { error: insertErr } = await supabaseAdmin.from('profiles').insert({
-        id: uid,
-        email: authData.user.email || '',
-        full_name: (meta.full_name || name || '').trim() || '',
-        avatar_url: meta.avatar_url || null,
-        role: 'client',
-        subscription_plan: 'free'
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters'
       });
-      if (insertErr && process.env.NODE_ENV !== 'production') {
-        console.error('Register: fallback profile insert failed', insertErr.message, insertErr);
-      }
-      user = insertErr ? null : await User.findById(uid);
     }
 
-    // #region agent log
-    fetch('http://127.0.0.1:7252/ingest/54096819-82ad-4e94-be52-c4b24bc3f513',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'authController.js:after User.findById',message:'profile fetch',data:{uid,profileFound:!!user},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
-
-    const token = generateToken(uid);
+    const user = await User.register({ name: name.trim(), email, password });
+    const token = generateToken(user.id);
     setAuthCookie(res, token);
 
     res.status(201).json({
@@ -135,11 +105,11 @@ exports.register = async (req, res) => {
       user: userToResponse(user)
     });
   } catch (error) {
-    // #region agent log
-    fetch('http://127.0.0.1:7252/ingest/54096819-82ad-4e94-be52-c4b24bc3f513',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'authController.js:register catch',message:'register exception',data:{message:error?.message,name:error?.name},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     const msg = error.message || 'Server error';
     if (process.env.NODE_ENV !== 'production') console.error('Register error:', msg, error);
+    if (error.code === 'auth/email-already-exists' || msg.toLowerCase().includes('already')) {
+      return res.status(400).json({ success: false, message: 'User with this email already exists' });
+    }
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -148,51 +118,60 @@ exports.register = async (req, res) => {
   }
 };
 
-// @desc    Login user (Supabase Auth email + password)
+// @desc    Login (accepts idToken from client OR email+password via REST)
 // @route   POST /api/auth/login
 // @access  Public
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, idToken } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide email and password'
-      });
-    }
+    let uid = null;
 
-    const normEmail = email.toLowerCase().trim();
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: normEmail,
-      password
-    });
-
-    if (error) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.error('Login Supabase error:', error.message, error.status);
+    // Path 1: Frontend sent Firebase idToken (works even when API key is restricted)
+    if (idToken && typeof idToken === 'string' && idToken.trim()) {
+      try {
+        const decoded = await auth.verifyIdToken(idToken.trim());
+        uid = decoded.uid;
+      } catch (err) {
+        if (process.env.NODE_ENV !== 'production') console.error('Login idToken verify error:', err.message);
+        return res.status(401).json({ success: false, message: 'Invalid or expired token. Try logging in again.' });
       }
-      const msg = error.message && error.message.includes('Email not confirmed')
-        ? 'Please confirm your email first. Check your inbox (and spam).'
-        : 'Invalid email or password.';
-      return res.status(401).json({ success: false, message: msg });
     }
 
-    const uid = data.user.id;
-    let user = await User.findById(uid);
-    if (!user) {
-      // Profile missing (e.g. trigger was disabled at signup) — create it now
-      const meta = data.user.user_metadata || {};
-      const { error: insertErr } = await supabaseAdmin.from('profiles').insert({
-        id: uid,
-        email: data.user.email || normEmail,
-        full_name: (meta.full_name || '').trim() || data.user.email?.split('@')[0] || '',
-        avatar_url: meta.avatar_url || null,
-        role: 'client',
-        subscription_plan: 'free'
-      });
-      if (!insertErr) user = await User.findById(uid);
+    // Path 2: Email + password (backend calls Firebase REST API)
+    if (!uid) {
+      if (!email || !password) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please provide email and password, or idToken from Firebase'
+        });
+      }
+      const normEmail = email.toLowerCase().trim();
+      const { uid: restUid, error: signInError, rawError } = await firebaseSignIn(normEmail, password);
+
+      if (signInError) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.error('Login Firebase error:', rawError || signInError.message);
+        }
+        const m = (signInError.message || '').toUpperCase();
+        let msg = 'Invalid email or password.';
+        if (signInError.message === 'MISSING_API_KEY' || (rawError && (rawError.message || '').includes('FIREBASE_API_KEY'))) {
+          msg = 'Login not configured. Ask admin to set FIREBASE_API_KEY in backend .env.';
+        } else if (signInError.message === 'NETWORK_ERROR') {
+          msg = 'Cannot reach login service. Try again later.';
+        } else if (m.includes('API KEY') || m.includes('KEY_NOT_VALID') || m.includes('INVALID_KEY')) {
+          msg = 'Login service misconfigured. Set FIREBASE_API_KEY in backend .env and ensure the key has no HTTP referrer restriction.';
+        } else if (signInError.message.includes('EMAIL_NOT_VERIFIED')) {
+          msg = 'Please confirm your email first. Check your inbox (and spam).';
+        } else if (m.includes('EMAIL_NOT_FOUND') || m.includes('INVALID_LOGIN_CREDENTIALS') || m.includes('INVALID_PASSWORD') || m.includes('INVALID_CREDENTIALS')) {
+          msg = 'No account with this email. Please Sign up first, then log in.';
+        }
+        return res.status(401).json({ success: false, message: msg });
+      }
+      uid = restUid;
     }
+
+    let user = await User.findById(uid);
     if (!user) {
       return res.status(401).json({ success: false, message: 'Profile not found. Please try signing up again or contact support.' });
     }
@@ -214,7 +193,7 @@ exports.login = async (req, res) => {
   }
 };
 
-// @desc    Get current logged in user (from Supabase profiles)
+// @desc    Get current user (Firestore)
 // @route   GET /api/auth/me
 // @access  Private
 exports.getMe = async (req, res) => {
@@ -238,17 +217,11 @@ exports.getMe = async (req, res) => {
   }
 };
 
-// @desc    Logout – clear auth cookie
-// @route   POST /api/auth/logout
-// @access  Public
 exports.logout = (req, res) => {
   clearAuthCookie(res);
   res.status(200).json({ success: true, message: 'Logged out' });
 };
 
-// @desc    Update user profile (Supabase profiles)
-// @route   PUT /api/auth/profile
-// @access  Private
 exports.updateProfile = async (req, res) => {
   try {
     const { name, avatar, username, website, bio } = req.body;
@@ -274,9 +247,6 @@ exports.updateProfile = async (req, res) => {
   }
 };
 
-// @desc    Change password (via Supabase Auth)
-// @route   PUT /api/auth/change-password
-// @access  Private
 exports.changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
@@ -288,7 +258,6 @@ exports.changePassword = async (req, res) => {
       return res.status(400).json({ success: false, message: 'New password must be at least 6 characters' });
     }
 
-    // Verify current password by attempting a sign-in
     const user = await User.get(req.user.id);
     const valid = await User.verifyPassword(user.email, currentPassword);
     if (!valid) {
@@ -304,9 +273,6 @@ exports.changePassword = async (req, res) => {
   }
 };
 
-// @desc    Forgot password (creates token in password_resets)
-// @route   POST /api/auth/forgot-password
-// @access  Public
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -331,9 +297,6 @@ exports.forgotPassword = async (req, res) => {
   }
 };
 
-// @desc    Reset password with token (updates via Supabase Auth)
-// @route   POST /api/auth/reset-password
-// @access  Public
 exports.resetPassword = async (req, res) => {
   try {
     const { token, newPassword } = req.body;

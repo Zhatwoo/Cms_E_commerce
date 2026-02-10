@@ -1,6 +1,6 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
-import { SettingsSection } from "../../_components/rightPanel/settings/SettingsSection";
+import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
 import { ColorInput } from "../../_components/rightPanel/settings/inputs/ColorInput";
 import type { PageProps, SetProp } from "../../_types";
@@ -19,7 +19,7 @@ export const PageSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
-      <SettingsSection title="Page">
+      <DesignSection title="Page">
         <div className="flex flex-col gap-3">
           <div className="flex flex-row gap-3">
             {/* Width */}
@@ -36,7 +36,7 @@ export const PageSettings = () => {
                     }
                   }}
                   onFocus={(e) => e.target.select()}
-                  className="w-full bg-transparent text-xs text-white p-2 focus:outline-none"
+                  className="w-full bg-transparent text-xs text-brand-lighter p-2 focus:outline-none"
                 />
                 <span className="text-[10px] text-brand-medium pr-2 select-none">px</span>
               </div>
@@ -54,7 +54,7 @@ export const PageSettings = () => {
                     typedSetProp((props) => { props.height = "1200px"; });
                   }
                 }}
-                className="w-full bg-brand-medium-dark rounded-lg text-xs text-white px-2.5 py-1.5 focus:outline-none appearance-none"
+                className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none appearance-none"
               >
                 <option value="auto">Auto</option>
                 <option value="fixed">Fixed</option>
@@ -80,7 +80,7 @@ export const PageSettings = () => {
             </div>
           </div>
         </div>
-      </SettingsSection>
+      </DesignSection>
     </div>
   );
 };

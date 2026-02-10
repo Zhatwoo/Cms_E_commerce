@@ -1,10 +1,8 @@
 const crypto = require('crypto');
-const { supabaseAdmin } = require('../config/supabase');
+const { db } = require('../config/firebase');
 
-const TABLE = 'password_resets';
+const COLLECTION = 'password_resets';
 const EXPIRY_HOURS = 1;
-
-function isNotFound(e) { return e && e.code === 'PGRST116'; }
 
 function generateToken() {
   return crypto.randomBytes(32).toString('hex');
@@ -12,38 +10,35 @@ function generateToken() {
 
 async function create(userId, email) {
   const token = generateToken();
-  const expires_at = new Date(Date.now() + EXPIRY_HOURS * 60 * 60 * 1000).toISOString();
+  const expires_at = new Date(Date.now() + EXPIRY_HOURS * 60 * 60 * 1000);
   const doc = {
     user_id: userId,
     email: email.toLowerCase(),
     token,
-    expires_at
+    expires_at,
+    created_at: new Date(),
   };
-  const { data: row, error } = await supabaseAdmin.from(TABLE).insert(doc).select('*').single();
-  if (error) throw error;
-  return { token, docId: row.id };
+  const ref = await db.collection(COLLECTION).add(doc);
+  return { token, docId: ref.id };
 }
 
 async function findByToken(token) {
-  const { data, error } = await supabaseAdmin
-    .from(TABLE).select('*')
-    .eq('token', token).limit(1).single();
-  if (isNotFound(error)) return null;
-  if (error) throw error;
-  // Return with camelCase keys for controller compat
+  const snap = await db.collection(COLLECTION).where('token', '==', token).limit(1).get();
+  if (snap.empty) return null;
+  const d = snap.docs[0].data();
+  const doc = snap.docs[0];
   return {
-    id: data.id,
-    userId: data.user_id,
-    email: data.email,
-    token: data.token,
-    expiresAt: data.expires_at,
-    createdAt: data.created_at
+    id: doc.id,
+    userId: d.user_id,
+    email: d.email,
+    token: d.token,
+    expiresAt: d.expires_at?.toDate?.()?.toISOString?.() || d.expires_at,
+    createdAt: d.created_at?.toDate?.()?.toISOString?.() || d.created_at,
   };
 }
 
 async function deleteByDocId(docId) {
-  const { error } = await supabaseAdmin.from(TABLE).delete().eq('id', docId);
-  if (error) throw error;
+  await db.collection(COLLECTION).doc(docId).delete();
 }
 
 module.exports = { create, findByToken, deleteByDocId, EXPIRY_HOURS };

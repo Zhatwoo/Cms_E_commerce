@@ -92,14 +92,14 @@ export default function PreviewPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans">
+    <div className="min-h-screen bg-[#0a0a0a] text-brand-lighter font-sans">
       {/* Top Bar */}
       <div className="sticky top-0 z-50 bg-[#0a0a0a]/90 backdrop-blur border-b border-white/10">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.back()}
-              className="flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors"
+              className="flex items-center gap-2 text-sm text-brand-light hover:text-brand-lighter transition-colors"
             >
               <ArrowLeft size={16} />
               Back to Editor
@@ -144,7 +144,7 @@ export default function PreviewPage() {
             <button
               onClick={() => setViewMode("clean")}
               className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "clean"
-                  ? "bg-white/10 text-white"
+                  ? "bg-white/10 text-brand-lighter"
                   : "text-zinc-500 hover:text-zinc-300"
                 }`}
             >
@@ -154,7 +154,7 @@ export default function PreviewPage() {
             <button
               onClick={() => setViewMode("raw")}
               className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "raw"
-                  ? "bg-white/10 text-white"
+                  ? "bg-white/10 text-brand-lighter"
                   : "text-zinc-500 hover:text-zinc-300"
                 }`}
             >
