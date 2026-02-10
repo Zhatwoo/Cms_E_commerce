@@ -241,18 +241,9 @@ export const EditorShell = () => {
             ) : (
               <Frame>
                 <Element is={Viewport} canvas>
-                  {/* Page 1 */}
+                  {/* Single empty page as starting point */}
                   <Element is={Page} canvas>
                     <Element is={Container} padding={40} background="#ffffff" canvas>
-                      <Text text="Page 1" fontSize={32} />
-                      <Text text="Subtitle here" fontSize={16} />
-                    </Element>
-                  </Element>
-
-                  {/* Page 2 */}
-                  <Element is={Page} canvas>
-                    <Element is={Container} padding={40} background="#ffffff" canvas>
-                      <Text text="Page 2" fontSize={32} />
                     </Element>
                   </Element>
                 </Element>
