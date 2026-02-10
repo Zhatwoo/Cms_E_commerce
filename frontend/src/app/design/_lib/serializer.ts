@@ -288,6 +288,8 @@ export function serializeCraftToClean(rawJson: string): BuilderDocument {
     throw new Error("Invalid Craft.js JSON: missing ROOT node");
   }
 
+  console.log('🔍 Serializer: ROOT nodes (Pages):', rootNode.nodes);
+
   const pages: PageNode[] = [];
   const nodes: Record<string, CleanNode> = {};
 
@@ -296,7 +298,10 @@ export function serializeCraftToClean(rawJson: string): BuilderDocument {
 
   for (const pageId of pageIds) {
     const pageRaw = raw[pageId];
-    if (!pageRaw || pageRaw.type.resolvedName !== "Page") continue;
+    if (!pageRaw || pageRaw.type.resolvedName !== "Page") {
+      console.warn('⚠️ Serializer: Skipping node in ROOT that is not a Page:', pageId);
+      continue;
+    }
 
     // Extract page
     pages.push({
@@ -308,6 +313,8 @@ export function serializeCraftToClean(rawJson: string): BuilderDocument {
     // Recursively process all descendant nodes
     processChildren(pageRaw.nodes, raw, nodes);
   }
+
+  console.log(`✅ Serializer: Processed ${pages.length} pages and ${Object.keys(nodes).length} unique nodes.`);
 
   return {
     version: 1,
@@ -326,10 +333,15 @@ function processChildren(
 ): void {
   for (const id of childIds) {
     const rawNode = raw[id];
-    if (!rawNode) continue;
+    if (!rawNode) {
+      console.warn(`⚠️ Serializer: Node ID ${id} not found in raw data!`);
+      continue;
+    }
 
     // Already processed (shared node)
     if (nodes[id]) continue;
+
+    console.log(`🔗 Serializer: Processing node ${id} (${rawNode.type.resolvedName})`);
 
     const type = rawNode.type.resolvedName as ComponentType;
 

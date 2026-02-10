@@ -11,6 +11,10 @@ exports.protect = async (req, res, next) => {
       ? req.headers.authorization.split(' ')[1]
       : null);
 
+  console.log('🛡️ Auth Middleware Hit');
+  console.log('   Cookies:', req.cookies ? Object.keys(req.cookies) : 'none');
+  console.log('   Token found:', !!token);
+
   if (!token) {
     return res.status(401).json({
       success: false,

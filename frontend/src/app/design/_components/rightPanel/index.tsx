@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { useEditor } from "@craftjs/core";
 import { useRouter } from "next/navigation";
 import { PanelRight, Play } from "lucide-react";
+import { serializeCraftToClean } from "../../_lib/serializer";
+import { autoSavePage } from "../../_lib/pageApi";
 
 type TabId = "design" | "settings" | "animation";
 
@@ -16,10 +18,11 @@ const TABS: Tab[] = [
   { id: "animation", label: "Animation" },
 ];
 
-const STORAGE_KEY = "craftjs_preview_json";
+const PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 
 export const RightPanel = () => {
   const [activeTab, setActiveTab] = useState<TabId>("design");
+  const [isPreviewing, setIsPreviewing] = useState(false);
   const router = useRouter();
 
   const { selected, query } = useEditor((state) => {
@@ -39,11 +42,30 @@ export const RightPanel = () => {
     return { selected };
   });
 
-  const handlePreview = () => {
-    const json = query.serialize();
-    sessionStorage.setItem(STORAGE_KEY, json);
-    // window.open("/design/preview", "_blank");
-    router.push("/design/preview");
+  const handlePreview = async () => {
+    try {
+      setIsPreviewing(true);
+      console.log('🔄 Preview triggered: Force-saving latest data...');
+
+      const json = query.serialize();
+      const rawCount = Object.keys(JSON.parse(json)).length;
+      console.log(`📊 Preview: Raw Craft.js has ${rawCount} nodes.`);
+
+      const cleanCode = serializeCraftToClean(json);
+      const cleanCount = Object.keys(cleanCode.nodes).length;
+      console.log(`📊 Preview: Clean output has ${cleanCount} nodes.`);
+
+      // Force save to DB before navigating
+      await autoSavePage(JSON.stringify(cleanCode), PROJECT_ID);
+
+      console.log('✅ Save complete, navigating to preview...');
+      router.push("/design/preview");
+    } catch (error) {
+      console.error('❌ Preview failed:', error);
+      alert('Failed to generate preview. Check console.');
+    } finally {
+      setIsPreviewing(false);
+    }
   };
 
   return (
@@ -56,10 +78,11 @@ export const RightPanel = () => {
         <h3 className="text-brand-lighter font-bold text-lg">Configs</h3>
         <button
           onClick={handlePreview}
-          className="p-1 rounded-lg hover:bg-brand-medium/40 transition-colors cursor-pointer"
+          disabled={isPreviewing}
+          className={`p-1 rounded-lg transition-colors cursor-pointer ${isPreviewing ? 'opacity-50 cursor-wait' : 'hover:bg-brand-medium/40'}`}
           title="Preview JSON output"
         >
-          <Play strokeWidth={2} className="text-brand-light w-5 h-5 hover:text-brand-lighter transition-colors" />
+          <Play strokeWidth={2} className={`w-5 h-5 transition-colors ${isPreviewing ? 'text-yellow-400 animate-pulse' : 'text-brand-light hover:text-brand-lighter'}`} />
         </button>
       </div>
 

@@ -142,3 +142,124 @@ exports.delete = async (req, res) => {
     });
   }
 };
+
+// @desc    Auto-save page content (upsert user's draft at specific path)
+// @route   POST /api/pages/autosave
+// @access  Private
+exports.autoSave = async (req, res) => {
+  console.log('👉 Controller: autoSave called for user:', req.user ? req.user.id : 'unknown');
+  try {
+    const { content, projectId } = req.body;
+    const userId = req.user.id;
+
+    if (content === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'Content is required'
+      });
+    }
+
+    if (!projectId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Project ID is required'
+      });
+    }
+
+    // Save to specific path: /user/roles/client/{userId}/projects/{projectId}/pages/{userId}
+    // Using userId as pageId as per requirement
+    const updated = await Page.savePageData(userId, projectId, userId, content);
+
+    console.log(`✅ Auto-saved to project ${projectId} for user ${userId}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Auto-saved',
+      data: updated
+    });
+  } catch (error) {
+    console.error('❌ Auto-save controller error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Auto-save failed',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get user's draft page from specific path
+// @route   GET /api/pages/draft
+// @access  Private
+exports.getDraft = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { projectId } = req.query;
+
+    if (!projectId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Project ID is required'
+      });
+    }
+
+    const draft = await Page.getPageData(userId, projectId, userId);
+
+    if (!draft) {
+      return res.status(200).json({
+        success: true,
+        data: null
+      });
+    }
+
+    // Ensure content is returned as string if it's an object,
+    // to match what frontend likely expects for JSON.parse, 
+    // OR send object and update frontend. 
+    // Plan says "Sanitization: Ensure content in Firestore is a nested Map... Frontend needs to handle this".
+    // I will return it as is (Object) and update frontend to handle it.
+
+    res.status(200).json({
+      success: true,
+      data: draft
+    });
+  } catch (error) {
+    console.error('❌ Get draft error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Delete user's draft page
+// @route   DELETE /api/pages/draft
+// @access  Private
+exports.deleteDraft = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { projectId } = req.query; // or body
+
+    if (!projectId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Project ID is required'
+      });
+    }
+
+    await Page.deletePageData(userId, projectId, userId);
+    console.log(`🗑️ Deleted draft for project ${projectId} user ${userId}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Draft deleted'
+    });
+  } catch (error) {
+    console.error('❌ Delete draft error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+

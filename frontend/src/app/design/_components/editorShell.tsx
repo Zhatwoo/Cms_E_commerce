@@ -9,8 +9,14 @@ import { Page } from "../_assets/Page/Page";
 import { Viewport } from "../_assets/Viewport/Viewport";
 import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
+import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
+import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
 
 const STORAGE_KEY = "craftjs_preview_json";
+// Project ID as per user's latest message
+const PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
+
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 /** Editor Shell */
 export const EditorShell = () => {
@@ -27,6 +33,7 @@ export const EditorShell = () => {
   const [scale, setScale] = useState(1);
   const [initialJson, setInitialJson] = useState<string | null | undefined>(undefined);
   const [panelsReady, setPanelsReady] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
 
   /** Returns true if the event target is an input, textarea, select, or contenteditable */
   const isEditableTarget = (target: EventTarget | null) => {
@@ -150,33 +157,84 @@ export const EditorShell = () => {
     }
   };
 
-  // Restore saved editor state from sessionStorage on mount
+  // Track if editor is fully loaded to prevent stale closure issues
+  const isReadyRef = useRef(false);
+
+  // Restore saved editor state from database on mount
   useEffect(() => {
-    const saved = sessionStorage.getItem(STORAGE_KEY);
-    if (!saved) {
-      setInitialJson(null);
-      return;
-    }
+    async function loadDraft() {
+      try {
+        console.log('📥 loadDraft starting...');
 
-    try {
-      const parsed = JSON.parse(saved);
-      const isValid =
-        parsed &&
-        typeof parsed === "object" &&
-        parsed.ROOT &&
-        parsed.ROOT.type; // confirms it's a Craft.js serialized node
+        // Try localStorage first as fallback
+        const sessionSaved = localStorage.getItem(STORAGE_KEY);
 
-      if (!isValid) {
-        sessionStorage.removeItem(STORAGE_KEY);
+        // Try to load from database
+        console.log('📡 Calling getDraft()...');
+        const result = await getDraft(PROJECT_ID);
+        console.log('📡 getDraft result:', result);
+
+        let contentToLoad: string | null = null;
+
+        // 1. Check Database
+        if (result.success && result.data && result.data.content) {
+          try {
+            let content = result.data.content;
+
+            // If it's a BuilderDocument (clean format), we need to deserialize it
+            if (content.version !== undefined && content.pages && content.nodes) {
+              const nodesCount = Object.keys(content.nodes).length;
+              console.log(`✨ Data is CLEAN format (version: ${content.version}), ${nodesCount} nodes found. Deserializing...`);
+              content = deserializeCleanToCraft(content);
+            } else if (typeof content === 'object') {
+              console.log('ℹ️ Data is OBJECT format but not recognized as CLEAN. Stringifying...');
+              content = JSON.stringify(content);
+            }
+
+            const parsed = JSON.parse(content);
+            if (parsed && parsed.ROOT) {
+              console.log(`✅ Loaded valid draft from DB (${Object.keys(parsed).length} internal nodes)`);
+              contentToLoad = content;
+              // Sync to localStorage
+              localStorage.setItem(STORAGE_KEY, contentToLoad!);
+            }
+          } catch (e) {
+            console.error('Failed to parse draft content:', e);
+          }
+        }
+
+        // 2. Check LocalStorage (Fallback)
+        if (!contentToLoad && sessionSaved) {
+          try {
+            const parsed = JSON.parse(sessionSaved);
+            if (parsed && parsed.ROOT) {
+              console.log('✅ Loaded valid draft from localStorage');
+              contentToLoad = sessionSaved;
+            }
+          } catch (e) {
+            localStorage.removeItem(STORAGE_KEY);
+          }
+        }
+
+        if (!contentToLoad) {
+          console.log('⚠️ No saved data found, expecting default');
+        }
+
+        setInitialJson(contentToLoad);
+
+        // IMPORTANT: Mark as ready immediately via Ref to avoid stale closures
+        // passing "undefined" to handleNodesChange
+        isReadyRef.current = true;
+        console.log('✅ Editor marked as READY via Ref');
+
+      } catch (error) {
+        console.error('❌ loadDraft Unexpected Error:', error);
         setInitialJson(null);
-        return;
+        isReadyRef.current = true; // Allow editing even if load failed
       }
-
-      setInitialJson(saved);
-    } catch {
-      sessionStorage.removeItem(STORAGE_KEY);
-      setInitialJson(null);
     }
+
+    loadDraft();
   }, []);
 
   // Defer panel rendering to avoid React setState-during-render warning
@@ -186,23 +244,70 @@ export const EditorShell = () => {
     return () => cancelAnimationFrame(id);
   }, [initialJson]);
 
-  // Auto-save editor state to sessionStorage (debounced)
+  // Handle Delete Data
+  const handleDeleteData = async () => {
+    if (!confirm("Are you sure you want to delete your progress? This cannot be undone.")) return;
+
+    console.log('🗑️ Deleting draft...');
+    const result = await deleteDraft(PROJECT_ID);
+
+    if (result.success) {
+      console.log('✅ Draft deleted');
+      localStorage.removeItem(STORAGE_KEY);
+      location.reload(); // Reload to reset editorstate
+    } else {
+      alert('Failed to delete draft: ' + result.error);
+    }
+  };
+
+  // Auto-save editor state to database (debounced)
   const handleNodesChange = useCallback(
     (query: { serialize: () => string }) => {
-      if (initialJson === undefined) return;
+      // Check Ref instead of State to avoid stale closure
+      if (!isReadyRef.current) {
+        // console.log('🛑 Aborting save: Editor not yet ready');
+        return;
+      }
+
+      // console.log('🖱️ handleNodesChange triggered! Saving...');
+
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = setTimeout(() => {
+
+      setSaveStatus('saving');
+
+      saveTimerRef.current = setTimeout(async () => {
         try {
           const next = query.serialize();
           const parsed = JSON.parse(next);
           if (!parsed?.ROOT) return;
-          sessionStorage.setItem(STORAGE_KEY, next);
-        } catch {
-          // Ignore storage errors (quota, private mode, etc.)
+
+          console.log('🔄 Serializing to CLEAN format...');
+          const cleanCode = serializeCraftToClean(next);
+
+          console.log('🔄 Auto-save executing (Clean Code)...');
+
+          // Save to localStorage as fallback (still store raw for editor internal load if needed, 
+          // or we can store clean and deserialize on load. Let's keep local as raw for safety
+          // or switch both to clean. Plan says store clean in DB.)
+          localStorage.setItem(STORAGE_KEY, next);
+
+          // Save CLEAN CODE to database
+          const result = await autoSavePage(JSON.stringify(cleanCode), PROJECT_ID);
+
+          if (result.success) {
+            setSaveStatus('saved');
+            setTimeout(() => setSaveStatus('idle'), 2000);
+          } else {
+            console.warn('Auto-save warning:', result.error);
+            setSaveStatus('error');
+          }
+        } catch (error) {
+          console.error('Auto-save error:', error);
+          setSaveStatus('error');
         }
-      }, 500);
+      }, 2000); // Debounce 2s
     },
-    [initialJson]
+    [] // No dependencies needed!
   );
 
   // Clean up debounce timer on unmount
@@ -282,10 +387,30 @@ export const EditorShell = () => {
 
         {/* Canvas Controls Overlay: ito yung nasa baba :> */}
         <div className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">
-          <div className="flex gap-4">
+          <div className="flex gap-4 items-center">
             <span>{Math.round(scale * 100)}%</span>
             <span>Space + Drag to Pan</span>
             <span>Ctrl + Scroll to Zoom</span>
+
+            {/* Delete Button */}
+            <button
+              onClick={handleDeleteData}
+              className="pointer-events-auto text-red-400 hover:text-red-300 transition-colors ml-2"
+              title="Delete stored data and reset"
+            >
+              🗑️ Reset Data
+            </button>
+
+            {saveStatus !== 'idle' && (
+              <span className={`${saveStatus === 'saving' ? 'text-yellow-400' :
+                saveStatus === 'saved' ? 'text-green-400' :
+                  'text-red-400'
+                }`}>
+                {saveStatus === 'saving' ? '💾 Saving...' :
+                  saveStatus === 'saved' ? '✓ Saved' :
+                    '⚠ Save failed'}
+              </span>
+            )}
           </div>
         </div>
 

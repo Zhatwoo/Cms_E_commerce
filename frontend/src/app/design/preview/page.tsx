@@ -3,9 +3,10 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { ArrowLeft, Copy, Check, Download, Layers, Braces } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { serializeCraftToClean } from "../_lib/serializer";
+import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
+import { getDraft } from "../_lib/pageApi";
 
-const STORAGE_KEY = "craftjs_preview_json";
+const PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 
 type ViewMode = "clean" | "raw";
 
@@ -14,16 +15,55 @@ export default function PreviewPage() {
   const [rawJson, setRawJson] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("clean");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (raw) setRawJson(raw);
+    async function loadData() {
+      try {
+        console.log(`📡 Preview: Fetching draft for Project: ${PROJECT_ID}...`);
+        const result = await getDraft(PROJECT_ID);
+
+        if (result.success && result.data) {
+          console.log('✅ Preview: API result success. Keys in data:', Object.keys(result.data));
+
+          if (result.data.content) {
+            let content = result.data.content;
+
+            // If already clean object, we still keep it as "rawJson" (as string) 
+            // for the rest of the existing preview logic to work (it formats it etc.)
+            if (typeof content === 'object') {
+              console.log('✨ Data is CLEAN format (version:', content.version, ')');
+              setRawJson(JSON.stringify(content));
+            } else {
+              setRawJson(content);
+            }
+            console.log('✅ Preview: Data loaded');
+          } else {
+            console.warn('⚠️ Preview: No content found in result data');
+          }
+        } else {
+          console.warn('⚠️ Preview: API success=false or no data found');
+        }
+      } catch (error) {
+        console.error('❌ Preview: Load error:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
   }, []);
 
-  // Compute clean document from raw Craft.js JSON
+  // Compute clean document
   const cleanDoc = useMemo(() => {
     if (!rawJson) return null;
     try {
+      const parsed = JSON.parse(rawJson);
+      // If it's already clean (BuilderDocument)
+      if (parsed.version !== undefined && parsed.pages && parsed.nodes) {
+        return parsed;
+      }
+      // Otherwise, it's raw Craft.js, serialize it
       return serializeCraftToClean(rawJson);
     } catch {
       return null;
@@ -38,7 +78,16 @@ export default function PreviewPage() {
   const rawFormatted = useMemo(() => {
     if (!rawJson) return null;
     try {
-      return JSON.stringify(JSON.parse(rawJson), null, 2);
+      const parsed = JSON.parse(rawJson);
+
+      // If the data from DB is already CLEAN (BuilderDocument),
+      // we must reconstruct the RAW (Craft.js) format for this specific view.
+      if (parsed.version !== undefined && parsed.pages && parsed.nodes) {
+        const reconstructedRaw = deserializeCleanToCraft(parsed);
+        return JSON.stringify(JSON.parse(reconstructedRaw), null, 2);
+      }
+
+      return JSON.stringify(parsed, null, 2);
     } catch {
       return rawJson;
     }
@@ -144,8 +193,8 @@ export default function PreviewPage() {
             <button
               onClick={() => setViewMode("clean")}
               className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "clean"
-                  ? "bg-white/10 text-brand-lighter"
-                  : "text-zinc-500 hover:text-zinc-300"
+                ? "bg-white/10 text-brand-lighter"
+                : "text-zinc-500 hover:text-zinc-300"
                 }`}
             >
               <Layers size={14} />
@@ -154,8 +203,8 @@ export default function PreviewPage() {
             <button
               onClick={() => setViewMode("raw")}
               className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "raw"
-                  ? "bg-white/10 text-brand-lighter"
-                  : "text-zinc-500 hover:text-zinc-300"
+                ? "bg-white/10 text-brand-lighter"
+                : "text-zinc-500 hover:text-zinc-300"
                 }`}
             >
               <Braces size={14} />
@@ -180,8 +229,8 @@ export default function PreviewPage() {
               <span className="text-emerald-400">{formatBytes(cleanMinBytes)}</span>
               <span
                 className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${reduction > 0
-                    ? "bg-emerald-500/10 text-emerald-400"
-                    : "bg-zinc-500/10 text-zinc-400"
+                  ? "bg-emerald-500/10 text-emerald-400"
+                  : "bg-zinc-500/10 text-zinc-400"
                   }`}
               >
                 -{reduction}%
@@ -191,7 +240,12 @@ export default function PreviewPage() {
         </div>
 
         {/* JSON Content */}
-        {activeJson ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center h-64 text-zinc-500">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mb-4"></div>
+            <p>Fetching latest clean data...</p>
+          </div>
+        ) : activeJson ? (
           <pre className="bg-[#111] rounded-xl border border-white/10 p-6 text-sm leading-relaxed overflow-auto max-h-[calc(100vh-200px)] font-mono text-zinc-300 whitespace-pre-wrap wrap-break-word">
             {activeJson}
           </pre>
