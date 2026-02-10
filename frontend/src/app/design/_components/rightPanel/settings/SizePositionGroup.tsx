@@ -30,23 +30,24 @@ export const SizePositionGroup = ({
   const [lastFixedWidth, setLastFixedWidth] = useState("200px");
   const [lastFixedHeight, setLastFixedHeight] = useState("200px");
 
-  // Helper for Width/Height modes
-  const getMode = (val: string) => {
-    if (val === "100%" || (val === "auto" && !val.includes("px"))) return "fill";
-    if (val === "fit-content") return "hug";
+  // Helper for Width/Height modes (val may be string or number from props)
+  const getMode = (val: string | number | undefined) => {
+    const s = String(val ?? "");
+    if (s === "100%" || (s === "auto" && !s.includes("px"))) return "fill";
+    if (s === "fit-content") return "hug";
     return "fixed";
   };
 
   // Sync last fixed values when props change and mode is fixed
   useEffect(() => {
     if (getMode(width) === "fixed") {
-      setLastFixedWidth(width);
+      setLastFixedWidth(typeof width === "string" ? width : `${width ?? 200}px`);
     }
   }, [width]);
 
   useEffect(() => {
     if (getMode(height) === "fixed") {
-      setLastFixedHeight(height);
+      setLastFixedHeight(typeof height === "string" ? height : `${height ?? 200}px`);
     }
   }, [height]);
 
@@ -155,10 +156,11 @@ export const SizePositionGroup = ({
     });
   };
 
-  // Helper render for Width/Height inputs
-  const renderSizeInput = (dim: "width" | "height", val: string, setLast: (v: string) => void) => {
-    const mode = getMode(val);
-    const numVal = val.replace("px", "");
+  // Helper render for Width/Height inputs (val may be string or number from props)
+  const renderSizeInput = (dim: "width" | "height", val: string | number | undefined, setLast: (v: string) => void) => {
+    const strVal = String(val ?? "");
+    const mode = getMode(strVal);
+    const numVal = strVal.replace("px", "");
 
     return (
       <div className="flex flex-col gap-1">
