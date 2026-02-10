@@ -3,10 +3,11 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { serializeCraftToClean } from "../_lib/serializer";
+import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
+import { getDraft } from "../_lib/pageApi";
 import { templateService } from "@/lib/templateService";
 
-const STORAGE_KEY = "craftjs_preview_json";
+const PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 
 type ViewMode = "clean" | "raw";
 
@@ -16,20 +17,59 @@ export default function PreviewPage() {
   const [copied, setCopied] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("clean");
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [templateName, setTemplateName] = useState("");
   const [templateCategory, setTemplateCategory] = useState("Landing Page");
   const [templateDescription, setTemplateDescription] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (raw) setRawJson(raw);
+    async function loadData() {
+      try {
+        console.log(`📡 Preview: Fetching draft for Project: ${PROJECT_ID}...`);
+        const result = await getDraft(PROJECT_ID);
+
+        if (result.success && result.data) {
+          console.log('✅ Preview: API result success. Keys in data:', Object.keys(result.data));
+
+          if (result.data.content) {
+            let content = result.data.content;
+
+            // If already clean object, we still keep it as "rawJson" (as string) 
+            // for the rest of the existing preview logic to work (it formats it etc.)
+            if (typeof content === 'object') {
+              console.log('✨ Data is CLEAN format (version:', content.version, ')');
+              setRawJson(JSON.stringify(content));
+            } else {
+              setRawJson(content);
+            }
+            console.log('✅ Preview: Data loaded');
+          } else {
+            console.warn('⚠️ Preview: No content found in result data');
+          }
+        } else {
+          console.warn('⚠️ Preview: API success=false or no data found');
+        }
+      } catch (error) {
+        console.error('❌ Preview: Load error:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
   }, []);
 
-  // Compute clean document from raw Craft.js JSON
+  // Compute clean document
   const cleanDoc = useMemo(() => {
     if (!rawJson) return null;
     try {
+      const parsed = JSON.parse(rawJson);
+      // If it's already clean (BuilderDocument)
+      if (parsed.version !== undefined && parsed.pages && parsed.nodes) {
+        return parsed;
+      }
+      // Otherwise, it's raw Craft.js, serialize it
       return serializeCraftToClean(rawJson);
     } catch {
       return null;
@@ -44,7 +84,16 @@ export default function PreviewPage() {
   const rawFormatted = useMemo(() => {
     if (!rawJson) return null;
     try {
-      return JSON.stringify(JSON.parse(rawJson), null, 2);
+      const parsed = JSON.parse(rawJson);
+
+      // If the data from DB is already CLEAN (BuilderDocument),
+      // we must reconstruct the RAW (Craft.js) format for this specific view.
+      if (parsed.version !== undefined && parsed.pages && parsed.nodes) {
+        const reconstructedRaw = deserializeCleanToCraft(parsed);
+        return JSON.stringify(JSON.parse(reconstructedRaw), null, 2);
+      }
+
+      return JSON.stringify(parsed, null, 2);
     } catch {
       return rawJson;
     }
@@ -236,7 +285,12 @@ export default function PreviewPage() {
         </div>
 
         {/* JSON Content */}
-        {activeJson ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center h-64 text-zinc-500">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mb-4"></div>
+            <p>Fetching latest clean data...</p>
+          </div>
+        ) : activeJson ? (
           <pre className="bg-[#111] rounded-xl border border-white/10 p-6 text-sm leading-relaxed overflow-auto max-h-[calc(100vh-200px)] font-mono text-zinc-300 whitespace-pre-wrap wrap-break-word">
             {activeJson}
           </pre>
