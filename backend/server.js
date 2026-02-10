@@ -3,15 +3,21 @@ const path = require('path');
 const fs = require('fs');
 
 // Load backend/.env manually (works even when dotenv fails with encoding/special chars)
+// Try .env first, then .env.local if .env is missing or empty
 const envPath = path.resolve(__dirname, '.env');
-if (!fs.existsSync(envPath)) {
-  console.error('❌ .env file not found at:', envPath);
-  process.exit(1);
+const envLocalPath = path.resolve(__dirname, '.env.local');
+let envContent = '';
+if (fs.existsSync(envPath)) {
+  envContent = fs.readFileSync(envPath, 'utf8') || '';
 }
-const envContent = fs.readFileSync(envPath, 'utf8');
 if (!envContent || envContent.trim().length === 0) {
-  console.error('❌ .env file is empty. Add JWT_SECRET, FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY (e.g. backend/.env).');
-  process.exit(1);
+  if (fs.existsSync(envLocalPath)) {
+    envContent = fs.readFileSync(envLocalPath, 'utf8') || '';
+  }
+  if (!envContent || envContent.trim().length === 0) {
+    console.error('❌ .env file is empty or missing. Add JWT_SECRET, FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY to backend/.env or backend/.env.local');
+    process.exit(1);
+  }
 }
 // Parse .env with support for multi-line quoted values (e.g. FIREBASE_PRIVATE_KEY)
 const lines = envContent.split(/\r?\n/);
@@ -25,7 +31,10 @@ while (i < lines.length) {
   const key = trimmed.slice(0, eq).trim();
   let value = trimmed.slice(eq + 1).trim();
   const quote = value.startsWith('"') ? '"' : value.startsWith("'") ? "'" : null;
-  if (quote && (value.length === 1 || !value.endsWith(quote))) {
+  // Find the last occurrence of the quote char; handle trailing chars like commas (JSON copy-paste)
+  const lastQuoteIdx = quote ? value.lastIndexOf(quote) : -1;
+  const isClosedOnSameLine = quote && lastQuoteIdx > 0;
+  if (quote && !isClosedOnSameLine) {
     // Multi-line: collect lines until closing quote
     value = value.slice(1);
     while (i < lines.length) {
@@ -39,14 +48,18 @@ while (i < lines.length) {
       }
       value += '\n' + next;
     }
-  } else if (quote && value.endsWith(quote)) {
-    value = value.slice(1, -1);
+  } else if (isClosedOnSameLine) {
+    value = value.slice(1, lastQuoteIdx);
     i++;
   } else {
     i++;
   }
   if (quote) value = value.replace(/\\n/g, '\n');
   process.env[key] = value;
+}
+// Use Web API key for login if FIREBASE_API_KEY not set (auth uses either)
+if (!(process.env.FIREBASE_API_KEY || '').trim() && (process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '').trim()) {
+  process.env.FIREBASE_API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 }
 const { validateEnv } = require('./config/env');
 validateEnv();
