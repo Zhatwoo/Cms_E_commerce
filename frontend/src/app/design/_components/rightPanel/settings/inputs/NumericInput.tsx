@@ -113,7 +113,7 @@ export const NumericInput = ({
         onBlur={handleBlur}
         onFocus={handleFocus}
         onKeyDown={handleKeyDown}
-        className="w-full bg-transparent text-xs text-white p-1.5 focus:outline-none"
+        className="w-full bg-transparent text-xs text-brand-lighter p-1.5 focus:outline-none"
       />
       {unit && <span className="text-[10px] text-brand-lighter font-base pr-2 select-none">{unit}</span>}
 

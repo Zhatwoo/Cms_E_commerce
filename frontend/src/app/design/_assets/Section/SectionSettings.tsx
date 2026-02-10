@@ -1,6 +1,6 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
-import { SettingsSection } from "../../_components/rightPanel/settings/SettingsSection";
+import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { AutoLayoutGroup } from "../../_components/rightPanel/settings/AutoLayoutGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
@@ -58,7 +58,7 @@ export const SectionSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
-      <SettingsSection title="Auto Layout">
+      <DesignSection title="Auto Layout">
         <AutoLayoutGroup
           flexDirection={flexDirection}
           flexWrap={flexWrap}
@@ -67,9 +67,9 @@ export const SectionSettings = () => {
           gap={gap}
           setProp={typedSetProp}
         />
-      </SettingsSection>
+      </DesignSection>
 
-      <SettingsSection title="Size & Spacing">
+      <DesignSection title="Size & Spacing">
         <SizePositionGroup
           width={width}
           height={height}
@@ -83,9 +83,9 @@ export const SectionSettings = () => {
           marginBottom={marginBottom}
           setProp={typedSetProp}
         />
-      </SettingsSection>
+      </DesignSection>
 
-      <SettingsSection title="Appearance">
+      <DesignSection title="Appearance">
         <AppearanceGroup
           background={background}
           backgroundImage={backgroundImage}
@@ -102,16 +102,16 @@ export const SectionSettings = () => {
           radiusBottomLeft={radiusBottomLeft}
           setProp={typedSetProp}
         />
-      </SettingsSection>
+      </DesignSection>
 
-      <SettingsSection title="Effects" defaultOpen={false}>
+      <DesignSection title="Effects" defaultOpen={false}>
         <EffectsGroup
           opacity={opacity}
           boxShadow={boxShadow}
           overflow={overflow}
           setProp={typedSetProp}
         />
-      </SettingsSection>
+      </DesignSection>
     </div>
   );
 };

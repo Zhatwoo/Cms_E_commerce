@@ -83,7 +83,7 @@ export const SizePositionGroup = ({
           <label className="text-[10px] text-brand-lighter">{label}</label>
           <button
             onClick={() => setExpanded(!expanded)}
-            className={`p-0.5 rounded ${expanded ? "bg-brand-light text-brand-dark" : "text-brand-medium hover:text-white"}`}
+            className={`p-0.5 rounded ${expanded ? "bg-brand-light text-brand-dark" : "text-brand-medium hover:text-brand-lighter"}`}
           >
             <Move size={12} />
           </button>
@@ -180,7 +180,7 @@ export const SizePositionGroup = ({
                 e.currentTarget.blur();
               }
             }}
-            className={`w-full bg-transparent text-xs p-1.5 focus:outline-none ${mode !== "fixed" ? "text-brand-light" : "text-white"}`}
+            className={`w-full bg-transparent text-xs p-1.5 focus:outline-none ${mode !== "fixed" ? "text-brand-light" : "text-brand-lighter"}`}
           />
           <div className="w-px h-4 bg-brand-medium mx-1" />
 

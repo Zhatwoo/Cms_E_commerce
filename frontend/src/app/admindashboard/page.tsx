@@ -26,7 +26,9 @@ export default function AdminDashboardPage() {
             {/* Main Content */}
             <div className="flex-1 flex flex-col min-h-screen">
                 <AdminHeader />
-                <AdminDashboard />
+                <div className="flex-1">
+                    <AdminDashboard />
+                </div>
             </div>
         </div>
     );

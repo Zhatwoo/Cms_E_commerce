@@ -74,7 +74,7 @@ export const GridLayoutGroup = ({
             if (e.key === "Enter") e.currentTarget.blur();
           }}
           placeholder="e.g. 1fr 2fr 1fr"
-          className="w-full bg-brand-medium-dark rounded-lg text-xs text-white px-2.5 py-1.5 focus:outline-none placeholder:text-brand-medium mt-1"
+          className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none placeholder:text-brand-medium mt-1"
         />
       </div>
 
@@ -93,7 +93,7 @@ export const GridLayoutGroup = ({
             if (e.key === "Enter") e.currentTarget.blur();
           }}
           placeholder="e.g. auto 200px 1fr"
-          className="w-full bg-brand-medium-dark rounded-lg text-xs text-white px-2.5 py-1.5 focus:outline-none placeholder:text-brand-medium"
+          className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none placeholder:text-brand-medium"
         />
       </div>
 
@@ -114,7 +114,7 @@ export const GridLayoutGroup = ({
             if (e.key === "Enter") e.currentTarget.blur();
           }}
           placeholder="e.g. minmax(100px, auto)"
-          className="w-full bg-brand-medium-dark rounded-lg text-xs text-white px-2.5 py-1.5 focus:outline-none placeholder:text-brand-medium"
+          className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none placeholder:text-brand-medium"
         />
       </div>
 
@@ -130,7 +130,7 @@ export const GridLayoutGroup = ({
               props.gridAutoFlow = e.target.value as GridProps["gridAutoFlow"];
             })
           }
-          className="w-full bg-brand-medium-dark rounded-lg text-xs text-white px-2.5 py-1.5 focus:outline-none appearance-none"
+          className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none appearance-none"
         >
           {AUTO_FLOW_OPTIONS.map((opt) => (
             <option
