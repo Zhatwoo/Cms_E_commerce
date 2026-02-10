@@ -8,6 +8,7 @@ import { Text } from "../_assets/Text/Text";
 import { Page } from "../_assets/Page/Page";
 import { Viewport } from "../_assets/Viewport/Viewport";
 import { RenderNode } from "./RenderNode";
+import { KeyboardShortcuts } from "./KeyboardShortcuts";
 
 const STORAGE_KEY = "craftjs_preview_json";
 
@@ -218,6 +219,8 @@ export const EditorShell = () => {
         onRender={RenderNode}
         onNodesChange={handleNodesChange}
       >
+        <KeyboardShortcuts />
+
         {/* Canvas Area (Background) */}
         <div
           ref={containerRef}
