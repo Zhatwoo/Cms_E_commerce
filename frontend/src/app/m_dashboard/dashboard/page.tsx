@@ -1,11 +1,11 @@
 'use client';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { motion, type Variants } from 'framer-motion';
-import CreateSite from './components/CreateSite';
-import TemplatesLibrary from './components/TemplatesLibrary';
-import ActivityFeed from './components/ActivityFeed';
-import { useTheme, THEMES } from './components/theme-context';
+import CreateSite from '../components/CreateSite';
+import TemplatesLibrary from '../components/TemplatesLibrary';
+import ActivityFeed from '../components/ActivityFeed';
+import { useTheme, THEMES } from '../components/theme-context';
 
 // ── Icons (unchanged) ────────────────────────────────────────────────────────
 const BriefcaseIcon = () => (
