@@ -1,12 +1,14 @@
 import React, { useRef, useState, useEffect, useLayoutEffect, useCallback } from "react";
 import { Editor, Frame, Element } from "@craftjs/core";
-import { RenderBlocks } from "../_assets";
+import { RenderBlocks } from "../_designComponents";
 import { LeftPanel } from "./leftPanel";
 import { RightPanel } from "./rightPanel";
-import { Container } from "../_assets/Container/Container";
-import { Text } from "../_assets/Text/Text";
-import { Page } from "../_assets/Page/Page";
-import { Viewport } from "../_assets/Viewport/Viewport";
+import { Container } from "../_designComponents/Container/Container";
+import { Text } from "../_designComponents/Text/Text";
+import { Page } from "../_designComponents/Page/Page";
+import { Viewport } from "../_designComponents/Viewport/Viewport";
+import { Section } from "../_designComponents/Section/Section";
+import { Button } from "../_designComponents/Button/Button";
 import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 
