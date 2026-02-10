@@ -2,7 +2,7 @@
 import React from 'react';
 import { useTheme } from './components/theme-context';
 import { useAuth } from './components/auth-context';
-import { DashboardContent } from './dashboard';
+import { DashboardContent } from './dashboard/page';
 
 export default function MDashboardPage() {
     const { user } = useAuth();
