@@ -8,7 +8,7 @@ The template system consists of three main parts:
 
 1. **Web Builder** (`/design`) - Creates templates using Craft.js
 2. **Template Service** (`/lib/templateService.ts`) - Manages template storage
-3. **Template Gallery** (`/m_dashboard/templates`) - Displays saved templates
+3. **Web Builder Hub** (`/m_dashboard/web-builder`) - Displays saved templates and provides options to start from scratch or use templates
 
 ## How It Works
 
@@ -111,7 +111,7 @@ interface CleanNode {
 
 - **Web Builder**: `/frontend/src/app/design/`
 - **Template Service**: `/frontend/src/lib/templateService.ts`
-- **Template Gallery**: `/frontend/src/app/m_dashboard/templates/`
+- **Web Builder Hub**: `/frontend/src/app/m_dashboard/web-builder/`
 - **Serializer**: `/frontend/src/app/design/_lib/serializer.ts`
 
 ## Usage Examples

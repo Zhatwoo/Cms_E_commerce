@@ -20,6 +20,9 @@ export default function CreateSite({ show = false, onClose, onCreate }: Props) {
     if (onCreate) onCreate(payload);
     else console.log('CreateSite:', payload);
     if (onClose) onClose();
+
+    // Redirect to web-builder page
+    window.location.href = '/m_dashboard/web-builder';
   };
 
   return (
