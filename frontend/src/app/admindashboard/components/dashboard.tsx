@@ -247,20 +247,6 @@ export function AdminDashboard() {
                                         <h2 className="text-lg font-semibold text-slate-900">Notifications</h2>
                                     </div>
                                 </div>
-                                <div className="flex flex-wrap gap-2 mb-4">
-                                    {['System', 'Users', 'Billing', 'Security'].map((filter) => (
-                                        <button
-                                            key={filter}
-                                            className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition-colors ${
-                                                filter === 'System'
-                                                    ? 'border-slate-900 bg-slate-900 text-white'
-                                                    : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                                            }`}
-                                        >
-                                            {filter}
-                                        </button>
-                                    ))}
-                                </div>
                                 <div className="space-y-2">
                                     {notifications.map((notif, idx) => (
                                         <motion.div
