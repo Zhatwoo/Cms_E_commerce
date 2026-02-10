@@ -116,8 +116,8 @@ export default function PreviewPage() {
         setShowSaveDialog(false);
         setTemplateName("");
         setTemplateDescription("");
-        // Navigate to templates page
-        router.push("/m_dashboard/templates");
+        // Navigate to web-builder page
+        router.push("/m_dashboard/web-builder");
       } else {
         alert("Failed to save template. Please try again.");
       }

@@ -1,15 +1,14 @@
-// c:\Users\echob\OJT\Cms_E_commerce\frontend\src\app\m_dashboard\templates\page.tsx
-
 'use client';
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../components/theme-context';
+import { useRouter } from 'next/navigation';
 import DomeGallery from '../components/DomeGallery';
 import { templateService, Template as FullTemplate } from '@/lib/templateService';
 
 // Template interface for DomeGallery compatibility
 interface GalleryTemplate {
-  id: string | number; // Allow both string and number IDs
+  id: string | number;
   title: string;
   category: string;
   desc: string;
@@ -29,7 +28,12 @@ const convertToGalleryTemplate = (template: FullTemplate): GalleryTemplate => ({
 
 const CATEGORIES = ['All', 'E-commerce', 'Blog', 'Portfolio', 'Landing Page'];
 
-const TemplateCard = ({ template, colors, onPreview, onUseTemplate }: { template: GalleryTemplate; colors: any; onPreview: (t: GalleryTemplate) => void; onUseTemplate: (t: GalleryTemplate) => void }) => (
+const TemplateCard = ({ template, colors, onPreview, onUseTemplate }: { 
+  template: GalleryTemplate; 
+  colors: any; 
+  onPreview: (t: GalleryTemplate) => void; 
+  onUseTemplate: (t: GalleryTemplate) => void; 
+}) => (
   <div
     className="group relative rounded-2xl border overflow-hidden flex flex-col shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full"
     style={{
@@ -105,8 +109,17 @@ const TemplateCard = ({ template, colors, onPreview, onUseTemplate }: { template
   </div>
 );
 
-
-const PreviewModal = ({ template, colors, onClose, onUseTemplate }: { template: GalleryTemplate; colors: any; onClose: () => void; onUseTemplate: (t: GalleryTemplate) => void }) => (
+const PreviewModal = ({ 
+  template, 
+  colors, 
+  onClose, 
+  onUseTemplate 
+}: { 
+  template: GalleryTemplate; 
+  colors: any; 
+  onClose: () => void; 
+  onUseTemplate: (t: GalleryTemplate) => void; 
+}) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
@@ -159,8 +172,9 @@ const PreviewModal = ({ template, colors, onClose, onUseTemplate }: { template: 
   </div>
 );
 
-export default function TemplatesPage() {
+export default function WebBuilderPage() {
   const { colors, theme } = useTheme();
+  const router = useRouter();
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [previewTemplate, setPreviewTemplate] = useState<GalleryTemplate | null>(null);
   const [templates, setTemplates] = useState<GalleryTemplate[]>([]);
@@ -194,6 +208,13 @@ export default function TemplatesPage() {
     }
   };
 
+  const handleStartBlank = () => {
+    // Clear any existing design data
+    sessionStorage.removeItem('craftjs_preview_json');
+    console.log('Cleared sessionStorage, navigating to /design');
+    window.location.href = '/design';
+  };
+
   const filteredTemplates = templates.filter(
     (t: GalleryTemplate) => selectedCategory === 'All' || t.category === selectedCategory
   );
@@ -204,89 +225,181 @@ export default function TemplatesPage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight" style={{ color: colors.text.primary }}>
-            Template Library
+            Web Builder
           </h1>
           <p className="mt-2 text-base max-w-2xl" style={{ color: colors.text.secondary }}>
-            Jumpstart your next project with our professionally designed templates.
-            Fully customizable and optimized for performance.
+            Choose how you want to start building your website. Start from scratch with a blank canvas or use one of our professionally designed templates.
           </p>
         </div>
-        <button
-          className="px-5 py-2.5 rounded-xl text-sm font-medium transition-all shadow-lg hover:shadow-xl active:scale-95"
+      </div>
+
+      {/* Start Options */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Blank Design Option */}
+        <motion.div
+          className="relative rounded-2xl border overflow-hidden p-8 cursor-pointer group"
           style={{
-            backgroundColor: theme === 'dark' ? '#fff' : '#000',
-            color: theme === 'dark' ? '#000' : '#fff'
+            backgroundColor: colors.bg.card,
+            borderColor: colors.border.faint,
           }}
+          whileHover={{ scale: 1.02, y: -4 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={handleStartBlank}
         >
-          Request a Template
-        </button>
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+          
+          <div className="relative z-10">
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: colors.bg.elevated }}>
+              <svg className="w-8 h-8" style={{ color: colors.text.primary }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </div>
+            
+            <h3 className="text-xl font-semibold mb-2" style={{ color: colors.text.primary }}>
+              Start from Scratch
+            </h3>
+            <p className="text-sm mb-4" style={{ color: colors.text.secondary }}>
+              Create your design from a blank canvas with complete creative freedom.
+            </p>
+            
+            <div className="inline-flex items-center gap-2 text-sm font-medium" style={{ color: colors.status.info }}>
+              Start Building
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Use Template Option */}
+        <motion.div
+          className="relative rounded-2xl border overflow-hidden p-8 cursor-pointer group"
+          style={{
+            backgroundColor: colors.bg.card,
+            borderColor: colors.border.faint,
+          }}
+          whileHover={{ scale: 1.02, y: -4 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => document.getElementById('templates-section')?.scrollIntoView({ behavior: 'smooth' })}
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+          
+          <div className="relative z-10">
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: colors.bg.elevated }}>
+              <svg className="w-8 h-8" style={{ color: colors.text.primary }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+            </div>
+            
+            <h3 className="text-xl font-semibold mb-2" style={{ color: colors.text.primary }}>
+              Use a Template
+            </h3>
+            <p className="text-sm mb-4" style={{ color: colors.text.secondary }}>
+              Jumpstart your project with professionally designed templates.
+            </p>
+            
+            <div className="inline-flex items-center gap-2 text-sm font-medium" style={{ color: colors.status.info }}>
+              Browse Templates
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+        </motion.div>
       </div>
 
-      {/* Featured Carousel */}
-      <div className="w-full overflow-hidden py-2">
-        <div className="mb-4">
-          <h2 className="text-lg font-semibold" style={{ color: colors.text.primary }}>Featured & Popular</h2>
+      {/* Templates Section */}
+      <div id="templates-section" className="space-y-8">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight" style={{ color: colors.text.primary }}>
+            Choose a Template
+          </h2>
+          <p className="mt-2 text-base" style={{ color: colors.text.secondary }}>
+            Select a template to get started quickly. All templates are fully customizable.
+          </p>
         </div>
-        <DomeGallery templates={templates} colors={colors} onPreview={(template: GalleryTemplate) => setPreviewTemplate(template)} onUseTemplate={handleUseTemplate} />
-      </div>
 
-      {/* Filter Tabs */}
-      <div className="flex flex-wrap gap-2 pb-2 border-b" style={{ borderColor: colors.border.faint }}>
-        {CATEGORIES.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setSelectedCategory(cat)}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedCategory === cat ? 'shadow-md' : 'hover:opacity-70'
-              }`}
-            style={{
-              backgroundColor: selectedCategory === cat ? colors.bg.elevated : 'transparent',
-              color: selectedCategory === cat ? colors.text.primary : colors.text.muted,
-              border: `1px solid ${selectedCategory === cat ? colors.border.default : 'transparent'}`
-            }}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
+        {/* Featured Carousel */}
+        <div className="w-full overflow-hidden py-2">
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold" style={{ color: colors.text.primary }}>Featured & Popular</h3>
+          </div>
+          <DomeGallery 
+            templates={templates} 
+            colors={colors} 
+            onPreview={(template: GalleryTemplate) => setPreviewTemplate(template)} 
+            onUseTemplate={handleUseTemplate} 
+          />
+        </div>
 
-      {/* Grid */}
-      <motion.div
-        layout
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-      >
-        <AnimatePresence mode='popLayout'>
-          {filteredTemplates.map((template: GalleryTemplate) => (
-            <motion.div
-              layout
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.2 }}
-              key={template.id}
+        {/* Filter Tabs */}
+        <div className="flex flex-wrap gap-2 pb-2 border-b" style={{ borderColor: colors.border.faint }}>
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedCategory === cat ? 'shadow-md' : 'hover:opacity-70'
+                }`}
+              style={{
+                backgroundColor: selectedCategory === cat ? colors.bg.elevated : 'transparent',
+                color: selectedCategory === cat ? colors.text.primary : colors.text.muted,
+                border: `1px solid ${selectedCategory === cat ? colors.border.default : 'transparent'}`
+              }}
             >
-              <TemplateCard template={template} colors={colors} onPreview={setPreviewTemplate} onUseTemplate={handleUseTemplate} />
-            </motion.div>
+              {cat}
+            </button>
           ))}
-        </AnimatePresence>
-      </motion.div>
-
-      {filteredTemplates.length === 0 && (
-        <div className="text-center py-20">
-          <p style={{ color: colors.text.muted }}>No templates found for this category.</p>
-          <button
-            onClick={() => setSelectedCategory('All')}
-            className="mt-4 text-sm hover:underline"
-            style={{ color: colors.status.info }}
-          >
-            Clear filters
-          </button>
         </div>
-      )}
+
+        {/* Grid */}
+        <motion.div
+          layout
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+        >
+          <AnimatePresence mode='popLayout'>
+            {filteredTemplates.map((template: GalleryTemplate) => (
+              <motion.div
+                layout
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.2 }}
+                key={template.id}
+              >
+                <TemplateCard 
+                  template={template} 
+                  colors={colors} 
+                  onPreview={setPreviewTemplate} 
+                  onUseTemplate={handleUseTemplate} 
+                />
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </motion.div>
+
+        {filteredTemplates.length === 0 && (
+          <div className="text-center py-20">
+            <p style={{ color: colors.text.muted }}>No templates found for this category.</p>
+            <button
+              onClick={() => setSelectedCategory('All')}
+              className="mt-4 text-sm hover:underline"
+              style={{ color: colors.status.info }}
+            >
+              Clear filters
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Preview Modal */}
       <AnimatePresence>
         {previewTemplate && (
-          <PreviewModal template={previewTemplate} colors={colors} onClose={() => setPreviewTemplate(null)} onUseTemplate={handleUseTemplate} />
+          <PreviewModal 
+            template={previewTemplate} 
+            colors={colors} 
+            onClose={() => setPreviewTemplate(null)} 
+            onUseTemplate={handleUseTemplate} 
+          />
         )}
       </AnimatePresence>
     </section>
