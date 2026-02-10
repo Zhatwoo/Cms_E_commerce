@@ -7,6 +7,8 @@ import { Container } from "../_designComponents/Container/Container";
 import { Text } from "../_designComponents/Text/Text";
 import { Page } from "../_designComponents/Page/Page";
 import { Viewport } from "../_designComponents/Viewport/Viewport";
+import { Section } from "../_designComponents/Section/Section";
+import { Button } from "../_designComponents/Button/Button";
 import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 
@@ -241,18 +243,31 @@ export const EditorShell = () => {
             ) : (
               <Frame>
                 <Element is={Viewport} canvas>
-                  {/* Page 1 */}
+                  {/* Page 1 — Portfolio hero sample*/}
                   <Element is={Page} canvas>
-                      <Element is={Container} padding={40} background="#F4F4F6" canvas>
-                      <Text text="Welcome SenpaiAdri" fontSize={32} />
-                      <Text text="Check components panel to start building your page" fontSize={16} />
+                    <Element is={Section} padding={80} background="#0f172a" alignItems="center" justifyContent="center" gap={32} canvas>
+                      <Element is={Container} padding={40} background="transparent" gap={24} canvas>
+                        <Element is={Text} text="Hi, I'm SenpaiAdri" fontSize={48} fontWeight="700" color="#f8fafc" textAlign="center" />
+                        <Element is={Text} text="Designer & Developer" fontSize={20} color="#94a3b8" textAlign="center" />
+                        <Element is={Text} text="I craft interfaces and experiences. Use the components panel to build your page." fontSize={16} color="#cbd5e1" textAlign="center" />
+                        <Element is={Button} label="View work" variant="primary" />
+                      </Element>
+                    </Element>
+                    <Element is={Section} padding={48} background="#f8fafc" alignItems="center" gap={16} canvas>
+                      <Element is={Container} padding={24} background="transparent" gap={8} canvas>
+                        <Element is={Text} text="Featured work" fontSize={12} color="#64748b" textTransform="uppercase" letterSpacing={2} textAlign="center" />
+                        <Element is={Text} text="Select components to edit. Drag from the panel to add more." fontSize={16} color="#475569" textAlign="center" />
+                      </Element>
                     </Element>
                   </Element>
 
-                  {/* Page 2 */}
+                  {/* Page 2 — About / second section */}
                   <Element is={Page} canvas>
-                      <Element is={Container} padding={40} background="#F4F4F6" canvas>
-                      <Text text="This section is a page" fontSize={32} />
+                    <Element is={Section} padding={80} background="#1e293b" alignItems="center" justifyContent="center" gap={24} canvas>
+                      <Element is={Container} padding={40} background="transparent" gap={16} canvas>
+                        <Element is={Text} text="About" fontSize={32} fontWeight="600" color="#f8fafc" textAlign="center" />
+                        <Element is={Text} text="This is your second page. Add sections, rows, and columns from the component panel." fontSize={16} color="#94a3b8" textAlign="center" />
+                      </Element>
                     </Element>
                   </Element>
                 </Element>
