@@ -1,13 +1,13 @@
 import React from "react";
 import { useEditor, Element } from "@craftjs/core";
-import { Container } from "../../_assets/Container/Container";
-import { Text } from "../../_assets/Text/Text";
-import { Image } from "../../_assets/Image/Image";
-import { Button } from "../../_assets/Button/Button";
-import { Divider } from "../../_assets/Divider/Divider";
-import { Section } from "../../_assets/Section/Section";
-import { Row } from "../../_assets/Row/Row";
-import { Column } from "../../_assets/Column/Column";
+import { Container } from "../../_designComponents/Container/Container";
+import { Text } from "../../_designComponents/Text/Text";
+import { Image } from "../../_designComponents/Image/Image";
+import { Button } from "../../_designComponents/Button/Button";
+import { Divider } from "../../_designComponents/Divider/Divider";
+import { Section } from "../../_designComponents/Section/Section";
+import { Row } from "../../_designComponents/Row/Row";
+import { Column } from "../../_designComponents/Column/Column";
 
 interface TemplateEntry {
   label: string;
@@ -100,16 +100,16 @@ const TEMPLATES: TemplateEntry[] = [
           canvas
         >
           <Element is={Column as any} canvas>
-            <Text 
-              text="Welcome to Our Platform" 
-              fontSize={48} 
-              fontWeight="bold" 
-              color="#1e293b" 
+            <Text
+              text="Welcome to Our Platform"
+              fontSize={48}
+              fontWeight="bold"
+              color="#1e293b"
             />
-            <Text 
-              text="Build amazing websites with our drag-and-drop editor. No coding required." 
-              fontSize={18} 
-              color="#64748b" 
+            <Text
+              text="Build amazing websites with our drag-and-drop editor. No coding required."
+              fontSize={18}
+              color="#64748b"
             />
             <Element is={Row as any} canvas>
               <Button label="Get Started" backgroundColor="#3b82f6" textColor="#ffffff" fontSize={16} />
@@ -135,21 +135,21 @@ const TEMPLATES: TemplateEntry[] = [
         >
           <Element is={Row as any} canvas>
             <Element is={Column as any} canvas>
-              <Text 
-                text="Create Beautiful Websites" 
-                fontSize={40} 
-                fontWeight="bold" 
-                color="#1e293b" 
+              <Text
+                text="Create Beautiful Websites"
+                fontSize={40}
+                fontWeight="bold"
+                color="#1e293b"
               />
-              <Text 
-                text="Our visual builder makes it easy to create stunning websites without writing a single line of code." 
-                fontSize={16} 
-                color="#64748b" 
+              <Text
+                text="Our visual builder makes it easy to create stunning websites without writing a single line of code."
+                fontSize={16}
+                color="#64748b"
               />
               <Button label="Start Building" backgroundColor="#10b981" textColor="#ffffff" fontSize={16} />
             </Element>
             <Element is={Column as any} canvas>
-              <Element 
+              <Element
                 is={Container as any}
                 background="linear-gradient(135deg, #a5b4fc, #818cf8)"
                 height={300}
@@ -178,32 +178,32 @@ const TEMPLATES: TemplateEntry[] = [
           canvas
         >
           <Element is={Column as any} canvas>
-            <Text 
-              text="Why Choose Us" 
-              fontSize={36} 
-              fontWeight="bold" 
-              color="#1e293b" 
+            <Text
+              text="Why Choose Us"
+              fontSize={36}
+              fontWeight="bold"
+              color="#1e293b"
             />
-            <Text 
-              text="Discover the features that make us stand out" 
-              fontSize={18} 
-              color="#64748b" 
+            <Text
+              text="Discover the features that make us stand out"
+              fontSize={18}
+              color="#64748b"
             />
           </Element>
           <Element is={Row as any} canvas>
             {[1, 2, 3].map((num) => (
               <Element is={Column as any} key={num} canvas>
-                <Element 
+                <Element
                   is={Container as any}
                   background="#f8fafc"
                   padding={24}
                   canvas
                 >
                   <Text text={`Feature ${num}`} fontSize={20} fontWeight="600" color="#1e293b" />
-                  <Text 
-                    text="Lorem ipsum dolor sit amet, consectetur adipiscing elit." 
-                    fontSize={14} 
-                    color="#64748b" 
+                  <Text
+                    text="Lorem ipsum dolor sit amet, consectetur adipiscing elit."
+                    fontSize={14}
+                    color="#64748b"
                   />
                 </Element>
               </Element>
@@ -228,13 +228,13 @@ const TEMPLATES: TemplateEntry[] = [
           canvas
         >
           <Element is={Column as any} canvas>
-            <Text 
-              text='"Excellent service and support. Highly recommended!"' 
-              fontSize={24} 
-              color="#475569" 
+            <Text
+              text='"Excellent service and support. Highly recommended!"'
+              fontSize={24}
+              color="#475569"
             />
             <Element is={Row as any} canvas>
-              <Element 
+              <Element
                 is={Container as any}
                 background="#3b82f6"
                 width={50}
@@ -269,22 +269,22 @@ const TEMPLATES: TemplateEntry[] = [
           canvas
         >
           <Element is={Column as any} canvas>
-            <Text 
-              text="Get In Touch" 
-              fontSize={32} 
-              fontWeight="bold" 
-              color="#1e293b" 
+            <Text
+              text="Get In Touch"
+              fontSize={32}
+              fontWeight="bold"
+              color="#1e293b"
             />
-            <Text 
-              text="Fill out the form below and we'll get back to you soon" 
-              fontSize={16} 
-              color="#64748b" 
+            <Text
+              text="Fill out the form below and we'll get back to you soon"
+              fontSize={16}
+              color="#64748b"
             />
             <Element is={Column as any} canvas>
               <Element is={Row as any} canvas>
                 <Element is={Column as any} canvas>
                   <Text text="Name" fontSize={14} fontWeight="500" color="#475569" />
-                  <Element 
+                  <Element
                     is={Container as any}
                     background="#f8fafc"
                     padding={12}
@@ -295,7 +295,7 @@ const TEMPLATES: TemplateEntry[] = [
                 </Element>
                 <Element is={Column as any} canvas>
                   <Text text="Email" fontSize={14} fontWeight="500" color="#475569" />
-                  <Element 
+                  <Element
                     is={Container as any}
                     background="#f8fafc"
                     padding={12}
@@ -307,7 +307,7 @@ const TEMPLATES: TemplateEntry[] = [
               </Element>
               <Element is={Column as any} canvas>
                 <Text text="Message" fontSize={14} fontWeight="500" color="#475569" />
-                <Element 
+                <Element
                   is={Container as any}
                   background="#f8fafc"
                   padding={12}
@@ -317,10 +317,10 @@ const TEMPLATES: TemplateEntry[] = [
                   <Text text="Your message here..." fontSize={14} color="#94a3b8" />
                 </Element>
               </Element>
-              <Button 
-                label="Send Message" 
-                backgroundColor="#3b82f6" 
-                textColor="#ffffff" 
+              <Button
+                label="Send Message"
+                backgroundColor="#3b82f6"
+                textColor="#ffffff"
                 fontSize={16}
               />
             </Element>
@@ -344,19 +344,19 @@ const TEMPLATES: TemplateEntry[] = [
           canvas
         >
           <Element is={Column as any} canvas>
-            <Text 
-              text="Subscribe to Our Newsletter" 
-              fontSize={32} 
-              fontWeight="bold" 
-              color="#1e293b" 
+            <Text
+              text="Subscribe to Our Newsletter"
+              fontSize={32}
+              fontWeight="bold"
+              color="#1e293b"
             />
-            <Text 
-              text="Get the latest updates and news delivered to your inbox" 
-              fontSize={16} 
-              color="#64748b" 
+            <Text
+              text="Get the latest updates and news delivered to your inbox"
+              fontSize={16}
+              color="#64748b"
             />
             <Element is={Row as any} canvas>
-              <Element 
+              <Element
                 is={Container as any}
                 background="#ffffff"
                 padding={12}
@@ -437,10 +437,10 @@ const TEMPLATES: TemplateEntry[] = [
             </Element>
           </Element>
           <Divider />
-          <Text 
-            text="© 2024 BrandName. All rights reserved." 
-            fontSize={14} 
-            color="#94a3b8" 
+          <Text
+            text="© 2024 BrandName. All rights reserved."
+            fontSize={14}
+            color="#94a3b8"
           />
         </Element>
       </Element>
@@ -460,7 +460,7 @@ const TEMPLATES: TemplateEntry[] = [
         maxWidth="300px"
         canvas
       >
-        <Element 
+        <Element
           is={Container as any}
           background="linear-gradient(45deg, #6ee7b7, #3b82f6)"
           height={180}
@@ -488,7 +488,7 @@ const TEMPLATES: TemplateEntry[] = [
         maxWidth="280px"
         canvas
       >
-        <Element 
+        <Element
           is={Container as any}
           background="#3b82f6"
           width={80}
@@ -528,7 +528,7 @@ export const AssetsPanel = () => {
           Drag and drop ready-to-use templates
         </p>
       </div>
-      
+
       <div className="flex flex-col gap-6">
         {CATEGORY_ORDER.map((category) => {
           const templates = TEMPLATES.filter((t) => t.category === category);
@@ -571,7 +571,7 @@ export const AssetsPanel = () => {
           );
         })}
       </div>
-      
+
       <div className="mt-4 pt-4 border-t border-brand-medium/20">
         <div className="text-xs text-brand-medium">
           <p className="font-medium text-brand-light mb-1">How to use:</p>
