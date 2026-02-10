@@ -8,13 +8,14 @@ import { Divider } from "../../_designComponents/Divider/Divider";
 import { Section } from "../../_designComponents/Section/Section";
 import { Row } from "../../_designComponents/Row/Row";
 import { Column } from "../../_designComponents/Column/Column";
+import { ProductListing, ProductDetails } from "../../../templates/Ecommerce";
 
 interface TemplateEntry {
   label: string;
   description: string;
   preview: string;
   element: React.ReactElement;
-  category: "header" | "hero" | "content" | "footer" | "form" | "card";
+  category: "header" | "hero" | "content" | "footer" | "form" | "card" | "ecommerce";
 }
 
 const TEMPLATES: TemplateEntry[] = [
@@ -504,6 +505,21 @@ const TEMPLATES: TemplateEntry[] = [
     ),
     category: "card",
   },
+  // ─── E-Commerce ────────────────────────────────────
+  {
+    label: "Product Listing",
+    description: "Customizable product grid with draggable columns",
+    preview: "🛒 Grid",
+    element: <ProductListing />,
+    category: "ecommerce",
+  },
+  {
+    label: "Product Details",
+    description: "Detailed product view with image, price, and rating",
+    preview: "📋 Details",
+    element: <ProductDetails />,
+    category: "ecommerce",
+  },
 ];
 
 const CATEGORY_LABELS: Record<TemplateEntry["category"], string> = {
@@ -513,9 +529,10 @@ const CATEGORY_LABELS: Record<TemplateEntry["category"], string> = {
   footer: "Footers",
   form: "Forms",
   card: "Cards",
+  ecommerce: "E-Commerce",
 };
 
-const CATEGORY_ORDER: TemplateEntry["category"][] = ["header", "hero", "content", "form", "card", "footer"];
+const CATEGORY_ORDER: TemplateEntry["category"][] = ["header", "hero", "content", "form", "card", "ecommerce", "footer"];
 
 export const AssetsPanel = () => {
   const { connectors } = useEditor();

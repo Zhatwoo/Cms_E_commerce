@@ -8,6 +8,7 @@ import { Divider } from "./Divider/Divider";
 import { Section } from "./Section/Section";
 import { Row } from "./Row/Row";
 import { Column } from "./Column/Column";
+import { ProductListing, ProductDetails } from "../../templates/Ecommerce";
 
 export const RenderBlocks = {
   Container,
@@ -20,4 +21,6 @@ export const RenderBlocks = {
   Section,
   Row,
   Column,
+  ProductListing,
+  ProductDetails,
 };
