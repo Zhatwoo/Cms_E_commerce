@@ -184,12 +184,12 @@ export const FilesPanel = () => {
 
     return ReactDOM.createPortal(
       <div
-        className="fixed z-9999 min-w-[160px] bg-brand-darker border border-white/10 rounded-lg shadow-2xl py-1 text-sm"
+        className="fixed z-9999 min-w-[160px] bg-brand-darker border border-white/10 rounded-lg shadow-2xl px-2.5 py-1 text-sm"
         style={{ left: contextMenu.x, top: contextMenu.y }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-brand-light/50 font-semibold border-b border-white/5">
+        <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-brand-light font-semibold border-b border-white/5">
           {nodeName}
         </div>
 

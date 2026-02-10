@@ -1,11 +1,12 @@
 'use client';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { motion, type Variants } from 'framer-motion';
 import CreateSite from '../components/CreateSite';
 import TemplatesLibrary from '../components/TemplatesLibrary';
 import ActivityFeed from '../components/ActivityFeed';
 import { useTheme, THEMES } from '../components/theme-context';
+import { useCallback } from 'react';
 
 // ── Icons (unchanged) ────────────────────────────────────────────────────────
 const BriefcaseIcon = () => (
@@ -122,7 +123,7 @@ const Dashboard3DScene: React.FC<{ metrics: DashboardInfraMetrics; colors: typeo
     const radius = 2.3;
     for (let i = 0; i < particleCount; i++) {
       const angle = (i / particleCount) * Math.PI * 2;
-      positions[i * 3    ] = Math.cos(angle) * radius + (Math.random() - 0.5) * 0.3;
+      positions[i * 3] = Math.cos(angle) * radius + (Math.random() - 0.5) * 0.3;
       positions[i * 3 + 1] = (Math.random() - 0.5) * 0.5;
       positions[i * 3 + 2] = Math.sin(angle) * radius + (Math.random() - 0.5) * 0.3;
     }
@@ -205,11 +206,11 @@ const Dashboard3DScene: React.FC<{ metrics: DashboardInfraMetrics; colors: typeo
       aria-label="Live 3D infrastructure visualization"
       role="img"
     >
-     <div className={`pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(244,244,246,0.055),transparent_68%)] ${theme === 'dark' ? 'mix-blend-screen' : 'mix-blend-multiply opacity-50'}`} />
-     <div 
-       className="pointer-events-none absolute inset-0"
-       style={{ background: `linear-gradient(to top, ${theme === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.7)'}, transparent)` }}
-     />
+      <div className={`pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(244,244,246,0.055),transparent_68%)] ${theme === 'dark' ? 'mix-blend-screen' : 'mix-blend-multiply opacity-50'}`} />
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{ background: `linear-gradient(to top, ${theme === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.7)'}, transparent)` }}
+      />
 
       <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-5 sm:p-6">
         <div className="flex items-center justify-between gap-4">
@@ -515,9 +516,9 @@ export function DashboardContent() {
                   />
                   <defs>
                     <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor={colors.status.good} />           {/* #A3E635 */}
-                    <stop offset="50%" stopColor={theme === 'dark' ? "#D1D1D6" : "#9CA3AF"} />
-                    <stop offset="100%" stopColor={colors.text.muted} />          {/* #9999A1 */}
+                      <stop offset="0%" stopColor={colors.status.good} />           {/* #A3E635 */}
+                      <stop offset="50%" stopColor={theme === 'dark' ? "#D1D1D6" : "#9CA3AF"} />
+                      <stop offset="100%" stopColor={colors.text.muted} />          {/* #9999A1 */}
                     </linearGradient>
                   </defs>
                 </svg>
@@ -728,7 +729,7 @@ export function DashboardContent() {
             <ActivityFeed />
           </motion.div>
         </section>
-        
+
         <CreateSite show={showCreateSite} onClose={() => setShowCreateSite(false)} onCreate={(d) => console.log('Created site', d)} />
       </div>
     </main>

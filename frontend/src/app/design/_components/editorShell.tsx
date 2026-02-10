@@ -1,12 +1,14 @@
 import React, { useRef, useState, useEffect, useLayoutEffect, useCallback } from "react";
 import { Editor, Frame, Element } from "@craftjs/core";
-import { RenderBlocks } from "../_assets";
+import { RenderBlocks } from "../_designComponents";
 import { LeftPanel } from "./leftPanel";
 import { RightPanel } from "./rightPanel";
-import { Container } from "../_assets/Container/Container";
-import { Text } from "../_assets/Text/Text";
-import { Page } from "../_assets/Page/Page";
-import { Viewport } from "../_assets/Viewport/Viewport";
+import { Container } from "../_designComponents/Container/Container";
+import { Text } from "../_designComponents/Text/Text";
+import { Page } from "../_designComponents/Page/Page";
+import { Viewport } from "../_designComponents/Viewport/Viewport";
+import { Section } from "../_designComponents/Section/Section";
+import { Button } from "../_designComponents/Button/Button";
 import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
@@ -346,18 +348,9 @@ export const EditorShell = () => {
             ) : (
               <Frame>
                 <Element is={Viewport} canvas>
-                  {/* Page 1 */}
+                  {/* Single empty page as starting point */}
                   <Element is={Page} canvas>
                     <Element is={Container} padding={40} background="#ffffff" canvas>
-                      <Text text="Page 1" fontSize={32} />
-                      <Text text="Subtitle here" fontSize={16} />
-                    </Element>
-                  </Element>
-
-                  {/* Page 2 */}
-                  <Element is={Page} canvas>
-                    <Element is={Container} padding={40} background="#ffffff" canvas>
-                      <Text text="Page 2" fontSize={32} />
                     </Element>
                   </Element>
                 </Element>

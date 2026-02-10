@@ -1,14 +1,14 @@
 import React from "react";
 import { useEditor, Element } from "@craftjs/core";
-import { Container } from "../../_assets/Container/Container";
-import { Text } from "../../_assets/Text/Text";
-import { Page } from "../../_assets/Page/Page";
-import { Image } from "../../_assets/Image/Image";
-import { Button } from "../../_assets/Button/Button";
-import { Divider } from "../../_assets/Divider/Divider";
-import { Section } from "../../_assets/Section/Section";
-import { Row } from "../../_assets/Row/Row";
-import { Column } from "../../_assets/Column/Column";
+import { Container } from "../../_designComponents/Container/Container";
+import { Text } from "../../_designComponents/Text/Text";
+import { Page } from "../../_designComponents/Page/Page";
+import { Image } from "../../_designComponents/Image/Image";
+import { Button } from "../../_designComponents/Button/Button";
+import { Divider } from "../../_designComponents/Divider/Divider";
+import { Section } from "../../_designComponents/Section/Section";
+import { Row } from "../../_designComponents/Row/Row";
+import { Column } from "../../_designComponents/Column/Column";
 
 // Dito naman ilalagay yung mga raw components na may default na properties
 interface ComponentEntry {
@@ -53,8 +53,8 @@ const COMPONENTS: ComponentEntry[] = [
   {
     label: "Container",
     preview: "Container Preview",
-    previewBg: "bg-brand-medium-dark",
-    element: <Element is={Container} background="#27272a" padding={20} canvas />,
+    previewBg: "bg-brand-medium",
+    element: <Element is={Container} padding={20} canvas />,
     category: "layout",
   },
   // ─── Basic ─────────────────────────────────────────

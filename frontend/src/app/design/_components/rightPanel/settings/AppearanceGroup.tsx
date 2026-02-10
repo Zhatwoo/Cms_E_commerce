@@ -27,7 +27,7 @@ const BG_REPEAT_OPTIONS: { value: AppearanceProps["backgroundRepeat"]; label: st
 ];
 
 export const AppearanceGroup = ({
-  background = "transparent",
+  background,
   backgroundImage = "",
   backgroundSize = "cover",
   backgroundPosition = "center",
@@ -79,7 +79,7 @@ export const AppearanceGroup = ({
             className="w-7 h-6 rounded cursor-pointer border-none bg-transparent"
           />
           <ColorInput
-            value={background}
+            value={background || "transparent"}
             onChange={(val) => setProp((props) => { props.background = val; })}
             className="flex-1"
           />
