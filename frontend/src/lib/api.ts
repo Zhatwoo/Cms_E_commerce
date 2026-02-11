@@ -178,6 +178,14 @@ export async function resetPassword(token: string, newPassword: string): Promise
   });
 }
 
+/** Verify email with token from confirmation link. Returns user and token for auto-login. */
+export async function verifyEmail(token: string): Promise<AuthResponse> {
+  return apiFetch<AuthResponse>('/api/auth/verify-email', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  });
+}
+
 /** Logout: clear cookie on backend and clear local user data */
 export async function logout(): Promise<void> {
   try {

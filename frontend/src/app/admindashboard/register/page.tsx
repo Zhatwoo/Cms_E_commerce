@@ -30,6 +30,7 @@ export default function AdminRegisterPage() {
         name: name.trim(),
         email: email.trim().toLowerCase(),
         password,
+        role: 'admin',
       });
       if (data.success && data.user) {
         setStoredUser({
@@ -63,7 +64,7 @@ export default function AdminRegisterPage() {
         <div className="rounded-2xl border border-white/10 bg-[#0a0d14] p-8 shadow-xl">
           <h1 className="text-2xl font-bold text-white md:text-3xl">Register new user</h1>
           <p className="mt-2 text-sm text-white/70">
-            All accounts created here are Super Admin.
+            All accounts created here are Admin.
           </p>
           <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
             {error && (

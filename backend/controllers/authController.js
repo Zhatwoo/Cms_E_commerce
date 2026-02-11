@@ -1,6 +1,7 @@
 
 const { auth } = require('../config/firebase');
 const PasswordReset = require('../models/PasswordReset');
+const { sendVerificationEmail } = require('../utils/emailService');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
@@ -75,7 +76,7 @@ async function firebaseSignIn(email, password) {
   return { uid: data.localId };
 }
 
-// @desc    Register new user (Firebase Auth + Firestore)
+// @desc    Register: create user in Firebase (emailVerified: false), send verification email. User can't login until email confirmed.
 // @route   POST /api/auth/register
 // @access  Public
 exports.register = async (req, res) => {
@@ -96,15 +97,40 @@ exports.register = async (req, res) => {
       });
     }
 
-    const user = await User.register({ name: name.trim(), email, password });
-    const token = generateToken(user.id);
-    setAuthCookie(res, token);
+    const normEmail = email.toLowerCase().trim();
+    const existingUser = await User.findByEmail(normEmail);
+    if (existingUser) {
+      return res.status(400).json({ success: false, message: 'User with this email already exists' });
+    }
 
-    res.status(201).json({
+    // Create user in Firebase immediately (emailVerified: false - can't login until confirmed)
+    const user = await User.register({ name: name.trim(), email: normEmail, password });
+    
+    // Generate verification token (JWT with user ID and email) - no database needed
+    const verificationToken = jwt.sign(
+      { userId: user.id, email: normEmail, type: 'email_verification' },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    // Send confirmation email to user's email address
+    const { sent, confirmUrl } = await sendVerificationEmail(normEmail, verificationToken, name.trim() || normEmail.split('@')[0]);
+
+    if (confirmUrl) {
+      console.log('📬 [register] Confirmation link (copy if email not received):', confirmUrl);
+    }
+
+    const payload = {
       success: true,
-      message: 'User registered successfully',
-      user: userToResponse(user)
-    });
+      message: sent
+        ? 'Welcome to Mercato! Please check your email to confirm your account. After confirming, you can log in.'
+        : 'Account created. Check your email to confirm (or see server console for the link).',
+      requiresVerification: true
+    };
+    if (confirmUrl && process.env.NODE_ENV !== 'production') {
+      payload.confirmUrl = confirmUrl;
+    }
+    res.status(201).json(payload);
   } catch (error) {
     const msg = error.message || 'Server error';
     if (process.env.NODE_ENV !== 'production') console.error('Register error:', msg, error);
@@ -238,6 +264,14 @@ exports.login = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Your account has been deactivated' });
     }
 
+    const authUser = await auth.getUser(uid);
+    if (!authUser.emailVerified) {
+      return res.status(403).json({
+        success: false,
+        message: 'Please confirm your email first. Check your inbox (and spam) for the confirmation link.'
+      });
+    }
+
     const token = generateToken(uid);
     setAuthCookie(res, token);
 
@@ -249,6 +283,59 @@ exports.login = async (req, res) => {
   } catch (error) {
     if (process.env.NODE_ENV !== 'production') console.error('Login error:', error.message);
     res.status(401).json({ success: false, message: 'Invalid credentials' });
+  }
+};
+
+// @desc    Verify email: verify JWT token from email link, set emailVerified: true, auto-login user.
+// @route   POST /api/auth/verify-email
+// @access  Public
+exports.verifyEmail = async (req, res) => {
+  try {
+    const { token: verificationToken } = req.body;
+    if (!verificationToken || typeof verificationToken !== 'string') {
+      return res.status(400).json({ success: false, message: 'Verification token is required' });
+    }
+
+    // Verify JWT token (no database lookup needed - token contains user info)
+    let decoded;
+    try {
+      decoded = jwt.verify(verificationToken.trim(), process.env.JWT_SECRET);
+      if (decoded.type !== 'email_verification' || !decoded.userId || !decoded.email) {
+        return res.status(400).json({ success: false, message: 'Invalid verification token' });
+      }
+    } catch (err) {
+      if (err.name === 'TokenExpiredError') {
+        return res.status(400).json({ success: false, message: 'Verification link has expired' });
+      }
+      return res.status(400).json({ success: false, message: 'Invalid verification link' });
+    }
+
+    // Find user by ID from token
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'User not found' });
+    }
+    if (user.email.toLowerCase() !== decoded.email.toLowerCase()) {
+      return res.status(400).json({ success: false, message: 'Email mismatch' });
+    }
+
+    // Verify email in Firebase Auth
+    await User.setEmailVerified(user.id);
+
+    // Auto-login: create session token
+    const authToken = generateToken(user.id);
+    setAuthCookie(res, authToken);
+
+    res.status(200).json({
+      success: true,
+      message: 'Email confirmed! You are now logged in.',
+      user: userToResponse(user),
+      token: authToken
+    });
+  } catch (error) {
+    const msg = error.message || 'Server error';
+    if (process.env.NODE_ENV !== 'production') console.error('Verify email error:', msg, error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 

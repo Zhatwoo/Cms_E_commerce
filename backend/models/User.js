@@ -72,7 +72,7 @@ class User {
         email: email.toLowerCase().trim(),
         password,
         displayName: (name || '').trim(),
-        emailVerified: true,
+        emailVerified: false, // User must confirm email via link before they can login
       });
       const uid = userRecord.uid;
       console.log(`   ✅ Step 1 Success: UID created -> ${uid}`);
@@ -247,6 +247,12 @@ class User {
   static async updatePassword(id, newPassword) {
     if (!id) throw new Error('Missing id');
     await auth.updateUser(id, { password: newPassword });
+  }
+
+  /** Mark Firebase Auth user as email verified (after confirmation link). */
+  static async setEmailVerified(id) {
+    if (!id) throw new Error('Missing id');
+    await auth.updateUser(id, { emailVerified: true });
   }
 
   static async verifyPassword(email, password) {
