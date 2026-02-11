@@ -11,7 +11,8 @@ const {
   changePassword,
   forgotPassword,
   resetPassword,
-  verifyEmail
+  verifyEmail,
+  resendVerification
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
@@ -25,11 +26,9 @@ router.get('/', (req, res) => {
     message: 'Auth API',
     endpoints: {
       register: 'POST /api/auth/register',
-<<<<<<< HEAD
       registerAdmin: 'POST /api/auth/register-admin',
-=======
       verifyEmail: 'POST /api/auth/verify-email',
->>>>>>> 5ba7197f5e1208bbc71856e82889c7e63b815c02
+      resendVerification: 'POST /api/auth/resend-verification',
       login: 'POST /api/auth/login',
       forgotPassword: 'POST /api/auth/forgot-password',
       resetPassword: 'POST /api/auth/reset-password',
@@ -73,6 +72,10 @@ router.post('/reset-password', [
 router.post('/verify-email', [
   body('token').notEmpty().withMessage('Token is required')
 ], validate, verifyEmail);
+
+router.post('/resend-verification', [
+  body('email').trim().isEmail().withMessage('Valid email is required')
+], validate, resendVerification);
 
 router.post('/logout', logout);
 

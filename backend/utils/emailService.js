@@ -1,31 +1,21 @@
 const nodemailer = require('nodemailer');
-const { Resend } = require('resend');
 
-const resendKey = (process.env.RESEND_API_KEY || '').trim();
 const gmailUser = (process.env.GMAIL_USER || '').trim();
 const gmailAppPassword = (process.env.GMAIL_APP_PASSWORD || '').trim();
-const fromEmailResend = process.env.RESEND_FROM || 'Mercato <onboarding@resend.dev>';
 const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
 
-let resendClient = null;
-if (resendKey) resendClient = new Resend(resendKey);
-
-let gmailTransporter = null;
+let transporter = null;
 if (gmailUser && gmailAppPassword) {
-  gmailTransporter = nodemailer.createTransport({
+  transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
       user: gmailUser,
       pass: gmailAppPassword,
     },
   });
-  console.log('[emailService] ✅ Gmail SMTP ready. Emails will be sent FROM:', gmailUser);
+  console.log('[emailService] ✅ Nodemailer (Gmail SMTP) ready. Emails FROM:', gmailUser);
 } else {
-  if (resendClient) {
-    console.log('[emailService] Using Resend (no Gmail). Add GMAIL_USER + GMAIL_APP_PASSWORD in .env for reliable Gmail delivery.');
-  } else {
-    console.warn('[emailService] ❌ No email config. Add to backend/.env: GMAIL_USER + GMAIL_APP_PASSWORD (see EMAIL_SETUP.md)');
-  }
+  console.warn('[emailService] ❌ No email config. Add to backend/.env: GMAIL_USER + GMAIL_APP_PASSWORD');
 }
 
 /**
@@ -36,43 +26,19 @@ function getConfirmUrl(token) {
 }
 
 /**
- * Send verification email via Gmail SMTP (recommended for Gmail inbox delivery).
- */
-async function sendViaGmail(to, subject, html, confirmUrl) {
-  const fromLabel = process.env.GMAIL_FROM_NAME || 'Mercato';
-  try {
-    const info = await gmailTransporter.sendMail({
-      from: `"${fromLabel}" <${gmailUser}>`,
-      to,
-      subject,
-      html,
-    });
-    console.log('[emailService] ✅ Gmail sent to', to, '| MessageId:', info.messageId || '');
-    return { sent: true, confirmUrl };
-  } catch (err) {
-    console.error('[emailService] Gmail error:', err.message);
-    return { sent: false, error: err.message, confirmUrl };
-  }
-}
-
-/**
- * Send verification email to the USER'S EMAIL (the one they typed when registering).
- * Recipient is always the user's email from the form — never from Firebase.
- * User is NOT in Firebase/DB yet; they get created only when they click the link in the email.
+ * Send verification email via Nodemailer (Gmail SMTP). Dynamic — sends to any recipient.
  */
 async function sendVerificationEmail(to, token, name) {
-  const confirmUrl = getConfirmUrl(token);
-  const loginUrl = `${frontendUrl}/auth/login`;
-  const greeting = name ? `Hi ${name},` : 'Hi,';
-
-  console.log('[emailService] 📤 Sending confirmation to user email:', to);
-  if (gmailTransporter) {
-    console.log('[emailService]    (via Gmail SMTP)');
-  } else if (resendClient) {
-    console.log('[emailService]    (via Resend)');
-  } else {
-    console.log('[emailService] ⚠️ No sender configured. Email NOT sent.');
+  const recipient = typeof to === 'string' ? to.trim().toLowerCase() : '';
+  if (!recipient) {
+    console.warn('[emailService] ⚠️ No recipient email provided.');
+    return { sent: false, error: 'No recipient email', confirmUrl: getConfirmUrl(token) };
   }
+
+  const confirmUrl = getConfirmUrl(token);
+  const greeting = name ? `Hi ${String(name).trim()},` : 'Hi,';
+
+  console.log('[emailService] 📤 Sending confirmation to:', recipient);
 
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
@@ -99,45 +65,26 @@ async function sendVerificationEmail(to, token, name) {
   `;
 
   const subject = 'Welcome to Mercato!';
+  const fromLabel = process.env.GMAIL_FROM_NAME || 'Mercato';
 
-  if (gmailTransporter) {
-    const result = await sendViaGmail(to, subject, html, confirmUrl);
-    if (result.sent) return result;
-    console.log('[emailService] 📧 Backup link:', confirmUrl);
-    return result;
+  if (!transporter) {
+    console.log('[emailService] 📧 No SMTP config. Confirmation link (dev):', confirmUrl);
+    return { sent: false, error: 'Email not configured. Set GMAIL_USER and GMAIL_APP_PASSWORD in .env', confirmUrl };
   }
 
-  if (resendClient) {
-    try {
-      console.log('[emailService] Attempting Resend send to:', to);
-      console.log('[emailService] From:', fromEmailResend);
-      const { data, error } = await resendClient.emails.send({
-        from: fromEmailResend,
-        to: [to],
-        subject,
-        html,
-      });
-      if (error) {
-        console.error('[emailService] ❌ Resend API error:', JSON.stringify(error, null, 2));
-        console.error('[emailService] Error message:', error?.message);
-        console.error('[emailService] Error code:', error?.name || error?.code);
-        console.log('[emailService] 📧 Confirmation link (backup):', confirmUrl);
-        return { sent: false, error: error?.message || JSON.stringify(error), confirmUrl };
-      }
-      console.log('[emailService] ✅ Resend accepted. Email ID:', data?.id || '(none)');
-      console.log('[emailService] ✅ Sent to:', to);
-      console.log('[emailService] 📧 If email does not arrive: 1) Check Spam 2) Resend with onboarding@resend.dev may only deliver to the email you used to sign up for Resend');
-      return { sent: true, confirmUrl, resendId: data?.id };
-    } catch (err) {
-      console.error('[emailService] ❌ Resend exception:', err.message);
-      console.error('[emailService] Exception details:', err);
-      console.log('[emailService] 📧 Confirmation link (backup):', confirmUrl);
-      return { sent: false, error: err.message || 'Failed to send', confirmUrl };
-    }
+  try {
+    const info = await transporter.sendMail({
+      from: `"${fromLabel}" <${gmailUser}>`,
+      to: recipient,
+      subject,
+      html,
+    });
+    console.log('[emailService] ✅ Sent to', recipient, '| MessageId:', info.messageId || '');
+    return { sent: true, confirmUrl };
+  } catch (err) {
+    console.error('[emailService] ❌ Send error:', err.message);
+    return { sent: false, error: err.message, confirmUrl };
   }
-
-  console.log('[emailService] 📧 No email config. Use this link to confirm:', confirmUrl);
-  return { sent: false, error: 'Email not configured', confirmUrl };
 }
 
 module.exports = { sendVerificationEmail, getConfirmUrl };

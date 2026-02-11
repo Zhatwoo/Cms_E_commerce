@@ -2,30 +2,34 @@
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
-
-const CONFIRM_URL_KEY = 'mercato_confirm_url';
+import { Suspense, useState } from 'react';
+import { resendVerificationEmail } from '@/lib/api';
 
 function CheckEmailContent() {
   const searchParams = useSearchParams();
   const email = searchParams.get('email') || '';
-  const [confirmUrl, setConfirmUrl] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  useEffect(() => {
-    const url = typeof window !== 'undefined' ? sessionStorage.getItem(CONFIRM_URL_KEY) : null;
-    if (url) {
-      setConfirmUrl(url);
-      sessionStorage.removeItem(CONFIRM_URL_KEY);
+  const handleResend = async () => {
+    if (!email) {
+      setMessage({ type: 'error', text: 'No email address found.' });
+      return;
     }
-  }, []);
-
-  const copyLink = () => {
-    if (!confirmUrl) return;
-    navigator.clipboard.writeText(confirmUrl).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
+    setMessage(null);
+    setLoading(true);
+    try {
+      const data = await resendVerificationEmail(email);
+      if (data.success) {
+        setMessage({ type: 'success', text: data.message || 'A new confirmation link was sent to your email.' });
+      } else {
+        setMessage({ type: 'error', text: data.message || 'Something went wrong.' });
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Failed to resend. Try again later.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -57,30 +61,27 @@ function CheckEmailContent() {
           Didn’t get the email? Check your spam folder.
         </p>
 
-        {confirmUrl && (
-          <div className="mt-6 rounded-lg border border-white/20 bg-white/5 p-4 text-left">
-            <p className="text-xs text-white/70 mb-2">No email? Use this link to confirm (dev):</p>
-            <div className="flex gap-2">
-              <a
-                href={confirmUrl}
-                className="flex-1 rounded-lg bg-violet-600 px-3 py-2 text-center text-sm font-medium text-white hover:bg-violet-500"
-              >
-                Open confirmation link
-              </a>
-              <button
-                type="button"
-                onClick={copyLink}
-                className="rounded-lg border border-white/30 px-3 py-2 text-sm text-white/90 hover:bg-white/10"
-              >
-                {copied ? 'Copied!' : 'Copy link'}
-              </button>
-            </div>
-          </div>
+        {message && (
+          <p
+            className={`mt-4 text-sm ${message.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`}
+            role="alert"
+          >
+            {message.text}
+          </p>
         )}
+
+        <button
+          type="button"
+          onClick={handleResend}
+          disabled={loading || !email}
+          className="mt-6 w-full rounded-lg bg-violet-600 px-4 py-3 text-sm font-semibold text-white hover:bg-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 focus:ring-offset-[#0a0d14] disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {loading ? 'Sending…' : 'Resend email'}
+        </button>
 
         <Link
           href="/auth/login"
-          className="mt-8 inline-flex w-full justify-center rounded-lg bg-violet-600 px-4 py-3 text-sm font-semibold text-white hover:bg-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 focus:ring-offset-[#0a0d14]"
+          className="mt-4 inline-block w-full text-center text-sm font-medium text-violet-400 hover:text-violet-300"
         >
           Go to Log in
         </Link>

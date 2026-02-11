@@ -145,6 +145,43 @@ exports.register = async (req, res) => {
   }
 };
 
+// @desc    Resend verification email (for unverified user by email)
+// @route   POST /api/auth/resend-verification
+// @access  Public
+exports.resendVerification = async (req, res) => {
+  try {
+    const email = (req.body?.email || '').toString().trim().toLowerCase();
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
+    }
+
+    const user = await User.findByEmail(email);
+    if (!user) {
+      return res.status(200).json({
+        success: true,
+        message: 'If an account exists for this email, we sent a new confirmation link.'
+      });
+    }
+
+    const verificationToken = jwt.sign(
+      { userId: user.id, email: user.email, type: 'email_verification' },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+    const name = user.displayName || user.fullName || (user.email || '').split('@')[0];
+    await sendVerificationEmail(user.email, verificationToken, name);
+
+    res.status(200).json({
+      success: true,
+      message: 'A new confirmation link was sent to your email.'
+    });
+  } catch (error) {
+    const msg = error.message || 'Server error';
+    if (process.env.NODE_ENV !== 'production') console.error('Resend verification error:', msg, error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 // @desc    Register first Super Admin (public, no auth required) — data saved to Firestore user/roles/super_admin
 // @route   POST /api/auth/register-admin
 // @access  Public (for first-time setup only when no super_admin exists)

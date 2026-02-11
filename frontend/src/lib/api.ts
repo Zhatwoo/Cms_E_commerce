@@ -186,6 +186,14 @@ export async function verifyEmail(token: string): Promise<AuthResponse> {
   });
 }
 
+/** Resend verification email to the given email address. */
+export async function resendVerificationEmail(email: string): Promise<{ success: boolean; message?: string }> {
+  return apiFetch<{ success: boolean; message?: string }>('/api/auth/resend-verification', {
+    method: 'POST',
+    body: JSON.stringify({ email: email.trim().toLowerCase() }),
+  });
+}
+
 /** Logout: clear cookie on backend and clear local user data */
 export async function logout(): Promise<void> {
   try {
