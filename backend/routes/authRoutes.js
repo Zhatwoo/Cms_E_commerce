@@ -10,7 +10,9 @@ const {
   updateProfile,
   changePassword,
   forgotPassword,
-  resetPassword
+  resetPassword,
+  verifyEmail,
+  resendVerification
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
@@ -25,6 +27,8 @@ router.get('/', (req, res) => {
     endpoints: {
       register: 'POST /api/auth/register',
       registerAdmin: 'POST /api/auth/register-admin',
+      verifyEmail: 'POST /api/auth/verify-email',
+      resendVerification: 'POST /api/auth/resend-verification',
       login: 'POST /api/auth/login',
       forgotPassword: 'POST /api/auth/forgot-password',
       resetPassword: 'POST /api/auth/reset-password',
@@ -64,6 +68,14 @@ router.post('/reset-password', [
   body('token').notEmpty().withMessage('Token is required'),
   body('newPassword').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
 ], validate, resetPassword);
+
+router.post('/verify-email', [
+  body('token').notEmpty().withMessage('Token is required')
+], validate, verifyEmail);
+
+router.post('/resend-verification', [
+  body('email').trim().isEmail().withMessage('Valid email is required')
+], validate, resendVerification);
 
 router.post('/logout', logout);
 

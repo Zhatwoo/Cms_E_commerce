@@ -1,15 +1,66 @@
 'use client';
 
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { verifyEmail, setStoredUser } from '@/lib/api';
 
 function ConfirmContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const error = searchParams.get('error');
-  const isError = error === 'expired' || error === 'invalid';
+  const token = searchParams.get('token');
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [message, setMessage] = useState('');
 
-  if (isError) {
+  useEffect(() => {
+    if (!token) {
+      setStatus('error');
+      setMessage('Invalid confirmation link. Missing token.');
+      return;
+    }
+    verifyEmail(token)
+      .then((res) => {
+        if (res.success && res.user) {
+          // Auto-login: save user data and redirect to dashboard
+          setStoredUser(res.user);
+          setStatus('success');
+          setMessage(res.message || 'Email confirmed! Redirecting...');
+          // Redirect to dashboard after 1.5 seconds
+          setTimeout(() => {
+            router.push('/m_dashboard');
+            router.refresh();
+          }, 1500);
+        } else {
+          setStatus('error');
+          setMessage(res.message || 'Invalid or expired link.');
+        }
+      })
+      .catch(() => {
+        setStatus('error');
+        setMessage('Something went wrong. The link may be invalid or expired.');
+      });
+  }, [token, router]);
+
+  if (status === 'loading') {
+    return (
+      <div className="w-full max-w-md">
+        <Link
+          href="/"
+          className="inline-block text-2xl font-medium tracking-wide text-white mb-8"
+          style={{ fontFamily: "'Great Vibes', cursive" }}
+        >
+          Mercato
+        </Link>
+        <div className="rounded-2xl border border-white/10 bg-[#0a0d14] p-8 shadow-xl text-center">
+          <div className="mx-auto h-14 w-14 rounded-full bg-white/10 animate-pulse" />
+          <h1 className="mt-6 text-2xl font-bold text-white">Confirming your email…</h1>
+          <p className="mt-2 text-sm text-white/70">Please wait.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'error') {
     return (
       <div className="w-full max-w-md">
         <Link
@@ -26,9 +77,7 @@ function ConfirmContent() {
             </svg>
           </div>
           <h1 className="mt-6 text-2xl font-bold text-white">Link invalid or expired</h1>
-          <p className="mt-2 text-sm text-white/70">
-            This confirmation link is no longer valid. You can request a new one from the login page or try signing in if you’re already confirmed.
-          </p>
+          <p className="mt-2 text-sm text-white/70">{message}</p>
           <Link
             href="/auth/login"
             className="mt-8 inline-flex w-full justify-center rounded-lg bg-violet-600 px-4 py-3 text-sm font-semibold text-white hover:bg-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 focus:ring-offset-[#0a0d14]"
@@ -55,16 +104,9 @@ function ConfirmContent() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <h1 className="mt-6 text-2xl font-bold text-white">Email confirmed</h1>
-        <p className="mt-2 text-sm text-white/70">
-          Your email address is verified. You can now log in to your account.
-        </p>
-        <Link
-          href="/auth/login"
-          className="mt-8 inline-flex w-full justify-center rounded-lg bg-violet-600 px-4 py-3 text-sm font-semibold text-white hover:bg-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 focus:ring-offset-[#0a0d14]"
-        >
-          Log in
-        </Link>
+        <h1 className="mt-6 text-2xl font-bold text-white">Welcome to Mercato!</h1>
+        <p className="mt-2 text-sm text-white/70">{message}</p>
+        <p className="mt-4 text-xs text-white/50">Redirecting you to your dashboard...</p>
       </div>
     </div>
   );
