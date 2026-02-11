@@ -1,3 +1,5 @@
+// modal na ginagamet ni user para makagawa ng bagong site, problema lang yung sa sub domain talaga hayop
+
 'use client';
 import React, { useState } from 'react';
 

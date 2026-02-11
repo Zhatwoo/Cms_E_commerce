@@ -1,10 +1,12 @@
+// eto yung overview ng mga projects ni user, dito nya makikita yung mga sites na ginawa nya
+
 'use client';
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useTheme } from './theme-context';
+import { useTheme } from '../context/theme-context';
 import CreateSite from './CreateSite';
-import TemplatesLibrary from './TemplatesLibrary';
-import { FilterIcon } from './DashboardIcons';
+import TemplatesLibrary from '../templates/TemplatesLibrary';
+import { FilterIcon } from '../dashboard/DashboardIcons';
 
 export function ProjectsOverview() {
   const { theme, colors } = useTheme();

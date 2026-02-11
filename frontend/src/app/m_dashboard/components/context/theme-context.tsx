@@ -1,3 +1,6 @@
+/*
+Etong theme-context.tsx naman na to eh yung sa theme ng application. 
+*/
 
 'use client';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
@@ -30,27 +33,27 @@ export const THEMES = {
   },
   light: {
     bg: {
-      primary: '#F3F4F6',
+      primary: '#F0F2F5', // Cool gray background for better separation
       dark: '#FFFFFF',
       card: '#FFFFFF',
-      elevated: '#F9FAFB',
+      elevated: '#F1F5F9', // Slate 100 - Better visibility against white
       fog: '#FFFFFF',
     },
     text: {
-      primary: '#111827',
-      secondary: '#374151',
-      muted: '#6B7280',
-      subtle: '#9CA3AF',
+      primary: '#0F172A', // Slate 900 - High contrast
+      secondary: '#334155', // Slate 700 - Readable secondary
+      muted: '#64748B', // Slate 500
+      subtle: '#94A3B8', // Slate 400
     },
     border: {
-      default: '#E5E7EB',
-      faint: '#D1D5DB',
+      default: '#CBD5E1', // Slate 300 - Visible borders
+      faint: '#E2E8F0', // Slate 200 - Subtle styling
     },
     status: {
-      good: '#65A30D',
-      warning: '#D97706',
-      error: '#DC2626',
-      info: '#2563EB',
+      good: '#16A34A', // Green 600
+      warning: '#D97706', // Amber 600
+      error: '#DC2626', // Red 600
+      info: '#2563EB', // Blue 600
     },
   },
 };

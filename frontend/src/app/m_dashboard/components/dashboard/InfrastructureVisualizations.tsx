@@ -1,7 +1,13 @@
+/*
+Etong yung globo na nakikita sa dashboard
+Maganda to pang boost ng confident ni store owner kasi dito nya agad makikita yung overall health ng mga projects nya
+and syempre if laging green it means na okay pa yung mga projects nya, pero if maging yellow or red na yun, yare na
+*/
+
 'use client';
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { useTheme, THEMES } from './theme-context';
+import { useTheme, THEMES } from '../context/theme-context';
 
 type DashboardInfraMetrics = {
     activeRegions: number;

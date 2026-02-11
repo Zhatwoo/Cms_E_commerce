@@ -1,9 +1,9 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useTheme } from '../components/theme-context';
+import { useTheme } from '../components/context/theme-context';
 import { useRouter } from 'next/navigation';
-import DomeGallery from '../components/DomeGallery';
+import DomeGallery from '../components/templates/DomeGallery';
 import { templateService, Template as FullTemplate } from '@/lib/templateService';
 
 // Template interface for DomeGallery compatibility
@@ -28,11 +28,11 @@ const convertToGalleryTemplate = (template: FullTemplate): GalleryTemplate => ({
 
 const CATEGORIES = ['All', 'E-commerce', 'Blog', 'Portfolio', 'Landing Page'];
 
-const TemplateCard = ({ template, colors, onPreview, onUseTemplate }: { 
-  template: GalleryTemplate; 
-  colors: any; 
-  onPreview: (t: GalleryTemplate) => void; 
-  onUseTemplate: (t: GalleryTemplate) => void; 
+const TemplateCard = ({ template, colors, onPreview, onUseTemplate }: {
+  template: GalleryTemplate;
+  colors: any;
+  onPreview: (t: GalleryTemplate) => void;
+  onUseTemplate: (t: GalleryTemplate) => void;
 }) => (
   <div
     className="group relative rounded-2xl border overflow-hidden flex flex-col shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full"
@@ -109,16 +109,16 @@ const TemplateCard = ({ template, colors, onPreview, onUseTemplate }: {
   </div>
 );
 
-const PreviewModal = ({ 
-  template, 
-  colors, 
-  onClose, 
-  onUseTemplate 
-}: { 
-  template: GalleryTemplate; 
-  colors: any; 
-  onClose: () => void; 
-  onUseTemplate: (t: GalleryTemplate) => void; 
+const PreviewModal = ({
+  template,
+  colors,
+  onClose,
+  onUseTemplate
+}: {
+  template: GalleryTemplate;
+  colors: any;
+  onClose: () => void;
+  onUseTemplate: (t: GalleryTemplate) => void;
 }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
     <motion.div
@@ -247,21 +247,21 @@ export default function WebBuilderPage() {
           onClick={handleStartBlank}
         >
           <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-          
+
           <div className="relative z-10">
             <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: colors.bg.elevated }}>
               <svg className="w-8 h-8" style={{ color: colors.text.primary }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
             </div>
-            
+
             <h3 className="text-xl font-semibold mb-2" style={{ color: colors.text.primary }}>
               Start from Scratch
             </h3>
             <p className="text-sm mb-4" style={{ color: colors.text.secondary }}>
               Create your design from a blank canvas with complete creative freedom.
             </p>
-            
+
             <div className="inline-flex items-center gap-2 text-sm font-medium" style={{ color: colors.status.info }}>
               Start Building
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -283,21 +283,21 @@ export default function WebBuilderPage() {
           onClick={() => document.getElementById('templates-section')?.scrollIntoView({ behavior: 'smooth' })}
         >
           <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-          
+
           <div className="relative z-10">
             <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: colors.bg.elevated }}>
               <svg className="w-8 h-8" style={{ color: colors.text.primary }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
             </div>
-            
+
             <h3 className="text-xl font-semibold mb-2" style={{ color: colors.text.primary }}>
               Use a Template
             </h3>
             <p className="text-sm mb-4" style={{ color: colors.text.secondary }}>
               Jumpstart your project with professionally designed templates.
             </p>
-            
+
             <div className="inline-flex items-center gap-2 text-sm font-medium" style={{ color: colors.status.info }}>
               Browse Templates
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -324,11 +324,11 @@ export default function WebBuilderPage() {
           <div className="mb-4">
             <h3 className="text-lg font-semibold" style={{ color: colors.text.primary }}>Featured & Popular</h3>
           </div>
-          <DomeGallery 
-            templates={templates} 
-            colors={colors} 
-            onPreview={(template: GalleryTemplate) => setPreviewTemplate(template)} 
-            onUseTemplate={handleUseTemplate} 
+          <DomeGallery
+            templates={templates}
+            colors={colors}
+            onPreview={(template: GalleryTemplate) => setPreviewTemplate(template)}
+            onUseTemplate={handleUseTemplate}
           />
         </div>
 
@@ -366,11 +366,11 @@ export default function WebBuilderPage() {
                 transition={{ duration: 0.2 }}
                 key={template.id}
               >
-                <TemplateCard 
-                  template={template} 
-                  colors={colors} 
-                  onPreview={setPreviewTemplate} 
-                  onUseTemplate={handleUseTemplate} 
+                <TemplateCard
+                  template={template}
+                  colors={colors}
+                  onPreview={setPreviewTemplate}
+                  onUseTemplate={handleUseTemplate}
                 />
               </motion.div>
             ))}
@@ -394,11 +394,11 @@ export default function WebBuilderPage() {
       {/* Preview Modal */}
       <AnimatePresence>
         {previewTemplate && (
-          <PreviewModal 
-            template={previewTemplate} 
-            colors={colors} 
-            onClose={() => setPreviewTemplate(null)} 
-            onUseTemplate={handleUseTemplate} 
+          <PreviewModal
+            template={previewTemplate}
+            colors={colors}
+            onClose={() => setPreviewTemplate(null)}
+            onUseTemplate={handleUseTemplate}
           />
         )}
       </AnimatePresence>
