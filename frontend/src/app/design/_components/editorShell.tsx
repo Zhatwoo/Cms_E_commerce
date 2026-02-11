@@ -13,6 +13,8 @@ import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
+import { CategoryLayout } from "../../templates/Ecommerce/CategoryLayout/CategoryLayout";
+import { CheckoutForm } from "../../templates/Ecommerce/CheckoutForm/CheckoutForm";
 
 const STORAGE_KEY = "craftjs_preview_json";
 // Project ID as per user's latest message
@@ -21,7 +23,7 @@ const PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 /** Editor Shell */
-export const EditorShell = () => {
+export const EditorShell = (props: any) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const zoomAnchorRef = useRef<{
     x: number;
@@ -320,10 +322,66 @@ export const EditorShell = () => {
     };
   }, []);
 
+  const resolver = {
+    ...RenderBlocks,
+    CategoryLayout,
+    CheckoutForm,
+  } as any;
+
+  // Also register display-name keys that may be used in serialized nodes
+  resolver["Checkout Form"] = CheckoutForm;
+  resolver["CheckoutForm"] = CheckoutForm;
+  resolver["Category Listing"] = CategoryLayout;
+  resolver["CategoryLayout"] = CategoryLayout;
+
+  // Debug: list resolver keys so we can confirm components are registered at runtime
+  if (typeof window !== "undefined") {
+    try {
+      // Delay slightly so logs are clearer in console
+      setTimeout(() => {
+        // eslint-disable-next-line no-console
+        console.log("[EditorShell] resolver keys:", Object.keys(resolver));
+        // eslint-disable-next-line no-console
+        console.log("[EditorShell] CheckoutForm in resolver:", !!(resolver as any).CheckoutForm);
+        // eslint-disable-next-line no-console
+        console.log("[EditorShell] 'Checkout Form' in resolver:", !!(resolver as any)["Checkout Form"]);
+
+        // If there is saved initial JSON, attempt to parse and list component types used so we can identify missing resolver entries
+        try {
+          if (initialJson) {
+            const parsed = typeof initialJson === 'string' ? JSON.parse(initialJson) : initialJson;
+            const nodeTypes = new Set<string>();
+            if (parsed && parsed.nodes) {
+              Object.values(parsed.nodes as any).forEach((n: any) => {
+                try {
+                  const display = n?.data?.displayName || n?.data?.name || (n?.data?.type && (typeof n.data.type === 'string' ? n.data.type : n.data.type?.name));
+                  if (display) nodeTypes.add(display);
+                } catch (e) {
+                  // ignore
+                }
+              });
+            }
+            const resolverKeys = Object.keys(resolver);
+            const missing = [...nodeTypes].filter((t) => !resolverKeys.includes(t) && !resolverKeys.includes((t || '').replace(/\s+/g, '')));
+            // eslint-disable-next-line no-console
+            console.log('[EditorShell] Serialized node types:', [...nodeTypes]);
+            // eslint-disable-next-line no-console
+            console.log('[EditorShell] Missing resolver types:', missing);
+          }
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.warn('[EditorShell] failed to parse initialJson for debug', err);
+        }
+      }, 50);
+    } catch (e) {
+      // ignore
+    }
+  }
+
   return (
     <div className="h-screen bg-brand-black text-brand-lighter overflow-hidden font-sans relative">
       <Editor
-        resolver={RenderBlocks}
+        resolver={resolver}
         onRender={RenderNode}
         onNodesChange={handleNodesChange}
       >

@@ -8,7 +8,8 @@ import { Divider } from "./Divider/Divider";
 import { Section } from "./Section/Section";
 import { Row } from "./Row/Row";
 import { Column } from "./Column/Column";
-import { ProductListing, ProductDetails } from "../../templates/Ecommerce";
+import { ProductListing } from "../../templates/Ecommerce/ProductListing/ProductListing";
+import { ProductDetails } from "../../templates/Ecommerce/ProductDetails/ProductDetails";
 
 export const RenderBlocks = {
   Container,

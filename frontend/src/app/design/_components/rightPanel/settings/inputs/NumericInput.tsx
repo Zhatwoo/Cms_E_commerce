@@ -104,8 +104,8 @@ export const NumericInput = ({
   };
 
   return (
-    <div className={`flex items-center overflow-hidden${className}`}>
-      {icon && <div className="pl-4">{icon}</div>}
+    <div className={`flex items-center overflow-hidden bg-brand-medium-dark border border-brand-medium/30 rounded-md ${className}`}>
+      {icon && <div className="pl-2">{icon}</div>}
       <input
         type="text"
         value={localVal}
