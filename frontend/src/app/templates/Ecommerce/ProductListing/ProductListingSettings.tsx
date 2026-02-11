@@ -3,6 +3,9 @@
 import React, { useState } from "react";
 import { useNode } from "@craftjs/core";
 import type { ProductListingProps } from "./ProductListing";
+import { DesignSection } from "../../../design/_components/rightPanel/settings/DesignSection";
+import { NumericInput } from "../../../design/_components/rightPanel/settings/inputs/NumericInput";
+import { ColorInput } from "../../../design/_components/rightPanel/settings/inputs/ColorInput";
 
 export const ProductListingSettings: React.FC = () => {
   const {
@@ -39,7 +42,6 @@ export const ProductListingSettings: React.FC = () => {
   }));
 
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
-  const [showAddProduct, setShowAddProduct] = useState(false);
 
   const handleProductChange = (productId: string, field: string, value: any) => {
     setProp((props: ProductListingProps) => {
@@ -54,18 +56,16 @@ export const ProductListingSettings: React.FC = () => {
 
   const handleAddProduct = () => {
     setProp((props: ProductListingProps) => {
-      if (props.products) {
-        const newProduct = {
-          id: `product-${Date.now()}`,
-          name: "New Product",
-          price: 0,
-          image: "https://placehold.co/300x300/999999/ffffff?text=New+Product",
-          description: "Product description",
-        };
-        props.products = [...props.products, newProduct];
-      }
+      const list = Array.isArray(props.products) ? props.products : [];
+      const newProduct = {
+        id: `product-${Date.now()}`,
+        name: "New Product",
+        price: 0,
+        image: "https://placehold.co/300x300/999999/ffffff?text=New+Product",
+        description: "Product description",
+      };
+      props.products = [...list, newProduct];
     });
-    setShowAddProduct(false);
   };
 
   const handleDeleteProduct = (productId: string) => {
@@ -74,420 +74,173 @@ export const ProductListingSettings: React.FC = () => {
         props.products = props.products.filter((p) => p.id !== productId);
       }
     });
-    if (expandedProduct === productId) {
-      setExpandedProduct(null);
-    }
+    if (expandedProduct === productId) setExpandedProduct(null);
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Title */}
-      <div>
-        <label className="block text-xs font-semibold text-brand-medium uppercase tracking-wider mb-2">
-          Section Title
-        </label>
-        <input
-          type="text"
-          value={title || "Our Products"}
-          onChange={(e) => setProp((props: ProductListingProps) => {
-            props.title = e.target.value;
-          })}
-          className="w-full px-3 py-2 bg-brand-medium/20 border border-brand-medium/30 rounded-lg text-sm text-brand-lighter focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
+    <div className="flex flex-col gap-3 pb-4">
+      {/* Basics */}
+      <DesignSection title="Basics">
+        <div className="flex flex-col gap-3">
+          <div>
+            <label className="text-[10px] text-brand-lighter">Section Title</label>
+            <input
+              type="text"
+              value={title || "Our Products"}
+              onChange={(e) => setProp((props: ProductListingProps) => { props.title = e.target.value; })}
+              className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] text-brand-lighter">Subtitle</label>
+            <input
+              type="text"
+              value={subtitle || "Browse our collection"}
+              onChange={(e) => setProp((props: ProductListingProps) => { props.subtitle = e.target.value; })}
+              className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none"
+            />
+          </div>
+        </div>
+      </DesignSection>
 
-      {/* Subtitle */}
-      <div>
-        <label className="block text-xs font-semibold text-brand-medium uppercase tracking-wider mb-2">
-          Subtitle
-        </label>
-        <input
-          type="text"
-          value={subtitle || "Browse our collection"}
-          onChange={(e) => setProp((props: ProductListingProps) => {
-            props.subtitle = e.target.value;
-          })}
-          className="w-full px-3 py-2 bg-brand-medium/20 border border-brand-medium/30 rounded-lg text-sm text-brand-lighter focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-
-      {/* Products Section */}
-      <div className="border-t border-brand-medium/30 pt-4">
-        <div className="flex items-center justify-between mb-3">
-          <label className="block text-xs font-semibold text-brand-medium uppercase tracking-wider">
-            Products
-          </label>
+      {/* Products */}
+      <DesignSection title="Products">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[10px] text-brand-lighter">Manage products</span>
           <button
             onClick={handleAddProduct}
-            className="text-xs px-2 py-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded border border-blue-500/30 transition-colors"
-          >
-            + Add
-          </button>
+            className="text-[10px] px-2 py-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded border border-blue-500/30"
+          >+ Add</button>
         </div>
-
-        {/* Products List */}
         <div className="space-y-2 max-h-64 overflow-y-auto">
-          {products && products.length > 0 ? (
-            products.map((product: any) => (
-              <div
-                key={product.id}
-                className="bg-brand-medium/10 border border-brand-medium/20 rounded-lg p-3"
-              >
+          {(products || []).length > 0 ? (
+            (products || []).map((product: any) => (
+              <div key={product.id} className="bg-brand-medium/10 border border-brand-medium/20 rounded-lg p-2">
                 <button
-                  onClick={() =>
-                    setExpandedProduct(
-                      expandedProduct === product.id ? null : product.id
-                    )
-                  }
-                  className="w-full flex items-center justify-between text-left mb-2"
+                  onClick={() => setExpandedProduct(expandedProduct === product.id ? null : product.id)}
+                  className="w-full flex items-center justify-between text-left"
                 >
-                  <span className="text-xs font-semibold text-brand-lighter truncate">
-                    {product.name || "Unnamed Product"}
-                  </span>
-                  <span
-                    className="text-xs text-brand-medium transition-transform"
-                    style={{
-                      transform:
-                        expandedProduct === product.id ? "rotate(180deg)" : "",
-                    }}
-                  >
-                    ▼
-                  </span>
+                  <span className="text-[11px] text-brand-lighter truncate">{product.name || "Unnamed Product"}</span>
+                  <span className="text-[10px] text-brand-medium">{expandedProduct === product.id ? "−" : "+"}</span>
                 </button>
-
-                {/* Expanded Product Details */}
                 {expandedProduct === product.id && (
-                  <div className="space-y-2 border-t border-brand-medium/20 pt-2">
-                    {/* Product Name */}
+                  <div className="mt-2 space-y-2 border-t border-brand-medium/20 pt-2">
                     <div>
-                      <label className="block text-[10px] font-semibold text-brand-medium uppercase tracking-wider mb-1">
-                        Name
-                      </label>
+                      <label className="text-[10px] text-brand-lighter">Name</label>
                       <input
                         type="text"
                         value={product.name}
-                        onChange={(e) =>
-                          handleProductChange(product.id, "name", e.target.value)
-                        }
-                        className="w-full px-2 py-1 bg-brand-medium/20 border border-brand-medium/30 rounded text-xs text-brand-lighter focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        onChange={(e) => handleProductChange(product.id, "name", e.target.value)}
+                        className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none"
                       />
                     </div>
-
-                    {/* Product Price */}
                     <div>
-                      <label className="block text-[10px] font-semibold text-brand-medium uppercase tracking-wider mb-1">
-                        Price
-                      </label>
-                      <input
-                        type="number"
-                        value={product.price}
-                        onChange={(e) =>
-                          handleProductChange(
-                            product.id,
-                            "price",
-                            parseFloat(e.target.value)
-                          )
-                        }
-                        step="0.01"
-                        min="0"
-                        className="w-full px-2 py-1 bg-brand-medium/20 border border-brand-medium/30 rounded text-xs text-brand-lighter focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      <label className="text-[10px] text-brand-lighter">Price</label>
+                      <NumericInput
+                        value={product.price ?? 0}
+                        onChange={(val) => handleProductChange(product.id, "price", val ?? 0)}
+                        min={0}
+                        step={0.01}
                       />
                     </div>
-
-                    {/* Product Image */}
                     <div>
-                      <label className="block text-[10px] font-semibold text-brand-medium uppercase tracking-wider mb-1">
-                        Image URL
-                      </label>
+                      <label className="text-[10px] text-brand-lighter">Image URL</label>
                       <input
                         type="text"
                         value={product.image}
-                        onChange={(e) =>
-                          handleProductChange(product.id, "image", e.target.value)
-                        }
-                        className="w-full px-2 py-1 bg-brand-medium/20 border border-brand-medium/30 rounded text-xs text-brand-lighter focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        onChange={(e) => handleProductChange(product.id, "image", e.target.value)}
+                        className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none"
                       />
                       {product.image && (
-                        <img
-                          src={product.image}
-                          alt={product.name}
-                          className="w-full h-20 object-cover rounded mt-1 border border-brand-medium/20"
-                        />
+                        <img src={product.image} alt={product.name} className="w-full h-20 object-cover rounded mt-1 border border-brand-medium/20" />
                       )}
                     </div>
-
-                    {/* Product Description */}
                     <div>
-                      <label className="block text-[10px] font-semibold text-brand-medium uppercase tracking-wider mb-1">
-                        Description
-                      </label>
+                      <label className="text-[10px] text-brand-lighter">Description</label>
                       <textarea
                         value={product.description || ""}
-                        onChange={(e) =>
-                          handleProductChange(
-                            product.id,
-                            "description",
-                            e.target.value
-                          )
-                        }
+                        onChange={(e) => handleProductChange(product.id, "description", e.target.value)}
                         rows={2}
-                        className="w-full px-2 py-1 bg-brand-medium/20 border border-brand-medium/30 rounded text-xs text-brand-lighter focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none resize-none"
                       />
                     </div>
-
-                    {/* Delete Button */}
                     <button
                       onClick={() => handleDeleteProduct(product.id)}
-                      className="w-full text-xs px-2 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded border border-red-500/30 transition-colors"
-                    >
-                      Delete Product
-                    </button>
+                      className="w-full text-[10px] px-2 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded border border-red-500/30"
+                    >Delete Product</button>
                   </div>
                 )}
               </div>
             ))
           ) : (
-            <p className="text-xs text-brand-medium text-center py-2">
-              No products added
-            </p>
+            <p className="text-[11px] text-brand-medium text-center py-2">No products added</p>
           )}
         </div>
-      </div>
+      </DesignSection>
 
-      {/* Grid Settings Divider */}
-      <div className="border-t border-brand-medium/30 pt-4">
-        <label className="block text-xs font-semibold text-brand-medium uppercase tracking-wider mb-2">
-          Grid Settings
-        </label>
-
-        {/* Grid Columns */}
-        <div>
-          <label className="block text-xs font-semibold text-brand-medium uppercase tracking-wider mb-2">
-            Grid Columns
-          </label>
-          <select
-            value={columns || 3}
-            onChange={(e) => setProp((props: ProductListingProps) => {
-              props.columns = parseInt(e.target.value) as 1 | 2 | 3 | 4;
-            })}
-            className="w-full px-3 py-2 bg-brand-medium/20 border border-brand-medium/30 rounded-lg text-sm text-brand-lighter focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value={1}>1 Column</option>
-            <option value={2}>2 Columns</option>
-            <option value={3}>3 Columns</option>
-            <option value={4}>4 Columns</option>
-          </select>
-        </div>
-
-        {/* Gap */}
-        <div className="mt-2">
-          <label className="block text-xs font-semibold text-brand-medium uppercase tracking-wider mb-2">
-            Column Gap (px)
-          </label>
-          <input
-            type="number"
-            value={gap || 24}
-            onChange={(e) => setProp((props: ProductListingProps) => {
-              props.gap = parseInt(e.target.value);
-            })}
-            min="0"
-            max="100"
-            step="4"
-            className="w-full px-3 py-2 bg-brand-medium/20 border border-brand-medium/30 rounded-lg text-sm text-brand-lighter focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-      </div>
-
-      {/* Style Settings Divider */}
-      <div className="border-t border-brand-medium/30 pt-4">
-        <label className="block text-xs font-semibold text-brand-medium uppercase tracking-wider mb-2">
-          Style Settings
-        </label>
-
-        {/* Background Color */}
-        <div>
-          <label className="block text-xs font-semibold text-brand-medium uppercase tracking-wider mb-2">
-            Background Color
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="color"
-              value={backgroundColor || "#ffffff"}
-              onChange={(e) => setProp((props: ProductListingProps) => {
-                props.backgroundColor = e.target.value;
-              })}
-              className="w-12 h-10 bg-brand-medium/20 border border-brand-medium/30 rounded cursor-pointer"
-            />
-            <input
-              type="text"
-              value={backgroundColor || "#ffffff"}
-              onChange={(e) => setProp((props: ProductListingProps) => {
-                props.backgroundColor = e.target.value;
-              })}
-              className="flex-1 px-3 py-2 bg-brand-medium/20 border border-brand-medium/30 rounded-lg text-sm text-brand-lighter focus:outline-none focus:ring-2 focus:ring-blue-500"
+      {/* Grid */}
+      <DesignSection title="Grid">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-[10px] text-brand-lighter">Columns</label>
+            <select
+              value={columns || 3}
+              onChange={(e) => setProp((props: ProductListingProps) => { props.columns = parseInt(e.target.value) as 1 | 2 | 3 | 4; })}
+              className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none"
+            >
+              <option value={1}>1</option>
+              <option value={2}>2</option>
+              <option value={3}>3</option>
+              <option value={4}>4</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] text-brand-lighter">Gap (px)</label>
+            <NumericInput
+              value={gap ?? 24}
+              onChange={(val) => setProp((props: ProductListingProps) => { props.gap = Math.max(0, Math.floor(val ?? 0)); })}
+              min={0}
+              step={4}
             />
           </div>
         </div>
+      </DesignSection>
 
-        {/* Title Color */}
-        <div className="mt-2">
-          <label className="block text-xs font-semibold text-brand-medium uppercase tracking-wider mb-2">
-            Title Color
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="color"
-              value={titleColor || "#1e293b"}
-              onChange={(e) => setProp((props: ProductListingProps) => {
-                props.titleColor = e.target.value;
-              })}
-              className="w-12 h-10 bg-brand-medium/20 border border-brand-medium/30 rounded cursor-pointer"
-            />
-            <input
-              type="text"
-              value={titleColor || "#1e293b"}
-              onChange={(e) => setProp((props: ProductListingProps) => {
-                props.titleColor = e.target.value;
-              })}
-              className="flex-1 px-3 py-2 bg-brand-medium/20 border border-brand-medium/30 rounded-lg text-sm text-brand-lighter focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+      {/* Style */}
+      <DesignSection title="Style" defaultOpen={false}>
+        <div className="flex flex-col gap-3">
+          <div>
+            <label className="text-[10px] text-brand-lighter">Button Style</label>
+            <select
+              value={buttonVariant || "primary"}
+              onChange={(e) => setProp((props: ProductListingProps) => { props.buttonVariant = e.target.value as "primary" | "secondary" | "outline"; })}
+              className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none"
+            >
+              <option value="primary">Primary</option>
+              <option value="secondary">Secondary</option>
+              <option value="outline">Outline</option>
+            </select>
           </div>
-        </div>
-
-        {/* Price Color */}
-        <div className="mt-2">
-          <label className="block text-xs font-semibold text-brand-medium uppercase tracking-wider mb-2">
-            Price Color
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="color"
-              value={priceColor || "#3b82f6"}
-              onChange={(e) => setProp((props: ProductListingProps) => {
-                props.priceColor = e.target.value;
-              })}
-              className="w-12 h-10 bg-brand-medium/20 border border-brand-medium/30 rounded cursor-pointer"
-            />
-            <input
-              type="text"
-              value={priceColor || "#3b82f6"}
-              onChange={(e) => setProp((props: ProductListingProps) => {
-                props.priceColor = e.target.value;
-              })}
-              className="flex-1 px-3 py-2 bg-brand-medium/20 border border-brand-medium/30 rounded-lg text-sm text-brand-lighter focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        </div>
-
-        {/* Button Variant */}
-        <div className="mt-2">
-          <label className="block text-xs font-semibold text-brand-medium uppercase tracking-wider mb-2">
-            Button Style
-          </label>
-          <select
-            value={buttonVariant || "primary"}
-            onChange={(e) => setProp((props: ProductListingProps) => {
-              props.buttonVariant = e.target.value as "primary" | "secondary" | "outline";
-            })}
-            className="w-full px-3 py-2 bg-brand-medium/20 border border-brand-medium/30 rounded-lg text-sm text-brand-lighter focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="primary">Primary</option>
-            <option value="secondary">Secondary</option>
-            <option value="outline">Outline</option>
-          </select>
-        </div>
-
-        {/* Card Border Radius */}
-        <div className="mt-2">
-          <label className="block text-xs font-semibold text-brand-medium uppercase tracking-wider mb-2">
-            Card Border Radius (px)
-          </label>
-          <input
-            type="number"
-            value={cardBorderRadius || 12}
-            onChange={(e) => setProp((props: ProductListingProps) => {
-              props.cardBorderRadius = parseInt(e.target.value);
-            })}
-            min="0"
-            max="50"
-            step="2"
-            className="w-full px-3 py-2 bg-brand-medium/20 border border-brand-medium/30 rounded-lg text-sm text-brand-lighter focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        {/* Card Height */}
-        <div className="mt-2">
-          <label className="block text-xs font-semibold text-brand-medium uppercase tracking-wider mb-2">
-            Card Height (px)
-          </label>
-          <input
-            type="number"
-            value={typeof cardHeight === "number" ? cardHeight : ""}
-            onChange={(e) => setProp((props: ProductListingProps) => {
-              const val = e.target.value ? parseInt(e.target.value) : 0;
-              props.cardHeight = val === 0 ? "auto" : val;
-            })}
-            min="100"
-            max="800"
-            step="10"
-            placeholder="Leave empty for auto"
-            className="w-full px-3 py-2 bg-brand-medium/20 border border-brand-medium/30 rounded-lg text-sm text-brand-lighter focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <p className="text-[10px] text-brand-medium mt-1">Empty = auto height</p>
-        </div>
-
-        {/* Image Height */}
-        <div className="mt-2">
-          <label className="block text-xs font-semibold text-brand-medium uppercase tracking-wider mb-2">
-            Image Height (px)
-          </label>
-          <input
-            type="number"
-            value={imageHeight || 256}
-            onChange={(e) => setProp((props: ProductListingProps) => {
-              props.imageHeight = parseInt(e.target.value);
-            })}
-            min="100"
-            max="600"
-            step="10"
-            className="w-full px-3 py-2 bg-brand-medium/20 border border-brand-medium/30 rounded-lg text-sm text-brand-lighter focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        {/* Show Description */}
-        <div className="mt-3">
-          <label className="flex items-center gap-2 cursor-pointer">
+          <label className="flex items-center gap-2">
             <input
               type="checkbox"
               checked={showDescription !== false}
-              onChange={(e) => setProp((props: ProductListingProps) => {
-                props.showDescription = e.target.checked;
-              })}
+              onChange={(e) => setProp((props: ProductListingProps) => { props.showDescription = e.target.checked; })}
               className="w-4 h-4 rounded cursor-pointer"
             />
-            <span className="text-xs font-semibold text-brand-medium uppercase tracking-wider">
-              Show Descriptions
-            </span>
+            <span className="text-[10px] text-brand-lighter">Show Descriptions</span>
           </label>
-        </div>
-
-        {/* Card Shadow */}
-        <div className="mt-2">
-          <label className="flex items-center gap-2 cursor-pointer">
+          <label className="flex items-center gap-2">
             <input
               type="checkbox"
               checked={cardShadow !== false}
-              onChange={(e) => setProp((props: ProductListingProps) => {
-                props.cardShadow = e.target.checked;
-              })}
+              onChange={(e) => setProp((props: ProductListingProps) => { props.cardShadow = e.target.checked; })}
               className="w-4 h-4 rounded cursor-pointer"
             />
-            <span className="text-xs font-semibold text-brand-medium uppercase tracking-wider">
-              Show Shadows
-            </span>
+            <span className="text-[10px] text-brand-lighter">Show Shadows</span>
           </label>
         </div>
-      </div>
+      </DesignSection>
     </div>
   );
 };

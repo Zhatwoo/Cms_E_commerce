@@ -9,6 +9,8 @@ import { SimpleFooter, MultiColumnFooter } from "./Footer";
 
 import { ProductListing } from "./Ecommerce/ProductListing/ProductListing";
 import { ProductDetails } from "./Ecommerce/ProductDetails/ProductDetails";
+import { CategoryLayout } from "./Ecommerce/CategoryLayout/CategoryLayout";
+import { CheckoutForm } from "./Ecommerce/CheckoutForm/CheckoutForm";
 
 import { TemplateEntry } from "./_types";
 
@@ -42,6 +44,18 @@ export const GROUPED_TEMPLATES = [
         description: "Detailed product view",
         element: <ProductDetails />,
         preview: "PD",
+      },
+      {
+        label: "Category Listing",
+        description: "Product listing with header, filters, sort & pagination",
+        element: <CategoryLayout />,
+        preview: "CL",
+      },
+      {
+        label: "Checkout Form",
+        description: "Complete checkout form with order summary",
+        element: <CheckoutForm />,
+        preview: "CO",
       },
     ],
   },
