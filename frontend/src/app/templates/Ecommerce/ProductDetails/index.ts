@@ -1,2 +1,2 @@
-export { ProductListing, type ProductListingProps } from "./ProductListing";
 export { ProductDetails, type ProductDetailsProps } from "./ProductDetails";
+export { ProductDetailsSettings } from "./ProductDetailsSettings";

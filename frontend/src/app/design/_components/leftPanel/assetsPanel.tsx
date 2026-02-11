@@ -1,70 +1,62 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useEditor } from "@craftjs/core";
-import { TEMPLATES } from "../../../templates";
-import { CATEGORY_LABELS, CATEGORY_ORDER } from "../../../templates/_types";
+import { GROUPED_TEMPLATES } from "../../../templates";
 
 export const AssetsPanel = () => {
   const { connectors } = useEditor();
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+
+  const toggle = (folder: string) => setOpen((o) => ({ ...o, [folder]: !o[folder] }));
 
   return (
     <div className="flex flex-col gap-4 p-4">
       <div>
-        <h3 className="text-sm font-semibold text-brand-light mb-1">Built-in Templates</h3>
-        <p className="text-xs text-brand-medium">
-          Drag and drop ready-to-use templates
-        </p>
+        <h3 className="text-sm font-semibold text-brand-light mb-1">Templates</h3>
+        <p className="text-xs text-brand-medium">Drag and drop templates to the canvas</p>
       </div>
 
-      <div className="flex flex-col gap-6">
-        {CATEGORY_ORDER.map((category) => {
-          const templates = TEMPLATES.filter((t) => t.category === category);
-          if (templates.length === 0) return null;
+      <div className="flex flex-col gap-2">
+        {GROUPED_TEMPLATES.map((group) => (
+          <div key={group.folder} className="border border-brand-medium/30 rounded-lg overflow-hidden">
+            <button
+              onClick={() => toggle(group.folder)}
+              className="w-full flex items-center justify-between px-3 py-2 bg-brand-white/5 hover:bg-brand-white/10"
+            >
+              <span className="text-xs font-semibold uppercase tracking-wider text-brand-medium">{group.folder}</span>
+              <span className="text-brand-medium text-xs">{open[group.folder] ? "−" : "+"}</span>
+            </button>
 
-          return (
-            <div key={category} className="flex flex-col gap-2">
-              <span className="text-[10px] font-semibold text-brand-medium uppercase tracking-wider px-1">
-                {CATEGORY_LABELS[category]}
-              </span>
-              <div className="grid grid-cols-1 gap-3">
-                {templates.map((template) => (
+            {open[group.folder] && (
+              <div className="p-3 space-y-2">
+                {group.items.map((item: any, idx: number) => (
                   <div
-                    key={template.label}
+                    key={item.label || idx}
                     ref={(ref) => {
-                      if (ref) connectors.create(ref, template.element);
+                      if (ref) connectors.create(ref, item.element ?? item.element);
                     }}
-                    className="bg-brand-white/5 p-4 rounded-xl hover:bg-brand-white/10 transition cursor-move border border-brand-medium/30 group"
+                    className="bg-brand-white/5 p-3 rounded hover:bg-brand-white/10 transition cursor-move border border-brand-medium/30"
                   >
-                    <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="text-sm font-medium text-brand-light">
-                          {template.label}
-                        </h4>
-                        <p className="text-xs text-brand-medium mt-1">
-                          {template.description}
-                        </p>
+                        <div className="text-sm font-medium text-brand-light">{item.label ?? item.label}</div>
+                        {item.description && (
+                          <div className="text-xs text-brand-medium mt-1">{item.description}</div>
+                        )}
                       </div>
-                      <div className="h-10 w-10 bg-brand-medium/20 rounded-lg flex items-center justify-center text-sm">
-                        {template.preview}
-                      </div>
-                    </div>
-                    <div className="text-[10px] text-brand-medium font-medium mt-2 px-2 py-1 bg-brand-medium/10 rounded inline-block">
-                      {CATEGORY_LABELS[category]}
+                      {item.preview && (
+                        <div className="h-8 w-8 bg-brand-medium/20 rounded-lg flex items-center justify-center text-xs">
+                          {item.preview}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="mt-4 pt-4 border-t border-brand-medium/20">
-        <div className="text-xs text-brand-medium">
-          <p className="font-medium text-brand-light mb-1">How to use:</p>
-          <p>Drag any template to the canvas. All elements can be customized after dropping.</p>
-        </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
