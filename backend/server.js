@@ -115,10 +115,19 @@ app.get('/api/health', (req, res) => {
 // Debug: Firebase connectivity
 app.get('/api/debug/db-state', async (req, res) => {
   try {
-    const list = await require('./config/firebase').db.collection('users').limit(1).get();
-    res.json({ ok: true, checks: { firebase: 'connected', usersCount: list.size } });
+    const db = require('./config/firebase').db;
+    const rolesDoc = await db.collection('user').doc('roles').get();
+    const clientSnap = await db.collection('user').doc('roles').collection('client').limit(1).get();
+    res.json({
+      ok: true,
+      checks: {
+        firebase: 'connected',
+        rolesDocExists: rolesDoc.exists,
+        clientsFound: clientSnap.size
+      }
+    });
   } catch (e) {
-    res.json({ ok: true, checks: { firebase: 'error', error: e.message } });
+    res.json({ ok: false, error: e.message });
   }
 });
 

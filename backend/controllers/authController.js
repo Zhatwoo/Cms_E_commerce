@@ -1,4 +1,4 @@
-// controllers/authController.js — Firebase Auth + Firestore users
+
 const { auth } = require('../config/firebase');
 const PasswordReset = require('../models/PasswordReset');
 const jwt = require('jsonwebtoken');
@@ -79,6 +79,7 @@ async function firebaseSignIn(email, password) {
 // @route   POST /api/auth/register
 // @access  Public
 exports.register = async (req, res) => {
+  console.log('📬 [authController.register] Incoming request body:', { email: req.body?.email, name: req.body?.name });
   try {
     const { name, email, password } = req.body;
 
