@@ -151,8 +151,9 @@ class User {
         website: '',
       };
 
-      // 2. Save profile ONLY to nested role document: user/roles/{role}/{uid}
-      const rolePath = `user/roles/${normalizedRole}/${uid}`;
+      // 2. Save profile to user/roles/{role}/{uid}. Super Admin goes to user/roles/admin per requirement.
+      const collectionRole = normalizedRole === 'super_admin' ? 'admin' : normalizedRole;
+      const rolePath = `user/roles/${collectionRole}/${uid}`;
       console.log(`   Step 2: Saving profile to STRICT path: ${rolePath}...`);
       await db.doc(rolePath).set(profile);
       console.log(`   ✅ Step 2 Success: Role document created in "${normalizedRole}".`);
@@ -208,7 +209,9 @@ class User {
     let allUsers = [];
 
     for (const role of roles) {
-      let ref = db.collection('user').doc('roles').collection(role);
+      const collectionRole = role === 'super_admin' ? 'admin' : role;
+      let ref = db.collection('user').doc('roles').collection(collectionRole);
+      if (role === 'super_admin') ref = ref.where('role', '==', 'super_admin');
       if (filters.status) ref = ref.where('status', '==', filters.status);
       const snap = await ref.get();
       allUsers = allUsers.concat(snap.docs.map(d => fromDoc(d)));
@@ -234,8 +237,9 @@ class User {
     if (Object.keys(updates).length === 0) return user;
     updates.updated_at = new Date();
 
-    // Update in the specific role collection
-    await db.collection('user').doc('roles').collection(user.role).doc(id).update(updates);
+    // Update in the specific role collection (super_admin stored under admin path)
+    const collectionRole = user.role === 'super_admin' ? 'admin' : user.role;
+    await db.collection('user').doc('roles').collection(collectionRole).doc(id).update(updates);
 
     return this.findById(id);
   }
@@ -279,9 +283,10 @@ class User {
       if (e.code !== 'auth/user-not-found') console.error('   ⚠️ Auth deletion error:', e.message);
     }
 
-    // 3. Delete Firestore Data Recursively (Profile + Projects + Pages)
+    // 3. Delete Firestore Data Recursively (super_admin stored under admin path)
     if (user) {
-      const rolePath = `user/roles/${user.role}/${id}`;
+      const collectionRole = user.role === 'super_admin' ? 'admin' : user.role;
+      const rolePath = `user/roles/${collectionRole}/${id}`;
       console.log(`   Step: Purging Firestore recursively: ${rolePath}...`);
       await deleteRecursive(db.doc(rolePath));
       console.log('   ✅ Firestore nested path purged.');

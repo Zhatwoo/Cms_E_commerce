@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createUser } from '@/lib/api';
+import { registerAdmin, setStoredUser } from '@/lib/api';
 
 export default function AdminRegisterPage() {
   const router = useRouter();
@@ -26,14 +26,19 @@ export default function AdminRegisterPage() {
     }
     setLoading(true);
     try {
-      const data = await createUser({
+      const data = await registerAdmin({
         name: name.trim(),
         email: email.trim().toLowerCase(),
         password,
-        role: 'super_admin',
       });
-      if (data.success) {
-        router.push('/admindashboard/userAccount');
+      if (data.success && data.user) {
+        setStoredUser({
+          id: data.user.id,
+          name: data.user.name ?? data.user.email,
+          email: data.user.email ?? '',
+          role: data.user.role,
+        });
+        router.push('/admindashboard');
         router.refresh();
       } else {
         setError(data.message || 'Failed to create user.');

@@ -119,6 +119,64 @@ exports.register = async (req, res) => {
   }
 };
 
+// @desc    Register first Super Admin (public, no auth required) — data saved to Firestore user/roles/super_admin
+// @route   POST /api/auth/register-admin
+// @access  Public (for first-time setup only when no super_admin exists)
+exports.registerAdmin = async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide name, email, and password'
+      });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters'
+      });
+    }
+
+    const existingUser = await User.findByEmail(email.trim().toLowerCase());
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'User with this email already exists'
+      });
+    }
+
+    const user = await User.create({
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      password,
+      role: 'super_admin',
+      status: 'Published',
+    });
+
+    const token = generateToken(user.id);
+    setAuthCookie(res, token);
+
+    res.status(201).json({
+      success: true,
+      message: 'Super Admin registered successfully',
+      user: userToResponse(user)
+    });
+  } catch (error) {
+    const msg = error.message || 'Server error';
+    if (process.env.NODE_ENV !== 'production') console.error('Register admin error:', msg, error);
+    if (error.code === 'auth/email-already-exists' || msg.toLowerCase().includes('already')) {
+      return res.status(400).json({ success: false, message: 'User with this email already exists' });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'production' ? undefined : msg
+    });
+  }
+};
+
 // @desc    Login (accepts idToken from client OR email+password via REST)
 // @route   POST /api/auth/login
 // @access  Public
