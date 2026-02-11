@@ -43,7 +43,7 @@ exports.protect = async (req, res, next) => {
   }
 };
 
-// Check if user is admin or super_admin (role from Firestore users)
+
 exports.admin = (req, res, next) => {
   if (req.user && (req.user.role === 'admin' || req.user.role === 'super_admin')) {
     next();
