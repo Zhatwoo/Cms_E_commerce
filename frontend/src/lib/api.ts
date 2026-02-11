@@ -152,6 +152,18 @@ export async function register(params: {
   return data;
 }
 
+/** Register Super Admin from /admindashboard/register (no auth required). Saves to Firestore user/roles/super_admin. Returns session cookie. */
+export async function registerAdmin(params: {
+  name: string;
+  email: string;
+  password: string;
+}): Promise<AuthResponse> {
+  return apiFetch<AuthResponse>('/api/auth/register-admin', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
 export async function forgotPassword(email: string): Promise<{ success: boolean; message?: string }> {
   return apiFetch('/api/auth/forgot-password', {
     method: 'POST',
