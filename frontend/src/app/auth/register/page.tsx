@@ -28,7 +28,10 @@ export default function RegisterPage() {
     try {
       const data = await apiRegister({ name: name.trim() || email.split('@')[0], email, password });
       if (data.success) {
-        router.push('/m_dashboard');
+        if (typeof (data as { confirmUrl?: string }).confirmUrl === 'string') {
+          sessionStorage.setItem('mercato_confirm_url', (data as { confirmUrl: string }).confirmUrl);
+        }
+        router.push(`/auth/check-email?email=${encodeURIComponent(email)}`);
         router.refresh();
       } else {
         setError(data.message || 'Sign up failed.');
