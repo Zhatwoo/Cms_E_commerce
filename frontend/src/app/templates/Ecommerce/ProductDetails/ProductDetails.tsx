@@ -180,7 +180,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
                       <button
                         key={idx}
                         style={{ backgroundColor: s.bg, color: s.text, border: s.border }}
-                        className="flex-1 min-w-[160px] py-3 px-6 rounded-lg font-semibold text-lg hover:opacity-90 transition"
+                        className="flex-1 min-w-40 py-3 px-6 rounded-lg font-semibold text-lg hover:opacity-90 transition"
                       >
                         {btn.label}
                       </button>
