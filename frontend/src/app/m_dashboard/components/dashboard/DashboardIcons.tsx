@@ -1,3 +1,7 @@
+/*
+Icons lang hahaha
+*/
+
 'use client';
 
 export const BriefcaseIcon = () => (

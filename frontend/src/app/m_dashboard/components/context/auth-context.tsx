@@ -1,3 +1,9 @@
+/*
+Etong auth-context.tsx na to ginawa lang to para global na yung pag tawag ng auth ni user di na per page
+para isahang tawag lang and di maabuso yung token
+*/
+
+
 'use client';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { getMe, type User } from '@/lib/api';
@@ -12,8 +18,8 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType>({
     user: null,
     loading: true,
-    refreshUser: async () => {},
-    setUser: () => {},
+    refreshUser: async () => { },
+    setUser: () => { },
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

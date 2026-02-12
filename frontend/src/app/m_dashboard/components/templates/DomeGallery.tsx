@@ -1,3 +1,8 @@
+/* 
+Eto yung gallery ng mga templates, dito makikita ni user yung mga templates na pwede nyang gamitin
+Eto yung umiikot na mga cards na parang 3d. 
+Sa ngayon colors pa lang yung pinaka thumbnail nya pero in the future maglalagay tayo ng mga actual na templates dito.
+*/
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 

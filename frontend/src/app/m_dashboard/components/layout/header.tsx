@@ -1,12 +1,12 @@
-// c:\Users\echob\OJT\Cms_E_commerce\frontend\src\app\m_dashboard\components\header.tsx
+// wala header lang, laman lang neto is yung user name, profile, notif, dito ren pala nilagay yung theme toggle
 
 'use client';
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { logout, type User } from '@/lib/api';
-import { useTheme } from './theme-context';
-import { useAuth } from './auth-context';
+import { useTheme } from '../context/theme-context';
+import { useAuth } from '../context/auth-context';
 
 const SunIcon = () => (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -87,7 +87,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     };
 
     return (
-        <header 
+        <header
             className="border-b sticky top-0 z-20 transition-colors duration-300"
             style={{ borderColor: colors.border.faint }}
         >
@@ -132,7 +132,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                         {showNotifications && (
                             <>
                                 <div className="fixed inset-0 z-10" onClick={() => setShowNotifications(false)} />
-                                <div 
+                                <div
                                     className="absolute right-0 mt-2 w-80 rounded-xl border shadow-xl z-20 backdrop-blur-md overflow-hidden"
                                     style={{ backgroundColor: theme === 'dark' ? 'rgba(29, 29, 33, 0.95)' : 'rgba(255, 255, 255, 0.95)', borderColor: colors.border.faint }}
                                 >
@@ -162,8 +162,8 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                                 type="button"
                                 onClick={() => setShowMenu((v) => !v)}
                                 className="h-10 w-10 rounded-full border flex items-center justify-center shadow-sm hover:opacity-80 transition-opacity"
-                                style={{ 
-                                    backgroundColor: colors.bg.elevated, 
+                                style={{
+                                    backgroundColor: colors.bg.elevated,
                                     borderColor: colors.border.faint,
                                     color: colors.text.secondary
                                 }}
@@ -178,9 +178,9 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                                         aria-hidden="true"
                                         onClick={() => setShowMenu(false)}
                                     />
-                                    <div 
+                                    <div
                                         className="absolute right-0 mt-2 w-48 rounded-xl border py-1 shadow-xl z-20 backdrop-blur-md"
-                                        style={{ 
+                                        style={{
                                             backgroundColor: theme === 'dark' ? 'rgba(29, 29, 33, 0.95)' : 'rgba(255, 255, 255, 0.95)',
                                             borderColor: colors.border.faint
                                         }}

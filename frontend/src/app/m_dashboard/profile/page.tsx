@@ -1,7 +1,10 @@
+// Hindi to accessible sa sidebar, sa header lang sya 
+
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
 import { updateProfile } from '@/lib/api';
-import { useAuth } from '../components/auth-context';
+import { useAuth } from '../components/context/auth-context';
+import { useTheme } from '../components/context/theme-context';
 import { motion } from 'framer-motion';
 
 // Icons
@@ -51,6 +54,7 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState('general');
   const [isLoading, setIsLoading] = useState(false);
   const { user, setUser } = useAuth();
+  const { colors, theme } = useTheme();
   const [avatarUrl, setAvatarUrl] = useState("https://api.dicebear.com/7.x/avataaars/svg?seed=Felix");
   const [formData, setFormData] = useState({
     name: '',
@@ -59,6 +63,7 @@ export default function ProfilePage() {
     website: '',
     bio: ''
   });
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -82,7 +87,7 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     setIsLoading(true);
-    
+
     try {
       // Note: Backend currently only supports updating 'name' and 'avatar'
       const res = await updateProfile({
@@ -92,11 +97,16 @@ export default function ProfilePage() {
 
       if (res.success && res.user) {
         setUser(res.user);
-        // Optional: Show success notification here
+        setFeedback({ type: 'success', message: 'Profile updated successfully!' });
+        setTimeout(() => setFeedback(null), 3000);
+      } else {
+        setFeedback({ type: 'error', message: res.message || 'Failed to update profile' });
+        setTimeout(() => setFeedback(null), 3000);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to update profile", error);
-      // Optional: Show error notification here
+      setFeedback({ type: 'error', message: error.message || 'Connection error' });
+      setTimeout(() => setFeedback(null), 3000);
     }
     setIsLoading(false);
   };
@@ -115,15 +125,15 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-8 text-slate-200">
+    <div className="p-6 max-w-6xl mx-auto space-y-8" style={{ color: colors.text.secondary }}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className="flex flex-col gap-2"
       >
-        <h1 className="text-3xl font-bold text-white tracking-tight">Account Settings</h1>
-        <p className="text-slate-400">Manage your personal information, security preferences, and billing.</p>
+        <h1 className="text-3xl font-bold tracking-tight" style={{ color: colors.text.primary }}>Account Settings</h1>
+        <p style={{ color: colors.text.muted }}>Manage your personal information, security preferences, and billing.</p>
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -144,11 +154,17 @@ export default function ProfilePage() {
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  activeTab === item.id
-                    ? 'bg-violet-600/10 text-violet-300 border border-violet-500/20 shadow-sm'
-                    : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200 border border-transparent'
-                }`}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 border ${activeTab === item.id
+                  ? 'shadow-sm'
+                  : 'border-transparent'
+                  }`}
+                style={{
+                  backgroundColor: activeTab === item.id ? 'rgba(124, 58, 237, 0.1)' : 'transparent',
+                  color: activeTab === item.id
+                    ? (theme === 'dark' ? '#C4B5FD' : '#7C3AED')
+                    : colors.text.muted,
+                  borderColor: activeTab === item.id ? 'rgba(124, 58, 237, 0.2)' : 'transparent'
+                }}
               >
                 <item.icon />
                 <span>{item.label}</span>
@@ -170,7 +186,12 @@ export default function ProfilePage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
         >
-          <div className="bg-slate-950/40 backdrop-blur-md border border-slate-800/60 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+          <div className="backdrop-blur-md border rounded-2xl p-6 shadow-xl relative overflow-hidden"
+            style={{
+              backgroundColor: theme === 'dark' ? 'rgba(30, 30, 30, 0.4)' : 'rgba(255, 255, 255, 0.8)',
+              borderColor: colors.border.faint
+            }}
+          >
             <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 via-transparent to-sky-500/5 pointer-events-none" />
 
             {activeTab === 'general' && (
@@ -180,11 +201,33 @@ export default function ProfilePage() {
                 transition={{ duration: 0.3 }}
                 className="space-y-8 relative"
               >
+                {/* Feedback Notification */}
+                {feedback && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className={`p-4 rounded-xl border text-sm font-medium flex items-center justify-between shadow-lg mb-6`}
+                    style={{
+                      backgroundColor: feedback.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                      borderColor: feedback.type === 'success' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                      color: feedback.type === 'success' ? colors.status.good : colors.status.error
+                    }}
+                  >
+                    <span>{feedback.message}</span>
+                    <button onClick={() => setFeedback(null)} className="opacity-50 hover:opacity-100">✕</button>
+                  </motion.div>
+                )}
+
                 {/* Profile Header */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 pb-8 border-b border-slate-800/60">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 pb-8 border-b"
+                  style={{ borderColor: colors.border.faint }}
+                >
                   <div className="relative group">
                     <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-violet-500 to-fuchsia-500 p-[2px]">
-                      <div className="w-full h-full rounded-full bg-slate-900 flex items-center justify-center overflow-hidden">
+                      <div className="w-full h-full rounded-full flex items-center justify-center overflow-hidden"
+                        style={{ backgroundColor: colors.bg.dark }}
+                      >
                         <img
                           src={avatarUrl}
                           alt="Avatar"
@@ -196,7 +239,12 @@ export default function ProfilePage() {
                     {/* Fixed camera button */}
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="absolute bottom-0 right-0 p-2 bg-slate-800 rounded-full border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-700 transition-all shadow-lg opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0"
+                      className="absolute bottom-0 right-0 p-2 rounded-full border transition-all shadow-lg opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0"
+                      style={{
+                        backgroundColor: colors.bg.elevated,
+                        borderColor: colors.border.default,
+                        color: colors.text.secondary
+                      }}
                     >
                       <CameraIcon />
                     </button>
@@ -211,13 +259,19 @@ export default function ProfilePage() {
                   </div>
 
                   <div className="flex-1">
-                    <h3 className="text-xl font-semibold text-white">{formData.name || user?.name || 'User'}</h3>
-                    <p className="text-slate-400 text-sm">{formData.email || user?.email || 'Loading...'}</p>
+                    <h3 className="text-xl font-semibold" style={{ color: colors.text.primary }}>{formData.name || user?.name || 'User'}</h3>
+                    <p className="text-sm" style={{ color: colors.text.secondary }}>{formData.email || user?.email || 'Loading...'}</p>
                     <div className="flex items-center gap-2 mt-2">
-                      <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-400 border border-emerald-500/20">
+                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border"
+                        style={{
+                          backgroundColor: theme === 'dark' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(22, 163, 74, 0.1)',
+                          color: colors.status.good,
+                          borderColor: theme === 'dark' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(22, 163, 74, 0.2)'
+                        }}
+                      >
                         Pro Plan
                       </span>
-                      <span className="text-xs text-slate-500">Member since 2021</span>
+                      <span className="text-xs" style={{ color: colors.text.subtle }}>Member since 2021</span>
                     </div>
                   </div>
                 </div>
@@ -225,70 +279,96 @@ export default function ProfilePage() {
                 {/* Form Fields */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Display Name</label>
+                    <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: colors.text.subtle }}>Display Name</label>
                     <input
                       type="text"
                       name="name"
                       value={formData.name}
                       onChange={handleInputChange}
                       placeholder="Your Name"
-                      className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all placeholder:text-slate-600"
+                      className="w-full border rounded-lg px-4 py-2.5 transition-all focus:outline-none focus:ring-1 focus:ring-violet-500"
+                      style={{
+                        backgroundColor: theme === 'dark' ? 'rgba(15, 23, 42, 0.5)' : 'rgba(241, 245, 249, 0.5)',
+                        borderColor: colors.border.faint,
+                        color: colors.text.primary
+                      }}
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Email</label>
+                    <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: colors.text.subtle }}>Email</label>
                     <input
                       type="email"
                       name="email"
                       value={formData.email}
                       onChange={handleInputChange}
                       placeholder="your@email.com"
-                      className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all placeholder:text-slate-600"
+                      className="w-full border rounded-lg px-4 py-2.5 transition-all focus:outline-none focus:ring-1 focus:ring-violet-500"
+                      style={{
+                        backgroundColor: theme === 'dark' ? 'rgba(15, 23, 42, 0.5)' : 'rgba(241, 245, 249, 0.5)',
+                        borderColor: colors.border.faint,
+                        color: colors.text.primary
+                      }}
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Username</label>
+                    <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: colors.text.subtle }}>Username</label>
                     <div className="relative">
-                      <span className="absolute left-4 top-2.5 text-slate-500">@</span>
+                      <span className="absolute left-4 top-2.5" style={{ color: colors.text.subtle }}>@</span>
                       <input
                         type="text"
                         name="username"
                         value={formData.username}
                         onChange={handleInputChange}
                         placeholder="username"
-                        className="w-full bg-slate-900/50 border border-slate-700 rounded-lg pl-8 pr-4 py-2.5 text-slate-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all placeholder:text-slate-600"
+                        className="w-full border rounded-lg pl-8 pr-4 py-2.5 transition-all focus:outline-none focus:ring-1 focus:ring-violet-500"
+                        style={{
+                          backgroundColor: theme === 'dark' ? 'rgba(15, 23, 42, 0.5)' : 'rgba(241, 245, 249, 0.5)',
+                          borderColor: colors.border.faint,
+                          color: colors.text.primary
+                        }}
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Website</label>
+                    <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: colors.text.subtle }}>Website</label>
                     <input
                       type="url"
                       name="website"
                       value={formData.website}
                       onChange={handleInputChange}
                       placeholder="https://your-website.com"
-                      className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all placeholder:text-slate-600"
+                      className="w-full border rounded-lg px-4 py-2.5 transition-all focus:outline-none focus:ring-1 focus:ring-violet-500"
+                      style={{
+                        backgroundColor: theme === 'dark' ? 'rgba(15, 23, 42, 0.5)' : 'rgba(241, 245, 249, 0.5)',
+                        borderColor: colors.border.faint,
+                        color: colors.text.primary
+                      }}
                     />
                   </div>
                   <div className="md:col-span-2 space-y-2">
-                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Bio</label>
+                    <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: colors.text.subtle }}>Bio</label>
                     <textarea
                       name="bio"
                       rows={4}
                       value={formData.bio}
                       onChange={handleInputChange}
                       placeholder="Tell us a little about yourself..."
-                      className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all resize-none placeholder:text-slate-600"
+                      className="w-full border rounded-lg px-4 py-2.5 transition-all resize-none focus:outline-none focus:ring-1 focus:ring-violet-500"
+                      style={{
+                        backgroundColor: theme === 'dark' ? 'rgba(15, 23, 42, 0.5)' : 'rgba(241, 245, 249, 0.5)',
+                        borderColor: colors.border.faint,
+                        color: colors.text.primary
+                      }}
                     />
-                    <p className="text-xs text-slate-500 text-right">{240 - formData.bio.length} characters left</p>
+                    <p className="text-xs text-right" style={{ color: colors.text.subtle }}>{240 - formData.bio.length} characters left</p>
                   </div>
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex items-center justify-end gap-4 pt-4 border-t border-slate-800/60">
-                  <button 
-                    className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-white transition-colors"
+                <div className="flex items-center justify-end gap-4 pt-4 border-t" style={{ borderColor: colors.border.faint }}>
+                  <button
+                    className="px-4 py-2 text-sm font-medium transition-colors"
+                    style={{ color: colors.text.muted }}
                   >
                     Cancel
                   </button>
@@ -309,17 +389,51 @@ export default function ProfilePage() {
             )}
 
 
-            {(activeTab === 'notifications' || activeTab === 'billing') && (
+            {(activeTab === 'notifications' || activeTab === 'billing' || activeTab === 'security') && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="flex flex-col items-center justify-center py-16 text-slate-500"
+                className="flex flex-col items-center justify-center py-24 text-center"
+                style={{ color: colors.text.muted }}
               >
-                <div className="w-16 h-16 bg-slate-800/50 rounded-2xl flex items-center justify-center mb-4 border border-slate-700/50">
-                  <span className="text-2xl">🚧</span>
+                <div className="relative mb-8">
+                  <div className="w-24 h-24 rounded-[2rem] flex items-center justify-center border-2 border-dashed rotate-12 transition-transform hover:rotate-0 duration-500"
+                    style={{
+                      backgroundColor: colors.bg.elevated,
+                      borderColor: colors.border.default,
+                      boxShadow: theme === 'dark' ? '0 20px 40px rgba(0,0,0,0.4)' : '0 10px 20px rgba(0,0,0,0.05)'
+                    }}
+                  >
+                    <span className="text-4xl -rotate-12 transition-transform group-hover:rotate-0">
+                      {activeTab === 'security' ? '🔐' : activeTab === 'billing' ? '💳' : '�'}
+                    </span>
+                  </div>
+                  <motion.div
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ repeat: Infinity, duration: 2 }}
+                    className="absolute -bottom-2 -right-2 w-10 h-10 rounded-full bg-violet-600 flex items-center justify-center text-white text-sm font-bold shadow-lg border-4"
+                    style={{ borderColor: colors.bg.card }}
+                  >
+                    !
+                  </motion.div>
                 </div>
-                <h3 className="text-lg font-medium text-slate-300">Under Construction</h3>
-                <p className="text-sm mt-1">This section is being built.</p>
+                <h3 className="text-2xl font-bold mb-3 tracking-tight" style={{ color: colors.text.primary }}>
+                  {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} is in the works
+                </h3>
+                <p className="max-w-xs text-sm leading-relaxed mx-auto italic" style={{ color: colors.text.secondary }}>
+                  "Great things take time. We&apos;re building a secure and seamless {activeTab} experience just for you."
+                </p>
+                <button
+                  className="mt-8 px-6 py-2 rounded-full text-xs font-semibold border transition-all hover:scale-105"
+                  style={{
+                    borderColor: colors.border.default,
+                    color: colors.text.primary,
+                    backgroundColor: colors.bg.card
+                  }}
+                  onClick={() => setActiveTab('general')}
+                >
+                  Return to General
+                </button>
               </motion.div>
             )}
           </div>

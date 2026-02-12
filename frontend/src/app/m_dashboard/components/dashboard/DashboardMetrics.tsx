@@ -1,7 +1,11 @@
+/*
+Overview lang den ng mga projects ni store owner
+*/
+
 'use client';
 import React from 'react';
 import { motion, type Variants } from 'framer-motion';
-import { useTheme } from './theme-context';
+import { useTheme } from '../context/theme-context';
 import { BriefcaseIcon, ArrowUpIcon, RefreshIcon } from './DashboardIcons';
 
 const cardVariants: Variants = {
@@ -70,14 +74,12 @@ export function DashboardMetrics() {
             <span style={{ color: colors.text.subtle }}>+6.4% vs last week</span>
           </div>
         </div>
-        <motion.div
+        <div
           className="relative flex h-14 w-14 items-center justify-center rounded-2xl shadow-lg"
           style={{ backgroundColor: theme === 'dark' ? colors.text.muted : colors.bg.elevated, color: theme === 'dark' ? colors.bg.dark : colors.text.primary }}
-          animate={{ y: [-5, 5, -5] }}
-          transition={{ repeat: Infinity, duration: 5, ease: 'easeInOut' }}
         >
           <ArrowUpIcon />
-        </motion.div>
+        </div>
       </motion.div>
 
       {/* Under Review */}
@@ -104,14 +106,12 @@ export function DashboardMetrics() {
             Awaiting publish / rollback
           </p>
         </div>
-        <motion.div
+        <div
           className="relative flex h-14 w-14 items-center justify-center rounded-2xl shadow-lg"
           style={{ backgroundColor: theme === 'dark' ? colors.text.muted : colors.bg.elevated, color: theme === 'dark' ? colors.bg.dark : colors.text.primary }}
-          animate={{ rotate: [0, 360] }}
-          transition={{ repeat: Infinity, duration: 8, ease: 'linear' }}
         >
           <RefreshIcon />
-        </motion.div>
+        </div>
       </motion.div>
     </div>
   );

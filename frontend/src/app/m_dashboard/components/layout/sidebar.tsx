@@ -1,8 +1,11 @@
+// eto yung main navigation ni user
+
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTheme } from '../context/theme-context';
 const HomeIcon = () => (
   <svg
     viewBox="0 0 24 24"
@@ -142,29 +145,62 @@ type DashboardSidebarProps = {
 export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarProps) {
   const [isHovered, setIsHovered] = useState(false);
   const pathname = usePathname();
+  const { colors, theme } = useTheme();
 
   // Widths — adjust to your taste
   const COLLAPSED_WIDTH = 72;   // icon-only
   const EXPANDED_WIDTH = 280;  // full labels
 
+  const sidebarStyle = {
+    backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.8)' : colors.bg.card,
+    borderColor: colors.border.faint,
+    color: colors.text.primary,
+  };
+
+  const itemActiveStyle = {
+    backgroundColor: theme === 'dark' ? 'rgba(31, 41, 55, 0.7)' : colors.bg.primary, // gray-800/70 or primary
+    color: colors.text.primary,
+  };
+
+  const itemInactiveStyle = {
+    color: colors.text.secondary,
+  };
+
+  const itemHoverStyle = {
+    backgroundColor: theme === 'dark' ? 'rgba(31, 41, 55, 0.4)' : colors.bg.primary,
+    color: colors.text.primary,
+  };
+
   // For mobile → keep full drawer (no hover behavior)
   if (mobile) {
     return (
       <aside
-        className="fixed inset-y-0 left-0 z-50 w-72 bg-black/90 border-r border-gray-800 shadow-2xl h-full text-gray-100 flex flex-col"
+        className="fixed inset-y-0 left-0 z-50 w-72 shadow-2xl h-full flex flex-col transition-colors duration-300"
+        style={{
+          ...sidebarStyle,
+          backgroundColor: colors.bg.card, // Ensure solid bg for mobile
+          borderRightWidth: '1px',
+        }}
       >
 
         {/* Mobile header with close */}
-        <div className="flex items-center justify-between border-b border-gray-800 px-6 py-5 shrink-0">
+        <div
+          className="flex items-center justify-between px-6 py-5 shrink-0 border-b transition-colors duration-300"
+          style={{ borderColor: colors.border.faint }}
+        >
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-gray-700 flex items-center justify-center font-bold text-gray-200">
+            <div
+              className="h-9 w-9 rounded-xl flex items-center justify-center font-bold shadow-sm"
+              style={{ backgroundColor: colors.bg.elevated, color: colors.text.primary }}
+            >
               L
             </div>
-            <span className="text-xl font-semibold text-gray-100">Lumapak</span>
+            <span className="text-xl font-semibold" style={{ color: colors.text.primary }}>Lumapak</span>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-gray-500 hover:bg-gray-800 hover:text-gray-200"
+            className="rounded-lg p-2 transition-colors hover:opacity-80"
+            style={{ color: colors.text.secondary }}
             aria-label="Close sidebar"
           >
             <CloseIcon />
@@ -182,14 +218,13 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
                   : item.href
                     ? pathname === item.href
                     : false;
+
             const content = (
               <div
-                className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg transition-colors ${isActive
-                  ? 'bg-gray-800/70 text-gray-100'
-                  : 'text-gray-300 hover:bg-gray-800/40 hover:text-gray-100'
-                  }`}
+                className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg transition-colors`}
+                style={isActive ? itemActiveStyle : { ...itemInactiveStyle, ...{ ':hover': itemHoverStyle } }}
               >
-                <span className="flex h-6 w-6 items-center justify-center text-gray-400">
+                <span className="flex h-6 w-6 items-center justify-center" style={{ color: isActive ? colors.text.primary : colors.text.muted }}>
                   {item.icon}
                 </span>
                 <span className="text-sm font-medium">{item.label}</span>
@@ -223,7 +258,12 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
   // Desktop: hover-expand version
   return (
     <motion.aside
-      className="hidden lg:flex lg:flex-col lg:border-r lg:border-gray-800 lg:bg-black/50 lg:backdrop-blur-xl lg:shadow-inner lg:h-screen lg:sticky lg:top-0 overflow-hidden text-gray-100 z-20"
+      className="hidden lg:flex lg:flex-col lg:h-screen lg:sticky lg:top-0 overflow-hidden z-20 backdrop-blur-xl border-r transition-colors duration-300"
+      style={{
+        backgroundColor: theme === 'dark' ? 'rgba(0, 0, 0, 0.5)' : 'rgba(255, 255, 255, 0.8)',
+        borderColor: colors.border.faint,
+        color: colors.text.primary
+      }}
       initial={false}
       animate={{ width: isHovered ? EXPANDED_WIDTH : COLLAPSED_WIDTH }}
       transition={{
@@ -236,8 +276,14 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Brand header – centered always */}
-      <div className="flex items-center justify-center border-b border-gray-800 py-5 shrink-0">
-        <div className="h-9 w-9 rounded-xl bg-gray-700 flex items-center justify-center font-bold text-gray-200 shadow-md">
+      <div
+        className="flex items-center justify-center py-5 shrink-0 border-b transition-colors duration-300"
+        style={{ borderColor: colors.border.faint }}
+      >
+        <div
+          className="h-9 w-9 rounded-xl flex items-center justify-center font-bold shadow-sm transition-colors duration-300"
+          style={{ backgroundColor: colors.bg.elevated, color: colors.text.primary }}
+        >
           L
         </div>
       </div>
@@ -259,17 +305,24 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
               key={item.id}
               href={item.href ?? '#'}
               className={`
-                group relative flex items-center rounded-lg transition-colors
+                group relative flex items-center rounded-lg transition-all duration-200
                 w-full px-4 py-3
-                ${isActive
-                  ? 'bg-gray-800/70 text-gray-100'
-                  : 'text-gray-300 hover:bg-gray-800/50 hover:text-gray-100'
-                }
               `}
+              style={isActive ? itemActiveStyle : undefined}
             >
+              {/* Hover effect overlay */}
+              {!isActive && (
+                <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                  style={{ backgroundColor: colors.bg.elevated }}
+                />
+              )}
+
               {/* Fixed icon position */}
-              <div className="w-12 flex items-center justify-center shrink-0">
-                <span className="flex h-6 w-6 items-center justify-center text-gray-400 group-hover:text-gray-200 transition-colors">
+              <div className="relative z-10 w-12 flex items-center justify-center shrink-0">
+                <span
+                  className="flex h-6 w-6 items-center justify-center transition-colors"
+                  style={{ color: isActive ? colors.text.primary : colors.text.muted }} // Use muted for inactive icons
+                >
                   {item.icon}
                 </span>
               </div>
@@ -282,7 +335,8 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -12 }}
                     transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-                    className="ml-3 text-sm font-medium whitespace-nowrap"
+                    className="relative z-10 ml-3 text-sm font-medium whitespace-nowrap"
+                    style={{ color: isActive ? colors.text.primary : colors.text.secondary }}
                   >
                     {item.label}
                   </motion.span>
@@ -291,14 +345,20 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
 
               {/* Active indicator when collapsed */}
               {isActive && !isHovered && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-blue-500 rounded-r-full" />
+                <div
+                  className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full"
+                  style={{ backgroundColor: colors.status.info }}
+                />
               )}
             </Link>
           );
         })}
       </nav>
 
-      <div className="border-t border-gray-800 py-4 text-xs text-gray-500 shrink-0 flex justify-center">
+      <div
+        className="border-t py-4 text-xs shrink-0 flex justify-center transition-colors duration-300"
+        style={{ borderColor: colors.border.faint, color: colors.text.muted }}
+      >
         v1.0
       </div>
     </motion.aside>
