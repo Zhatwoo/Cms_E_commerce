@@ -53,8 +53,8 @@ const COMPONENTS: ComponentEntry[] = [
   {
     label: "Container",
     preview: "Container Preview",
-    previewBg: "bg-brand-medium",
-    element: <Element is={Container} padding={20} canvas />,
+    previewBg: "bg-brand-medium-dark",
+    element: <Element is={Container} background="#27272a" padding={20} canvas />,
     category: "layout",
   },
   // ─── Basic ─────────────────────────────────────────

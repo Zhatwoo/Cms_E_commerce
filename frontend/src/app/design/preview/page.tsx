@@ -1,29 +1,77 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
-import { ArrowLeft, Copy, Check, Download, Layers, Braces } from "lucide-react";
+import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { serializeCraftToClean } from "../_lib/serializer";
+import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
+import { getDraft } from "../_lib/pageApi";
+import { templateService } from "@/lib/templateService";
+import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 
-const STORAGE_KEY = "craftjs_preview_json";
+const PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 
 type ViewMode = "clean" | "raw";
 
 export default function PreviewPage() {
   const router = useRouter();
+  const { showAlert } = useAlert();
   const [rawJson, setRawJson] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("clean");
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [templateName, setTemplateName] = useState("");
+  const [templateCategory, setTemplateCategory] = useState("Landing Page");
+  const [templateDescription, setTemplateDescription] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (raw) setRawJson(raw);
+    async function loadData() {
+      try {
+        console.log(`📡 Preview: Fetching draft for Project: ${PROJECT_ID}...`);
+        const result = await getDraft(PROJECT_ID);
+
+        if (result.success && result.data) {
+          console.log('✅ Preview: API result success. Keys in data:', Object.keys(result.data));
+
+          if (result.data.content) {
+            let content = result.data.content;
+
+            // If already clean object, we still keep it as "rawJson" (as string) 
+            // for the rest of the existing preview logic to work (it formats it etc.)
+            if (typeof content === 'object') {
+              console.log('✨ Data is CLEAN format (version:', content.version, ')');
+              setRawJson(JSON.stringify(content));
+            } else {
+              setRawJson(content);
+            }
+            console.log('✅ Preview: Data loaded');
+          } else {
+            console.warn('⚠️ Preview: No content found in result data');
+          }
+        } else {
+          console.warn('⚠️ Preview: API success=false or no data found');
+        }
+      } catch (error) {
+        console.error('❌ Preview: Load error:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
   }, []);
 
-  // Compute clean document from raw Craft.js JSON
+  // Compute clean document
   const cleanDoc = useMemo(() => {
     if (!rawJson) return null;
     try {
+      const parsed = JSON.parse(rawJson);
+      // If it's already clean (BuilderDocument)
+      if (parsed.version !== undefined && parsed.pages && parsed.nodes) {
+        return parsed;
+      }
+      // Otherwise, it's raw Craft.js, serialize it
       return serializeCraftToClean(rawJson);
     } catch {
       return null;
@@ -38,7 +86,16 @@ export default function PreviewPage() {
   const rawFormatted = useMemo(() => {
     if (!rawJson) return null;
     try {
-      return JSON.stringify(JSON.parse(rawJson), null, 2);
+      const parsed = JSON.parse(rawJson);
+
+      // If the data from DB is already CLEAN (BuilderDocument),
+      // we must reconstruct the RAW (Craft.js) format for this specific view.
+      if (parsed.version !== undefined && parsed.pages && parsed.nodes) {
+        const reconstructedRaw = deserializeCleanToCraft(parsed);
+        return JSON.stringify(JSON.parse(reconstructedRaw), null, 2);
+      }
+
+      return JSON.stringify(parsed, null, 2);
     } catch {
       return rawJson;
     }
@@ -91,6 +148,38 @@ export default function PreviewPage() {
     URL.revokeObjectURL(url);
   };
 
+  const handleSaveTemplate = async () => {
+    if (!templateName.trim() || !templateDescription.trim()) {
+      showAlert("Please fill in all fields");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const template = templateService.saveTemplate(
+        templateName.trim(),
+        templateCategory,
+        templateDescription.trim()
+      );
+
+      if (template) {
+        showAlert("Template saved successfully!");
+        setShowSaveDialog(false);
+        setTemplateName("");
+        setTemplateDescription("");
+        // Navigate to web-builder page
+        router.push("/m_dashboard/web-builder");
+      } else {
+        showAlert("Failed to save template. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error saving template:", error);
+      showAlert("Error saving template. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-brand-lighter font-sans">
       {/* Top Bar */}
@@ -109,6 +198,13 @@ export default function PreviewPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowSaveDialog(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-400 transition-colors"
+            >
+              <Save size={14} />
+              Save Template
+            </button>
             <button
               onClick={handleCopy}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
@@ -144,8 +240,8 @@ export default function PreviewPage() {
             <button
               onClick={() => setViewMode("clean")}
               className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "clean"
-                  ? "bg-white/10 text-brand-lighter"
-                  : "text-zinc-500 hover:text-zinc-300"
+                ? "bg-white/10 text-brand-lighter"
+                : "text-zinc-500 hover:text-zinc-300"
                 }`}
             >
               <Layers size={14} />
@@ -154,8 +250,8 @@ export default function PreviewPage() {
             <button
               onClick={() => setViewMode("raw")}
               className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "raw"
-                  ? "bg-white/10 text-brand-lighter"
-                  : "text-zinc-500 hover:text-zinc-300"
+                ? "bg-white/10 text-brand-lighter"
+                : "text-zinc-500 hover:text-zinc-300"
                 }`}
             >
               <Braces size={14} />
@@ -180,8 +276,8 @@ export default function PreviewPage() {
               <span className="text-emerald-400">{formatBytes(cleanMinBytes)}</span>
               <span
                 className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${reduction > 0
-                    ? "bg-emerald-500/10 text-emerald-400"
-                    : "bg-zinc-500/10 text-zinc-400"
+                  ? "bg-emerald-500/10 text-emerald-400"
+                  : "bg-zinc-500/10 text-zinc-400"
                   }`}
               >
                 -{reduction}%
@@ -191,7 +287,12 @@ export default function PreviewPage() {
         </div>
 
         {/* JSON Content */}
-        {activeJson ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center h-64 text-zinc-500">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mb-4"></div>
+            <p>Fetching latest clean data...</p>
+          </div>
+        ) : activeJson ? (
           <pre className="bg-[#111] rounded-xl border border-white/10 p-6 text-sm leading-relaxed overflow-auto max-h-[calc(100vh-200px)] font-mono text-zinc-300 whitespace-pre-wrap wrap-break-word">
             {activeJson}
           </pre>
@@ -204,6 +305,81 @@ export default function PreviewPage() {
           </div>
         )}
       </div>
+
+      {/* Save Template Dialog */}
+      {showSaveDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md">
+            <h2 className="text-xl font-semibold text-white mb-4">Save Template</h2>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Template Name *
+                </label>
+                <input
+                  type="text"
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter template name"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Category *
+                </label>
+                <select
+                  value={templateCategory}
+                  onChange={(e) => setTemplateCategory(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="Landing Page">Landing Page</option>
+                  <option value="E-commerce">E-commerce</option>
+                  <option value="Blog">Blog</option>
+                  <option value="Portfolio">Portfolio</option>
+                  <option value="Business">Business</option>
+                  <option value="Dashboard">Dashboard</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Description *
+                </label>
+                <textarea
+                  value={templateDescription}
+                  onChange={(e) => setTemplateDescription(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  rows={3}
+                  placeholder="Describe your template..."
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowSaveDialog(false);
+                  setTemplateName("");
+                  setTemplateDescription("");
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveTemplate}
+                disabled={saving}
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? "Saving..." : "Save Template"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

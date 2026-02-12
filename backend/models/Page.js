@@ -70,4 +70,139 @@ async function count(filters = {}) {
   return total;
 }
 
-module.exports = { create, findById, findBySlug, findAll, update, delete: deleteById, count };
+// Helper to get user's projects collection
+function getUserProjectsRef(userId) {
+  return db.collection('user').doc('roles').collection('client').doc(userId).collection('projects');
+}
+
+async function getDraftByUserId(userId) {
+  const draftSlug = `__autosave_draft_${userId}__`;
+  // Check user-specific collection first
+  const snapshot = await getUserProjectsRef(userId).where('slug', '==', draftSlug).limit(1).get();
+
+  if (!snapshot.empty) {
+    return docToObject(snapshot.docs[0]);
+  }
+
+  // Fallback to global collection (legacy support)
+  return findBySlug(draftSlug);
+}
+
+// Save draft to user-specific collection
+async function saveDraft(userId, data) {
+  const draftSlug = `__autosave_draft_${userId}__`;
+  const projectsRef = getUserProjectsRef(userId);
+
+  // Check if draft exists
+  const snapshot = await projectsRef.where('slug', '==', draftSlug).limit(1).get();
+
+  let docData = {
+    title: 'Auto-save Draft',
+    slug: draftSlug,
+    content: data.content ?? '',
+    status: 'Draft',
+    updated_at: new Date()
+  };
+
+  if (snapshot.empty) {
+    // Create new
+    docData.created_by = userId;
+    docData.created_at = new Date();
+    const ref = await projectsRef.add(docData);
+    const newSnap = await ref.get();
+    return docToObject(newSnap);
+  } else {
+    // Update existing
+    const docId = snapshot.docs[0].id;
+    await projectsRef.doc(docId).update(docData);
+    const updatedSnap = await projectsRef.doc(docId).get();
+    return docToObject(updatedSnap);
+  }
+}
+
+module.exports = {
+  create,
+  findById,
+  findBySlug,
+  findAll,
+  update,
+  delete: deleteById,
+  count,
+  getDraftByUserId,
+  saveDraft,
+  savePageData,
+  getPageData,
+  deletePageData
+};
+
+// --- New Path Logic for User/Project/Page ---
+
+// Helper to get specific page reference
+function getProjectPageRef(userId, projectId, pageId) {
+  // Path: /user/roles/client/{userId}/projects/{projectId}/pages/{pageId}
+  return db.collection('user').doc('roles').collection('client').doc(userId)
+    .collection('projects').doc(projectId)
+    .collection('pages').doc(pageId);
+}
+
+async function savePageData(userId, projectId, pageId, content) {
+  const ref = getProjectPageRef(userId, projectId, pageId);
+  const fullPath = ref.path;
+
+  console.log(`💾 savePageData: Saving to path: ${fullPath} (userId: ${userId}, projectId: ${projectId})`);
+
+  let dataToSave = content;
+
+  // Robust JSON parsing
+  if (typeof content === 'string') {
+    try {
+      // First pass
+      dataToSave = JSON.parse(content);
+
+      // If result is still a string (double encoding), parse again
+      if (typeof dataToSave === 'string') {
+        dataToSave = JSON.parse(dataToSave);
+      }
+      console.log('✅ Content successfully parsed to Object');
+    } catch (e) {
+      console.warn('⚠️ JSON parsing failed, saving as raw string/content:', e.message);
+      dataToSave = content;
+    }
+  }
+
+  const docData = {
+    page: dataToSave, // Use 'page' field as requested
+    updated_at: new Date()
+  };
+
+  // Remove { merge: true } to ensure the 'page' Map is completely replaced
+  // rather than merged, which allows deletions to be reflected in Firestore.
+  await ref.set(docData);
+  const nodeCount = dataToSave?.nodes ? Object.keys(dataToSave.nodes).length : 'N/A';
+  console.log(`🎯 Firestore .set (overwrite) successful. Nodes saved: ${nodeCount}`);
+
+  const snap = await ref.get();
+  return docToObject(snap);
+}
+
+async function getPageData(userId, projectId, pageId) {
+  const ref = getProjectPageRef(userId, projectId, pageId);
+  console.log(`📡 getPageData: Reading from path: ${ref.path}`);
+  const snap = await ref.get();
+
+  if (!snap.exists) return null;
+
+  const data = docToObject(snap);
+
+  // Normalize for frontend: handle both 'page' and 'content' keys
+  const content = data.page || data.content;
+  return {
+    ...data,
+    content: content // Frontend expects 'content' in result for Craft.js
+  };
+}
+
+async function deletePageData(userId, projectId, pageId) {
+  const ref = getProjectPageRef(userId, projectId, pageId);
+  await ref.delete();
+}

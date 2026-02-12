@@ -152,6 +152,18 @@ export async function register(params: {
   return data;
 }
 
+/** Register Super Admin from /admindashboard/register (no auth required). Saves to Firestore user/roles/super_admin. Returns session cookie. */
+export async function registerAdmin(params: {
+  name: string;
+  email: string;
+  password: string;
+}): Promise<AuthResponse> {
+  return apiFetch<AuthResponse>('/api/auth/register-admin', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
 export async function forgotPassword(email: string): Promise<{ success: boolean; message?: string }> {
   return apiFetch('/api/auth/forgot-password', {
     method: 'POST',
@@ -163,6 +175,22 @@ export async function resetPassword(token: string, newPassword: string): Promise
   return apiFetch('/api/auth/reset-password', {
     method: 'POST',
     body: JSON.stringify({ token, newPassword }),
+  });
+}
+
+/** Verify email with token from confirmation link. Returns user and token for auto-login. */
+export async function verifyEmail(token: string): Promise<AuthResponse> {
+  return apiFetch<AuthResponse>('/api/auth/verify-email', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  });
+}
+
+/** Resend verification email to the given email address. */
+export async function resendVerificationEmail(email: string): Promise<{ success: boolean; message?: string }> {
+  return apiFetch<{ success: boolean; message?: string }>('/api/auth/resend-verification', {
+    method: 'POST',
+    body: JSON.stringify({ email: email.trim().toLowerCase() }),
   });
 }
 
@@ -203,4 +231,49 @@ export async function createUser(params: {
     method: 'POST',
     body: JSON.stringify(params),
   });
+}
+
+// --- Projects (client user drafts / web builder) ---
+
+export type Project = {
+  id: string;
+  title: string;
+  status: string;
+  templateId?: string | null;
+  subdomain?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export async function listProjects(): Promise<{ success: boolean; projects: Project[] }> {
+  return apiFetch<{ success: boolean; projects: Project[] }>('/api/projects');
+}
+
+export async function createProject(params: {
+  title?: string;
+  templateId?: string | null;
+  subdomain?: string | null;
+}): Promise<{ success: boolean; project: Project }> {
+  return apiFetch<{ success: boolean; project: Project }>('/api/projects', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export async function getProject(id: string): Promise<{ success: boolean; project: Project }> {
+  return apiFetch<{ success: boolean; project: Project }>(`/api/projects/${id}`);
+}
+
+export async function updateProject(
+  id: string,
+  params: { title?: string; status?: string; subdomain?: string | null }
+): Promise<{ success: boolean; project: Project }> {
+  return apiFetch<{ success: boolean; project: Project }>(`/api/projects/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(params),
+  });
+}
+
+export async function deleteProject(id: string): Promise<{ success: boolean }> {
+  return apiFetch<{ success: boolean }>(`/api/projects/${id}`, { method: 'DELETE' });
 }

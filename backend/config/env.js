@@ -6,7 +6,7 @@ const required = [
   'FIREBASE_PRIVATE_KEY'
 ];
 
-const optional = ['PORT', 'NODE_ENV', 'NEXT_PUBLIC_FIREBASE_API_KEY', 'FIREBASE_API_KEY', 'CORS_ORIGIN', 'FRONTEND_URL'];
+const optional = ['PORT', 'NODE_ENV', 'NEXT_PUBLIC_FIREBASE_API_KEY', 'FIREBASE_API_KEY', 'CORS_ORIGIN', 'FRONTEND_URL', 'RESEND_API_KEY', 'RESEND_FROM', 'GMAIL_USER', 'GMAIL_APP_PASSWORD', 'GMAIL_FROM_NAME'];
 
 const validateEnv = () => {
   const missing = required.filter(key => {
