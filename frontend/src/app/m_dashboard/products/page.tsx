@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useTheme } from '../components/context/theme-context';
+import { useAlert } from '../components/context/alert-context';
 
 interface Product {
   id: string;
@@ -171,6 +172,7 @@ const ProductCard = ({ product, colors, onEdit, onDelete, onToggleStatus }: {
 
 export default function ProductsPage() {
   const { colors } = useTheme();
+  const { showConfirm } = useAlert();
   const [products, setProducts] = useState<Product[]>(mockProducts);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -190,8 +192,9 @@ export default function ProductsPage() {
     // TODO: Open edit modal
   };
 
-  const handleDelete = (product: Product) => {
-    if (confirm(`Are you sure you want to delete ${product.name}?`)) {
+  const handleDelete = async (product: Product) => {
+    const confirmed = await showConfirm(`Are you sure you want to delete ${product.name}?`);
+    if (confirmed) {
       setProducts(products.filter(p => p.id !== product.id));
     }
   };

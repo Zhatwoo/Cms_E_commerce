@@ -16,15 +16,17 @@ export default function CreateSite({ show = false, onClose, onCreate }: Props) {
 
   if (!show) return null;
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const payload = { name: name || 'New Site', domain: domain || 'example.mercato.tools', template };
-    if (onCreate) onCreate(payload);
-    else console.log('CreateSite:', payload);
-    if (onClose) onClose();
-
-    // Redirect to web-builder page
-    window.location.href = '/m_dashboard/web-builder';
+    if (onCreate) {
+      await onCreate(payload);
+      if (onClose) onClose();
+    } else {
+      console.log('CreateSite:', payload);
+      if (onClose) onClose();
+      window.location.href = '/m_dashboard/web-builder';
+    }
   };
 
   return (

@@ -141,6 +141,7 @@ const productRoutes = require('./routes/productRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const templateRoutes = require('./routes/templateRoutes');
 const domainRoutes = require('./routes/domainRoutes');
+const projectRoutes = require('./routes/projectRoutes');
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -152,6 +153,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/domains', domainRoutes);
+app.use('/api/projects', projectRoutes);
 
 // Home route
 app.get('/', (req, res) => {
@@ -246,7 +248,8 @@ app.use((req, res) => {
     success: false,
     message: 'Route not found',
     requested: req.method + ' ' + req.originalUrl,
-    try: 'GET / or GET /api/health for API info'
+    try: 'GET / or GET /api/health for API info',
+    hint: req.originalUrl.startsWith('/api/projects') ? 'Restart the backend server so /api/projects is loaded.' : undefined
   });
 });
 
@@ -263,7 +266,7 @@ app.listen(PORT, () => {
   console.log('========================================');
   console.log('📝 API: /api/auth | /api/users | /api/pages | /api/posts');
   console.log('       /api/dashboard | /api/products | /api/orders');
-  console.log('       /api/templates | /api/domains');
+  console.log('       /api/templates | /api/domains | /api/projects');
   console.log('========================================');
 });
 

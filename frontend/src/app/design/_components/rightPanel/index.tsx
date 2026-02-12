@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { PanelRight, Play } from "lucide-react";
 import { serializeCraftToClean } from "../../_lib/serializer";
 import { autoSavePage } from "../../_lib/pageApi";
+import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 
 type TabId = "design" | "settings" | "animation";
 
@@ -21,6 +22,7 @@ const TABS: Tab[] = [
 const PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 
 export const RightPanel = () => {
+  const { showAlert } = useAlert();
   const [activeTab, setActiveTab] = useState<TabId>("design");
   const [isPreviewing, setIsPreviewing] = useState(false);
   const router = useRouter();
@@ -62,7 +64,7 @@ export const RightPanel = () => {
       router.push("/design/preview");
     } catch (error) {
       console.error('❌ Preview failed:', error);
-      alert('Failed to generate preview. Check console.');
+      showAlert('Failed to generate preview. Check console.');
     } finally {
       setIsPreviewing(false);
     }
