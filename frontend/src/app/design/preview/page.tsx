@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
 import { getDraft } from "../_lib/pageApi";
 import { templateService } from "@/lib/templateService";
+import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 
 const PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 
@@ -13,6 +14,7 @@ type ViewMode = "clean" | "raw";
 
 export default function PreviewPage() {
   const router = useRouter();
+  const { showAlert } = useAlert();
   const [rawJson, setRawJson] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("clean");
@@ -148,7 +150,7 @@ export default function PreviewPage() {
 
   const handleSaveTemplate = async () => {
     if (!templateName.trim() || !templateDescription.trim()) {
-      alert("Please fill in all fields");
+      showAlert("Please fill in all fields");
       return;
     }
 
@@ -161,18 +163,18 @@ export default function PreviewPage() {
       );
 
       if (template) {
-        alert("Template saved successfully!");
+        showAlert("Template saved successfully!");
         setShowSaveDialog(false);
         setTemplateName("");
         setTemplateDescription("");
         // Navigate to web-builder page
         router.push("/m_dashboard/web-builder");
       } else {
-        alert("Failed to save template. Please try again.");
+        showAlert("Failed to save template. Please try again.");
       }
     } catch (error) {
       console.error("Error saving template:", error);
-      alert("Error saving template. Please try again.");
+      showAlert("Error saving template. Please try again.");
     } finally {
       setSaving(false);
     }

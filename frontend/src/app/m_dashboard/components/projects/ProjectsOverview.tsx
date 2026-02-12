@@ -1,16 +1,49 @@
 // eto yung overview ng mga projects ni user, dito nya makikita yung mga sites na ginawa nya
 
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 import { useTheme } from '../context/theme-context';
 import CreateSite from './CreateSite';
 import TemplatesLibrary from '../templates/TemplatesLibrary';
 import { FilterIcon } from '../dashboard/DashboardIcons';
+import { listProjects, createProject, type Project } from '@/lib/api';
+import { useAlert } from '../context/alert-context';
 
 export function ProjectsOverview() {
   const { theme, colors } = useTheme();
+  const { showAlert } = useAlert();
+  const router = useRouter();
   const [showCreateSite, setShowCreateSite] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    listProjects()
+      .then((res) => {
+        if (!cancelled && res.success && res.projects) setProjects(res.projects);
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setProjectsLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleCreateSite = async (data: { name: string; domain: string; template?: string }) => {
+    try {
+      const res = await createProject({ title: data.name || 'New Site' });
+      if (res.success && res.project) {
+        setShowCreateSite(false);
+        setProjects((prev) => [res.project!, ...prev]);
+        router.push(`/design?projectId=${res.project!.id}`);
+      } else {
+        showAlert('Failed to create project.');
+      }
+    } catch (e) {
+      showAlert('Failed to create project.');
+    }
+  };
 
   return (
     <section className="space-y-5">
@@ -143,10 +176,24 @@ export function ProjectsOverview() {
       >
         <div className="px-5 py-3.5 border-b flex items-center justify-between text-xs font-medium uppercase tracking-wider" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
           <span>Most active projects</span>
-          <span className="text-xs" style={{ color: colors.text.subtle }}>View all →</span>
+          <a href="/m_dashboard/projects" className="text-xs hover:underline" style={{ color: colors.status.info }}>View all →</a>
         </div>
-        <div className="p-8 text-center" style={{ color: colors.text.muted }}>
-          <p className="text-sm">Project list will be populated from API</p>
+        <div className="divide-y" style={{ borderColor: colors.border.faint }}>
+          {projectsLoading && <div className="p-6 text-center text-sm" style={{ color: colors.text.muted }}>Loading…</div>}
+          {!projectsLoading && projects.length === 0 && <div className="p-8 text-center text-sm" style={{ color: colors.text.muted }}>No projects yet. Create a site to get started.</div>}
+          {!projectsLoading && projects.slice(0, 5).map((p) => (
+            <div
+              key={p.id}
+              className="px-5 py-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+              onClick={() => router.push(`/design?projectId=${p.id}`)}
+            >
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium truncate" style={{ color: colors.text.primary }}>{p.title}</p>
+                <p className="text-xs" style={{ color: colors.text.muted }}>{p.status} · {p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : '—'}</p>
+              </div>
+              <span className="text-xs font-medium" style={{ color: colors.status.info }}>Edit →</span>
+            </div>
+          ))}
         </div>
       </motion.div>
 
@@ -154,7 +201,7 @@ export function ProjectsOverview() {
       <CreateSite
         show={showCreateSite}
         onClose={() => setShowCreateSite(false)}
-        onCreate={(data) => console.log('Create site:', data)}
+        onCreate={handleCreateSite}
       />
     </section>
   );

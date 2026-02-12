@@ -15,15 +15,22 @@ import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
 import { CategoryLayout } from "../../templates/Ecommerce/CategoryLayout/CategoryLayout";
 import { CheckoutForm } from "../../templates/Ecommerce/CheckoutForm/CheckoutForm";
+import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 
-const STORAGE_KEY = "craftjs_preview_json";
-// Project ID as per user's latest message
-const PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
+const STORAGE_KEY_PREFIX = "craftjs_preview_json";
+function getStorageKey(projectId: string) {
+  return `${STORAGE_KEY_PREFIX}_${projectId}`;
+}
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
+type EditorShellProps = {
+  projectId: string;
+};
+
 /** Editor Shell */
-export const EditorShell = (props: any) => {
+export const EditorShell = ({ projectId }: EditorShellProps) => {
+  const { showAlert, showConfirm } = useAlert();
   const containerRef = useRef<HTMLDivElement>(null);
   const zoomAnchorRef = useRef<{
     x: number;
@@ -166,16 +173,23 @@ export const EditorShell = (props: any) => {
 
   // Restore saved editor state from database on mount
   useEffect(() => {
+    if (!projectId) {
+      setInitialJson(null);
+      isReadyRef.current = true;
+      return;
+    }
+
     async function loadDraft() {
       try {
-        console.log('📥 loadDraft starting...');
+        console.log('📥 loadDraft starting...', projectId);
 
-        // Try localStorage first as fallback
-        const sessionSaved = localStorage.getItem(STORAGE_KEY);
+        // Try localStorage per-project so Start from Scratch gets blank canvas
+        const storageKey = getStorageKey(projectId);
+        const sessionSaved = localStorage.getItem(storageKey);
 
         // Try to load from database
         console.log('📡 Calling getDraft()...');
-        const result = await getDraft(PROJECT_ID);
+        const result = await getDraft(projectId);
         console.log('📡 getDraft result:', result);
 
         let contentToLoad: string | null = null;
@@ -199,24 +213,24 @@ export const EditorShell = (props: any) => {
             if (parsed && parsed.ROOT) {
               console.log(`✅ Loaded valid draft from DB (${Object.keys(parsed).length} internal nodes)`);
               contentToLoad = content;
-              // Sync to localStorage
-              localStorage.setItem(STORAGE_KEY, contentToLoad!);
+              // Sync to localStorage (per-project)
+              localStorage.setItem(storageKey, contentToLoad!);
             }
           } catch (e) {
             console.error('Failed to parse draft content:', e);
           }
         }
 
-        // 2. Check LocalStorage (Fallback)
+        // 2. Check LocalStorage (fallback for this project only)
         if (!contentToLoad && sessionSaved) {
           try {
             const parsed = JSON.parse(sessionSaved);
             if (parsed && parsed.ROOT) {
-              console.log('✅ Loaded valid draft from localStorage');
+              console.log('✅ Loaded valid draft from localStorage (this project)');
               contentToLoad = sessionSaved;
             }
           } catch (e) {
-            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem(storageKey);
           }
         }
 
@@ -239,7 +253,7 @@ export const EditorShell = (props: any) => {
     }
 
     loadDraft();
-  }, []);
+  }, [projectId]);
 
   // Defer panel rendering to avoid React setState-during-render warning
   useEffect(() => {
@@ -250,17 +264,19 @@ export const EditorShell = (props: any) => {
 
   // Handle Delete Data
   const handleDeleteData = async () => {
-    if (!confirm("Are you sure you want to delete your progress? This cannot be undone.")) return;
+    if (!projectId) return;
+    const confirmed = await showConfirm("Are you sure you want to delete your progress? This cannot be undone.");
+    if (!confirmed) return;
 
     console.log('🗑️ Deleting draft...');
-    const result = await deleteDraft(PROJECT_ID);
+    const result = await deleteDraft(projectId);
 
     if (result.success) {
       console.log('✅ Draft deleted');
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(getStorageKey(projectId));
       location.reload(); // Reload to reset editorstate
     } else {
-      alert('Failed to delete draft: ' + result.error);
+      showAlert('Failed to delete draft: ' + (result.error || 'Unknown error'));
     }
   };
 
@@ -291,20 +307,20 @@ export const EditorShell = (props: any) => {
 
           console.log('🔄 Auto-save executing (Clean Code)...');
 
-          // Save to localStorage as fallback (still store raw for editor internal load if needed, 
-          // or we can store clean and deserialize on load. Let's keep local as raw for safety
-          // or switch both to clean. Plan says store clean in DB.)
-          localStorage.setItem(STORAGE_KEY, next);
+          // Save to localStorage per-project so other projects stay untouched
+          localStorage.setItem(getStorageKey(projectId), next);
 
-          // Save CLEAN CODE to database
-          const result = await autoSavePage(JSON.stringify(cleanCode), PROJECT_ID);
+          // Save CLEAN CODE to database (only when projectId is set)
+          if (projectId) {
+            const result = await autoSavePage(JSON.stringify(cleanCode), projectId);
 
-          if (result.success) {
-            setSaveStatus('saved');
-            setTimeout(() => setSaveStatus('idle'), 2000);
-          } else {
-            console.warn('Auto-save warning:', result.error);
-            setSaveStatus('error');
+            if (result.success) {
+              setSaveStatus('saved');
+              setTimeout(() => setSaveStatus('idle'), 2000);
+            } else {
+              console.warn('Auto-save warning:', result.error);
+              setSaveStatus('error');
+            }
           }
         } catch (error) {
           console.error('Auto-save error:', error);
@@ -312,7 +328,7 @@ export const EditorShell = (props: any) => {
         }
       }, 2000); // Debounce 2s
     },
-    [] // No dependencies needed!
+    [projectId]
   );
 
   // Clean up debounce timer on unmount

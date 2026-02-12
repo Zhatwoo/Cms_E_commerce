@@ -141,3 +141,8 @@ export function useTheme() {
   }
   return context;
 }
+
+/** Use theme colors when inside ThemeProvider; undefined otherwise (for use in AlertModal fallback). */
+export function useThemeOptional(): ThemeContextType | undefined {
+  return useContext(ThemeContext);
+}

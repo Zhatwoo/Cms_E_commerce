@@ -5,6 +5,7 @@ import { DashboardSidebar } from './components/layout/sidebar';
 import { DashboardHeader } from './components/layout/header';
 import { ThemeProvider, useTheme } from './components/context/theme-context';
 import { AuthProvider, useAuth } from './components/context/auth-context';
+import { AlertProvider } from './components/context/alert-context';
 
 function DashboardLayoutContent({
     children,
@@ -83,9 +84,11 @@ export default function MDashboardLayout({
 }) {
     return (
         <ThemeProvider>
-            <AuthProvider>
-                <DashboardLayoutContent>{children}</DashboardLayoutContent>
-            </AuthProvider>
+            <AlertProvider>
+                <AuthProvider>
+                    <DashboardLayoutContent>{children}</DashboardLayoutContent>
+                </AuthProvider>
+            </AlertProvider>
         </ThemeProvider>
     );
 }
