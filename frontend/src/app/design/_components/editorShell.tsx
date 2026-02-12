@@ -15,6 +15,8 @@ import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
 import { CategoryLayout } from "../../templates/Ecommerce/CategoryLayout/CategoryLayout";
 import { CheckoutForm } from "../../templates/Ecommerce/CheckoutForm/CheckoutForm";
+import { CartLayout } from "../../templates/Ecommerce/CartLayout/CartLayout";
+import { OrderTrackingLayout } from "../../templates/Ecommerce/OrderTrackingLayout/OrderTrackingLayout";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
@@ -342,6 +344,8 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
     ...RenderBlocks,
     CategoryLayout,
     CheckoutForm,
+    CartLayout,
+    OrderTrackingLayout,
   } as any;
 
   // Also register display-name keys that may be used in serialized nodes
@@ -349,6 +353,12 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   resolver["CheckoutForm"] = CheckoutForm;
   resolver["Category Listing"] = CategoryLayout;
   resolver["CategoryLayout"] = CategoryLayout;
+  resolver["Product Listing"] = RenderBlocks.ProductListing;
+  resolver["Product Details"] = RenderBlocks.ProductDetails;
+  resolver["Cart"] = CartLayout;
+  resolver["CartLayout"] = CartLayout;
+  resolver["Order Tracking"] = OrderTrackingLayout;
+  resolver["OrderTrackingLayout"] = OrderTrackingLayout;
 
   // Debug: list resolver keys so we can confirm components are registered at runtime
   if (typeof window !== "undefined") {
