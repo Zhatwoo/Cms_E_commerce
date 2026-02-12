@@ -15,7 +15,14 @@ import { CenteredHero, HeroWithImage } from "./Hero";
 import { FeaturesGrid, Testimonial } from "./Content";
 import { ContactForm, NewsletterSignup } from "./Forms";
 import { ProductCard, TeamMemberCard } from "./Cards";
-import { SimpleFooter, MultiColumnFooter } from "./Footer";
+import { 
+  SimpleFooter, 
+  MultiColumnFooter,
+  NewsletterFooter,
+  TrustFooter,
+  CheckoutFooter,
+  BrandFooter 
+} from "./Footer";
 
 import { ProductListing } from "./Ecommerce/ProductListing/ProductListing";
 import { ProductDetails } from "./Ecommerce/ProductDetails/ProductDetails";
@@ -45,6 +52,10 @@ export const TEMPLATES: TemplateEntry[] = [
   TeamMemberCard,
   SimpleFooter,
   MultiColumnFooter,
+  NewsletterFooter,
+  TrustFooter,
+  CheckoutFooter,
+  BrandFooter,
 ];
 
 export const GROUPED_TEMPLATES = [
@@ -59,7 +70,14 @@ export const GROUPED_TEMPLATES = [
   },
   {
     folder: "Footer",
-    items: [MultiColumnFooter, SimpleFooter],
+    items: [
+      MultiColumnFooter,
+      SimpleFooter,
+      NewsletterFooter,
+      TrustFooter,
+      CheckoutFooter,
+      BrandFooter,
+    ],
   },
   {
     folder: "Header",

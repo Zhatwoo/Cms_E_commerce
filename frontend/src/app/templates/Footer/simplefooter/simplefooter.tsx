@@ -2,9 +2,9 @@
 
 import React from "react";
 import { Element } from "@craftjs/core";
-import { Container } from "../../design/_designComponents/Container/Container";
-import { Text } from "../../design/_designComponents/Text/Text";
-import { TemplateEntry } from "../_types";
+import { Container } from "../../../design/_designComponents/Container/Container";
+import { Text } from "../../../design/_designComponents/Text/Text";
+import { TemplateEntry } from "../../_types";
 
 export const SimpleFooter: TemplateEntry = {
   label: "Simple Footer",
