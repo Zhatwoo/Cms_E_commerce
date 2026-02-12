@@ -1,32 +1,18 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, type Variants } from 'framer-motion';
 import { AdminSidebar } from '../components/sidebar';
 import { AdminHeader } from '../components/header';
-import { Chart, registerables } from 'chart.js';
-Chart.register(...registerables);
+import PlatformTraffic from './components/PlatformTraffic';
+import RevenueGrowth from './components/RevenueGrowth';
+import SubscriptionDistribution from './components/SubscriptionDistribution';
 
 const ChevronRightIcon = () => (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
     </svg>
 );
-
-const polarToCartesian = (cx: number, cy: number, r: number, angle: number) => {
-    const rad = ((angle - 90) * Math.PI) / 180;
-    return {
-        x: cx + r * Math.cos(rad),
-        y: cy + r * Math.sin(rad),
-    };
-};
-
-const describeArc = (cx: number, cy: number, r: number, startAngle: number, endAngle: number) => {
-    const start = polarToCartesian(cx, cy, r, endAngle);
-    const end = polarToCartesian(cx, cy, r, startAngle);
-    const largeArcFlag = endAngle - startAngle <= 180 ? '0' : '1';
-    return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArcFlag} 0 ${end.x} ${end.y} L ${cx} ${cy} Z`;
-};
 
 const cardVariants: Variants = {
     hidden: { opacity: 0, y: 16, scale: 0.96 },
@@ -46,250 +32,12 @@ const containerVariants: Variants = {
 
 export default function MonitoringAnalyticsPage() {
     const [activeTab, setActiveTab] = useState('platform');
-    const [timePeriod, setTimePeriod] = useState('7days');
-    const [revenueTimePeriod, setRevenueTimePeriod] = useState('7days');
-    const trafficChartRef = useRef<HTMLCanvasElement>(null);
-    const chartInstanceRef = useRef<Chart | null>(null);
-    const revenueChartRef = useRef<HTMLCanvasElement>(null);
-    const revenueChartInstanceRef = useRef<Chart | null>(null);
-
-    // Initialize traffic chart
-    useEffect(() => {
-        if (!trafficChartRef.current || activeTab !== 'platform') return;
-
-        const getChartData = () => {
-            if (timePeriod === '7days') {
-                return {
-                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                    visitors: [270, 300, 360, 330, 410, 380, 450],
-                    signups: [120, 150, 180, 170, 210, 200, 240],
-                };
-            } else if (timePeriod === '30days') {
-                return {
-                    labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-                    visitors: [2100, 2450, 2890, 3200],
-                    signups: [850, 980, 1120, 1350],
-                };
-            } else {
-                return {
-                    labels: ['Jan', 'Feb', 'Mar'],
-                    visitors: [8500, 9200, 10100],
-                    signups: [3200, 3800, 4200],
-                };
-            }
-        };
-
-        if (chartInstanceRef.current) {
-            chartInstanceRef.current.destroy();
-        }
-
-        const chartData = getChartData();
-
-        const ctx = trafficChartRef.current.getContext('2d');
-        if (!ctx) return;
-
-        chartInstanceRef.current = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: chartData.labels,
-                datasets: [
-                    {
-                        label: 'Visitors',
-                        data: chartData.visitors,
-                        borderColor: '#1d4ed8',
-                        backgroundColor: 'rgba(29, 78, 216, 0.1)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.4,
-                    },
-                    {
-                        label: 'Signups',
-                        data: chartData.signups,
-                        borderColor: '#64748b',
-                        backgroundColor: 'rgba(100, 116, 139, 0.1)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.4,
-                    },
-                ],
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
-                },
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top',
-                    },
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: {
-                            color: 'rgba(226, 232, 240, 0.5)',
-                        },
-                    },
-                    x: {
-                        grid: {
-                            display: false,
-                        },
-                    },
-                },
-            },
-        });
-
-        return () => {
-            if (chartInstanceRef.current) {
-                chartInstanceRef.current.destroy();
-            }
-        };
-    }, [timePeriod, activeTab]);
-
-    // Initialize revenue chart
-    useEffect(() => {
-        if (!revenueChartRef.current || activeTab !== 'engagement') return;
-
-        const getRevenueData = () => {
-            if (revenueTimePeriod === '7days') {
-                return {
-                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                    free: [3200, 3800, 4200, 3900, 4500, 4100, 5000],
-                    basic: [4500, 5200, 5800, 5400, 6200, 5700, 6800],
-                    pro: [3100, 4000, 5200, 4800, 6500, 6100, 7500],
-                    enterprise: [1700, 2300, 3000, 2700, 4200, 3600, 5000],
-                };
-            } else if (revenueTimePeriod === '30days') {
-                return {
-                    labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-                    free: [28500, 31200, 34800, 38200],
-                    basic: [38200, 41500, 45600, 50200],
-                    pro: [26800, 30400, 35200, 40800],
-                    enterprise: [11900, 15300, 19500, 24000],
-                };
-            } else {
-                return {
-                    labels: ['Jan', 'Feb', 'Mar'],
-                    free: [98500, 108200, 119500],
-                    basic: [157800, 173200, 189800],
-                    pro: [124500, 137800, 152200],
-                    enterprise: [44200, 59800, 79500],
-                };
-            }
-        };
-
-        if (revenueChartInstanceRef.current) {
-            revenueChartInstanceRef.current.destroy();
-        }
-
-        const revenueData = getRevenueData();
-
-        const ctx = revenueChartRef.current.getContext('2d');
-        if (!ctx) return;
-
-        revenueChartInstanceRef.current = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: revenueData.labels,
-                datasets: [
-                    {
-                        label: 'Free',
-                        data: revenueData.free,
-                        backgroundColor: '#DBEAFE',
-                        borderColor: '#93C5FD',
-                        borderWidth: 1,
-                        borderRadius: 6,
-                    },
-                    {
-                        label: 'Basic',
-                        data: revenueData.basic,
-                        backgroundColor: '#93C5FD',
-                        borderColor: '#60A5FA',
-                        borderWidth: 1,
-                        borderRadius: 6,
-                    },
-                    {
-                        label: 'Pro',
-                        data: revenueData.pro,
-                        backgroundColor: '#3B82F6',
-                        borderColor: '#1D4ED8',
-                        borderWidth: 1,
-                        borderRadius: 6,
-                    },
-                    {
-                        label: 'Enterprise',
-                        data: revenueData.enterprise,
-                        backgroundColor: '#1E40AF',
-                        borderColor: '#1E3A8A',
-                        borderWidth: 1,
-                        borderRadius: 6,
-                    },
-                ],
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
-                },
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top',
-                    },
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: {
-                            color: 'rgba(226, 232, 240, 0.5)',
-                        },
-                        ticks: {
-                            callback: function(value) {
-                                return '$' + value.toLocaleString();
-                            }
-                        }
-                    },
-                    x: {
-                        grid: {
-                            display: false,
-                        },
-                    },
-                },
-            },
-        });
-
-        return () => {
-            if (revenueChartInstanceRef.current) {
-                revenueChartInstanceRef.current.destroy();
-            }
-        };
-    }, [revenueTimePeriod, activeTab]);
 
     const tabNames: Record<string, string> = {
         platform: 'Platform Traffic',
         engagement: 'Revenue Growth',
         trends: 'Subscription Distribution',
     };
-
-    const subscriptionData = [
-        { label: 'Free', value: 35, color: '#94a3b8' },
-        { label: 'Basic', value: 30, color: '#2563eb' },
-        { label: 'Pro', value: 25, color: '#22c55e' },
-        { label: 'Enterprise', value: 10, color: '#f59e0b' },
-    ];
-    const totalSubscriptions = subscriptionData.reduce((sum, item) => sum + item.value, 0);
-    let cumulativeAngle = 0;
-    const subscriptionSegments = subscriptionData.map((item) => {
-        const startAngle = (cumulativeAngle / totalSubscriptions) * 360;
-        cumulativeAngle += item.value;
-        const endAngle = (cumulativeAngle / totalSubscriptions) * 360;
-        return { ...item, startAngle, endAngle };
-    });
 
     return (
         <div className="min-h-screen bg-gray-100 flex" suppressHydrationWarning>
@@ -393,142 +141,13 @@ export default function MonitoringAnalyticsPage() {
                             {/* Content Section */}
                             <div className="p-6">
                                 {/* Platform Traffic Tab */}
-                                {activeTab === 'platform' && (
-                                    <motion.div
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        transition={{ duration: 0.3 }}
-                                        className="space-y-6"
-                                    >
-                                        <div>
-                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
-                                                <div>
-                                                    <h2 className="text-2xl font-semibold text-slate-900">Platform Traffic</h2>
-                                                    <p className="text-sm text-slate-500 mt-1">Visitors and signups performance</p>
-                                                </div>
-                                                <div className="flex gap-1 bg-slate-100 rounded-lg p-1" suppressHydrationWarning>
-                                                    {[
-                                                        { id: '7days', label: 'Last 7 days' },
-                                                        { id: '30days', label: 'Last 30 days' },
-                                                        { id: '3months', label: 'Last 3 months' },
-                                                    ].map((period) => (
-                                                        <button
-                                                            key={period.id}
-                                                            onClick={() => setTimePeriod(period.id)}
-                                                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                                                                timePeriod === period.id
-                                                                    ? 'bg-white text-slate-900 shadow-sm'
-                                                                    : 'text-slate-600 hover:text-slate-900'
-                                                            }`}
-                                                            suppressHydrationWarning
-                                                        >
-                                                            {period.label}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-
-                                            <div className="bg-white rounded-xl p-8 border border-slate-200">
-                                                <canvas ref={trafficChartRef} height="80"></canvas>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                )}
+                                {activeTab === 'platform' && <PlatformTraffic />}
 
                                 {/* Revenue Growth Tab */}
-                                {activeTab === 'engagement' && (
-                                    <motion.div
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        transition={{ duration: 0.3 }}
-                                        className="space-y-6"
-                                    >
-                                        <div>
-                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
-                                                <div>
-                                                    <h2 className="text-2xl font-semibold text-slate-900">Revenue Growth</h2>
-                                                    <p className="text-sm text-slate-500 mt-1">Revenue by subscription plan</p>
-                                                </div>
-                                                <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
-                                                    {[
-                                                        { id: '7days', label: 'Last 7 days' },
-                                                        { id: '30days', label: 'Last 30 days' },
-                                                        { id: '3months', label: 'Last 3 months' },
-                                                    ].map((period) => (
-                                                        <button
-                                                            key={period.id}
-                                                            onClick={() => setRevenueTimePeriod(period.id)}
-                                                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                                                                revenueTimePeriod === period.id
-                                                                    ? 'bg-white text-slate-900 shadow-sm'
-                                                                    : 'text-slate-600 hover:text-slate-900'
-                                                            }`}
-                                                            suppressHydrationWarning
-                                                        >
-                                                            {period.label}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-
-                                            <div className="bg-white rounded-xl p-8 border border-slate-200">
-                                                <canvas ref={revenueChartRef} height="80"></canvas>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                )}
+                                {activeTab === 'engagement' && <RevenueGrowth />}
 
                                 {/* Subscription Distribution Tab */}
-                                {activeTab === 'trends' && (
-                                    <motion.div
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        transition={{ duration: 0.3 }}
-                                        className="space-y-6"
-                                    >
-                                        <div>
-                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
-                                                <div>
-                                                    <h2 className="text-2xl font-semibold text-slate-900">Subscription Distribution</h2>
-                                                    <p className="text-sm text-slate-500 mt-1">Current plan mix across the platform</p>
-                                                </div>
-                                            </div>
-
-                                            <div className="bg-white rounded-xl p-8 border border-slate-200">
-                                                <div className="flex flex-col lg:flex-row items-center gap-10">
-                                                    <svg viewBox="0 0 360 360" className="w-full max-w-[280px]" style={{ aspectRatio: '360/360' }}>
-                                                        {subscriptionSegments.map((segment) => (
-                                                            <path
-                                                                key={segment.label}
-                                                                d={describeArc(180, 180, 120, segment.startAngle, segment.endAngle)}
-                                                                fill={segment.color}
-                                                            />
-                                                        ))}
-                                                        <circle cx="180" cy="180" r="68" fill="#ffffff" />
-                                                        <text x="180" y="175" fontSize="16" fill="#0f172a" textAnchor="middle" fontWeight="600">
-                                                            Total
-                                                        </text>
-                                                        <text x="180" y="200" fontSize="20" fill="#0f172a" textAnchor="middle" fontWeight="700">
-                                                            {totalSubscriptions}%
-                                                        </text>
-                                                    </svg>
-
-                                                    <div className="space-y-4 w-full">
-                                                        {subscriptionSegments.map((segment) => (
-                                                            <div key={`legend-${segment.label}`} className="flex items-center justify-between">
-                                                                <div className="flex items-center gap-3">
-                                                                    <span className="h-3 w-3 rounded-full" style={{ backgroundColor: segment.color }} />
-                                                                    <span className="text-sm font-medium text-slate-700">{segment.label}</span>
-                                                                </div>
-                                                                <span className="text-sm font-semibold text-slate-900">{segment.value}%</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                )}
+                                {activeTab === 'trends' && <SubscriptionDistribution />}
                             </div>
                         </motion.div>
 
