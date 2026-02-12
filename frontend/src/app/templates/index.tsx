@@ -1,11 +1,28 @@
 "use client";
 
 import { SimpleHeader, HeaderWithCTA } from "./Header";
+import { 
+  SimpleEcommerceHeader, 
+  HeaderWithSearch, 
+  HeaderWithMegamenu, 
+  MinimalistSaleHeader, 
+  LuxuryHeader, 
+  MobileHeader, 
+  HeaderWithChips, 
+  DarkModeHeader 
+} from "./Header";
 import { CenteredHero, HeroWithImage } from "./Hero";
 import { FeaturesGrid, Testimonial } from "./Content";
 import { ContactForm, NewsletterSignup } from "./Forms";
 import { ProductCard, TeamMemberCard } from "./Cards";
-import { SimpleFooter, MultiColumnFooter } from "./Footer";
+import { 
+  SimpleFooter, 
+  MultiColumnFooter,
+  NewsletterFooter,
+  TrustFooter,
+  CheckoutFooter,
+  BrandFooter 
+} from "./Footer";
 
 import { ProductListing } from "./Ecommerce/ProductListing/ProductListing";
 import { ProductDetails } from "./Ecommerce/ProductDetails/ProductDetails";
@@ -17,6 +34,14 @@ import { TemplateEntry } from "./_types";
 export const TEMPLATES: TemplateEntry[] = [
   SimpleHeader,
   HeaderWithCTA,
+  SimpleEcommerceHeader,
+  HeaderWithSearch,
+  HeaderWithMegamenu,
+  MinimalistSaleHeader,
+  LuxuryHeader,
+  MobileHeader,
+  HeaderWithChips,
+  DarkModeHeader,
   CenteredHero,
   HeroWithImage,
   FeaturesGrid,
@@ -27,45 +52,47 @@ export const TEMPLATES: TemplateEntry[] = [
   TeamMemberCard,
   SimpleFooter,
   MultiColumnFooter,
+  NewsletterFooter,
+  TrustFooter,
+  CheckoutFooter,
+  BrandFooter,
 ];
 
 export const GROUPED_TEMPLATES = [
   {
     folder: "Ecommerce",
     items: [
-      {
-        label: "Product Listing",
-        description: "Grid of product cards",
-        element: ProductListing,
-        preview: "PL",
-      },
-      {
-        label: "Product Details",
-        description: "Detailed product view",
-        element: ProductDetails,
-        preview: "PD",
-      },
-      {
-        label: "Category Listing",
-        description: "Product listing with header, filters, sort & pagination",
-        element: CategoryLayout,
-        preview: "CL",
-      },
-      {
-        label: "Checkout Form",
-        description: "Complete checkout form with order summary",
-        element: CheckoutForm,
-        preview: "CO",
-      },
+      ProductListing,
+      ProductDetails,
+      CategoryLayout,
+      CheckoutForm,
     ],
   },
   {
     folder: "Footer",
-    items: [MultiColumnFooter, SimpleFooter],
+    items: [
+      MultiColumnFooter,
+      SimpleFooter,
+      NewsletterFooter,
+      TrustFooter,
+      CheckoutFooter,
+      BrandFooter,
+    ],
   },
   {
     folder: "Header",
-    items: [SimpleHeader, HeaderWithCTA],
+    items: [
+      SimpleHeader,
+      HeaderWithCTA,
+      SimpleEcommerceHeader,
+      HeaderWithSearch,
+      HeaderWithMegamenu,
+      MinimalistSaleHeader,
+      LuxuryHeader,
+      MobileHeader,
+      HeaderWithChips,
+      DarkModeHeader,
+    ],
   },
   {
     folder: "Hero",
