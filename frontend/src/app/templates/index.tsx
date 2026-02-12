@@ -1,6 +1,16 @@
 "use client";
 
 import { SimpleHeader, HeaderWithCTA } from "./Header";
+import { 
+  SimpleEcommerceHeader, 
+  HeaderWithSearch, 
+  HeaderWithMegamenu, 
+  MinimalistSaleHeader, 
+  LuxuryHeader, 
+  MobileHeader, 
+  HeaderWithChips, 
+  DarkModeHeader 
+} from "./Header";
 import { CenteredHero, HeroWithImage } from "./Hero";
 import { FeaturesGrid, Testimonial } from "./Content";
 import { ContactForm, NewsletterSignup } from "./Forms";
@@ -17,6 +27,14 @@ import { TemplateEntry } from "./_types";
 export const TEMPLATES: TemplateEntry[] = [
   SimpleHeader,
   HeaderWithCTA,
+  SimpleEcommerceHeader,
+  HeaderWithSearch,
+  HeaderWithMegamenu,
+  MinimalistSaleHeader,
+  LuxuryHeader,
+  MobileHeader,
+  HeaderWithChips,
+  DarkModeHeader,
   CenteredHero,
   HeroWithImage,
   FeaturesGrid,
@@ -33,30 +51,10 @@ export const GROUPED_TEMPLATES = [
   {
     folder: "Ecommerce",
     items: [
-      {
-        label: "Product Listing",
-        description: "Grid of product cards",
-        element: <ProductListing />,
-        preview: "PL",
-      },
-      {
-        label: "Product Details",
-        description: "Detailed product view",
-        element: <ProductDetails />,
-        preview: "PD",
-      },
-      {
-        label: "Category Listing",
-        description: "Product listing with header, filters, sort & pagination",
-        element: <CategoryLayout />,
-        preview: "CL",
-      },
-      {
-        label: "Checkout Form",
-        description: "Complete checkout form with order summary",
-        element: <CheckoutForm />,
-        preview: "CO",
-      },
+      ProductListing,
+      ProductDetails,
+      CategoryLayout,
+      CheckoutForm,
     ],
   },
   {
@@ -65,7 +63,18 @@ export const GROUPED_TEMPLATES = [
   },
   {
     folder: "Header",
-    items: [SimpleHeader, HeaderWithCTA],
+    items: [
+      SimpleHeader,
+      HeaderWithCTA,
+      SimpleEcommerceHeader,
+      HeaderWithSearch,
+      HeaderWithMegamenu,
+      MinimalistSaleHeader,
+      LuxuryHeader,
+      MobileHeader,
+      HeaderWithChips,
+      DarkModeHeader,
+    ],
   },
   {
     folder: "Hero",

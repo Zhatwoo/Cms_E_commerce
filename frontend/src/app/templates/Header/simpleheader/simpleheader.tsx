@@ -2,12 +2,12 @@
 
 import React from "react";
 import { Element } from "@craftjs/core";
-import { Container } from "../../design/_designComponents/Container/Container";
-import { Text } from "../../design/_designComponents/Text/Text";
-import { Section } from "../../design/_designComponents/Section/Section";
-import { Row } from "../../design/_designComponents/Row/Row";
-import { Column } from "../../design/_designComponents/Column/Column";
-import { TemplateEntry } from "../_types";
+import { Container } from "../../../design/_designComponents/Container/Container";
+import { Text } from "../../../design/_designComponents/Text/Text";
+import { Section } from "../../../design/_designComponents/Section/Section";
+import { Row } from "../../../design/_designComponents/Row/Row";
+import { Column } from "../../../design/_designComponents/Column/Column";
+import { TemplateEntry } from "../../_types";
 
 export const SimpleHeader: TemplateEntry = {
   label: "Simple Header",
