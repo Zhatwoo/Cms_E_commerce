@@ -279,7 +279,7 @@ export const CategoryLayout: React.FC<CategoryLayoutProps> = ({
       }}
       className="w-full"
     >
-      <section style={{ backgroundColor }} className="min-h-[400px]">
+      <section style={{ backgroundColor }} className="min-h-100">
         {/* Category Header / Banner */}
         {showCategoryHeader && (
           <div
@@ -318,7 +318,7 @@ export const CategoryLayout: React.FC<CategoryLayoutProps> = ({
           <div className="flex gap-6">
             {/* Optional Sidebar */}
             {showSidebar && (
-              <aside className="w-56 flex-shrink-0 hidden lg:block">
+              <aside className="w-56 shrink-0 hidden lg:block">
                 {/* Subcategories */}
                 {subcategories.length > 0 && (
                   <div className="mb-6 bg-white rounded-lg p-4 shadow-sm">
