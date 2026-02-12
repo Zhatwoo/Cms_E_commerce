@@ -2,11 +2,28 @@
 
 import React from "react";
 import { SimpleHeader, HeaderWithCTA } from "./Header";
+import { 
+  SimpleEcommerceHeader, 
+  HeaderWithSearch, 
+  HeaderWithMegamenu, 
+  MinimalistSaleHeader, 
+  LuxuryHeader, 
+  MobileHeader, 
+  HeaderWithChips, 
+  DarkModeHeader 
+} from "./Header";
 import { CenteredHero, HeroWithImage } from "./Hero";
 import { FeaturesGrid, Testimonial } from "./Content";
 import { ContactForm, NewsletterSignup } from "./Forms";
 import { ProductCard, TeamMemberCard } from "./Cards";
-import { SimpleFooter, MultiColumnFooter } from "./Footer";
+import { 
+  SimpleFooter, 
+  MultiColumnFooter,
+  NewsletterFooter,
+  TrustFooter,
+  CheckoutFooter,
+  BrandFooter 
+} from "./Footer";
 
 import { ProductListing } from "./Ecommerce/ProductListing/ProductListing";
 import { ProductDetails } from "./Ecommerce/ProductDetails/ProductDetails";
@@ -20,6 +37,14 @@ import { TemplateEntry } from "./_types";
 export const TEMPLATES: TemplateEntry[] = [
   SimpleHeader,
   HeaderWithCTA,
+  SimpleEcommerceHeader,
+  HeaderWithSearch,
+  HeaderWithMegamenu,
+  MinimalistSaleHeader,
+  LuxuryHeader,
+  MobileHeader,
+  HeaderWithChips,
+  DarkModeHeader,
   CenteredHero,
   HeroWithImage,
   FeaturesGrid,
@@ -30,6 +55,10 @@ export const TEMPLATES: TemplateEntry[] = [
   TeamMemberCard,
   SimpleFooter,
   MultiColumnFooter,
+  NewsletterFooter,
+  TrustFooter,
+  CheckoutFooter,
+  BrandFooter,
 ];
 
 export const GROUPED_TEMPLATES = [
@@ -76,11 +105,29 @@ export const GROUPED_TEMPLATES = [
   },
   {
     folder: "Footer",
-    items: [MultiColumnFooter, SimpleFooter],
+    items: [
+      MultiColumnFooter,
+      SimpleFooter,
+      NewsletterFooter,
+      TrustFooter,
+      CheckoutFooter,
+      BrandFooter,
+    ],
   },
   {
     folder: "Header",
-    items: [SimpleHeader, HeaderWithCTA],
+    items: [
+      SimpleHeader,
+      HeaderWithCTA,
+      SimpleEcommerceHeader,
+      HeaderWithSearch,
+      HeaderWithMegamenu,
+      MinimalistSaleHeader,
+      LuxuryHeader,
+      MobileHeader,
+      HeaderWithChips,
+      DarkModeHeader,
+    ],
   },
   {
     folder: "Hero",

@@ -1,3 +1,3 @@
-export { ContactForm } from "./contactform";
-export { NewsletterSignup } from "./newslettersignup";
+export { ContactForm } from "./contactform/contactform";
+export { NewsletterSignup } from "./newslettersignup/newslettersignup";
 
