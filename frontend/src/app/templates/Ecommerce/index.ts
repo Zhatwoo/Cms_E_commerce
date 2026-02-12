@@ -4,3 +4,7 @@ export * from "./ProductDetails/ProductDetails";
 export * from "./ProductDetails/ProductDetailsSettings";
 export * from "./CategoryLayout/CategoryLayout";
 export * from "./CategoryLayout/CategoryLayoutSettings";
+export * from "./CartLayout/CartLayout";
+export * from "./CartLayout/CartLayoutSettings";
+export * from "./OrderTrackingLayout/OrderTrackingLayout";
+export * from "./OrderTrackingLayout/OrderTrackingLayoutSettings";

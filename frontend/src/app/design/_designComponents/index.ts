@@ -10,8 +10,10 @@ import { Row } from "./Row/Row";
 import { Column } from "./Column/Column";
 import { ProductListing } from "../../templates/Ecommerce/ProductListing/ProductListing";
 import { ProductDetails } from "../../templates/Ecommerce/ProductDetails/ProductDetails";
+import { CartLayout } from "../../templates/Ecommerce/CartLayout/CartLayout";
+import { OrderTrackingLayout } from "../../templates/Ecommerce/OrderTrackingLayout/OrderTrackingLayout";
 
-export const RenderBlocks = {
+export const RenderBlocks: Record<string, any> = {
   Container,
   Text,
   Page,
@@ -23,5 +25,11 @@ export const RenderBlocks = {
   Row,
   Column,
   ProductListing,
+  "Product Listing": ProductListing,
   ProductDetails,
+  "Product Details": ProductDetails,
+  CartLayout,
+  "Cart": CartLayout,
+  OrderTrackingLayout,
+  "Order Tracking": OrderTrackingLayout,
 };
