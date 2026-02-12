@@ -19,9 +19,7 @@ const TABS: Tab[] = [
   { id: "animation", label: "Animation" },
 ];
 
-const PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
-
-export const RightPanel = () => {
+export const RightPanel = ({ projectId }: { projectId: string }) => {
   const { showAlert } = useAlert();
   const [activeTab, setActiveTab] = useState<TabId>("design");
   const [isPreviewing, setIsPreviewing] = useState(false);
@@ -58,10 +56,10 @@ export const RightPanel = () => {
       console.log(`📊 Preview: Clean output has ${cleanCount} nodes.`);
 
       // Force save to DB before navigating
-      await autoSavePage(JSON.stringify(cleanCode), PROJECT_ID);
+      await autoSavePage(JSON.stringify(cleanCode), projectId);
 
       console.log('✅ Save complete, navigating to preview...');
-      router.push("/design/preview");
+      router.push(`/design/preview?projectId=${encodeURIComponent(projectId)}`);
     } catch (error) {
       console.error('❌ Preview failed:', error);
       showAlert('Failed to generate preview. Check console.');
@@ -82,7 +80,7 @@ export const RightPanel = () => {
           onClick={handlePreview}
           disabled={isPreviewing}
           className={`p-1 rounded-lg transition-colors cursor-pointer ${isPreviewing ? 'opacity-50 cursor-wait' : 'hover:bg-brand-medium/40'}`}
-          title="Preview JSON output"
+          title="Preview (Web / Clean / Raw)"
         >
           <Play strokeWidth={2} className={`w-5 h-5 transition-colors ${isPreviewing ? 'text-yellow-400 animate-pulse' : 'text-brand-light hover:text-brand-lighter'}`} />
         </button>
