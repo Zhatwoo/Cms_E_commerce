@@ -1,23 +1,26 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
-import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save } from "lucide-react";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useState, useMemo, Suspense } from "react";
+import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
 import { getDraft } from "../_lib/pageApi";
+import { WebPreview } from "../_lib/webRenderer";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 
-const PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
+const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 
-type ViewMode = "clean" | "raw";
+type ViewMode = "Web-Preview" | "clean" | "raw";
 
-export default function PreviewPage() {
+function PreviewContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get("projectId") || DEFAULT_PROJECT_ID;
   const { showAlert } = useAlert();
   const [rawJson, setRawJson] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>("clean");
+  const [viewMode, setViewMode] = useState<ViewMode>("Web-Preview");
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [loading, setLoading] = useState(true);
   const [templateName, setTemplateName] = useState("");
@@ -28,8 +31,8 @@ export default function PreviewPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        console.log(`📡 Preview: Fetching draft for Project: ${PROJECT_ID}...`);
-        const result = await getDraft(PROJECT_ID);
+        console.log(`📡 Preview: Fetching draft for Project: ${projectId}...`);
+        const result = await getDraft(projectId);
 
         if (result.success && result.data) {
           console.log('✅ Preview: API result success. Keys in data:', Object.keys(result.data));
@@ -60,7 +63,7 @@ export default function PreviewPage() {
     }
 
     loadData();
-  }, []);
+  }, [projectId]);
 
   // Compute clean document
   const cleanDoc = useMemo(() => {
@@ -101,7 +104,7 @@ export default function PreviewPage() {
     }
   }, [rawJson]);
 
-  const activeJson = viewMode === "clean" ? cleanJson : rawFormatted;
+  const activeJson = viewMode === "clean" ? cleanJson : viewMode === "raw" ? rawFormatted : null;
 
   // ── Stats ──────────────────────────────────────────
   const rawBytes = rawJson ? new Blob([rawJson]).size : 0;
@@ -194,7 +197,7 @@ export default function PreviewPage() {
               Back to Editor
             </button>
             <div className="w-px h-5 bg-white/10" />
-            <h1 className="text-lg font-semibold">JSON Output</h1>
+            <h1 className="text-lg font-semibold">Preview</h1>
           </div>
 
           <div className="flex items-center gap-3">
@@ -205,29 +208,33 @@ export default function PreviewPage() {
               <Save size={14} />
               Save Template
             </button>
-            <button
-              onClick={handleCopy}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
-            >
-              {copied ? (
-                <>
-                  <Check size={14} className="text-green-400" />
-                  Copied
-                </>
-              ) : (
-                <>
-                  <Copy size={14} />
-                  Copy
-                </>
-              )}
-            </button>
-            <button
-              onClick={handleDownload}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
-            >
-              <Download size={14} />
-              Download
-            </button>
+            {viewMode !== "Web-Preview" && activeJson && (
+              <>
+                <button
+                  onClick={handleCopy}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
+                >
+                  {copied ? (
+                    <>
+                      <Check size={14} className="text-green-400" />
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={14} />
+                      Copy
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={handleDownload}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
+                >
+                  <Download size={14} />
+                  Download
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -237,6 +244,16 @@ export default function PreviewPage() {
         <div className="flex items-center justify-between">
           {/* Toggle */}
           <div className="flex items-center bg-[#111] rounded-lg border border-white/10 p-1">
+            <button
+              onClick={() => setViewMode("Web-Preview")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "Web-Preview"
+                ? "bg-white/10 text-brand-lighter"
+                : "text-zinc-500 hover:text-zinc-300"
+                }`}
+            >
+              <Globe size={14} />
+              Web-Preview
+            </button>
             <button
               onClick={() => setViewMode("clean")}
               className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "clean"
@@ -265,7 +282,7 @@ export default function PreviewPage() {
               <span>{pageCount} pages</span>
               <span className="text-zinc-700">|</span>
               <span>
-                {viewMode === "clean" ? cleanNodeCount : rawNodeCount} nodes
+                {viewMode === "raw" ? rawNodeCount : cleanNodeCount} nodes
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -286,11 +303,24 @@ export default function PreviewPage() {
           </div>
         </div>
 
-        {/* JSON Content */}
+        {/* Content: Web preview or JSON */}
         {loading ? (
           <div className="flex flex-col items-center justify-center h-64 text-zinc-500">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mb-4"></div>
             <p>Fetching latest clean data...</p>
+          </div>
+        ) : viewMode === "Web-Preview" ? (
+          <div className="flex justify-center py-6">
+            <div className="w-full max-w-[1000px] min-h-[80vh] rounded-xl overflow-hidden bg-white">
+              {cleanDoc ? (
+                <WebPreview doc={cleanDoc} pageIndex={0} />
+              ) : (
+                <div className="flex flex-col items-center justify-center min-h-[400px] text-zinc-500 p-8">
+                  <p className="text-base mb-1">No page data</p>
+                  <p className="text-sm">Go back to the editor and press the play button to generate output.</p>
+                </div>
+              )}
+            </div>
           </div>
         ) : activeJson ? (
           <pre className="bg-[#111] rounded-xl border border-white/10 p-6 text-sm leading-relaxed overflow-auto max-h-[calc(100vh-200px)] font-mono text-zinc-300 whitespace-pre-wrap wrap-break-word">
@@ -381,5 +411,13 @@ export default function PreviewPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function PreviewPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center text-zinc-500">Loading...</div>}>
+      <PreviewContent />
+    </Suspense>
   );
 }

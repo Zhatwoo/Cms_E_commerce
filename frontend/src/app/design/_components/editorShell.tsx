@@ -458,7 +458,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         {panelsReady && (
           <div className="absolute top-4 right-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
             <div className="pointer-events-auto h-full">
-              <RightPanel />
+              <RightPanel projectId={projectId} />
             </div>
           </div>
         )}
