@@ -1,4 +1,4 @@
-const { db } = require('../config/firebase');
+const { db, getRealtimeDb } = require('../config/firebase');
 const { docToObject } = require('../utils/firestoreHelper');
 
 function getProjectsRef(userId) {
@@ -49,10 +49,45 @@ async function deleteProject(userId, projectId) {
   await getProjectsRef(userId).doc(projectId).delete();
 }
 
+async function getBySubdomain(userId, subdomain) {
+  const normalized = (subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || null;
+  if (!normalized) return null;
+
+  // 1) Try Firestore first (subdomain stored when creating/updating project via API)
+  const ref = getProjectsRef(userId).where('subdomain', '==', normalized);
+  const snap = await ref.limit(1).get();
+  if (!snap.empty) return docToObject(snap.docs[0]);
+
+  // 2) Fallback: read from Firebase Realtime DB (path used by frontend: user/roles/client/{uid}/projects)
+  const rtdb = getRealtimeDb();
+  if (!rtdb) return null;
+  try {
+    const rtdbRef = rtdb.ref(`user/roles/client/${userId}/projects`);
+    const snapshot = await rtdbRef.once('value');
+    const val = snapshot.val();
+    if (!val || typeof val !== 'object') return null;
+    for (const [projectId, data] of Object.entries(val)) {
+      const sub = (data && data.subdomain) ? String(data.subdomain).trim().toLowerCase().replace(/[^a-z0-9-]/g, '') : '';
+      if (sub === normalized) {
+        const project = await get(userId, projectId);
+        if (project) {
+          project.subdomain = normalized;
+          return project;
+        }
+        return null;
+      }
+    }
+  } catch (err) {
+    console.warn('getBySubdomain RTDB fallback error:', err.message);
+  }
+  return null;
+}
+
 module.exports = {
   create,
   list,
   get,
+  getBySubdomain,
   update,
   delete: deleteProject,
 };

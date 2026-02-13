@@ -46,6 +46,33 @@ exports.create = async (req, res) => {
   }
 };
 
+// @desc    Get one project by subdomain (current user)
+// @route   GET /api/projects/by-subdomain?subdomain=boom
+// @access  Private
+exports.getBySubdomain = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { subdomain } = req.query;
+    const project = await Project.getBySubdomain(userId, subdomain);
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found for this subdomain',
+      });
+    }
+    res.status(200).json({
+      success: true,
+      project,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message,
+    });
+  }
+};
+
 // @desc    Get one project by id
 // @route   GET /api/projects/:id
 // @access  Private

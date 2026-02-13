@@ -264,6 +264,16 @@ export async function getProject(id: string): Promise<{ success: boolean; projec
   return apiFetch<{ success: boolean; project: Project }>(`/api/projects/${id}`);
 }
 
+export async function getProjectBySubdomain(subdomain: string): Promise<{ success: boolean; project?: Project }> {
+  const sub = encodeURIComponent(subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || '');
+  try {
+    const data = await apiFetch<{ success: boolean; project?: Project }>(`/api/projects/by-subdomain?subdomain=${sub}`);
+    return data;
+  } catch {
+    return { success: false };
+  }
+}
+
 export async function updateProject(
   id: string,
   params: { title?: string; status?: string; subdomain?: string | null }
@@ -276,4 +286,12 @@ export async function updateProject(
 
 export async function deleteProject(id: string): Promise<{ success: boolean }> {
   return apiFetch<{ success: boolean }>(`/api/projects/${id}`, { method: 'DELETE' });
+}
+
+/** Publish current project from Preview: creates/updates domain and public lookup so /sites/:subdomain works. */
+export async function publishProject(projectId: string, subdomain?: string | null): Promise<{ success: boolean; message?: string; data?: { id: string; subdomain?: string } }> {
+  return apiFetch<{ success: boolean; message?: string; data?: { id: string; subdomain?: string } }>('/api/domains/publish', {
+    method: 'POST',
+    body: JSON.stringify({ projectId, subdomain: subdomain || undefined }),
+  });
 }

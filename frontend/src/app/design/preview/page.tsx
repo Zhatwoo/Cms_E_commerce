@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useEffect, useState, useMemo, Suspense } from "react";
-import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe } from "lucide-react";
+import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
 import { getDraft } from "../_lib/pageApi";
 import { WebPreview } from "../_lib/webRenderer";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
+import { publishProject } from "@/lib/api";
 
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 
@@ -27,6 +28,7 @@ function PreviewContent() {
   const [templateCategory, setTemplateCategory] = useState("Landing Page");
   const [templateDescription, setTemplateDescription] = useState("");
   const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -183,6 +185,27 @@ function PreviewContent() {
     }
   };
 
+  const handlePublish = async () => {
+    if (!projectId) {
+      showAlert("No project selected.");
+      return;
+    }
+    setPublishing(true);
+    try {
+      const res = await publishProject(projectId);
+      if (res.success) {
+        showAlert("Published! Your site is live at the subdomain.");
+      } else {
+        showAlert(res.message || "Publish failed.");
+      }
+    } catch (error) {
+      console.error("Publish error:", error);
+      showAlert(error instanceof Error ? error.message : "Publish failed.");
+    } finally {
+      setPublishing(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-brand-lighter font-sans">
       {/* Top Bar */}
@@ -207,6 +230,14 @@ function PreviewContent() {
             >
               <Save size={14} />
               Save Template
+            </button>
+            <button
+              onClick={handlePublish}
+              disabled={publishing}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 transition-colors disabled:opacity-50"
+            >
+              <Upload size={14} />
+              {publishing ? "Publishing…" : "Publish"}
             </button>
             {viewMode !== "Web-Preview" && activeJson && (
               <>
