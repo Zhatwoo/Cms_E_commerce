@@ -287,3 +287,11 @@ export async function updateProject(
 export async function deleteProject(id: string): Promise<{ success: boolean }> {
   return apiFetch<{ success: boolean }>(`/api/projects/${id}`, { method: 'DELETE' });
 }
+
+/** Publish current project from Preview: creates/updates domain and public lookup so /sites/:subdomain works. */
+export async function publishProject(projectId: string, subdomain?: string | null): Promise<{ success: boolean; message?: string; data?: { id: string; subdomain?: string } }> {
+  return apiFetch<{ success: boolean; message?: string; data?: { id: string; subdomain?: string } }>('/api/domains/publish', {
+    method: 'POST',
+    body: JSON.stringify({ projectId, subdomain: subdomain || undefined }),
+  });
+}

@@ -6,18 +6,32 @@ import { useAuth } from '../components/context/auth-context';
 import { listProjects, type Project } from '@/lib/api';
 import { subscribeUserProjectSubdomains, type ProjectSubdomainEntry } from '@/lib/firebase';
 
-const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'yoursite.com';
-/** Host for subdomain display (sir: subdomain/host e.g. panes/localhost:5000) */
-const SITE_HOST = process.env.NEXT_PUBLIC_SITE_HOST ?? 'localhost:5000';
+const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'websitelink';
+/** Host for subdomain display (e.g. panes/localhost:3000 or panes.websitelink) */
+const SITE_HOST = process.env.NEXT_PUBLIC_SITE_HOST ?? 'localhost:3000';
 
-/** Link to view the published site. Use projectId so it always loads (no by-subdomain API). */
-function getPublishedSiteUrl(projectId: string): string {
-  return `/site/${encodeURIComponent(projectId)}`;
+/** Normalized subdomain slug for URLs. */
+function toSubdomainSlug(subdomain: string): string {
+  return subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || '';
 }
 
-/** Display URL: subdomain/host format e.g. panes/localhost:5000, or subdomain.base in production */
+/**
+ * Full URL to open the published site (subdomain-based, like Vercel).
+ * In dev: http://subdomain.localhost:3000. In production: https://subdomain.websitelink (or your BASE_DOMAIN).
+ */
+function getSubdomainSiteUrl(subdomain: string, origin: string | null): string {
+  const slug = toSubdomainSlug(subdomain);
+  if (!slug) return '#';
+  if (origin && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
+    const port = typeof window !== 'undefined' ? window.location.port || '3000' : '3000';
+    return `http://${slug}.localhost:${port}`;
+  }
+  return `https://${slug}.${BASE_DOMAIN}`;
+}
+
+/** Display URL: subdomain/host format e.g. panes/localhost:3000, or subdomain.base in production */
 function getSiteDisplayUrl(subdomain: string, origin: string | null): string {
-  const slug = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || '';
+  const slug = toSubdomainSlug(subdomain);
   if (origin && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
     return `${slug}/${SITE_HOST}`;
   }
@@ -117,7 +131,7 @@ export default function DomainsPage() {
           {domainsList.map(({ project, subdomain }) => (
               <a
                 key={project.id}
-                href={getPublishedSiteUrl(project.id)}
+                href={getSubdomainSiteUrl(subdomain ?? '', origin)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="rounded-2xl border p-4 shadow-sm flex items-center justify-between transition-colors block hover:opacity-90 cursor-pointer"

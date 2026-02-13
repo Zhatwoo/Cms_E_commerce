@@ -1,5 +1,6 @@
 // controllers/domainController.js
 const Domain = require('../models/Domain');
+const Project = require('../models/Project');
 
 // List for current user (protect)
 exports.getMyDomains = async (req, res) => {
@@ -57,6 +58,75 @@ exports.delete = async (req, res) => {
     }
     await Domain.delete(req.params.id);
     res.status(200).json({ success: true, message: 'Domain deleted' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+// Publish: create/update domain at user/roles/client/{userId}/domains and set public lookup (define as published)
+exports.publish = async (req, res) => {
+  try {
+    const { projectId, subdomain: subdomainOverride } = req.body;
+    if (!projectId || !String(projectId).trim()) {
+      return res.status(400).json({ success: false, message: 'projectId is required' });
+    }
+    const userId = req.user.id;
+    const project = await Project.get(userId, String(projectId).trim());
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'Project not found' });
+    }
+    const subdomain = (subdomainOverride && String(subdomainOverride).trim())
+      ? String(subdomainOverride).trim().toLowerCase().replace(/[^a-z0-9-]/g, '')
+      : (project.subdomain || (project.title || 'site').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'site');
+    const existing = await Domain.findByProjectId(userId, projectId);
+    let data;
+    if (existing) {
+      data = await Domain.updateForClient(userId, existing.id, {
+        projectTitle: project.title,
+        subdomain,
+        status: 'published',
+      });
+    } else {
+      data = await Domain.createForClient(userId, {
+        projectId,
+        projectTitle: project.title,
+        subdomain,
+        status: 'published',
+      });
+    }
+    await Domain.setSubdomainLookup(subdomain, {
+      userId,
+      projectId,
+      domainId: data.id,
+      status: 'published',
+      projectTitle: project.title,
+    });
+    res.status(200).json({ success: true, message: 'Published', data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+// Sync public lookup from user/roles/client/{userId}/domains so GET /api/public/sites/:subdomain works
+exports.syncPublicLookup = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const items = await Domain.listByClient(userId);
+    let synced = 0;
+    for (const d of items) {
+      const sub = (d.subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+      if (sub && (d.status || 'published') === 'published') {
+        await Domain.setSubdomainLookup(sub, {
+          userId,
+          projectId: d.projectId,
+          domainId: d.id,
+          status: 'published',
+          projectTitle: d.projectTitle || null,
+        });
+        synced++;
+      }
+    }
+    res.status(200).json({ success: true, message: `Synced ${synced} site(s).`, synced });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
