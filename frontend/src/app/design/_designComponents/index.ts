@@ -8,10 +8,6 @@ import { Divider } from "./Divider/Divider";
 import { Section } from "./Section/Section";
 import { Row } from "./Row/Row";
 import { Column } from "./Column/Column";
-import { ProductListing } from "../../templates/Ecommerce/ProductListing/ProductListing";
-import { ProductDetails } from "../../templates/Ecommerce/ProductDetails/ProductDetails";
-import { CartLayout } from "../../templates/Ecommerce/CartLayout/CartLayout";
-import { OrderTrackingLayout } from "../../templates/Ecommerce/OrderTrackingLayout/OrderTrackingLayout";
 
 export const RenderBlocks: Record<string, any> = {
   Container,
@@ -24,12 +20,4 @@ export const RenderBlocks: Record<string, any> = {
   Section,
   Row,
   Column,
-  ProductListing,
-  "Product Listing": ProductListing,
-  ProductDetails,
-  "Product Details": ProductDetails,
-  CartLayout,
-  "Cart": CartLayout,
-  OrderTrackingLayout,
-  "Order Tracking": OrderTrackingLayout,
 };
