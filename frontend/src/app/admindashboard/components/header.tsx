@@ -25,7 +25,7 @@ export function AdminHeader() {
     const router = useRouter();
 
     const handleProfileClick = () => {
-        router.push('/admindashboard/userAccount');
+        router.push('/admindashboard/userAccount/profile');
     };
 
     const handleNotificationsClick = () => {
