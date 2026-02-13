@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion, type Variants } from 'framer-motion';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { AdminSidebar } from '../components/sidebar';
 import { AdminHeader } from '../components/header';
 import PlatformTraffic from './components/PlatformTraffic';
@@ -32,6 +32,7 @@ const containerVariants: Variants = {
 
 export default function MonitoringAnalyticsPage() {
     const [activeTab, setActiveTab] = useState('platform');
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     const tabNames: Record<string, string> = {
         platform: 'Platform Traffic',
@@ -153,38 +154,6 @@ export default function MonitoringAnalyticsPage() {
                                 {activeTab === 'trends' && <SubscriptionDistribution />}
                             </div>
                         </motion.div>
-
-                        {/* Workspace Statistics */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 18 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.55, delay: 0.48, ease: [0.22, 0.84, 0.25, 1] }}
-                        >
-                            <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_12px_36px_rgba(15,23,42,0.08)] p-8">
-                                <h3 className="text-lg font-semibold text-slate-900 mb-6">Workspace Statistics</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                    {[
-                                        { label: 'Total Projects', value: '4,500' },
-                                        { label: 'Draft Sites', value: '1,200' },
-                                        { label: 'Custom Domains', value: '830' },
-                                        { label: 'Avg Sites/User', value: '2.1' },
-                                    ].map((stat, idx) => (
-                                        <motion.div
-                                            key={stat.label}
-                                            className="flex flex-col border-l-4 border-blue-500 pl-4"
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ duration: 0.35, delay: 0.5 + 0.05 * idx }}
-                                        >
-                                            <p className="text-sm text-slate-600 font-medium mb-1">{stat.label}</p>
-                                            <p className="text-2xl font-bold text-slate-900">{stat.value}</p>
-                                        </motion.div>
-                                    ))}
-                                </div>
-                            </motion.div>
-                        )}
-                    </div>
-                </motion.div>
 
                 {/* Workspace Statistics */}
                 <motion.div
