@@ -1,4 +1,5 @@
-import React, { useRef, useState, useEffect, useLayoutEffect, useCallback } from "react";
+import * as React from "react";
+import { useRef, useState, useEffect, useLayoutEffect, useCallback } from "react";
 import { Editor, Frame, Element } from "@craftjs/core";
 import { RenderBlocks } from "../_designComponents";
 import { LeftPanel } from "./leftPanel";
@@ -13,10 +14,6 @@ import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
-import { CategoryLayout } from "../../templates/Ecommerce/CategoryLayout/CategoryLayout";
-import { CheckoutForm } from "../../templates/Ecommerce/CheckoutForm/CheckoutForm";
-import { CartLayout } from "../../templates/Ecommerce/CartLayout/CartLayout";
-import { OrderTrackingLayout } from "../../templates/Ecommerce/OrderTrackingLayout/OrderTrackingLayout";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
@@ -342,23 +339,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
   const resolver = {
     ...RenderBlocks,
-    CategoryLayout,
-    CheckoutForm,
-    CartLayout,
-    OrderTrackingLayout,
   } as any;
-
-  // Also register display-name keys that may be used in serialized nodes
-  resolver["Checkout Form"] = CheckoutForm;
-  resolver["CheckoutForm"] = CheckoutForm;
-  resolver["Category Listing"] = CategoryLayout;
-  resolver["CategoryLayout"] = CategoryLayout;
-  resolver["Product Listing"] = RenderBlocks.ProductListing;
-  resolver["Product Details"] = RenderBlocks.ProductDetails;
-  resolver["Cart"] = CartLayout;
-  resolver["CartLayout"] = CartLayout;
-  resolver["Order Tracking"] = OrderTrackingLayout;
-  resolver["OrderTrackingLayout"] = OrderTrackingLayout;
 
   // Debug: list resolver keys so we can confirm components are registered at runtime
   if (typeof window !== "undefined") {
@@ -367,10 +348,6 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
       setTimeout(() => {
         // eslint-disable-next-line no-console
         console.log("[EditorShell] resolver keys:", Object.keys(resolver));
-        // eslint-disable-next-line no-console
-        console.log("[EditorShell] CheckoutForm in resolver:", !!(resolver as any).CheckoutForm);
-        // eslint-disable-next-line no-console
-        console.log("[EditorShell] 'Checkout Form' in resolver:", !!(resolver as any)["Checkout Form"]);
 
         // If there is saved initial JSON, attempt to parse and list component types used so we can identify missing resolver entries
         try {
@@ -412,7 +389,6 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         onNodesChange={handleNodesChange}
       >
         <KeyboardShortcuts />
-
         {/* Canvas Area (Background) */}
         <div
           ref={containerRef}
@@ -443,7 +419,6 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             )}
           </div>
         </div>
-
         {/* Floating Panels */}
         {/* Left Panel */}
         {panelsReady && (
@@ -453,7 +428,6 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             </div>
           </div>
         )}
-
         {/* Right Panel */}
         {panelsReady && (
           <div className="absolute top-4 right-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
@@ -462,14 +436,12 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             </div>
           </div>
         )}
-
         {/* Canvas Controls Overlay: ito yung nasa baba :> */}
         <div className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">
           <div className="flex gap-4 items-center">
             <span>{Math.round(scale * 100)}%</span>
             <span>Space + Drag to Pan</span>
             <span>Ctrl + Scroll to Zoom</span>
-
             {/* Delete Button */}
             <button
               onClick={handleDeleteData}
@@ -478,7 +450,6 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             >
               🗑️ Reset Data
             </button>
-
             {saveStatus !== 'idle' && (
               <span className={`${saveStatus === 'saving' ? 'text-yellow-400' :
                 saveStatus === 'saved' ? 'text-green-400' :
@@ -491,7 +462,6 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             )}
           </div>
         </div>
-
       </Editor>
     </div>
   );

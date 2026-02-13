@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useEditor } from "@craftjs/core";
-import { GROUPED_TEMPLATES } from "../../../templates";
+import { GROUPED_TEMPLATES } from "../../../_assets";
 
 export const AssetsPanel = () => {
   const { connectors } = useEditor();
