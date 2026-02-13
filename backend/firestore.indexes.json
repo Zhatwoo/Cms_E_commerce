@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "domains",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "subdomain", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
