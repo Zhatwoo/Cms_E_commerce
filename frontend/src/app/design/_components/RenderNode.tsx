@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useNode, useEditor } from "@craftjs/core";
 import ReactDOM from "react-dom";
+import { ResizeOverlay } from "./ResizeOverlay";
 
 export const RenderNode = ({ render }: { render: React.ReactElement }) => {
   const { id } = useNode();
-  const { actions, query, isActive } = useEditor((_, query) => ({
+  const { isActive } = useEditor((_, query) => ({
     isActive: query.getEvent('selected').contains(id),
   }));
 
@@ -20,7 +21,6 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
     parent: node.data.parent,
   }));
 
-  // Ensure portal only renders on client
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
@@ -36,21 +36,23 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
     }
   }, [dom, isActive, isHover]);
 
-  // Don't render label for Root
+  // Don't render overlays for Root or Viewport
   if (parent === 'ROOT') {
     return <>{render}</>;
   }
 
   return (
     <>
+      {/* Label overlay (portal) */}
       {mounted && (isHover || isActive) && dom ?
         ReactDOM.createPortal(
           <div
+            data-panel="node-label"
             className={`fixed px-2 py-1 bg-blue-500 text-brand-lighter text-[10px] rounded-t-md z-50 pointer-events-none transition-opacity duration-200 uppercase font-bold tracking-wider ${isActive || isHover ? "opacity-100" : "opacity-0"
               }`}
             style={{
               left: dom.getBoundingClientRect().left,
-              top: dom.getBoundingClientRect().top - 24, // Position above the element
+              top: dom.getBoundingClientRect().top - 24,
             }}
           >
             {name}
@@ -58,6 +60,12 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
           document.body
         )
         : null}
+
+      {/* Resize / Move overlay — only for actively selected nodes */}
+      {mounted && isActive && dom ? (
+        <ResizeOverlay nodeId={id} dom={dom} />
+      ) : null}
+
       {render}
     </>
   );

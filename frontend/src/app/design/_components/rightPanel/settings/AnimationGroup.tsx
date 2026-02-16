@@ -63,25 +63,28 @@ function setAtPath(obj: Record<string, unknown>, path: string, value: unknown): 
 }
 
 interface AnimationGroupProps {
-  selectedId: string;
+  selectedIds: string[];
 }
 
-export const AnimationGroup = ({ selectedId }: AnimationGroupProps) => {
+export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
+  const firstId = selectedIds[0];
   const animation = useEditor((state) =>
-    getAnimation(state.nodes[selectedId]?.data?.props ?? {})
+    getAnimation(state.nodes[firstId]?.data?.props ?? {})
   );
   const { actions } = useEditor();
 
   const update = useCallback(
     (path: string, value: unknown) => {
-      actions.setProp(selectedId, (props: Record<string, unknown>) => {
-        const current = getAnimation(props);
-        const next = cloneAnimation(current);
-        setAtPath(next as unknown as Record<string, unknown>, path, value);
-        props.animation = next;
+      selectedIds.forEach((nodeId) => {
+        actions.setProp(nodeId, (props: Record<string, unknown>) => {
+          const current = getAnimation(props);
+          const next = cloneAnimation(current);
+          setAtPath(next as unknown as Record<string, unknown>, path, value);
+          props.animation = next;
+        });
       });
     },
-    [actions, selectedId]
+    [actions, selectedIds]
   );
 
   return (

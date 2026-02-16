@@ -97,6 +97,7 @@ export const LeftPanel = ({ onToggle }: LeftPanelProps) => {
 
   return (
     <div
+      data-panel="left"
       className={`w-80 bg-brand-dark/75 backdrop-blur-lg rounded-3xl p-6 flex flex-col gap-4 h-full overflow-y-auto border border-white/10 transition-shadow duration-300 ${
         activePanel === "components" ? "no-scrollbar" : ""
       }`}

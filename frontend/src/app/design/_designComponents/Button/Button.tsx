@@ -42,7 +42,7 @@ export const Button = ({
   opacity = 1,
   boxShadow = "none",
 }: ButtonProps) => {
-  const { connectors: { connect, drag } } = useNode();
+  const { id, connectors: { connect, drag } } = useNode();
 
   // Resolve variant defaults (user overrides take priority)
   const variantStyle = VARIANT_STYLES[variant ?? "primary"];
@@ -60,6 +60,7 @@ export const Button = ({
 
   return (
     <button
+      data-node-id={id}
       ref={(ref) => { if (ref) connect(drag(ref)); }}
       style={{
         backgroundColor: bg,

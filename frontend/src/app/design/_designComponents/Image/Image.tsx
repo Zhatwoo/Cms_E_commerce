@@ -27,7 +27,7 @@ export const Image = ({
   opacity = 1,
   boxShadow = "none",
 }: ImageProps) => {
-  const { connectors: { connect, drag } } = useNode();
+  const { id, connectors: { connect, drag } } = useNode();
 
   // Handle empty or invalid src
   const imageSrc = src && src.trim() !== "" 
@@ -56,6 +56,7 @@ export const Image = ({
 
   return (
     <img
+      data-node-id={id}
       ref={(ref) => { if (ref) connect(drag(ref)); }}
       src={imageSrc}
       alt={alt}
