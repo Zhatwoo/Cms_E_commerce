@@ -84,13 +84,21 @@ app.use(helmet());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // Middleware – CORS with credentials so browser sends cookies (frontend port may differ)
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  process.env.FRONTEND_URL,
+  process.env.CORS_ORIGIN
+].filter(Boolean);
+// Allow subdomain.localhost (e.g. mystore.localhost:3000) for subdomain-based site URLs
+const subdomainLocalhostRegex = /^https?:\/\/[a-z0-9-]+\.localhost(:\d+)?$/;
 app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    process.env.FRONTEND_URL,
-    process.env.CORS_ORIGIN
-  ].filter(Boolean),
+  origin(origin, cb) {
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    if (subdomainLocalhostRegex.test(origin)) return cb(null, true);
+    return cb(null, false);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -132,6 +140,7 @@ app.get('/api/debug/db-state', async (req, res) => {
 });
 
 // Import routes
+const publicSiteRoutes = require('./routes/publicSiteRoutes');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const pageRoutes = require('./routes/pageRoutes');
@@ -143,7 +152,8 @@ const templateRoutes = require('./routes/templateRoutes');
 const domainRoutes = require('./routes/domainRoutes');
 const projectRoutes = require('./routes/projectRoutes');
 
-// Routes
+// Routes – public site by subdomain must be reachable
+app.use('/api/public', publicSiteRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/pages', pageRoutes);
@@ -222,6 +232,8 @@ app.get('/', (req, res) => {
       },
       domains: {
         getMy: 'GET /api/domains/my (protected)',
+        publish: 'POST /api/domains/publish (protected)',
+        syncPublic: 'POST /api/domains/sync-public (protected)',
         getAll: 'GET /api/domains (admin)',
         getOne: 'GET /api/domains/:id (protected)',
         create: 'POST /api/domains (protected)',

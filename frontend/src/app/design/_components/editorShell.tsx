@@ -1,5 +1,7 @@
-import React, { useRef, useState, useEffect, useLayoutEffect, useCallback } from "react";
+import * as React from "react";
+import { useRef, useState, useEffect, useLayoutEffect, useCallback } from "react";
 import { Editor, Frame, Element } from "@craftjs/core";
+import { PanelLeft, PanelRight } from "lucide-react";
 import { RenderBlocks } from "../_designComponents";
 import { LeftPanel } from "./leftPanel";
 import { RightPanel } from "./rightPanel";
@@ -11,12 +13,11 @@ import { Section } from "../_designComponents/Section/Section";
 import { Button } from "../_designComponents/Button/Button";
 import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
+import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
+import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
+import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
-import { CategoryLayout } from "../../templates/Ecommerce/CategoryLayout/CategoryLayout";
-import { CheckoutForm } from "../../templates/Ecommerce/CheckoutForm/CheckoutForm";
-import { CartLayout } from "../../templates/Ecommerce/CartLayout/CartLayout";
-import { OrderTrackingLayout } from "../../templates/Ecommerce/OrderTrackingLayout/OrderTrackingLayout";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
@@ -47,6 +48,8 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   const [initialJson, setInitialJson] = useState<string | null | undefined>(undefined);
   const [panelsReady, setPanelsReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [leftPanelOpen, setLeftPanelOpen] = useState(false);
+  const [rightPanelOpen, setRightPanelOpen] = useState(false);
 
   /** Returns true if the event target is an input, textarea, select, or contenteditable */
   const isEditableTarget = (target: EventTarget | null) => {
@@ -132,6 +135,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
         if (!isSpacePressed) {
           setIsSpacePressed(true);
+          document.body.dataset.spacePan = "true";
         }
       }
     };
@@ -140,6 +144,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
       if (e.code === "Space") {
         setIsSpacePressed(false);
         setIsPanning(false);
+        document.body.removeAttribute("data-space-pan");
       }
     };
 
@@ -212,11 +217,14 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             }
 
             const parsed = JSON.parse(content);
-            if (parsed && parsed.ROOT) {
+            // Validate structure: must have ROOT and ROOT must have nodes property
+            if (parsed && parsed.ROOT && parsed.ROOT.nodes && Array.isArray(parsed.ROOT.nodes)) {
               console.log(`✅ Loaded valid draft from DB (${Object.keys(parsed).length} internal nodes)`);
               contentToLoad = content;
               // Sync to localStorage (per-project)
               localStorage.setItem(storageKey, contentToLoad!);
+            } else {
+              console.warn('⚠️ Invalid draft structure: missing ROOT or ROOT.nodes');
             }
           } catch (e) {
             console.error('Failed to parse draft content:', e);
@@ -227,11 +235,16 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         if (!contentToLoad && sessionSaved) {
           try {
             const parsed = JSON.parse(sessionSaved);
-            if (parsed && parsed.ROOT) {
+            // Validate structure: must have ROOT and ROOT must have nodes property
+            if (parsed && parsed.ROOT && parsed.ROOT.nodes && Array.isArray(parsed.ROOT.nodes)) {
               console.log('✅ Loaded valid draft from localStorage (this project)');
               contentToLoad = sessionSaved;
+            } else {
+              console.warn('⚠️ Invalid draft structure in localStorage: missing ROOT or ROOT.nodes');
+              localStorage.removeItem(storageKey);
             }
           } catch (e) {
+            console.error('Failed to parse localStorage draft:', e);
             localStorage.removeItem(storageKey);
           }
         }
@@ -342,23 +355,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
   const resolver = {
     ...RenderBlocks,
-    CategoryLayout,
-    CheckoutForm,
-    CartLayout,
-    OrderTrackingLayout,
   } as any;
-
-  // Also register display-name keys that may be used in serialized nodes
-  resolver["Checkout Form"] = CheckoutForm;
-  resolver["CheckoutForm"] = CheckoutForm;
-  resolver["Category Listing"] = CategoryLayout;
-  resolver["CategoryLayout"] = CategoryLayout;
-  resolver["Product Listing"] = RenderBlocks.ProductListing;
-  resolver["Product Details"] = RenderBlocks.ProductDetails;
-  resolver["Cart"] = CartLayout;
-  resolver["CartLayout"] = CartLayout;
-  resolver["Order Tracking"] = OrderTrackingLayout;
-  resolver["OrderTrackingLayout"] = OrderTrackingLayout;
 
   // Debug: list resolver keys so we can confirm components are registered at runtime
   if (typeof window !== "undefined") {
@@ -367,10 +364,6 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
       setTimeout(() => {
         // eslint-disable-next-line no-console
         console.log("[EditorShell] resolver keys:", Object.keys(resolver));
-        // eslint-disable-next-line no-console
-        console.log("[EditorShell] CheckoutForm in resolver:", !!(resolver as any).CheckoutForm);
-        // eslint-disable-next-line no-console
-        console.log("[EditorShell] 'Checkout Form' in resolver:", !!(resolver as any)["Checkout Form"]);
 
         // If there is saved initial JSON, attempt to parse and list component types used so we can identify missing resolver entries
         try {
@@ -412,10 +405,13 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         onNodesChange={handleNodesChange}
       >
         <KeyboardShortcuts />
-
+        <CanvasSelectionHandler />
+        <FigmaStyleDragHandler />
+        <BoxSelectionHandler />
         {/* Canvas Area (Background) */}
         <div
           ref={containerRef}
+          data-canvas-container
           className="absolute inset-0 overflow-auto bg-brand-darker"
           style={{ cursor: isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : 'default' }}
           onMouseDown={handleMouseDown}
@@ -443,33 +439,52 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             )}
           </div>
         </div>
-
         {/* Floating Panels */}
         {/* Left Panel */}
         {panelsReady && (
-          <div className="absolute top-4 left-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
-            <div className="pointer-events-auto h-full">
-              <LeftPanel />
+          <>
+            {/* Left Panel */}
+            <div className="absolute top-4 left-4 z-50 h-[calc(100vh-2rem)] w-80 flex items-start pointer-events-none">
+              <div
+                className="h-full w-80 flex items-start pointer-events-auto"
+              >
+                <div className="h-full w-80 overflow-hidden shrink-0 pointer-events-none">
+                  <div
+                    className={`h-full w-80 origin-left transition-[transform,opacity] duration-300 ease-out will-change-transform ${
+                      leftPanelOpen
+                        ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
+                        : '-translate-x-full scale-90 opacity-0 pointer-events-none'
+                    }`}
+                  >
+                    <LeftPanel onToggle={() => setLeftPanelOpen(false)} />
+                  </div>
+                </div>
+                <button
+                  onClick={() => setLeftPanelOpen((open) => !open)}
+                  className={`absolute left-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${
+                    leftPanelOpen ? 'opacity-0 pointer-events-none scale-95' : 'opacity-100 pointer-events-auto scale-100'
+                  }`}
+                  title={leftPanelOpen ? "Hide left panel" : "Show left panel"}
+                >
+                  <PanelLeft className="w-5 h-5 text-brand-light" />
+                </button>
+              </div>
+            </div>
+            {/* Right Panel */}
+            <div className="absolute top-4 right-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
+              <div className="pointer-events-auto h-full">
+                <RightPanel projectId={projectId} />
+              </div>
             </div>
           </div>
         )}
-
-        {/* Right Panel */}
-        {panelsReady && (
-          <div className="absolute top-4 right-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
-            <div className="pointer-events-auto h-full">
-              <RightPanel />
-            </div>
-          </div>
-        )}
-
         {/* Canvas Controls Overlay: ito yung nasa baba :> */}
-        <div className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">
+        <div data-panel="canvas-controls" className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">
           <div className="flex gap-4 items-center">
             <span>{Math.round(scale * 100)}%</span>
             <span>Space + Drag to Pan</span>
             <span>Ctrl + Scroll to Zoom</span>
-
+            <span>Ctrl (Win) / ⌘ Cmd (Mac) + Click to multi-select</span>
             {/* Delete Button */}
             <button
               onClick={handleDeleteData}
@@ -478,7 +493,6 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             >
               🗑️ Reset Data
             </button>
-
             {saveStatus !== 'idle' && (
               <span className={`${saveStatus === 'saving' ? 'text-yellow-400' :
                 saveStatus === 'saved' ? 'text-green-400' :
@@ -491,7 +505,6 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             )}
           </div>
         </div>
-
       </Editor>
     </div>
   );

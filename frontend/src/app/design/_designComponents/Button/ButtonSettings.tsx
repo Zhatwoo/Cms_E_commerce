@@ -102,12 +102,12 @@ export const ButtonSettings = () => {
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
               <label className="text-[10px] text-brand-lighter">Background</label>
-              <div className="flex items-center gap-1 bg-brand-black border border-brand-medium/30 rounded-md p-1">
+              <div className="flex items-center gap-1 bg-brand-black border border-brand-medium/30 rounded-md p-1 color-picker-wrapper">
                 <input
                   type="color"
                   value={backgroundColor || "#3b82f6"}
                   onChange={(e) => typedSetProp((props) => { props.backgroundColor = e.target.value; })}
-                  className="w-5 h-5 rounded cursor-pointer bg-transparent border-none p-0"
+                  className="w-5 h-5 rounded cursor-pointer bg-transparent border-none p-0 color-picker-button"
                 />
                 <ColorInput
                   value={backgroundColor || "#3b82f6"}
@@ -118,12 +118,12 @@ export const ButtonSettings = () => {
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-[10px] text-brand-lighter">Text Color</label>
-              <div className="flex items-center gap-1 bg-brand-black border border-brand-medium/30 rounded-md p-1">
+              <div className="flex items-center gap-1 bg-brand-black border border-brand-medium/30 rounded-md p-1 color-picker-wrapper">
                 <input
                   type="color"
                   value={textColor || "#ffffff"}
                   onChange={(e) => typedSetProp((props) => { props.textColor = e.target.value; })}
-                  className="w-5 h-5 rounded cursor-pointer bg-transparent border-none p-0"
+                  className="w-5 h-5 rounded cursor-pointer bg-transparent border-none p-0 color-picker-button"
                 />
                 <ColorInput
                   value={textColor || "#ffffff"}

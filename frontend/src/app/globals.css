@@ -49,6 +49,194 @@
   animation-play-state: paused;
 }
 
+@keyframes slideDownFade {
+  0% {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUpFade {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+
+.template-category-content {
+  overflow: hidden;
+  transition: max-height 400ms cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 400ms cubic-bezier(0.4, 0, 0.2, 1),
+              transform 400ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.template-category-content.open {
+  max-height: 2000px;
+  opacity: 1;
+  transform: translateY(0);
+  animation: slideDownFade 400ms cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: auto;
+}
+
+.template-category-content.closed {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-12px);
+  animation: slideUpFade 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+@keyframes slideDownItem {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUpItem {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+.animate-slideDownItem {
+  animation: slideDownItem 300ms ease-out;
+}
+
+.animate-slideUpItem {
+  animation: slideUpItem 200ms ease-in;
+}
+
+/* Files Panel Dropdown Animations */
+.layer-children-container {
+  overflow: hidden;
+  transition: max-height 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.layer-children-container.expanded {
+  max-height: 2000px;
+  opacity: 1;
+}
+
+.layer-children-container.collapsed {
+  max-height: 0;
+  opacity: 0;
+}
+
+.layer-item-chevron {
+  transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.layer-item-chevron.expanded {
+  transform: rotate(0deg);
+}
+
+.layer-item-chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+/* Color Picker Animations */
+@keyframes colorPickerOpen {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+
+.color-picker-button {
+  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.color-picker-button:active {
+  animation: colorPickerOpen 400ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.color-picker-wrapper {
+  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.color-picker-wrapper:has(input[type="color"]:focus) {
+  transform: scale(1.02);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* Toggle Color Picker Panel Animation */
+@keyframes colorPickerPanelOpen {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.color-picker-panel {
+  animation: colorPickerPanelOpen 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Product Item Add Animation */
+@keyframes productItemAdd {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+    max-height: 0;
+  }
+  50% {
+    opacity: 0.8;
+    transform: translateY(2px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    max-height: 1000px;
+  }
+}
+
+.product-item-added {
+  animation: productItemAdd 500ms cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+/* Utility: hide scrollbar but keep scroll functionality */
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

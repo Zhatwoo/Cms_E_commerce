@@ -71,12 +71,12 @@ export const AppearanceGroup = ({
           <Plus size={12} className="text-brand-lighter hover:text-brand-lighter cursor-pointer" />
         </div>
         {/* Color Input */}
-        <div className="flex items-center gap-4 bg-brand-medium-dark rounded-lg px-2.5 py-1">
+        <div className="flex items-center gap-4 bg-brand-medium-dark rounded-lg px-2.5 py-1 color-picker-wrapper">
           <input
             type="color"
             value={background}
             onChange={(e) => setProp((props) => { props.background = e.target.value; })}
-            className="w-7 h-6 rounded cursor-pointer border-none bg-transparent"
+            className="w-7 h-6 rounded cursor-pointer border-none bg-transparent color-picker-button"
           />
           <ColorInput
             value={background || "transparent"}
@@ -161,12 +161,12 @@ export const AppearanceGroup = ({
             {/* Overlay Color */}
             <div className="flex flex-col gap-1">
               <span className="text-[10px] text-brand-light">Overlay</span>
-              <div className="flex items-center gap-4 bg-brand-medium-dark rounded-lg px-2.5 py-1">
+              <div className="flex items-center gap-4 bg-brand-medium-dark rounded-lg px-2.5 py-1 color-picker-wrapper">
                 <input
                   type="color"
                   value={backgroundOverlay || "#000000"}
                   onChange={(e) => setProp((props) => { props.backgroundOverlay = e.target.value + "80"; })}
-                  className="w-7 h-6 rounded cursor-pointer border-none bg-transparent"
+                  className="w-7 h-6 rounded cursor-pointer border-none bg-transparent color-picker-button"
                 />
                 <ColorInput
                   value={backgroundOverlay || "transparent"}
@@ -184,12 +184,12 @@ export const AppearanceGroup = ({
         <label className="text-[12px] text-brand-lighter font-base">Stroke</label>
         <div className="flex gap-2">
           {/* Color Input */}
-          <div className="flex-1 flex items-center gap-4 bg-brand-medium-dark rounded-lg px-2.5 appearance-none">
+          <div className="flex-1 flex items-center gap-4 bg-brand-medium-dark rounded-lg px-2.5 appearance-none color-picker-wrapper">
             <input
               type="color"
               value={borderColor}
               onChange={(e) => setProp((props) => { props.borderColor = e.target.value; })}
-              className="w-7 h-6 rounded cursor-pointer bg-transparent"
+              className="w-7 h-6 rounded cursor-pointer bg-transparent color-picker-button"
             />
             <ColorInput
               value={borderColor}

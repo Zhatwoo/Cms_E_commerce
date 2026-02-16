@@ -182,6 +182,22 @@ export const SizePositionGroup = ({
                 e.currentTarget.blur();
               }
             }}
+            onWheel={(e) => {
+              if (mode !== "fixed") return;
+              e.preventDefault();
+              e.stopPropagation();
+              // Also stop native propagation to prevent the config panel from scrolling
+              if (e.nativeEvent && "stopImmediatePropagation" in e.nativeEvent) {
+                (e.nativeEvent as any).stopImmediatePropagation();
+              }
+              const current = parseInt(numVal || "0", 10) || 0;
+              const step = e.shiftKey ? 10 : 1;
+              const delta = e.deltaY > 0 ? -step : step;
+              const next = Math.max(0, current + delta);
+              setProp((props) => {
+                props[dim] = `${next}px`;
+              });
+            }}
             className={`w-full bg-transparent text-xs p-1.5 focus:outline-none ${mode !== "fixed" ? "text-brand-light" : "text-brand-lighter"}`}
           />
           <div className="w-px h-4 bg-brand-medium mx-1" />

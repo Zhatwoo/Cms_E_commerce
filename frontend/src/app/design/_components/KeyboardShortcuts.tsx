@@ -18,22 +18,28 @@ const isEditableTarget = (target: EventTarget | null) => {
   );
 };
 
+/** Normalize Craft.js selected (Set, array, or plain object) to string[] */
+function selectedToIds(selected: unknown): string[] {
+  if (Array.isArray(selected)) return selected.filter((id) => id && id !== "ROOT");
+  if (selected instanceof Set) return Array.from(selected).filter((id) => id && id !== "ROOT");
+  if (selected && typeof selected === "object") return Object.keys(selected).filter((id) => id && id !== "ROOT");
+  return [];
+}
+
 /**
- * Render-less component that listens for global keyboard shortcuts
- * and maps them to Craft.js editor actions.
+ * Render-less component that listens for global keyboard shortcuts.
+ * Reads state lazily via query.getState() to avoid reactive re-renders.
  *
  * Must be rendered inside <Editor> so useEditor() is available.
  */
 export const KeyboardShortcuts = () => {
-  const { actions, query, selected } = useEditor((state) => ({
-    selected: state.events.selected,
-  }));
+  const { actions, query } = useEditor();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const ctrl = e.ctrlKey || e.metaKey;
 
-      // ── Save: Ctrl/Cmd + S (works even when focused on inputs) ──
+      // ── Save: Ctrl/Cmd + S ──
       if (ctrl && e.key === "s") {
         e.preventDefault();
         try {
@@ -45,13 +51,14 @@ export const KeyboardShortcuts = () => {
         return;
       }
 
+      // Don't intercept shortcuts when typing in inputs
       if (isEditableTarget(e.target)) return;
 
       // ── Undo: Ctrl/Cmd + Z ──
       if (ctrl && !e.shiftKey && e.key === "z") {
         e.preventDefault();
         try {
-          actions.history.undo();
+          if (actions.history?.undo) actions.history.undo();
         } catch {
           // nothing to undo
         }
@@ -62,38 +69,57 @@ export const KeyboardShortcuts = () => {
       if (ctrl && ((e.shiftKey && e.key === "z") || e.key === "y")) {
         e.preventDefault();
         try {
-          actions.history.redo();
+          if (actions.history?.redo) actions.history.redo();
         } catch {
           // nothing to redo
         }
         return;
       }
 
-      // ── Delete: Backspace or Delete key ──
+      // ── Deselect: Escape ──
+      if (e.key === "Escape") {
+        e.preventDefault();
+        try {
+          actions.selectNode(null);
+        } catch {
+          // ignore
+        }
+        return;
+      }
+
+      // ── Delete: Backspace or Delete key (all selected nodes) ──
       if (e.key === "Backspace" || e.key === "Delete") {
         e.preventDefault();
 
-        const [selectedId] = selected;
-        if (!selectedId || selectedId === "ROOT") return;
+        const state = query.getState();
+        const idsToDelete = selectedToIds(state.events.selected);
+        if (idsToDelete.length === 0) return;
 
         try {
-          // Guard: don't delete protected node types
-          const node = query.node(selectedId).get();
-          if (PROTECTED.has(node.data.displayName)) return;
-
-          // Guard: Craft.js built-in deletability check
-          if (!query.node(selectedId).isDeletable()) return;
-
-          actions.delete(selectedId);
+          const deletable: string[] = [];
+          for (const id of idsToDelete) {
+            try {
+              if (!state.nodes[id]) continue;
+              const node = query.node(id).get();
+              if (PROTECTED.has(node?.data?.displayName)) continue;
+              if (!query.node(id).isDeletable()) continue;
+              deletable.push(id);
+            } catch {
+              // node may not exist
+            }
+          }
+          if (deletable.length > 0) {
+            actions.delete(deletable.length === 1 ? deletable[0] : deletable);
+          }
         } catch {
           // node may already be gone or invalid
         }
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [actions, query, selected]);
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [actions, query]);
 
   return null;
 };

@@ -4,7 +4,7 @@ import { ImageSettings } from "./ImageSettings";
 import type { ImageProps } from "../../_types/components";
 
 export const Image = ({
-  src = "https://placehold.co/600x400/27272a/a1a1aa?text=Image",
+  src,
   alt = "Image",
   objectFit = "cover",
   width = "100%",
@@ -27,7 +27,12 @@ export const Image = ({
   opacity = 1,
   boxShadow = "none",
 }: ImageProps) => {
-  const { connectors: { connect, drag } } = useNode();
+  const { id, connectors: { connect, drag } } = useNode();
+
+  // Handle empty or invalid src
+  const imageSrc = src && src.trim() !== "" 
+    ? src 
+    : "https://placehold.co/600x400/27272a/a1a1aa?text=Image";
 
   // Resolve spacing
   const p = typeof padding === "number" ? padding : 0;
@@ -51,8 +56,9 @@ export const Image = ({
 
   return (
     <img
+      data-node-id={id}
       ref={(ref) => { if (ref) connect(drag(ref)); }}
-      src={src}
+      src={imageSrc}
       alt={alt}
       style={{
         width,
