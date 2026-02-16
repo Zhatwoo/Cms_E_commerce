@@ -28,7 +28,7 @@ export const AssetsPanel = () => {
               <span className="text-brand-medium text-xs">{open[group.folder] ? "−" : "+"}</span>
             </button>
 
-            {open[group.folder] && (
+            <div className={`template-category-content ${open[group.folder] ? 'open' : 'closed'}`}>
               <div className="p-3 space-y-2">
                 {group.items.map((item: any, idx: number) => (
                   <div
@@ -36,7 +36,10 @@ export const AssetsPanel = () => {
                     ref={(ref) => {
                       if (ref) connectors.create(ref, item.element ?? item.element);
                     }}
-                    className="bg-brand-white/5 p-3 rounded hover:bg-brand-white/10 transition cursor-move border border-brand-medium/30"
+                    className={`bg-brand-white/5 p-3 rounded hover:bg-brand-white/10 transition cursor-move border border-brand-medium/30 ${
+                      open[group.folder] ? 'animate-slideDownItem' : 'animate-slideUpItem'
+                    }`}
+                    style={{ animationDelay: `${idx * 50}ms` }}
                   >
                     <div className="flex items-center justify-between">
                       <div>
@@ -54,7 +57,7 @@ export const AssetsPanel = () => {
                   </div>
                 ))}
               </div>
-            )}
+            </div>
           </div>
         ))}
       </div>

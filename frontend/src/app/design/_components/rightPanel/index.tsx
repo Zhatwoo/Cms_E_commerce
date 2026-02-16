@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useEditor } from "@craftjs/core";
 import { useRouter } from "next/navigation";
-import { PanelRight, Play } from "lucide-react";
+import { PanelRight, Play, X } from "lucide-react";
 import { serializeCraftToClean } from "../../_lib/serializer";
 import { autoSavePage } from "../../_lib/pageApi";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
@@ -21,7 +21,11 @@ const TABS: Tab[] = [
 
 const PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 
-export const RightPanel = () => {
+interface RightPanelProps {
+  onToggle?: () => void;
+}
+
+export const RightPanel = ({ onToggle }: RightPanelProps) => {
   const { showAlert } = useAlert();
   const [activeTab, setActiveTab] = useState<TabId>("design");
   const [isPreviewing, setIsPreviewing] = useState(false);
@@ -70,22 +74,55 @@ export const RightPanel = () => {
     }
   };
 
+  const handlePanelWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement | null;
+    if (!target) return;
+
+    const tag = target.tagName;
+    const isField =
+      tag === "INPUT" ||
+      tag === "TEXTAREA" ||
+      target.isContentEditable;
+
+    if (isField) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.nativeEvent && "stopImmediatePropagation" in e.nativeEvent) {
+        (e.nativeEvent as any).stopImmediatePropagation();
+      }
+    }
+  };
+
   return (
     <div
-      className="w-80 bg-brand-darker/75 backdrop-blur-lg rounded-3xl p-6 h-full shadow-2xl overflow-y-auto border border-white/10"
+      className="w-80 bg-brand-darker/75 backdrop-blur-lg rounded-3xl p-6 h-full shadow-2xl overflow-y-auto border border-white/10 transition-shadow duration-300"
       style={{ boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)" }}
+      onWheel={handlePanelWheel}
     >
-      <div className="flex items-center justify-between mb-6">
-        <PanelRight strokeWidth={2} className="text-brand-light w-5 h-5" />
+      <div className="flex items-center justify-between mb-6 gap-2">
         <h3 className="text-brand-lighter font-bold text-lg">Configs</h3>
-        <button
-          onClick={handlePreview}
-          disabled={isPreviewing}
-          className={`p-1 rounded-lg transition-colors cursor-pointer ${isPreviewing ? 'opacity-50 cursor-wait' : 'hover:bg-brand-medium/40'}`}
-          title="Preview JSON output"
-        >
-          <Play strokeWidth={2} className={`w-5 h-5 transition-colors ${isPreviewing ? 'text-yellow-400 animate-pulse' : 'text-brand-light hover:text-brand-lighter'}`} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handlePreview}
+            disabled={isPreviewing}
+            className={`p-1 rounded-lg transition-colors cursor-pointer ${isPreviewing ? 'opacity-50 cursor-wait' : 'hover:bg-brand-medium/40'}`}
+            title="Preview JSON output"
+          >
+            <Play strokeWidth={2} className={`w-5 h-5 transition-colors ${isPreviewing ? 'text-yellow-400 animate-pulse' : 'text-brand-light hover:text-brand-lighter'}`} />
+          </button>
+
+          {onToggle && (
+            <button
+              type="button"
+              onClick={onToggle}
+              className="p-1 rounded-lg hover:bg-brand-medium/40 text-brand-light transition-colors cursor-pointer"
+              aria-label="Close right panel"
+              title="Close panel"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {selected ? (

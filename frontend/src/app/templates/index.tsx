@@ -1,6 +1,6 @@
 "use client";
 
-import { SimpleHeader, HeaderWithCTA } from "./Header";
+import { SimpleHeader, HeaderWithCTA, HeaderWithImage } from "./Header";
 import { CenteredHero, HeroWithImage } from "./Hero";
 import { FeaturesGrid, Testimonial } from "./Content";
 import { ContactForm, NewsletterSignup } from "./Forms";
@@ -17,6 +17,7 @@ import { TemplateEntry } from "./_types";
 export const TEMPLATES: TemplateEntry[] = [
   SimpleHeader,
   HeaderWithCTA,
+  HeaderWithImage,
   CenteredHero,
   HeroWithImage,
   FeaturesGrid,
@@ -65,7 +66,7 @@ export const GROUPED_TEMPLATES = [
   },
   {
     folder: "Header",
-    items: [SimpleHeader, HeaderWithCTA],
+    items: [SimpleHeader, HeaderWithCTA, HeaderWithImage],
   },
   {
     folder: "Hero",

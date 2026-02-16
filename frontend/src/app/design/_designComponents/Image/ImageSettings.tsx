@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useRef } from "react";
 import { useNode } from "@craftjs/core";
+import { Upload, X } from "lucide-react";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
@@ -39,6 +40,33 @@ export const ImageSettings = () => {
   }));
 
   const typedSetProp = setProp as SetProp<ImageProps>;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        typedSetProp((props) => { props.src = dataUrl; });
+      };
+      reader.readAsDataURL(file);
+    }
+    // Reset input so same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleBrowseClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleClearImage = () => {
+    typedSetProp((props) => { props.src = ''; });
+  };
+
+  const isDataUrl = src?.startsWith('data:image');
 
   return (
     <div className="flex flex-col pb-4">
@@ -47,13 +75,48 @@ export const ImageSettings = () => {
           {/* Source URL */}
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-brand-lighter">Source URL</label>
-            <input
-              type="text"
-              value={src}
-              onChange={(e) => typedSetProp((props) => { props.src = e.target.value; })}
-              placeholder="https://example.com/image.jpg"
-              className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-2 focus:outline-none focus:border-brand-light"
-            />
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={src}
+                onChange={(e) => typedSetProp((props) => { props.src = e.target.value; })}
+                placeholder="https://example.com/image.jpg"
+                className="flex-1 bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-2 focus:outline-none focus:border-brand-light"
+              />
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              {/* Browse button */}
+              <button
+                type="button"
+                onClick={handleBrowseClick}
+                className="px-3 py-2 bg-brand-medium/30 hover:bg-brand-medium/50 border border-brand-medium/30 rounded-md transition-colors flex items-center justify-center"
+                title="Browse files"
+              >
+                <Upload className="w-4 h-4 text-brand-light" />
+              </button>
+              {/* Clear button (only show if image is selected) */}
+              {src && (
+                <button
+                  type="button"
+                  onClick={handleClearImage}
+                  className="px-3 py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-md transition-colors flex items-center justify-center"
+                  title="Clear image"
+                >
+                  <X className="w-4 h-4 text-red-400" />
+                </button>
+              )}
+            </div>
+            {isDataUrl && (
+              <p className="text-[9px] text-brand-medium mt-1">
+                Using uploaded image
+              </p>
+            )}
           </div>
 
           {/* Alt Text */}

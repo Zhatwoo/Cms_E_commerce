@@ -7,6 +7,7 @@ import type { ProductDetailsProps } from "./ProductDetails";
 import { DesignSection } from "../../../design/_components/rightPanel/settings/DesignSection";
 import { NumericInput } from "../../../design/_components/rightPanel/settings/inputs/NumericInput";
 import { ColorInput } from "../../../design/_components/rightPanel/settings/inputs/ColorInput";
+import { Upload } from "lucide-react";
 
 export const ProductDetailsSettings: React.FC = () => {
   const {
@@ -81,7 +82,13 @@ export const ProductDetailsSettings: React.FC = () => {
               <label className="text-[10px] text-brand-lighter">Price</label>
               <NumericInput
                 value={productPrice ?? 0}
-                onChange={(val) => setProp((props: ProductDetailsProps) => { props.productPrice = val; })}
+                onChange={(val) =>
+                  setProp((props: ProductDetailsProps) => {
+                    const safe = val ?? 0;
+                    const rounded = Math.round(safe * 100) / 100;
+                    props.productPrice = rounded;
+                  })
+                }
                 min={0}
                 step={0.01}
               />
@@ -90,7 +97,16 @@ export const ProductDetailsSettings: React.FC = () => {
               <label className="text-[10px] text-brand-lighter">Discount Price</label>
               <NumericInput
                 value={discountPrice ?? 0}
-                onChange={(val) => setProp((props: ProductDetailsProps) => { props.discountPrice = val === null ? null : val; })}
+                onChange={(val) =>
+                  setProp((props: ProductDetailsProps) => {
+                    if (val === null) {
+                      props.discountPrice = null;
+                      return;
+                    }
+                    const rounded = Math.round(val * 100) / 100;
+                    props.discountPrice = rounded;
+                  })
+                }
                 min={0}
                 step={0.01}
               />
@@ -104,12 +120,37 @@ export const ProductDetailsSettings: React.FC = () => {
         <div className="flex flex-col gap-3">
           <div>
             <label className="text-[10px] text-brand-lighter">Main Image URL</label>
-            <input
-              type="text"
-              value={productImage || ""}
-              onChange={(e) => setProp((props: ProductDetailsProps) => { props.productImage = e.target.value; })}
-              className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={productImage || ""}
+                onChange={(e) => setProp((props: ProductDetailsProps) => { props.productImage = e.target.value; })}
+                className="flex-1 bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none"
+              />
+              <label
+                className="p-1.5 bg-brand-medium/30 hover:bg-brand-medium/50 text-brand-light rounded border border-brand-medium/40 cursor-pointer inline-flex items-center justify-center"
+                title="Upload image"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (!file.type.startsWith("image/")) return;
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                      const dataUrl = event.target?.result as string;
+                      setProp((props: ProductDetailsProps) => { props.productImage = dataUrl; });
+                    };
+                    reader.readAsDataURL(file);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
           </div>
           {/* Gallery URL input + thumbnails remain, compact spacing */}
           <div>

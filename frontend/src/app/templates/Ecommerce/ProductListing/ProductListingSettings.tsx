@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNode } from "@craftjs/core";
 import type { ProductListingProps } from "./ProductListing";
 import { DesignSection } from "../../../design/_components/rightPanel/settings/DesignSection";
 import { NumericInput } from "../../../design/_components/rightPanel/settings/inputs/NumericInput";
 import { ColorInput } from "../../../design/_components/rightPanel/settings/inputs/ColorInput";
+import { Upload } from "lucide-react";
 
 export const ProductListingSettings: React.FC = () => {
   const {
@@ -42,6 +43,8 @@ export const ProductListingSettings: React.FC = () => {
   }));
 
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
+  const [newlyAddedProductId, setNewlyAddedProductId] = useState<string | null>(null);
+  const previousProductsCountRef = useRef<number>(0);
 
   const handleProductChange = (productId: string, field: string, value: any) => {
     setProp((props: ProductListingProps) => {
@@ -55,10 +58,13 @@ export const ProductListingSettings: React.FC = () => {
   };
 
   const handleAddProduct = () => {
+    const newProductId = `product-${Date.now()}`;
+    setNewlyAddedProductId(newProductId);
+    
     setProp((props: ProductListingProps) => {
       const list = Array.isArray(props.products) ? props.products : [];
       const newProduct = {
-        id: `product-${Date.now()}`,
+        id: newProductId,
         name: "New Product",
         price: 0,
         image: "https://placehold.co/300x300/999999/ffffff?text=New+Product",
@@ -66,7 +72,28 @@ export const ProductListingSettings: React.FC = () => {
       };
       props.products = [...list, newProduct];
     });
+
+    // Clear the animation flag after animation completes
+    setTimeout(() => {
+      setNewlyAddedProductId(null);
+    }, 500);
   };
+
+  // Track product count changes to detect additions
+  useEffect(() => {
+    const currentCount = (products || []).length;
+    if (currentCount > previousProductsCountRef.current && previousProductsCountRef.current > 0) {
+      // A product was added (not initial load)
+      const lastProduct = (products || [])[(products || []).length - 1];
+      if (lastProduct) {
+        setNewlyAddedProductId(lastProduct.id);
+        setTimeout(() => {
+          setNewlyAddedProductId(null);
+        }, 500);
+      }
+    }
+    previousProductsCountRef.current = currentCount;
+  }, [products]);
 
   const handleDeleteProduct = (productId: string) => {
     setProp((props: ProductListingProps) => {
@@ -107,24 +134,42 @@ export const ProductListingSettings: React.FC = () => {
       <DesignSection title="Products">
         <div className="flex items-center justify-between mb-2">
           <span className="text-[10px] text-brand-lighter">Manage products</span>
-          <button
-            onClick={handleAddProduct}
-            className="text-[10px] px-2 py-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded border border-blue-500/30"
-          >+ Add</button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleAddProduct}
+              className="text-[10px] px-2 py-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded border border-blue-500/30"
+              type="button"
+            >
+              + Add
+            </button>
+          </div>
         </div>
         <div className="space-y-2 max-h-64 overflow-y-auto">
           {(products || []).length > 0 ? (
             (products || []).map((product: any) => (
-              <div key={product.id} className="bg-brand-medium/10 border border-brand-medium/20 rounded-lg p-2">
+              <div 
+                key={product.id} 
+                className={`bg-brand-medium/10 border border-brand-medium/20 rounded-lg p-2 ${
+                  newlyAddedProductId === product.id ? 'product-item-added' : ''
+                }`}
+              >
                 <button
                   onClick={() => setExpandedProduct(expandedProduct === product.id ? null : product.id)}
-                  className="w-full flex items-center justify-between text-left"
+                  className="w-full flex items-center justify-between text-left transition-colors hover:bg-brand-medium/5 rounded px-1 py-1 -mx-1"
                 >
                   <span className="text-[11px] text-brand-lighter truncate">{product.name || "Unnamed Product"}</span>
-                  <span className="text-[10px] text-brand-medium">{expandedProduct === product.id ? "−" : "+"}</span>
+                  <span className={`text-[10px] text-brand-medium transition-transform duration-300 ${expandedProduct === product.id ? "rotate-180" : ""}`}>
+                    {expandedProduct === product.id ? "−" : "+"}
+                  </span>
                 </button>
-                {expandedProduct === product.id && (
-                  <div className="mt-2 space-y-2 border-t border-brand-medium/20 pt-2">
+                <div
+                  className={`overflow-hidden transition-all duration-300 ease-out ${
+                    expandedProduct === product.id
+                      ? "max-h-[800px] opacity-100 mt-2"
+                      : "max-h-0 opacity-0 mt-0"
+                  }`}
+                >
+                  <div className="space-y-2 border-t border-brand-medium/20 pt-2">
                     <div>
                       <label className="text-[10px] text-brand-lighter">Name</label>
                       <input
@@ -138,19 +183,46 @@ export const ProductListingSettings: React.FC = () => {
                       <label className="text-[10px] text-brand-lighter">Price</label>
                       <NumericInput
                         value={product.price ?? 0}
-                        onChange={(val) => handleProductChange(product.id, "price", val ?? 0)}
+                        onChange={(val) => {
+                          const safe = val ?? 0;
+                          const rounded = Math.round(safe * 100) / 100;
+                          handleProductChange(product.id, "price", rounded);
+                        }}
                         min={0}
                         step={0.01}
                       />
                     </div>
                     <div>
                       <label className="text-[10px] text-brand-lighter">Image URL</label>
-                      <input
-                        type="text"
-                        value={product.image}
-                        onChange={(e) => handleProductChange(product.id, "image", e.target.value)}
-                        className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none"
-                      />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={product.image}
+                          onChange={(e) => handleProductChange(product.id, "image", e.target.value)}
+                          className="flex-1 bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none"
+                        />
+                        <label className="p-1.5 bg-brand-medium/30 hover:bg-brand-medium/50 text-brand-light rounded border border-brand-medium/40 cursor-pointer inline-flex items-center justify-center"
+                          title="Upload image">
+                          <Upload className="w-3.5 h-3.5" />
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              if (!file.type.startsWith("image/")) return;
+                              const reader = new FileReader();
+                              reader.onload = (event) => {
+                                const dataUrl = event.target?.result as string;
+                                handleProductChange(product.id, "image", dataUrl);
+                              };
+                              reader.readAsDataURL(file);
+                              e.target.value = "";
+                            }}
+                          />
+                        </label>
+                      </div>
                       {product.image && (
                         <img src={product.image} alt={product.name} className="w-full h-20 object-cover rounded mt-1 border border-brand-medium/20" />
                       )}
@@ -166,10 +238,10 @@ export const ProductListingSettings: React.FC = () => {
                     </div>
                     <button
                       onClick={() => handleDeleteProduct(product.id)}
-                      className="w-full text-[10px] px-2 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded border border-red-500/30"
+                      className="w-full text-[10px] px-2 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded border border-red-500/30 transition-colors"
                     >Delete Product</button>
                   </div>
-                )}
+                </div>
               </div>
             ))
           ) : (

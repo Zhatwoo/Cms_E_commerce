@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect, useLayoutEffect, useCallback } from "react";
 import { Editor, Frame, Element } from "@craftjs/core";
+import { PanelLeft, PanelRight } from "lucide-react";
 import { RenderBlocks } from "../_designComponents";
 import { LeftPanel } from "./leftPanel";
 import { RightPanel } from "./rightPanel";
@@ -45,6 +46,8 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   const [initialJson, setInitialJson] = useState<string | null | undefined>(undefined);
   const [panelsReady, setPanelsReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [leftPanelOpen, setLeftPanelOpen] = useState(false);
+  const [rightPanelOpen, setRightPanelOpen] = useState(false);
 
   /** Returns true if the event target is an input, textarea, select, or contenteditable */
   const isEditableTarget = (target: EventTarget | null) => {
@@ -210,11 +213,14 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             }
 
             const parsed = JSON.parse(content);
-            if (parsed && parsed.ROOT) {
+            // Validate structure: must have ROOT and ROOT must have nodes property
+            if (parsed && parsed.ROOT && parsed.ROOT.nodes && Array.isArray(parsed.ROOT.nodes)) {
               console.log(`✅ Loaded valid draft from DB (${Object.keys(parsed).length} internal nodes)`);
               contentToLoad = content;
               // Sync to localStorage (per-project)
               localStorage.setItem(storageKey, contentToLoad!);
+            } else {
+              console.warn('⚠️ Invalid draft structure: missing ROOT or ROOT.nodes');
             }
           } catch (e) {
             console.error('Failed to parse draft content:', e);
@@ -225,11 +231,16 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         if (!contentToLoad && sessionSaved) {
           try {
             const parsed = JSON.parse(sessionSaved);
-            if (parsed && parsed.ROOT) {
+            // Validate structure: must have ROOT and ROOT must have nodes property
+            if (parsed && parsed.ROOT && parsed.ROOT.nodes && Array.isArray(parsed.ROOT.nodes)) {
               console.log('✅ Loaded valid draft from localStorage (this project)');
               contentToLoad = sessionSaved;
+            } else {
+              console.warn('⚠️ Invalid draft structure in localStorage: missing ROOT or ROOT.nodes');
+              localStorage.removeItem(storageKey);
             }
           } catch (e) {
+            console.error('Failed to parse localStorage draft:', e);
             localStorage.removeItem(storageKey);
           }
         }
@@ -434,23 +445,65 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
           </div>
         </div>
 
-        {/* Floating Panels */}
-        {/* Left Panel */}
+        {/* Floating Panels — click-to-toggle buttons with close controls */}
         {panelsReady && (
-          <div className="absolute top-4 left-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
-            <div className="pointer-events-auto h-full">
-              <LeftPanel />
+          <>
+            {/* Left Panel */}
+            <div className="absolute top-4 left-4 z-50 h-[calc(100vh-2rem)] w-80 flex items-start pointer-events-none">
+              <div
+                className="h-full w-80 flex items-start pointer-events-auto"
+              >
+                <div className="h-full w-80 overflow-hidden shrink-0 pointer-events-none">
+                  <div
+                    className={`h-full w-80 origin-left transition-[transform,opacity] duration-300 ease-out will-change-transform ${
+                      leftPanelOpen
+                        ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
+                        : '-translate-x-full scale-90 opacity-0 pointer-events-none'
+                    }`}
+                  >
+                    <LeftPanel onToggle={() => setLeftPanelOpen(false)} />
+                  </div>
+                </div>
+                <button
+                  onClick={() => setLeftPanelOpen((open) => !open)}
+                  className={`absolute left-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${
+                    leftPanelOpen ? 'opacity-0 pointer-events-none scale-95' : 'opacity-100 pointer-events-auto scale-100'
+                  }`}
+                  title={leftPanelOpen ? "Hide left panel" : "Show left panel"}
+                >
+                  <PanelLeft className="w-5 h-5 text-brand-light" />
+                </button>
+              </div>
             </div>
-          </div>
-        )}
 
-        {/* Right Panel */}
-        {panelsReady && (
-          <div className="absolute top-4 right-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
-            <div className="pointer-events-auto h-full">
-              <RightPanel />
+            {/* Right Panel */}
+            <div className="absolute top-4 right-4 z-50 h-[calc(100vh-2rem)] w-80 flex items-start justify-end pointer-events-none">
+              <div
+                className="h-full w-80 flex items-start justify-end pointer-events-auto"
+              >
+                <div className="h-full w-80 overflow-hidden shrink-0 flex justify-end pointer-events-none">
+                  <div
+                    className={`h-full w-80 origin-right transition-[transform,opacity] duration-300 ease-out will-change-transform ${
+                      rightPanelOpen
+                        ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
+                        : 'translate-x-full scale-90 opacity-0 pointer-events-none'
+                    }`}
+                  >
+                    <RightPanel onToggle={() => setRightPanelOpen(false)} />
+                  </div>
+                </div>
+                <button
+                  onClick={() => setRightPanelOpen((open) => !open)}
+                  className={`absolute right-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${
+                    rightPanelOpen ? 'opacity-0 pointer-events-none scale-95' : 'opacity-100 pointer-events-auto scale-100'
+                  }`}
+                  title={rightPanelOpen ? "Hide right panel" : "Show right panel"}
+                >
+                  <PanelRight className="w-5 h-5 text-brand-light" />
+                </button>
+              </div>
             </div>
-          </div>
+          </>
         )}
 
         {/* Canvas Controls Overlay: ito yung nasa baba :> */}
