@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useRef, useState, useEffect, useLayoutEffect, useCallback } from "react";
 import { Editor, Frame, Element } from "@craftjs/core";
+import { PanelLeft, PanelRight } from "lucide-react";
 import { RenderBlocks } from "../_designComponents";
 import { LeftPanel } from "./leftPanel";
 import { RightPanel } from "./rightPanel";
@@ -44,6 +45,8 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   const [initialJson, setInitialJson] = useState<string | null | undefined>(undefined);
   const [panelsReady, setPanelsReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [leftPanelOpen, setLeftPanelOpen] = useState(false);
+  const [rightPanelOpen, setRightPanelOpen] = useState(false);
 
   /** Returns true if the event target is an input, textarea, select, or contenteditable */
   const isEditableTarget = (target: EventTarget | null) => {
@@ -209,11 +212,14 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             }
 
             const parsed = JSON.parse(content);
-            if (parsed && parsed.ROOT) {
+            // Validate structure: must have ROOT and ROOT must have nodes property
+            if (parsed && parsed.ROOT && parsed.ROOT.nodes && Array.isArray(parsed.ROOT.nodes)) {
               console.log(`✅ Loaded valid draft from DB (${Object.keys(parsed).length} internal nodes)`);
               contentToLoad = content;
               // Sync to localStorage (per-project)
               localStorage.setItem(storageKey, contentToLoad!);
+            } else {
+              console.warn('⚠️ Invalid draft structure: missing ROOT or ROOT.nodes');
             }
           } catch (e) {
             console.error('Failed to parse draft content:', e);
@@ -224,11 +230,16 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         if (!contentToLoad && sessionSaved) {
           try {
             const parsed = JSON.parse(sessionSaved);
-            if (parsed && parsed.ROOT) {
+            // Validate structure: must have ROOT and ROOT must have nodes property
+            if (parsed && parsed.ROOT && parsed.ROOT.nodes && Array.isArray(parsed.ROOT.nodes)) {
               console.log('✅ Loaded valid draft from localStorage (this project)');
               contentToLoad = sessionSaved;
+            } else {
+              console.warn('⚠️ Invalid draft structure in localStorage: missing ROOT or ROOT.nodes');
+              localStorage.removeItem(storageKey);
             }
           } catch (e) {
+            console.error('Failed to parse localStorage draft:', e);
             localStorage.removeItem(storageKey);
           }
         }
@@ -422,9 +433,33 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         {/* Floating Panels */}
         {/* Left Panel */}
         {panelsReady && (
-          <div className="absolute top-4 left-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
-            <div className="pointer-events-auto h-full">
-              <LeftPanel />
+          <>
+            {/* Left Panel */}
+            <div className="absolute top-4 left-4 z-50 h-[calc(100vh-2rem)] w-80 flex items-start pointer-events-none">
+              <div
+                className="h-full w-80 flex items-start pointer-events-auto"
+              >
+                <div className="h-full w-80 overflow-hidden shrink-0 pointer-events-none">
+                  <div
+                    className={`h-full w-80 origin-left transition-[transform,opacity] duration-300 ease-out will-change-transform ${
+                      leftPanelOpen
+                        ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
+                        : '-translate-x-full scale-90 opacity-0 pointer-events-none'
+                    }`}
+                  >
+                    <LeftPanel onToggle={() => setLeftPanelOpen(false)} />
+                  </div>
+                </div>
+                <button
+                  onClick={() => setLeftPanelOpen((open) => !open)}
+                  className={`absolute left-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${
+                    leftPanelOpen ? 'opacity-0 pointer-events-none scale-95' : 'opacity-100 pointer-events-auto scale-100'
+                  }`}
+                  title={leftPanelOpen ? "Hide left panel" : "Show left panel"}
+                >
+                  <PanelLeft className="w-5 h-5 text-brand-light" />
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -434,7 +469,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             <div className="pointer-events-auto h-full">
               <RightPanel projectId={projectId} />
             </div>
-          </div>
+          </>
         )}
         {/* Canvas Controls Overlay: ito yung nasa baba :> */}
         <div className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">

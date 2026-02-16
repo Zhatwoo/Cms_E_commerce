@@ -60,15 +60,71 @@ export const FilesPanel = () => {
   const handleDuplicate = useCallback(
     (nodeId: string) => {
       try {
-        const node = query.node(nodeId).get();
-        const parentId = node.data.parent;
-        if (!parentId) return;
+        // Get the full current serialized editor state
+        const serialized = query.serialize();
+        const data: Record<string, any> = JSON.parse(serialized);
 
-        // Get the full subtree for the node
-        const tree = query.node(nodeId).toNodeTree();
-        actions.addNodeTree(tree, parentId);
-      } catch {
-        // node might be invalid
+        const original = data[nodeId];
+        if (!original) return;
+        const parentId = original.parent;
+        if (!parentId || !data[parentId]) return;
+
+        // Collect all existing IDs so we can generate new unique ones
+        const existingIds = new Set(Object.keys(data));
+
+        const generateId = (): string => {
+          let id = "";
+          do {
+            id = Math.random().toString(36).slice(2, 11);
+          } while (existingIds.has(id));
+          existingIds.add(id);
+          return id;
+        };
+
+        // Recursively clone a subtree with new IDs
+        const cloneSubtree = (sourceId: string, newParentId: string): string | null => {
+          const sourceNode = data[sourceId];
+          if (!sourceNode) return null;
+
+          const newId = generateId();
+          const childIds: string[] = Array.isArray(sourceNode.nodes) ? sourceNode.nodes : [];
+
+          const clonedNode: any = {
+            ...sourceNode,
+            parent: newParentId,
+            nodes: [] as string[],
+          };
+
+          for (const childId of childIds) {
+            const clonedChildId = cloneSubtree(childId, newId);
+            if (clonedChildId) {
+              clonedNode.nodes.push(clonedChildId);
+            }
+          }
+
+          data[newId] = clonedNode;
+          return newId;
+        };
+
+        // Clone the selected node subtree
+        const clonedRootId = cloneSubtree(nodeId, parentId);
+        if (!clonedRootId) return;
+
+        // Insert the cloned node as a sibling after the original
+        const parentNode = data[parentId];
+        const siblings: string[] = Array.isArray(parentNode.nodes) ? [...parentNode.nodes] : [];
+        const index = siblings.indexOf(nodeId);
+        if (index === -1) {
+          siblings.push(clonedRootId);
+        } else {
+          siblings.splice(index + 1, 0, clonedRootId);
+        }
+        parentNode.nodes = siblings;
+
+        // Apply the new state to the editor
+        actions.deserialize(JSON.stringify(data));
+      } catch (e) {
+        console.warn("Failed to duplicate node:", e);
       }
       setContextMenu(null);
     },
@@ -150,11 +206,7 @@ export const FilesPanel = () => {
             `}
             onClick={toggleExpansion}
           >
-            {expanded ? (
-              <ChevronDown className="w-4 h-4" />
-            ) : (
-              <ChevronRight className="w-4 h-4" />
-            )}
+            <ChevronDown className={`w-4 h-4 layer-item-chevron ${expanded ? 'expanded' : 'collapsed'}`} />
           </div>
 
           <Icon className="w-4 h-4 opacity-70 shrink-0" />
@@ -164,11 +216,13 @@ export const FilesPanel = () => {
         </div>
 
         {/* Children */}
-        {hasChildren && expanded && (
-          <div className="flex flex-col gap-1">
-            {node.data.nodes.map((childId) => (
-              <LayerItem key={childId} nodeId={childId} depth={depth + 1} />
-            ))}
+        {hasChildren && (
+          <div className={`layer-children-container ${expanded ? 'expanded' : 'collapsed'}`}>
+            <div className="flex flex-col gap-1">
+              {node.data.nodes.map((childId, index) => (
+                <LayerItem key={`${nodeId}-${childId}-${index}`} nodeId={childId} depth={depth + 1} />
+              ))}
+            </div>
           </div>
         )}
       </div>

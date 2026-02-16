@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useEditor } from "@craftjs/core";
 import { useRouter } from "next/navigation";
-import { PanelRight, Play } from "lucide-react";
+import { PanelRight, Play, X } from "lucide-react";
 import { serializeCraftToClean } from "../../_lib/serializer";
 import { autoSavePage } from "../../_lib/pageApi";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
@@ -68,13 +68,32 @@ export const RightPanel = ({ projectId }: { projectId: string }) => {
     }
   };
 
+  const handlePanelWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement | null;
+    if (!target) return;
+
+    const tag = target.tagName;
+    const isField =
+      tag === "INPUT" ||
+      tag === "TEXTAREA" ||
+      target.isContentEditable;
+
+    if (isField) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.nativeEvent && "stopImmediatePropagation" in e.nativeEvent) {
+        (e.nativeEvent as any).stopImmediatePropagation();
+      }
+    }
+  };
+
   return (
     <div
-      className="w-80 bg-brand-darker/75 backdrop-blur-lg rounded-3xl p-6 h-full shadow-2xl overflow-y-auto border border-white/10"
+      className="w-80 bg-brand-darker/75 backdrop-blur-lg rounded-3xl p-6 h-full shadow-2xl overflow-y-auto border border-white/10 transition-shadow duration-300"
       style={{ boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)" }}
+      onWheel={handlePanelWheel}
     >
-      <div className="flex items-center justify-between mb-6">
-        <PanelRight strokeWidth={2} className="text-brand-light w-5 h-5" />
+      <div className="flex items-center justify-between mb-6 gap-2">
         <h3 className="text-brand-lighter font-bold text-lg">Configs</h3>
         <button
           onClick={handlePreview}

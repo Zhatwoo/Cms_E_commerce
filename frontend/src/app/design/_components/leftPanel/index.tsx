@@ -3,12 +3,12 @@ import { useEditor } from "@craftjs/core";
 import { useRouter } from "next/navigation";
 import {
   ChevronDown,
-  PanelLeft,
   Save,
   LayoutDashboard,
   Settings,
   FileDown,
   Trash2,
+  X,
 } from "lucide-react";
 import { FilesPanel } from "./filesPanel";
 import { ComponentsPanel } from "./componentsPanel";
@@ -16,7 +16,11 @@ import { AssetsPanel } from "./assetsPanel";
 
 const STORAGE_KEY = "craftjs_preview_json";
 
-export const LeftPanel = () => {
+interface LeftPanelProps {
+  onToggle?: () => void;
+}
+
+export const LeftPanel = ({ onToggle }: LeftPanelProps) => {
   const [activePanel, setActivePanel] = useState("files");
   const [menuOpen, setMenuOpen] = useState(false);
   const [saveFlash, setSaveFlash] = useState(false);
@@ -93,11 +97,13 @@ export const LeftPanel = () => {
 
   return (
     <div
-      className="w-80 bg-brand-dark/75 backdrop-blur-lg rounded-3xl p-6 flex flex-col gap-4 h-full overflow-y-auto border border-white/10"
+      className={`w-80 bg-brand-dark/75 backdrop-blur-lg rounded-3xl p-6 flex flex-col gap-4 h-full overflow-y-auto border border-white/10 transition-shadow duration-300 ${
+        activePanel === "components" ? "no-scrollbar" : ""
+      }`}
       style={{ boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)" }}
     >
       {/* Left Panel Header */}
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-start justify-between mb-2 gap-2">
         {/* Project dropdown trigger */}
         <div className="relative" ref={menuRef}>
           <button
@@ -170,17 +176,24 @@ export const LeftPanel = () => {
           )}
         </div>
 
-        {/* Save flash indicator */}
-        {saveFlash && (
-          <span className="text-[10px] text-emerald-400 font-medium animate-pulse">Saved</span>
-        )}
+        <div className="flex flex-col items-end gap-1">
+          {/* Close / Exit button */}
+          {onToggle && (
+            <button
+              type="button"
+              onClick={onToggle}
+              className="p-1 rounded-lg hover:bg-white/5 text-brand-light transition-colors cursor-pointer"
+              aria-label="Close left panel"
+              title="Close panel"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
 
-        {/* Toggle left panel Icon */}
-        <div className="relative group">
-          <PanelLeft className="w-4 h-4 cursor-pointer" />
-          <span className="absolute right-0 top-full mt-2 px-2 py-1 rounded bg-brand-medium/50 text-brand-lighter text-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-10">
-            Toggle left panel
-          </span>
+          {/* Save flash indicator */}
+          {saveFlash && (
+            <span className="text-[10px] text-emerald-400 font-medium animate-pulse">Saved</span>
+          )}
         </div>
       </div>
 
