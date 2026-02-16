@@ -1,10 +1,12 @@
 import React, { useState } from "react";
 import { useEditor } from "@craftjs/core";
 import { useRouter } from "next/navigation";
-import { PanelRight, Play } from "lucide-react";
+import { PanelRight, Play, X } from "lucide-react";
 import { serializeCraftToClean } from "../../_lib/serializer";
 import { autoSavePage } from "../../_lib/pageApi";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
+import { AnimationGroup } from "./settings/AnimationGroup";
+import { BatchEditGroup } from "./settings/BatchEditGroup";
 
 type TabId = "design" | "settings" | "animation";
 
@@ -19,29 +21,30 @@ const TABS: Tab[] = [
   { id: "animation", label: "Animation" },
 ];
 
-const PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
-
-export const RightPanel = () => {
+export const RightPanel = ({ projectId }: { projectId: string }) => {
   const { showAlert } = useAlert();
   const [activeTab, setActiveTab] = useState<TabId>("design");
   const [isPreviewing, setIsPreviewing] = useState(false);
   const router = useRouter();
 
-  const { selected, query } = useEditor((state) => {
-    const [currentNodeId] = state.events.selected;
-    let selected;
-
-    if (currentNodeId) {
-      selected = {
-        id: currentNodeId,
-        name: state.nodes[currentNodeId].data.displayName,
-        settings:
-          state.nodes[currentNodeId].related &&
-          state.nodes[currentNodeId].related.settings,
-      };
-    }
-
-    return { selected };
+  const { selectedIds, primary, query } = useEditor((state) => {
+    const sel = state.events.selected;
+    const ids: string[] = Array.isArray(sel)
+      ? sel.filter((id) => id && id !== "ROOT")
+      : sel instanceof Set
+        ? Array.from(sel).filter((id) => id && id !== "ROOT")
+        : sel && typeof sel === "object"
+          ? Object.keys(sel).filter((id) => id && id !== "ROOT")
+          : [];
+    const firstId = ids[0];
+    const primary = firstId && state.nodes[firstId]
+      ? {
+          id: firstId,
+          name: state.nodes[firstId].data.displayName,
+          settings: state.nodes[firstId].related?.settings,
+        }
+      : null;
+    return { selectedIds: ids, primary };
   });
 
   const handlePreview = async () => {
@@ -58,10 +61,10 @@ export const RightPanel = () => {
       console.log(`📊 Preview: Clean output has ${cleanCount} nodes.`);
 
       // Force save to DB before navigating
-      await autoSavePage(JSON.stringify(cleanCode), PROJECT_ID);
+      await autoSavePage(JSON.stringify(cleanCode), projectId);
 
       console.log('✅ Save complete, navigating to preview...');
-      router.push("/design/preview");
+      router.push(`/design/preview?projectId=${encodeURIComponent(projectId)}`);
     } catch (error) {
       console.error('❌ Preview failed:', error);
       showAlert('Failed to generate preview. Check console.');
@@ -70,30 +73,52 @@ export const RightPanel = () => {
     }
   };
 
+  const handlePanelWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement | null;
+    if (!target) return;
+
+    const tag = target.tagName;
+    const isField =
+      tag === "INPUT" ||
+      tag === "TEXTAREA" ||
+      target.isContentEditable;
+
+    if (isField) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.nativeEvent && "stopImmediatePropagation" in e.nativeEvent) {
+        (e.nativeEvent as any).stopImmediatePropagation();
+      }
+    }
+  };
+
   return (
     <div
-      className="w-80 bg-brand-darker/75 backdrop-blur-lg rounded-3xl p-6 h-full shadow-2xl overflow-y-auto border border-white/10"
+      data-panel="configs"
+      className="w-80 bg-brand-darker/75 backdrop-blur-lg rounded-3xl p-6 h-full shadow-2xl overflow-y-auto border border-white/10 transition-shadow duration-300"
       style={{ boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)" }}
+      onWheel={handlePanelWheel}
     >
-      <div className="flex items-center justify-between mb-6">
-        <PanelRight strokeWidth={2} className="text-brand-light w-5 h-5" />
+      <div className="flex items-center justify-between mb-6 gap-2">
         <h3 className="text-brand-lighter font-bold text-lg">Configs</h3>
         <button
           onClick={handlePreview}
           disabled={isPreviewing}
           className={`p-1 rounded-lg transition-colors cursor-pointer ${isPreviewing ? 'opacity-50 cursor-wait' : 'hover:bg-brand-medium/40'}`}
-          title="Preview JSON output"
+          title="Preview (Web / Clean / Raw)"
         >
           <Play strokeWidth={2} className={`w-5 h-5 transition-colors ${isPreviewing ? 'text-yellow-400 animate-pulse' : 'text-brand-light hover:text-brand-lighter'}`} />
         </button>
       </div>
 
-      {selected ? (
+      {selectedIds.length > 0 ? (
         <div>
           <div className="mb-6">
             <div className="bg-brand-medium/20 p-2 rounded-lg text-center border border-brand-medium/30">
               <span className="text-brand-lighter font-medium text-sm">
-                {selected.name}
+                {selectedIds.length === 1 && primary
+                  ? primary.name
+                  : `${selectedIds.length} components selected`}
               </span>
             </div>
           </div>
@@ -117,8 +142,10 @@ export const RightPanel = () => {
           {/* Tab Content */}
           <div className="space-y-6">
             {activeTab === "design" &&
-              (selected.settings ? (
-                React.createElement(selected.settings)
+              (selectedIds.length > 1 ? (
+                <BatchEditGroup selectedIds={selectedIds} />
+              ) : primary?.settings ? (
+                React.createElement(primary.settings)
               ) : (
                 <div className="flex flex-col items-center justify-center py-8 text-brand-lighter opacity-50">
                   <p className="text-sm">No design settings available</p>
@@ -132,9 +159,7 @@ export const RightPanel = () => {
             )}
 
             {activeTab === "animation" && (
-              <div className="flex flex-col items-center justify-center py-8 text-brand-lighter opacity-50">
-                <p className="text-sm">Animation settings coming soon</p>
-              </div>
+              <AnimationGroup selectedIds={selectedIds} />
             )}
           </div>
         </div>

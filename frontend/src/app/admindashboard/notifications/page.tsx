@@ -10,6 +10,9 @@ export default function NotificationsPage() {
 	const [activeTab, setActiveTab] = useState("list");
 	const [actionState, setActionState] = useState<"none" | "read" | "delete">("none");
 	const [selectedIds, setSelectedIds] = useState<string[]>([]);
+	const [trashSelectedIds, setTrashSelectedIds] = useState<string[]>([]);
+	const [showRestoreModal, setShowRestoreModal] = useState(false);
+	const [showPermanentDeleteModal, setShowPermanentDeleteModal] = useState(false);
 	const [notifications, setNotifications] = useState([
 		{
 			id: "n1",
@@ -102,6 +105,28 @@ export default function NotificationsPage() {
 	};
 
 	const unreadCount = notifications.filter((item) => !item.read).length;
+
+	const trashAllSelected = trash.length > 0 && trashSelectedIds.length === trash.length;
+
+	const toggleTrashSelectAll = (checked: boolean) => {
+		setTrashSelectedIds(checked ? trash.map((item) => item.id) : []);
+	};
+
+	const toggleTrashSelectOne = (id: string, checked: boolean) => {
+		setTrashSelectedIds((prev) => (checked ? [...prev, id] : prev.filter((item) => item !== id)));
+	};
+
+	const handleBulkRestore = () => {
+		trashSelectedIds.forEach((id) => handleRestore(id));
+		setTrashSelectedIds([]);
+		setShowRestoreModal(false);
+	};
+
+	const handleBulkPermanentDelete = () => {
+		trashSelectedIds.forEach((id) => handlePermanentDelete(id));
+		setTrashSelectedIds([]);
+		setShowPermanentDeleteModal(false);
+	};
 
 	const handleSettingToggle = (id: string, channel: "email" | "push") => {
 		setNotificationSettings((prev) =>
@@ -220,8 +245,9 @@ export default function NotificationsPage() {
 												onClick={handleDelete}
 												className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 text-gray-800 hover:bg-red-500 hover:text-white transition-colors"
 											>
-												<svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-													<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M9 7V5h6v2m-7 0v12a2 2 0 002 2h4a2 2 0 002-2V7" />
+												<svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+													<path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+													<path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
 												</svg>
 												<span>Delete</span>
 											</motion.button>
@@ -337,35 +363,75 @@ export default function NotificationsPage() {
 												Trash is empty
 											</div>
 										) : (
-											trash.map((item) => (
+											<>
+												<div className="flex flex-wrap items-center gap-4 text-sm text-gray-700 mb-6">
+													<label className="inline-flex items-center gap-2">
+														<input
+															type="checkbox"
+															checked={trashAllSelected}
+															onChange={(event) => toggleTrashSelectAll(event.target.checked)}
+															className="h-4 w-4"
+															aria-label="Select all trash items"
+														/>
+														Select All
+													</label>
+													<motion.button
+														whileHover={{ scale: 1.02 }}
+														whileTap={{ scale: 0.98 }}
+														onClick={() => setShowRestoreModal(true)}
+														disabled={trashSelectedIds.length === 0}
+														className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 text-gray-800 hover:bg-emerald-500 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+													>
+														<span>Restore</span>
+													</motion.button>
+													<motion.button
+														whileHover={{ scale: 1.02 }}
+														whileTap={{ scale: 0.98 }}
+														onClick={() => setShowPermanentDeleteModal(true)}
+														disabled={trashSelectedIds.length === 0}
+														className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 text-gray-800 hover:bg-red-500 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+													>
+														<span>Delete Permanently</span>
+													</motion.button>
+												</div>
+
 												<motion.div
-													key={item.id}
-													initial={{ opacity: 0, y: 8 }}
-													animate={{ opacity: 1, y: 0 }}
-													className="border border-gray-200 rounded-2xl p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)]"
+													initial="hidden"
+													animate="visible"
+													variants={{
+														hidden: { opacity: 0 },
+														visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
+													}}
+													className="space-y-4"
 												>
-													<div className="flex items-center justify-between">
-														<div>
-															<div className="text-gray-900 font-semibold">{item.title}</div>
-															<div className="text-xs text-gray-500">{item.time}</div>
-														</div>
-														<div className="flex items-center gap-3">
-															<button
-																onClick={() => handleRestore(item.id)}
-																className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-200 text-sm"
-															>
-																Restore
-															</button>
-															<button
-																onClick={() => handlePermanentDelete(item.id)}
-																className="px-3 py-1 rounded-full bg-red-100 text-red-700 hover:bg-red-200 text-sm"
-															>
-																Delete Permanently
-															</button>
-														</div>
-													</div>
+													{trash.map((item) => (
+														<motion.div
+															key={item.id}
+															variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }}
+															className="border border-gray-200 rounded-2xl p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)]"
+														>
+															<div className="flex items-center justify-between">
+																<div className="flex items-center gap-4">
+																	<input
+																		type="checkbox"
+																		checked={trashSelectedIds.includes(item.id)}
+																		onChange={(event) => toggleTrashSelectOne(item.id, event.target.checked)}
+																		className="h-4 w-4"
+																		aria-label={`Select trash item at ${item.time}`}
+																	/>
+																	<div>
+																		<div className="text-gray-900 font-semibold">{item.title}</div>
+																		<div className="text-xs text-gray-500">{item.time}</div>
+																	</div>
+																</div>
+																<div className="text-sm text-gray-500">
+																	<span>{item.date}</span>
+																</div>
+															</div>
+														</motion.div>
+													))}
 												</motion.div>
-											))
+											</>
 										)}
 									</motion.div>
 								)}
@@ -374,6 +440,86 @@ export default function NotificationsPage() {
 					</div>
 				</div>
 			</div>
+
+			<AnimatePresence>
+				{showRestoreModal && (
+					<motion.div
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+						className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+					>
+						<motion.div
+							initial={{ y: 12, opacity: 0, scale: 0.98 }}
+							animate={{ y: 0, opacity: 1, scale: 1 }}
+							exit={{ y: 8, opacity: 0, scale: 0.98 }}
+							transition={{ duration: 0.2 }}
+							className="w-full max-w-md rounded-2xl bg-white p-6 shadow-[0_20px_50px_rgba(15,23,42,0.25)]"
+						>
+							<h3 className="text-lg font-semibold text-gray-900">Restore items</h3>
+							<p className="mt-2 text-sm text-gray-500">
+								Are you sure you want to restore {trashSelectedIds.length} selected {trashSelectedIds.length === 1 ? "item" : "items"} back to the list?
+							</p>
+							<div className="mt-6 flex items-center justify-end gap-3">
+								<button
+									type="button"
+									onClick={() => setShowRestoreModal(false)}
+									className="rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-gray-50"
+								>
+									Cancel
+								</button>
+								<button
+									type="button"
+									onClick={handleBulkRestore}
+									className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+								>
+									Restore
+								</button>
+							</div>
+						</motion.div>
+					</motion.div>
+				)}
+			</AnimatePresence>
+
+			<AnimatePresence>
+				{showPermanentDeleteModal && (
+					<motion.div
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+						className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+					>
+						<motion.div
+							initial={{ y: 12, opacity: 0, scale: 0.98 }}
+							animate={{ y: 0, opacity: 1, scale: 1 }}
+							exit={{ y: 8, opacity: 0, scale: 0.98 }}
+							transition={{ duration: 0.2 }}
+							className="w-full max-w-md rounded-2xl bg-white p-6 shadow-[0_20px_50px_rgba(15,23,42,0.25)]"
+						>
+							<h3 className="text-lg font-semibold text-gray-900">Delete permanently</h3>
+							<p className="mt-2 text-sm text-gray-500">
+								Are you sure you want to permanently delete {trashSelectedIds.length} selected {trashSelectedIds.length === 1 ? "item" : "items"}? This action cannot be undone.
+							</p>
+							<div className="mt-6 flex items-center justify-end gap-3">
+								<button
+									type="button"
+									onClick={() => setShowPermanentDeleteModal(false)}
+									className="rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-gray-50"
+								>
+									Cancel
+								</button>
+								<button
+									type="button"
+									onClick={handleBulkPermanentDelete}
+									className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+								>
+									Delete Permanently
+								</button>
+							</div>
+						</motion.div>
+					</motion.div>
+				)}
+			</AnimatePresence>
 		</div>
 	);
 }

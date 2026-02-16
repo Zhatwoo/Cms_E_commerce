@@ -40,9 +40,7 @@ export const Section = ({
   overflow = "visible",
   children,
 }: ContainerProps) => {
-  const {
-    connectors: { connect, drag },
-  } = useNode();
+  const { id, connectors: { connect, drag } } = useNode();
 
   const p = typeof padding === "number" ? padding : 0;
   const pl = paddingLeft ?? p;
@@ -58,6 +56,7 @@ export const Section = ({
 
   return (
     <section
+      data-node-id={id}
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}

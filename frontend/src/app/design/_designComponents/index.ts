@@ -8,10 +8,9 @@ import { Divider } from "./Divider/Divider";
 import { Section } from "./Section/Section";
 import { Row } from "./Row/Row";
 import { Column } from "./Column/Column";
-import { ProductListing } from "../../templates/Ecommerce/ProductListing/ProductListing";
-import { ProductDetails } from "../../templates/Ecommerce/ProductDetails/ProductDetails";
+import { Icon } from "./Icon/Icon";
 
-export const RenderBlocks = {
+export const RenderBlocks: Record<string, any> = {
   Container,
   Text,
   Page,
@@ -22,6 +21,5 @@ export const RenderBlocks = {
   Section,
   Row,
   Column,
-  ProductListing,
-  ProductDetails,
+  Icon,
 };

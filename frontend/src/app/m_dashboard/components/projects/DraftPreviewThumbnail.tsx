@@ -109,11 +109,11 @@ export function DraftPreviewThumbnail({
       style={{ backgroundColor: '#1a1a1a', borderBottom: `1px solid ${borderColor}` }}
     >
       <div className="w-full h-full flex flex-col gap-0.5 p-1 overflow-hidden">
-        {childIds.slice(0, 16).map((id) => {
+        {childIds.slice(0, 16).map((id, index) => {
           const node = nodes[id];
           if (!node) return null;
           return (
-            <PreviewNode key={id} node={node} nodes={nodes} depth={0} />
+            <PreviewNode key={`${id}-${index}`} node={node} nodes={nodes} depth={0} />
           );
         })}
       </div>
@@ -190,9 +190,9 @@ function PreviewNode({
         backgroundColor: typeof bg === 'string' ? bg : '#27272a',
       }}
     >
-      {children.slice(0, 6).map((cid) => {
+      {children.slice(0, 6).map((cid, index) => {
         const child = nodes[cid];
-        return child ? <PreviewNode key={cid} node={child} nodes={nodes} depth={depth + 1} /> : null;
+        return child ? <PreviewNode key={`${cid}-${depth}-${index}`} node={child} nodes={nodes} depth={depth + 1} /> : null;
       })}
     </div>
   );

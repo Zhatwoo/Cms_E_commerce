@@ -13,6 +13,8 @@ export const Text = ({
   textAlign = "left",
   textTransform = "none",
   color = "#ffffff",
+  width,
+  height,
   margin = 0,
   marginTop,
   marginBottom,
@@ -25,8 +27,8 @@ export const Text = ({
   paddingRight,
   opacity = 1,
   boxShadow = "none"
-}: TextProps) => {
-  const { connectors: { connect, drag } } = useNode();
+}: TextProps & { width?: string; height?: string }) => {
+  const { id, connectors: { connect, drag } } = useNode();
 
   const m = typeof margin === "number" ? margin : 0;
   const mt = marginTop !== undefined ? marginTop : m;
@@ -42,6 +44,7 @@ export const Text = ({
 
   return (
     <div
+      data-node-id={id}
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
@@ -54,6 +57,9 @@ export const Text = ({
         textAlign,
         textTransform,
         color,
+        width: width || undefined,
+        height: height || undefined,
+        overflow: height ? "hidden" : undefined,
         marginTop: `${mt}px`,
         marginBottom: `${mb}px`,
         marginLeft: `${ml}px`,

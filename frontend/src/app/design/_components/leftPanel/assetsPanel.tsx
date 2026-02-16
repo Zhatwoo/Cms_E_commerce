@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useEditor } from "@craftjs/core";
-import { GROUPED_TEMPLATES } from "../../../templates";
+import { GROUPED_TEMPLATES } from "../../../_assets";
 
 export const AssetsPanel = () => {
   const { connectors } = useEditor();
@@ -28,8 +28,14 @@ export const AssetsPanel = () => {
               <span className="text-brand-medium text-xs">{open[group.folder] ? "−" : "+"}</span>
             </button>
 
-            {open[group.folder] && (
-              <div className="p-3 space-y-2">
+            <div className={`template-category-content ${open[group.folder] ? 'open' : 'closed'}`}>
+              <div
+                className={`p-3 ${
+                  group.folder.toLowerCase() === "icons"
+                    ? "grid grid-cols-4 gap-2"
+                    : "space-y-2"
+                }`}
+              >
                 {group.items.map((item: any, idx: number) => (
                   <div
                     key={item.label || idx}
@@ -38,23 +44,27 @@ export const AssetsPanel = () => {
                     }}
                     className="bg-brand-white/5 p-3 rounded hover:bg-brand-white/10 transition cursor-move border border-brand-medium/30"
                   >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-sm font-medium text-brand-light">{item.label ?? item.label}</div>
-                        {item.description && (
-                          <div className="text-xs text-brand-medium mt-1">{item.description}</div>
+                    {group.folder.toLowerCase() === "icons" ? (
+                      <div className="text-brand-light">{item.preview}</div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-medium text-brand-light">{item.label ?? item.label}</div>
+                          {item.description && (
+                            <div className="text-xs text-brand-medium mt-1">{item.description}</div>
+                          )}
+                        </div>
+                        {item.preview && (
+                          <div className="h-8 w-8 bg-brand-medium/20 rounded-lg flex items-center justify-center text-xs">
+                            {item.preview}
+                          </div>
                         )}
                       </div>
-                      {item.preview && (
-                        <div className="h-8 w-8 bg-brand-medium/20 rounded-lg flex items-center justify-center text-xs">
-                          {item.preview}
-                        </div>
-                      )}
-                    </div>
+                    )}
                   </div>
                 ))}
               </div>
-            )}
+            </div>
           </div>
         ))}
       </div>

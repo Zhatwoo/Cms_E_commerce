@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { AdminSidebar } from '../components/sidebar';
 import { AdminHeader } from '../components/header';
 
@@ -26,6 +27,7 @@ interface WebsiteData {
 }
 
 const UserWebsiteManagement = () => {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [planFilter, setPlanFilter] = useState('');
@@ -261,27 +263,11 @@ const UserWebsiteManagement = () => {
                           </td>
                           <td className="px-4 py-5 text-sm text-center">
                             <div className="flex items-center justify-center gap-4">
-                              {website.status === 'Flagged' ? (
-                                <>
-                                  <button className="text-blue-600 hover:text-blue-800 hover:underline font-medium transition-colors">
-                                    Review
-                                  </button>
-                                  <button className="text-red-600 hover:text-red-800 hover:underline font-medium transition-colors">
-                                    Suspend
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  <button className="text-blue-600 hover:text-blue-800 hover:underline font-medium transition-colors">
-                                    View
-                                  </button>
-                                  <button className="text-green-600 hover:text-green-800 hover:underline font-medium transition-colors">
-                                    Manage
-                                  </button>
-                                </>
-                              )}
-                              <button className="text-gray-400 hover:text-gray-600 transition-colors">
-                                <span className="text-xl">⋮</span>
+                              <button 
+                                onClick={() => router.push(`/admindashboard/usernweb/webmng?id=${website.id}`)}
+                                className="text-green-600 hover:text-green-800 hover:underline font-medium transition-colors"
+                              >
+                                Manage
                               </button>
                             </div>
                           </td>
