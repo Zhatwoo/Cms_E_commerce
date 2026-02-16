@@ -185,8 +185,8 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
 
         {/* Mobile header with close */}
         <div
-          className="flex items-center justify-between px-6 py-5 shrink-0 border-b transition-colors duration-300"
-          style={{ borderColor: colors.border.faint }}
+          className="flex items-center justify-between px-6 shrink-0 border-b transition-colors duration-300"
+          style={{ borderColor: colors.border.faint, height: '85px', paddingTop: '4px' }}
         >
           <div className="flex items-center gap-3">
             <div
@@ -195,7 +195,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
             >
               L
             </div>
-            <span className="text-xl font-semibold" style={{ color: colors.text.primary }}>Lumapak</span>
+            
           </div>
           <button
             onClick={onClose}
@@ -277,8 +277,8 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
     >
       {/* Brand header – centered always */}
       <div
-        className="flex items-center justify-center py-5 shrink-0 border-b transition-colors duration-300"
-        style={{ borderColor: colors.border.faint }}
+        className="flex items-center justify-center shrink-0 border-b transition-colors duration-300"
+        style={{ borderColor: colors.border.faint, height: '85px', paddingTop: '4px' }}
       >
         <div
           className="h-9 w-9 rounded-xl flex items-center justify-center font-bold shadow-sm transition-colors duration-300"

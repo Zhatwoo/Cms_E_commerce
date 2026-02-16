@@ -91,7 +91,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
             className="border-b sticky top-0 z-20 transition-colors duration-300"
             style={{ borderColor: colors.border.faint }}
         >
-            <div className="flex items-center justify-between px-6 py-4">
+            <div className="flex items-center justify-between px-6" style={{ height: '84px' }}>
                 <div className="flex items-center">
                     <button
                         type="button"
