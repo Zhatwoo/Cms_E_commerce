@@ -2,6 +2,8 @@
 
 import React from "react";
 import type { BuilderDocument, CleanNode, ComponentType } from "../_types/schema";
+import type { AnimationConfig } from "../_types/animation";
+import { AnimationWrapper, hasActiveAnimation } from "./animationEngine";
 
 /** When provided, the storefront can show real products and handle Add to Cart in place of static product cards. */
 export type StoreContext = {
@@ -225,6 +227,14 @@ const BUTTON_VARIANTS: Record<string, { bg: string; text: string; border: string
   ghost: { bg: "transparent", text: "#3b82f6", border: "transparent", borderWidth: 0 },
 };
 
+function wrapWithAnimation(
+  element: React.ReactElement,
+  animation: AnimationConfig | undefined
+): React.ReactElement {
+  if (!hasActiveAnimation(animation)) return element;
+  return <AnimationWrapper animation={animation}>{element}</AnimationWrapper>;
+}
+
 function RenderNode({
   node,
   nodes,
@@ -238,6 +248,7 @@ function RenderNode({
 }): React.ReactElement {
   const type = node.type as ComponentType;
   const props = mergeProps(type, node.props) as Record<string, unknown>;
+  const animation = props.animation as AnimationConfig | undefined;
   const childIds = node.children ?? [];
   const children = childIds.map((id) => {
     const n = nodes[id];
@@ -252,6 +263,7 @@ function RenderNode({
         storeContext.products.length > 0 &&
         hasAddToCartButton(node.id, nodes);
       if (isProductSlot) {
+        // Product slots skip animation wrapping for simplicity
         const p = typeof props.padding === "number" ? props.padding : 0;
         const pt = (props.paddingTop ?? p) as number;
         const pb = (props.paddingBottom ?? p) as number;
@@ -365,7 +377,7 @@ function RenderNode({
       const bw = (props.borderWidth ?? 0) as number;
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
-      return (
+      return wrapWithAnimation(
         <div
           style={{
             backgroundColor: props.background as string,
@@ -400,7 +412,8 @@ function RenderNode({
           }}
         >
           {children}
-        </div>
+        </div>,
+        animation
       );
     }
 
@@ -417,7 +430,7 @@ function RenderNode({
       const mb = (props.marginBottom ?? m) as number;
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
-      return (
+      return wrapWithAnimation(
         <section
           style={{
             backgroundColor: props.background as string,
@@ -447,7 +460,8 @@ function RenderNode({
           }}
         >
           {children}
-        </section>
+        </section>,
+        animation
       );
     }
 
@@ -462,7 +476,7 @@ function RenderNode({
       const mr = (props.marginRight ?? m) as number;
       const mt = (props.marginTop ?? m) as number;
       const mb = (props.marginBottom ?? m) as number;
-      return (
+      return wrapWithAnimation(
         <div
           style={{
             backgroundColor: props.background as string,
@@ -484,7 +498,8 @@ function RenderNode({
           }}
         >
           {children}
-        </div>
+        </div>,
+        animation
       );
     }
 
@@ -500,7 +515,7 @@ function RenderNode({
       const mt = (props.marginTop ?? m) as number;
       const mb = (props.marginBottom ?? m) as number;
       const w = props.width as string;
-      return (
+      return wrapWithAnimation(
         <div
           style={{
             flex: w === "auto" ? 1 : undefined,
@@ -523,7 +538,8 @@ function RenderNode({
           }}
         >
           {children}
-        </div>
+        </div>,
+        animation
       );
     }
 
@@ -538,7 +554,7 @@ function RenderNode({
       const pb = (props.paddingBottom ?? p) as number;
       const pl = (props.paddingLeft ?? p) as number;
       const pr = (props.paddingRight ?? p) as number;
-      return (
+      return wrapWithAnimation(
         <div
           style={{
             fontSize: px(props.fontSize),
@@ -556,12 +572,13 @@ function RenderNode({
           }}
         >
           {(props.text as string) ?? ""}
-        </div>
+        </div>,
+        animation
       );
     }
 
     case "Image":
-      return (
+      return wrapWithAnimation(
         <img
           src={(props.src as string) || "https://placehold.co/600x400?text=Image"}
           alt={(props.alt as string) || "Image"}
@@ -575,7 +592,8 @@ function RenderNode({
             opacity: props.opacity as number,
             boxShadow: props.boxShadow as string,
           }}
-        />
+        />,
+        animation
       );
 
     case "Button": {
@@ -616,17 +634,18 @@ function RenderNode({
         </span>
       );
       if (link) {
-        return (
+        return wrapWithAnimation(
           <a href={link} style={{ textDecoration: "none" }}>
             {content}
-          </a>
+          </a>,
+          animation
         );
       }
-      return content;
+      return wrapWithAnimation(content, animation);
     }
 
     case "Divider":
-      return (
+      return wrapWithAnimation(
         <hr
           style={{
             width: (props.width as string) || "100%",
@@ -635,7 +654,8 @@ function RenderNode({
             marginTop: px(props.marginTop),
             marginBottom: px(props.marginBottom),
           }}
-        />
+        />,
+        animation
       );
 
     default:

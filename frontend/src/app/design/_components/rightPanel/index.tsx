@@ -5,6 +5,7 @@ import { PanelRight, Play, X } from "lucide-react";
 import { serializeCraftToClean } from "../../_lib/serializer";
 import { autoSavePage } from "../../_lib/pageApi";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
+import { AnimationGroup } from "./settings/AnimationGroup";
 
 type TabId = "design" | "settings" | "animation";
 
@@ -148,11 +149,7 @@ export const RightPanel = ({ projectId }: { projectId: string }) => {
               </div>
             )}
 
-            {activeTab === "animation" && (
-              <div className="flex flex-col items-center justify-center py-8 text-brand-lighter opacity-50">
-                <p className="text-sm">Animation settings coming soon</p>
-              </div>
-            )}
+            {activeTab === "animation" && <AnimationGroup selectedId={selected.id} />}
           </div>
         </div>
       ) : (
