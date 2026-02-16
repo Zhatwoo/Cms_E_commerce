@@ -3,10 +3,12 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import { useEditor } from "@craftjs/core";
+import { useTransformMode } from "./TransformModeContext";
 
 type Handle = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 
 const HANDLE_SIZE = 8;
+const ROTATION_HANDLE_OFFSET = 24;
 
 const HANDLE_CURSORS: Record<Handle, string> = {
   n: "ns-resize",
@@ -24,44 +26,50 @@ interface ResizeOverlayProps {
   dom: HTMLElement;
 }
 
-/**
- * Computes the effective zoom factor by comparing rendered size (getBoundingClientRect)
- * to CSS layout size (offsetWidth). Returns 1 if unable to determine.
- */
 function getEffectiveZoom(el: HTMLElement): number {
-  const ow = (el as HTMLElement).offsetWidth;
+  const ow = el.offsetWidth;
   if (!ow) return 1;
   const bw = el.getBoundingClientRect().width;
   const z = bw / ow;
   return z > 0.01 ? z : 1;
 }
 
+type DragState = {
+  type: "move" | "resize" | "rotate";
+  handle?: Handle;
+  startX: number;
+  startY: number;
+  lastX: number;
+  lastY: number;
+  startRect: DOMRect;
+  startProps: Record<string, unknown>;
+  zoom: number;
+  startAngle?: number;
+  dirty: boolean;
+};
+
 export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
   const { actions, query } = useEditor();
-  const [dragging, setDragging] = useState<{
-    type: "move" | "resize";
-    handle?: Handle;
-    startX: number;
-    startY: number;
-    startRect: DOMRect;
-    startProps: Record<string, unknown>;
-    zoom: number;
-  } | null>(null);
+  const { isTransformMode } = useTransformMode();
+  const transformMode = isTransformMode(nodeId);
 
+  const dragRef = useRef<DragState | null>(null);
+  const rafRef = useRef<number>(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragType, setDragType] = useState<"move" | "resize" | "rotate" | null>(null);
   const [rect, setRect] = useState<DOMRect | null>(null);
 
-  // Track DOM position changes
+  // Track DOM rect
   useEffect(() => {
     if (!dom) return;
     const update = () => setRect(dom.getBoundingClientRect());
     update();
     const observer = new ResizeObserver(update);
     observer.observe(dom);
-    // Also update on scroll/resize
     const scrollUpdate = () => requestAnimationFrame(update);
     window.addEventListener("scroll", scrollUpdate, true);
     window.addEventListener("resize", scrollUpdate);
-    const interval = setInterval(update, 150);
+    const interval = setInterval(update, 200);
     return () => {
       observer.disconnect();
       window.removeEventListener("scroll", scrollUpdate, true);
@@ -79,107 +87,177 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
     }
   }, [query, nodeId]);
 
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent, type: "move" | "resize", handle?: Handle) => {
+  const startDrag = useCallback(
+    (e: React.MouseEvent, type: "move" | "resize" | "rotate", handle?: Handle) => {
       e.stopPropagation();
       e.preventDefault();
       const startRect = dom.getBoundingClientRect();
       const startProps = getProps();
       const zoom = getEffectiveZoom(dom);
-      setDragging({
+      const cx = startRect.left + startRect.width / 2;
+      const cy = startRect.top + startRect.height / 2;
+
+      if (type === "resize") {
+        try {
+          const state = query.getState();
+          const displayName = state.nodes[nodeId]?.data?.displayName;
+          if (["Container", "Section", "Row", "Column"].includes(displayName as string)) {
+            const designW = Math.round(startRect.width / zoom);
+            const designH = Math.round(startRect.height / zoom);
+            actions.setProp(nodeId, (props: Record<string, unknown>) => {
+              if (props.designWidth == null) props.designWidth = designW;
+              if (props.designHeight == null) props.designHeight = designH;
+            });
+          }
+        } catch { /* ignore */ }
+      }
+
+      dragRef.current = {
         type,
         handle,
         startX: e.clientX,
         startY: e.clientY,
+        lastX: e.clientX,
+        lastY: e.clientY,
         startRect,
         startProps,
         zoom,
-      });
+        startAngle: type === "rotate" ? Math.atan2(e.clientY - cy, e.clientX - cx) : undefined,
+        dirty: false,
+      };
+      setIsDragging(true);
+      setDragType(type);
+      document.body.style.userSelect = "none";
+      document.body.style.cursor =
+        type === "move" ? "grabbing" :
+        type === "rotate" ? "grabbing" :
+        handle ? HANDLE_CURSORS[handle] : "default";
     },
-    [dom, getProps]
+    [dom, getProps, query, actions, nodeId]
   );
 
-  // Drag handling via document-level listeners
+  // rAF loop for smooth prop updates
   useEffect(() => {
-    if (!dragging) return;
+    if (!isDragging) return;
 
-    const zoom = dragging.zoom;
+    const tick = () => {
+      const d = dragRef.current;
+      if (!d || !d.dirty) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
 
-    const handleMouseMove = (e: MouseEvent) => {
-      // Raw screen delta → convert to CSS pixels in the zoomed canvas
-      const rawDx = e.clientX - dragging.startX;
-      const rawDy = e.clientY - dragging.startY;
-      const dx = rawDx / zoom;
-      const dy = rawDy / zoom;
-      const p = dragging.startProps;
+      d.dirty = false;
+      const zoom = d.zoom;
+      const dx = (d.lastX - d.startX) / zoom;
+      const dy = (d.lastY - d.startY) / zoom;
+      const p = d.startProps;
 
-      if (dragging.type === "move") {
+      if (d.type === "move") {
         const baseMT = typeof p.marginTop === "number" ? p.marginTop : 0;
         const baseML = typeof p.marginLeft === "number" ? p.marginLeft : 0;
         actions.setProp(nodeId, (props: Record<string, unknown>) => {
-          props.marginTop = Math.round(baseMT + dy);
-          props.marginLeft = Math.round(baseML + dx);
+          props.marginTop = baseMT + dy;
+          props.marginLeft = baseML + dx;
         });
-        // Update start for incremental drag feel
-        dragging.startX = e.clientX;
-        dragging.startY = e.clientY;
-        dragging.startProps = {
-          ...dragging.startProps,
-          marginTop: Math.round(baseMT + dy),
-          marginLeft: Math.round(baseML + dx),
-        };
-      } else if (dragging.type === "resize" && dragging.handle) {
-        const h = dragging.handle;
-        const startW = dragging.startRect.width / zoom;
-        const startH = dragging.startRect.height / zoom;
-
-        let newW = startW;
-        let newH = startH;
-        let extraMT = 0;
-        let extraML = 0;
+        d.startX = d.lastX;
+        d.startY = d.lastY;
+        d.startProps = { ...d.startProps, marginTop: baseMT + dy, marginLeft: baseML + dx };
+      } else if (d.type === "resize" && d.handle) {
+        const h = d.handle;
+        const startW = d.startRect.width / zoom;
+        const startH = d.startRect.height / zoom;
+        let newW = startW, newH = startH, extraMT = 0, extraML = 0;
 
         if (h.includes("e")) newW = Math.max(20, startW + dx);
-        if (h.includes("w")) {
-          newW = Math.max(20, startW - dx);
-          extraML = dx;
-        }
+        if (h.includes("w")) { newW = Math.max(20, startW - dx); extraML = dx; }
         if (h.includes("s")) newH = Math.max(20, startH + dy);
-        if (h.includes("n")) {
-          newH = Math.max(20, startH - dy);
-          extraMT = dy;
-        }
+        if (h.includes("n")) { newH = Math.max(20, startH - dy); extraMT = dy; }
 
         actions.setProp(nodeId, (props: Record<string, unknown>) => {
-          props.width = `${Math.round(newW)}px`;
-          props.height = `${Math.round(newH)}px`;
+          props.width = `${newW}px`;
+          props.height = `${newH}px`;
           if (extraMT !== 0) {
-            const baseMT = typeof dragging.startProps.marginTop === "number"
-              ? (dragging.startProps.marginTop as number)
-              : 0;
-            props.marginTop = Math.round(baseMT + extraMT);
+            const bMT = typeof d.startProps.marginTop === "number" ? d.startProps.marginTop as number : 0;
+            props.marginTop = bMT + extraMT;
           }
           if (extraML !== 0) {
-            const baseML = typeof dragging.startProps.marginLeft === "number"
-              ? (dragging.startProps.marginLeft as number)
-              : 0;
-            props.marginLeft = Math.round(baseML + extraML);
+            const bML = typeof d.startProps.marginLeft === "number" ? d.startProps.marginLeft as number : 0;
+            props.marginLeft = bML + extraML;
           }
         });
+      } else if (d.type === "rotate" && d.startAngle != null) {
+        const cx = d.startRect.left + d.startRect.width / 2;
+        const cy = d.startRect.top + d.startRect.height / 2;
+        const currentAngle = Math.atan2(d.lastY - cy, d.lastX - cx);
+        const deltaDeg = ((currentAngle - d.startAngle) * 180) / Math.PI;
+        const startRot = typeof d.startProps.rotation === "number" ? d.startProps.rotation : 0;
+        actions.setProp(nodeId, (props: Record<string, unknown>) => {
+          props.rotation = startRot + deltaDeg;
+        });
       }
+
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [isDragging, actions, nodeId]);
+
+  // Global move/up listeners
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const d = dragRef.current;
+      if (!d) return;
+      d.lastX = e.clientX;
+      d.lastY = e.clientY;
+      d.dirty = true;
     };
 
     const handleMouseUp = () => {
-      setDragging(null);
+      const d = dragRef.current;
+      if (d) {
+        // Round final values
+        const zoom = d.zoom;
+        const dx = (d.lastX - d.startX) / zoom;
+        const dy = (d.lastY - d.startY) / zoom;
+        const p = d.startProps;
+
+        if (d.type === "move") {
+          const baseMT = typeof p.marginTop === "number" ? p.marginTop : 0;
+          const baseML = typeof p.marginLeft === "number" ? p.marginLeft : 0;
+          actions.setProp(nodeId, (props: Record<string, unknown>) => {
+            props.marginTop = Math.round(baseMT + dy);
+            props.marginLeft = Math.round(baseML + dx);
+          });
+        } else if (d.type === "resize" && d.handle) {
+          const h = d.handle;
+          const startW = d.startRect.width / zoom;
+          const startH = d.startRect.height / zoom;
+          let newW = startW, newH = startH;
+          if (h.includes("e")) newW = Math.max(20, startW + dx);
+          if (h.includes("w")) newW = Math.max(20, startW - dx);
+          if (h.includes("s")) newH = Math.max(20, startH + dy);
+          if (h.includes("n")) newH = Math.max(20, startH - dy);
+          actions.setProp(nodeId, (props: Record<string, unknown>) => {
+            props.width = `${Math.round(newW)}px`;
+            props.height = `${Math.round(newH)}px`;
+          });
+        } else if (d.type === "rotate") {
+          actions.setProp(nodeId, (props: Record<string, unknown>) => {
+            props.rotation = Math.round((typeof props.rotation === "number" ? props.rotation : 0) * 10) / 10;
+          });
+        }
+      }
+
+      dragRef.current = null;
+      setIsDragging(false);
+      setDragType(null);
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
-
-    document.body.style.userSelect = "none";
-    if (dragging.type === "move") {
-      document.body.style.cursor = "grabbing";
-    } else if (dragging.handle) {
-      document.body.style.cursor = HANDLE_CURSORS[dragging.handle];
-    }
 
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
@@ -187,13 +265,12 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [dragging, actions, nodeId]);
+  }, [isDragging, actions, nodeId]);
 
   if (!rect) return null;
 
   const half = HANDLE_SIZE / 2;
-
-  const handles: { key: Handle; style: React.CSSProperties }[] = [
+  const allHandles: { key: Handle; style: React.CSSProperties }[] = [
     { key: "nw", style: { left: -half, top: -half } },
     { key: "ne", style: { right: -half, top: -half } },
     { key: "sw", style: { left: -half, bottom: -half } },
@@ -203,6 +280,9 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
     { key: "w", style: { left: -half, top: "50%", transform: "translateY(-50%)" } },
     { key: "e", style: { right: -half, top: "50%", transform: "translateY(-50%)" } },
   ];
+  const handles = transformMode
+    ? allHandles.filter((h) => ["nw", "ne", "sw", "se"].includes(h.key))
+    : allHandles;
 
   return ReactDOM.createPortal(
     <div
@@ -214,10 +294,11 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         width: rect.width,
         height: rect.height,
         zIndex: 9999,
-        pointerEvents: dragging ? "auto" : "none",
+        pointerEvents: isDragging ? "auto" : "none",
+        willChange: isDragging ? "left, top, width, height" : undefined,
       }}
     >
-      {/* Entire border area = grab to move */}
+      {/* Border = grab to move */}
       <div
         style={{
           position: "absolute",
@@ -227,10 +308,10 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
           cursor: "grab",
           pointerEvents: "auto",
         }}
-        onMouseDown={(e) => handleMouseDown(e, "move")}
+        onMouseDown={(e) => startDrag(e, "move")}
       />
 
-      {/* Resize handles at corners and edges */}
+      {/* Resize handles */}
       {handles.map((h) => (
         <div
           key={h.key}
@@ -247,12 +328,46 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
             zIndex: 1,
             ...h.style,
           }}
-          onMouseDown={(e) => handleMouseDown(e, "resize", h.key)}
+          onMouseDown={(e) => startDrag(e, "resize", h.key)}
         />
       ))}
 
+      {/* Rotation handle */}
+      <div
+        data-resize-handle
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: -ROTATION_HANDLE_OFFSET,
+          transform: "translate(-50%, -50%)",
+          width: 20,
+          height: 20,
+          borderRadius: "50%",
+          border: "2px solid #3b82f6",
+          backgroundColor: "#ffffff",
+          cursor: "grab",
+          pointerEvents: "auto",
+          zIndex: 2,
+        }}
+        onMouseDown={(e) => startDrag(e, "rotate")}
+        title="Rotate"
+      />
+      <div
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: -ROTATION_HANDLE_OFFSET / 2,
+          width: 2,
+          height: ROTATION_HANDLE_OFFSET,
+          backgroundColor: "#3b82f6",
+          transform: "translateX(-50%)",
+          pointerEvents: "none",
+          zIndex: 1,
+        }}
+      />
+
       {/* Size tooltip while resizing */}
-      {dragging?.type === "resize" && (
+      {isDragging && dragType === "resize" && (
         <div
           style={{
             position: "absolute",
@@ -267,7 +382,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
             pointerEvents: "none",
           }}
         >
-          {Math.round(rect.width / (dragging.zoom || 1))} × {Math.round(rect.height / (dragging.zoom || 1))}
+          {Math.round(rect.width / (dragRef.current?.zoom || 1))} × {Math.round(rect.height / (dragRef.current?.zoom || 1))}
         </div>
       )}
     </div>,

@@ -41,6 +41,7 @@ export const Button = ({
   marginLeft,
   opacity = 1,
   boxShadow = "none",
+  rotation = 0,
 }: ButtonProps) => {
   const { id, connectors: { connect, drag } } = useNode();
 
@@ -84,6 +85,7 @@ export const Button = ({
         marginLeft: `${ml}px`,
         opacity,
         boxShadow,
+        transform: rotation ? `rotate(${rotation}deg)` : undefined,
         cursor: "pointer",
         display: "inline-flex",
         alignItems: "center",

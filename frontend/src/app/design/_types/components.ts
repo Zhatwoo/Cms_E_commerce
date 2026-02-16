@@ -47,6 +47,9 @@ export interface SpacingProps {
 export interface SizeProps {
   width?: string;
   height?: string;
+  /** Content size at scale 1; when set, children are scaled with parent resize */
+  designWidth?: number;
+  designHeight?: number;
 }
 
 /** Visual appearance properties → AppearanceGroup */
@@ -89,6 +92,11 @@ export interface PositionProps {
   left?: string;
 }
 
+/** Transform properties (rotation) — used for double-click transform mode */
+export interface TransformProps {
+  rotation?: number; // degrees, 0 = no rotation
+}
+
 /** Visual effects properties → EffectsGroup */
 export interface EffectsProps {
   opacity?: number;
@@ -113,19 +121,19 @@ export interface TypographyProps {
 
 /** Container component props — combines all layout and visual property groups. */
 export interface ContainerProps
-  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, AnimatableProps {
+  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps, AnimatableProps {
   children?: ReactNode;
 }
 
 /** Text component props — combines typography, spacing, and basic effects. */
-export interface TextProps extends SpacingProps, TypographyProps, AnimatableProps {
+export interface TextProps extends SpacingProps, TypographyProps, TransformProps, AnimatableProps {
   text: string;
   opacity?: number;
   boxShadow?: string;
 }
 
 /** Image component props — media display with sizing, corners, and effects. */
-export interface ImageProps extends SpacingProps, SizeProps, EffectsProps, AnimatableProps {
+export interface ImageProps extends SpacingProps, SizeProps, EffectsProps, TransformProps, AnimatableProps {
   src?: string;
   alt?: string;
   objectFit?: "cover" | "contain" | "fill" | "none" | "scale-down";
@@ -137,7 +145,7 @@ export interface ImageProps extends SpacingProps, SizeProps, EffectsProps, Anima
 }
 
 /** Button component props — interactive element with label, link, and variant. */
-export interface ButtonProps extends SpacingProps, EffectsProps, AnimatableProps {
+export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps, AnimatableProps {
   label?: string;
   link?: string;
   variant?: "primary" | "secondary" | "outline" | "ghost";
@@ -162,7 +170,7 @@ export interface PageProps extends AnimatableProps {
 }
 
 /** Divider component props — simple horizontal rule element. */
-export interface DividerProps extends AnimatableProps {
+export interface DividerProps extends TransformProps, AnimatableProps {
   dividerStyle?: "solid" | "dashed" | "dotted";
   color?: string;
   thickness?: number;

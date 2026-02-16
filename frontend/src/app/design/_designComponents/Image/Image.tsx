@@ -26,6 +26,7 @@ export const Image = ({
   marginLeft,
   opacity = 1,
   boxShadow = "none",
+  rotation = 0,
 }: ImageProps) => {
   const { id, connectors: { connect, drag } } = useNode();
 
@@ -79,6 +80,7 @@ export const Image = ({
         opacity,
         boxShadow,
         display: "block",
+        transform: rotation ? `rotate(${rotation}deg)` : undefined,
       }}
       className="hover:outline hover:outline-blue-500 cursor-pointer"
     />
