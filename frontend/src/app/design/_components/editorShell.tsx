@@ -1,4 +1,5 @@
-import React, { useRef, useState, useEffect, useLayoutEffect, useCallback } from "react";
+import * as React from "react";
+import { useRef, useState, useEffect, useLayoutEffect, useCallback } from "react";
 import { Editor, Frame, Element } from "@craftjs/core";
 import { PanelLeft, PanelRight } from "lucide-react";
 import { RenderBlocks } from "../_designComponents";
@@ -14,8 +15,6 @@ import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
-import { CategoryLayout } from "../../templates/Ecommerce/CategoryLayout/CategoryLayout";
-import { CheckoutForm } from "../../templates/Ecommerce/CheckoutForm/CheckoutForm";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
@@ -351,15 +350,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
   const resolver = {
     ...RenderBlocks,
-    CategoryLayout,
-    CheckoutForm,
   } as any;
-
-  // Also register display-name keys that may be used in serialized nodes
-  resolver["Checkout Form"] = CheckoutForm;
-  resolver["CheckoutForm"] = CheckoutForm;
-  resolver["Category Listing"] = CategoryLayout;
-  resolver["CategoryLayout"] = CategoryLayout;
 
   // Debug: list resolver keys so we can confirm components are registered at runtime
   if (typeof window !== "undefined") {
@@ -368,10 +359,6 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
       setTimeout(() => {
         // eslint-disable-next-line no-console
         console.log("[EditorShell] resolver keys:", Object.keys(resolver));
-        // eslint-disable-next-line no-console
-        console.log("[EditorShell] CheckoutForm in resolver:", !!(resolver as any).CheckoutForm);
-        // eslint-disable-next-line no-console
-        console.log("[EditorShell] 'Checkout Form' in resolver:", !!(resolver as any)["Checkout Form"]);
 
         // If there is saved initial JSON, attempt to parse and list component types used so we can identify missing resolver entries
         try {
@@ -413,7 +400,6 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         onNodesChange={handleNodesChange}
       >
         <KeyboardShortcuts />
-
         {/* Canvas Area (Background) */}
         <div
           ref={containerRef}
@@ -444,8 +430,8 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             )}
           </div>
         </div>
-
-        {/* Floating Panels — click-to-toggle buttons with close controls */}
+        {/* Floating Panels */}
+        {/* Left Panel */}
         {panelsReady && (
           <>
             {/* Left Panel */}
@@ -475,44 +461,22 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
                 </button>
               </div>
             </div>
-
-            {/* Right Panel */}
-            <div className="absolute top-4 right-4 z-50 h-[calc(100vh-2rem)] w-80 flex items-start justify-end pointer-events-none">
-              <div
-                className="h-full w-80 flex items-start justify-end pointer-events-auto"
-              >
-                <div className="h-full w-80 overflow-hidden shrink-0 flex justify-end pointer-events-none">
-                  <div
-                    className={`h-full w-80 origin-right transition-[transform,opacity] duration-300 ease-out will-change-transform ${
-                      rightPanelOpen
-                        ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
-                        : 'translate-x-full scale-90 opacity-0 pointer-events-none'
-                    }`}
-                  >
-                    <RightPanel onToggle={() => setRightPanelOpen(false)} />
-                  </div>
-                </div>
-                <button
-                  onClick={() => setRightPanelOpen((open) => !open)}
-                  className={`absolute right-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${
-                    rightPanelOpen ? 'opacity-0 pointer-events-none scale-95' : 'opacity-100 pointer-events-auto scale-100'
-                  }`}
-                  title={rightPanelOpen ? "Hide right panel" : "Show right panel"}
-                >
-                  <PanelRight className="w-5 h-5 text-brand-light" />
-                </button>
-              </div>
+          </div>
+        )}
+        {/* Right Panel */}
+        {panelsReady && (
+          <div className="absolute top-4 right-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
+            <div className="pointer-events-auto h-full">
+              <RightPanel projectId={projectId} />
             </div>
           </>
         )}
-
         {/* Canvas Controls Overlay: ito yung nasa baba :> */}
         <div className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">
           <div className="flex gap-4 items-center">
             <span>{Math.round(scale * 100)}%</span>
             <span>Space + Drag to Pan</span>
             <span>Ctrl + Scroll to Zoom</span>
-
             {/* Delete Button */}
             <button
               onClick={handleDeleteData}
@@ -521,7 +485,6 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             >
               🗑️ Reset Data
             </button>
-
             {saveStatus !== 'idle' && (
               <span className={`${saveStatus === 'saving' ? 'text-yellow-400' :
                 saveStatus === 'saved' ? 'text-green-400' :
@@ -534,7 +497,6 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             )}
           </div>
         </div>
-
       </Editor>
     </div>
   );

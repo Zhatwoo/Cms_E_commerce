@@ -19,13 +19,7 @@ const TABS: Tab[] = [
   { id: "animation", label: "Animation" },
 ];
 
-const PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
-
-interface RightPanelProps {
-  onToggle?: () => void;
-}
-
-export const RightPanel = ({ onToggle }: RightPanelProps) => {
+export const RightPanel = ({ projectId }: { projectId: string }) => {
   const { showAlert } = useAlert();
   const [activeTab, setActiveTab] = useState<TabId>("design");
   const [isPreviewing, setIsPreviewing] = useState(false);
@@ -62,10 +56,10 @@ export const RightPanel = ({ onToggle }: RightPanelProps) => {
       console.log(`📊 Preview: Clean output has ${cleanCount} nodes.`);
 
       // Force save to DB before navigating
-      await autoSavePage(JSON.stringify(cleanCode), PROJECT_ID);
+      await autoSavePage(JSON.stringify(cleanCode), projectId);
 
       console.log('✅ Save complete, navigating to preview...');
-      router.push("/design/preview");
+      router.push(`/design/preview?projectId=${encodeURIComponent(projectId)}`);
     } catch (error) {
       console.error('❌ Preview failed:', error);
       showAlert('Failed to generate preview. Check console.');
@@ -101,28 +95,14 @@ export const RightPanel = ({ onToggle }: RightPanelProps) => {
     >
       <div className="flex items-center justify-between mb-6 gap-2">
         <h3 className="text-brand-lighter font-bold text-lg">Configs</h3>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handlePreview}
-            disabled={isPreviewing}
-            className={`p-1 rounded-lg transition-colors cursor-pointer ${isPreviewing ? 'opacity-50 cursor-wait' : 'hover:bg-brand-medium/40'}`}
-            title="Preview JSON output"
-          >
-            <Play strokeWidth={2} className={`w-5 h-5 transition-colors ${isPreviewing ? 'text-yellow-400 animate-pulse' : 'text-brand-light hover:text-brand-lighter'}`} />
-          </button>
-
-          {onToggle && (
-            <button
-              type="button"
-              onClick={onToggle}
-              className="p-1 rounded-lg hover:bg-brand-medium/40 text-brand-light transition-colors cursor-pointer"
-              aria-label="Close right panel"
-              title="Close panel"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
-        </div>
+        <button
+          onClick={handlePreview}
+          disabled={isPreviewing}
+          className={`p-1 rounded-lg transition-colors cursor-pointer ${isPreviewing ? 'opacity-50 cursor-wait' : 'hover:bg-brand-medium/40'}`}
+          title="Preview (Web / Clean / Raw)"
+        >
+          <Play strokeWidth={2} className={`w-5 h-5 transition-colors ${isPreviewing ? 'text-yellow-400 animate-pulse' : 'text-brand-light hover:text-brand-lighter'}`} />
+        </button>
       </div>
 
       {selected ? (
