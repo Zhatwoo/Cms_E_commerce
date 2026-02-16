@@ -23,6 +23,28 @@ import {
   CheckoutFooter,
   BrandFooter
 } from "./Footer";
+import {
+  FacebookIcon,
+  GoogleIcon,
+  InstagramIcon,
+  TwitterIcon,
+  SearchIcon,
+  HomeIcon,
+  MenuIcon,
+  CloseIcon,
+  SettingsIcon,
+  HeartIcon,
+  PlusIcon,
+  TrashIcon,
+  StarIcon,
+  CheckIcon,
+  ChevronRightIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  CartIcon,
+  ShoppingBagIcon,
+  ShoppingBasketIcon,
+} from "./Icon";
 
 import { TemplateEntry } from "./_types";
 
@@ -50,6 +72,26 @@ export const TEMPLATES: TemplateEntry[] = [
   TrustFooter,
   CheckoutFooter,
   BrandFooter,
+  FacebookIcon,
+  GoogleIcon,
+  InstagramIcon,
+  TwitterIcon,
+  SearchIcon,
+  HomeIcon,
+  MenuIcon,
+  CloseIcon,
+  SettingsIcon,
+  HeartIcon,
+  PlusIcon,
+  TrashIcon,
+  StarIcon,
+  CheckIcon,
+  ChevronRightIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  CartIcon,
+  ShoppingBagIcon,
+  ShoppingBasketIcon,
 ];
 
 export const GROUPED_TEMPLATES = [
@@ -93,5 +135,30 @@ export const GROUPED_TEMPLATES = [
   {
     folder: "Cards",
     items: [ProductCard, TeamMemberCard],
+  },
+  {
+    folder: "Icons",
+    items: [
+      FacebookIcon,
+      GoogleIcon,
+      InstagramIcon,
+      TwitterIcon,
+      SearchIcon,
+      HomeIcon,
+      MenuIcon,
+      CloseIcon,
+      SettingsIcon,
+      HeartIcon,
+      PlusIcon,
+      TrashIcon,
+      StarIcon,
+      CheckIcon,
+      ChevronRightIcon,
+      ArrowLeftIcon,
+      ArrowRightIcon,
+      CartIcon,
+      ShoppingBagIcon,
+      ShoppingBasketIcon,
+    ],
   },
 ];

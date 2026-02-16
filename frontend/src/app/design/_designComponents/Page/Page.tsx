@@ -9,10 +9,11 @@ export const Page = ({
   height = "auto",
   background = "#ffffff",
 }: PageProps) => {
-  const { connectors: { connect, drag } } = useNode();
+  const { id, connectors: { connect, drag } } = useNode();
 
   return (
     <div
+      data-node-id={id}
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}

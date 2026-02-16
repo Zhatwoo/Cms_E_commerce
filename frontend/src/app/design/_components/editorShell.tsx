@@ -13,6 +13,9 @@ import { Section } from "../_designComponents/Section/Section";
 import { Button } from "../_designComponents/Button/Button";
 import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
+import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
+import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
+import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
@@ -133,6 +136,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
         if (!isSpacePressed) {
           setIsSpacePressed(true);
+          document.body.dataset.spacePan = "true";
         }
       }
     };
@@ -141,6 +145,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
       if (e.code === "Space") {
         setIsSpacePressed(false);
         setIsPanning(false);
+        document.body.removeAttribute("data-space-pan");
       }
     };
 
@@ -426,9 +431,13 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         onNodesChange={handleNodesChange}
       >
         <KeyboardShortcuts />
+        <CanvasSelectionHandler />
+        <FigmaStyleDragHandler />
+        <BoxSelectionHandler />
         {/* Canvas Area (Background) */}
         <div
           ref={containerRef}
+          data-canvas-container
           className="absolute inset-0 overflow-auto bg-brand-darker"
           style={{ cursor: isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : 'default' }}
           onMouseDown={handleMouseDown}
@@ -487,22 +496,21 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
                 </button>
               </div>
             </div>
-          </>
-        )}
-        {/* Right Panel */}
-        {panelsReady && (
-          <div className="absolute top-4 right-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
-            <div className="pointer-events-auto h-full">
-              <RightPanel projectId={projectId} />
+            {/* Right Panel */}
+            <div className="absolute top-4 right-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
+              <div className="pointer-events-auto h-full">
+                <RightPanel projectId={projectId} />
+              </div>
             </div>
           </div>
         )}
         {/* Canvas Controls Overlay: ito yung nasa baba :> */}
-        <div className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">
+        <div data-panel="canvas-controls" className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">
           <div className="flex gap-4 items-center">
             <span>{Math.round(scale * 100)}%</span>
             <span>Space + Drag to Pan</span>
             <span>Ctrl + Scroll to Zoom</span>
+            <span>Ctrl (Win) / ⌘ Cmd (Mac) + Click to multi-select</span>
             {/* Delete Button */}
             <button
               onClick={handleDeleteData}
