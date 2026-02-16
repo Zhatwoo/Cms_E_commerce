@@ -16,6 +16,8 @@ import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
 import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
 import { BoxSelectionHandler } from "./BoxSelectionHandler";
+import { TransformModeProvider } from "./TransformModeContext";
+import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
@@ -404,11 +406,13 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         onRender={RenderNode}
         onNodesChange={handleNodesChange}
       >
-        <KeyboardShortcuts />
-        <CanvasSelectionHandler />
-        <FigmaStyleDragHandler />
-        <BoxSelectionHandler />
-        {/* Canvas Area (Background) */}
+        <TransformModeProvider>
+          <KeyboardShortcuts />
+          <CanvasSelectionHandler />
+          <FigmaStyleDragHandler />
+          <BoxSelectionHandler />
+          <DoubleClickTransformHandler />
+          {/* Canvas Area (Background) */}
         <div
           ref={containerRef}
           data-canvas-container
@@ -507,6 +511,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             )}
           </div>
         </div>
+        </TransformModeProvider>
       </Editor>
     </div>
   );

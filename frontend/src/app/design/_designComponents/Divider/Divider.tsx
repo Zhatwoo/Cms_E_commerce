@@ -13,6 +13,7 @@ export const Divider = ({
   marginBottom = 8,
   marginLeft,
   marginRight,
+  rotation = 0,
 }: DividerProps & { height?: string; marginLeft?: number; marginRight?: number }) => {
   const { id, connectors: { connect, drag } } = useNode();
 
@@ -33,6 +34,7 @@ export const Divider = ({
         marginLeft: marginLeft != null ? `${marginLeft}px` : undefined,
         marginRight: marginRight != null ? `${marginRight}px` : undefined,
         height: height || undefined,
+        transform: rotation ? `rotate(${rotation}deg)` : undefined,
       }}
       className="hover:outline hover:outline-blue-500 cursor-pointer"
     />

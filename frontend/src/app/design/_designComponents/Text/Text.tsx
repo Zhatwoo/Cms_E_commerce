@@ -26,7 +26,8 @@ export const Text = ({
   paddingLeft,
   paddingRight,
   opacity = 1,
-  boxShadow = "none"
+  boxShadow = "none",
+  rotation = 0,
 }: TextProps & { width?: string; height?: string }) => {
   const { id, connectors: { connect, drag } } = useNode();
 
@@ -69,7 +70,8 @@ export const Text = ({
         paddingLeft: `${pl}px`,
         paddingRight: `${pr}px`,
         opacity,
-        boxShadow
+        boxShadow,
+        transform: rotation ? `rotate(${rotation}deg)` : undefined,
       }}
       className="hover:outline hover:outline-blue-500 cursor-pointer"
     >

@@ -26,6 +26,15 @@ export const BoxSelectionHandler = () => {
     currentY: number;
   } | null>(null);
 
+  // Cancel marquee when Space is pressed (user wants pan, not box select)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "Space") setMarquee(null);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
       if (e.button !== 0) return;
@@ -35,6 +44,8 @@ export const BoxSelectionHandler = () => {
       if (target.closest("INPUT") || target.closest("TEXTAREA") || target.closest("SELECT") || target.closest("[contenteditable=true]")) return;
       if (target.closest("[data-panel]")) return;
       if (!target.closest("[data-canvas-container]")) return;
+      // Space = pan only; do not start marquee when Space is held
+      if (document.body.dataset.spacePan === "true") return;
 
       const onNode = target.closest("[data-node-id]");
       if (onNode) return;
@@ -68,7 +79,7 @@ export const BoxSelectionHandler = () => {
 
       if (distance < MARQUEE_THRESHOLD || width < 3 || height < 3) {
         try {
-          actions.selectNode(null);
+          actions.selectNode(undefined);
         } catch {
           // ignore
         }
@@ -101,7 +112,7 @@ export const BoxSelectionHandler = () => {
 
       try {
         if (intersecting.length === 0) {
-          actions.selectNode(null);
+          actions.selectNode(undefined);
         } else if (intersecting.length === 1) {
           actions.selectNode(intersecting[0]);
         } else {

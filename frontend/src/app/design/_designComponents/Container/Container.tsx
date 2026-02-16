@@ -3,6 +3,12 @@ import { useNode } from "@craftjs/core";
 import { ContainerSettings } from "./ContainerSettings";
 import type { ContainerProps } from "../../_types/components";
 
+function parsePx(value: string | undefined): number | null {
+  if (value == null) return null;
+  const m = String(value).match(/^(-?\d+(?:\.\d+)?)px$/);
+  return m ? parseFloat(m[1]) : null;
+}
+
 export const Container = ({
   background,
   padding,
@@ -53,9 +59,18 @@ export const Container = ({
   opacity = 1,
   overflow = "visible",
   cursor = "default",
+  rotation = 0,
+  designWidth,
+  designHeight,
   children
 }: ContainerProps) => {
   const { id, connectors: { connect, drag } } = useNode();
+
+  const wPx = parsePx(width);
+  const hPx = parsePx(height);
+  const canScale = typeof designWidth === "number" && typeof designHeight === "number" && wPx != null && hPx != null && designWidth > 0 && designHeight > 0;
+  const scaleX = canScale ? wPx / designWidth : 1;
+  const scaleY = canScale ? hPx / designHeight : 1;
 
   // Resolve padding
   const p = typeof padding === 'number' ? padding : 0;
@@ -84,7 +99,7 @@ export const Container = ({
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className="min-h-[50px] transition-all hover:outline hover:outline-blue-500"
+      className="min-h-[50px] transition-[outline] duration-150 hover:outline hover:outline-blue-500"
       style={{
         backgroundColor: background,
         backgroundImage: backgroundImage
@@ -135,10 +150,36 @@ export const Container = ({
         boxShadow,
         opacity,
         overflow,
-        cursor
+        cursor,
+        transform: rotation ? `rotate(${rotation}deg)` : undefined,
       }}
     >
-      {children}
+      {canScale ? (
+        <div
+          style={{
+            width: designWidth,
+            height: designHeight,
+            transform: `scale(${scaleX}, ${scaleY})`,
+            transformOrigin: "0 0",
+            flexShrink: 0,
+            boxSizing: "border-box",
+            display: display === "flex" ? "flex" : display === "grid" ? "grid" : "block",
+            flexDirection: display === "flex" ? flexDirection : undefined,
+            flexWrap: display === "flex" ? flexWrap : undefined,
+            alignItems: display === "flex" || display === "grid" ? alignItems : undefined,
+            justifyContent: display === "flex" || display === "grid" ? justifyContent : undefined,
+            gap: display === "flex" ? `${gap}px` : undefined,
+            gridTemplateColumns: display === "grid" ? gridTemplateColumns : undefined,
+            gridTemplateRows: display === "grid" ? gridTemplateRows : undefined,
+            columnGap: display === "grid" ? `${gridColumnGap ?? gridGap}px` : undefined,
+            rowGap: display === "grid" ? `${gridRowGap ?? gridGap}px` : undefined,
+          }}
+        >
+          {children}
+        </div>
+      ) : (
+        children
+      )}
     </div>
   );
 };
