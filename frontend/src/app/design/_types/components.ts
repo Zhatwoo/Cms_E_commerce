@@ -178,3 +178,15 @@ export interface DividerProps extends TransformProps, AnimatableProps {
   marginTop?: number;
   marginBottom?: number;
 }
+
+export interface CircleProps
+  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps {
+  color?: string;
+  size?: number;
+  children?: ReactNode;
+  isPreview?: boolean;
+}
+
+export interface SquareProps extends CircleProps {}
+export interface TriangleProps extends CircleProps {}
+
