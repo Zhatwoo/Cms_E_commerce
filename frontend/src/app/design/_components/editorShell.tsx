@@ -19,6 +19,9 @@ import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
+import { Triangle } from "@/app/_assets/shapes/triangle/triangle";
+import { Square } from "@/app/_assets/shapes/square/square";
+import { Circle } from "@/app/_assets/shapes/circle/circle";
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 function getStorageKey(projectId: string) {
@@ -355,6 +358,9 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
   const resolver = {
     ...RenderBlocks,
+    Circle,
+    Square,
+    Triangle,
   } as any;
 
   // Debug: list resolver keys so we can confirm components are registered at runtime
@@ -442,7 +448,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         {/* Floating Panels */}
         {/* Left Panel */}
         {panelsReady && (
-          <>
+          <div>
             {/* Left Panel */}
             <div className="absolute top-4 left-4 z-50 h-[calc(100vh-2rem)] w-80 flex items-start pointer-events-none">
               <div
