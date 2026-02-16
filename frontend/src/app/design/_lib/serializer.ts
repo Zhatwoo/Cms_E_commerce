@@ -7,6 +7,7 @@
  */
 
 import type { BuilderDocument, CleanNode, ComponentType, PageNode, SCHEMA_VERSION } from "../_types/schema";
+import { DEFAULT_ANIMATION } from "../_types/animation";
 
 // ─── Craft.js Raw Types ─────────────────────────────────────────────────────
 
@@ -248,6 +249,8 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
 
 const SHORTHAND_PROPS = new Set(["padding", "margin"]);
 
+const DEFAULT_ANIMATION_JSON = JSON.stringify(DEFAULT_ANIMATION);
+
 // ─── Serializer ──────────────────────────────────────────────────────────────
 
 /**
@@ -264,6 +267,14 @@ function cleanProps(
   for (const [key, value] of Object.entries(rawProps)) {
     // Always strip shorthand props (individual values are the source of truth)
     if (SHORTHAND_PROPS.has(key)) continue;
+
+    // Deep compare animation objects — only keep if non-default
+    if (key === "animation") {
+      if (value && JSON.stringify(value) !== DEFAULT_ANIMATION_JSON) {
+        cleaned[key] = value;
+      }
+      continue;
+    }
 
     // Keep props that differ from defaults
     if (!(key in defaults) || defaults[key] !== value) {

@@ -61,10 +61,12 @@ async function deleteById(id) {
   await db.collection(COLLECTION).doc(id).delete();
 }
 
-/** Write public lookup so /api/public/sites/:subdomain can resolve without collection group. */
+/** Write public lookup and ensure client domains path is up to date. */
 async function setSubdomainLookup(subdomain, { userId, projectId, domainId, status, projectTitle }) {
   const normalized = (subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
   if (!normalized) return;
+
+  // 1. Write to published_subdomains (fallback / fast lookup)
   await getPublishedSubdomainsRef().doc(normalized).set({
     user_id: userId,
     project_id: projectId,
@@ -73,15 +75,70 @@ async function setSubdomainLookup(subdomain, { userId, projectId, domainId, stat
     project_title: projectTitle || null,
     updated_at: new Date(),
   }, { merge: true });
+
+  // 2. Ensure user/roles/client/{userId}/domains has this entry too
+  if (userId) {
+    try {
+      const existing = await findByProjectId(userId, projectId);
+      if (existing) {
+        await updateForClient(userId, existing.id, {
+          subdomain: normalized,
+          projectId,
+          projectTitle: projectTitle || null,
+          status: status || 'published',
+        });
+      } else {
+        await createForClient(userId, {
+          projectId,
+          projectTitle: projectTitle || null,
+          subdomain: normalized,
+          status: status || 'published',
+        });
+      }
+    } catch (e) {
+      console.warn('setSubdomainLookup: failed to sync client domains path:', e.message);
+    }
+  }
 }
 
 /**
- * Resolve published site by subdomain. Reads from published_subdomains/{subdomain} (populated when user publishes or syncs).
+ * Resolve published site by subdomain.
+ * Primary: collection group query on "domains" subcollections under user/roles/client/{userId}/domains.
+ * Fallback: published_subdomains/{subdomain} for backward compat.
  * Returns { id, projectId, userId, subdomain, projectTitle, status } or null.
  */
 async function findBySubdomain(subdomain) {
   const normalized = (subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
   if (!normalized) return null;
+
+  // Primary: collection group query on client domains
+  try {
+    const groupSnap = await db.collectionGroup('domains')
+      .where('subdomain', '==', normalized)
+      .where('status', '==', 'published')
+      .limit(1)
+      .get();
+    if (!groupSnap.empty) {
+      const doc = groupSnap.docs[0];
+      const data = docToObject(doc);
+      // Extract userId from path: user/roles/client/{userId}/domains/{domainId}
+      const pathParts = doc.ref.path.split('/');
+      const clientIdx = pathParts.indexOf('client');
+      const userId = clientIdx >= 0 && clientIdx + 1 < pathParts.length ? pathParts[clientIdx + 1] : data.userId;
+      return {
+        id: data.id || doc.id,
+        projectId: data.projectId,
+        userId: userId,
+        subdomain: normalized,
+        projectTitle: data.projectTitle,
+        status: data.status,
+      };
+    }
+  } catch (e) {
+    console.warn('findBySubdomain collectionGroup query failed, falling back:', e.message);
+  }
+
+  // Fallback: published_subdomains
   const snap = await getPublishedSubdomainsRef().doc(normalized).get();
   if (!snap.exists) return null;
   const data = docToObject(snap);
