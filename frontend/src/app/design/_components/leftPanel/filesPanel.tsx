@@ -189,7 +189,15 @@ export const FilesPanel = () => {
         <div
           onClick={(e) => {
             e.stopPropagation();
-            actions.selectNode(nodeId);
+            const isMulti = e.ctrlKey || e.metaKey;
+            if (isMulti) {
+              const next = new Set(selected);
+              if (next.has(nodeId)) next.delete(nodeId);
+              else next.add(nodeId);
+              actions.selectNode(next.size === 0 ? null : Array.from(next));
+            } else {
+              actions.selectNode(nodeId);
+            }
           }}
           onContextMenu={openContextMenu}
           className={`

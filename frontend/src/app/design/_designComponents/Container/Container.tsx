@@ -55,7 +55,7 @@ export const Container = ({
   cursor = "default",
   children
 }: ContainerProps) => {
-  const { connectors: { connect, drag } } = useNode();
+  const { id, connectors: { connect, drag } } = useNode();
 
   // Resolve padding
   const p = typeof padding === 'number' ? padding : 0;
@@ -80,6 +80,7 @@ export const Container = ({
 
   return (
     <div
+      data-node-id={id}
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}

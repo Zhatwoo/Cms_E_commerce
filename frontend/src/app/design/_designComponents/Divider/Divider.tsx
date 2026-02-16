@@ -8,13 +8,17 @@ export const Divider = ({
   color = "brand-lighter",
   thickness = 1,
   width = "100%",
+  height,
   marginTop = 8,
   marginBottom = 8,
-}: DividerProps) => {
-  const { connectors: { connect, drag } } = useNode();
+  marginLeft,
+  marginRight,
+}: DividerProps & { height?: string; marginLeft?: number; marginRight?: number }) => {
+  const { id, connectors: { connect, drag } } = useNode();
 
   return (
     <hr
+      data-node-id={id}
       ref={(ref) => { if (ref) connect(drag(ref)); }}
       style={{
         width,
@@ -26,6 +30,9 @@ export const Divider = ({
         borderRight: "none",
         marginTop: `${marginTop}px`,
         marginBottom: `${marginBottom}px`,
+        marginLeft: marginLeft != null ? `${marginLeft}px` : undefined,
+        marginRight: marginRight != null ? `${marginRight}px` : undefined,
+        height: height || undefined,
       }}
       className="hover:outline hover:outline-blue-500 cursor-pointer"
     />
