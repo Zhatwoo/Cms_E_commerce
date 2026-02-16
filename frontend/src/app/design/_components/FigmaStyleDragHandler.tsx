@@ -103,7 +103,12 @@ export const FigmaStyleDragHandler = () => {
           dragRef.current = null;
           return;
         }
-        const firstDom = query.getNode(ids[0])?.dom ?? null;
+        let firstDom: HTMLElement | null = null;
+        try {
+          firstDom = query.node(ids[0]).get()?.dom ?? null;
+        } catch {
+          // node may not exist or have dom yet
+        }
         const zoom = getEffectiveZoom(firstDom);
         const nodeMargins = ids.map((id) => {
           const props = state.nodes[id]?.data?.props ?? {};

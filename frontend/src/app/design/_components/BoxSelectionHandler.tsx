@@ -83,7 +83,12 @@ export const BoxSelectionHandler = () => {
 
       for (const id of ids) {
         try {
-          const dom = query.getNode(id)?.dom;
+          let dom: HTMLElement | null = null;
+          try {
+            dom = query.node(id).get()?.dom ?? null;
+          } catch {
+            // skip
+          }
           if (!dom) continue;
           const r = dom.getBoundingClientRect();
           if (rectsIntersect(selRect, { left: r.left, top: r.top, right: r.right, bottom: r.bottom })) {
