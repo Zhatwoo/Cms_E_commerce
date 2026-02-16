@@ -3,6 +3,36 @@
 import React from "react";
 import type { BuilderDocument, CleanNode, ComponentType } from "../_types/schema";
 
+/** When provided, the storefront can show real products and handle Add to Cart in place of static product cards. */
+export type StoreContext = {
+  products: Array<{ id: string; name: string; price: number; description?: string; images?: string[] }>;
+  addToCart: (product: { id: string; name: string; price: number; image?: string }) => void;
+};
+
+function hasAddToCartButton(nodeId: string, nodes: Record<string, CleanNode>): boolean {
+  const node = nodes[nodeId];
+  if (!node) return false;
+  if (node.type === "Button") {
+    const label = (node.props?.label as string) ?? "";
+    return label.trim().toLowerCase().includes("add to cart");
+  }
+  const childIds = node.children ?? [];
+  return childIds.some((id) => hasAddToCartButton(id, nodes));
+}
+
+/** Default links for common nav/CTA labels so the storefront viewport is functional without editing each button. */
+function getDefaultLinkForLabel(label: string): string {
+  const t = label.trim().toLowerCase();
+  if (t === "home") return "#";
+  if (t === "about") return "#about";
+  if (t === "products") return "#products";
+  if (t === "contact") return "#contact";
+  if (t === "services") return "#services";
+  if (t === "start building") return "/signup";
+  if (t === "logo") return "#";
+  return "";
+}
+
 // Default props per type (merge with node.props for full props). Minimal set for rendering.
 const DEFAULTS: Record<string, Record<string, unknown>> = {
   Page: { width: "1000px", height: "auto", background: "#ffffff" },
@@ -199,10 +229,12 @@ function RenderNode({
   node,
   nodes,
   pageIndex,
+  storeContext,
 }: {
   node: CleanNode;
   nodes: Record<string, CleanNode>;
   pageIndex: number;
+  storeContext?: StoreContext | null;
 }): React.ReactElement {
   const type = node.type as ComponentType;
   const props = mergeProps(type, node.props) as Record<string, unknown>;
@@ -210,11 +242,115 @@ function RenderNode({
   const children = childIds.map((id) => {
     const n = nodes[id];
     if (!n) return null;
-    return <RenderNode key={id} node={n} nodes={nodes} pageIndex={pageIndex} />;
+    return <RenderNode key={id} node={n} nodes={nodes} pageIndex={pageIndex} storeContext={storeContext} />;
   });
 
   switch (type) {
     case "Container": {
+      const isProductSlot =
+        storeContext &&
+        storeContext.products.length > 0 &&
+        hasAddToCartButton(node.id, nodes);
+      if (isProductSlot) {
+        const p = typeof props.padding === "number" ? props.padding : 0;
+        const pt = (props.paddingTop ?? p) as number;
+        const pb = (props.paddingBottom ?? p) as number;
+        const pl = (props.paddingLeft ?? p) as number;
+        const pr = (props.paddingRight ?? p) as number;
+        const m = typeof props.margin === "number" ? props.margin : 0;
+        const mt = (props.marginTop ?? m) as number;
+        const mr = (props.marginRight ?? m) as number;
+        const mb = (props.marginBottom ?? m) as number;
+        const ml = (props.marginLeft ?? m) as number;
+        return (
+          <div
+            id="products"
+            style={{
+              backgroundColor: props.background as string,
+              padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
+              margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
+              width: props.width as string,
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 20,
+              justifyContent: "flex-start",
+              alignItems: "flex-start",
+            }}
+          >
+            {storeContext!.products.map((product) => {
+              const price = typeof product.price === "number" ? product.price : 0;
+              const imageUrl =
+                product.images?.[0] ||
+                "https://placehold.co/400x300/f1f5f9/64748b?text=Product";
+              return (
+                <div
+                  key={product.id}
+                  style={{
+                    background: "#ffffff",
+                    padding: 20,
+                    maxWidth: 300,
+                    borderRadius: 8,
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                  }}
+                >
+                  <div
+                    style={{
+                      height: 180,
+                      background: "linear-gradient(45deg, #6ee7b7, #3b82f6)",
+                      borderRadius: 4,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <img
+                      src={imageUrl}
+                      alt={product.name}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 600, color: "#1e293b" }}>
+                    {product.name}
+                  </div>
+                  <div style={{ fontSize: 20, fontWeight: "bold", color: "#3b82f6" }}>
+                    ${price.toFixed(2)}
+                  </div>
+                  {product.description && (
+                    <div style={{ fontSize: 14, color: "#64748b" }}>
+                      {product.description}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      storeContext!.addToCart({
+                        id: product.id,
+                        name: product.name,
+                        price,
+                        image: product.images?.[0],
+                      })
+                    }
+                    style={{
+                      backgroundColor: "#10b981",
+                      color: "#ffffff",
+                      fontSize: 14,
+                      fontWeight: 500,
+                      border: "none",
+                      borderRadius: 8,
+                      padding: "10px 24px",
+                      cursor: "pointer",
+                      marginTop: 4,
+                    }}
+                  >
+                    Add to Cart
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        );
+      }
       const p = typeof props.padding === "number" ? props.padding : 0;
       const pl = (props.paddingLeft ?? p) as number;
       const pr = (props.paddingRight ?? p) as number;
@@ -454,7 +590,11 @@ function RenderNode({
       const mr = (props.marginRight ?? m) as number;
       const mb = (props.marginBottom ?? m) as number;
       const ml = (props.marginLeft ?? m) as number;
-      const link = (props.link as string) || "";
+      const labelStr = (props.label as string) ?? "Button";
+      const explicitLink = (props.link as string) || "";
+      const link =
+        explicitLink ||
+        (storeContext ? getDefaultLinkForLabel(labelStr) : "");
       const content = (
         <span
           style={{
@@ -472,7 +612,7 @@ function RenderNode({
             display: "inline-block",
           }}
         >
-          {(props.label as string) ?? "Button"}
+          {labelStr}
         </span>
       );
       if (link) {
@@ -503,7 +643,15 @@ function RenderNode({
   }
 }
 
-export function WebPreview({ doc, pageIndex = 0 }: { doc: BuilderDocument; pageIndex?: number }): React.ReactElement {
+export function WebPreview({
+  doc,
+  pageIndex = 0,
+  storeContext,
+}: {
+  doc: BuilderDocument;
+  pageIndex?: number;
+  storeContext?: StoreContext | null;
+}): React.ReactElement {
   const page = doc.pages[pageIndex];
   if (!page) {
     return <div style={{ padding: 24, color: "#666" }}>No page to display.</div>;
@@ -529,7 +677,61 @@ export function WebPreview({ doc, pageIndex = 0 }: { doc: BuilderDocument; pageI
       {page.children.map((id) => {
         const node = doc.nodes[id];
         if (!node) return null;
-        return <RenderNode key={id} node={node} nodes={doc.nodes} pageIndex={pageIndex} />;
+        return (
+          <RenderNode
+            key={id}
+            node={node}
+            nodes={doc.nodes}
+            pageIndex={pageIndex}
+            storeContext={storeContext}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Full-width live site renderer. No shadow, no border-radius, no max-width box.
+ * The design fills the entire browser viewport as a real website.
+ */
+export function LiveSite({
+  doc,
+  pageIndex = 0,
+  storeContext,
+}: {
+  doc: BuilderDocument;
+  pageIndex?: number;
+  storeContext?: StoreContext | null;
+}): React.ReactElement {
+  const page = doc.pages[pageIndex];
+  if (!page) {
+    return <div style={{ padding: 24, color: "#666" }}>No page to display.</div>;
+  }
+
+  const pageProps = mergeProps("Page", page.props) as Record<string, unknown>;
+  const background = (pageProps.background as string) || "#ffffff";
+
+  return (
+    <div
+      style={{
+        width: "100%",
+        minHeight: "100vh",
+        backgroundColor: background,
+      }}
+    >
+      {page.children.map((id) => {
+        const node = doc.nodes[id];
+        if (!node) return null;
+        return (
+          <RenderNode
+            key={id}
+            node={node}
+            nodes={doc.nodes}
+            pageIndex={pageIndex}
+            storeContext={storeContext}
+          />
+        );
       })}
     </div>
   );
