@@ -352,6 +352,28 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
     ...RenderBlocks,
   } as any;
 
+  /** Only pass to Frame if data is valid Craft format and every node type exists in resolver */
+  const resolverRef = useRef(resolver);
+  resolverRef.current = resolver;
+  const validFrameData = React.useMemo(() => {
+    if (initialJson === undefined || initialJson === null || initialJson === "") return null;
+    try {
+      const parsed = typeof initialJson === "string" ? JSON.parse(initialJson) : initialJson;
+      if (!parsed || typeof parsed !== "object" || !parsed.ROOT || !Array.isArray(parsed.ROOT?.nodes)) return null;
+      const keys = new Set(Object.keys(resolverRef.current));
+      for (const id of Object.keys(parsed)) {
+        const node = parsed[id];
+        if (!node || typeof node !== "object") continue;
+        const t = node.type;
+        const name = (typeof t === "string" ? t : t?.resolvedName) ?? "";
+        if (!name || !keys.has(name)) return null;
+      }
+      return typeof initialJson === "string" ? initialJson : JSON.stringify(parsed);
+    } catch {
+      return null;
+    }
+  }, [initialJson]);
+
   // Debug: list resolver keys so we can confirm components are registered at runtime
   if (typeof window !== "undefined") {
     try {
@@ -415,8 +437,8 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             className="min-w-[200vw] min-h-[200vh] flex items-center justify-center p-40"
             style={{ zoom: scale }}
           >
-            {initialJson === undefined ? null : initialJson ? (
-              <Frame data={initialJson} />
+            {initialJson === undefined ? null : validFrameData ? (
+              <Frame data={validFrameData} />
             ) : (
               <Frame>
                 <Element is={Viewport} canvas>
@@ -461,7 +483,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
                 </button>
               </div>
             </div>
-          </div>
+          </>
         )}
         {/* Right Panel */}
         {panelsReady && (
@@ -469,7 +491,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             <div className="pointer-events-auto h-full">
               <RightPanel projectId={projectId} />
             </div>
-          </>
+          </div>
         )}
         {/* Canvas Controls Overlay: ito yung nasa baba :> */}
         <div className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">
