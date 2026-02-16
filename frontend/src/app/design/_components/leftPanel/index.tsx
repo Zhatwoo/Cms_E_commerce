@@ -10,6 +10,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { useDesignProject } from "../../_context/DesignProjectContext";
 import { FilesPanel } from "./filesPanel";
 import { ComponentsPanel } from "./componentsPanel";
 import { AssetsPanel } from "./assetsPanel";
@@ -26,6 +27,7 @@ export const LeftPanel = ({ onToggle }: LeftPanelProps) => {
   const [saveFlash, setSaveFlash] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const { websiteName } = useDesignProject();
 
   const { query } = useEditor();
 
@@ -111,7 +113,7 @@ export const LeftPanel = ({ onToggle }: LeftPanelProps) => {
             onClick={() => setMenuOpen(!menuOpen)}
             className="flex items-center gap-2 hover:bg-white/5 rounded-lg px-2 py-1 -ml-2 transition-colors cursor-pointer"
           >
-            <h3 className="text-brand-lighter font-bold text-lg">Inspire</h3>
+            <h3 className="text-brand-lighter font-bold text-lg">Project</h3>
             <ChevronDown
               className={`w-4 h-4 text-brand-light transition-transform duration-200 ${menuOpen ? "rotate-180" : ""
                 }`}
@@ -199,8 +201,8 @@ export const LeftPanel = ({ onToggle }: LeftPanelProps) => {
       </div>
 
       {/* Project Title */}
-      <label className="text-brand-white text-lg tracking-wider font-semibold">
-        Project Title
+      <label className="text-brand-white text-lg tracking-wider font-semibold truncate block" title={websiteName ?? "Project Title"}>
+        {websiteName ?? "Project Title"}
       </label>
 
       {/* Navigation Tabs */}

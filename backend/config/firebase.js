@@ -5,6 +5,7 @@ const projectId = process.env.FIREBASE_PROJECT_ID;
 const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
 let privateKey = process.env.FIREBASE_PRIVATE_KEY;
 const databaseURL = process.env.FIREBASE_DATABASE_URL || '';
+const storageBucketName = process.env.FIREBASE_STORAGE_BUCKET || process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || '';
 
 if (!projectId || !clientEmail || !privateKey) {
   throw new Error('Missing FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, or FIREBASE_PRIVATE_KEY in .env');
@@ -23,6 +24,7 @@ if (!admin.apps.length) {
     }),
   };
   if (databaseURL) appOptions.databaseURL = databaseURL;
+  if (storageBucketName.trim()) appOptions.storageBucket = storageBucketName.trim();
   admin.initializeApp(appOptions);
 }
 
@@ -38,4 +40,14 @@ function getRealtimeDb() {
   }
 }
 
-module.exports = { admin, auth, db, getRealtimeDb };
+/** Get Storage bucket for listing/deleting project files. Returns null if bucket not configured. */
+function getStorageBucket() {
+  if (!storageBucketName.trim()) return null;
+  try {
+    return admin.storage().bucket(storageBucketName.trim());
+  } catch {
+    return null;
+  }
+}
+
+module.exports = { admin, auth, db, getRealtimeDb, getStorageBucket };

@@ -3,7 +3,8 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useTheme } from '../components/context/theme-context';
 import { useRouter } from 'next/navigation';
-import { listProjects, createProject, type Project } from '@/lib/api';
+import { listProjects, createProject, getStoredUser, type Project } from '@/lib/api';
+import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
 import { useAlert } from '../components/context/alert-context';
 
 export default function ProjectsPage() {
@@ -47,6 +48,9 @@ export default function ProjectsPage() {
       setCreating(true);
       const res = await createProject({ title: 'Untitled Project' });
       if (res.success && res.project) {
+        const user = getStoredUser();
+        const clientName = (user?.name || user?.username || 'client').trim() || 'client';
+        ensureProjectStorageFolder(clientName, res.project.title || 'Untitled Project').catch(() => {});
         setProjects((prev) => [res.project!, ...prev]);
         setSelected(res.project.id);
         router.push(`/design?projectId=${res.project.id}`);

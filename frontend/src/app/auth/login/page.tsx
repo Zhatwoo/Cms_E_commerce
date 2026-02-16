@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { login } from '@/lib/api';
+import { login, setStoredUser } from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,6 +23,8 @@ export default function LoginPage() {
     try {
       const data = await login(email, password);
       if (data.success) {
+        // Sync current user to localStorage so Storage path and project folder use correct client name
+        setStoredUser(data.user ?? null);
         if (data.user?.role === 'super_admin') {
           router.push('/auth/confirm');
         } else {
@@ -67,7 +69,7 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 autoComplete="email"
-                placeholder="you@example.com"
+                placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="mt-2 w-full rounded-lg border border-neutral-600 bg-neutral-900/80 px-4 py-3 text-white placeholder:text-neutral-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
@@ -89,7 +91,7 @@ export default function LoginPage() {
                 id="password"
                 type="password"
                 autoComplete="current-password"
-                placeholder="••••••••"
+                placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="mt-2 w-full rounded-lg border border-neutral-600 bg-neutral-900/80 px-4 py-3 text-white placeholder:text-neutral-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
