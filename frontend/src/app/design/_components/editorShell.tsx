@@ -461,13 +461,11 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
                 </button>
               </div>
             </div>
-          </>
-        )}
-        {/* Right Panel */}
-        {panelsReady && (
-          <div className="absolute top-4 right-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
-            <div className="pointer-events-auto h-full">
-              <RightPanel projectId={projectId} />
+            {/* Right Panel */}
+            <div className="absolute top-4 right-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
+              <div className="pointer-events-auto h-full">
+                <RightPanel projectId={projectId} />
+              </div>
             </div>
           </div>
         )}
