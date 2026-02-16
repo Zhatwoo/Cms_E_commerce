@@ -1,4 +1,6 @@
 const Project = require('../models/Project');
+const User = require('../models/User');
+const { deleteProjectStorageFolder } = require('../utils/storageHelpers');
 
 // @desc    List current user's projects
 // @route   GET /api/projects
@@ -131,7 +133,7 @@ exports.update = async (req, res) => {
   }
 };
 
-// @desc    Delete project
+// @desc    Delete project (website only — client/user account is never deleted)
 // @route   DELETE /api/projects/:id
 // @access  Private
 exports.delete = async (req, res) => {
@@ -144,10 +146,26 @@ exports.delete = async (req, res) => {
         message: 'Project not found',
       });
     }
+    // Delete only the project (website) document — client/user is preserved
     await Project.delete(userId, req.params.id);
+
+    // Delete only this project's folder in Firebase Storage: clients/{client}/{website}/ (not the client folder)
+    // Requires backend .env: FIREBASE_STORAGE_BUCKET=cms-e-commerce-75653.firebasestorage.app
+    const clientName = req.user.name || 'client';
+    let clientNameForStorage = clientName;
+    try {
+      const user = await User.get(userId);
+      if (user) {
+        clientNameForStorage = (user.displayName || user.username || user.email || clientName).trim() || clientName;
+      }
+    } catch {
+      // keep clientNameForStorage as req.user.name
+    }
+    await deleteProjectStorageFolder(clientNameForStorage, existing.title);
+
     res.status(200).json({
       success: true,
-      message: 'Project deleted',
+      message: 'Website deleted (client account preserved)',
     });
   } catch (error) {
     res.status(500).json({

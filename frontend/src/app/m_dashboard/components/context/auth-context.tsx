@@ -6,7 +6,7 @@ para isahang tawag lang and di maabuso yung token
 
 'use client';
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { getMe, type User } from '@/lib/api';
+import { getMe, setStoredUser, type User } from '@/lib/api';
 
 type AuthContextType = {
     user: User | null;
@@ -31,11 +31,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const res = await getMe();
             if (res.success && res.user) {
                 setUser(res.user);
+                setStoredUser(res.user); // keep localStorage in sync so Storage path uses current client
             } else {
                 setUser(null);
+                setStoredUser(null);
             }
         } catch (error) {
             setUser(null);
+            setStoredUser(null);
         } finally {
             setLoading(false);
         }

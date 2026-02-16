@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { login } from '@/lib/api';
+import { login, setStoredUser } from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,6 +23,8 @@ export default function LoginPage() {
     try {
       const data = await login(email, password);
       if (data.success) {
+        // Sync current user to localStorage so Storage path and project folder use correct client name
+        setStoredUser(data.user ?? null);
         if (data.user?.role === 'super_admin') {
           router.push('/auth/confirm');
         } else {

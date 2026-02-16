@@ -45,6 +45,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   const [initialJson, setInitialJson] = useState<string | null | undefined>(undefined);
   const [panelsReady, setPanelsReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
 
@@ -304,7 +305,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
 
       // Defer state update to avoid 'Cannot update a component while rendering a different component'
-      Promise.resolve().then(() => setSaveStatus('saving'));
+      Promise.resolve().then(() => { setSaveStatus('saving'); setSaveError(null); });
 
       saveTimerRef.current = setTimeout(async () => {
         try {
@@ -326,15 +327,18 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
             if (result.success) {
               setSaveStatus('saved');
+              setSaveError(null);
               setTimeout(() => setSaveStatus('idle'), 2000);
             } else {
               console.warn('Auto-save warning:', result.error);
               setSaveStatus('error');
+              setSaveError(result.error || 'Save failed');
             }
           }
         } catch (error) {
           console.error('Auto-save error:', error);
           setSaveStatus('error');
+          setSaveError(error instanceof Error ? error.message : 'Network or serialization error');
         }
       }, 2000); // Debounce 2s
     },
@@ -514,7 +518,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
                 }`}>
                 {saveStatus === 'saving' ? '💾 Saving...' :
                   saveStatus === 'saved' ? '✓ Saved' :
-                    '⚠ Save failed'}
+                    saveError ? `⚠ Save failed: ${saveError}` : '⚠ Save failed'}
               </span>
             )}
           </div>

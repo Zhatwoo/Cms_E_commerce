@@ -5,7 +5,8 @@ import { useTheme } from '../components/context/theme-context';
 import { useRouter } from 'next/navigation';
 import DomeGallery from '../components/templates/DomeGallery';
 import { templateService, Template as FullTemplate } from '@/lib/templateService';
-import { createProject, listProjects, updateProject, deleteProject, type Project } from '@/lib/api';
+import { createProject, listProjects, updateProject, deleteProject, getStoredUser, type Project } from '@/lib/api';
+import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
 import { useAlert } from '../components/context/alert-context';
 import { DraftPreviewThumbnail } from '../components/projects/DraftPreviewThumbnail';
 
@@ -324,6 +325,9 @@ export default function WebBuilderPage() {
         showAlert('Failed to create project. Please try again.');
         return;
       }
+      const user = getStoredUser();
+      const clientName = (user?.name || user?.username || 'client').trim() || 'client';
+      ensureProjectStorageFolder(clientName, res.project.title || 'website').catch(() => {});
       setCreateModalOpen(false);
       if (createModalTemplate) await templateService.loadTemplate(createModalTemplate.id.toString());
       router.push(`/design?projectId=${res.project.id}`);
@@ -388,6 +392,9 @@ export default function WebBuilderPage() {
         subdomain: p.subdomain ? `${p.subdomain}-copy` : undefined,
       });
       if (res.success && res.project) {
+        const user = getStoredUser();
+        const clientName = (user?.name || user?.username || 'client').trim() || 'client';
+        ensureProjectStorageFolder(clientName, res.project!.title || 'website').catch(() => {});
         setProjects((prev) => [res.project!, ...prev]);
         router.push(`/design?projectId=${res.project!.id}`);
       }
@@ -401,7 +408,7 @@ export default function WebBuilderPage() {
   const handleProjectDelete = async (e: React.MouseEvent, p: Project) => {
     e.stopPropagation();
     setProjectMenuId(null);
-    const confirmed = await showConfirm(`Delete "${p.title}"? This cannot be undone.`);
+    const confirmed = await showConfirm(`Delete website "${p.title}"? Only this website will be removed; your account will not be affected. This cannot be undone.`);
     if (!confirmed) return;
     try {
       const res = await deleteProject(p.id);
