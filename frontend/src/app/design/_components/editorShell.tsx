@@ -13,48 +13,17 @@ import { Section } from "../_designComponents/Section/Section";
 import { Button } from "../_designComponents/Button/Button";
 import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
+import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
+import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
+import { BoxSelectionHandler } from "./BoxSelectionHandler";
+import { TransformModeProvider } from "./TransformModeContext";
+import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
+import { PrototypeTabProvider } from "./PrototypeTabContext";
+import { PrototypeFlowLines } from "./PrototypeFlowLines";
+import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
-
-/**
- * React Error Boundary to catch rendering errors in Frame component
- */
-class FrameErrorBoundary extends React.Component<
-  { children: React.ReactNode; onError: () => void },
-  { hasError: boolean }
-> {
-  constructor(props: { children: React.ReactNode; onError: () => void }) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('❌ FrameErrorBoundary caught error:', error, errorInfo);
-    this.props.onError();
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <Frame>
-          <Element is={Viewport} canvas>
-            <Element is={Page} canvas>
-              <Element is={Container} padding={40} background="#ffffff" canvas>
-              </Element>
-            </Element>
-          </Element>
-        </Frame>
-      );
-    }
-
-    return this.props.children;
-  }
-}
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 function getStorageKey(projectId: string) {
@@ -299,33 +268,9 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   const [initialJson, setInitialJson] = useState<string | null | undefined>(undefined);
   const [panelsReady, setPanelsReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
-
-  // Cleanup corrupted data when error boundary triggers
-  const handleFrameError = useCallback(async () => {
-    if (errorCleanupDoneRef.current) return;
-    errorCleanupDoneRef.current = true;
-
-    console.error('❌ Frame rendering failed. Cleaning up corrupted data...');
-    
-    // Clear from localStorage
-    const storageKey = getStorageKey(projectId);
-    localStorage.removeItem(storageKey);
-    
-    // Clear from database
-    if (projectId) {
-      try {
-        await deleteDraft(projectId);
-        console.log('✅ Corrupted data cleared from database');
-      } catch (error) {
-        console.error('Failed to clear corrupted data:', error);
-      }
-    }
-
-    // Reset to empty canvas
-    setInitialJson(null);
-  }, [projectId]);
 
   /** Returns true if the event target is an input, textarea, select, or contenteditable */
   const isEditableTarget = (target: EventTarget | null) => {
@@ -411,6 +356,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
         if (!isSpacePressed) {
           setIsSpacePressed(true);
+          document.body.dataset.spacePan = "true";
         }
       }
     };
@@ -419,6 +365,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
       if (e.code === "Space") {
         setIsSpacePressed(false);
         setIsPanning(false);
+        document.body.removeAttribute("data-space-pan");
       }
     };
 
@@ -605,7 +552,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
 
       // Defer state update to avoid 'Cannot update a component while rendering a different component'
-      Promise.resolve().then(() => setSaveStatus('saving'));
+      Promise.resolve().then(() => { setSaveStatus('saving'); setSaveError(null); });
 
       saveTimerRef.current = setTimeout(async () => {
         try {
@@ -627,15 +574,18 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
             if (result.success) {
               setSaveStatus('saved');
+              setSaveError(null);
               setTimeout(() => setSaveStatus('idle'), 2000);
             } else {
               console.warn('Auto-save warning:', result.error);
               setSaveStatus('error');
+              setSaveError(result.error || 'Save failed');
             }
           }
         } catch (error) {
           console.error('Auto-save error:', error);
           setSaveStatus('error');
+          setSaveError(error instanceof Error ? error.message : 'Network or serialization error');
         }
       }, 2000); // Debounce 2s
     },
@@ -651,7 +601,32 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
   const resolver = {
     ...RenderBlocks,
+    Circle: Circle || Container,
+    Square: Square || Container,
+    Triangle: Triangle || Container,
   } as any;
+
+  /** Only pass to Frame if data is valid Craft format and every node type exists in resolver */
+  const resolverRef = useRef(resolver);
+  resolverRef.current = resolver;
+  const validFrameData = React.useMemo(() => {
+    if (initialJson === undefined || initialJson === null || initialJson === "") return null;
+    try {
+      const parsed = typeof initialJson === "string" ? JSON.parse(initialJson) : initialJson;
+      if (!parsed || typeof parsed !== "object" || !parsed.ROOT || !Array.isArray(parsed.ROOT?.nodes)) return null;
+      const keys = new Set(Object.keys(resolverRef.current));
+      for (const id of Object.keys(parsed)) {
+        const node = parsed[id];
+        if (!node || typeof node !== "object") continue;
+        const t = node.type;
+        const name = (typeof t === "string" ? t : t?.resolvedName) ?? "";
+        if (!name || !keys.has(name)) return null;
+      }
+      return typeof initialJson === "string" ? initialJson : JSON.stringify(parsed);
+    } catch {
+      return null;
+    }
+  }, [initialJson]);
 
   // Debug: list resolver keys so we can confirm components are registered at runtime
   if (typeof window !== "undefined") {
@@ -700,10 +675,18 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         onRender={RenderNode}
         onNodesChange={handleNodesChange}
       >
-        <KeyboardShortcuts />
-        {/* Canvas Area (Background) */}
+        <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
+        <TransformModeProvider>
+          <KeyboardShortcuts />
+          <CanvasSelectionHandler />
+          <FigmaStyleDragHandler />
+          <BoxSelectionHandler />
+          <DoubleClickTransformHandler />
+          <PrototypeFlowLines />
+          {/* Canvas Area (Background) */}
         <div
           ref={containerRef}
+          data-canvas-container
           className="absolute inset-0 overflow-auto bg-brand-darker"
           style={{ cursor: isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : 'default' }}
           onMouseDown={handleMouseDown}
@@ -716,13 +699,25 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             className="min-w-[200vw] min-h-[200vh] flex items-center justify-center p-40"
             style={{ zoom: scale }}
           >
-            {initialJson === undefined ? null : <SafeFrame data={initialJson} onError={handleFrameError} />}
+            {initialJson === undefined ? null : initialJson ? (
+              <Frame data={initialJson} />
+            ) : (
+              <Frame>
+                <Element is={Viewport} canvas>
+                  {/* Single empty page as starting point */}
+                  <Element is={Page} canvas>
+                    <Element is={Container} padding={40} background="#ffffff" canvas>
+                    </Element>
+                  </Element>
+                </Element>
+              </Frame>
+            )}
           </div>
         </div>
         {/* Floating Panels */}
         {/* Left Panel */}
         {panelsReady && (
-          <>
+          <div>
             {/* Left Panel */}
             <div className="absolute top-4 left-4 z-50 h-[calc(100vh-2rem)] w-80 flex items-start pointer-events-none">
               <div
@@ -756,16 +751,21 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         {panelsReady && (
           <div className="absolute top-4 right-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
             <div className="pointer-events-auto h-full">
-              <RightPanel projectId={projectId} />
+              <RightPanel
+                projectId={projectId}
+                activeTab={rightPanelTab}
+                setActiveTab={setRightPanelTab}
+              />
             </div>
           </div>
         )}
         {/* Canvas Controls Overlay: ito yung nasa baba :> */}
-        <div className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">
+        <div data-panel="canvas-controls" className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">
           <div className="flex gap-4 items-center">
             <span>{Math.round(scale * 100)}%</span>
             <span>Space + Drag to Pan</span>
             <span>Ctrl + Scroll to Zoom</span>
+            <span>Ctrl (Win) / ⌘ Cmd (Mac) + Click to multi-select</span>
             {/* Delete Button */}
             <button
               onClick={handleDeleteData}
@@ -781,11 +781,13 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
                 }`}>
                 {saveStatus === 'saving' ? '💾 Saving...' :
                   saveStatus === 'saved' ? '✓ Saved' :
-                    '⚠ Save failed'}
+                    saveError ? `⚠ Save failed: ${saveError}` : '⚠ Save failed'}
               </span>
             )}
           </div>
         </div>
+        </TransformModeProvider>
+        </PrototypeTabProvider>
       </Editor>
     </div>
   );

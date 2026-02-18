@@ -8,11 +8,14 @@ export const Text = ({
   fontSize = 16,
   fontFamily = "Inter",
   fontWeight = "400",
+  fontStyle = "normal",
   lineHeight = 1.5,
   letterSpacing = 0,
   textAlign = "left",
   textTransform = "none",
   color = "#ffffff",
+  width,
+  height,
   margin = 0,
   marginTop,
   marginBottom,
@@ -24,9 +27,10 @@ export const Text = ({
   paddingLeft,
   paddingRight,
   opacity = 1,
-  boxShadow = "none"
-}: TextProps) => {
-  const { connectors: { connect, drag } } = useNode();
+  boxShadow = "none",
+  rotation = 0,
+}: TextProps & { width?: string; height?: string }) => {
+  const { id, connectors: { connect, drag } } = useNode();
 
   const m = typeof margin === "number" ? margin : 0;
   const mt = marginTop !== undefined ? marginTop : m;
@@ -42,6 +46,7 @@ export const Text = ({
 
   return (
     <div
+      data-node-id={id}
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
@@ -49,11 +54,15 @@ export const Text = ({
         fontSize: `${fontSize}px`,
         fontFamily,
         fontWeight,
+        fontStyle: fontStyle || "normal",
         lineHeight,
         letterSpacing: `${letterSpacing}px`,
         textAlign,
         textTransform,
         color,
+        width: width || undefined,
+        height: height || undefined,
+        overflow: height ? "hidden" : undefined,
         marginTop: `${mt}px`,
         marginBottom: `${mb}px`,
         marginLeft: `${ml}px`,
@@ -63,7 +72,8 @@ export const Text = ({
         paddingLeft: `${pl}px`,
         paddingRight: `${pr}px`,
         opacity,
-        boxShadow
+        boxShadow,
+        transform: rotation ? `rotate(${rotation}deg)` : undefined,
       }}
       className="hover:outline hover:outline-blue-500 cursor-pointer"
     >
@@ -77,6 +87,7 @@ export const TextDefaultProps: Partial<TextProps> = {
   fontSize: 16,
   fontFamily: "Inter",
   fontWeight: "400",
+  fontStyle: "normal",
   lineHeight: 1.5,
   letterSpacing: 0,
   textAlign: "left",

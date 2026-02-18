@@ -1,11 +1,18 @@
-import { ReactElement } from "react";
+import { ReactElement, ReactNode } from "react";
 
-export type TemplateCategory = "header" | "hero" | "content" | "footer" | "form" | "card";
+export type TemplateCategory =
+  | "header"
+  | "hero"
+  | "content"
+  | "footer"
+  | "form"
+  | "card"
+  | "icon";
 
 export interface TemplateEntry {
   label: string;
   description: string;
-  preview: string;
+  preview: ReactNode;
   element: ReactElement;
   category: TemplateCategory;
 }

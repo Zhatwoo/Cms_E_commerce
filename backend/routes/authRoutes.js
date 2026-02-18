@@ -7,6 +7,7 @@ const {
   login,
   logout,
   getMe,
+  getFirebaseCustomToken,
   updateProfile,
   changePassword,
   forgotPassword,
@@ -81,6 +82,7 @@ router.post('/logout', logout);
 
 // Protected routes (require authentication)
 router.get('/me', protect, getMe);
+router.get('/firebase-custom-token', protect, getFirebaseCustomToken);
 router.put('/profile', protect, updateProfile);
 router.put('/change-password', protect, [
   body('currentPassword').notEmpty().withMessage('Current password is required'),
