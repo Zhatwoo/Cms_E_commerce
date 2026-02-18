@@ -24,9 +24,6 @@ import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
-import { Triangle } from "@/app/_assets/shapes/triangle/triangle";
-import { Square } from "@/app/_assets/shapes/square/square";
-import { Circle } from "@/app/_assets/shapes/circle/circle";
 
 /**
  * React Error Boundary to catch rendering errors in Frame component
@@ -313,7 +310,6 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
-  const [rightPanelTab, setRightPanelTab] = useState<TabId>("design");
 
   // Cleanup corrupted data when error boundary triggers
   const handleFrameError = useCallback(async () => {
@@ -771,8 +767,8 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             className="min-w-[200vw] min-h-[200vh] flex items-center justify-center p-40"
             style={{ zoom: scale }}
           >
-            {initialJson === undefined ? null : validFrameData ? (
-              <Frame data={validFrameData} />
+            {initialJson === undefined ? null : initialJson ? (
+              <Frame data={initialJson} />
             ) : (
               <Frame>
                 <Element is={Viewport} canvas>
