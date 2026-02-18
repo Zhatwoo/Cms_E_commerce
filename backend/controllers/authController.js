@@ -376,6 +376,20 @@ exports.verifyEmail = async (req, res) => {
   }
 };
 
+// @desc    Get Firebase custom token so frontend can sign in to Firebase Auth (e.g. for Storage uploads)
+// @route   GET /api/auth/firebase-custom-token
+// @access  Private
+exports.getFirebaseCustomToken = async (req, res) => {
+  try {
+    const uid = req.user.id;
+    const customToken = await auth.createCustomToken(uid);
+    res.status(200).json({ success: true, customToken });
+  } catch (error) {
+    console.error('getFirebaseCustomToken error:', error);
+    res.status(500).json({ success: false, message: 'Failed to create Firebase token', error: error.message });
+  }
+};
+
 // @desc    Get current user (Firestore)
 // @route   GET /api/auth/me
 // @access  Private

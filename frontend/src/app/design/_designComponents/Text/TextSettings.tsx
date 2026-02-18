@@ -4,6 +4,7 @@ import { DesignSection } from "../../_components/rightPanel/settings/DesignSecti
 import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
+import { InteractionGroup } from "../../_components/rightPanel/settings/InteractionGroup";
 import type { TextProps, SetProp } from "../../_types/components";
 
 export const TextSettings = () => {
@@ -13,6 +14,7 @@ export const TextSettings = () => {
     margin, marginTop, marginBottom, marginLeft, marginRight,
     padding, paddingTop, paddingBottom, paddingLeft, paddingRight,
     opacity, boxShadow,
+    toggleTarget, triggerAction, collapsibleKey, defaultOpen, defaultOpenMobile, defaultOpenDesktop, showOn, mobileBreakpoint,
     actions: { setProp }
   } = useNode(node => ({
     text: node.data.props.text,
@@ -35,7 +37,15 @@ export const TextSettings = () => {
     paddingLeft: node.data.props.paddingLeft,
     paddingRight: node.data.props.paddingRight,
     opacity: node.data.props.opacity,
-    boxShadow: node.data.props.boxShadow
+    boxShadow: node.data.props.boxShadow,
+    toggleTarget: node.data.props.toggleTarget,
+    triggerAction: node.data.props.triggerAction,
+    collapsibleKey: node.data.props.collapsibleKey,
+    defaultOpen: node.data.props.defaultOpen,
+    defaultOpenMobile: node.data.props.defaultOpenMobile,
+    defaultOpenDesktop: node.data.props.defaultOpenDesktop,
+    showOn: node.data.props.showOn,
+    mobileBreakpoint: node.data.props.mobileBreakpoint
   }));
 
   const typedSetProp = setProp as SetProp<TextProps>;
@@ -84,6 +94,20 @@ export const TextSettings = () => {
         <EffectsGroup
           opacity={opacity}
           boxShadow={boxShadow}
+          setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Interactions" defaultOpen={false}>
+        <InteractionGroup
+          toggleTarget={toggleTarget}
+          triggerAction={triggerAction}
+          collapsibleKey={collapsibleKey}
+          defaultOpen={defaultOpen}
+          defaultOpenMobile={defaultOpenMobile}
+          defaultOpenDesktop={defaultOpenDesktop}
+          showOn={showOn}
+          mobileBreakpoint={mobileBreakpoint}
           setProp={typedSetProp}
         />
       </DesignSection>

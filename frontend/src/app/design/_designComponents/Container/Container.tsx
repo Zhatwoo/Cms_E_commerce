@@ -3,6 +3,12 @@ import { useNode } from "@craftjs/core";
 import { ContainerSettings } from "./ContainerSettings";
 import type { ContainerProps } from "../../_types/components";
 
+function parsePx(value: string | undefined): number | null {
+  if (value == null) return null;
+  const m = String(value).match(/^(-?\d+(?:\.\d+)?)px$/);
+  return m ? parseFloat(m[1]) : null;
+}
+
 export const Container = ({
   background,
   padding,
@@ -49,13 +55,23 @@ export const Container = ({
   right: posRight = "auto",
   bottom = "auto",
   left: posLeft = "auto",
+  editorVisibility = "auto",
   boxShadow = "none",
   opacity = 1,
   overflow = "visible",
   cursor = "default",
+  rotation = 0,
+  designWidth,
+  designHeight,
   children
 }: ContainerProps) => {
-  const { connectors: { connect, drag } } = useNode();
+  const { id, connectors: { connect, drag } } = useNode();
+
+  const wPx = parsePx(width);
+  const hPx = parsePx(height);
+  const canScale = typeof designWidth === "number" && typeof designHeight === "number" && wPx != null && hPx != null && designWidth > 0 && designHeight > 0;
+  const scaleX = canScale ? wPx / designWidth : 1;
+  const scaleY = canScale ? hPx / designHeight : 1;
 
   // Resolve padding
   const p = typeof padding === 'number' ? padding : 0;
@@ -77,13 +93,20 @@ export const Container = ({
   const rtr = radiusTopRight !== undefined ? radiusTopRight : br;
   const rbr = radiusBottomRight !== undefined ? radiusBottomRight : br;
   const rbl = radiusBottomLeft !== undefined ? radiusBottomLeft : br;
+  const effectiveDisplay =
+    editorVisibility === "hide"
+      ? "none"
+      : editorVisibility === "show" && display === "none"
+        ? "flex"
+        : display;
 
   return (
     <div
+      data-node-id={id}
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className="min-h-[50px] transition-all hover:outline hover:outline-blue-500"
+      className="min-h-[50px] transition-[outline] duration-150 hover:outline hover:outline-blue-500"
       style={{
         backgroundColor: background,
         backgroundImage: backgroundImage
@@ -112,32 +135,72 @@ export const Container = ({
         borderColor,
         borderStyle,
         position,
-        display,
+        display: effectiveDisplay,
         zIndex: zIndex !== 0 ? zIndex : undefined,
         top: position !== "static" ? top : undefined,
         right: position !== "static" ? posRight : undefined,
         bottom: position !== "static" ? bottom : undefined,
         left: position !== "static" ? posLeft : undefined,
         // Flex properties
-        flexDirection: display === "flex" ? flexDirection : undefined,
-        flexWrap: display === "flex" ? flexWrap : undefined,
-        alignItems: display === "flex" || display === "grid" ? alignItems : undefined,
-        justifyContent: display === "flex" || display === "grid" ? justifyContent : undefined,
-        gap: display === "flex" ? `${gap}px` : undefined,
+        flexDirection: effectiveDisplay === "flex" ? flexDirection : undefined,
+        flexWrap: effectiveDisplay === "flex" ? flexWrap : undefined,
+        alignItems: effectiveDisplay === "flex" || effectiveDisplay === "grid" ? alignItems : undefined,
+        justifyContent: effectiveDisplay === "flex" || effectiveDisplay === "grid" ? justifyContent : undefined,
+        columnGap: effectiveDisplay === "flex"
+          ? `${gap}px`
+          : effectiveDisplay === "grid"
+            ? `${gridColumnGap ?? gridGap}px`
+            : undefined,
+        rowGap: effectiveDisplay === "flex"
+          ? `${gap}px`
+          : effectiveDisplay === "grid"
+            ? `${gridRowGap ?? gridGap}px`
+            : undefined,
         // Grid properties
-        gridTemplateColumns: display === "grid" ? gridTemplateColumns : undefined,
-        gridTemplateRows: display === "grid" ? gridTemplateRows : undefined,
-        columnGap: display === "grid" ? `${gridColumnGap ?? gridGap}px` : undefined,
-        rowGap: display === "grid" ? `${gridRowGap ?? gridGap}px` : undefined,
-        gridAutoRows: display === "grid" ? gridAutoRows : undefined,
-        gridAutoFlow: display === "grid" ? gridAutoFlow : undefined,
+        gridTemplateColumns: effectiveDisplay === "grid" ? gridTemplateColumns : undefined,
+        gridTemplateRows: effectiveDisplay === "grid" ? gridTemplateRows : undefined,
+        gridAutoRows: effectiveDisplay === "grid" ? gridAutoRows : undefined,
+        gridAutoFlow: effectiveDisplay === "grid" ? gridAutoFlow : undefined,
         boxShadow,
         opacity,
         overflow,
-        cursor
+        cursor,
+        transform: rotation ? `rotate(${rotation}deg)` : undefined,
       }}
     >
-      {children}
+      {canScale ? (
+        <div
+          style={{
+            width: designWidth,
+            height: designHeight,
+            transform: `scale(${scaleX}, ${scaleY})`,
+            transformOrigin: "0 0",
+            flexShrink: 0,
+            boxSizing: "border-box",
+            display: effectiveDisplay === "flex" ? "flex" : effectiveDisplay === "grid" ? "grid" : "block",
+            flexDirection: effectiveDisplay === "flex" ? flexDirection : undefined,
+            flexWrap: effectiveDisplay === "flex" ? flexWrap : undefined,
+            alignItems: effectiveDisplay === "flex" || effectiveDisplay === "grid" ? alignItems : undefined,
+            justifyContent: effectiveDisplay === "flex" || effectiveDisplay === "grid" ? justifyContent : undefined,
+            columnGap: effectiveDisplay === "flex"
+              ? `${gap}px`
+              : effectiveDisplay === "grid"
+                ? `${gridColumnGap ?? gridGap}px`
+                : undefined,
+            rowGap: effectiveDisplay === "flex"
+              ? `${gap}px`
+              : effectiveDisplay === "grid"
+                ? `${gridRowGap ?? gridGap}px`
+                : undefined,
+            gridTemplateColumns: effectiveDisplay === "grid" ? gridTemplateColumns : undefined,
+            gridTemplateRows: effectiveDisplay === "grid" ? gridTemplateRows : undefined,
+          }}
+        >
+          {children}
+        </div>
+      ) : (
+        children
+      )}
     </div>
   );
 };
@@ -184,6 +247,7 @@ export const ContainerDefaultProps: Partial<ContainerProps> = {
   right: "auto",
   bottom: "auto",
   left: "auto",
+  editorVisibility: "auto",
   boxShadow: "none",
   opacity: 1,
   overflow: "visible",

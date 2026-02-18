@@ -1,5 +1,24 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { 
+  Geist, 
+  Geist_Mono,
+  Inter,
+  Roboto,
+  Open_Sans,
+  Poppins,
+  Ubuntu,
+  Lato,
+  Raleway,
+  Playfair_Display,
+  EB_Garamond,
+  Merriweather,
+  Lora,
+  Montserrat,
+  Oswald,
+  Pacifico,
+  JetBrains_Mono,
+  Fira_Code
+} from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -11,6 +30,23 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+const inter = Inter({ weight: ["400", "500", "700", "900"], variable: "--ff-Inter", subsets: ["latin"] });
+const roboto = Roboto({ weight: ["300", "400", "500", "700", "900"], variable: "--ff-Roboto", subsets: ["latin"] });
+const openSans = Open_Sans({ weight: ["400", "500", "600", "700"], variable: "--ff-Open-Sans", subsets: ["latin"] });
+const poppins = Poppins({ weight: ["300", "400", "500", "600", "700"], variable: "--ff-Poppins", subsets: ["latin"] });
+const ubuntu = Ubuntu({ weight: ["300", "400", "500", "700"], variable: "--ff-Ubuntu", subsets: ["latin"] });
+const lato = Lato({ weight: ["300", "400", "700", "900"], variable: "--ff-Lato", subsets: ["latin"] });
+const raleway = Raleway({ weight: ["300", "400", "500", "700", "900"], variable: "--ff-Raleway", subsets: ["latin"] });
+const playfair = Playfair_Display({ weight: ["400", "500", "600", "700", "800", "900"], variable: "--ff-Playfair-Display", subsets: ["latin"] });
+const ebGaramond = EB_Garamond({ weight: ["400", "500", "600", "700", "800"], variable: "--ff-EB-Garamond", subsets: ["latin"] });
+const merriweather = Merriweather({ weight: ["300", "400", "700", "900"], variable: "--ff-Merriweather", subsets: ["latin"] });
+const lora = Lora({ weight: ["400", "500", "600", "700"], variable: "--ff-Lora", subsets: ["latin"] });
+const montserrat = Montserrat({ weight: ["300", "400", "500", "700", "900"], variable: "--ff-Montserrat", subsets: ["latin"] });
+const oswald = Oswald({ weight: ["200", "300", "400", "500", "600", "700"], variable: "--ff-Oswald", subsets: ["latin"] });
+const pacifico = Pacifico({ weight: ["400"], variable: "--ff-Pacifico", subsets: ["latin"] });
+const jetbrainsMono = JetBrains_Mono({ weight: ["400", "500", "700"], variable: "--ff-JetBrains-Mono", subsets: ["latin"] });
+const firaCode = Fira_Code({ weight: ["400", "500", "700"], variable: "--ff-Fira-Code", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -25,7 +61,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-x-hidden`}
+        className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${roboto.variable} ${openSans.variable} ${poppins.variable} ${ubuntu.variable} ${lato.variable} ${raleway.variable} ${playfair.variable} ${ebGaramond.variable} ${merriweather.variable} ${lora.variable} ${montserrat.variable} ${oswald.variable} ${pacifico.variable} ${jetbrainsMono.variable} ${firaCode.variable} antialiased overflow-x-hidden`}
         suppressHydrationWarning
       >
         {children}

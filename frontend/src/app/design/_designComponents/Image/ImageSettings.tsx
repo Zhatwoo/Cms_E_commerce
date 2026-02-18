@@ -1,10 +1,13 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { useNode } from "@craftjs/core";
-import { Upload, X } from "lucide-react";
+import { Upload, X, Loader2 } from "lucide-react";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
+import { useDesignProject } from "../../_context/DesignProjectContext";
+import { uploadClientFileWithProgress } from "@/lib/firebaseStorage";
+import { isFirebaseStorageConfigured } from "@/lib/firebase";
 import type { ImageProps, SetProp } from "../../_types/components";
 
 export const ImageSettings = () => {
@@ -41,22 +44,57 @@ export const ImageSettings = () => {
 
   const typedSetProp = setProp as SetProp<ImageProps>;
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const { projectId, clientName, websiteName } = useDesignProject();
+  const useFirebaseStorage = isFirebaseStorageConfigured();
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const dataUrl = event.target?.result as string;
-        typedSetProp((props) => { props.src = dataUrl; });
-      };
-      reader.readAsDataURL(file);
+    if (!file || !file.type.startsWith("image/")) {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
     }
-    // Reset input so same file can be selected again
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+    setUploadError(null);
+
+    if (useFirebaseStorage) {
+      setUploading(true);
+      setUploadProgress(0);
+      try {
+        const url = await uploadClientFileWithProgress(file, {
+          projectId: projectId ?? undefined,
+          clientName: clientName ?? undefined,
+          websiteName: websiteName ?? undefined,
+          folder: "images",
+          onProgress: (percent) => setUploadProgress(percent),
+        });
+        typedSetProp((props) => { props.src = url; });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("Firebase Storage upload failed:", err);
+        setUploadError(msg || "Upload failed");
+        fallbackToDataUrl(file);
+      } finally {
+        setUploading(false);
+        setUploadProgress(0);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+      return;
     }
+
+    fallbackToDataUrl(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
+
+  function fallbackToDataUrl(file: File) {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      typedSetProp((props) => { props.src = dataUrl; });
+    };
+    reader.readAsDataURL(file);
+  }
 
   const handleBrowseClick = () => {
     fileInputRef.current?.click();
@@ -95,10 +133,15 @@ export const ImageSettings = () => {
               <button
                 type="button"
                 onClick={handleBrowseClick}
-                className="px-3 py-2 bg-brand-medium/30 hover:bg-brand-medium/50 border border-brand-medium/30 rounded-md transition-colors flex items-center justify-center"
+                disabled={uploading}
+                className="px-3 py-2 bg-brand-medium/30 hover:bg-brand-medium/50 border border-brand-medium/30 rounded-md transition-colors flex items-center justify-center disabled:opacity-50"
                 title="Browse files"
               >
-                <Upload className="w-4 h-4 text-brand-light" />
+                {uploading ? (
+                  <Loader2 className="w-4 h-4 text-brand-light animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4 text-brand-light" />
+                )}
               </button>
               {/* Clear button (only show if image is selected) */}
               {src && (
@@ -112,9 +155,30 @@ export const ImageSettings = () => {
                 </button>
               )}
             </div>
-            {isDataUrl && (
+            {uploading && (
+              <div className="mt-1.5 flex flex-col gap-1">
+                <div className="h-1.5 w-full bg-brand-medium/30 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-brand-light/80 rounded-full transition-[width] duration-150"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-brand-light">{uploadProgress}% uploaded</p>
+              </div>
+            )}
+            {uploadError && (
+              <p className="text-[10px] text-red-400 mt-1.5">
+                Firebase upload failed: {uploadError}. Check console. Be logged in and ensure Storage rules allow write.
+              </p>
+            )}
+            {!useFirebaseStorage && (
+              <p className="text-[9px] text-amber-400/90 mt-1">
+                Firebase not configured — add NEXT_PUBLIC_FIREBASE_API_KEY (and authDomain, projectId) to .env.local to upload to Storage.
+              </p>
+            )}
+            {isDataUrl && !uploading && !uploadError && (
               <p className="text-[9px] text-brand-medium mt-1">
-                Using uploaded image
+                Using local preview (not in Storage)
               </p>
             )}
           </div>

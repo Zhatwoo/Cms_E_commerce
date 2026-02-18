@@ -3,6 +3,12 @@ import { useNode } from "@craftjs/core";
 import { RowSettings } from "./RowSettings";
 import type { ContainerProps } from "../../_types/components";
 
+function parsePx(value: string | undefined): number | null {
+  if (value == null) return null;
+  const m = String(value).match(/^(-?\d+(?:\.\d+)?)px$/);
+  return m ? parseFloat(m[1]) : null;
+}
+
 /**
  * Row — a horizontal flex container for creating multi-column layouts.
  * Default direction is row with wrap enabled.
@@ -33,11 +39,18 @@ export const Row = ({
   boxShadow = "none",
   opacity = 1,
   overflow = "visible",
+  rotation = 0,
+  designWidth,
+  designHeight,
   children,
 }: ContainerProps) => {
-  const {
-    connectors: { connect, drag },
-  } = useNode();
+  const { id, connectors: { connect, drag } } = useNode();
+
+  const wPx = parsePx(width);
+  const hPx = parsePx(height);
+  const canScale = typeof designWidth === "number" && typeof designHeight === "number" && wPx != null && hPx != null && designWidth > 0 && designHeight > 0;
+  const scaleX = canScale ? wPx / designWidth : 1;
+  const scaleY = canScale ? hPx / designHeight : 1;
 
   const p = typeof padding === "number" ? padding : 0;
   const pl = paddingLeft ?? p;
@@ -53,10 +66,11 @@ export const Row = ({
 
   return (
     <div
+      data-node-id={id}
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className="min-h-[40px] transition-all hover:outline hover:outline-blue-500"
+      className="min-h-[40px] transition-[outline] duration-150 hover:outline hover:outline-blue-500"
       style={{
         backgroundColor: background,
         paddingLeft: `${pl}px`,
@@ -82,9 +96,31 @@ export const Row = ({
         boxShadow,
         opacity,
         overflow,
+        transform: rotation ? `rotate(${rotation}deg)` : undefined,
       }}
     >
-      {children}
+      {canScale ? (
+        <div
+          style={{
+            width: designWidth,
+            height: designHeight,
+            transform: `scale(${scaleX}, ${scaleY})`,
+            transformOrigin: "0 0",
+            flexShrink: 0,
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection,
+            flexWrap,
+            alignItems,
+            justifyContent,
+            gap: `${gap}px`,
+          }}
+        >
+          {children}
+        </div>
+      ) : (
+        children
+      )}
     </div>
   );
 };

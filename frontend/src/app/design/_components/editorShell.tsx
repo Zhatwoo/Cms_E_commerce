@@ -13,9 +13,20 @@ import { Section } from "../_designComponents/Section/Section";
 import { Button } from "../_designComponents/Button/Button";
 import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
+import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
+import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
+import { BoxSelectionHandler } from "./BoxSelectionHandler";
+import { TransformModeProvider } from "./TransformModeContext";
+import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
+import { PrototypeTabProvider } from "./PrototypeTabContext";
+import { PrototypeFlowLines } from "./PrototypeFlowLines";
+import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
+import { Triangle } from "@/app/_assets/shapes/triangle/triangle";
+import { Square } from "@/app/_assets/shapes/square/square";
+import { Circle } from "@/app/_assets/shapes/circle/circle";
 
 /**
  * React Error Boundary to catch rendering errors in Frame component
@@ -299,8 +310,10 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   const [initialJson, setInitialJson] = useState<string | null | undefined>(undefined);
   const [panelsReady, setPanelsReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
+  const [rightPanelTab, setRightPanelTab] = useState<TabId>("design");
 
   // Cleanup corrupted data when error boundary triggers
   const handleFrameError = useCallback(async () => {
@@ -411,6 +424,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
         if (!isSpacePressed) {
           setIsSpacePressed(true);
+          document.body.dataset.spacePan = "true";
         }
       }
     };
@@ -419,6 +433,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
       if (e.code === "Space") {
         setIsSpacePressed(false);
         setIsPanning(false);
+        document.body.removeAttribute("data-space-pan");
       }
     };
 
@@ -605,7 +620,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
 
       // Defer state update to avoid 'Cannot update a component while rendering a different component'
-      Promise.resolve().then(() => setSaveStatus('saving'));
+      Promise.resolve().then(() => { setSaveStatus('saving'); setSaveError(null); });
 
       saveTimerRef.current = setTimeout(async () => {
         try {
@@ -627,15 +642,18 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
             if (result.success) {
               setSaveStatus('saved');
+              setSaveError(null);
               setTimeout(() => setSaveStatus('idle'), 2000);
             } else {
               console.warn('Auto-save warning:', result.error);
               setSaveStatus('error');
+              setSaveError(result.error || 'Save failed');
             }
           }
         } catch (error) {
           console.error('Auto-save error:', error);
           setSaveStatus('error');
+          setSaveError(error instanceof Error ? error.message : 'Network or serialization error');
         }
       }, 2000); // Debounce 2s
     },
@@ -651,7 +669,32 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
   const resolver = {
     ...RenderBlocks,
+    Circle: Circle || Container,
+    Square: Square || Container,
+    Triangle: Triangle || Container,
   } as any;
+
+  /** Only pass to Frame if data is valid Craft format and every node type exists in resolver */
+  const resolverRef = useRef(resolver);
+  resolverRef.current = resolver;
+  const validFrameData = React.useMemo(() => {
+    if (initialJson === undefined || initialJson === null || initialJson === "") return null;
+    try {
+      const parsed = typeof initialJson === "string" ? JSON.parse(initialJson) : initialJson;
+      if (!parsed || typeof parsed !== "object" || !parsed.ROOT || !Array.isArray(parsed.ROOT?.nodes)) return null;
+      const keys = new Set(Object.keys(resolverRef.current));
+      for (const id of Object.keys(parsed)) {
+        const node = parsed[id];
+        if (!node || typeof node !== "object") continue;
+        const t = node.type;
+        const name = (typeof t === "string" ? t : t?.resolvedName) ?? "";
+        if (!name || !keys.has(name)) return null;
+      }
+      return typeof initialJson === "string" ? initialJson : JSON.stringify(parsed);
+    } catch {
+      return null;
+    }
+  }, [initialJson]);
 
   // Debug: list resolver keys so we can confirm components are registered at runtime
   if (typeof window !== "undefined") {
@@ -700,92 +743,104 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         onRender={RenderNode}
         onNodesChange={handleNodesChange}
       >
-        <KeyboardShortcuts />
-        {/* Canvas Area (Background) */}
-        <div
-          ref={containerRef}
-          className="absolute inset-0 overflow-auto bg-brand-darker"
-          style={{ cursor: isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : 'default' }}
-          onMouseDown={handleMouseDown}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onMouseMove={handleMouseMove}
-        >
-          {/* Inner Content - Infinite Canvas */}
-          <div
-            className="min-w-[200vw] min-h-[200vh] flex items-center justify-center p-40"
-            style={{ zoom: scale }}
-          >
-            {initialJson === undefined ? null : <SafeFrame data={initialJson} onError={handleFrameError} />}
-          </div>
-        </div>
-        {/* Floating Panels */}
-        {/* Left Panel */}
-        {panelsReady && (
-          <>
-            {/* Left Panel */}
-            <div className="absolute top-4 left-4 z-50 h-[calc(100vh-2rem)] w-80 flex items-start pointer-events-none">
+        <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
+          <TransformModeProvider>
+            <KeyboardShortcuts />
+            <CanvasSelectionHandler />
+            <FigmaStyleDragHandler />
+            <BoxSelectionHandler />
+            <DoubleClickTransformHandler />
+            <PrototypeFlowLines />
+            {/* Canvas Area (Background) */}
+            <div
+              ref={containerRef}
+              data-canvas-container
+              className="absolute inset-0 overflow-auto bg-brand-darker"
+              style={{ cursor: isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : 'default' }}
+              onMouseDown={handleMouseDown}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onMouseMove={handleMouseMove}
+            >
+              {/* Inner Content - Infinite Canvas */}
               <div
-                className="h-full w-80 flex items-start pointer-events-auto"
+                className="min-w-[200vw] min-h-[200vh] flex items-center justify-center p-40"
+                style={{ zoom: scale }}
               >
-                <div className="h-full w-80 overflow-hidden shrink-0 pointer-events-none">
-                  <div
-                    className={`h-full w-80 origin-left transition-[transform,opacity] duration-300 ease-out will-change-transform ${
-                      leftPanelOpen
-                        ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
-                        : '-translate-x-full scale-90 opacity-0 pointer-events-none'
-                    }`}
-                  >
-                    <LeftPanel onToggle={() => setLeftPanelOpen(false)} />
-                  </div>
-                </div>
-                <button
-                  onClick={() => setLeftPanelOpen((open) => !open)}
-                  className={`absolute left-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${
-                    leftPanelOpen ? 'opacity-0 pointer-events-none scale-95' : 'opacity-100 pointer-events-auto scale-100'
-                  }`}
-                  title={leftPanelOpen ? "Hide left panel" : "Show left panel"}
-                >
-                  <PanelLeft className="w-5 h-5 text-brand-light" />
-                </button>
+                {initialJson === undefined ? null : <SafeFrame data={initialJson} onError={handleFrameError} />}
               </div>
             </div>
-          </>
-        )}
-        {/* Right Panel */}
-        {panelsReady && (
-          <div className="absolute top-4 right-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
-            <div className="pointer-events-auto h-full">
-              <RightPanel projectId={projectId} />
-            </div>
-          </div>
-        )}
-        {/* Canvas Controls Overlay: ito yung nasa baba :> */}
-        <div className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">
-          <div className="flex gap-4 items-center">
-            <span>{Math.round(scale * 100)}%</span>
-            <span>Space + Drag to Pan</span>
-            <span>Ctrl + Scroll to Zoom</span>
-            {/* Delete Button */}
-            <button
-              onClick={handleDeleteData}
-              className="pointer-events-auto text-red-400 hover:text-red-300 transition-colors ml-2"
-              title="Delete stored data and reset"
-            >
-              🗑️ Reset Data
-            </button>
-            {saveStatus !== 'idle' && (
-              <span className={`${saveStatus === 'saving' ? 'text-yellow-400' :
-                saveStatus === 'saved' ? 'text-green-400' :
-                  'text-red-400'
-                }`}>
-                {saveStatus === 'saving' ? '💾 Saving...' :
-                  saveStatus === 'saved' ? '✓ Saved' :
-                    '⚠ Save failed'}
-              </span>
+            {/* Floating Panels */}
+            {panelsReady && (
+              <>
+                {/* Left Panel */}
+                <div className="absolute top-4 left-4 z-50 h-[calc(100vh-2rem)] w-80 flex items-start pointer-events-none">
+                  <div
+                    className="h-full w-80 flex items-start pointer-events-auto"
+                  >
+                    <div className="h-full w-80 overflow-hidden shrink-0 pointer-events-none">
+                      <div
+                        className={`h-full w-80 origin-left transition-[transform,opacity] duration-300 ease-out will-change-transform ${
+                          leftPanelOpen
+                            ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
+                            : '-translate-x-full scale-90 opacity-0 pointer-events-none'
+                        }`}
+                      >
+                        <LeftPanel onToggle={() => setLeftPanelOpen(false)} />
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setLeftPanelOpen((open) => !open)}
+                      className={`absolute left-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${
+                        leftPanelOpen ? 'opacity-0 pointer-events-none scale-95' : 'opacity-100 pointer-events-auto scale-100'
+                      }`}
+                      title={leftPanelOpen ? "Hide left panel" : "Show left panel"}
+                    >
+                      <PanelLeft className="w-5 h-5 text-brand-light" />
+                    </button>
+                  </div>
+                </div>
+                {/* Right Panel */}
+                <div className="absolute top-4 right-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
+                  <div className="pointer-events-auto h-full">
+                    <RightPanel
+                      projectId={projectId}
+                      activeTab={rightPanelTab}
+                      setActiveTab={setRightPanelTab}
+                    />
+                  </div>
+                </div>
+              </>
             )}
-          </div>
-        </div>
+            {/* Canvas Controls Overlay: ito yung nasa baba :> */}
+            <div data-panel="canvas-controls" className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">
+              <div className="flex gap-4 items-center">
+                <span>{Math.round(scale * 100)}%</span>
+                <span>Space + Drag to Pan</span>
+                <span>Ctrl + Scroll to Zoom</span>
+                <span>Ctrl (Win) / ⌘ Cmd (Mac) + Click to multi-select</span>
+                {/* Delete Button */}
+                <button
+                  onClick={handleDeleteData}
+                  className="pointer-events-auto text-red-400 hover:text-red-300 transition-colors ml-2"
+                  title="Delete stored data and reset"
+                >
+                  🗑️ Reset Data
+                </button>
+                {saveStatus !== 'idle' && (
+                  <span className={`${saveStatus === 'saving' ? 'text-yellow-400' :
+                    saveStatus === 'saved' ? 'text-green-400' :
+                      'text-red-400'
+                    }`}>
+                    {saveStatus === 'saving' ? '💾 Saving...' :
+                      saveStatus === 'saved' ? '✓ Saved' :
+                        saveError ? `⚠ Save failed: ${saveError}` : '⚠ Save failed'}
+                  </span>
+                )}
+              </div>
+            </div>
+          </TransformModeProvider>
+        </PrototypeTabProvider>
       </Editor>
     </div>
   );

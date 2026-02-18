@@ -26,8 +26,9 @@ export const Image = ({
   marginLeft,
   opacity = 1,
   boxShadow = "none",
+  rotation = 0,
 }: ImageProps) => {
-  const { connectors: { connect, drag } } = useNode();
+  const { id, connectors: { connect, drag } } = useNode();
 
   // Handle empty or invalid src
   const imageSrc = src && src.trim() !== "" 
@@ -56,6 +57,7 @@ export const Image = ({
 
   return (
     <img
+      data-node-id={id}
       ref={(ref) => { if (ref) connect(drag(ref)); }}
       src={imageSrc}
       alt={alt}
@@ -78,6 +80,7 @@ export const Image = ({
         opacity,
         boxShadow,
         display: "block",
+        transform: rotation ? `rotate(${rotation}deg)` : undefined,
       }}
       className="hover:outline hover:outline-blue-500 cursor-pointer"
     />
