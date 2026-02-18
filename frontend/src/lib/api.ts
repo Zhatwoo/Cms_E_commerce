@@ -1,16 +1,19 @@
 /**
- * API client for backend. Auth token is in HttpOnly cookie (mercato_token); user info in localStorage (mercato_user).
+ * Auth: only HttpOnly cookie (mercato_token). No confidential data in localStorage or cookies.
+ * User profile is kept in memory only; fetched via GET /api/auth/me when needed.
  */
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-const TOKEN_KEY = 'mercato_token';
-const USER_KEY = 'mercato_user';
+
+/** In-memory user only; never persisted to localStorage or cookies. */
+let inMemoryUser: User | null = null;
 
 export type User = {
   id: string;
   name: string;
   email: string;
   role?: string;
+  subscriptionPlan?: string;
   phone?: string;
   bio?: string;
   avatar?: string;
@@ -31,37 +34,39 @@ export type AuthResponse = {
 
 export type ApiError = { success: false; message: string; error?: string };
 
+/** Token is in HttpOnly cookie only; not readable from JS. */
 export function getToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(TOKEN_KEY);
+  return null;
 }
 
-export function setToken(token: string): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(TOKEN_KEY, token);
+export function setToken(_token: string): void {
+  // No-op: token is set by backend in HttpOnly cookie
 }
 
 export function removeToken(): void {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(USER_KEY);
+  inMemoryUser = null;
+  if (typeof document === 'undefined') return;
+  document.cookie = 'mercato_user=; Path=/; Max-Age=0';
 }
 
-export function getStoredUser(): User | null {
-  if (typeof window === 'undefined') return null;
-  const raw = localStorage.getItem(USER_KEY);
-  if (!raw) return null;
+/** Remove any legacy auth from localStorage so confidential data does not appear there. */
+function clearLegacyAuthFromLocalStorage(): void {
+  if (typeof window === 'undefined') return;
   try {
-    return JSON.parse(raw) as User;
+    window.localStorage.removeItem('mercato_user');
+    window.localStorage.removeItem('mercato_token');
   } catch {
-    return null;
+    // ignore
   }
 }
 
+export function getStoredUser(): User | null {
+  clearLegacyAuthFromLocalStorage();
+  return inMemoryUser;
+}
+
 export function setStoredUser(user: User | null): void {
-  if (typeof window === 'undefined') return;
-  if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
-  else localStorage.removeItem(USER_KEY);
+  inMemoryUser = user;
 }
 
 export function getApiUrl(): string {
@@ -220,6 +225,21 @@ export async function updateProfile(data: {
   });
 }
 
+/** Upload avatar via backend: file is saved in Storage only (Clients/{uid}/avatar.ext). Backend returns URL and updated user. */
+export async function uploadAvatarApi(
+  file: File
+): Promise<{ success: boolean; message?: string; url?: string; user?: User }> {
+  const formData = new FormData();
+  formData.append('avatar', file);
+  const url = `${getApiUrl()}/api/auth/avatar`;
+  const res = await fetch(url, {
+    method: 'POST',
+    credentials: 'include',
+    body: formData,
+  });
+  return handleResponse<{ success: boolean; message?: string; url?: string; user?: User }>(res);
+}
+
 /** Create user (admin only). Role: 'admin' | 'client' | 'super_admin'. */
 export async function createUser(params: {
   name: string;
@@ -294,4 +314,138 @@ export async function publishProject(projectId: string, subdomain?: string | nul
     method: 'POST',
     body: JSON.stringify({ projectId, subdomain: subdomain || undefined }),
   });
+}
+
+/** Admin: User and Website Management — list websites with owner and plan from user/roles/client (subscription_plan). */
+export type WebsiteManagementRow = {
+  id: string;
+  userId: string;
+  domainName: string;
+  owner: string;
+  status: string;
+  plan: string;
+  domainType: string;
+};
+
+export type WebsiteManagementStats = {
+  total: number;
+  live: number;
+  underReview: number;
+  flagged: number;
+};
+
+export async function getDomainsManagement(): Promise<{
+  success: boolean;
+  data?: WebsiteManagementRow[];
+  stats?: WebsiteManagementStats;
+}> {
+  // Same-origin proxy so request works when frontend and backend are on different origins
+  if (typeof window !== 'undefined') {
+    const res = await fetch('/api/domains/management', {
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    return handleResponse<{ success: boolean; data?: WebsiteManagementRow[]; stats?: WebsiteManagementStats }>(res);
+  }
+  return apiFetch<{
+    success: boolean;
+    data?: WebsiteManagementRow[];
+    stats?: WebsiteManagementStats;
+  }>('/api/domains/admin/management');
+}
+
+/** Admin: list all clients from user/roles/client with subscription_plan. */
+export type ClientRow = {
+  id: string;
+  email: string;
+  displayName: string;
+  subscriptionPlan: string;
+  status: string;
+  createdAt?: string;
+  isActive?: boolean;
+};
+
+export async function getClients(): Promise<{
+  success: boolean;
+  users?: ClientRow[];
+  total?: number;
+}> {
+  return apiFetch<{ success: boolean; users?: ClientRow[]; total?: number }>(
+    '/api/users?role=client&limit=500'
+  );
+}
+
+/** Admin: update a client's subscription plan (free, basic, pro). */
+export async function updateClientPlan(
+  userId: string,
+  plan: string
+): Promise<{ success: boolean; message?: string; user?: ClientRow }> {
+  return apiFetch<{ success: boolean; message?: string; user?: ClientRow }>(
+    `/api/users/${userId}/plan`,
+    { method: 'PUT', body: JSON.stringify({ plan }) }
+  );
+}
+
+/** Admin: update client status (Published = active, Suspended, Restricted). */
+export async function updateClientStatus(
+  userId: string,
+  status: 'Published' | 'Suspended' | 'Restricted'
+): Promise<{ success: boolean; message?: string; user?: ClientRow }> {
+  return apiFetch<{ success: boolean; message?: string; user?: ClientRow }>(
+    `/api/users/${userId}/status`,
+    { method: 'PUT', body: JSON.stringify({ status }) }
+  );
+}
+
+/** Admin: delete a client (cannot delete self). */
+export async function deleteClient(userId: string): Promise<{ success: boolean; message?: string }> {
+  return apiFetch<{ success: boolean; message?: string }>(`/api/users/${userId}`, {
+    method: 'DELETE',
+  });
+}
+
+/** Admin: set client domain status (published | suspended | flagged | draft). Uses same-origin proxy so cookies are sent. */
+export async function setClientDomainStatus(
+  userId: string,
+  domainId: string,
+  status: string
+): Promise<{ success: boolean; message?: string }> {
+  if (typeof window !== 'undefined') {
+    const res = await fetch('/api/domains/admin/set-client-status', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, domainId, status }),
+    });
+    return handleResponse<{ success: boolean; message?: string }>(res);
+  }
+  return apiFetch<{ success: boolean; message?: string }>('/api/domains/admin/set-client-status', {
+    method: 'POST',
+    body: JSON.stringify({ userId, domainId, status }),
+  });
+}
+
+/** Admin: analytics for Monitoring & Analytics (real data). */
+export type AnalyticsResponse = {
+  success: boolean;
+  analytics?: {
+    summary: { activeUsers: number; revenue: number; publishedWebsites: number };
+    subscriptionDistribution: { free: number; basic: number; pro: number };
+    signupsOverTime: { labels: string[]; signups: number[] };
+    revenueOverTime: { labels: string[]; data: number[] };
+    workspace: { totalProjects: number; draftSites: number; customDomains: number; avgSitesPerUser: string };
+  };
+  message?: string;
+};
+
+export async function getAnalytics(period: '7days' | '30days' | '3months' = '7days'): Promise<AnalyticsResponse> {
+  // Same-origin proxy so cookies are sent and backend is reachable
+  if (typeof window !== 'undefined') {
+    const res = await fetch(`/api/dashboard/analytics?period=${encodeURIComponent(period)}`, {
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    return handleResponse<AnalyticsResponse>(res);
+  }
+  return apiFetch<AnalyticsResponse>(`/api/dashboard/analytics?period=${encodeURIComponent(period)}`);
 }

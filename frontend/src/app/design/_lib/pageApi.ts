@@ -5,27 +5,9 @@
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 const API_BASE_URL = `${BASE.replace(/\/$/, '')}/api`;
 
-/**
- * Get authentication token from localStorage
- * Checks 'mercato_token' first, then falls back to 'token'
- */
+/** Auth uses HttpOnly cookie (mercato_token); no token in localStorage. Use credentials: 'include' for API calls. */
 function getAuthToken(): string | null {
-    if (typeof window === 'undefined') return null;
-    const token = localStorage.getItem('mercato_token') || localStorage.getItem('token');
-
-    if (token) {
-        try {
-            // Simple decode of JWT payload to see the UID for debugging
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            console.log(`🔑 getAuthToken: UID from token is [${payload.id}]`);
-        } catch (e) {
-            console.log('🔑 getAuthToken: Could not decode token payload');
-        }
-    } else {
-        console.log('🔑 getAuthToken: No token found in localStorage');
-    }
-
-    return token;
+    return null;
 }
 
 /**

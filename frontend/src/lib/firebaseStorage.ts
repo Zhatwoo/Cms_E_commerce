@@ -14,6 +14,26 @@ import {
 /** Fixed prefix: always "Clients/" so everything goes in your Storage folder. Never "clients/". */
 const STORAGE_PREFIX = 'Clients/';
 
+/**
+ * Upload avatar to Storage at Clients/{clientUid}/avatar.{ext}.
+ * Returns the download URL. Save only this URL in Firestore (avatar_url), not base64.
+ */
+export async function uploadClientAvatar(file: File, clientUid: string): Promise<string> {
+  const storage = getFirebaseStorage();
+  if (!storage) {
+    throw new Error(
+      'Firebase Storage is not configured. Add NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET or check Firebase config.'
+    );
+  }
+  await ensureFirebaseAuthForStorage();
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
+  const safeExt = /^[a-z0-9]+$/.test(ext) ? ext : 'png';
+  const path = `${STORAGE_PREFIX}${clientUid}/avatar.${safeExt}`;
+  const ref = storageRef(storage, path);
+  await uploadBytes(ref, file, { contentType: file.type });
+  return getDownloadURL(ref);
+}
+
 /** Slug for path segments: safe for Storage paths (lowercase, dashes, no special chars). */
 function slugPathSegment(value: string): string {
   if (!value || typeof value !== 'string') return 'unknown';

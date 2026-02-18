@@ -200,9 +200,9 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
       try {
         console.log('📥 loadDraft starting...', projectId);
 
-        // Try localStorage per-project so Start from Scratch gets blank canvas
+        // Try sessionStorage per-project (no localStorage — auth/drafts in cookies or session only)
         const storageKey = getStorageKey(projectId);
-        const sessionSaved = localStorage.getItem(storageKey);
+        const sessionSaved = sessionStorage.getItem(storageKey);
 
         // Try to load from database
         console.log('📡 Calling getDraft()...');
@@ -231,8 +231,8 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             if (parsed && parsed.ROOT && parsed.ROOT.nodes && Array.isArray(parsed.ROOT.nodes)) {
               console.log(`✅ Loaded valid draft from DB (${Object.keys(parsed).length} internal nodes)`);
               contentToLoad = content;
-              // Sync to localStorage (per-project)
-              localStorage.setItem(storageKey, contentToLoad!);
+              // Sync to sessionStorage (per-project)
+              sessionStorage.setItem(storageKey, contentToLoad!);
             } else {
               console.warn('⚠️ Invalid draft structure: missing ROOT or ROOT.nodes');
             }
@@ -241,21 +241,20 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
           }
         }
 
-        // 2. Check LocalStorage (fallback for this project only)
+        // 2. Check sessionStorage (fallback for this project only)
         if (!contentToLoad && sessionSaved) {
           try {
             const parsed = JSON.parse(sessionSaved);
-            // Validate structure: must have ROOT and ROOT must have nodes property
             if (parsed && parsed.ROOT && parsed.ROOT.nodes && Array.isArray(parsed.ROOT.nodes)) {
-              console.log('✅ Loaded valid draft from localStorage (this project)');
+              console.log('✅ Loaded valid draft from session (this project)');
               contentToLoad = sessionSaved;
             } else {
-              console.warn('⚠️ Invalid draft structure in localStorage: missing ROOT or ROOT.nodes');
-              localStorage.removeItem(storageKey);
+              console.warn('⚠️ Invalid draft structure in session: missing ROOT or ROOT.nodes');
+              sessionStorage.removeItem(storageKey);
             }
           } catch (e) {
-            console.error('Failed to parse localStorage draft:', e);
-            localStorage.removeItem(storageKey);
+            console.error('Failed to parse session draft:', e);
+            sessionStorage.removeItem(storageKey);
           }
         }
 
@@ -298,7 +297,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
     if (result.success) {
       console.log('✅ Draft deleted');
-      localStorage.removeItem(getStorageKey(projectId));
+      sessionStorage.removeItem(getStorageKey(projectId));
       location.reload(); // Reload to reset editorstate
     } else {
       showAlert('Failed to delete draft: ' + (result.error || 'Unknown error'));
@@ -332,8 +331,8 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
           console.log('🔄 Auto-save executing (Clean Code)...');
 
-          // Save to localStorage per-project so other projects stay untouched
-          localStorage.setItem(getStorageKey(projectId), next);
+          // Save to sessionStorage per-project (no localStorage)
+          sessionStorage.setItem(getStorageKey(projectId), next);
 
           // Save CLEAN CODE to database (only when projectId is set)
           if (projectId) {
@@ -512,7 +511,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
                 </button>
               </div>
             </div>
-          </>
+          </div>
         )}
         {/* Right Panel */}
         {panelsReady && (
