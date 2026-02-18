@@ -24,6 +24,17 @@ export interface InteractableProps {
   prototype?: PrototypeConfig;
 }
 
+export interface InteractionProps {
+  toggleTarget?: string;
+  triggerAction?: "toggle" | "open" | "close";
+  collapsibleKey?: string;
+  defaultOpen?: boolean;
+  defaultOpenMobile?: boolean;
+  defaultOpenDesktop?: boolean;
+  showOn?: "desktop" | "mobile";
+  mobileBreakpoint?: number;
+}
+
 // ─── Settings Group Prop Interfaces ──────────────────────────────────────────
 // Each interface below corresponds to a settings group in the right panel.
 
@@ -130,12 +141,14 @@ export interface TypographyProps {
 
 /** Container component props — combines all layout and visual property groups. */
 export interface ContainerProps
-  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps, AnimatableProps, InteractableProps {
+  // extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps, AnimatableProps, InteractableProps {
+  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps, AnimatableProps, InteractionProps {
   children?: ReactNode;
 }
 
 /** Text component props — combines typography, spacing, and basic effects. */
-export interface TextProps extends SpacingProps, TypographyProps, PositionProps, TransformProps, AnimatableProps, InteractableProps {
+// export interface TextProps extends SpacingProps, TypographyProps, TransformProps, AnimatableProps, InteractableProps {
+export interface TextProps extends SpacingProps, TypographyProps, TransformProps, AnimatableProps, InteractionProps {
   text: string;
   opacity?: number;
   boxShadow?: string;
@@ -154,7 +167,8 @@ export interface ImageProps extends SpacingProps, SizeProps, EffectsProps, Trans
 }
 
 /** Button component props — interactive element with label, link, and variant. */
-export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps, AnimatableProps, InteractableProps {
+// export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps, AnimatableProps, InteractableProps {
+export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps, AnimatableProps, InteractionProps {
   label?: string;
   link?: string;
   variant?: "primary" | "secondary" | "outline" | "ghost";
