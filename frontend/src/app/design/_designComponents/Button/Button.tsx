@@ -1,5 +1,6 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
+import type { Node } from "@craftjs/core";
 import { ButtonSettings } from "./ButtonSettings";
 import type { ButtonProps } from "../../_types/components";
 
@@ -42,6 +43,7 @@ export const Button = ({
   opacity = 1,
   boxShadow = "none",
   rotation = 0,
+  children,
 }: ButtonProps) => {
   const { id, connectors: { connect, drag } } = useNode();
 
@@ -94,7 +96,7 @@ export const Button = ({
       }}
       className="hover:outline hover:outline-blue-500"
     >
-      {label}
+      {children ?? label}
     </button>
   );
 };
@@ -125,6 +127,10 @@ export const ButtonDefaultProps: Partial<ButtonProps> = {
 Button.craft = {
   displayName: "Button",
   props: ButtonDefaultProps,
+  rules: {
+    canMoveIn: (incomingNodes: Node[]) =>
+      incomingNodes.every((node) => node.data.displayName !== "Page"),
+  },
   related: {
     settings: ButtonSettings,
   },

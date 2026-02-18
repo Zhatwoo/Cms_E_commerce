@@ -207,15 +207,14 @@ export const LeftPanel = ({ onToggle }: LeftPanelProps) => {
       </label>
 
       {/* Navigation Tabs */}
-      <div className="flex overflow-x-auto no-scrollbar text-sm items-center py-1.5 px-4 border-y border-brand-medium gap-2" style={{ WebkitOverflowScrolling: "touch", minHeight: 44 }}>
+      <div className="grid grid-cols-4 text-xs items-center py-1.5 px-1 border-y border-brand-medium gap-1" style={{ minHeight: 44 }}>
         <button
           onClick={() => setActivePanel("files")}
           className={
             `${activePanel === "files"
               ? "text-brand-lighter bg-brand-medium/50"
-              : "text-brand-light hover:text-brand-lighter"} rounded-lg px-2.5 py-1`
+              : "text-brand-light hover:text-brand-lighter"} rounded-lg px-2 py-1 min-w-0 w-full text-center whitespace-nowrap overflow-hidden text-ellipsis`
           }
-          style={{ minWidth: 100, maxWidth: 120, flex: '0 0 auto', textAlign: 'center' }}
         >
           Files
         </button>
@@ -224,9 +223,9 @@ export const LeftPanel = ({ onToggle }: LeftPanelProps) => {
           className={
             `${activePanel === "components"
               ? "text-brand-lighter bg-brand-medium/50"
-              : "text-brand-light hover:text-brand-lighter"} rounded-lg px-2.5 py-1`
+              : "text-brand-light hover:text-brand-lighter"} rounded-lg px-2 py-1 min-w-0 w-full text-center whitespace-nowrap overflow-hidden text-ellipsis`
           }
-          style={{ minWidth: 100, maxWidth: 120, flex: '0 0 auto', textAlign: 'center' }}
+          title="Component"
         >
           Component
         </button>
@@ -235,9 +234,8 @@ export const LeftPanel = ({ onToggle }: LeftPanelProps) => {
           className={
             `${activePanel === "assets"
               ? "text-brand-lighter bg-brand-medium/50"
-              : "text-brand-light hover:text-brand-lighter"} rounded-lg px-2.5 py-1`
+              : "text-brand-light hover:text-brand-lighter"} rounded-lg px-2 py-1 min-w-0 w-full text-center whitespace-nowrap overflow-hidden text-ellipsis`
           }
-          style={{ minWidth: 100, maxWidth: 120, flex: '0 0 auto', textAlign: 'center' }}
         >
           Assets
         </button>
@@ -246,9 +244,9 @@ export const LeftPanel = ({ onToggle }: LeftPanelProps) => {
           className={
             `${activePanel === "templates"
               ? "text-brand-lighter bg-brand-medium/50"
-              : "text-brand-light hover:text-brand-lighter"} rounded-lg px-2.5 py-1`
+              : "text-brand-light hover:text-brand-lighter"} rounded-lg px-2 py-1 min-w-0 w-full text-center whitespace-nowrap overflow-hidden text-ellipsis`
           }
-          style={{ minWidth: 100, maxWidth: 120, flex: '0 0 auto', textAlign: 'center' }}
+          title="Templates"
         >
           Templates
         </button>

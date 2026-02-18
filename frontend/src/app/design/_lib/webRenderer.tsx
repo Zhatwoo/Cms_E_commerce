@@ -46,8 +46,8 @@ function toNumber(value: unknown, fallback: number): number {
   return fallback;
 }
 
-function shouldRenderNodeAtWidth(props: Record<string, unknown>, viewportWidth: number): boolean {
-  const breakpoint = toNumber(props.mobileBreakpoint, 900);
+function shouldRenderNodeAtWidth(props: Record<string, unknown>, viewportWidth: number, defaultBreakpoint: number = 900): boolean {
+  const breakpoint = toNumber(props.mobileBreakpoint, defaultBreakpoint);
   const isMobile = viewportWidth <= breakpoint;
   const showOn = (props.showOn as string | undefined)?.toLowerCase();
 
@@ -493,6 +493,7 @@ function RenderNode({
   storeContext,
   nodeId,
   onPrototypeAction,
+  mobileBreakpoint,
 }: {
   node: CleanNode;
   nodes: Record<string, CleanNode>;
@@ -504,10 +505,11 @@ function RenderNode({
   storeContext?: StoreContext | null;
   nodeId?: string;
   onPrototypeAction?: (interaction: Interaction) => void;
+  mobileBreakpoint?: number;
 }): React.ReactElement {
   const type = node.type as ComponentType;
   const props = mergeProps(type, node.props) as Record<string, unknown>;
-  if (!shouldRenderNodeAtWidth(props, viewportWidth)) {
+  if (!shouldRenderNodeAtWidth(props, viewportWidth, mobileBreakpoint)) {
     return <></>;
   }
   if (!isCollapsibleOpen(props, viewportWidth, interactionState, availableTriggerTargets)) {
@@ -535,6 +537,7 @@ function RenderNode({
         storeContext={storeContext}
         nodeId={id}
         onPrototypeAction={onPrototypeAction}
+        mobileBreakpoint={mobileBreakpoint}
       />
     );
   });
@@ -1084,12 +1087,16 @@ export function WebPreview({
   pageIndex = 0,
   initialPageSlug,
   storeContext,
+  simulatedWidth,
+  mobileBreakpoint,
 }: {
   doc: BuilderDocument;
   pageIndex?: number;
   /** Initial page slug for multi-page (overrides pageIndex when set). */
   initialPageSlug?: string;
   storeContext?: StoreContext | null;
+  simulatedWidth?: number;
+  mobileBreakpoint?: number;
 }): React.ReactElement {
   const firstSlug = doc.pages[0] ? getPageSlug(doc.pages[0], 0) : "page";
   const [currentPageSlug, setCurrentPageSlug] = useState(initialPageSlug ?? getPageSlug(doc.pages[pageIndex] ?? doc.pages[0], pageIndex) ?? firstSlug);
@@ -1135,7 +1142,8 @@ export function WebPreview({
   const background = (pageProps.background as string) || "#ffffff";
   const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
   const frameStyles = resolvePageFrameStyles(width);
-  const { ref, width: viewportWidth } = useContainerWidth(1000);
+  const { ref, width: measuredWidth } = useContainerWidth(1000);
+  const viewportWidth = simulatedWidth ?? measuredWidth;
   const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
   const availableTriggerTargets = React.useMemo(() => {
     const targets = new Set<string>();
@@ -1152,8 +1160,8 @@ export function WebPreview({
       const current = prev[target] ?? false;
       const next =
         action === "open" ? true :
-        action === "close" ? false :
-        !current;
+          action === "close" ? false :
+            !current;
       return { ...prev, [target]: next };
     });
   }, []);
@@ -1168,9 +1176,22 @@ export function WebPreview({
         @keyframes page-slide-down { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes page-push { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         @keyframes page-move-in { from { opacity: 0; } to { opacity: 1; } }
+        /* Responsive preview styles */
+        @media (max-width: 900px) {
+          .responsive-preview {
+            width: 100vw !important;
+            min-width: 0 !important;
+            max-width: 100vw !important;
+            border-radius: 0 !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+          }
+        }
       `}</style>
       <div
         key={currentPageSlug}
+        className="responsive-preview"
         style={{
           width,
           minHeight,
@@ -1181,6 +1202,7 @@ export function WebPreview({
           overflow: "hidden",
           ...transitionStyle,
         }}
+        ref={ref}
       >
         {currentPage.children.map((id) => {
           const node = doc.nodes[id];
@@ -1198,6 +1220,7 @@ export function WebPreview({
               storeContext={storeContext}
               nodeId={id}
               onPrototypeAction={onPrototypeAction}
+              mobileBreakpoint={mobileBreakpoint}
             />
           );
         })}
@@ -1243,8 +1266,8 @@ export function LiveSite({
       const current = prev[target] ?? false;
       const next =
         action === "open" ? true :
-        action === "close" ? false :
-        !current;
+          action === "close" ? false :
+            !current;
       return { ...prev, [target]: next };
     });
   }, []);

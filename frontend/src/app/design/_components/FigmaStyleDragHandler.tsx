@@ -300,6 +300,11 @@ export const FigmaStyleDragHandler = () => {
   } | null>(null);
 
   useEffect(() => {
+    actionsRef.current = actions;
+    queryRef.current = query;
+  }, [actions, query]);
+
+  useEffect(() => {
     const tick = () => {
       const d = dragRef.current;
       if (!d || !d.committed || !d.dirty) {
@@ -310,6 +315,16 @@ export const FigmaStyleDragHandler = () => {
       d.dirty = false;
       const dx = (d.lastX - d.startX) / d.zoom;
       const dy = (d.lastY - d.startY) / d.zoom;
+
+      if (!Number.isFinite(dx) || !Number.isFinite(dy)) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
+
+      if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
 
       d.nodeMargins.forEach(({ id, marginTop, marginLeft }) => {
         actionsRef.current.setProp(id, (props: Record<string, unknown>) => {

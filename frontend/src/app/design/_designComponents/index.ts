@@ -13,6 +13,7 @@ import { Icon } from "./Icon/Icon";
 export const RenderBlocks: Record<string, any> = {
   Container,
   Text,
+  text: Text,
   Page,
   Viewport,
   Image,

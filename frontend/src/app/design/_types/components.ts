@@ -24,6 +24,17 @@ export interface InteractableProps {
   prototype?: PrototypeConfig;
 }
 
+export interface InteractionProps {
+  toggleTarget?: string;
+  triggerAction?: "toggle" | "open" | "close";
+  collapsibleKey?: string;
+  defaultOpen?: boolean;
+  defaultOpenMobile?: boolean;
+  defaultOpenDesktop?: boolean;
+  showOn?: "desktop" | "mobile";
+  mobileBreakpoint?: number;
+}
+
 // ─── Settings Group Prop Interfaces ──────────────────────────────────────────
 // Each interface below corresponds to a settings group in the right panel.
 
@@ -130,12 +141,14 @@ export interface TypographyProps {
 
 /** Container component props — combines all layout and visual property groups. */
 export interface ContainerProps
-  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps, AnimatableProps, InteractableProps {
+  // extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps, AnimatableProps, InteractableProps {
+  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps, AnimatableProps, InteractionProps {
   children?: ReactNode;
 }
 
 /** Text component props — combines typography, spacing, and basic effects. */
-export interface TextProps extends SpacingProps, TypographyProps, TransformProps, AnimatableProps, InteractableProps {
+// export interface TextProps extends SpacingProps, TypographyProps, TransformProps, AnimatableProps, InteractableProps {
+export interface TextProps extends SpacingProps, TypographyProps, TransformProps, AnimatableProps, InteractionProps {
   text: string;
   opacity?: number;
   boxShadow?: string;
@@ -154,7 +167,8 @@ export interface ImageProps extends SpacingProps, SizeProps, EffectsProps, Trans
 }
 
 /** Button component props — interactive element with label, link, and variant. */
-export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps, AnimatableProps, InteractableProps {
+// export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps, AnimatableProps, InteractableProps {
+export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps, AnimatableProps, InteractionProps {
   label?: string;
   link?: string;
   variant?: "primary" | "secondary" | "outline" | "ghost";
@@ -168,6 +182,7 @@ export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps,
   borderWidth?: number;
   width?: string;
   height?: string;
+  children?: ReactNode;
 }
 
 /** Page component props — top-level page wrapper with dimensions and background. */
@@ -202,3 +217,17 @@ export interface IconProps extends SpacingProps, PositionProps, AnimatableProps 
   opacity?: number;
   link?: string;
 }
+
+export interface CircleProps
+  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps {
+  color?: string;
+  size?: number;
+  color?: string;
+  width?: string;
+  height?: string;
+  opacity?: number;
+  link?: string;
+}
+
+export interface SquareProps extends CircleProps {}
+export interface TriangleProps extends CircleProps {}
