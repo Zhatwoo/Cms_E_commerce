@@ -19,6 +19,7 @@ function PreviewContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectId = searchParams.get("projectId") || DEFAULT_PROJECT_ID;
+  const initialPageSlug = searchParams.get("page") ?? undefined;
   const { showAlert } = useAlert();
   const [rawJson, setRawJson] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -387,7 +388,7 @@ function PreviewContent() {
           <div className="flex justify-center py-6">
             <div className={`${viewportClass} min-h-[80vh] rounded-xl overflow-auto bg-white transition-all duration-300`}>
               {cleanDoc ? (
-                <WebPreview doc={cleanDoc} pageIndex={0} />
+                <WebPreview doc={cleanDoc} pageIndex={0} initialPageSlug={initialPageSlug} />
               ) : (
                 <div className="flex flex-col items-center justify-center min-h-[400px] text-zinc-500 p-8">
                   <p className="text-base mb-1">No page data</p>

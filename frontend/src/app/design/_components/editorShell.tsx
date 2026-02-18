@@ -18,6 +18,9 @@ import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
 import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import { TransformModeProvider } from "./TransformModeContext";
 import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
+import { PrototypeTabProvider } from "./PrototypeTabContext";
+import { PrototypeFlowLines } from "./PrototypeFlowLines";
+import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
@@ -56,6 +59,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
+  const [rightPanelTab, setRightPanelTab] = useState<TabId>("design");
 
   /** Returns true if the event target is an input, textarea, select, or contenteditable */
   const isEditableTarget = (target: EventTarget | null) => {
@@ -438,12 +442,14 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         onRender={RenderNode}
         onNodesChange={handleNodesChange}
       >
+        <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
         <TransformModeProvider>
           <KeyboardShortcuts />
           <CanvasSelectionHandler />
           <FigmaStyleDragHandler />
           <BoxSelectionHandler />
           <DoubleClickTransformHandler />
+          <PrototypeFlowLines />
           {/* Canvas Area (Background) */}
         <div
           ref={containerRef}
@@ -506,11 +512,17 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
                 </button>
               </div>
             </div>
-            {/* Right Panel */}
-            <div className="absolute top-4 right-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
-              <div className="pointer-events-auto h-full">
-                <RightPanel projectId={projectId} />
-              </div>
+          </>
+        )}
+        {/* Right Panel */}
+        {panelsReady && (
+          <div className="absolute top-4 right-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
+            <div className="pointer-events-auto h-full">
+              <RightPanel
+                projectId={projectId}
+                activeTab={rightPanelTab}
+                setActiveTab={setRightPanelTab}
+              />
             </div>
           </div>
         )}
@@ -542,6 +554,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
           </div>
         </div>
         </TransformModeProvider>
+        </PrototypeTabProvider>
       </Editor>
     </div>
   );
