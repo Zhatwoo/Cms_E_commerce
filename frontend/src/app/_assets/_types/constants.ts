@@ -7,6 +7,7 @@ export const CATEGORY_LABELS: Record<TemplateCategory, string> = {
   footer: "Footers",
   form: "Forms",
   card: "Cards",
+  icon: "Icons",
 };
 
-export const CATEGORY_ORDER: TemplateCategory[] = ["header", "hero", "content", "form", "card", "footer"];
+export const CATEGORY_ORDER: TemplateCategory[] = ["header", "hero", "content", "form", "card", "footer", "icon"];

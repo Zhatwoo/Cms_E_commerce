@@ -194,7 +194,7 @@ export const FilesPanel = () => {
               const next = new Set(selected);
               if (next.has(nodeId)) next.delete(nodeId);
               else next.add(nodeId);
-              actions.selectNode(next.size === 0 ? null : Array.from(next));
+              actions.selectNode(next.size === 0 ? undefined : Array.from(next));
             } else {
               actions.selectNode(nodeId);
             }

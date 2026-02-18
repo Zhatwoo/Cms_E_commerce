@@ -1,5 +1,5 @@
-import React from "react";
-import { AlignLeft, AlignCenter, AlignRight, AlignJustify } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { AlignLeft, AlignCenter, AlignRight, AlignJustify, Italic, Bold } from "lucide-react";
 import { NumericInput } from "./inputs/NumericInput";
 import { ColorInput } from "./inputs/ColorInput";
 import type { TypographyProps, SetProp } from "../../../_types/components";
@@ -8,9 +8,29 @@ interface TypographyGroupProps extends TypographyProps {
   setProp: SetProp<TypographyProps>;
 }
 
+const FONT_OPTIONS = [
+  "Inter",
+  "Roboto",
+  "Open Sans",
+  "Poppins",
+  "Ubuntu",
+  "Lato",
+  "Raleway",
+  "Playfair Display",
+  "EB Garamond",
+  "Merriweather",
+  "Lora",
+  "Montserrat",
+  "Oswald",
+  "Pacifico",
+  "JetBrains Mono",
+  "Fira Code",
+];
+
 export const TypographyGroup = ({
   fontFamily = "Inter",
   fontWeight = "400",
+  fontStyle = "normal",
   fontSize = 16,
   lineHeight = 1.5,
   letterSpacing = 0,
@@ -19,6 +39,33 @@ export const TypographyGroup = ({
   color = "#ffffff",
   setProp
 }: TypographyGroupProps) => {
+  const [isItalic, setIsItalic] = useState(fontStyle === "italic");
+  const [isBold, setIsBold] = useState(fontWeight === "700");
+
+  // Sync local state when props change
+  useEffect(() => {
+    setIsItalic(fontStyle === "italic");
+  }, [fontStyle]);
+
+  useEffect(() => {
+    setIsBold(fontWeight === "700");
+  }, [fontWeight]);
+
+  const handleItalicToggle = () => {
+    const newIsItalic = !isItalic;
+    setIsItalic(newIsItalic);
+    setProp((props) => { 
+      props.fontStyle = newIsItalic ? "italic" : "normal"; 
+    });
+  };
+
+  const handleBoldToggle = () => {
+    const newIsBold = !isBold;
+    setIsBold(newIsBold);
+    setProp((props) => { 
+      props.fontWeight = newIsBold ? "700" : "400"; 
+    });
+  };
 
   const alignmentOptions: { val: NonNullable<TypographyProps["textAlign"]>; icon: typeof AlignLeft }[] = [
     { val: "left", icon: AlignLeft },
@@ -31,17 +78,16 @@ export const TypographyGroup = ({
     <div className="flex flex-col gap-4">
       {/* Font Family */}
       <div className="flex flex-col gap-1">
+        <label className="text-[10px] text-brand-lighter">Font</label>
         <div className="bg-brand-medium-dark rounded-lg px-2.5">
           <select
             value={fontFamily}
             onChange={(e) => setProp((props) => { props.fontFamily = e.target.value; })}
             className="w-full text-xs bg-brand-medium-dark text-brand-lighter px-2.5 py-1.5 focus:outline-none appearance-none"
           >
-            <option value="Inter">Inter</option>
-            <option value="Roboto">Roboto</option>
-            <option value="Playfair Display">Playfair</option>
-            <option value="Open Sans">Open Sans</option>
-            <option value="Monospace">Monospace</option>
+            {FONT_OPTIONS.map((font) => (
+              <option key={font} value={font}>{font}</option>
+            ))}
           </select>
         </div>
       </div>
@@ -116,6 +162,22 @@ export const TypographyGroup = ({
               <Icon size={14} />
             </button>
           ))}
+          {/* Italic button */}
+          <button
+            onClick={handleItalicToggle}
+            className={`p-1 rounded transition-colors ${isItalic ? "bg-brand-light text-brand-dark" : "text-brand-medium hover:text-brand-lighter"}`}
+            title="Italic"
+          >
+            <Italic size={14} />
+          </button>
+          {/* Bold button */}
+          <button
+            onClick={handleBoldToggle}
+            className={`p-1 rounded transition-colors ${isBold ? "bg-brand-light text-brand-dark" : "text-brand-medium hover:text-brand-lighter"}`}
+            title="Bold"
+          >
+            <Bold size={14} />
+          </button>
         </div>
         <div className="w-px h-4 bg-brand-medium/30 mx-1"></div>
         <div className="flex gap-1">
