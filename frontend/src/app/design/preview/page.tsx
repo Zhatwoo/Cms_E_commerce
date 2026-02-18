@@ -8,7 +8,7 @@ import { getDraft } from "../_lib/pageApi";
 import { WebPreview } from "../_lib/webRenderer";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
-import { publishProject } from "@/lib/api";
+import { publishProject, getProject } from "@/lib/api";
 import { createPortal } from "react-dom";
 
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
@@ -27,12 +27,6 @@ function PreviewIframe({ children, width, height = "80vh" }: { children: React.R
     const handleLoad = () => {
       const doc = iframe.contentDocument;
       if (doc && doc.head && doc.body) {
-        // Copy styles from parent document to ensure Tailwind and other styles work
-        const styles = document.querySelectorAll('link[rel="stylesheet"], style');
-        styles.forEach((style) => {
-          doc.head.appendChild(style.cloneNode(true));
-        });
-
         const root = doc.getElementById("preview-root");
         if (root) setMountNode(root);
       }
@@ -89,6 +83,9 @@ function PreviewContent() {
   const [templateDescription, setTemplateDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [showPublishDialog, setShowPublishDialog] = useState(false);
+  const [publishDomainName, setPublishDomainName] = useState("");
+  const [publishDomainError, setPublishDomainError] = useState("");
   const [mobileBreakpoint, setMobileBreakpoint] = useState(900);
 
   useEffect(() => {
