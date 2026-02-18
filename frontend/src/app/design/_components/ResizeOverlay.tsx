@@ -50,7 +50,7 @@ function isSameRect(a: DOMRect | null, b: DOMRect): boolean {
 }
 
 type DragState = {
-  type: "move" | "resize" | "rotate";
+  type: "resize" | "rotate";
   handle?: Handle;
   startX: number;
   startY: number;
@@ -71,7 +71,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
   const dragRef = useRef<DragState | null>(null);
   const rafRef = useRef<number>(0);
   const [isDragging, setIsDragging] = useState(false);
-  const [dragType, setDragType] = useState<"move" | "resize" | "rotate" | null>(null);
+  const [dragType, setDragType] = useState<"resize" | "rotate" | null>(null);
   const [rect, setRect] = useState<DOMRect | null>(null);
 
   // Track DOM rect
@@ -106,7 +106,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
   }, [query, nodeId]);
 
   const startDrag = useCallback(
-    (e: React.MouseEvent, type: "move" | "resize" | "rotate", handle?: Handle) => {
+    (e: React.MouseEvent, type: "resize" | "rotate", handle?: Handle) => {
       e.stopPropagation();
       e.preventDefault();
       const startRect = dom.getBoundingClientRect();
@@ -147,7 +147,6 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       setDragType(type);
       document.body.style.userSelect = "none";
       document.body.style.cursor =
-        type === "move" ? "grabbing" :
         type === "rotate" ? "grabbing" :
         handle ? HANDLE_CURSORS[handle] : "default";
     },
@@ -169,23 +168,8 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       const zoom = d.zoom;
       const dx = (d.lastX - d.startX) / zoom;
       const dy = (d.lastY - d.startY) / zoom;
-      const p = d.startProps;
 
-      if (d.type === "move") {
-        const baseMT = typeof p.marginTop === "number" ? p.marginTop : 0;
-        const baseML = typeof p.marginLeft === "number" ? p.marginLeft : 0;
-        if (isNearlyEqual(dx, 0) && isNearlyEqual(dy, 0)) {
-          rafRef.current = requestAnimationFrame(tick);
-          return;
-        }
-        actions.setProp(nodeId, (props: Record<string, unknown>) => {
-          props.marginTop = baseMT + dy;
-          props.marginLeft = baseML + dx;
-        });
-        d.startX = d.lastX;
-        d.startY = d.lastY;
-        d.startProps = { ...d.startProps, marginTop: baseMT + dy, marginLeft: baseML + dx };
-      } else if (d.type === "resize" && d.handle) {
+      if (d.type === "resize" && d.handle) {
         const h = d.handle;
         const startW = d.startRect.width / zoom;
         const startH = d.startRect.height / zoom;
@@ -256,20 +240,11 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
     const handleMouseUp = () => {
       const d = dragRef.current;
       if (d) {
-        // Round final values
         const zoom = d.zoom;
         const dx = (d.lastX - d.startX) / zoom;
         const dy = (d.lastY - d.startY) / zoom;
-        const p = d.startProps;
 
-        if (d.type === "move") {
-          const baseMT = typeof p.marginTop === "number" ? p.marginTop : 0;
-          const baseML = typeof p.marginLeft === "number" ? p.marginLeft : 0;
-          actions.setProp(nodeId, (props: Record<string, unknown>) => {
-            props.marginTop = Math.round(baseMT + dy);
-            props.marginLeft = Math.round(baseML + dx);
-          });
-        } else if (d.type === "resize" && d.handle) {
+        if (d.type === "resize" && d.handle) {
           const h = d.handle;
           const startW = d.startRect.width / zoom;
           const startH = d.startRect.height / zoom;
@@ -335,17 +310,15 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         willChange: isDragging ? "left, top, width, height" : undefined,
       }}
     >
-      {/* Border = grab to move */}
+      {/* Border outline (move is handled by FigmaStyleDragHandler) */}
       <div
         style={{
           position: "absolute",
           inset: 0,
           border: "2px solid #3b82f6",
           borderRadius: 2,
-          cursor: "grab",
-          pointerEvents: "auto",
+          pointerEvents: "none",
         }}
-        onMouseDown={(e) => startDrag(e, "move")}
       />
 
       {/* Resize handles */}
