@@ -5,6 +5,18 @@
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 const API_BASE_URL = `${BASE.replace(/\/$/, '')}/api`;
 
+/** Wraps fetch; returns null on network/parse errors so callers can handle gracefully. */
+async function safeFetch(
+    input: RequestInfo | URL,
+    init?: RequestInit
+): Promise<Response | null> {
+    try {
+        return await fetch(input, init);
+    } catch {
+        return null;
+    }
+}
+
 /** Auth uses HttpOnly cookie (mercato_token); no token in localStorage. Use credentials: 'include' for API calls. */
 function getAuthToken(): string | null {
     return null;

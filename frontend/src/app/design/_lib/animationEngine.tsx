@@ -330,6 +330,14 @@ export function AnimationWrapper({
     }
   }, [config.trigger.type, isInView]);
 
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (el.ownerDocument !== document) {
+      setHasTriggered(true);
+    }
+  }, []);
+
   const shouldAnimate =
     config.trigger.type === "onLoad"
       ? hasTriggered

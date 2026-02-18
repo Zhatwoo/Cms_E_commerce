@@ -507,7 +507,15 @@ function RenderNode({
   onPrototypeAction?: (interaction: Interaction) => void;
   mobileBreakpoint?: number;
 }): React.ReactElement {
-  const type = node.type as ComponentType;
+  // Craft.js resolver uses lowercase keys (text, circle, etc.); normalize for switch/mergeProps
+  const rawType = node.type as string;
+  const type = (
+    rawType === "text" ? "Text"
+      : rawType === "circle" ? "Circle"
+      : rawType === "square" ? "Square"
+      : rawType === "triangle" ? "Triangle"
+      : rawType
+  ) as ComponentType;
   const props = mergeProps(type, node.props) as Record<string, unknown>;
   if (!shouldRenderNodeAtWidth(props, viewportWidth, mobileBreakpoint)) {
     return <></>;
@@ -854,6 +862,7 @@ function RenderNode({
       const pb = (props.paddingBottom ?? p) as number;
       const pl = (props.paddingLeft ?? p) as number;
       const pr = (props.paddingRight ?? p) as number;
+      const textContent = (props.text != null && props.text !== "") ? String(props.text) : ((DEFAULTS["Text"]?.text as string) ?? "Edit me!");
       return wrap(
         <div
           style={{
@@ -864,7 +873,7 @@ function RenderNode({
             letterSpacing: px(props.letterSpacing),
             textAlign: props.textAlign as React.CSSProperties["textAlign"],
             textTransform: props.textTransform as React.CSSProperties["textTransform"],
-            color: props.color as string,
+            color: (props.color as string) || "#000000",
             margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
             padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
             opacity: props.opacity as number,
@@ -873,7 +882,7 @@ function RenderNode({
           }}
           onClick={interactiveClick}
         >
-          {(props.text as string) ?? ""}
+          {textContent}
         </div>
       );
     }
