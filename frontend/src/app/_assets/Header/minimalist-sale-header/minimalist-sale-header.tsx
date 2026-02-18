@@ -51,14 +51,7 @@ export const MinimalistSaleHeader: TemplateEntry = {
         React.createElement(
           Element as any,
           { is: Column, width: "auto", canvas: true },
-          React.createElement(
-            Element as any,
-            { is: Row, gap: 32, canvas: true },
-            React.createElement(Text, { text: "Shop", fontSize: 14, color: "#3f3f46" }),
-            React.createElement(Text, { text: "Journal", fontSize: 14, color: "#3f3f46" }),
-            React.createElement(Text, { text: "About", fontSize: 14, color: "#3f3f46" }),
-            React.createElement(Text, { text: "Contact", fontSize: 14, color: "#3f3f46" })
-          )
+          React.createElement(Element as any, { is: Row, gap: 32, canvas: true })
         ),
         React.createElement(
           Element as any,
