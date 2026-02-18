@@ -4,7 +4,7 @@ import React from "react";
 import { Element } from "@craftjs/core";
 import { Icon } from "../../../design/_designComponents/Icon/Icon";
 import { Home } from "../Home/Home";
-import { TemplateEntry } from "../_types";
+import { TemplateEntry } from "../../_types";
 
 export const HomeIcon: TemplateEntry = {
   label: "Home Icon",

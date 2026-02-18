@@ -27,6 +27,7 @@ export type AuthResponse = {
   message?: string;
   token?: string;
   user?: User;
+  confirmUrl?: string;
 };
 
 export type ApiError = { success: false; message: string; error?: string };
@@ -157,6 +158,7 @@ export async function registerAdmin(params: {
   name: string;
   email: string;
   password: string;
+  role?: string;
 }): Promise<AuthResponse> {
   return apiFetch<AuthResponse>('/api/auth/register-admin', {
     method: 'POST',

@@ -80,7 +80,7 @@ export const KeyboardShortcuts = () => {
       if (e.key === "Escape") {
         e.preventDefault();
         try {
-          actions.selectNode(null);
+          actions.selectNode(undefined);
         } catch {
           // ignore
         }

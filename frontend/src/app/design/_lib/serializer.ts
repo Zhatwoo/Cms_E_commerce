@@ -82,6 +82,7 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
     fontSize: 16,
     fontFamily: "Inter",
     fontWeight: "400",
+    fontStyle: "normal",
     lineHeight: 1.5,
     letterSpacing: 0,
     textAlign: "left",

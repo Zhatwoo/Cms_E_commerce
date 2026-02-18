@@ -109,6 +109,7 @@ export interface EffectsProps {
 export interface TypographyProps {
   fontFamily?: string;
   fontWeight?: string;
+  fontStyle?: "normal" | "italic";
   fontSize?: number;
   lineHeight?: number | string;
   letterSpacing?: number | string;
@@ -177,4 +178,15 @@ export interface DividerProps extends TransformProps, AnimatableProps {
   width?: string;
   marginTop?: number;
   marginBottom?: number;
+}
+
+/** Icon component props — displays a clickable icon with styling. */
+export interface IconProps extends SpacingProps, PositionProps, AnimatableProps {
+  iconType?: string;
+  size?: number;
+  color?: string;
+  width?: string;
+  height?: string;
+  opacity?: number;
+  link?: string;
 }

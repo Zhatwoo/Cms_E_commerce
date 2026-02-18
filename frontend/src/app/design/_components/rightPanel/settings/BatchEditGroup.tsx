@@ -42,21 +42,21 @@ export const BatchEditGroup = ({ selectedIds }: BatchEditGroupProps) => {
 
   if (!firstProps || selectedIds.length === 0) return null;
 
-  const padding = (firstProps.padding ?? firstProps.paddingTop ?? 0) as number;
-  const paddingTop = (firstProps.paddingTop ?? padding) as number;
-  const paddingRight = (firstProps.paddingRight ?? padding) as number;
-  const paddingBottom = (firstProps.paddingBottom ?? padding) as number;
-  const paddingLeft = (firstProps.paddingLeft ?? padding) as number;
+  const padding = ((firstProps as Record<string, any>)['padding'] ?? (firstProps as Record<string, any>)['paddingTop'] ?? 0) as number;
+  const paddingTop = ((firstProps as Record<string, any>)['paddingTop'] ?? padding) as number;
+  const paddingRight = ((firstProps as Record<string, any>)['paddingRight'] ?? padding) as number;
+  const paddingBottom = ((firstProps as Record<string, any>)['paddingBottom'] ?? padding) as number;
+  const paddingLeft = ((firstProps as Record<string, any>)['paddingLeft'] ?? padding) as number;
 
-  const margin = (firstProps.margin ?? firstProps.marginTop ?? 0) as number;
-  const marginTop = (firstProps.marginTop ?? margin) as number;
-  const marginRight = (firstProps.marginRight ?? margin) as number;
-  const marginBottom = (firstProps.marginBottom ?? margin) as number;
-  const marginLeft = (firstProps.marginLeft ?? margin) as number;
+  const margin = ((firstProps as Record<string, any>)['margin'] ?? (firstProps as Record<string, any>)['marginTop'] ?? 0) as number;
+  const marginTop = ((firstProps as Record<string, any>)['marginTop'] ?? margin) as number;
+  const marginRight = ((firstProps as Record<string, any>)['marginRight'] ?? margin) as number;
+  const marginBottom = ((firstProps as Record<string, any>)['marginBottom'] ?? margin) as number;
+  const marginLeft = ((firstProps as Record<string, any>)['marginLeft'] ?? margin) as number;
 
-  const background = (firstProps.background ?? "transparent") as string;
-  const borderRadius = (firstProps.borderRadius ?? 0) as number;
-  const opacity = (firstProps.opacity ?? 1) as number;
+  const background = ((firstProps as Record<string, any>)['background'] ?? "transparent") as string;
+  const borderRadius = ((firstProps as Record<string, any>)['borderRadius'] ?? 0) as number;
+  const opacity = ((firstProps as Record<string, any>)['opacity'] ?? 1) as number;
 
   return (
     <div className="flex flex-col pb-4 gap-2">
