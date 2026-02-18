@@ -3,6 +3,7 @@
 import React, { Suspense, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { EditorShell } from "./_components/editorShell";
+import { DesignProjectProvider } from "./_context/DesignProjectContext";
 
 function DesignContent() {
   const searchParams = useSearchParams();
@@ -21,7 +22,11 @@ function DesignContent() {
     );
   }
 
-  return <EditorShell projectId={projectId} />;
+  return (
+    <DesignProjectProvider projectId={projectId}>
+      <EditorShell projectId={projectId} />
+    </DesignProjectProvider>
+  );
 }
 
 /** Design Page — requires ?projectId= to edit a project. */

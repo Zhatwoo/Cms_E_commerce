@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
+import { PieChart } from '../components/analytics/PieChart';
 
 interface Product {
   id: string;
@@ -177,6 +178,8 @@ export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [perPage, setPerPage] = useState<number>(10);
+  const [currentPage, setCurrentPage] = useState<number>(1);
 
   const categories = ['All', 'Electronics', 'Clothing', 'Accessories', 'Home'];
 
@@ -186,6 +189,15 @@ export default function ProductsPage() {
     const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / perPage));
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [totalPages, currentPage]);
+
+  const startIndex = (currentPage - 1) * perPage;
+  const endIndex = startIndex + perPage;
+  const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
 
   const handleEdit = (product: Product) => {
     console.log('Edit product:', product);
@@ -213,6 +225,14 @@ export default function ProductsPage() {
     outOfStock: products.filter(p => p.stock === 0).length
   };
 
+  // Prepare chart data for categories
+  const categoryChartData = [
+    { label: 'Electronics', value: products.filter(p => p.category === 'Electronics').length, color: '#3b82f6' },
+    { label: 'Clothing', value: products.filter(p => p.category === 'Clothing').length, color: '#8b5cf6' },
+    { label: 'Accessories', value: products.filter(p => p.category === 'Accessories').length, color: '#f59e0b' },
+    { label: 'Home', value: products.filter(p => p.category === 'Home').length, color: '#10b981' }
+  ];
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -234,50 +254,29 @@ export default function ProductsPage() {
         </button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'Total Products', value: stats.total, color: '#3b82f6' },
-          { label: 'Active', value: stats.active, color: '#10b981' },
-          { label: 'Low Stock', value: stats.lowStock, color: '#f59e0b' },
-          { label: 'Out of Stock', value: stats.outOfStock, color: '#ef4444' }
-        ].map((stat, index) => (
-          <motion.div
-            key={index}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="rounded-xl border p-6"
-            style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
-          >
-            <div className="flex items-center justify-between">
+      {/* Chart Row: Pie for categories */}
+      <div className="flex flex-col md:flex-row gap-6">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border p-6 w-fit flex flex-col" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+          <h4 className="text-sm font-semibold mb-4" style={{ color: colors.text.primary }}>Products by category</h4>
+          <div className="flex flex-col items-center">
+            <PieChart data={categoryChartData} size={120} />
+            <div className="mt-4 text-sm text-center" style={{ color: colors.text.muted }}>
               <div>
-                <p className="text-sm font-medium" style={{ color: colors.text.muted }}>
-                  {stat.label}
-                </p>
-                <p className="text-2xl font-bold mt-1" style={{ color: colors.text.primary }}>
-                  {stat.value}
-                </p>
-              </div>
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: `${stat.color}20`, color: stat.color }}
-              >
-                <div className="w-6 h-6 rounded-full" style={{ backgroundColor: stat.color }} />
+                <span className="font-semibold" style={{ color: colors.text.primary }}>Total products:</span> <span style={{ color: colors.text.primary }}>{stats.total}</span>
               </div>
             </div>
-          </motion.div>
-        ))}
+          </div>
+        </motion.div>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
+      <div className="flex flex-col sm:flex-row gap-4 items-center">
+        <div className="w-full sm:w-1/2">
           <input
             type="text"
-            placeholder="Search products..."
+            placeholder="Search products by name or SKU..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
             className="w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500"
             style={{
               backgroundColor: colors.bg.card,
@@ -286,28 +285,41 @@ export default function ProductsPage() {
             }}
           />
         </div>
-        <div className="flex gap-2">
-          {categories.map(category => (
-            <button
-              key={category}
-              onClick={() => setSelectedCategory(category)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${selectedCategory === category ? 'shadow-md' : 'hover:opacity-70'
-                }`}
-              style={{
-                backgroundColor: selectedCategory === category ? colors.bg.elevated : 'transparent',
-                color: selectedCategory === category ? colors.text.primary : colors.text.muted,
-                border: `1px solid ${selectedCategory === category ? colors.border.default : 'transparent'}`
-              }}
+
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <label className="text-sm" style={{ color: colors.text.muted }}>Category:</label>
+            <select
+              value={selectedCategory}
+              onChange={(e) => { setSelectedCategory(e.target.value); setCurrentPage(1); }}
+              className="px-3 py-2 rounded-lg text-sm border"
+              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, color: colors.text.primary }}
             >
-              {category}
-            </button>
-          ))}
+              {categories.map(category => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-sm" style={{ color: colors.text.muted }}>Per page:</label>
+            <select
+              value={perPage}
+              onChange={(e) => { setPerPage(Number(e.target.value)); setCurrentPage(1); }}
+              className="px-2 py-1 rounded-lg text-sm border"
+              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, color: colors.text.primary }}
+            >
+              {[5, 10, 15, 20].map(n => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
       {/* Products Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProducts.map((product) => (
+        {paginatedProducts.map((product) => (
           <ProductCard
             key={product.id}
             product={product}
@@ -317,6 +329,28 @@ export default function ProductsPage() {
             onToggleStatus={handleToggleStatus}
           />
         ))}
+      </div>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between gap-4 mt-4">
+        <div style={{ color: colors.text.muted }}>
+          Showing {(filteredProducts.length === 0) ? 0 : (startIndex + 1)} - {Math.min(endIndex, filteredProducts.length)} of {filteredProducts.length}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="px-3 py-1 rounded border"
+            style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, color: colors.text.primary }}
+          >Prev</button>
+          <div className="px-3 py-1 rounded text-sm" style={{ color: colors.text.primary }}>{currentPage}</div>
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="px-3 py-1 rounded border"
+            style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, color: colors.text.primary }}
+          >Next</button>
+        </div>
       </div>
 
       {filteredProducts.length === 0 && (

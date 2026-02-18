@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useEditor } from "@craftjs/core";
 import { useRouter } from "next/navigation";
 import { PanelRight, Play, X } from "lucide-react";
@@ -35,6 +35,7 @@ export const RightPanel = ({ projectId, activeTab: controlledTab, setActiveTab: 
   const setActiveTab = setControlledTab ?? setInternalTab;
   const [isPreviewing, setIsPreviewing] = useState(false);
   const router = useRouter();
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const { selectedIds, primary, query } = useEditor((state) => {
     const sel = state.events.selected;
@@ -82,31 +83,35 @@ export const RightPanel = ({ projectId, activeTab: controlledTab, setActiveTab: 
     }
   };
 
-  const handlePanelWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLElement | null;
-    if (!target) return;
+  // Prevent panel scroll when wheeling over inputs/selects (e.g. width/height) — use capture so we run before the scrollable container
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
 
-    const tag = target.tagName;
-    const isField =
-      tag === "INPUT" ||
-      tag === "TEXTAREA" ||
-      target.isContentEditable;
-
-    if (isField) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (e.nativeEvent && "stopImmediatePropagation" in e.nativeEvent) {
-        (e.nativeEvent as any).stopImmediatePropagation();
+    const handleWheelCapture = (e: WheelEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const tag = target.tagName;
+      const isField =
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        target.isContentEditable === true;
+      if (isField) {
+        e.preventDefault();
+        e.stopPropagation();
       }
-    }
-  };
+    };
+
+    panel.addEventListener("wheel", handleWheelCapture, { passive: false, capture: true });
+    return () => panel.removeEventListener("wheel", handleWheelCapture, { capture: true });
+  }, []);
 
   return (
     <div
       data-panel="configs"
       className="w-80 bg-brand-darker/75 backdrop-blur-lg rounded-3xl p-6 h-full shadow-2xl overflow-y-auto border border-white/10 transition-shadow duration-300"
       style={{ boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)" }}
-      onWheel={handlePanelWheel}
     >
       <div className="flex items-center justify-between mb-6 gap-2">
         <h3 className="text-brand-lighter font-bold text-lg">Configs</h3>

@@ -8,6 +8,7 @@ import { Divider } from "./Divider/Divider";
 import { Section } from "./Section/Section";
 import { Row } from "./Row/Row";
 import { Column } from "./Column/Column";
+import { Icon } from "./Icon/Icon";
 
 export const RenderBlocks: Record<string, any> = {
   Container,
@@ -20,4 +21,5 @@ export const RenderBlocks: Record<string, any> = {
   Section,
   Row,
   Column,
+  Icon,
 };

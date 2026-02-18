@@ -10,9 +10,11 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { useDesignProject } from "../../_context/DesignProjectContext";
 import { FilesPanel } from "./filesPanel";
 import { ComponentsPanel } from "./componentsPanel";
 import { AssetsPanel } from "./assetsPanel";
+import { TemplatePanel } from "./templatePanel";
 
 const STORAGE_KEY = "craftjs_preview_json";
 
@@ -26,6 +28,7 @@ export const LeftPanel = ({ onToggle }: LeftPanelProps) => {
   const [saveFlash, setSaveFlash] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const { websiteName } = useDesignProject();
 
   const { query } = useEditor();
 
@@ -111,7 +114,7 @@ export const LeftPanel = ({ onToggle }: LeftPanelProps) => {
             onClick={() => setMenuOpen(!menuOpen)}
             className="flex items-center gap-2 hover:bg-white/5 rounded-lg px-2 py-1 -ml-2 transition-colors cursor-pointer"
           >
-            <h3 className="text-brand-lighter font-bold text-lg">Inspire</h3>
+            <h3 className="text-brand-lighter font-bold text-lg">Project</h3>
             <ChevronDown
               className={`w-4 h-4 text-brand-light transition-transform duration-200 ${menuOpen ? "rotate-180" : ""
                 }`}
@@ -199,49 +202,62 @@ export const LeftPanel = ({ onToggle }: LeftPanelProps) => {
       </div>
 
       {/* Project Title */}
-      <label className="text-brand-white text-lg tracking-wider font-semibold">
-        Project Title
+      <label className="text-brand-white text-lg tracking-wider font-semibold truncate block" title={websiteName ?? "Project Title"}>
+        {websiteName ?? "Project Title"}
       </label>
 
       {/* Navigation Tabs */}
-      <div className="flex justify-between text-sm items-center py-1.5 px-4 border-y border-brand-medium">
+      <div className="flex overflow-x-auto no-scrollbar text-sm items-center py-1.5 px-4 border-y border-brand-medium gap-2" style={{ WebkitOverflowScrolling: "touch", minHeight: 44 }}>
         <button
           onClick={() => setActivePanel("files")}
           className={
-            activePanel === "files"
-              ? "text-brand-lighter bg-brand-medium/50 rounded-lg px-2.5 py-1"
-              : "text-brand-light hover:text-brand-lighter px-2.5 py-1"
+            `${activePanel === "files"
+              ? "text-brand-lighter bg-brand-medium/50"
+              : "text-brand-light hover:text-brand-lighter"} rounded-lg px-2.5 py-1`
           }
+          style={{ minWidth: 100, maxWidth: 120, flex: '0 0 auto', textAlign: 'center' }}
         >
           Files
         </button>
         <button
           onClick={() => setActivePanel("components")}
           className={
-            activePanel === "components"
-              ? "text-brand-lighter bg-brand-medium/50 rounded-lg px-2.5 py-1"
-              : "text-brand-light hover:text-brand-lighter px-2.5 py-1"
+            `${activePanel === "components"
+              ? "text-brand-lighter bg-brand-medium/50"
+              : "text-brand-light hover:text-brand-lighter"} rounded-lg px-2.5 py-1`
           }
+          style={{ minWidth: 100, maxWidth: 120, flex: '0 0 auto', textAlign: 'center' }}
         >
           Component
         </button>
         <button
           onClick={() => setActivePanel("assets")}
           className={
-            activePanel === "assets"
-              ? "text-brand-lighter bg-brand-medium/50 rounded-lg px-2.5 py-1"
-              : "text-brand-light hover:text-brand-lighter px-2.5 py-1"
+            `${activePanel === "assets"
+              ? "text-brand-lighter bg-brand-medium/50"
+              : "text-brand-light hover:text-brand-lighter"} rounded-lg px-2.5 py-1`
           }
+          style={{ minWidth: 100, maxWidth: 120, flex: '0 0 auto', textAlign: 'center' }}
         >
           Assets
+        </button>
+        <button
+          onClick={() => setActivePanel("templates")}
+          className={
+            `${activePanel === "templates"
+              ? "text-brand-lighter bg-brand-medium/50"
+              : "text-brand-light hover:text-brand-lighter"} rounded-lg px-2.5 py-1`
+          }
+          style={{ minWidth: 100, maxWidth: 120, flex: '0 0 auto', textAlign: 'center' }}
+        >
+          Templates
         </button>
       </div>
 
       {activePanel === "files" && <FilesPanel />}
-
       {activePanel === "assets" && <AssetsPanel />}
-
       {activePanel === "components" && <ComponentsPanel />}
+      {activePanel === "templates" && <TemplatePanel />}
     </div>
   );
 };

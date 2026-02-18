@@ -24,6 +24,9 @@ import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
+import { Triangle } from "@/app/_assets/shapes/triangle/triangle";
+import { Square } from "@/app/_assets/shapes/square/square";
+import { Circle } from "@/app/_assets/shapes/circle/circle";
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 function getStorageKey(projectId: string) {
@@ -53,6 +56,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   const [initialJson, setInitialJson] = useState<string | null | undefined>(undefined);
   const [panelsReady, setPanelsReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [rightPanelTab, setRightPanelTab] = useState<TabId>("design");
@@ -315,7 +319,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
 
       // Defer state update to avoid 'Cannot update a component while rendering a different component'
-      Promise.resolve().then(() => setSaveStatus('saving'));
+      Promise.resolve().then(() => { setSaveStatus('saving'); setSaveError(null); });
 
       saveTimerRef.current = setTimeout(async () => {
         try {
@@ -337,15 +341,18 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
             if (result.success) {
               setSaveStatus('saved');
+              setSaveError(null);
               setTimeout(() => setSaveStatus('idle'), 2000);
             } else {
               console.warn('Auto-save warning:', result.error);
               setSaveStatus('error');
+              setSaveError(result.error || 'Save failed');
             }
           }
         } catch (error) {
           console.error('Auto-save error:', error);
           setSaveStatus('error');
+          setSaveError(error instanceof Error ? error.message : 'Network or serialization error');
         }
       }, 2000); // Debounce 2s
     },
@@ -361,7 +368,32 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
   const resolver = {
     ...RenderBlocks,
+    Circle,
+    Square,
+    Triangle,
   } as any;
+
+  /** Only pass to Frame if data is valid Craft format and every node type exists in resolver */
+  const resolverRef = useRef(resolver);
+  resolverRef.current = resolver;
+  const validFrameData = React.useMemo(() => {
+    if (initialJson === undefined || initialJson === null || initialJson === "") return null;
+    try {
+      const parsed = typeof initialJson === "string" ? JSON.parse(initialJson) : initialJson;
+      if (!parsed || typeof parsed !== "object" || !parsed.ROOT || !Array.isArray(parsed.ROOT?.nodes)) return null;
+      const keys = new Set(Object.keys(resolverRef.current));
+      for (const id of Object.keys(parsed)) {
+        const node = parsed[id];
+        if (!node || typeof node !== "object") continue;
+        const t = node.type;
+        const name = (typeof t === "string" ? t : t?.resolvedName) ?? "";
+        if (!name || !keys.has(name)) return null;
+      }
+      return typeof initialJson === "string" ? initialJson : JSON.stringify(parsed);
+    } catch {
+      return null;
+    }
+  }, [initialJson]);
 
   // Debug: list resolver keys so we can confirm components are registered at runtime
   if (typeof window !== "undefined") {
@@ -434,8 +466,8 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             className="min-w-[200vw] min-h-[200vh] flex items-center justify-center p-40"
             style={{ zoom: scale }}
           >
-            {initialJson === undefined ? null : initialJson ? (
-              <Frame data={initialJson} />
+            {initialJson === undefined ? null : validFrameData ? (
+              <Frame data={validFrameData} />
             ) : (
               <Frame>
                 <Element is={Viewport} canvas>
@@ -452,7 +484,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         {/* Floating Panels */}
         {/* Left Panel */}
         {panelsReady && (
-          <>
+          <div>
             {/* Left Panel */}
             <div className="absolute top-4 left-4 z-50 h-[calc(100vh-2rem)] w-80 flex items-start pointer-events-none">
               <div
@@ -516,7 +548,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
                 }`}>
                 {saveStatus === 'saving' ? '💾 Saving...' :
                   saveStatus === 'saved' ? '✓ Saved' :
-                    '⚠ Save failed'}
+                    saveError ? `⚠ Save failed: ${saveError}` : '⚠ Save failed'}
               </span>
             )}
           </div>
