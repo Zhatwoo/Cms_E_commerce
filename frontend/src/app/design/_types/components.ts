@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { AnimationConfig } from "./animation";
+import type { PrototypeConfig } from "./prototype";
 
 /**
  * Shared type definitions for web builder components.
@@ -15,6 +16,12 @@ export type SetProp<T> = (cb: (props: T) => void) => void;
 
 export interface AnimatableProps {
   animation?: AnimationConfig;
+}
+
+// ─── Prototype / Interaction (Figma-style) ───────────────────────────────────
+
+export interface InteractableProps {
+  prototype?: PrototypeConfig;
 }
 
 // ─── Settings Group Prop Interfaces ──────────────────────────────────────────
@@ -121,19 +128,19 @@ export interface TypographyProps {
 
 /** Container component props — combines all layout and visual property groups. */
 export interface ContainerProps
-  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps, AnimatableProps {
+  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps, AnimatableProps, InteractableProps {
   children?: ReactNode;
 }
 
 /** Text component props — combines typography, spacing, and basic effects. */
-export interface TextProps extends SpacingProps, TypographyProps, TransformProps, AnimatableProps {
+export interface TextProps extends SpacingProps, TypographyProps, TransformProps, AnimatableProps, InteractableProps {
   text: string;
   opacity?: number;
   boxShadow?: string;
 }
 
 /** Image component props — media display with sizing, corners, and effects. */
-export interface ImageProps extends SpacingProps, SizeProps, EffectsProps, TransformProps, AnimatableProps {
+export interface ImageProps extends SpacingProps, SizeProps, EffectsProps, TransformProps, AnimatableProps, InteractableProps {
   src?: string;
   alt?: string;
   objectFit?: "cover" | "contain" | "fill" | "none" | "scale-down";
@@ -145,7 +152,7 @@ export interface ImageProps extends SpacingProps, SizeProps, EffectsProps, Trans
 }
 
 /** Button component props — interactive element with label, link, and variant. */
-export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps, AnimatableProps {
+export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps, AnimatableProps, InteractableProps {
   label?: string;
   link?: string;
   variant?: "primary" | "secondary" | "outline" | "ghost";
@@ -162,15 +169,19 @@ export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps,
 }
 
 /** Page component props — top-level page wrapper with dimensions and background. */
-export interface PageProps extends AnimatableProps {
+export interface PageProps extends AnimatableProps, InteractableProps {
   width?: string;
   height?: string;
   background?: string;
+  /** User-editable page name (e.g. "About Us"). */
+  pageName?: string;
+  /** URL slug for navigation (e.g. "about-us"). Auto-derived from pageName if not set. */
+  pageSlug?: string;
   children?: ReactNode;
 }
 
 /** Divider component props — simple horizontal rule element. */
-export interface DividerProps extends TransformProps, AnimatableProps {
+export interface DividerProps extends TransformProps, AnimatableProps, InteractableProps {
   dividerStyle?: "solid" | "dashed" | "dotted";
   color?: string;
   thickness?: number;
