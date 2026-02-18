@@ -573,6 +573,7 @@ function reconstructChildren(
       "Section",
       "Row",
       "Column",
+      "Button",
       "Circle",
       "Square",
       "Triangle",

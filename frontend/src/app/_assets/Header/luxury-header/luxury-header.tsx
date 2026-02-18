@@ -24,34 +24,27 @@ export const LuxuryHeader: TemplateEntry = {
         { is: Row, alignItems: "center", justifyContent: "space-between", canvas: true },
         React.createElement(
           Element as any,
-          { is: Column, width: "33%", canvas: true },
-          React.createElement(
-            Element as any,
-            { is: Row, gap: 32, canvas: true },
-            React.createElement(Text, { text: "New", fontSize: 13, color: "#d4d4d8", fontWeight: "300", letterSpacing: "1px" }),
-            React.createElement(Text, { text: "Women", fontSize: 13, color: "#d4d4d8", fontWeight: "300", letterSpacing: "1px" }),
-            React.createElement(Text, { text: "Men", fontSize: 13, color: "#d4d4d8", fontWeight: "300", letterSpacing: "1px" })
-          )
+          { is: Column, width: "auto", canvas: true },
+          React.createElement(Text, { text: "New", fontSize: 13, color: "#d4d4d8", fontWeight: "300", letterSpacing: "1px" })
         ),
         React.createElement(
           Element as any,
-          { is: Column, width: "33%", canvas: true },
+          { is: Column, width: "auto", canvas: true },
           React.createElement(Text, { 
             text: "LUXE", 
             fontSize: 28, 
             fontWeight: "400", 
             color: "#ffffff",
             letterSpacing: "8px",
-            textAlign: "center",
             fontFamily: "serif"
           })
         ),
         React.createElement(
           Element as any,
-          { is: Column, width: "33%", canvas: true },
+          { is: Column, width: "auto", canvas: true },
           React.createElement(
             Element as any,
-            { is: Row, justifyContent: "flex-end", gap: 24, canvas: true },
+            { is: Row, gap: 24, canvas: true },
             React.createElement(Text, { text: "Search", fontSize: 13, color: "#d4d4d8", fontWeight: "300" }),
             React.createElement(Text, { text: "Account", fontSize: 13, color: "#d4d4d8", fontWeight: "300" }),
             React.createElement(Text, { text: "Bag (0)", fontSize: 13, color: "#d4d4d8", fontWeight: "300" })

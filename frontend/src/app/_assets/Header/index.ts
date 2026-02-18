@@ -6,5 +6,4 @@ export { HeaderWithMegamenu } from "./header-with-megamenu/header-with-megamenu"
 export { MinimalistSaleHeader } from "./minimalist-sale-header/minimalist-sale-header";
 export { LuxuryHeader } from "./luxury-header/luxury-header";
 export { MobileHeader } from "./mobile-header/mobile-header";
-export { HeaderWithChips } from "./header-with-chips/header-with-chips";
 export { DarkModeHeader } from "./dark-mode-header/dark-mode-header";

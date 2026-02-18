@@ -19,12 +19,16 @@ export const ContactForm: TemplateEntry = {
     { is: Section as any, canvas: true },
     React.createElement(
       Element as any,
-      { is: Container as any, background: "#ffffff", padding: 60, maxWidth: "600px", canvas: true },
+      { is: Container as any, background: "#ffffff", padding: 60, maxWidth: "1000px", canvas: true },
       React.createElement(
         Element as any,
-        { is: Column as any, canvas: true },
-        React.createElement(Text as any, { text: "Get In Touch", fontSize: 32, fontWeight: "bold", color: "#1e293b" }),
-        React.createElement(Text as any, { text: "Fill out the form below and we'll get back to you soon", fontSize: 16, color: "#64748b" }),
+        { is: Row as any, canvas: true },
+        React.createElement(
+          Element as any,
+          { is: Column as any, canvas: true },
+          React.createElement(Text as any, { text: "Get In Touch", fontSize: 32, fontWeight: "bold", color: "#1e293b" }),
+          React.createElement(Text as any, { text: "Fill out the form below and we'll get back to you soon", fontSize: 16, color: "#64748b" })
+        ),
         React.createElement(
           Element as any,
           { is: Column as any, canvas: true },

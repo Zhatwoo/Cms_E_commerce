@@ -25,6 +25,45 @@ import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 
+/**
+ * React Error Boundary to catch rendering errors in Frame component
+ */
+class FrameErrorBoundary extends React.Component<
+  { children: React.ReactNode; onError: () => void },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode; onError: () => void }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('❌ FrameErrorBoundary caught error:', error, errorInfo);
+    this.props.onError();
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <Frame>
+          <Element is={Viewport} canvas>
+            <Element is={Page} canvas>
+              <Element is={Container} padding={40} background="#ffffff" canvas>
+              </Element>
+            </Element>
+          </Element>
+        </Frame>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 function getStorageKey(projectId: string) {
   return `${STORAGE_KEY_PREFIX}_${projectId}`;
@@ -272,6 +311,31 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
 
+  // Cleanup corrupted data when error boundary triggers
+  const handleFrameError = useCallback(async () => {
+    if (errorCleanupDoneRef.current) return;
+    errorCleanupDoneRef.current = true;
+
+    console.error('❌ Frame rendering failed. Cleaning up corrupted data...');
+    
+    // Clear from localStorage
+    const storageKey = getStorageKey(projectId);
+    localStorage.removeItem(storageKey);
+    
+    // Clear from database
+    if (projectId) {
+      try {
+        await deleteDraft(projectId);
+        console.log('✅ Corrupted data cleared from database');
+      } catch (error) {
+        console.error('Failed to clear corrupted data:', error);
+      }
+    }
+
+    // Reset to empty canvas
+    setInitialJson(null);
+  }, [projectId]);
+
   /** Returns true if the event target is an input, textarea, select, or contenteditable */
   const isEditableTarget = (target: EventTarget | null) => {
     if (!target || !(target instanceof HTMLElement)) return false;
@@ -411,9 +475,9 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
       try {
         console.log('📥 loadDraft starting...', projectId);
 
-        // Try localStorage per-project so Start from Scratch gets blank canvas
+        // Try sessionStorage per-project (no localStorage — auth/drafts in cookies or session only)
         const storageKey = getStorageKey(projectId);
-        const sessionSaved = localStorage.getItem(storageKey);
+        const sessionSaved = sessionStorage.getItem(storageKey);
 
         // Try to load from database
         console.log('📡 Calling getDraft()...');
@@ -440,21 +504,10 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             const parsed = JSON.parse(content);
             // Validate structure: must have ROOT and ROOT must have nodes property and type
             if (parsed && parsed.ROOT && parsed.ROOT.nodes && Array.isArray(parsed.ROOT.nodes)) {
-              // Deep validation: check entire tree and clean invalid references
-              const validation = validateCraftData(content);
-              
-              if (validation.valid && validation.data) {
-                console.log(`✅ Loaded and validated draft from DB`);
-                contentToLoad = validation.data;
-                // Sync to localStorage (per-project)
-                localStorage.setItem(storageKey, contentToLoad);
-              } else {
-                console.error('❌ Draft validation failed. Data is corrupted. Clearing from database...');
-                // Clear corrupted data from database to prevent recurring errors
-                await deleteDraft(projectId);
-                // Clear from localStorage too
-                localStorage.removeItem(storageKey);
-              }
+              console.log(`✅ Loaded valid draft from DB (${Object.keys(parsed).length} internal nodes)`);
+              contentToLoad = content;
+              // Sync to sessionStorage (per-project)
+              sessionStorage.setItem(storageKey, contentToLoad!);
             } else {
               console.warn('⚠️ Invalid draft structure: missing ROOT or ROOT.nodes. Clearing from database...');
               // Clear invalid data from database
@@ -466,29 +519,20 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
           }
         }
 
-        // 2. Check LocalStorage (fallback for this project only)
+        // 2. Check sessionStorage (fallback for this project only)
         if (!contentToLoad && sessionSaved) {
           try {
             const parsed = JSON.parse(sessionSaved);
-            // Validate structure: must have ROOT and ROOT must have nodes property
             if (parsed && parsed.ROOT && parsed.ROOT.nodes && Array.isArray(parsed.ROOT.nodes)) {
-              // Deep validation: check entire tree and clean invalid references
-              const validation = validateCraftData(sessionSaved);
-              
-              if (validation.valid && validation.data) {
-                console.log('✅ Loaded and validated draft from localStorage');
-                contentToLoad = validation.data;
-              } else {
-                console.error('❌ localStorage draft validation failed. Clearing.');
-                localStorage.removeItem(storageKey);
-              }
+              console.log('✅ Loaded valid draft from session (this project)');
+              contentToLoad = sessionSaved;
             } else {
-              console.warn('⚠️ Invalid draft structure in localStorage: missing ROOT or ROOT.nodes');
-              localStorage.removeItem(storageKey);
+              console.warn('⚠️ Invalid draft structure in session: missing ROOT or ROOT.nodes');
+              sessionStorage.removeItem(storageKey);
             }
           } catch (e) {
-            console.error('Failed to parse localStorage draft:', e);
-            localStorage.removeItem(storageKey);
+            console.error('Failed to parse session draft:', e);
+            sessionStorage.removeItem(storageKey);
           }
         }
 
@@ -531,7 +575,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
     if (result.success) {
       console.log('✅ Draft deleted');
-      localStorage.removeItem(getStorageKey(projectId));
+      sessionStorage.removeItem(getStorageKey(projectId));
       location.reload(); // Reload to reset editorstate
     } else {
       showAlert('Failed to delete draft: ' + (result.error || 'Unknown error'));
@@ -565,8 +609,8 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
           console.log('🔄 Auto-save executing (Clean Code)...');
 
-          // Save to localStorage per-project so other projects stay untouched
-          localStorage.setItem(getStorageKey(projectId), next);
+          // Save to sessionStorage per-project (no localStorage)
+          sessionStorage.setItem(getStorageKey(projectId), next);
 
           // Save CLEAN CODE to database (only when projectId is set)
           if (projectId) {
@@ -601,9 +645,14 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
   const resolver = {
     ...RenderBlocks,
+    Text: Text || Container,
+    text: Text || Container,
     Circle: Circle || Container,
     Square: Square || Container,
     Triangle: Triangle || Container,
+    circle: Circle || Container,
+    square: Square || Container,
+    triangle: Triangle || Container,
   } as any;
 
   /** Only pass to Frame if data is valid Craft format and every node type exists in resolver */
@@ -614,15 +663,34 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
     try {
       const parsed = typeof initialJson === "string" ? JSON.parse(initialJson) : initialJson;
       if (!parsed || typeof parsed !== "object" || !parsed.ROOT || !Array.isArray(parsed.ROOT?.nodes)) return null;
-      const keys = new Set(Object.keys(resolverRef.current));
+      const resolverKeys = Object.keys(resolverRef.current);
+      const keys = new Set(resolverKeys);
+
+      const canonicalByLower = new Map<string, string>();
+      for (const key of resolverKeys) {
+        canonicalByLower.set(key.toLowerCase(), key);
+      }
+
       for (const id of Object.keys(parsed)) {
-        const node = parsed[id];
+        const node = parsed[id] as any;
         if (!node || typeof node !== "object") continue;
         const t = node.type;
-        const name = (typeof t === "string" ? t : t?.resolvedName) ?? "";
-        if (!name || !keys.has(name)) return null;
+        const rawName = ((typeof t === "string" ? t : t?.resolvedName) ?? "").toString().trim();
+        if (!rawName) return null;
+
+        if (!keys.has(rawName)) {
+          const normalized = canonicalByLower.get(rawName.toLowerCase());
+          if (normalized) {
+            node.type = { resolvedName: normalized };
+            node.displayName = normalized;
+            continue;
+          }
+
+          node.type = { resolvedName: "Container" };
+          node.displayName = "Container";
+        }
       }
-      return typeof initialJson === "string" ? initialJson : JSON.stringify(parsed);
+      return JSON.stringify(parsed);
     } catch {
       return null;
     }
@@ -745,7 +813,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
                 </button>
               </div>
             </div>
-          </>
+          </div>
         )}
         {/* Right Panel */}
         {panelsReady && (
