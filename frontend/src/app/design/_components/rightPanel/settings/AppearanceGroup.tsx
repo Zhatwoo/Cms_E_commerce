@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Scan, Plus, SquareRoundCorner, ImageIcon, X } from "lucide-react";
+import React, { useRef, useState } from "react";
+import { Scan, Plus, SquareRoundCorner, ImageIcon, X, Upload, Loader2 } from "lucide-react";
 import { NumericInput } from "./inputs/NumericInput";
 import { ColorInput } from "./inputs/ColorInput";
 import type { AppearanceProps, SetProp } from "../../../_types/components";
@@ -44,6 +44,35 @@ export const AppearanceGroup = ({
 }: AppearanceGroupProps) => {
   const [expandRadius, setExpandRadius] = useState(false);
   const [showBgImage, setShowBgImage] = useState(!!backgroundImage);
+  const [uploadingBg, setUploadingBg] = useState(false);
+  const bgFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleBackgroundImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.type.startsWith("image/")) {
+      if (bgFileInputRef.current) bgFileInputRef.current.value = "";
+      return;
+    }
+
+    setUploadingBg(true);
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      setProp((props) => {
+        props.backgroundImage = dataUrl;
+      });
+      setUploadingBg(false);
+      if (bgFileInputRef.current) bgFileInputRef.current.value = "";
+    };
+
+    reader.onerror = () => {
+      setUploadingBg(false);
+      if (bgFileInputRef.current) bgFileInputRef.current.value = "";
+    };
+
+    reader.readAsDataURL(file);
+  };
 
   const handleRadiusChange = (corner: string, val: number) => {
     setProp((props) => {
@@ -106,15 +135,38 @@ export const AppearanceGroup = ({
 
         {showBgImage && (
           <div className="flex flex-col gap-2">
-            {/* Image URL */}
             <input
-              type="text"
-              value={backgroundImage}
-              onChange={(e) => setProp((props) => { props.backgroundImage = e.target.value; })}
-              onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-              placeholder="https://example.com/image.jpg"
-              className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none placeholder:text-brand-medium"
+              ref={bgFileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleBackgroundImageUpload}
+              className="hidden"
             />
+
+            {/* Image URL */}
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={backgroundImage}
+                onChange={(e) => setProp((props) => { props.backgroundImage = e.target.value; })}
+                onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                placeholder="https://example.com/image.jpg"
+                className="flex-1 bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none placeholder:text-brand-medium"
+              />
+              <button
+                type="button"
+                onClick={() => bgFileInputRef.current?.click()}
+                disabled={uploadingBg}
+                className="px-2.5 py-1.5 bg-brand-medium/30 hover:bg-brand-medium/50 border border-brand-medium/30 rounded-lg transition-colors flex items-center justify-center disabled:opacity-50"
+                title="Upload image"
+              >
+                {uploadingBg ? (
+                  <Loader2 className="w-3.5 h-3.5 text-brand-light animate-spin" />
+                ) : (
+                  <Upload className="w-3.5 h-3.5 text-brand-light" />
+                )}
+              </button>
+            </div>
 
             {/* Size & Position Row */}
             <div className="grid grid-cols-2 gap-2">

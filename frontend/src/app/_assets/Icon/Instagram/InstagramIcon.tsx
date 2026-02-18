@@ -4,7 +4,7 @@ import React from "react";
 import { Element } from "@craftjs/core";
 import { Icon } from "../../../design/_designComponents/Icon/Icon";
 import { Instagram } from "../Instagram/Instagram";
-import { TemplateEntry } from "../_types";
+import { TemplateEntry } from "../../_types";
 
 export const InstagramIcon: TemplateEntry = {
   label: "Instagram Icon",

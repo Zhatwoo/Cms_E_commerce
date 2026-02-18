@@ -4,7 +4,7 @@ import React from "react";
 import { Element } from "@craftjs/core";
 import { Icon } from "../../../design/_designComponents/Icon/Icon";
 import { Settings } from "../Settings/Settings";
-import { TemplateEntry } from "../_types";
+import { TemplateEntry } from "../../_types";
 
 export const SettingsIcon: TemplateEntry = {
   label: "Settings Icon",

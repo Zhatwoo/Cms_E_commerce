@@ -83,6 +83,7 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
     fontSize: 16,
     fontFamily: "Inter",
     fontWeight: "400",
+    fontStyle: "normal",
     lineHeight: 1.5,
     letterSpacing: 0,
     textAlign: "left",
@@ -532,7 +533,7 @@ export function deserializeCleanToCraft(doc: BuilderDocument): string {
       custom: {},
       parent: "ROOT",
       hidden: false,
-      nodes: page.children,
+      nodes: validChildren,
       linkedNodes: {},
     };
 
@@ -553,10 +554,19 @@ function reconstructChildren(
 ): void {
   for (const id of childIds) {
     const cleanNode = nodes[id];
-    if (!cleanNode) continue;
+    if (!cleanNode) {
+      console.warn(`⚠️ Node ${parentId} references missing child node: ${id}`);
+      continue;
+    }
 
     // Already reconstructed
     if (craft[id]) continue;
+
+    // Validate that the node has a type
+    if (!cleanNode.type) {
+      console.error(`❌ Node ${id} is missing required 'type' property. Skipping.`);
+      continue;
+    }
 
     const defaults = COMPONENT_DEFAULTS[cleanNode.type] ?? {};
     const canvasTypes = new Set([
@@ -564,10 +574,20 @@ function reconstructChildren(
       "Section",
       "Row",
       "Column",
+      "Button",
       "Circle",
       "Square",
       "Triangle",
     ]);
+
+    // Validate and filter children to only include existing nodes
+    const validChildren = (cleanNode.children || []).filter((childId) => {
+      const exists = !!nodes[childId];
+      if (!exists) {
+        console.warn(`⚠️ Node ${id} references missing child node: ${childId}`);
+      }
+      return exists;
+    });
 
     craft[id] = {
       type: { resolvedName: cleanNode.type },
@@ -577,13 +597,13 @@ function reconstructChildren(
       custom: {},
       parent: parentId,
       hidden: false,
-      nodes: cleanNode.children,
+      nodes: validChildren,
       linkedNodes: {},
     };
 
     // Recurse
-    if (cleanNode.children.length > 0) {
-      reconstructChildren(cleanNode.children, id, nodes, craft);
+    if (validChildren.length > 0) {
+      reconstructChildren(validChildren, id, nodes, craft);
     }
   }
 }

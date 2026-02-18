@@ -8,12 +8,11 @@ import {
   MinimalistSaleHeader,
   LuxuryHeader,
   MobileHeader,
-  HeaderWithChips,
   DarkModeHeader
 } from "./Header";
 import { CenteredHero, HeroWithImage } from "./Hero";
 import { FeaturesGrid, Testimonial } from "./Content";
-import { ContactForm, NewsletterSignup } from "./Forms";
+import { ContactForm, NewsletterSignup, OrderForm, LoginForm, SignupForm, AddToCart, PaymentForm } from "./Forms";
 import { ProductCard, TeamMemberCard } from "./Cards";
 import {
   SimpleFooter,
@@ -102,7 +101,6 @@ export const TEMPLATES: TemplateEntry[] = [
   MinimalistSaleHeader,
   LuxuryHeader,
   MobileHeader,
-  HeaderWithChips,
   DarkModeHeader,
   CenteredHero,
   HeroWithImage,
@@ -110,6 +108,11 @@ export const TEMPLATES: TemplateEntry[] = [
   Testimonial,
   ContactForm,
   NewsletterSignup,
+  OrderForm,
+  LoginForm,
+  SignupForm,
+  AddToCart,
+  PaymentForm,
   ProductCard,
   TeamMemberCard,
   SimpleFooter,
@@ -165,7 +168,6 @@ export const GROUPED_TEMPLATES = [
       MinimalistSaleHeader,
       LuxuryHeader,
       MobileHeader,
-      HeaderWithChips,
       DarkModeHeader,
     ],
   },
@@ -179,7 +181,7 @@ export const GROUPED_TEMPLATES = [
   },
   {
     folder: "Forms",
-    items: [ContactForm, NewsletterSignup],
+    items: [ContactForm, NewsletterSignup, OrderForm, LoginForm, SignupForm, AddToCart, PaymentForm],
   },
   {
     folder: "Cards",

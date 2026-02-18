@@ -48,9 +48,11 @@ export const CanvasSelectionHandler = () => {
 
       const safeSelect = (payload: string | string[] | null) => {
         try {
-          actions.selectNode(payload);
+          if (payload !== null) {
+            actions.selectNode(payload);
+          }
         } catch {
-          try { actions.selectNode(null); } catch { /* ignore */ }
+          try { actions.selectNode(undefined); } catch { /* ignore */ }
         }
       };
 

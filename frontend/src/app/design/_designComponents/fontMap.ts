@@ -7,16 +7,15 @@ const FONT_STACK_MAP: Record<string, string> = {
   "lato": "Lato",
   "raleway": "Raleway",
   "playfair display": "Playfair Display",
-  "garamond": "Garamond",
   "eb garamond": "EB Garamond",
   "merriweather": "Merriweather",
   "lora": "Lora",
-  "monospace": "monospace",
-  "jetbrains mono": "JetBrains Mono",
-  "fira code": "Fira Code",
   "montserrat": "Montserrat",
   "oswald": "Oswald",
   "pacifico": "Pacifico",
+  "jetbrains mono": "JetBrains Mono",
+  "fira code": "Fira Code",
+  "monospace": "monospace",
 };
 
 function toCssVarName(name: string) {

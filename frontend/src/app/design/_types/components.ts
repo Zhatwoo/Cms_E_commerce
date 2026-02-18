@@ -128,6 +128,7 @@ export interface EffectsProps {
 export interface TypographyProps {
   fontFamily?: string;
   fontWeight?: string;
+  fontStyle?: "normal" | "italic";
   fontSize?: number;
   lineHeight?: number | string;
   letterSpacing?: number | string;
@@ -181,6 +182,7 @@ export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps,
   borderWidth?: number;
   width?: string;
   height?: string;
+  children?: ReactNode;
 }
 
 /** Page component props — top-level page wrapper with dimensions and background. */
@@ -205,14 +207,27 @@ export interface DividerProps extends TransformProps, AnimatableProps, Interacta
   marginBottom?: number;
 }
 
+/** Icon component props — displays a clickable icon with styling. */
+export interface IconProps extends SpacingProps, PositionProps, AnimatableProps {
+  iconType?: string;
+  size?: number;
+  color?: string;
+  width?: string;
+  height?: string;
+  opacity?: number;
+  link?: string;
+}
+
 export interface CircleProps
   extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps {
   color?: string;
   size?: number;
-  children?: ReactNode;
-  isPreview?: boolean;
+  color?: string;
+  width?: string;
+  height?: string;
+  opacity?: number;
+  link?: string;
 }
 
 export interface SquareProps extends CircleProps {}
 export interface TriangleProps extends CircleProps {}
-

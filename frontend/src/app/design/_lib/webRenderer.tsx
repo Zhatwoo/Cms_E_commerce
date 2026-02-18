@@ -548,6 +548,10 @@ function RenderNode({
   switch (type) {
     case "Container": {
       const hasRenderableChildren = childIds.some((id) => Boolean(nodes[id]));
+      const rawHeight = props.height as string | undefined;
+      const showEmptyMinHeight = !rawHeight && !hasRenderableChildren;
+      const effectiveDisplay =
+        (props.display as React.CSSProperties["display"] | undefined) ?? "block";
       const isProductSlot =
         storeContext &&
         storeContext.products.length > 0 &&
@@ -667,6 +671,8 @@ function RenderNode({
       const bw = (props.borderWidth ?? 0) as number;
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
+      const rawHeight = props.height as string | undefined;
+      const showEmptyMinHeight = !rawHeight || rawHeight === "auto" || rawHeight === "";
       return wrap(
         <div
           style={{
@@ -1278,6 +1284,10 @@ export function LiveSite({
       {page.children.map((id) => {
         const node = doc.nodes[id];
         if (!node) return null;
+        function onPrototypeAction(interaction: Interaction): void {
+          throw new Error("Function not implemented.");
+        }
+
         return (
           <RenderNode
             key={id}
@@ -1289,6 +1299,8 @@ export function LiveSite({
             availableTriggerTargets={availableTriggerTargets}
             onToggle={handleToggle}
             storeContext={storeContext}
+            nodeId={id}
+            onPrototypeAction={onPrototypeAction}
           />
         );
       })}
