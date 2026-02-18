@@ -141,6 +141,11 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   );
 }
 
+// Default page export for Next.js app router
+export default function Page() {
+  return <DashboardContent />;
+}
+
 /*
 Gud Luck guyss
 Kaya nyo yan

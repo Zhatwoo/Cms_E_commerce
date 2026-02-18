@@ -14,6 +14,12 @@ function getPublishedSubdomainsRef() {
   return db.collection(PUBLISHED_SUBDOMAINS);
 }
 
+/** List all published sites from Firestore collection published_subdomains. */
+async function listAllFromPublishedSubdomains() {
+  const snap = await getPublishedSubdomainsRef().get();
+  return snap.docs.map((d) => docToObject(d));
+}
+
 async function create(data) {
   const doc = {
     user_id: data.userId || null,
@@ -61,10 +67,75 @@ async function deleteById(id) {
   await db.collection(COLLECTION).doc(id).delete();
 }
 
-/** Write public lookup so /api/public/sites/:subdomain can resolve without collection group. */
+/**
+ * Publish for a client: write to BOTH paths in one batch so both always stay in sync for any client UID.
+ * - user/roles/client/{userId}/domains/{domainId}
+ * - published_subdomains/{subdomain}
+ */
+async function publishForClientBatch(userId, { projectId, projectTitle, subdomain }) {
+  const normalized = (subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  if (!normalized) throw new Error('subdomain is required');
+  if (!userId || !projectId) throw new Error('userId and projectId are required');
+
+  const clientRef = getDomainsRef(userId);
+  const publishedRef = getPublishedSubdomainsRef();
+  const now = new Date();
+
+  const existing = await findByProjectId(userId, projectId);
+  const batch = db.batch();
+
+  let domainId;
+  const clientDoc = {
+    project_id: projectId,
+    project_title: projectTitle || null,
+    subdomain: normalized,
+    domain: null,
+    status: 'published',
+    updated_at: now,
+  };
+
+  if (existing) {
+    domainId = existing.id;
+    const ref = clientRef.doc(domainId);
+    batch.update(ref, {
+      project_title: clientDoc.project_title,
+      subdomain: clientDoc.subdomain,
+      status: clientDoc.status,
+      updated_at: clientDoc.updated_at,
+    });
+  } else {
+    clientDoc.created_at = now;
+    const newRef = clientRef.doc(); // auto-generated id
+    domainId = newRef.id;
+    batch.set(newRef, clientDoc);
+  }
+
+  batch.set(publishedRef.doc(normalized), {
+    user_id: userId,
+    project_id: projectId,
+    domain_id: domainId,
+    status: 'published',
+    project_title: projectTitle || null,
+    updated_at: now,
+  }, { merge: true });
+
+  await batch.commit();
+
+  return {
+    id: domainId,
+    subdomain: normalized,
+    projectId,
+    projectTitle: projectTitle || null,
+    status: 'published',
+  };
+}
+
+/** Write public lookup and ensure client domains path is up to date. */
 async function setSubdomainLookup(subdomain, { userId, projectId, domainId, status, projectTitle }) {
   const normalized = (subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
   if (!normalized) return;
+
+  // 1. Write to published_subdomains (fallback / fast lookup)
   await getPublishedSubdomainsRef().doc(normalized).set({
     user_id: userId,
     project_id: projectId,
@@ -73,15 +144,70 @@ async function setSubdomainLookup(subdomain, { userId, projectId, domainId, stat
     project_title: projectTitle || null,
     updated_at: new Date(),
   }, { merge: true });
+
+  // 2. Ensure user/roles/client/{userId}/domains has this entry too
+  if (userId) {
+    try {
+      const existing = await findByProjectId(userId, projectId);
+      if (existing) {
+        await updateForClient(userId, existing.id, {
+          subdomain: normalized,
+          projectId,
+          projectTitle: projectTitle || null,
+          status: status || 'published',
+        });
+      } else {
+        await createForClient(userId, {
+          projectId,
+          projectTitle: projectTitle || null,
+          subdomain: normalized,
+          status: status || 'published',
+        });
+      }
+    } catch (e) {
+      console.warn('setSubdomainLookup: failed to sync client domains path:', e.message);
+    }
+  }
 }
 
 /**
- * Resolve published site by subdomain. Reads from published_subdomains/{subdomain} (populated when user publishes or syncs).
+ * Resolve published site by subdomain.
+ * Primary: collection group query on "domains" subcollections under user/roles/client/{userId}/domains.
+ * Fallback: published_subdomains/{subdomain} for backward compat.
  * Returns { id, projectId, userId, subdomain, projectTitle, status } or null.
  */
 async function findBySubdomain(subdomain) {
   const normalized = (subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
   if (!normalized) return null;
+
+  // Primary: collection group query on client domains
+  try {
+    const groupSnap = await db.collectionGroup('domains')
+      .where('subdomain', '==', normalized)
+      .where('status', '==', 'published')
+      .limit(1)
+      .get();
+    if (!groupSnap.empty) {
+      const doc = groupSnap.docs[0];
+      const data = docToObject(doc);
+      // Extract userId from path: user/roles/client/{userId}/domains/{domainId}
+      const pathParts = doc.ref.path.split('/');
+      const clientIdx = pathParts.indexOf('client');
+      const userId = clientIdx >= 0 && clientIdx + 1 < pathParts.length ? pathParts[clientIdx + 1] : data.userId;
+      return {
+        id: data.id || doc.id,
+        projectId: data.projectId,
+        userId: userId,
+        subdomain: normalized,
+        projectTitle: data.projectTitle,
+        status: data.status,
+      };
+    }
+  } catch (e) {
+    console.warn('findBySubdomain collectionGroup query failed, falling back:', e.message);
+  }
+
+  // Fallback: published_subdomains
   const snap = await getPublishedSubdomainsRef().doc(normalized).get();
   if (!snap.exists) return null;
   const data = docToObject(snap);
@@ -156,8 +282,10 @@ module.exports = {
   findAll,
   update,
   delete: deleteById,
+  publishForClientBatch,
   setSubdomainLookup,
   findBySubdomain,
+  listAllFromPublishedSubdomains,
   listByClient,
   get,
   getDomainsRef,

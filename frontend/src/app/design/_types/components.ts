@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import type { AnimationConfig } from "./animation";
+import type { PrototypeConfig } from "./prototype";
 
 /**
  * Shared type definitions for web builder components.
@@ -9,6 +11,18 @@ import type { ReactNode } from "react";
 
 /** Type-safe setProp wrapper for craft.js node property updates. */
 export type SetProp<T> = (cb: (props: T) => void) => void;
+
+// ─── Animation Properties (shared by all components) ─────────────────────────
+
+export interface AnimatableProps {
+  animation?: AnimationConfig;
+}
+
+// ─── Prototype / Interaction (Figma-style) ───────────────────────────────────
+
+export interface InteractableProps {
+  prototype?: PrototypeConfig;
+}
 
 // ─── Settings Group Prop Interfaces ──────────────────────────────────────────
 // Each interface below corresponds to a settings group in the right panel.
@@ -40,6 +54,9 @@ export interface SpacingProps {
 export interface SizeProps {
   width?: string;
   height?: string;
+  /** Content size at scale 1; when set, children are scaled with parent resize */
+  designWidth?: number;
+  designHeight?: number;
 }
 
 /** Visual appearance properties → AppearanceGroup */
@@ -80,6 +97,12 @@ export interface PositionProps {
   right?: string;
   bottom?: string;
   left?: string;
+  editorVisibility?: "auto" | "show" | "hide";
+}
+
+/** Transform properties (rotation) — used for double-click transform mode */
+export interface TransformProps {
+  rotation?: number; // degrees, 0 = no rotation
 }
 
 /** Visual effects properties → EffectsGroup */
@@ -94,6 +117,7 @@ export interface EffectsProps {
 export interface TypographyProps {
   fontFamily?: string;
   fontWeight?: string;
+  fontStyle?: "normal" | "italic";
   fontSize?: number;
   lineHeight?: number | string;
   letterSpacing?: number | string;
@@ -106,19 +130,19 @@ export interface TypographyProps {
 
 /** Container component props — combines all layout and visual property groups. */
 export interface ContainerProps
-  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps {
+  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps, AnimatableProps, InteractableProps {
   children?: ReactNode;
 }
 
 /** Text component props — combines typography, spacing, and basic effects. */
-export interface TextProps extends SpacingProps, TypographyProps {
+export interface TextProps extends SpacingProps, TypographyProps, TransformProps, AnimatableProps, InteractableProps {
   text: string;
   opacity?: number;
   boxShadow?: string;
 }
 
 /** Image component props — media display with sizing, corners, and effects. */
-export interface ImageProps extends SpacingProps, SizeProps, EffectsProps {
+export interface ImageProps extends SpacingProps, SizeProps, EffectsProps, TransformProps, AnimatableProps, InteractableProps {
   src?: string;
   alt?: string;
   objectFit?: "cover" | "contain" | "fill" | "none" | "scale-down";
@@ -130,7 +154,7 @@ export interface ImageProps extends SpacingProps, SizeProps, EffectsProps {
 }
 
 /** Button component props — interactive element with label, link, and variant. */
-export interface ButtonProps extends SpacingProps, EffectsProps {
+export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps, AnimatableProps, InteractableProps {
   label?: string;
   link?: string;
   variant?: "primary" | "secondary" | "outline" | "ghost";
@@ -147,19 +171,34 @@ export interface ButtonProps extends SpacingProps, EffectsProps {
 }
 
 /** Page component props — top-level page wrapper with dimensions and background. */
-export interface PageProps {
+export interface PageProps extends AnimatableProps, InteractableProps {
   width?: string;
   height?: string;
   background?: string;
+  /** User-editable page name (e.g. "About Us"). */
+  pageName?: string;
+  /** URL slug for navigation (e.g. "about-us"). Auto-derived from pageName if not set. */
+  pageSlug?: string;
   children?: ReactNode;
 }
 
 /** Divider component props — simple horizontal rule element. */
-export interface DividerProps {
+export interface DividerProps extends TransformProps, AnimatableProps, InteractableProps {
   dividerStyle?: "solid" | "dashed" | "dotted";
   color?: string;
   thickness?: number;
   width?: string;
   marginTop?: number;
   marginBottom?: number;
+}
+
+/** Icon component props — displays a clickable icon with styling. */
+export interface IconProps extends SpacingProps, PositionProps, AnimatableProps {
+  iconType?: string;
+  size?: number;
+  color?: string;
+  width?: string;
+  height?: string;
+  opacity?: number;
+  link?: string;
 }

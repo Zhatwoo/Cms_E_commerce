@@ -13,9 +13,20 @@ import { Section } from "../_designComponents/Section/Section";
 import { Button } from "../_designComponents/Button/Button";
 import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
+import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
+import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
+import { BoxSelectionHandler } from "./BoxSelectionHandler";
+import { TransformModeProvider } from "./TransformModeContext";
+import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
+import { PrototypeTabProvider } from "./PrototypeTabContext";
+import { PrototypeFlowLines } from "./PrototypeFlowLines";
+import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
+import { Triangle } from "@/app/_assets/shapes/triangle/triangle";
+import { Square } from "@/app/_assets/shapes/square/square";
+import { Circle } from "@/app/_assets/shapes/circle/circle";
 
 /**
  * React Error Boundary to catch rendering errors in Frame component
@@ -299,8 +310,10 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   const [initialJson, setInitialJson] = useState<string | null | undefined>(undefined);
   const [panelsReady, setPanelsReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
+  const [rightPanelTab, setRightPanelTab] = useState<TabId>("design");
 
   // Cleanup corrupted data when error boundary triggers
   const handleFrameError = useCallback(async () => {
@@ -411,6 +424,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
         if (!isSpacePressed) {
           setIsSpacePressed(true);
+          document.body.dataset.spacePan = "true";
         }
       }
     };
@@ -419,6 +433,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
       if (e.code === "Space") {
         setIsSpacePressed(false);
         setIsPanning(false);
+        document.body.removeAttribute("data-space-pan");
       }
     };
 
@@ -464,9 +479,9 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
       try {
         console.log('📥 loadDraft starting...', projectId);
 
-        // Try localStorage per-project so Start from Scratch gets blank canvas
+        // Try sessionStorage per-project (no localStorage — auth/drafts in cookies or session only)
         const storageKey = getStorageKey(projectId);
-        const sessionSaved = localStorage.getItem(storageKey);
+        const sessionSaved = sessionStorage.getItem(storageKey);
 
         // Try to load from database
         console.log('📡 Calling getDraft()...');
@@ -493,21 +508,10 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             const parsed = JSON.parse(content);
             // Validate structure: must have ROOT and ROOT must have nodes property and type
             if (parsed && parsed.ROOT && parsed.ROOT.nodes && Array.isArray(parsed.ROOT.nodes)) {
-              // Deep validation: check entire tree and clean invalid references
-              const validation = validateCraftData(content);
-              
-              if (validation.valid && validation.data) {
-                console.log(`✅ Loaded and validated draft from DB`);
-                contentToLoad = validation.data;
-                // Sync to localStorage (per-project)
-                localStorage.setItem(storageKey, contentToLoad);
-              } else {
-                console.error('❌ Draft validation failed. Data is corrupted. Clearing from database...');
-                // Clear corrupted data from database to prevent recurring errors
-                await deleteDraft(projectId);
-                // Clear from localStorage too
-                localStorage.removeItem(storageKey);
-              }
+              console.log(`✅ Loaded valid draft from DB (${Object.keys(parsed).length} internal nodes)`);
+              contentToLoad = content;
+              // Sync to sessionStorage (per-project)
+              sessionStorage.setItem(storageKey, contentToLoad!);
             } else {
               console.warn('⚠️ Invalid draft structure: missing ROOT or ROOT.nodes. Clearing from database...');
               // Clear invalid data from database
@@ -519,29 +523,20 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
           }
         }
 
-        // 2. Check LocalStorage (fallback for this project only)
+        // 2. Check sessionStorage (fallback for this project only)
         if (!contentToLoad && sessionSaved) {
           try {
             const parsed = JSON.parse(sessionSaved);
-            // Validate structure: must have ROOT and ROOT must have nodes property
             if (parsed && parsed.ROOT && parsed.ROOT.nodes && Array.isArray(parsed.ROOT.nodes)) {
-              // Deep validation: check entire tree and clean invalid references
-              const validation = validateCraftData(sessionSaved);
-              
-              if (validation.valid && validation.data) {
-                console.log('✅ Loaded and validated draft from localStorage');
-                contentToLoad = validation.data;
-              } else {
-                console.error('❌ localStorage draft validation failed. Clearing.');
-                localStorage.removeItem(storageKey);
-              }
+              console.log('✅ Loaded valid draft from session (this project)');
+              contentToLoad = sessionSaved;
             } else {
-              console.warn('⚠️ Invalid draft structure in localStorage: missing ROOT or ROOT.nodes');
-              localStorage.removeItem(storageKey);
+              console.warn('⚠️ Invalid draft structure in session: missing ROOT or ROOT.nodes');
+              sessionStorage.removeItem(storageKey);
             }
           } catch (e) {
-            console.error('Failed to parse localStorage draft:', e);
-            localStorage.removeItem(storageKey);
+            console.error('Failed to parse session draft:', e);
+            sessionStorage.removeItem(storageKey);
           }
         }
 
@@ -584,7 +579,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
     if (result.success) {
       console.log('✅ Draft deleted');
-      localStorage.removeItem(getStorageKey(projectId));
+      sessionStorage.removeItem(getStorageKey(projectId));
       location.reload(); // Reload to reset editorstate
     } else {
       showAlert('Failed to delete draft: ' + (result.error || 'Unknown error'));
@@ -605,7 +600,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
 
       // Defer state update to avoid 'Cannot update a component while rendering a different component'
-      Promise.resolve().then(() => setSaveStatus('saving'));
+      Promise.resolve().then(() => { setSaveStatus('saving'); setSaveError(null); });
 
       saveTimerRef.current = setTimeout(async () => {
         try {
@@ -618,8 +613,8 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
           console.log('🔄 Auto-save executing (Clean Code)...');
 
-          // Save to localStorage per-project so other projects stay untouched
-          localStorage.setItem(getStorageKey(projectId), next);
+          // Save to sessionStorage per-project (no localStorage)
+          sessionStorage.setItem(getStorageKey(projectId), next);
 
           // Save CLEAN CODE to database (only when projectId is set)
           if (projectId) {
@@ -627,15 +622,18 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
             if (result.success) {
               setSaveStatus('saved');
+              setSaveError(null);
               setTimeout(() => setSaveStatus('idle'), 2000);
             } else {
               console.warn('Auto-save warning:', result.error);
               setSaveStatus('error');
+              setSaveError(result.error || 'Save failed');
             }
           }
         } catch (error) {
           console.error('Auto-save error:', error);
           setSaveStatus('error');
+          setSaveError(error instanceof Error ? error.message : 'Network or serialization error');
         }
       }, 2000); // Debounce 2s
     },
@@ -651,7 +649,32 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
   const resolver = {
     ...RenderBlocks,
+    Circle: Circle || Container,
+    Square: Square || Container,
+    Triangle: Triangle || Container,
   } as any;
+
+  /** Only pass to Frame if data is valid Craft format and every node type exists in resolver */
+  const resolverRef = useRef(resolver);
+  resolverRef.current = resolver;
+  const validFrameData = React.useMemo(() => {
+    if (initialJson === undefined || initialJson === null || initialJson === "") return null;
+    try {
+      const parsed = typeof initialJson === "string" ? JSON.parse(initialJson) : initialJson;
+      if (!parsed || typeof parsed !== "object" || !parsed.ROOT || !Array.isArray(parsed.ROOT?.nodes)) return null;
+      const keys = new Set(Object.keys(resolverRef.current));
+      for (const id of Object.keys(parsed)) {
+        const node = parsed[id];
+        if (!node || typeof node !== "object") continue;
+        const t = node.type;
+        const name = (typeof t === "string" ? t : t?.resolvedName) ?? "";
+        if (!name || !keys.has(name)) return null;
+      }
+      return typeof initialJson === "string" ? initialJson : JSON.stringify(parsed);
+    } catch {
+      return null;
+    }
+  }, [initialJson]);
 
   // Debug: list resolver keys so we can confirm components are registered at runtime
   if (typeof window !== "undefined") {
@@ -700,10 +723,18 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         onRender={RenderNode}
         onNodesChange={handleNodesChange}
       >
-        <KeyboardShortcuts />
-        {/* Canvas Area (Background) */}
+        <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
+        <TransformModeProvider>
+          <KeyboardShortcuts />
+          <CanvasSelectionHandler />
+          <FigmaStyleDragHandler />
+          <BoxSelectionHandler />
+          <DoubleClickTransformHandler />
+          <PrototypeFlowLines />
+          {/* Canvas Area (Background) */}
         <div
           ref={containerRef}
+          data-canvas-container
           className="absolute inset-0 overflow-auto bg-brand-darker"
           style={{ cursor: isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : 'default' }}
           onMouseDown={handleMouseDown}
@@ -716,13 +747,25 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             className="min-w-[200vw] min-h-[200vh] flex items-center justify-center p-40"
             style={{ zoom: scale }}
           >
-            {initialJson === undefined ? null : <SafeFrame data={initialJson} onError={handleFrameError} />}
+            {initialJson === undefined ? null : validFrameData ? (
+              <Frame data={validFrameData} />
+            ) : (
+              <Frame>
+                <Element is={Viewport} canvas>
+                  {/* Single empty page as starting point */}
+                  <Element is={Page} canvas>
+                    <Element is={Container} padding={40} background="#ffffff" canvas>
+                    </Element>
+                  </Element>
+                </Element>
+              </Frame>
+            )}
           </div>
         </div>
         {/* Floating Panels */}
         {/* Left Panel */}
         {panelsReady && (
-          <>
+          <div>
             {/* Left Panel */}
             <div className="absolute top-4 left-4 z-50 h-[calc(100vh-2rem)] w-80 flex items-start pointer-events-none">
               <div
@@ -756,16 +799,21 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         {panelsReady && (
           <div className="absolute top-4 right-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
             <div className="pointer-events-auto h-full">
-              <RightPanel projectId={projectId} />
+              <RightPanel
+                projectId={projectId}
+                activeTab={rightPanelTab}
+                setActiveTab={setRightPanelTab}
+              />
             </div>
           </div>
         )}
         {/* Canvas Controls Overlay: ito yung nasa baba :> */}
-        <div className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">
+        <div data-panel="canvas-controls" className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">
           <div className="flex gap-4 items-center">
             <span>{Math.round(scale * 100)}%</span>
             <span>Space + Drag to Pan</span>
             <span>Ctrl + Scroll to Zoom</span>
+            <span>Ctrl (Win) / ⌘ Cmd (Mac) + Click to multi-select</span>
             {/* Delete Button */}
             <button
               onClick={handleDeleteData}
@@ -781,11 +829,13 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
                 }`}>
                 {saveStatus === 'saving' ? '💾 Saving...' :
                   saveStatus === 'saved' ? '✓ Saved' :
-                    '⚠ Save failed'}
+                    saveError ? `⚠ Save failed: ${saveError}` : '⚠ Save failed'}
               </span>
             )}
           </div>
         </div>
+        </TransformModeProvider>
+        </PrototypeTabProvider>
       </Editor>
     </div>
   );

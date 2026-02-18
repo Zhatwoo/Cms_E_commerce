@@ -2,6 +2,7 @@
 const { auth } = require('../config/firebase');
 const PasswordReset = require('../models/PasswordReset');
 const { sendVerificationEmail } = require('../utils/emailService');
+const { uploadAvatar, slugPathSegment } = require('../utils/storageHelpers');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
@@ -28,6 +29,7 @@ const clearAuthCookie = (res) => {
   res.clearCookie(COOKIE_NAME, { path: '/', httpOnly: true });
 };
 
+/** No user cookie: confidential data (email, name) must not appear in cookies or localStorage. */
 const userToResponse = (user) => {
   if (!user) return null;
   return {
@@ -36,7 +38,8 @@ const userToResponse = (user) => {
     name: user.displayName || user.email || '',
     avatar: user.avatar || null,
     role: user.role,
-    subscriptionPlan: user.subscriptionPlan
+    subscriptionPlan: user.subscriptionPlan,
+    createdAt: user.createdAt
   };
 };
 
@@ -376,6 +379,20 @@ exports.verifyEmail = async (req, res) => {
   }
 };
 
+// @desc    Get Firebase custom token so frontend can sign in to Firebase Auth (e.g. for Storage uploads)
+// @route   GET /api/auth/firebase-custom-token
+// @access  Private
+exports.getFirebaseCustomToken = async (req, res) => {
+  try {
+    const uid = req.user.id;
+    const customToken = await auth.createCustomToken(uid);
+    res.status(200).json({ success: true, customToken });
+  } catch (error) {
+    console.error('getFirebaseCustomToken error:', error);
+    res.status(500).json({ success: false, message: 'Failed to create Firebase token', error: error.message });
+  }
+};
+
 // @desc    Get current user (Firestore)
 // @route   GET /api/auth/me
 // @access  Private
@@ -385,7 +402,6 @@ exports.getMe = async (req, res) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
-
     res.status(200).json({
       success: true,
       user: {
@@ -408,6 +424,12 @@ exports.logout = (req, res) => {
 exports.updateProfile = async (req, res) => {
   try {
     const { name, avatar, username, website, bio } = req.body;
+    if (avatar !== undefined && typeof avatar === 'string' && avatar.trim().startsWith('data:')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Avatar must be a Storage URL. Upload the image first; do not send base64.'
+      });
+    }
     const updates = {};
     if (name !== undefined) updates.name = name;
     if (avatar !== undefined) updates.avatar = avatar;
@@ -427,6 +449,42 @@ exports.updateProfile = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+/**
+ * Upload avatar: multipart file -> Storage at Clients/{uid}/avatar.{ext} -> save URL in Firestore.
+ * @route POST /api/auth/avatar
+ * @access Private
+ */
+exports.uploadAvatar = async (req, res) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ success: false, message: 'No file uploaded. Use field name "avatar".' });
+    }
+    const uid = req.user.id;
+    const mimeType = req.file.mimetype || 'image/png';
+    if (!mimeType.startsWith('image/')) {
+      return res.status(400).json({ success: false, message: 'File must be an image.' });
+    }
+    const user = await User.get(uid);
+    const slug = slugPathSegment(user?.displayName || user?.username || user?.email || uid);
+    const folderName = `${slug}-${uid}`;
+    const url = await uploadAvatar(req.file.buffer, uid, mimeType, folderName);
+    await User.update(uid, { avatar: url });
+    const updatedUser = await User.get(uid);
+    res.status(200).json({
+      success: true,
+      message: 'Avatar uploaded',
+      url,
+      user: userToResponse(updatedUser)
+    });
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') console.error('uploadAvatar error:', error.message);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Upload failed'
+    });
   }
 };
 

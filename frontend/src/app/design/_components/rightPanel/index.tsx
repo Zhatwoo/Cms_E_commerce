@@ -1,12 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useEditor } from "@craftjs/core";
 import { useRouter } from "next/navigation";
 import { PanelRight, Play, X } from "lucide-react";
 import { serializeCraftToClean } from "../../_lib/serializer";
 import { autoSavePage } from "../../_lib/pageApi";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
+import { AnimationGroup } from "./settings/AnimationGroup";
+import { BatchEditGroup } from "./settings/BatchEditGroup";
+import { PrototypeGroup } from "./settings/PrototypeGroup";
 
-type TabId = "design" | "settings" | "animation";
+export type TabId = "design" | "prototype" | "animation";
 
 interface Tab {
   id: TabId;
@@ -15,31 +18,43 @@ interface Tab {
 
 const TABS: Tab[] = [
   { id: "design", label: "Design" },
-  { id: "settings", label: "Settings" },
+  { id: "prototype", label: "Prototype" },
   { id: "animation", label: "Animation" },
 ];
 
-export const RightPanel = ({ projectId }: { projectId: string }) => {
+interface RightPanelProps {
+  projectId: string;
+  activeTab?: TabId;
+  setActiveTab?: (tab: TabId) => void;
+}
+
+export const RightPanel = ({ projectId, activeTab: controlledTab, setActiveTab: setControlledTab }: RightPanelProps) => {
   const { showAlert } = useAlert();
-  const [activeTab, setActiveTab] = useState<TabId>("design");
+  const [internalTab, setInternalTab] = useState<TabId>("design");
+  const activeTab = controlledTab ?? internalTab;
+  const setActiveTab = setControlledTab ?? setInternalTab;
   const [isPreviewing, setIsPreviewing] = useState(false);
   const router = useRouter();
+  const panelRef = useRef<HTMLDivElement>(null);
 
-  const { selected, query } = useEditor((state) => {
-    const [currentNodeId] = state.events.selected;
-    let selected;
-
-    if (currentNodeId) {
-      selected = {
-        id: currentNodeId,
-        name: state.nodes[currentNodeId].data.displayName,
-        settings:
-          state.nodes[currentNodeId].related &&
-          state.nodes[currentNodeId].related.settings,
-      };
-    }
-
-    return { selected };
+  const { selectedIds, primary, query } = useEditor((state) => {
+    const sel = state.events.selected;
+    const ids: string[] = Array.isArray(sel)
+      ? sel.filter((id) => id && id !== "ROOT")
+      : sel instanceof Set
+        ? Array.from(sel).filter((id) => id && id !== "ROOT")
+        : sel && typeof sel === "object"
+          ? Object.keys(sel).filter((id) => id && id !== "ROOT")
+          : [];
+    const firstId = ids[0];
+    const primary = firstId && state.nodes[firstId]
+      ? {
+          id: firstId,
+          name: state.nodes[firstId].data.displayName,
+          settings: state.nodes[firstId].related?.settings,
+        }
+      : null;
+    return { selectedIds: ids, primary };
   });
 
   const handlePreview = async () => {
@@ -68,30 +83,35 @@ export const RightPanel = ({ projectId }: { projectId: string }) => {
     }
   };
 
-  const handlePanelWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLElement | null;
-    if (!target) return;
+  // Prevent panel scroll when wheeling over inputs/selects (e.g. width/height) — use capture so we run before the scrollable container
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
 
-    const tag = target.tagName;
-    const isField =
-      tag === "INPUT" ||
-      tag === "TEXTAREA" ||
-      target.isContentEditable;
-
-    if (isField) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (e.nativeEvent && "stopImmediatePropagation" in e.nativeEvent) {
-        (e.nativeEvent as any).stopImmediatePropagation();
+    const handleWheelCapture = (e: WheelEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const tag = target.tagName;
+      const isField =
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        target.isContentEditable === true;
+      if (isField) {
+        e.preventDefault();
+        e.stopPropagation();
       }
-    }
-  };
+    };
+
+    panel.addEventListener("wheel", handleWheelCapture, { passive: false, capture: true });
+    return () => panel.removeEventListener("wheel", handleWheelCapture, { capture: true });
+  }, []);
 
   return (
     <div
+      data-panel="configs"
       className="w-80 bg-brand-darker/75 backdrop-blur-lg rounded-3xl p-6 h-full shadow-2xl overflow-y-auto border border-white/10 transition-shadow duration-300"
       style={{ boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)" }}
-      onWheel={handlePanelWheel}
     >
       <div className="flex items-center justify-between mb-6 gap-2">
         <h3 className="text-brand-lighter font-bold text-lg">Configs</h3>
@@ -105,12 +125,14 @@ export const RightPanel = ({ projectId }: { projectId: string }) => {
         </button>
       </div>
 
-      {selected ? (
+      {selectedIds.length > 0 ? (
         <div>
           <div className="mb-6">
             <div className="bg-brand-medium/20 p-2 rounded-lg text-center border border-brand-medium/30">
               <span className="text-brand-lighter font-medium text-sm">
-                {selected.name}
+                {selectedIds.length === 1 && primary
+                  ? primary.name
+                  : `${selectedIds.length} components selected`}
               </span>
             </div>
           </div>
@@ -134,24 +156,22 @@ export const RightPanel = ({ projectId }: { projectId: string }) => {
           {/* Tab Content */}
           <div className="space-y-6">
             {activeTab === "design" &&
-              (selected.settings ? (
-                React.createElement(selected.settings)
+              (selectedIds.length > 1 ? (
+                <BatchEditGroup selectedIds={selectedIds} />
+              ) : primary?.settings ? (
+                React.createElement(primary.settings)
               ) : (
                 <div className="flex flex-col items-center justify-center py-8 text-brand-lighter opacity-50">
                   <p className="text-sm">No design settings available</p>
                 </div>
               ))}
 
-            {activeTab === "settings" && (
-              <div className="flex flex-col items-center justify-center py-8 text-brand-lighter opacity-50">
-                <p className="text-sm">Component settings coming soon</p>
-              </div>
+            {activeTab === "prototype" && (
+              <PrototypeGroup selectedIds={selectedIds} />
             )}
 
             {activeTab === "animation" && (
-              <div className="flex flex-col items-center justify-center py-8 text-brand-lighter opacity-50">
-                <p className="text-sm">Animation settings coming soon</p>
-              </div>
+              <AnimationGroup selectedIds={selectedIds} />
             )}
           </div>
         </div>

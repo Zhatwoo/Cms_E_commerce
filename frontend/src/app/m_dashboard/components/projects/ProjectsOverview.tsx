@@ -8,7 +8,8 @@ import { useTheme } from '../context/theme-context';
 import CreateSite from './CreateSite';
 import TemplatesLibrary from '../templates/TemplatesLibrary';
 import { FilterIcon } from '../dashboard/DashboardIcons';
-import { listProjects, createProject, type Project } from '@/lib/api';
+import { listProjects, createProject, getStoredUser, type Project } from '@/lib/api';
+import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
 import { useAlert } from '../context/alert-context';
 
 export function ProjectsOverview() {
@@ -34,6 +35,9 @@ export function ProjectsOverview() {
     try {
       const res = await createProject({ title: data.name || 'New Site' });
       if (res.success && res.project) {
+        const user = getStoredUser();
+        const clientName = (user?.name || user?.username || 'client').trim() || 'client';
+        ensureProjectStorageFolder(clientName, res.project.title || data.name || 'New Site').catch(() => {});
         setShowCreateSite(false);
         setProjects((prev) => [res.project!, ...prev]);
         router.push(`/design?projectId=${res.project!.id}`);

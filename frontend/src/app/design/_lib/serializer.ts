@@ -6,7 +6,9 @@
  * editor, only this file and its counterpart (deserializer) need to change.
  */
 
-import type { BuilderDocument, CleanNode, ComponentType, PageNode, SCHEMA_VERSION } from "../_types/schema";
+import type { BuilderDocument, CleanNode, ComponentType, PageNode } from "../_types/schema";
+import { DEFAULT_ANIMATION } from "../_types/animation";
+import { DEFAULT_PROTOTYPE } from "../_types/prototype";
 
 // ─── Craft.js Raw Types ─────────────────────────────────────────────────────
 
@@ -81,6 +83,7 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
     fontSize: 16,
     fontFamily: "Inter",
     fontWeight: "400",
+    fontStyle: "normal",
     lineHeight: 1.5,
     letterSpacing: 0,
     textAlign: "left",
@@ -235,10 +238,121 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
     opacity: 1,
     overflow: "visible",
   },
+  Icon: {
+    iconType: "home",
+    size: 24,
+    color: "currentColor",
+    width: "auto",
+    height: "auto",
+    margin: 0,
+    marginTop: 0,
+    marginRight: 0,
+    marginBottom: 0,
+    marginLeft: 0,
+    padding: 0,
+    paddingTop: 0,
+    paddingRight: 0,
+    paddingBottom: 0,
+    paddingLeft: 0,
+    opacity: 1,
+    link: "",
+  },
+  Circle: {
+    color: "#10b981",
+    width: "200px",
+    height: "200px",
+    background: undefined,
+    borderColor: "transparent",
+    borderWidth: 0,
+    borderStyle: "solid",
+    boxShadow: "none",
+    opacity: 1,
+    overflow: "visible",
+    cursor: "default",
+    margin: 0,
+    marginTop: 0,
+    marginRight: 0,
+    marginBottom: 0,
+    marginLeft: 0,
+    padding: 0,
+    paddingTop: 0,
+    paddingRight: 0,
+    paddingBottom: 0,
+    paddingLeft: 0,
+    position: "relative",
+    display: "flex",
+    zIndex: 0,
+    top: "auto",
+    right: "auto",
+    bottom: "auto",
+    left: "auto",
+  },
+  Square: {
+    color: "#e74c3c",
+    width: "200px",
+    height: "200px",
+    background: "#e74c3c",
+    borderColor: "transparent",
+    borderWidth: 0,
+    borderStyle: "solid",
+    boxShadow: "none",
+    opacity: 1,
+    overflow: "visible",
+    cursor: "default",
+    margin: 0,
+    marginTop: 0,
+    marginRight: 0,
+    marginBottom: 0,
+    marginLeft: 0,
+    padding: 0,
+    paddingTop: 0,
+    paddingRight: 0,
+    paddingBottom: 0,
+    paddingLeft: 0,
+    position: "relative",
+    display: "flex",
+    zIndex: 0,
+    top: "auto",
+    right: "auto",
+    bottom: "auto",
+    left: "auto",
+  },
+  Triangle: {
+    color: "#3498db",
+    width: "200px",
+    height: "200px",
+    background: "#3498db",
+    borderColor: "transparent",
+    borderWidth: 0,
+    borderStyle: "solid",
+    boxShadow: "none",
+    opacity: 1,
+    overflow: "visible",
+    cursor: "default",
+    margin: 0,
+    marginTop: 0,
+    marginRight: 0,
+    marginBottom: 0,
+    marginLeft: 0,
+    padding: 0,
+    paddingTop: 0,
+    paddingRight: 0,
+    paddingBottom: 0,
+    paddingLeft: 0,
+    position: "relative",
+    display: "flex",
+    zIndex: 0,
+    top: "auto",
+    right: "auto",
+    bottom: "auto",
+    left: "auto",
+  },
   Page: {
     width: "1000px",
     height: "auto",
     background: "#ffffff",
+    pageName: "Page Name",
+    pageSlug: "page",
   },
 };
 
@@ -247,6 +361,9 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
 // the source of truth. The shorthand only existed as a Craft.js rendering fallback.
 
 const SHORTHAND_PROPS = new Set(["padding", "margin"]);
+
+const DEFAULT_ANIMATION_JSON = JSON.stringify(DEFAULT_ANIMATION);
+const DEFAULT_PROTOTYPE_JSON = JSON.stringify(DEFAULT_PROTOTYPE);
 
 // ─── Serializer ──────────────────────────────────────────────────────────────
 
@@ -264,6 +381,22 @@ function cleanProps(
   for (const [key, value] of Object.entries(rawProps)) {
     // Always strip shorthand props (individual values are the source of truth)
     if (SHORTHAND_PROPS.has(key)) continue;
+
+    // Deep compare animation objects — only keep if non-default
+    if (key === "animation") {
+      if (value && JSON.stringify(value) !== DEFAULT_ANIMATION_JSON) {
+        cleaned[key] = value;
+      }
+      continue;
+    }
+
+    // Deep compare prototype — only keep if non-default
+    if (key === "prototype") {
+      if (value && JSON.stringify(value) !== DEFAULT_PROTOTYPE_JSON) {
+        cleaned[key] = value;
+      }
+      continue;
+    }
 
     // Keep props that differ from defaults
     if (!(key in defaults) || defaults[key] !== value) {
@@ -296,28 +429,32 @@ export function serializeCraftToClean(rawJson: string): BuilderDocument {
   // ROOT's children are Pages (inside the Viewport)
   const pageIds = rootNode.nodes;
 
-  for (const pageId of pageIds) {
+  pageIds.forEach((pageId, index) => {
     const pageRaw = raw[pageId];
     if (!pageRaw || pageRaw.type.resolvedName !== "Page") {
       console.warn('⚠️ Serializer: Skipping node in ROOT that is not a Page:', pageId);
-      continue;
+      return;
     }
 
-    // Extract page
+    const pageProps = pageRaw.props ?? {};
+    const name = (pageProps.pageName as string) ?? `Page ${index + 1}`;
+    const slug = (pageProps.pageSlug as string) ?? `page-${index}`;
+
     pages.push({
       id: pageId,
+      name,
+      slug,
       props: cleanProps("Page", pageRaw.props),
       children: pageRaw.nodes,
     });
 
-    // Recursively process all descendant nodes
     processChildren(pageRaw.nodes, raw, nodes);
-  }
+  });
 
   console.log(`✅ Serializer: Processed ${pages.length} pages and ${Object.keys(nodes).length} unique nodes.`);
 
   return {
-    version: 1,
+    version: 2,
     pages,
     nodes,
   };
@@ -383,22 +520,15 @@ export function deserializeCleanToCraft(doc: BuilderDocument): string {
     linkedNodes: {},
   };
 
-  // Reconstruct Pages
-  for (const page of doc.pages) {
+  // Reconstruct Pages (backward compat: name/slug default from index)
+  doc.pages.forEach((page, index) => {
     const defaults = COMPONENT_DEFAULTS["Page"] ?? {};
-    // Validate and filter children to only include existing nodes
-    const validChildren = page.children.filter((childId) => {
-      const exists = !!doc.nodes[childId];
-      if (!exists) {
-        console.warn(`⚠️ Page ${page.id} references missing child node: ${childId}`);
-      }
-      return exists;
-    });
-
+    const name = page.name ?? `Page ${index + 1}`;
+    const slug = page.slug ?? `page-${index}`;
     craft[page.id] = {
       type: { resolvedName: "Page" },
       isCanvas: true,
-      props: { ...defaults, ...page.props },
+      props: { ...defaults, ...page.props, pageName: name, pageSlug: slug },
       displayName: "Page",
       custom: {},
       parent: "ROOT",
@@ -407,9 +537,8 @@ export function deserializeCleanToCraft(doc: BuilderDocument): string {
       linkedNodes: {},
     };
 
-    // Reconstruct child nodes
-    reconstructChildren(validChildren, page.id, doc.nodes, craft);
-  }
+    reconstructChildren(page.children, page.id, doc.nodes, craft);
+  });
 
   return JSON.stringify(craft);
 }
@@ -445,6 +574,9 @@ function reconstructChildren(
       "Section",
       "Row",
       "Column",
+      "Circle",
+      "Square",
+      "Triangle",
     ]);
 
     // Validate and filter children to only include existing nodes

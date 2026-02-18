@@ -307,9 +307,21 @@ class User {
     const roles = ['admin', 'support', 'client', 'super_admin'];
     let all = [];
     for (const role of roles) {
-      const snap = await db.collection('user').doc('roles').collection(role).get();
-      all = all.concat(snap.docs.map(d => d.data()));
+      const coll = role === 'super_admin' ? 'admin' : role;
+      let ref = db.collection('user').doc('roles').collection(coll);
+      if (role === 'super_admin') ref = ref.where('role', '==', 'super_admin');
+      const snap = await ref.get();
+      all = all.concat(snap.docs.map(d => ({ ...d.data(), id: d.id })));
     }
+
+    const clients = all.filter(u => u.role === 'client' || u.role === 'super_admin');
+    const byPlan = { free: 0, basic: 0, pro: 0 };
+    clients.forEach((u) => {
+      const p = (u.subscription_plan || 'free').toLowerCase();
+      if (p === 'basic') byPlan.basic++;
+      else if (p === 'pro') byPlan.pro++;
+      else byPlan.free++;
+    });
 
     return {
       total: all.length,
@@ -325,7 +337,47 @@ class User {
         client: all.filter(u => u.role === 'client').length,
         super_admin: all.filter(u => (u.role === 'super_admin' || u.role === 'super admin')).length,
       },
+      byPlan,
     };
+  }
+
+  /** Signups over time (client role only) for analytics. Returns { labels, signups }. */
+  static async getSignupsOverTime(period) {
+    const snap = await db.collection('user').doc('roles').collection('client').get();
+    const clients = snap.docs.map(d => {
+      const data = d.data();
+      const created = data.created_at?.toDate?.() || new Date(data.created_at);
+      return { created };
+    });
+    const now = new Date();
+    let start;
+    let buckets;
+    if (period === '7days') {
+      start = new Date(now);
+      start.setDate(start.getDate() - 7);
+      buckets = 7;
+    } else if (period === '30days') {
+      start = new Date(now);
+      start.setDate(start.getDate() - 30);
+      buckets = 4;
+    } else {
+      start = new Date(now);
+      start.setMonth(start.getMonth() - 3);
+      buckets = 3;
+    }
+    const bucketMs = (now.getTime() - start.getTime()) / buckets;
+    const counts = new Array(buckets).fill(0);
+    const labels = [];
+    for (let i = 0; i < buckets; i++) {
+      const t = new Date(start.getTime() + (i + 1) * bucketMs);
+      labels.push(period === '7days' ? t.toLocaleDateString('en-US', { weekday: 'short' }) : period === '30days' ? `Week ${i + 1}` : t.toLocaleDateString('en-US', { month: 'short' }));
+    }
+    clients.forEach(({ created }) => {
+      if (created < start) return;
+      const idx = Math.min(Math.floor((created - start) / bucketMs), buckets - 1);
+      if (idx >= 0) counts[idx]++;
+    });
+    return { labels, signups: counts };
   }
 }
 

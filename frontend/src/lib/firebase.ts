@@ -1,16 +1,19 @@
 /**
  * Firebase Auth client for browser. Used for login: sign in with email/password, get idToken, send to backend.
  * Realtime Database used for user subdomains at /user/roles/client/{uid}/projects/{projectId}/subdomain.
+ * Storage used for web builder uploads under {clientName}/{projectName}/images|videos|files/.
  */
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
-import { getAuth, signInWithEmailAndPassword, type Auth } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword, signInWithCustomToken, type Auth } from 'firebase/auth';
 import { getDatabase, ref, onValue, type Database, type Unsubscribe } from 'firebase/database';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, type FirebaseStorage } from 'firebase/storage';
 
 const config = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? '',
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? '',
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? '',
   databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL ?? '',
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ?? '',
 };
 
 function getApp(): FirebaseApp | null {
@@ -43,6 +46,43 @@ export function getFirebaseDatabase(): Database | null {
   const app = getApp();
   if (!app || !config.databaseURL) return null;
   return getDatabase(app);
+}
+
+/** Firebase Storage (uses storageBucket from config or default project bucket). Returns null if app not configured. */
+export function getFirebaseStorage(): FirebaseStorage | null {
+  const app = getApp();
+  if (!app) return null;
+  return getStorage(app, config.storageBucket || undefined);
+}
+
+/** True if Storage is configured (app + bucket). Bucket can be set via NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET or default. */
+export function isFirebaseStorageConfigured(): boolean {
+  const app = getApp();
+  return !!app;
+}
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+/**
+ * If you're logged in to the backend (cookie) but not to Firebase Auth, signs in to Firebase using
+ * a custom token from the API so Storage uploads work. Call when opening the web builder.
+ */
+export async function ensureFirebaseAuthForStorage(): Promise<boolean> {
+  const auth = getFirebaseAuth();
+  if (!auth) return false;
+  if (auth.currentUser) return true;
+
+  try {
+    const base = API_URL.replace(/\/$/, '');
+    const res = await fetch(`${base}/api/auth/firebase-custom-token`, { credentials: 'include' });
+    if (!res.ok) return false;
+    const data = await res.json();
+    if (!data.success || !data.customToken) return false;
+    await signInWithCustomToken(auth, data.customToken);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export type ProjectSubdomainEntry = { subdomain?: string | null };

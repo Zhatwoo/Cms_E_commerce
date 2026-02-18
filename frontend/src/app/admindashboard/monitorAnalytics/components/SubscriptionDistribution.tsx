@@ -18,20 +18,30 @@ const describeArc = (cx: number, cy: number, r: number, startAngle: number, endA
     return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArcFlag} 0 ${end.x} ${end.y} L ${cx} ${cy} Z`;
 };
 
-export default function SubscriptionDistribution() {
-    const subscriptionData = [
-        { label: 'Free', value: 35, color: '#94a3b8' },
-        { label: 'Basic', value: 30, color: '#2563eb' },
-        { label: 'Pro', value: 25, color: '#22c55e' },
-        { label: 'Enterprise', value: 10, color: '#f59e0b' },
-    ];
+type Distribution = { free: number; basic: number; pro: number };
 
-    const totalSubscriptions = subscriptionData.reduce((sum, item) => sum + item.value, 0);
+type Props = {
+    distribution?: Distribution | null;
+    loading?: boolean;
+};
+
+export default function SubscriptionDistribution({ distribution, loading }: Props) {
+    const raw = [
+        { label: 'Free', value: distribution?.free ?? 0, color: '#94a3b8' },
+        { label: 'Basic', value: distribution?.basic ?? 0, color: '#2563eb' },
+        { label: 'Pro', value: distribution?.pro ?? 0, color: '#22c55e' },
+    ];
+    const totalSubscriptions = raw.reduce((sum, item) => sum + item.value, 0);
+    const subscriptionData = totalSubscriptions > 0
+        ? raw.map((item) => ({ ...item, value: Math.round((item.value / totalSubscriptions) * 100) }))
+        : raw.map((item) => ({ ...item, value: 0 }));
+
     let cumulativeAngle = 0;
     const subscriptionSegments = subscriptionData.map((item) => {
-        const startAngle = (cumulativeAngle / totalSubscriptions) * 360;
+        const totalPct = subscriptionData.reduce((s, i) => s + i.value, 0) || 1;
+        const startAngle = (cumulativeAngle / totalPct) * 360;
         cumulativeAngle += item.value;
-        const endAngle = (cumulativeAngle / totalSubscriptions) * 360;
+        const endAngle = (cumulativeAngle / totalPct) * 360;
         return { ...item, startAngle, endAngle };
     });
 
@@ -53,19 +63,26 @@ export default function SubscriptionDistribution() {
                 <div className="bg-white rounded-xl p-8 border border-slate-200">
                     <div className="flex flex-col lg:flex-row items-center gap-10">
                         <svg viewBox="0 0 360 360" className="w-full max-w-[280px]" style={{ aspectRatio: '360/360' }}>
-                            {subscriptionSegments.map((segment) => (
-                                <path
-                                    key={segment.label}
-                                    d={describeArc(180, 180, 120, segment.startAngle, segment.endAngle)}
-                                    fill={segment.color}
-                                />
-                            ))}
+                            {subscriptionSegments.map((segment) => {
+                                const span = segment.endAngle - segment.startAngle;
+                                if (span < 0.01) return null;
+                                if (span >= 359.99) {
+                                    return <circle key={segment.label} cx="180" cy="180" r="120" fill={segment.color} />;
+                                }
+                                return (
+                                    <path
+                                        key={segment.label}
+                                        d={describeArc(180, 180, 120, segment.startAngle, segment.endAngle)}
+                                        fill={segment.color}
+                                    />
+                                );
+                            })}
                             <circle cx="180" cy="180" r="68" fill="#ffffff" />
                             <text x="180" y="175" fontSize="16" fill="#0f172a" textAnchor="middle" fontWeight="600">
-                                Total
+                                {loading ? '…' : 'Clients'}
                             </text>
                             <text x="180" y="200" fontSize="20" fill="#0f172a" textAnchor="middle" fontWeight="700">
-                                {totalSubscriptions}%
+                                {loading ? '—' : totalSubscriptions}
                             </text>
                         </svg>
 
