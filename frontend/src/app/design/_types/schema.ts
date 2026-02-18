@@ -47,7 +47,11 @@ export type ComponentType =
   | "Divider"
   | "Section"
   | "Row"
-  | "Column";
+  | "Column"
+  | "Icon"
+  | "Circle"
+  | "Square"
+  | "Triangle";
 
 /** A single node in the document. */
 export interface CleanNode {

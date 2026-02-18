@@ -364,9 +364,9 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
   const resolver = {
     ...RenderBlocks,
-    Circle,
-    Square,
-    Triangle,
+    Circle: Circle || Container,
+    Square: Square || Container,
+    Triangle: Triangle || Container,
   } as any;
 
   /** Only pass to Frame if data is valid Craft format and every node type exists in resolver */

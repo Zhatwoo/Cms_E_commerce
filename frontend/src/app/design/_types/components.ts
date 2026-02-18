@@ -17,6 +17,17 @@ export interface AnimatableProps {
   animation?: AnimationConfig;
 }
 
+export interface InteractionProps {
+  toggleTarget?: string;
+  triggerAction?: "toggle" | "open" | "close";
+  collapsibleKey?: string;
+  defaultOpen?: boolean;
+  defaultOpenMobile?: boolean;
+  defaultOpenDesktop?: boolean;
+  showOn?: "desktop" | "mobile";
+  mobileBreakpoint?: number;
+}
+
 // ─── Settings Group Prop Interfaces ──────────────────────────────────────────
 // Each interface below corresponds to a settings group in the right panel.
 
@@ -90,6 +101,7 @@ export interface PositionProps {
   right?: string;
   bottom?: string;
   left?: string;
+  editorVisibility?: "auto" | "show" | "hide";
 }
 
 /** Transform properties (rotation) — used for double-click transform mode */
@@ -121,12 +133,12 @@ export interface TypographyProps {
 
 /** Container component props — combines all layout and visual property groups. */
 export interface ContainerProps
-  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps, AnimatableProps {
+  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps, AnimatableProps, InteractionProps {
   children?: ReactNode;
 }
 
 /** Text component props — combines typography, spacing, and basic effects. */
-export interface TextProps extends SpacingProps, TypographyProps, TransformProps, AnimatableProps {
+export interface TextProps extends SpacingProps, TypographyProps, TransformProps, AnimatableProps, InteractionProps {
   text: string;
   opacity?: number;
   boxShadow?: string;
@@ -145,7 +157,7 @@ export interface ImageProps extends SpacingProps, SizeProps, EffectsProps, Trans
 }
 
 /** Button component props — interactive element with label, link, and variant. */
-export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps, AnimatableProps {
+export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps, AnimatableProps, InteractionProps {
   label?: string;
   link?: string;
   variant?: "primary" | "secondary" | "outline" | "ghost";
