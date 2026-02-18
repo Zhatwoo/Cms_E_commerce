@@ -1,67 +1,47 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Chart, registerables } from 'chart.js';
 Chart.register(...registerables);
 
-export default function PlatformTraffic() {
-    const [timePeriod, setTimePeriod] = useState('7days');
+type Period = '7days' | '30days' | '3months';
+
+type Props = {
+    period: Period;
+    onPeriodChange: (p: Period) => void;
+    signupsOverTime?: { labels: string[]; signups: number[] };
+    loading?: boolean;
+};
+
+export default function PlatformTraffic({ period, onPeriodChange, signupsOverTime, loading }: Props) {
     const trafficChartRef = useRef<HTMLCanvasElement>(null);
     const chartInstanceRef = useRef<Chart | null>(null);
+
+    const labels = signupsOverTime?.labels ?? [];
+    const signups = signupsOverTime?.signups ?? [];
 
     useEffect(() => {
         if (!trafficChartRef.current) return;
 
-        const getChartData = () => {
-            if (timePeriod === '7days') {
-                return {
-                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                    visitors: [270, 300, 360, 330, 410, 380, 450],
-                    signups: [120, 150, 180, 170, 210, 200, 240],
-                };
-            } else if (timePeriod === '30days') {
-                return {
-                    labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-                    visitors: [2100, 2450, 2890, 3200],
-                    signups: [850, 980, 1120, 1350],
-                };
-            } else {
-                return {
-                    labels: ['Jan', 'Feb', 'Mar'],
-                    visitors: [8500, 9200, 10100],
-                    signups: [3200, 3800, 4200],
-                };
-            }
-        };
-
         if (chartInstanceRef.current) {
             chartInstanceRef.current.destroy();
+            chartInstanceRef.current = null;
         }
 
-        const chartData = getChartData();
         const ctx = trafficChartRef.current.getContext('2d');
         if (!ctx) return;
 
         chartInstanceRef.current = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: chartData.labels,
+                labels,
                 datasets: [
                     {
-                        label: 'Visitors',
-                        data: chartData.visitors,
+                        label: 'Signups',
+                        data: signups,
                         borderColor: '#1d4ed8',
                         backgroundColor: 'rgba(29, 78, 216, 0.1)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.4,
-                    },
-                    {
-                        label: 'Signups',
-                        data: chartData.signups,
-                        borderColor: '#64748b',
-                        backgroundColor: 'rgba(100, 116, 139, 0.1)',
                         borderWidth: 2,
                         fill: true,
                         tension: 0.4,
@@ -102,7 +82,7 @@ export default function PlatformTraffic() {
                 chartInstanceRef.current.destroy();
             }
         };
-    }, [timePeriod]);
+    }, [labels, signups]);
 
     return (
         <motion.div
@@ -115,25 +95,26 @@ export default function PlatformTraffic() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
                     <div>
                         <h2 className="text-2xl font-semibold text-slate-900">Platform Traffic</h2>
-                        <p className="text-sm text-slate-500 mt-1">Visitors and signups performance</p>
+                        <p className="text-sm text-slate-500 mt-1">New client signups over time</p>
                     </div>
                     <div className="flex gap-1 bg-slate-100 rounded-lg p-1" suppressHydrationWarning>
                         {[
-                            { id: '7days', label: 'Last 7 days' },
-                            { id: '30days', label: 'Last 30 days' },
-                            { id: '3months', label: 'Last 3 months' },
-                        ].map((period) => (
+                            { id: '7days' as const, label: 'Last 7 days' },
+                            { id: '30days' as const, label: 'Last 30 days' },
+                            { id: '3months' as const, label: 'Last 3 months' },
+                        ].map((p) => (
                             <button
-                                key={period.id}
-                                onClick={() => setTimePeriod(period.id)}
+                                key={p.id}
+                                onClick={() => onPeriodChange(p.id)}
+                                disabled={loading}
                                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                                    timePeriod === period.id
+                                    period === p.id
                                         ? 'bg-white text-slate-900 shadow-sm'
                                         : 'text-slate-600 hover:text-slate-900'
-                                }`}
+                                } disabled:opacity-50`}
                                 suppressHydrationWarning
                             >
-                                {period.label}
+                                {p.label}
                             </button>
                         ))}
                     </div>

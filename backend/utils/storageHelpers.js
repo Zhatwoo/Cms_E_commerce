@@ -1,7 +1,40 @@
 const { getStorageBucket } = require('../config/firebase');
+const crypto = require('crypto');
 
 /** Fixed prefix: always "Clients/" to match frontend. Never "clients/". */
 const STORAGE_PREFIX = 'Clients/';
+
+/**
+ * Upload avatar to Storage at Clients/{folderName}/avatar.{ext}.
+ * Use folderName = usernameSlug-uid so Firebase Console shows username for easier search.
+ * @param {Buffer} buffer - File buffer
+ * @param {string} clientUid - Firebase Auth UID (user id)
+ * @param {string} mimeType - e.g. image/png
+ * @param {string} [folderName] - Optional. If set, use as folder (e.g. "neo-dela-torre-uid"); else clientUid
+ * @returns {Promise<string>} Public download URL
+ */
+async function uploadAvatar(buffer, clientUid, mimeType = 'image/png', folderName = null) {
+  const bucket = getStorageBucket();
+  if (!bucket) {
+    throw new Error('Firebase Storage bucket not configured. Set FIREBASE_STORAGE_BUCKET in backend .env');
+  }
+  const ext = mimeType === 'image/jpeg' || mimeType === 'image/jpg' ? 'jpg' : 'png';
+  const segment = (folderName && String(folderName).trim()) ? String(folderName).trim() : clientUid;
+  const path = `${STORAGE_PREFIX}${segment}/avatar.${ext}`;
+  const token = crypto.randomUUID();
+  const file = bucket.file(path);
+  await file.save(buffer, {
+    metadata: {
+      contentType: mimeType,
+      metadata: {
+        firebaseStorageDownloadTokens: token,
+      },
+    },
+  });
+  const bucketName = bucket.name;
+  const encodedPath = encodeURIComponent(path);
+  return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedPath}?alt=media&token=${token}`;
+}
 
 /** Same slug as frontend firebaseStorage.ts: safe for Storage path segments. */
 function slugPathSegment(value) {
@@ -48,4 +81,4 @@ async function deleteProjectStorageFolder(clientName, websiteName) {
   }
 }
 
-module.exports = { slugPathSegment, deleteProjectStorageFolder };
+module.exports = { slugPathSegment, deleteProjectStorageFolder, uploadAvatar };

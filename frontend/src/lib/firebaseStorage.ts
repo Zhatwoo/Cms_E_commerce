@@ -14,6 +14,26 @@ import {
 /** Fixed prefix: always "Clients/" so everything goes in your Storage folder. Never "clients/". */
 const STORAGE_PREFIX = 'Clients/';
 
+/**
+ * Upload avatar to Storage at Clients/{clientUid}/avatar.{ext}.
+ * Returns the download URL. Save only this URL in Firestore (avatar_url), not base64.
+ */
+export async function uploadClientAvatar(file: File, clientUid: string): Promise<string> {
+  const storage = getFirebaseStorage();
+  if (!storage) {
+    throw new Error(
+      'Firebase Storage is not configured. Add NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET or check Firebase config.'
+    );
+  }
+  await ensureFirebaseAuthForStorage();
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
+  const safeExt = /^[a-z0-9]+$/.test(ext) ? ext : 'png';
+  const path = `${STORAGE_PREFIX}${clientUid}/avatar.${safeExt}`;
+  const ref = storageRef(storage, path);
+  await uploadBytes(ref, file, { contentType: file.type });
+  return getDownloadURL(ref);
+}
+
 /** Slug for path segments: safe for Storage paths (lowercase, dashes, no special chars). */
 function slugPathSegment(value: string): string {
   if (!value || typeof value !== 'string') return 'unknown';
@@ -51,32 +71,16 @@ export type UploadOptions = {
   folder?: 'images' | 'videos' | 'files';
 };
 
-/** Placeholder file so Clients/{clientName}/{websiteName}/ appears in Storage as soon as project is created. */
-const PROJECT_PLACEHOLDER_PATH = '.project';
-
 /**
- * Create Clients/{clientName}/{websiteName}/ in Storage right after createProject()
- * so the client name and project folder appear in Firebase Console without uploading an image.
+ * Prepare Storage for new project (ensure Firebase Auth for uploads).
+ * No file is created — Clients/{clientName}/{websiteName}/ will appear when client uploads their first file.
  */
 export async function ensureProjectStorageFolder(
-  clientName: string,
-  websiteName: string
+  _clientName: string,
+  _websiteName: string
 ): Promise<void> {
-  const storage = getFirebaseStorage();
-  if (!storage) return;
+  if (!getFirebaseStorage()) return;
   await ensureFirebaseAuthForStorage();
-
-  const client = slugPathSegment(clientName);
-  const website = slugPathSegment(websiteName);
-  const path = `${STORAGE_PREFIX}${client}/${website}/${PROJECT_PLACEHOLDER_PATH}`;
-  const ref = storageRef(storage, path);
-  try {
-    await uploadBytes(ref, new Blob([], { type: 'application/octet-stream' }), {
-      contentType: 'application/octet-stream',
-    });
-  } catch (e) {
-    console.warn('ensureProjectStorageFolder:', path, e);
-  }
 }
 
 /**

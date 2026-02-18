@@ -208,8 +208,11 @@ export interface CircleProps
   extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps {
   color?: string;
   size?: number;
-  children?: ReactNode;
-  isPreview?: boolean;
+  color?: string;
+  width?: string;
+  height?: string;
+  opacity?: number;
+  link?: string;
 }
 
 export interface SquareProps extends CircleProps {}

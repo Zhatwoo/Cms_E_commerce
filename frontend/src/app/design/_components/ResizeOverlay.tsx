@@ -9,6 +9,7 @@ type Handle = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 
 const HANDLE_SIZE = 8;
 const ROTATION_HANDLE_OFFSET = 24;
+const EPSILON = 0.01;
 
 const HANDLE_CURSORS: Record<Handle, string> = {
   n: "ns-resize",
@@ -42,6 +43,20 @@ function getEffectiveZoom(el: HTMLElement): number {
   const bw = el.getBoundingClientRect().width;
   const z = bw / ow;
   return z > 0.01 ? z : 1;
+}
+
+function isNearlyEqual(a: number, b: number, epsilon = EPSILON): boolean {
+  return Math.abs(a - b) < epsilon;
+}
+
+function isSameRect(a: DOMRect | null, b: DOMRect): boolean {
+  if (!a) return false;
+  return (
+    isNearlyEqual(a.left, b.left) &&
+    isNearlyEqual(a.top, b.top) &&
+    isNearlyEqual(a.width, b.width) &&
+    isNearlyEqual(a.height, b.height)
+  );
 }
 
 type DragState = {
@@ -268,6 +283,10 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       if (d.type === "move") {
         const baseMT = typeof p.marginTop === "number" ? p.marginTop : 0;
         const baseML = typeof p.marginLeft === "number" ? p.marginLeft : 0;
+        if (isNearlyEqual(dx, 0) && isNearlyEqual(dy, 0)) {
+          rafRef.current = requestAnimationFrame(tick);
+          return;
+        }
         actions.setProp(nodeId, (props: Record<string, unknown>) => {
           props.marginTop = baseMT + dy;
           props.marginLeft = baseML + dx;
@@ -330,6 +349,16 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         if (h.includes("s")) newH = Math.max(20, startH + dy);
         if (h.includes("n")) { newH = Math.max(20, startH - dy); extraMT = dy; }
 
+        if (
+          isNearlyEqual(newW, startW) &&
+          isNearlyEqual(newH, startH) &&
+          isNearlyEqual(extraMT, 0) &&
+          isNearlyEqual(extraML, 0)
+        ) {
+          rafRef.current = requestAnimationFrame(tick);
+          return;
+        }
+
         actions.setProp(nodeId, (props: Record<string, unknown>) => {
           props.width = `${newW}px`;
           props.height = `${newH}px`;
@@ -347,6 +376,10 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         const cy = d.startRect.top + d.startRect.height / 2;
         const currentAngle = Math.atan2(d.lastY - cy, d.lastX - cx);
         const deltaDeg = ((currentAngle - d.startAngle) * 180) / Math.PI;
+        if (isNearlyEqual(deltaDeg, 0)) {
+          rafRef.current = requestAnimationFrame(tick);
+          return;
+        }
         const startRot = typeof d.startProps.rotation === "number" ? d.startProps.rotation : 0;
         actions.setProp(nodeId, (props: Record<string, unknown>) => {
           props.rotation = startRot + deltaDeg;
@@ -367,6 +400,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
     const handleMouseMove = (e: MouseEvent) => {
       const d = dragRef.current;
       if (!d) return;
+      if (e.clientX === d.lastX && e.clientY === d.lastY) return;
       d.lastX = e.clientX;
       d.lastY = e.clientY;
       d.dirty = true;
