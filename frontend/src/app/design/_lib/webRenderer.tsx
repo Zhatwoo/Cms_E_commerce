@@ -671,8 +671,7 @@ function RenderNode({
       const bw = (props.borderWidth ?? 0) as number;
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
-      const rawHeight = props.height as string | undefined;
-      const showEmptyMinHeight = !rawHeight || rawHeight === "auto" || rawHeight === "";
+      const displayVal = (props.display as React.CSSProperties["display"]) ?? "flex";
       return wrap(
         <div
           style={{
@@ -688,20 +687,21 @@ function RenderNode({
             padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
             margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
             width: props.width as string,
-            height: props.height as string,
+            height: (props.height as string) ?? "auto",
+            minHeight: !hasRenderableChildren ? "50px" : undefined,
             borderRadius: `${br}px`,
             border: `${bw}px ${props.borderStyle} ${props.borderColor}`,
             position: props.position as React.CSSProperties["position"],
-            display: (props.display as string) || "flex",
-            flexDirection: props.display === "flex" ? (props.flexDirection as React.CSSProperties["flexDirection"]) : undefined,
-            flexWrap: props.display === "flex" ? (props.flexWrap as React.CSSProperties["flexWrap"]) : undefined,
-            alignItems: props.display === "flex" || props.display === "grid" ? (props.alignItems as string) : undefined,
-            justifyContent: props.display === "flex" || props.display === "grid" ? (props.justifyContent as string) : undefined,
-            gap: props.display === "flex" ? px(props.gap) : undefined,
-            gridTemplateColumns: props.display === "grid" ? (props.gridTemplateColumns as string) : undefined,
-            gridTemplateRows: props.display === "grid" ? (props.gridTemplateRows as string) : undefined,
-            columnGap: props.display === "grid" ? px(props.gridColumnGap ?? props.gridGap) : undefined,
-            rowGap: props.display === "grid" ? px(props.gridRowGap ?? props.gridGap) : undefined,
+            display: displayVal,
+            flexDirection: displayVal === "flex" ? (props.flexDirection as React.CSSProperties["flexDirection"]) : undefined,
+            flexWrap: displayVal === "flex" ? (props.flexWrap as React.CSSProperties["flexWrap"]) : undefined,
+            alignItems: displayVal === "flex" || displayVal === "grid" ? (props.alignItems as string) : undefined,
+            justifyContent: displayVal === "flex" || displayVal === "grid" ? (props.justifyContent as string) : undefined,
+            gap: displayVal === "flex" ? px(props.gap) : undefined,
+            gridTemplateColumns: displayVal === "grid" ? (props.gridTemplateColumns as string) : undefined,
+            gridTemplateRows: displayVal === "grid" ? (props.gridTemplateRows as string) : undefined,
+            columnGap: displayVal === "grid" ? px(props.gridColumnGap ?? props.gridGap) : undefined,
+            rowGap: displayVal === "grid" ? px(props.gridRowGap ?? props.gridGap) : undefined,
             boxShadow: props.boxShadow as string,
             opacity: props.opacity as number,
             overflow: props.overflow as string,

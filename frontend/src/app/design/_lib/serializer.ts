@@ -533,7 +533,7 @@ export function deserializeCleanToCraft(doc: BuilderDocument): string {
       custom: {},
       parent: "ROOT",
       hidden: false,
-      nodes: validChildren,
+      nodes: page.children,
       linkedNodes: {},
     };
 
