@@ -523,6 +523,9 @@ export function deserializeCleanToCraft(doc: BuilderDocument): string {
   // Reconstruct Pages (backward compat: name/slug default from index)
   doc.pages.forEach((page, index) => {
     const defaults = COMPONENT_DEFAULTS["Page"] ?? {};
+    const name = (page.props?.pageName as string) ?? page.name ?? `Page ${index + 1}`;
+    const slug = (page.props?.pageSlug as string) ?? page.slug ?? `page-${index}`;
+    const validChildren = page.children ?? [];
     craft[page.id] = {
       type: { resolvedName: "Page" },
       isCanvas: true,
@@ -537,7 +540,7 @@ export function deserializeCleanToCraft(doc: BuilderDocument): string {
 
     // Reconstruct child nodes
     reconstructChildren(page.children, page.id, doc.nodes, craft);
-  }
+  });
 
   return JSON.stringify(craft);
 }
