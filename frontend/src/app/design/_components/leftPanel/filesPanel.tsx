@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import ReactDOM from "react-dom";
 import { useEditor } from "@craftjs/core";
 import {
-  ChevronRight,
   ChevronDown,
   Box,
   Type,
@@ -13,8 +12,25 @@ import {
   Trash2,
 } from "lucide-react";
 
+
 /** Node types that cannot be deleted or duplicated */
 const PROTECTED = new Set(["Viewport"]);
+
+/** Get ordered child node IDs from a node (Craft state or serialized shape). */
+function getChildIds(node: Record<string, unknown> | null | undefined): string[] {
+  if (!node || typeof node !== "object") return [];
+  const fromData = (node.data as Record<string, unknown>)?.nodes;
+  if (Array.isArray(fromData)) return fromData as string[];
+  if (Array.isArray(node.nodes)) return node.nodes as string[];
+  return [];
+}
+
+/** Check if nodeId is in the current selection (Set or array). */
+function isNodeSelected(selected: Set<string> | string[] | unknown, nodeId: string): boolean {
+  if (selected instanceof Set) return selected.has(nodeId);
+  if (Array.isArray(selected)) return selected.includes(nodeId);
+  return false;
+}
 
 export const FilesPanel = () => {
   const { nodes, actions, query, selected } = useEditor((state) => ({
@@ -22,11 +38,14 @@ export const FilesPanel = () => {
     selected: state.events.selected,
   }));
 
-  // ── Context menu state ────────────────────────────────────
+  // ── Context menu state ─
   const [contextMenu, setContextMenu] = useState<{
     nodeId: string;
     x: number;
     y: number;
+    parentId?: string;
+    siblingIndex?: number;
+    siblingCount?: number;
   } | null>(null);
 
   // Close context menu on any click or right-click elsewhere, or Escape
@@ -147,6 +166,7 @@ export const FilesPanel = () => {
     [actions, query]
   );
 
+
   // ── Check if a node can be modified (not ROOT / Viewport) ─
   const isProtected = (nodeId: string): boolean => {
     if (nodeId === "ROOT") return true;
@@ -155,15 +175,28 @@ export const FilesPanel = () => {
     return PROTECTED.has(node.data.displayName || "");
   };
 
-  // ── Layer tree item ───────────────────────────────────────
-  const LayerItem = ({ nodeId, depth = 0 }: { nodeId: string; depth?: number }) => {
+  // ── Layer tree item ─
+  const LayerItem = ({
+    nodeId,
+    depth = 0,
+    parentId,
+    siblingIndex = 0,
+    siblingCount = 1,
+  }: {
+    nodeId: string;
+    depth?: number;
+    parentId?: string;
+    siblingIndex?: number;
+    siblingCount?: number;
+  }) => {
     const [expanded, setExpanded] = useState(true);
     const node = nodes[nodeId];
 
     if (!node) return null;
 
-    const isSelected = selected.has(nodeId);
-    const hasChildren = node.data.nodes && node.data.nodes.length > 0;
+    const childIds = getChildIds(node as Record<string, unknown>);
+    const isSelected = isNodeSelected(selected, nodeId);
+    const hasChildren = childIds.length > 0;
 
     // Determine icon based on node type
     let Icon = Box;
@@ -181,17 +214,25 @@ export const FilesPanel = () => {
     const openContextMenu = (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      setContextMenu({ nodeId, x: e.clientX, y: e.clientY });
+      setContextMenu({
+        nodeId,
+        x: e.clientX,
+        y: e.clientY,
+        parentId,
+        siblingIndex,
+        siblingCount,
+      });
     };
 
     return (
-      <div className="flex flex-col gap-1 select-none">
+      <div className="flex flex-col gap-0 select-none relative">
         <div
           onClick={(e) => {
             e.stopPropagation();
             const isMulti = e.ctrlKey || e.metaKey;
             if (isMulti) {
-              const next = new Set(selected);
+              const selArr = selected instanceof Set ? Array.from(selected) : Array.isArray(selected) ? selected : [];
+              const next = new Set(selArr);
               if (next.has(nodeId)) next.delete(nodeId);
               else next.add(nodeId);
               actions.selectNode(next.size === 0 ? undefined : Array.from(next));
@@ -201,34 +242,45 @@ export const FilesPanel = () => {
           }}
           onContextMenu={openContextMenu}
           className={`
-            group flex items-center gap-2 py-1 px-1 rounded-md cursor-pointer transition-colors relative
+            group flex items-center gap-1 py-2 px-1 rounded-lg transition-colors relative
             ${isSelected ? "bg-blue-400/20 text-brand-lighter" : "text-brand-light hover:bg-brand-medium/20 hover:text-brand-lighter"}
+            cursor-pointer
           `}
           style={{ paddingLeft: `${depth * 10 + 5}px` }}
         >
+
           {/* Expansion Toggle */}
           <div
+            data-layer-expand
             className={`
-              p-1 rounded-md hover:bg-white/10 cursor-pointer mr-1
+              p-1 rounded-md hover:bg-white/10 cursor-pointer shrink-0
               ${!hasChildren ? "opacity-0 pointer-events-none" : "opacity-100"}
             `}
             onClick={toggleExpansion}
+            style={{ WebkitUserDrag: "none" }}
           >
-            <ChevronDown className={`w-4 h-4 layer-item-chevron ${expanded ? 'expanded' : 'collapsed'}`} />
+            <ChevronDown className={`w-4 h-4 layer-item-chevron ${expanded ? "expanded" : "collapsed"}`} />
           </div>
 
-          <Icon className="w-4 h-4 opacity-70 shrink-0" />
-          <span className="text-sm font-medium truncate flex-1">
+          <Icon className="w-4 h-4 opacity-70 shrink-0" style={{ WebkitUserDrag: "none" }} />
+          <span className="text-sm font-medium truncate flex-1 min-w-0">
             {name || "Node"}
           </span>
         </div>
 
         {/* Children */}
         {hasChildren && (
-          <div className={`layer-children-container ${expanded ? 'expanded' : 'collapsed'}`}>
+          <div className={`layer-children-container ${expanded ? "expanded" : "collapsed"}`}>
             <div className="flex flex-col gap-1">
-              {node.data.nodes.map((childId, index) => (
-                <LayerItem key={`${nodeId}-${childId}-${index}`} nodeId={childId} depth={depth + 1} />
+              {childIds.map((childId, index) => (
+                <LayerItem
+                  key={`${nodeId}-${childId}-${index}`}
+                  nodeId={childId}
+                  depth={depth + 1}
+                  parentId={nodeId}
+                  siblingIndex={index}
+                  siblingCount={childIds.length}
+                />
               ))}
             </div>
           </div>
