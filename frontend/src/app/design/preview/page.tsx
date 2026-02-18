@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useMemo, Suspense } from "react";
-import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload } from "lucide-react";
+import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload, Monitor, Tablet, Smartphone } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
 import { getDraft } from "../_lib/pageApi";
@@ -13,15 +13,18 @@ import { publishProject } from "@/lib/api";
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 
 type ViewMode = "Web-Preview" | "clean" | "raw";
+type PreviewViewport = "desktop" | "tablet" | "mobile";
 
 function PreviewContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectId = searchParams.get("projectId") || DEFAULT_PROJECT_ID;
+  const initialPageSlug = searchParams.get("page") ?? undefined;
   const { showAlert } = useAlert();
   const [rawJson, setRawJson] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("Web-Preview");
+  const [previewViewport, setPreviewViewport] = useState<PreviewViewport>("desktop");
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [loading, setLoading] = useState(true);
   const [templateName, setTemplateName] = useState("");
@@ -107,6 +110,12 @@ function PreviewContent() {
   }, [rawJson]);
 
   const activeJson = viewMode === "clean" ? cleanJson : viewMode === "raw" ? rawFormatted : null;
+  const viewportClass =
+    previewViewport === "desktop"
+      ? "w-full"
+      : previewViewport === "tablet"
+        ? "w-[768px] max-w-full"
+        : "w-[390px] max-w-full";
 
   // ── Stats ──────────────────────────────────────────
   const rawBytes = rawJson ? new Blob([rawJson]).size : 0;
@@ -272,7 +281,7 @@ function PreviewContent() {
 
       <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col gap-6">
         {/* View Toggle + Stats */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
           {/* Toggle */}
           <div className="flex items-center bg-[#111] rounded-lg border border-white/10 p-1">
             <button
@@ -306,6 +315,41 @@ function PreviewContent() {
               Raw (Craft.js)
             </button>
           </div>
+
+          {viewMode === "Web-Preview" && (
+            <div className="flex items-center bg-[#111] rounded-lg border border-white/10 p-1">
+              <button
+                onClick={() => setPreviewViewport("desktop")}
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${previewViewport === "desktop"
+                  ? "bg-white/10 text-brand-lighter"
+                  : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+              >
+                <Monitor size={14} />
+                Desktop
+              </button>
+              <button
+                onClick={() => setPreviewViewport("tablet")}
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${previewViewport === "tablet"
+                  ? "bg-white/10 text-brand-lighter"
+                  : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+              >
+                <Tablet size={14} />
+                Tablet
+              </button>
+              <button
+                onClick={() => setPreviewViewport("mobile")}
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${previewViewport === "mobile"
+                  ? "bg-white/10 text-brand-lighter"
+                  : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+              >
+                <Smartphone size={14} />
+                Mobile
+              </button>
+            </div>
+          )}
 
           {/* Stats */}
           <div className="flex items-center gap-6 text-xs text-zinc-500">
@@ -342,9 +386,9 @@ function PreviewContent() {
           </div>
         ) : viewMode === "Web-Preview" ? (
           <div className="flex justify-center py-6">
-            <div className="w-full max-w-[1000px] min-h-[80vh] rounded-xl overflow-hidden bg-white">
+            <div className={`${viewportClass} min-h-[80vh] rounded-xl overflow-auto bg-white transition-all duration-300`}>
               {cleanDoc ? (
-                <WebPreview doc={cleanDoc} pageIndex={0} />
+                <WebPreview doc={cleanDoc} pageIndex={0} initialPageSlug={initialPageSlug} />
               ) : (
                 <div className="flex flex-col items-center justify-center min-h-[400px] text-zinc-500 p-8">
                   <p className="text-base mb-1">No page data</p>

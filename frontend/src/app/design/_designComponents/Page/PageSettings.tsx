@@ -1,26 +1,61 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
-import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
 import { ColorInput } from "../../_components/rightPanel/settings/inputs/ColorInput";
+import { slugFromName } from "../../_lib/slug";
 import type { PageProps, SetProp } from "../../_types";
 
 export const PageSettings = () => {
   const {
-    width, height, background,
+    width, height, background, pageName, pageSlug,
     actions: { setProp }
   } = useNode(node => ({
     width: node.data.props.width,
     height: node.data.props.height,
     background: node.data.props.background,
+    pageName: node.data.props.pageName,
+    pageSlug: node.data.props.pageSlug,
   }));
 
   const typedSetProp = setProp as SetProp<PageProps>;
+
+  const handlePageNameChange = (name: string) => {
+    const trimmed = name.trim() || "Page Name";
+    const slug = slugFromName(trimmed);
+    typedSetProp((props) => {
+      props.pageName = trimmed;
+      props.pageSlug = slug;
+    });
+  };
 
   return (
     <div className="flex flex-col pb-4">
       <DesignSection title="Page">
         <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-brand-lighter">Page name</label>
+            <input
+              type="text"
+              value={pageName ?? "Page Name"}
+              onChange={(e) => handlePageNameChange(e.target.value)}
+              placeholder="Page Name"
+              className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-brand-lighter">URL slug</label>
+            <input
+              type="text"
+              value={pageSlug ?? "page"}
+              onChange={(e) => {
+                const v = e.target.value.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") || "page";
+                typedSetProp((props) => { props.pageSlug = v; });
+              }}
+              placeholder="page"
+              className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none"
+            />
+            <span className="text-[10px] text-brand-medium">Used as path: /{pageSlug ?? "page"}</span>
+          </div>
           <div className="flex flex-row gap-3">
             {/* Width */}
             <div className="flex flex-col gap-1">

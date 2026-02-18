@@ -7,6 +7,7 @@ import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePos
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
+import { InteractionGroup } from "../../_components/rightPanel/settings/InteractionGroup";
 import type { ContainerProps, SetProp } from "../../_types/components";
 
 export const ContainerSettings = () => {
@@ -22,8 +23,9 @@ export const ContainerSettings = () => {
     alignItems, justifyContent,
     gap,
     gridTemplateColumns, gridTemplateRows, gridGap, gridColumnGap, gridRowGap, gridAutoRows, gridAutoFlow,
-    position, display, zIndex, top, right, bottom, left,
+    position, display, zIndex, top, right, bottom, left, editorVisibility,
     boxShadow, opacity, overflow, cursor,
+    toggleTarget, triggerAction, collapsibleKey, defaultOpen, defaultOpenMobile, defaultOpenDesktop, showOn, mobileBreakpoint,
     actions: { setProp }
   } = useNode(node => ({
     background: node.data.props.background,
@@ -69,10 +71,19 @@ export const ContainerSettings = () => {
     right: node.data.props.right,
     bottom: node.data.props.bottom,
     left: node.data.props.left,
+    editorVisibility: node.data.props.editorVisibility,
     boxShadow: node.data.props.boxShadow,
     opacity: node.data.props.opacity,
     overflow: node.data.props.overflow,
-    cursor: node.data.props.cursor
+    cursor: node.data.props.cursor,
+    toggleTarget: node.data.props.toggleTarget,
+    triggerAction: node.data.props.triggerAction,
+    collapsibleKey: node.data.props.collapsibleKey,
+    defaultOpen: node.data.props.defaultOpen,
+    defaultOpenMobile: node.data.props.defaultOpenMobile,
+    defaultOpenDesktop: node.data.props.defaultOpenDesktop,
+    showOn: node.data.props.showOn,
+    mobileBreakpoint: node.data.props.mobileBreakpoint
   }));
 
   const typedSetProp = setProp as SetProp<ContainerProps>;
@@ -130,6 +141,7 @@ export const ContainerSettings = () => {
           right={right}
           bottom={bottom}
           left={left}
+          editorVisibility={editorVisibility}
           setProp={typedSetProp}
         />
       </DesignSection>
@@ -159,6 +171,20 @@ export const ContainerSettings = () => {
           boxShadow={boxShadow}
           overflow={overflow}
           cursor={cursor}
+          setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Interactions" defaultOpen={false}>
+        <InteractionGroup
+          toggleTarget={toggleTarget}
+          triggerAction={triggerAction}
+          collapsibleKey={collapsibleKey}
+          defaultOpen={defaultOpen}
+          defaultOpenMobile={defaultOpenMobile}
+          defaultOpenDesktop={defaultOpenDesktop}
+          showOn={showOn}
+          mobileBreakpoint={mobileBreakpoint}
           setProp={typedSetProp}
         />
       </DesignSection>
