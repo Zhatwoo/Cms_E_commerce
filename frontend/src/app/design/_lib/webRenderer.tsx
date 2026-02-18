@@ -660,6 +660,9 @@ function RenderNode({
       const bw = (props.borderWidth ?? 0) as number;
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
+      const rawHeight = (props.height as string) ?? "auto";
+      const showEmptyMinHeight = !hasRenderableChildren;
+      const effectiveDisplay = (props.display as React.CSSProperties["display"]) ?? "flex";
       return wrap(
         <div
           style={{
@@ -675,7 +678,7 @@ function RenderNode({
             padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
             margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
             width: props.width as string,
-            height: rawHeight as string,
+            height: rawHeight,
             minHeight: showEmptyMinHeight ? "50px" : undefined,
             borderRadius: `${br}px`,
             border: `${bw}px ${props.borderStyle} ${props.borderColor}`,

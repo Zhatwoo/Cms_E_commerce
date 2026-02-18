@@ -8,7 +8,7 @@ import { getDraft } from "../_lib/pageApi";
 import { WebPreview } from "../_lib/webRenderer";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
-import { publishProject } from "@/lib/api";
+import { getProject, publishProject } from "@/lib/api";
 
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 
@@ -32,6 +32,9 @@ function PreviewContent() {
   const [templateDescription, setTemplateDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [showPublishDialog, setShowPublishDialog] = useState(false);
+  const [publishDomainName, setPublishDomainName] = useState("");
+  const [publishDomainError, setPublishDomainError] = useState("");
 
   useEffect(() => {
     async function loadData() {
@@ -194,16 +197,43 @@ function PreviewContent() {
     }
   };
 
-  const handlePublish = async () => {
+  const handlePublishClick = async () => {
+    setPublishDomainError("");
+    try {
+      const res = await getProject(projectId);
+      const existingSubdomain = res.success && res.project?.subdomain
+        ? String(res.project.subdomain).trim()
+        : "";
+      setPublishDomainName(existingSubdomain);
+    } catch {
+      setPublishDomainName("");
+    }
+    setShowPublishDialog(true);
+  };
+
+  const handlePublishConfirm = async () => {
+    const domain = publishDomainName.trim().toLowerCase();
+    if (!domain) {
+      setPublishDomainError("Domain name is required.");
+      return;
+    }
+    if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(domain)) {
+      setPublishDomainError("Use only letters, numbers, and hyphens. No spaces or special characters.");
+      return;
+    }
     if (!projectId) {
       showAlert("No project selected.");
       return;
     }
+    setPublishDomainError("");
     setPublishing(true);
     try {
-      const res = await publishProject(projectId);
+      const res = await publishProject(projectId, domain);
       if (res.success) {
-        showAlert("Published! Your site is live at the subdomain.");
+        setShowPublishDialog(false);
+        setPublishDomainName("");
+        const sub = res.data?.subdomain ?? domain;
+        showAlert(`Published! Your site is live. You can change the domain later in the dashboard.`);
       } else {
         showAlert(res.message || "Publish failed.");
       }
@@ -241,12 +271,11 @@ function PreviewContent() {
               Save Template
             </button>
             <button
-              onClick={handlePublish}
-              disabled={publishing}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 transition-colors disabled:opacity-50"
+              onClick={handlePublishClick}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 transition-colors"
             >
               <Upload size={14} />
-              {publishing ? "Publishing…" : "Publish"}
+              Publish
             </button>
             {viewMode !== "Web-Preview" && activeJson && (
               <>
@@ -410,6 +439,63 @@ function PreviewContent() {
           </div>
         )}
       </div>
+
+      {/* Publish confirmation – connected to Create project (Preferred subdomain). Required; confirm name. */}
+      {showPublishDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md">
+            <h2 className="text-xl font-semibold text-white mb-2">Publish site</h2>
+            <p className="text-sm text-zinc-400 mb-4">
+              {publishDomainName.trim()
+                ? "Confirm your domain name and publish. You can change it later in the dashboard."
+                : "Domain name is required. Set it here or in Create project (Preferred subdomain). You can change it later in the dashboard."}
+            </p>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-300">
+                Domain name (subdomain) <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={publishDomainName}
+                onChange={(e) => {
+                  setPublishDomainName(e.target.value);
+                  setPublishDomainError("");
+                }}
+                placeholder="e.g. mystore → mystore.yourdomain.com"
+                className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                autoFocus
+              />
+              <p className="text-xs text-zinc-500">
+                Only letters, numbers, and hyphens.
+              </p>
+              {publishDomainError && (
+                <p className="text-xs text-red-400">{publishDomainError}</p>
+              )}
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPublishDialog(false);
+                  setPublishDomainName("");
+                  setPublishDomainError("");
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handlePublishConfirm}
+                disabled={publishing}
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {publishing ? "Publishing…" : "Confirm & Publish"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Save Template Dialog */}
       {showSaveDialog && (

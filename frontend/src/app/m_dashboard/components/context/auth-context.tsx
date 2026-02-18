@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const res = await getMe();
             if (res.success && res.user) {
                 setUser(res.user);
-                setStoredUser(res.user); // keep localStorage in sync so Storage path uses current client
+                setStoredUser(res.user); // in-memory only; no localStorage/cookies for user data
             } else {
                 setUser(null);
                 setStoredUser(null);

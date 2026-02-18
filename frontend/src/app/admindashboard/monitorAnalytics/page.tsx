@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { AdminSidebar } from '../components/sidebar';
 import { AdminHeader } from '../components/header';
+import { getAnalytics, type AnalyticsResponse } from '@/lib/api';
 import PlatformTraffic from './components/PlatformTraffic';
 import RevenueGrowth from './components/RevenueGrowth';
 import SubscriptionDistribution from './components/SubscriptionDistribution';
@@ -33,12 +34,36 @@ const containerVariants: Variants = {
 export default function MonitoringAnalyticsPage() {
     const [activeTab, setActiveTab] = useState('platform');
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [period, setPeriod] = useState<'7days' | '30days' | '3months'>('7days');
+    const [analytics, setAnalytics] = useState<AnalyticsResponse['analytics'] | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const loadAnalytics = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await getAnalytics(period);
+            if (res.success && res.analytics) setAnalytics(res.analytics);
+            else setAnalytics(null);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Failed to load analytics');
+            setAnalytics(null);
+        } finally {
+            setLoading(false);
+        }
+    }, [period]);
+
+    useEffect(() => { loadAnalytics(); }, [loadAnalytics]);
 
     const tabNames: Record<string, string> = {
         platform: 'Platform Traffic',
         engagement: 'Revenue Growth',
         trends: 'Subscription Distribution',
     };
+
+    const summary = analytics?.summary;
+    const workspace = analytics?.workspace;
 
     return (
         <div className="min-h-screen bg-gray-100 flex">
@@ -76,6 +101,10 @@ export default function MonitoringAnalyticsPage() {
                     </div>
                 </motion.div>
 
+                {error && (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">{error}</div>
+                )}
+
                 {/* Stats Cards Row */}
                 <motion.div
                     className="grid grid-cols-1 md:grid-cols-3 gap-4"
@@ -84,9 +113,9 @@ export default function MonitoringAnalyticsPage() {
                     animate="visible"
                 >
                     {[
-                        { label: 'Daily Active Users', value: '3,000', change: '+5.2% today' },
-                        { label: 'Revenue', value: '1,247', change: '+12.8% this week' },
-                        { label: 'Published Websites', value: '89', change: '+2.4% vs last week' },
+                        { label: 'Active Users', value: loading ? '—' : (summary?.activeUsers ?? 0).toLocaleString(), change: '—' },
+                        { label: 'Revenue', value: loading ? '—' : (summary?.revenue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }), change: '—' },
+                        { label: 'Published Websites', value: loading ? '—' : String(summary?.publishedWebsites ?? 0), change: '—' },
                     ].map((card) => (
                         <motion.div
                             key={card.label}
@@ -144,14 +173,25 @@ export default function MonitoringAnalyticsPage() {
 
                             {/* Content Section */}
                             <div className="p-6">
-                                {/* Platform Traffic Tab */}
-                                {activeTab === 'platform' && <PlatformTraffic />}
-
-                                {/* Revenue Growth Tab */}
-                                {activeTab === 'engagement' && <RevenueGrowth />}
-
-                                {/* Subscription Distribution Tab */}
-                                {activeTab === 'trends' && <SubscriptionDistribution />}
+                                {activeTab === 'platform' && (
+                                    <PlatformTraffic
+                                        period={period}
+                                        onPeriodChange={setPeriod}
+                                        signupsOverTime={analytics?.signupsOverTime}
+                                        loading={loading}
+                                    />
+                                )}
+                                {activeTab === 'engagement' && (
+                                    <RevenueGrowth
+                                        period={period}
+                                        onPeriodChange={setPeriod}
+                                        revenueOverTime={analytics?.revenueOverTime}
+                                        loading={loading}
+                                    />
+                                )}
+                                {activeTab === 'trends' && (
+                                    <SubscriptionDistribution distribution={analytics?.subscriptionDistribution} loading={loading} />
+                                )}
                             </div>
                         </motion.div>
 
@@ -165,10 +205,10 @@ export default function MonitoringAnalyticsPage() {
                         <h3 className="text-lg font-semibold text-slate-900 mb-6">Workspace Statistics</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                             {[
-                                { label: 'Total Projects', value: '4,500' },
-                                { label: 'Draft Sites', value: '1,200' },
-                                { label: 'Custom Domains', value: '830' },
-                                { label: 'Avg Sites/User', value: '2.1' },
+                                { label: 'Total Projects', value: loading ? '—' : String(workspace?.totalProjects ?? 0) },
+                                { label: 'Draft Sites', value: loading ? '—' : String(workspace?.draftSites ?? 0) },
+                                { label: 'Published Domains', value: loading ? '—' : String(workspace?.customDomains ?? 0) },
+                                { label: 'Avg Sites/User', value: loading ? '—' : String(workspace?.avgSitesPerUser ?? '0') },
                             ].map((stat, idx) => (
                                 <motion.div
                                     key={stat.label}
@@ -190,5 +230,4 @@ export default function MonitoringAnalyticsPage() {
         </div>
     );
 }
-//hatdog
 
