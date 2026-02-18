@@ -528,6 +528,10 @@ function RenderNode({
         node={n}
         nodes={nodes}
         pageIndex={pageIndex}
+        viewportWidth={viewportWidth}
+        interactionState={interactionState}
+        availableTriggerTargets={availableTriggerTargets}
+        onToggle={onToggle}
         storeContext={storeContext}
         nodeId={id}
         onPrototypeAction={onPrototypeAction}
@@ -541,6 +545,10 @@ function RenderNode({
   switch (type) {
     case "Container": {
       const hasRenderableChildren = childIds.some((id) => Boolean(nodes[id]));
+      const rawHeight = props.height as string | undefined;
+      const showEmptyMinHeight = !rawHeight && !hasRenderableChildren;
+      const effectiveDisplay =
+        (props.display as React.CSSProperties["display"] | undefined) ?? "block";
       const isProductSlot =
         storeContext &&
         storeContext.products.length > 0 &&
@@ -734,8 +742,8 @@ function RenderNode({
             borderRadius: px(props.borderRadius),
             border: `${props.borderWidth}px ${props.borderStyle} ${props.borderColor}`,
             display: "flex",
-            flexDirection: props.flexDirection as string,
-            flexWrap: props.flexWrap as string,
+            flexDirection: props.flexDirection as React.CSSProperties["flexDirection"],
+            flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
             alignItems: props.alignItems as string,
             justifyContent: props.justifyContent as string,
             gap: px(props.gap),
@@ -773,8 +781,8 @@ function RenderNode({
             borderRadius: px(props.borderRadius),
             border: `${props.borderWidth}px ${props.borderStyle} ${props.borderColor}`,
             display: "flex",
-            flexDirection: props.flexDirection as string,
-            flexWrap: props.flexWrap as string,
+            flexDirection: props.flexDirection as React.CSSProperties["flexDirection"],
+            flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
             alignItems: props.alignItems as string,
             justifyContent: props.justifyContent as string,
             gap: px(props.gap),
@@ -814,8 +822,8 @@ function RenderNode({
             borderRadius: px(props.borderRadius),
             border: `${props.borderWidth}px ${props.borderStyle} ${props.borderColor}`,
             display: "flex",
-            flexDirection: props.flexDirection as string,
-            flexWrap: props.flexWrap as string,
+            flexDirection: props.flexDirection as React.CSSProperties["flexDirection"],
+            flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
             alignItems: props.alignItems as string,
             justifyContent: props.justifyContent as string,
             gap: px(props.gap),
@@ -1182,6 +1190,10 @@ export function WebPreview({
               node={node}
               nodes={doc.nodes}
               pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
+              viewportWidth={viewportWidth}
+              interactionState={interactionState}
+              availableTriggerTargets={availableTriggerTargets}
+              onToggle={handleToggle}
               storeContext={storeContext}
               nodeId={id}
               onPrototypeAction={onPrototypeAction}
@@ -1248,6 +1260,10 @@ export function LiveSite({
       {page.children.map((id) => {
         const node = doc.nodes[id];
         if (!node) return null;
+        function onPrototypeAction(interaction: Interaction): void {
+          throw new Error("Function not implemented.");
+        }
+
         return (
           <RenderNode
             key={id}
@@ -1259,6 +1275,8 @@ export function LiveSite({
             availableTriggerTargets={availableTriggerTargets}
             onToggle={handleToggle}
             storeContext={storeContext}
+            nodeId={id}
+            onPrototypeAction={onPrototypeAction}
           />
         );
       })}
