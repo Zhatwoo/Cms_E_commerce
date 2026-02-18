@@ -97,6 +97,7 @@ export interface PositionProps {
   right?: string;
   bottom?: string;
   left?: string;
+  editorVisibility?: "auto" | "show" | "hide";
 }
 
 /** Transform properties (rotation) — used for double-click transform mode */

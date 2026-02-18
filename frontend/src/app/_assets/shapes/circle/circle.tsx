@@ -1,12 +1,12 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
-import { CircleSettings } from "./circleSettings";
-import type { CircleProps, SquareProps, TriangleProps } from "@/app/design/_types/components";
+import { ShapeSettings } from "../shared/ShapeSettings";
+import type { CircleProps } from "@/app/design/_types/components";
 
 export interface CircleResizableProps {
   color?: string;
-  width?: number;
-  height?: number;
+  width?: number | string;
+  height?: number | string;
   background?: string;
   borderColor?: string;
   borderWidth?: number;
@@ -22,12 +22,29 @@ export interface CircleResizableProps {
 export const Circle = (props: CircleProps) => {
   const {
     color = "#10b981",
-    width = 200,
-    height = 200,
+    width = "200px",
+    height = "200px",
     background,
+    margin = 0,
+    marginTop,
+    marginRight,
+    marginBottom,
+    marginLeft,
+    padding = 0,
+    paddingTop,
+    paddingRight,
+    paddingBottom,
+    paddingLeft,
     borderColor = "transparent",
     borderWidth = 0,
     borderStyle = "solid",
+    position = "relative",
+    display = "flex",
+    zIndex = 0,
+    top = "auto",
+    right = "auto",
+    bottom = "auto",
+    left = "auto",
     boxShadow = "none",
     opacity = 1,
     overflow = "visible",
@@ -36,18 +53,29 @@ export const Circle = (props: CircleProps) => {
     isPreview,
   } = props;
 
-  const w = Number(width) || 200;
-  const h = Number(height) || 200;
+  const w = typeof width === "number" ? `${width}px` : (width || "200px");
+  const h = typeof height === "number" ? `${height}px` : (height || "200px");
+  const fillColor = background || color;
+  const m = typeof margin === "number" ? margin : 0;
+  const mt = marginTop ?? m;
+  const mr = marginRight ?? m;
+  const mb = marginBottom ?? m;
+  const ml = marginLeft ?? m;
+  const p = typeof padding === "number" ? padding : 0;
+  const pt = paddingTop ?? p;
+  const pr = paddingRight ?? p;
+  const pb = paddingBottom ?? p;
+  const pl = paddingLeft ?? p;
 
   if (isPreview) {
     return (
-      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
+      <svg width={w} height={h}>
         <ellipse
-          cx={w / 2}
-          cy={h / 2}
-          rx={w / 2}
-          ry={h / 2}
-          fill={color}
+          cx="50%"
+          cy="50%"
+          rx="50%"
+          ry="50%"
+          fill={fillColor}
         />
       </svg>
     );
@@ -64,21 +92,28 @@ export const Circle = (props: CircleProps) => {
       style={{
         width: w,
         height: h,
-        minWidth: w,
-        minHeight: h,
-        backgroundColor: color,
+        minWidth: w as string,
+        minHeight: h as string,
+        backgroundColor: fillColor,
         borderRadius: "50%",
         borderWidth: `${borderWidth}px`,
         borderColor,
         borderStyle,
+        position,
+        display,
+        zIndex: zIndex !== 0 ? zIndex : undefined,
+        top: position !== "static" ? top : undefined,
+        right: position !== "static" ? right : undefined,
+        bottom: position !== "static" ? bottom : undefined,
+        left: position !== "static" ? left : undefined,
         boxShadow,
         opacity,
         overflow,
         cursor,
-        display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        position: "relative",
+        padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
+        margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
       }}
     >
       {children}
@@ -88,8 +123,8 @@ export const Circle = (props: CircleProps) => {
 
 export const CircleDefaultProps: Partial<CircleResizableProps> = {
   color: "#10b981",
-  width: 200,
-  height: 200,
+  width: "200px",
+  height: "200px",
   background: undefined,
   borderColor: "transparent",
   borderWidth: 0,
@@ -104,6 +139,6 @@ Circle.craft = {
   displayName: "Circle",
   props: CircleDefaultProps,
   related: {
-    settings: CircleSettings
+    settings: ShapeSettings
   }
 };
