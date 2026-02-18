@@ -660,6 +660,8 @@ function RenderNode({
       const bw = (props.borderWidth ?? 0) as number;
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
+      const rawHeight = props.height as string | undefined;
+      const showEmptyMinHeight = !rawHeight || rawHeight === "auto" || rawHeight === "";
       return wrap(
         <div
           style={{

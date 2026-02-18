@@ -14,6 +14,11 @@ export const ShapeSettings = () => {
     paddingLeft, paddingRight, paddingTop, paddingBottom,
     marginLeft, marginRight, marginTop, marginBottom,
     background,
+    backgroundImage,
+    backgroundSize,
+    backgroundPosition,
+    backgroundRepeat,
+    backgroundOverlay,
     borderColor, borderWidth, borderStyle,
     radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft,
     position, display, zIndex, top, right, bottom, left, editorVisibility,
@@ -31,6 +36,11 @@ export const ShapeSettings = () => {
     marginTop: node.data.props.marginTop,
     marginBottom: node.data.props.marginBottom,
     background: node.data.props.background,
+    backgroundImage: node.data.props.backgroundImage,
+    backgroundSize: node.data.props.backgroundSize,
+    backgroundPosition: node.data.props.backgroundPosition,
+    backgroundRepeat: node.data.props.backgroundRepeat,
+    backgroundOverlay: node.data.props.backgroundOverlay,
     borderColor: node.data.props.borderColor,
     borderWidth: node.data.props.borderWidth,
     borderStyle: node.data.props.borderStyle,
@@ -89,6 +99,11 @@ export const ShapeSettings = () => {
       <DesignSection title="Appearance">
         <AppearanceGroup
           background={background}
+          backgroundImage={backgroundImage}
+          backgroundSize={backgroundSize}
+          backgroundPosition={backgroundPosition}
+          backgroundRepeat={backgroundRepeat}
+          backgroundOverlay={backgroundOverlay}
           borderColor={borderColor}
           borderWidth={borderWidth}
           borderStyle={borderStyle}

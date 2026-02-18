@@ -76,7 +76,7 @@ const COMPONENTS: ComponentEntry[] = [
     label: "Button",
     preview: "Button Preview",
     previewBg: "bg-blue-500/10",
-    element: <Button label="Click me" />,
+    element: <Element is={Button} canvas label="Click me" />,
     category: "basic",
   },
   {
