@@ -135,7 +135,7 @@ export interface ContainerProps
 }
 
 /** Text component props — combines typography, spacing, and basic effects. */
-export interface TextProps extends SpacingProps, TypographyProps, TransformProps, AnimatableProps, InteractableProps {
+export interface TextProps extends SpacingProps, TypographyProps, PositionProps, TransformProps, AnimatableProps, InteractableProps {
   text: string;
   opacity?: number;
   boxShadow?: string;
@@ -168,6 +168,7 @@ export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps,
   borderWidth?: number;
   width?: string;
   height?: string;
+  children?: ReactNode;
 }
 
 /** Page component props — top-level page wrapper with dimensions and background. */
@@ -202,3 +203,17 @@ export interface IconProps extends SpacingProps, PositionProps, AnimatableProps 
   opacity?: number;
   link?: string;
 }
+
+export interface CircleProps
+  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps {
+  color?: string;
+  size?: number;
+  color?: string;
+  width?: string;
+  height?: string;
+  opacity?: number;
+  link?: string;
+}
+
+export interface SquareProps extends CircleProps {}
+export interface TriangleProps extends CircleProps {}

@@ -25,6 +25,11 @@ export const Circle = (props: CircleProps) => {
     width = "200px",
     height = "200px",
     background,
+    backgroundImage = "",
+    backgroundSize = "cover",
+    backgroundPosition = "center",
+    backgroundRepeat = "no-repeat",
+    backgroundOverlay = "",
     margin = 0,
     marginTop,
     marginRight,
@@ -66,6 +71,7 @@ export const Circle = (props: CircleProps) => {
   const pr = paddingRight ?? p;
   const pb = paddingBottom ?? p;
   const pl = paddingLeft ?? p;
+  const effectiveOverflow = overflow === "visible" ? "hidden" : overflow;
 
   if (isPreview) {
     return (
@@ -95,6 +101,14 @@ export const Circle = (props: CircleProps) => {
         minWidth: w as string,
         minHeight: h as string,
         backgroundColor: fillColor,
+        backgroundImage: backgroundImage
+          ? backgroundOverlay
+            ? `linear-gradient(${backgroundOverlay}, ${backgroundOverlay}), url(${backgroundImage})`
+            : `url(${backgroundImage})`
+          : undefined,
+        backgroundSize: backgroundImage ? backgroundSize : undefined,
+        backgroundPosition: backgroundImage ? backgroundPosition : undefined,
+        backgroundRepeat: backgroundImage ? backgroundRepeat : undefined,
         borderRadius: "50%",
         borderWidth: `${borderWidth}px`,
         borderColor,
@@ -108,7 +122,7 @@ export const Circle = (props: CircleProps) => {
         left: position !== "static" ? left : undefined,
         boxShadow,
         opacity,
-        overflow,
+        overflow: effectiveOverflow,
         cursor,
         alignItems: "center",
         justifyContent: "center",
@@ -131,7 +145,7 @@ export const CircleDefaultProps: Partial<CircleResizableProps> = {
   borderStyle: "solid",
   boxShadow: "none",
   opacity: 1,
-  overflow: "visible",
+  overflow: "hidden",
   cursor: "default"
 };
 

@@ -27,6 +27,8 @@ function selectedToIds(raw: unknown): string[] {
  */
 export const FigmaStyleDragHandler = () => {
   const { actions, query } = useEditor();
+  const actionsRef = useRef(actions);
+  const queryRef = useRef(query);
   const rafRef = useRef<number>(0);
   const dragRef = useRef<{
     startX: number;
@@ -41,6 +43,11 @@ export const FigmaStyleDragHandler = () => {
   } | null>(null);
 
   useEffect(() => {
+    actionsRef.current = actions;
+    queryRef.current = query;
+  }, [actions, query]);
+
+  useEffect(() => {
     const tick = () => {
       const d = dragRef.current;
       if (!d || !d.committed || !d.dirty) {
@@ -52,10 +59,24 @@ export const FigmaStyleDragHandler = () => {
       const dx = (d.lastX - d.startX) / d.zoom;
       const dy = (d.lastY - d.startY) / d.zoom;
 
+      if (!Number.isFinite(dx) || !Number.isFinite(dy)) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
+
+      if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
+
       d.nodeMargins.forEach(({ id, marginTop, marginLeft }) => {
-        actions.setProp(id, (props: Record<string, unknown>) => {
-          props.marginTop = marginTop + dy;
-          props.marginLeft = marginLeft + dx;
+        const nextTop = marginTop + dy;
+        const nextLeft = marginLeft + dx;
+        if (!Number.isFinite(nextTop) || !Number.isFinite(nextLeft)) return;
+        actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
+          if (props.marginTop === nextTop && props.marginLeft === nextLeft) return;
+          props.marginTop = nextTop;
+          props.marginLeft = nextLeft;
         });
       });
 
@@ -86,7 +107,7 @@ export const FigmaStyleDragHandler = () => {
       const onOverlay = target.closest("[data-panel='resize-overlay']");
       const nodeIdFromTarget = onNode?.getAttribute("data-node-id") ?? null;
 
-      const state = query.getState();
+      const state = queryRef.current.getState();
       const nodesMap = state.nodes;
       const exists = (id: string) => !!id && id !== "ROOT" && !!nodesMap[id];
 
@@ -134,7 +155,7 @@ export const FigmaStyleDragHandler = () => {
         const dy = d.lastY - d.startY;
         if (Math.sqrt(dx * dx + dy * dy) < DRAG_THRESHOLD) return;
 
-        const state = query.getState();
+        const state = queryRef.current.getState();
         let ids = selectedToIds(state.events.selected).filter((id) => id && id !== "ROOT" && state.nodes[id]);
         if (ids.length === 0 && d.fallbackNodeId && state.nodes[d.fallbackNodeId]) {
           ids = [d.fallbackNodeId];
@@ -144,7 +165,7 @@ export const FigmaStyleDragHandler = () => {
           return;
         }
         let firstDom: HTMLElement | null = null;
-        try { firstDom = query.node(ids[0]).get()?.dom ?? null; } catch { /* ignore */ }
+        try { firstDom = queryRef.current.node(ids[0]).get()?.dom ?? null; } catch { /* ignore */ }
 
         document.body.style.userSelect = "none";
         document.body.style.cursor = "grabbing";
@@ -168,9 +189,15 @@ export const FigmaStyleDragHandler = () => {
       const d = dragRef.current;
       if (d?.committed) {
         d.nodeMargins.forEach(({ id, marginTop, marginLeft }) => {
-          actions.setProp(id, (props: Record<string, unknown>) => {
-            props.marginTop = Math.round(marginTop);
-            props.marginLeft = Math.round(marginLeft);
+          const roundedTop = Math.round(marginTop);
+          const roundedLeft = Math.round(marginLeft);
+          actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
+            if (props.marginTop !== roundedTop) {
+              props.marginTop = roundedTop;
+            }
+            if (props.marginLeft !== roundedLeft) {
+              props.marginLeft = roundedLeft;
+            }
           });
         });
         document.body.style.cursor = "";
@@ -188,7 +215,7 @@ export const FigmaStyleDragHandler = () => {
       document.removeEventListener("mousemove", handleMouseMove, true);
       document.removeEventListener("mouseup", handleMouseUp, true);
     };
-  }, [actions, query]);
+  }, []);
 
   return null;
 };

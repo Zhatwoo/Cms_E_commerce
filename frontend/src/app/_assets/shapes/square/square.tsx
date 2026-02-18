@@ -9,6 +9,11 @@ export const Square = (props: SquareProps) => {
     width = "200px",
     height = "200px",
     background,
+    backgroundImage = "",
+    backgroundSize = "cover",
+    backgroundPosition = "center",
+    backgroundRepeat = "no-repeat",
+    backgroundOverlay = "",
     margin = 0,
     marginTop,
     marginRight,
@@ -50,6 +55,7 @@ export const Square = (props: SquareProps) => {
   const pr = paddingRight ?? p;
   const pb = paddingBottom ?? p;
   const pl = paddingLeft ?? p;
+  const effectiveOverflow = overflow === "visible" ? "hidden" : overflow;
   const { connectors: { connect, drag }, id } = useNode();
   if (isPreview) {
     return <div style={{ width: w, height: h, backgroundColor: fillColor }} />;
@@ -73,12 +79,20 @@ export const Square = (props: SquareProps) => {
         alignItems: "center",
         justifyContent: "center",
         backgroundColor: fillColor,
+        backgroundImage: backgroundImage
+          ? backgroundOverlay
+            ? `linear-gradient(${backgroundOverlay}, ${backgroundOverlay}), url(${backgroundImage})`
+            : `url(${backgroundImage})`
+          : undefined,
+        backgroundSize: backgroundImage ? backgroundSize : undefined,
+        backgroundPosition: backgroundImage ? backgroundPosition : undefined,
+        backgroundRepeat: backgroundImage ? backgroundRepeat : undefined,
         borderWidth: `${borderWidth}px`,
         borderColor,
         borderStyle,
         boxShadow,
         opacity,
-        overflow,
+        overflow: effectiveOverflow,
         cursor,
         padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
         margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
@@ -100,7 +114,7 @@ export const SquareDefaultProps: Partial<SquareProps> = {
   borderStyle: "solid",
   boxShadow: "none",
   opacity: 1,
-  overflow: "visible",
+  overflow: "hidden",
   cursor: "default",
 };
 

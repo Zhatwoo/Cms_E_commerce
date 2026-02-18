@@ -1,7 +1,6 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
-import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
@@ -9,6 +8,25 @@ import { InteractionGroup } from "../../_components/rightPanel/settings/Interact
 import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
 import { ColorInput } from "../../_components/rightPanel/settings/inputs/ColorInput";
 import type { ButtonProps, SetProp } from "../../_types/components";
+
+const FONT_OPTIONS = [
+  "Inter",
+  "Roboto",
+  "Open Sans",
+  "Poppins",
+  "Ubuntu",
+  "Lato",
+  "Raleway",
+  "Playfair Display",
+  "EB Garamond",
+  "Merriweather",
+  "Lora",
+  "Montserrat",
+  "Oswald",
+  "Pacifico",
+  "JetBrains Mono",
+  "Fira Code",
+];
 
 export const ButtonSettings = () => {
   const {
@@ -190,6 +208,19 @@ export const ButtonSettings = () => {
                 <option value="700">Bold</option>
               </select>
             </div>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-brand-lighter">Font</label>
+            <select
+              value={fontFamily || "Inter"}
+              onChange={(e) => typedSetProp((props) => { props.fontFamily = e.target.value; })}
+              className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none"
+            >
+              {FONT_OPTIONS.map((font) => (
+                <option key={font} value={font}>{font}</option>
+              ))}
+            </select>
           </div>
         </div>
       </DesignSection>
