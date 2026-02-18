@@ -51,32 +51,16 @@ export type UploadOptions = {
   folder?: 'images' | 'videos' | 'files';
 };
 
-/** Placeholder file so Clients/{clientName}/{websiteName}/ appears in Storage as soon as project is created. */
-const PROJECT_PLACEHOLDER_PATH = '.project';
-
 /**
- * Create Clients/{clientName}/{websiteName}/ in Storage right after createProject()
- * so the client name and project folder appear in Firebase Console without uploading an image.
+ * Prepare Storage for new project (ensure Firebase Auth for uploads).
+ * No file is created — Clients/{clientName}/{websiteName}/ will appear when client uploads their first file.
  */
 export async function ensureProjectStorageFolder(
-  clientName: string,
-  websiteName: string
+  _clientName: string,
+  _websiteName: string
 ): Promise<void> {
-  const storage = getFirebaseStorage();
-  if (!storage) return;
+  if (!getFirebaseStorage()) return;
   await ensureFirebaseAuthForStorage();
-
-  const client = slugPathSegment(clientName);
-  const website = slugPathSegment(websiteName);
-  const path = `${STORAGE_PREFIX}${client}/${website}/${PROJECT_PLACEHOLDER_PATH}`;
-  const ref = storageRef(storage, path);
-  try {
-    await uploadBytes(ref, new Blob([], { type: 'application/octet-stream' }), {
-      contentType: 'application/octet-stream',
-    });
-  } catch (e) {
-    console.warn('ensureProjectStorageFolder:', path, e);
-  }
 }
 
 /**
