@@ -24,6 +24,9 @@ import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
+import { Circle } from "../../_assets/shapes/circle/circle";
+import { Square } from "../../_assets/shapes/square/square";
+import { Triangle } from "../../_assets/shapes/triangle/triangle";
 
 /**
  * React Error Boundary to catch rendering errors in Frame component
@@ -310,6 +313,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
+  const [rightPanelTab, setRightPanelTab] = useState<TabId>("design");
 
   // Cleanup corrupted data when error boundary triggers
   const handleFrameError = useCallback(async () => {
