@@ -17,6 +17,45 @@ import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 
+/**
+ * React Error Boundary to catch rendering errors in Frame component
+ */
+class FrameErrorBoundary extends React.Component<
+  { children: React.ReactNode; onError: () => void },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode; onError: () => void }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('❌ FrameErrorBoundary caught error:', error, errorInfo);
+    this.props.onError();
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <Frame>
+          <Element is={Viewport} canvas>
+            <Element is={Page} canvas>
+              <Element is={Container} padding={40} background="#ffffff" canvas>
+              </Element>
+            </Element>
+          </Element>
+        </Frame>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 function getStorageKey(projectId: string) {
   return `${STORAGE_KEY_PREFIX}_${projectId}`;
@@ -26,6 +65,220 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 type EditorShellProps = {
   projectId: string;
+};
+
+/**
+ * Deep validation function that walks through the entire Craft.js node tree
+ * and ensures all node references are valid.
+ */
+function validateCraftData(jsonString: string): { valid: boolean; data?: string } {
+  try {
+    const parsed = JSON.parse(jsonString);
+    
+    console.log('🔍 Validation: Starting with', Object.keys(parsed).length, 'nodes');
+    
+    // Must have ROOT
+    if (!parsed || !parsed.ROOT) {
+      console.error('❌ Validation failed: Missing ROOT node');
+      return { valid: false };
+    }
+
+    // ROOT must have basic structure
+    if (!parsed.ROOT.type || !parsed.ROOT.type.resolvedName) {
+      console.error('❌ Validation failed: ROOT missing type.resolvedName');
+      return { valid: false };
+    }
+
+    if (!Array.isArray(parsed.ROOT.nodes)) {
+      console.error('❌ Validation failed: ROOT.nodes is not an array');
+      return { valid: false };
+    }
+
+    // Collect all valid nodes - be VERY strict about what makes a node valid
+    const allNodeIds = Object.keys(parsed);
+    const invalidNodes: string[] = [];
+    const validNodeIds = new Set(allNodeIds.filter(id => {
+      const node = parsed[id];
+      
+      // Must be an object
+      if (!node || typeof node !== 'object') {
+        console.warn(`⚠️ Node ${id} is not an object:`, typeof node);
+        invalidNodes.push(id);
+        return false;
+      }
+      
+      // Must have type property
+      if (!node.type) {
+        console.warn(`⚠️ Node ${id} is missing 'type' property`);
+        invalidNodes.push(id);
+        return false;
+      }
+      
+      // type must have resolvedName
+      if (!node.type.resolvedName) {
+        console.warn(`⚠️ Node ${id} type is missing 'resolvedName' property`);
+        invalidNodes.push(id);
+        return false;
+      }
+
+      // Must have nodes array (even if empty)
+      if (!Array.isArray(node.nodes)) {
+        console.warn(`⚠️ Node ${id} is missing 'nodes' array`);
+        // Try to fix it
+        node.nodes = [];
+      }
+
+      return true;
+    }));
+
+    if (invalidNodes.length > 0) {
+      console.warn(`⚠️ Found ${invalidNodes.length} invalid nodes:`, invalidNodes);
+    }
+
+    console.log(`🔍 Validation: Found ${validNodeIds.size} valid nodes out of ${allNodeIds.length} total`);
+
+    // If too many invalid nodes, abort
+    if (invalidNodes.length > allNodeIds.length * 0.5) {
+      console.error(`❌ Too many invalid nodes (${invalidNodes.length}/${allNodeIds.length}). Data is too corrupted.`);
+      return { valid: false };
+    }
+
+    // Recursively validate and clean all node references
+    let hasInvalidRefs = false;
+    let removedRefsCount = 0;
+    
+    function cleanNodeRefs(nodeId: string, visited = new Set<string>()): void {
+      if (visited.has(nodeId)) return; // Prevent infinite loops
+      visited.add(nodeId);
+
+      const node = parsed[nodeId];
+      if (!node) return;
+
+      // Clean the nodes array
+      if (Array.isArray(node.nodes)) {
+        const originalLength = node.nodes.length;
+        node.nodes = node.nodes.filter((childId: string) => {
+          if (!validNodeIds.has(childId)) {
+            console.warn(`⚠️ Removing invalid reference: ${nodeId} -> ${childId}`);
+            hasInvalidRefs = true;
+            removedRefsCount++;
+            return false;
+          }
+          return true;
+        });
+        
+        if (node.nodes.length !== originalLength) {
+          console.log(`🔧 Cleaned ${nodeId}: ${originalLength} -> ${node.nodes.length} children`);
+        }
+
+        // Recursively clean children
+        node.nodes.forEach((childId: string) => cleanNodeRefs(childId, visited));
+      }
+
+      // Clean linkedNodes if present
+      if (node.linkedNodes && typeof node.linkedNodes === 'object') {
+        for (const [key, linkedId] of Object.entries(node.linkedNodes)) {
+          if (typeof linkedId === 'string' && !validNodeIds.has(linkedId)) {
+            console.warn(`⚠️ Removing invalid linkedNode: ${nodeId}.${key} -> ${linkedId}`);
+            delete node.linkedNodes[key];
+            hasInvalidRefs = true;
+            removedRefsCount++;
+          }
+        }
+      }
+    }
+
+    // Start validation from ROOT
+    cleanNodeRefs('ROOT');
+
+    if (hasInvalidRefs) {
+      console.log(`🔧 Data cleaned - removed ${removedRefsCount} invalid references`);
+    }
+
+    // Remove invalid nodes from the parsed object
+    invalidNodes.forEach(id => {
+      delete parsed[id];
+    });
+
+    const finalJson = JSON.stringify(parsed);
+    console.log(`✅ Validation complete. Final data has ${Object.keys(parsed).length} nodes`);
+    
+    return { valid: true, data: finalJson };
+  } catch (error) {
+    console.error('❌ Validation error:', error);
+    return { valid: false };
+  }
+}
+
+/**
+ * SafeFrame component that catches Frame rendering errors and falls back to empty canvas
+ */
+const SafeFrame = ({ data, onError }: { data: string | null; onError?: () => void }) => {
+  const [renderData, setRenderData] = useState<string | null>(null);
+  const [isReady, setIsReady] = useState(false);
+  const [hasErrorBoundaryError, setHasErrorBoundaryError] = useState(false);
+
+  useEffect(() => {
+    // Reset error state when data changes
+    setHasErrorBoundaryError(false);
+    
+    // Validate and prepare data for rendering
+    if (data) {
+      console.log('🔍 SafeFrame: Validating data before render...');
+      const validation = validateCraftData(data);
+      
+      if (validation.valid && validation.data) {
+        console.log('✅ SafeFrame: Data is valid, preparing to render');
+        setRenderData(validation.data);
+      } else {
+        console.error('❌ SafeFrame: Data validation failed, using empty canvas');
+        setRenderData(null);
+        onError?.();
+      }
+    } else {
+      setRenderData(null);
+    }
+    
+    // Use a small delay to ensure validation completes
+    const timer = setTimeout(() => setIsReady(true), 100);
+    return () => clearTimeout(timer);
+  }, [data, onError]);
+
+  const handleError = useCallback(() => {
+    console.error('❌ SafeFrame: Error boundary triggered, falling back to empty canvas');
+    setHasErrorBoundaryError(true);
+    setRenderData(null);
+    onError?.();
+  }, [onError]);
+
+  if (!isReady) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-brand-light">Loading editor...</div>
+      </div>
+    );
+  }
+
+  const emptyCanvas = (
+    <Frame>
+      <Element is={Viewport} canvas>
+        <Element is={Page} canvas>
+          <Element is={Container} padding={40} background="#ffffff" canvas>
+          </Element>
+        </Element>
+      </Element>
+    </Frame>
+  );
+
+  if (hasErrorBoundaryError || !renderData) {
+    return emptyCanvas;
+  }
+
+  return (
+    <FrameErrorBoundary onError={handleError}>
+      <Frame data={renderData} />
+    </FrameErrorBoundary>
+  );
 };
 
 /** Editor Shell */
@@ -39,6 +292,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
     nextScale: number;
   } | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const errorCleanupDoneRef = useRef(false); // Track if we've already cleaned up
   const [isPanning, setIsPanning] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [scale, setScale] = useState(1);
@@ -47,6 +301,31 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
+
+  // Cleanup corrupted data when error boundary triggers
+  const handleFrameError = useCallback(async () => {
+    if (errorCleanupDoneRef.current) return;
+    errorCleanupDoneRef.current = true;
+
+    console.error('❌ Frame rendering failed. Cleaning up corrupted data...');
+    
+    // Clear from localStorage
+    const storageKey = getStorageKey(projectId);
+    localStorage.removeItem(storageKey);
+    
+    // Clear from database
+    if (projectId) {
+      try {
+        await deleteDraft(projectId);
+        console.log('✅ Corrupted data cleared from database');
+      } catch (error) {
+        console.error('Failed to clear corrupted data:', error);
+      }
+    }
+
+    // Reset to empty canvas
+    setInitialJson(null);
+  }, [projectId]);
 
   /** Returns true if the event target is an input, textarea, select, or contenteditable */
   const isEditableTarget = (target: EventTarget | null) => {
@@ -212,14 +491,28 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             }
 
             const parsed = JSON.parse(content);
-            // Validate structure: must have ROOT and ROOT must have nodes property
+            // Validate structure: must have ROOT and ROOT must have nodes property and type
             if (parsed && parsed.ROOT && parsed.ROOT.nodes && Array.isArray(parsed.ROOT.nodes)) {
-              console.log(`✅ Loaded valid draft from DB (${Object.keys(parsed).length} internal nodes)`);
-              contentToLoad = content;
-              // Sync to localStorage (per-project)
-              localStorage.setItem(storageKey, contentToLoad!);
+              // Deep validation: check entire tree and clean invalid references
+              const validation = validateCraftData(content);
+              
+              if (validation.valid && validation.data) {
+                console.log(`✅ Loaded and validated draft from DB`);
+                contentToLoad = validation.data;
+                // Sync to localStorage (per-project)
+                localStorage.setItem(storageKey, contentToLoad);
+              } else {
+                console.error('❌ Draft validation failed. Data is corrupted. Clearing from database...');
+                // Clear corrupted data from database to prevent recurring errors
+                await deleteDraft(projectId);
+                // Clear from localStorage too
+                localStorage.removeItem(storageKey);
+              }
             } else {
-              console.warn('⚠️ Invalid draft structure: missing ROOT or ROOT.nodes');
+              console.warn('⚠️ Invalid draft structure: missing ROOT or ROOT.nodes. Clearing from database...');
+              // Clear invalid data from database
+              await deleteDraft(projectId);
+              localStorage.removeItem(storageKey);
             }
           } catch (e) {
             console.error('Failed to parse draft content:', e);
@@ -232,8 +525,16 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             const parsed = JSON.parse(sessionSaved);
             // Validate structure: must have ROOT and ROOT must have nodes property
             if (parsed && parsed.ROOT && parsed.ROOT.nodes && Array.isArray(parsed.ROOT.nodes)) {
-              console.log('✅ Loaded valid draft from localStorage (this project)');
-              contentToLoad = sessionSaved;
+              // Deep validation: check entire tree and clean invalid references
+              const validation = validateCraftData(sessionSaved);
+              
+              if (validation.valid && validation.data) {
+                console.log('✅ Loaded and validated draft from localStorage');
+                contentToLoad = validation.data;
+              } else {
+                console.error('❌ localStorage draft validation failed. Clearing.');
+                localStorage.removeItem(storageKey);
+              }
             } else {
               console.warn('⚠️ Invalid draft structure in localStorage: missing ROOT or ROOT.nodes');
               localStorage.removeItem(storageKey);
@@ -415,19 +716,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             className="min-w-[200vw] min-h-[200vh] flex items-center justify-center p-40"
             style={{ zoom: scale }}
           >
-            {initialJson === undefined ? null : initialJson ? (
-              <Frame data={initialJson} />
-            ) : (
-              <Frame>
-                <Element is={Viewport} canvas>
-                  {/* Single empty page as starting point */}
-                  <Element is={Page} canvas>
-                    <Element is={Container} padding={40} background="#ffffff" canvas>
-                    </Element>
-                  </Element>
-                </Element>
-              </Frame>
-            )}
+            {initialJson === undefined ? null : <SafeFrame data={initialJson} onError={handleFrameError} />}
           </div>
         </div>
         {/* Floating Panels */}
