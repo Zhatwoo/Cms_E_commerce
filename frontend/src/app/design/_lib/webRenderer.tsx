@@ -1,8 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useState, useCallback } from "react";
 import type { BuilderDocument, CleanNode, ComponentType } from "../_types/schema";
 import type { AnimationConfig } from "../_types/animation";
+import type { Interaction, PrototypeConfig, TransitionType } from "../_types/prototype";
 import { AnimationWrapper, hasActiveAnimation } from "./animationEngine";
 
 /** When provided, the storefront can show real products and handle Add to Cart in place of static product cards. */
@@ -37,7 +38,7 @@ function getDefaultLinkForLabel(label: string): string {
 
 // Default props per type (merge with node.props for full props). Minimal set for rendering.
 const DEFAULTS: Record<string, Record<string, unknown>> = {
-  Page: { width: "1000px", height: "auto", background: "#ffffff" },
+  Page: { width: "1000px", height: "auto", background: "#ffffff", pageName: "Page Name", pageSlug: "page" },
   Container: {
     background: "#27272a",
     padding: 20,
@@ -235,33 +236,77 @@ function wrapWithAnimation(
   return <AnimationWrapper animation={animation}>{element}</AnimationWrapper>;
 }
 
+function wrapWithPrototype(
+  element: React.ReactElement,
+  prototype: PrototypeConfig | undefined,
+  onPrototypeAction: ((interaction: Interaction) => void) | undefined
+): React.ReactElement {
+  if (!onPrototypeAction || !prototype?.interactions?.length) return element;
+  const interactions = prototype.interactions;
+
+  const run = (trigger: Interaction["trigger"]) => {
+    const i = interactions.find((x) => x.trigger === trigger);
+    if (i) onPrototypeAction(i);
+  };
+
+  const handlers: Record<string, () => void> = {};
+  if (interactions.some((x) => x.trigger === "click")) handlers.onClick = () => run("click");
+  if (interactions.some((x) => x.trigger === "doubleClick")) handlers.onDoubleClick = () => run("doubleClick");
+  if (interactions.some((x) => x.trigger === "hover")) handlers.onMouseEnter = () => run("hover");
+  if (interactions.some((x) => x.trigger === "mouseLeave")) handlers.onMouseLeave = () => run("mouseLeave");
+
+  return (
+    <div style={{ display: "contents" }} {...handlers}>
+      {element}
+    </div>
+  );
+}
+
 function RenderNode({
   node,
   nodes,
   pageIndex,
   storeContext,
+  nodeId,
+  onPrototypeAction,
 }: {
   node: CleanNode;
   nodes: Record<string, CleanNode>;
   pageIndex: number;
   storeContext?: StoreContext | null;
+  nodeId?: string;
+  onPrototypeAction?: (interaction: Interaction) => void;
 }): React.ReactElement {
   const type = node.type as ComponentType;
   const props = mergeProps(type, node.props) as Record<string, unknown>;
   const animation = props.animation as AnimationConfig | undefined;
+  const prototype = props.prototype as PrototypeConfig | undefined;
   const childIds = node.children ?? [];
   const children = childIds.map((id) => {
     const n = nodes[id];
     if (!n) return null;
-    return <RenderNode key={id} node={n} nodes={nodes} pageIndex={pageIndex} storeContext={storeContext} />;
+    return (
+      <RenderNode
+        key={id}
+        node={n}
+        nodes={nodes}
+        pageIndex={pageIndex}
+        storeContext={storeContext}
+        nodeId={id}
+        onPrototypeAction={onPrototypeAction}
+      />
+    );
   });
+
+  const wrap = (el: React.ReactElement) =>
+    wrapWithPrototype(wrapWithAnimation(el, animation), prototype, onPrototypeAction);
 
   switch (type) {
     case "Container": {
       const isProductSlot =
         storeContext &&
         storeContext.products.length > 0 &&
-        hasAddToCartButton(node.id, nodes);
+        hasAddToCartButton(nodeId ?? "", nodes);
       if (isProductSlot) {
         // Product slots skip animation wrapping for simplicity
         const p = typeof props.padding === "number" ? props.padding : 0;
@@ -377,7 +422,7 @@ function RenderNode({
       const bw = (props.borderWidth ?? 0) as number;
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
-      return wrapWithAnimation(
+      return wrap(
         <div
           style={{
             backgroundColor: props.background as string,
@@ -412,8 +457,7 @@ function RenderNode({
           }}
         >
           {children}
-        </div>,
-        animation
+        </div>
       );
     }
 
@@ -430,7 +474,7 @@ function RenderNode({
       const mb = (props.marginBottom ?? m) as number;
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
-      return wrapWithAnimation(
+      return wrap(
         <section
           style={{
             backgroundColor: props.background as string,
@@ -460,8 +504,7 @@ function RenderNode({
           }}
         >
           {children}
-        </section>,
-        animation
+        </section>
       );
     }
 
@@ -476,7 +519,7 @@ function RenderNode({
       const mr = (props.marginRight ?? m) as number;
       const mt = (props.marginTop ?? m) as number;
       const mb = (props.marginBottom ?? m) as number;
-      return wrapWithAnimation(
+      return wrap(
         <div
           style={{
             backgroundColor: props.background as string,
@@ -498,8 +541,7 @@ function RenderNode({
           }}
         >
           {children}
-        </div>,
-        animation
+        </div>
       );
     }
 
@@ -515,7 +557,7 @@ function RenderNode({
       const mt = (props.marginTop ?? m) as number;
       const mb = (props.marginBottom ?? m) as number;
       const w = props.width as string;
-      return wrapWithAnimation(
+      return wrap(
         <div
           style={{
             flex: w === "auto" ? 1 : undefined,
@@ -538,8 +580,7 @@ function RenderNode({
           }}
         >
           {children}
-        </div>,
-        animation
+        </div>
       );
     }
 
@@ -554,7 +595,7 @@ function RenderNode({
       const pb = (props.paddingBottom ?? p) as number;
       const pl = (props.paddingLeft ?? p) as number;
       const pr = (props.paddingRight ?? p) as number;
-      return wrapWithAnimation(
+      return wrap(
         <div
           style={{
             fontSize: px(props.fontSize),
@@ -572,13 +613,12 @@ function RenderNode({
           }}
         >
           {(props.text as string) ?? ""}
-        </div>,
-        animation
+        </div>
       );
     }
 
     case "Image":
-      return wrapWithAnimation(
+      return wrap(
         <img
           src={(props.src as string) || "https://placehold.co/600x400?text=Image"}
           alt={(props.alt as string) || "Image"}
@@ -592,8 +632,7 @@ function RenderNode({
             opacity: props.opacity as number,
             boxShadow: props.boxShadow as string,
           }}
-        />,
-        animation
+        />
       );
 
     case "Button": {
@@ -634,18 +673,17 @@ function RenderNode({
         </span>
       );
       if (link) {
-        return wrapWithAnimation(
+        return wrap(
           <a href={link} style={{ textDecoration: "none" }}>
             {content}
-          </a>,
-          animation
+          </a>
         );
       }
-      return wrapWithAnimation(content, animation);
+      return wrap(content);
     }
 
     case "Divider":
-      return wrapWithAnimation(
+      return wrap(
         <hr
           style={{
             width: (props.width as string) || "100%",
@@ -654,8 +692,7 @@ function RenderNode({
             marginTop: px(props.marginTop),
             marginBottom: px(props.marginBottom),
           }}
-        />,
-        animation
+        />
       );
 
     default:
@@ -663,51 +700,118 @@ function RenderNode({
   }
 }
 
+function getPageSlug(page: { slug?: string }, index: number): string {
+  return page.slug ?? `page-${index}`;
+}
+
+const PAGE_TRANSITION_STYLES: Record<TransitionType, React.CSSProperties> = {
+  instant: {},
+  dissolve: { animation: "page-dissolve 0.3s ease forwards" },
+  slideLeft: { animation: "page-slide-left 0.3s ease forwards" },
+  slideRight: { animation: "page-slide-right 0.3s ease forwards" },
+  slideUp: { animation: "page-slide-up 0.3s ease forwards" },
+  slideDown: { animation: "page-slide-down 0.3s ease forwards" },
+  push: { animation: "page-push 0.3s ease forwards" },
+  moveIn: { animation: "page-move-in 0.3s ease forwards" },
+};
+
 export function WebPreview({
   doc,
   pageIndex = 0,
+  initialPageSlug,
   storeContext,
 }: {
   doc: BuilderDocument;
   pageIndex?: number;
+  /** Initial page slug for multi-page (overrides pageIndex when set). */
+  initialPageSlug?: string;
   storeContext?: StoreContext | null;
 }): React.ReactElement {
-  const page = doc.pages[pageIndex];
-  if (!page) {
+  const firstSlug = doc.pages[0] ? getPageSlug(doc.pages[0], 0) : "page";
+  const [currentPageSlug, setCurrentPageSlug] = useState(initialPageSlug ?? getPageSlug(doc.pages[pageIndex] ?? doc.pages[0], pageIndex) ?? firstSlug);
+  const [history, setHistory] = useState<string[]>([]);
+  const [transitionStyle, setTransitionStyle] = useState<React.CSSProperties>({});
+
+  const currentPage = doc.pages.find((p, i) => getPageSlug(p, i) === currentPageSlug) ?? doc.pages[0];
+  const currentPageIndex = doc.pages.findIndex((p, i) => getPageSlug(p, i) === currentPageSlug);
+
+  const onPrototypeAction = useCallback(
+    (interaction: Interaction) => {
+      const duration = (interaction.duration ?? 300) / 1000;
+      if (interaction.action === "navigateTo" && interaction.destination) {
+        setHistory((h) => [...h, currentPageSlug]);
+        const trans = interaction.transition ?? "dissolve";
+        setTransitionStyle({
+          ...PAGE_TRANSITION_STYLES[trans],
+          animationDuration: `${duration}s`,
+        });
+        setCurrentPageSlug(interaction.destination);
+      } else if (interaction.action === "back") {
+        if (history.length > 0) {
+          const prev = history[history.length - 1];
+          setHistory((h) => h.slice(0, -1));
+          setTransitionStyle(PAGE_TRANSITION_STYLES.dissolve);
+          setCurrentPageSlug(prev);
+        }
+      } else if (interaction.action === "openUrl" && interaction.destination) {
+        window.open(interaction.destination, "_blank", "noopener");
+      } else if (interaction.action === "scrollTo" && interaction.destination) {
+        document.getElementById(interaction.destination)?.scrollIntoView({ behavior: "smooth" });
+      }
+    },
+    [currentPageSlug, history]
+  );
+
+  if (!currentPage) {
     return <div style={{ padding: 24, color: "#666" }}>No page to display.</div>;
   }
 
-  const pageProps = mergeProps("Page", page.props) as Record<string, unknown>;
+  const pageProps = mergeProps("Page", currentPage.props) as Record<string, unknown>;
   const width = (pageProps.width as string) || "1000px";
   const background = (pageProps.background as string) || "#ffffff";
   const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
 
   return (
-    <div
-      style={{
-        width,
-        minHeight,
-        backgroundColor: background,
-        margin: "0 auto",
-        boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
-        borderRadius: 8,
-        overflow: "hidden",
-      }}
-    >
-      {page.children.map((id) => {
-        const node = doc.nodes[id];
-        if (!node) return null;
-        return (
-          <RenderNode
-            key={id}
-            node={node}
-            nodes={doc.nodes}
-            pageIndex={pageIndex}
-            storeContext={storeContext}
-          />
-        );
-      })}
-    </div>
+    <>
+      <style>{`
+        @keyframes page-dissolve { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes page-slide-left { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes page-slide-right { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes page-slide-up { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes page-slide-down { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes page-push { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+        @keyframes page-move-in { from { opacity: 0; } to { opacity: 1; } }
+      `}</style>
+      <div
+        key={currentPageSlug}
+        style={{
+          width,
+          minHeight,
+          backgroundColor: background,
+          margin: "0 auto",
+          boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
+          borderRadius: 8,
+          overflow: "hidden",
+          ...transitionStyle,
+        }}
+      >
+        {currentPage.children.map((id) => {
+          const node = doc.nodes[id];
+          if (!node) return null;
+          return (
+            <RenderNode
+              key={id}
+              node={node}
+              nodes={doc.nodes}
+              pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
+              storeContext={storeContext}
+              nodeId={id}
+              onPrototypeAction={onPrototypeAction}
+            />
+          );
+        })}
+      </div>
+    </>
   );
 }
 

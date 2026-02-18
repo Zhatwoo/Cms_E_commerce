@@ -30,6 +30,10 @@ export interface BuilderDocument {
 export interface PageNode {
   /** Unique page ID. */
   id: string;
+  /** Display name (e.g. "About Us"). */
+  name?: string;
+  /** URL path segment (e.g. "about-us"). */
+  slug?: string;
   /** Page props (width, height, background, etc.) */
   props: Record<string, unknown>;
   /** Ordered array of direct child node IDs. */
@@ -62,4 +66,4 @@ export interface CleanNode {
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 /** Current schema version. Increment when the format changes. */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;

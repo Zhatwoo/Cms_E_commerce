@@ -6,8 +6,9 @@
  * editor, only this file and its counterpart (deserializer) need to change.
  */
 
-import type { BuilderDocument, CleanNode, ComponentType, PageNode, SCHEMA_VERSION } from "../_types/schema";
+import type { BuilderDocument, CleanNode, ComponentType, PageNode } from "../_types/schema";
 import { DEFAULT_ANIMATION } from "../_types/animation";
+import { DEFAULT_PROTOTYPE } from "../_types/prototype";
 
 // ─── Craft.js Raw Types ─────────────────────────────────────────────────────
 
@@ -240,6 +241,8 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
     width: "1000px",
     height: "auto",
     background: "#ffffff",
+    pageName: "Page Name",
+    pageSlug: "page",
   },
 };
 
@@ -250,6 +253,7 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
 const SHORTHAND_PROPS = new Set(["padding", "margin"]);
 
 const DEFAULT_ANIMATION_JSON = JSON.stringify(DEFAULT_ANIMATION);
+const DEFAULT_PROTOTYPE_JSON = JSON.stringify(DEFAULT_PROTOTYPE);
 
 // ─── Serializer ──────────────────────────────────────────────────────────────
 
@@ -271,6 +275,14 @@ function cleanProps(
     // Deep compare animation objects — only keep if non-default
     if (key === "animation") {
       if (value && JSON.stringify(value) !== DEFAULT_ANIMATION_JSON) {
+        cleaned[key] = value;
+      }
+      continue;
+    }
+
+    // Deep compare prototype — only keep if non-default
+    if (key === "prototype") {
+      if (value && JSON.stringify(value) !== DEFAULT_PROTOTYPE_JSON) {
         cleaned[key] = value;
       }
       continue;
@@ -307,28 +319,32 @@ export function serializeCraftToClean(rawJson: string): BuilderDocument {
   // ROOT's children are Pages (inside the Viewport)
   const pageIds = rootNode.nodes;
 
-  for (const pageId of pageIds) {
+  pageIds.forEach((pageId, index) => {
     const pageRaw = raw[pageId];
     if (!pageRaw || pageRaw.type.resolvedName !== "Page") {
       console.warn('⚠️ Serializer: Skipping node in ROOT that is not a Page:', pageId);
-      continue;
+      return;
     }
 
-    // Extract page
+    const pageProps = pageRaw.props ?? {};
+    const name = (pageProps.pageName as string) ?? `Page ${index + 1}`;
+    const slug = (pageProps.pageSlug as string) ?? `page-${index}`;
+
     pages.push({
       id: pageId,
+      name,
+      slug,
       props: cleanProps("Page", pageRaw.props),
       children: pageRaw.nodes,
     });
 
-    // Recursively process all descendant nodes
     processChildren(pageRaw.nodes, raw, nodes);
-  }
+  });
 
   console.log(`✅ Serializer: Processed ${pages.length} pages and ${Object.keys(nodes).length} unique nodes.`);
 
   return {
-    version: 1,
+    version: 2,
     pages,
     nodes,
   };
@@ -394,13 +410,15 @@ export function deserializeCleanToCraft(doc: BuilderDocument): string {
     linkedNodes: {},
   };
 
-  // Reconstruct Pages
-  for (const page of doc.pages) {
+  // Reconstruct Pages (backward compat: name/slug default from index)
+  doc.pages.forEach((page, index) => {
     const defaults = COMPONENT_DEFAULTS["Page"] ?? {};
+    const name = page.name ?? `Page ${index + 1}`;
+    const slug = page.slug ?? `page-${index}`;
     craft[page.id] = {
       type: { resolvedName: "Page" },
       isCanvas: true,
-      props: { ...defaults, ...page.props },
+      props: { ...defaults, ...page.props, pageName: name, pageSlug: slug },
       displayName: "Page",
       custom: {},
       parent: "ROOT",
@@ -409,9 +427,8 @@ export function deserializeCleanToCraft(doc: BuilderDocument): string {
       linkedNodes: {},
     };
 
-    // Reconstruct child nodes
     reconstructChildren(page.children, page.id, doc.nodes, craft);
-  }
+  });
 
   return JSON.stringify(craft);
 }
