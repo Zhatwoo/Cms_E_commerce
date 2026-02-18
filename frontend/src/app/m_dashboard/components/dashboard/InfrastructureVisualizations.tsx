@@ -60,13 +60,14 @@ export function InfrastructureVisualization() {
         const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
         camera.position.set(0, 1.4, 4.2);
 
-        let renderer: THREE.WebGLRenderer;
-        try {
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        } catch {
+        const testCanvas = document.createElement('canvas');
+        const gl = testCanvas.getContext('webgl2') || testCanvas.getContext('webgl') || testCanvas.getContext('experimental-webgl');
+        if (!gl) {
             setWebglFailed(true);
             return;
         }
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.setSize(width, height);
         renderer.outputColorSpace = THREE.SRGBColorSpace;
