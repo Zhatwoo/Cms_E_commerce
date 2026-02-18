@@ -55,6 +55,7 @@ export const Container = ({
   right: posRight = "auto",
   bottom = "auto",
   left: posLeft = "auto",
+  editorVisibility = "auto",
   boxShadow = "none",
   opacity = 1,
   overflow = "visible",
@@ -92,6 +93,12 @@ export const Container = ({
   const rtr = radiusTopRight !== undefined ? radiusTopRight : br;
   const rbr = radiusBottomRight !== undefined ? radiusBottomRight : br;
   const rbl = radiusBottomLeft !== undefined ? radiusBottomLeft : br;
+  const effectiveDisplay =
+    editorVisibility === "hide"
+      ? "none"
+      : editorVisibility === "show" && display === "none"
+        ? "flex"
+        : display;
 
   return (
     <div
@@ -128,25 +135,32 @@ export const Container = ({
         borderColor,
         borderStyle,
         position,
-        display,
+        display: effectiveDisplay,
         zIndex: zIndex !== 0 ? zIndex : undefined,
         top: position !== "static" ? top : undefined,
         right: position !== "static" ? posRight : undefined,
         bottom: position !== "static" ? bottom : undefined,
         left: position !== "static" ? posLeft : undefined,
         // Flex properties
-        flexDirection: display === "flex" ? flexDirection : undefined,
-        flexWrap: display === "flex" ? flexWrap : undefined,
-        alignItems: display === "flex" || display === "grid" ? alignItems : undefined,
-        justifyContent: display === "flex" || display === "grid" ? justifyContent : undefined,
-        gap: display === "flex" ? `${gap}px` : undefined,
+        flexDirection: effectiveDisplay === "flex" ? flexDirection : undefined,
+        flexWrap: effectiveDisplay === "flex" ? flexWrap : undefined,
+        alignItems: effectiveDisplay === "flex" || effectiveDisplay === "grid" ? alignItems : undefined,
+        justifyContent: effectiveDisplay === "flex" || effectiveDisplay === "grid" ? justifyContent : undefined,
+        columnGap: effectiveDisplay === "flex"
+          ? `${gap}px`
+          : effectiveDisplay === "grid"
+            ? `${gridColumnGap ?? gridGap}px`
+            : undefined,
+        rowGap: effectiveDisplay === "flex"
+          ? `${gap}px`
+          : effectiveDisplay === "grid"
+            ? `${gridRowGap ?? gridGap}px`
+            : undefined,
         // Grid properties
-        gridTemplateColumns: display === "grid" ? gridTemplateColumns : undefined,
-        gridTemplateRows: display === "grid" ? gridTemplateRows : undefined,
-        columnGap: display === "grid" ? `${gridColumnGap ?? gridGap}px` : undefined,
-        rowGap: display === "grid" ? `${gridRowGap ?? gridGap}px` : undefined,
-        gridAutoRows: display === "grid" ? gridAutoRows : undefined,
-        gridAutoFlow: display === "grid" ? gridAutoFlow : undefined,
+        gridTemplateColumns: effectiveDisplay === "grid" ? gridTemplateColumns : undefined,
+        gridTemplateRows: effectiveDisplay === "grid" ? gridTemplateRows : undefined,
+        gridAutoRows: effectiveDisplay === "grid" ? gridAutoRows : undefined,
+        gridAutoFlow: effectiveDisplay === "grid" ? gridAutoFlow : undefined,
         boxShadow,
         opacity,
         overflow,
@@ -163,16 +177,23 @@ export const Container = ({
             transformOrigin: "0 0",
             flexShrink: 0,
             boxSizing: "border-box",
-            display: display === "flex" ? "flex" : display === "grid" ? "grid" : "block",
-            flexDirection: display === "flex" ? flexDirection : undefined,
-            flexWrap: display === "flex" ? flexWrap : undefined,
-            alignItems: display === "flex" || display === "grid" ? alignItems : undefined,
-            justifyContent: display === "flex" || display === "grid" ? justifyContent : undefined,
-            gap: display === "flex" ? `${gap}px` : undefined,
-            gridTemplateColumns: display === "grid" ? gridTemplateColumns : undefined,
-            gridTemplateRows: display === "grid" ? gridTemplateRows : undefined,
-            columnGap: display === "grid" ? `${gridColumnGap ?? gridGap}px` : undefined,
-            rowGap: display === "grid" ? `${gridRowGap ?? gridGap}px` : undefined,
+            display: effectiveDisplay === "flex" ? "flex" : effectiveDisplay === "grid" ? "grid" : "block",
+            flexDirection: effectiveDisplay === "flex" ? flexDirection : undefined,
+            flexWrap: effectiveDisplay === "flex" ? flexWrap : undefined,
+            alignItems: effectiveDisplay === "flex" || effectiveDisplay === "grid" ? alignItems : undefined,
+            justifyContent: effectiveDisplay === "flex" || effectiveDisplay === "grid" ? justifyContent : undefined,
+            columnGap: effectiveDisplay === "flex"
+              ? `${gap}px`
+              : effectiveDisplay === "grid"
+                ? `${gridColumnGap ?? gridGap}px`
+                : undefined,
+            rowGap: effectiveDisplay === "flex"
+              ? `${gap}px`
+              : effectiveDisplay === "grid"
+                ? `${gridRowGap ?? gridGap}px`
+                : undefined,
+            gridTemplateColumns: effectiveDisplay === "grid" ? gridTemplateColumns : undefined,
+            gridTemplateRows: effectiveDisplay === "grid" ? gridTemplateRows : undefined,
           }}
         >
           {children}
@@ -226,6 +247,7 @@ export const ContainerDefaultProps: Partial<ContainerProps> = {
   right: "auto",
   bottom: "auto",
   left: "auto",
+  editorVisibility: "auto",
   boxShadow: "none",
   opacity: 1,
   overflow: "visible",

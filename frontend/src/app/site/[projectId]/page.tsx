@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { getDraft } from '@/app/design/_lib/pageApi';
-import { WebPreview } from '@/app/design/_lib/webRenderer';
+import { LiveSite } from '@/app/design/_lib/webRenderer';
 import { serializeCraftToClean } from '@/app/design/_lib/serializer';
 
 export default function SitePage() {
@@ -76,7 +76,7 @@ export default function SitePage() {
 
   return (
     <div className="min-h-screen w-full bg-white">
-      <WebPreview doc={cleanDoc} pageIndex={0} />
+      <LiveSite doc={cleanDoc} pageIndex={0} />
     </div>
   );
 }

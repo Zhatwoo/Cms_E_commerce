@@ -7,8 +7,9 @@ import { autoSavePage } from "../../_lib/pageApi";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 import { AnimationGroup } from "./settings/AnimationGroup";
 import { BatchEditGroup } from "./settings/BatchEditGroup";
+import { PrototypeGroup } from "./settings/PrototypeGroup";
 
-type TabId = "design" | "settings" | "animation";
+export type TabId = "design" | "prototype" | "animation";
 
 interface Tab {
   id: TabId;
@@ -17,13 +18,21 @@ interface Tab {
 
 const TABS: Tab[] = [
   { id: "design", label: "Design" },
-  { id: "settings", label: "Settings" },
+  { id: "prototype", label: "Prototype" },
   { id: "animation", label: "Animation" },
 ];
 
-export const RightPanel = ({ projectId }: { projectId: string }) => {
+interface RightPanelProps {
+  projectId: string;
+  activeTab?: TabId;
+  setActiveTab?: (tab: TabId) => void;
+}
+
+export const RightPanel = ({ projectId, activeTab: controlledTab, setActiveTab: setControlledTab }: RightPanelProps) => {
   const { showAlert } = useAlert();
-  const [activeTab, setActiveTab] = useState<TabId>("design");
+  const [internalTab, setInternalTab] = useState<TabId>("design");
+  const activeTab = controlledTab ?? internalTab;
+  const setActiveTab = setControlledTab ?? setInternalTab;
   const [isPreviewing, setIsPreviewing] = useState(false);
   const router = useRouter();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -157,10 +166,8 @@ export const RightPanel = ({ projectId }: { projectId: string }) => {
                 </div>
               ))}
 
-            {activeTab === "settings" && (
-              <div className="flex flex-col items-center justify-center py-8 text-brand-lighter opacity-50">
-                <p className="text-sm">Component settings coming soon</p>
-              </div>
+            {activeTab === "prototype" && (
+              <PrototypeGroup selectedIds={selectedIds} />
             )}
 
             {activeTab === "animation" && (

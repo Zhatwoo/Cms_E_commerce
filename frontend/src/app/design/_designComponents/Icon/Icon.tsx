@@ -132,14 +132,18 @@ export const Icon = ({
     default:
       IconComponent = Home;
   }
+  const hasExplicitBox = width !== "auto" || height !== "auto";
+  const fitToBox = width !== "auto" && height !== "auto";
+  const resolvedWidth = hasExplicitBox ? width : `${size}px`;
+  const resolvedHeight = hasExplicitBox ? height : `${size}px`;
 
   return (
     <div
       ref={(ref) => { if (ref) connect(drag(ref)); }}
       style={{
         color,
-        width,
-        height,
+        width: resolvedWidth,
+        height: resolvedHeight,
         marginTop: `${mt}px`,
         marginRight: `${mr}px`,
         marginBottom: `${mb}px`,
@@ -156,7 +160,7 @@ export const Icon = ({
       }}
       className="hover:outline hover:outline-blue-500"
     >
-      <IconComponent size={size} />
+      <IconComponent size={size} className={fitToBox ? "w-full h-full" : ""} />
     </div>
   );
 };

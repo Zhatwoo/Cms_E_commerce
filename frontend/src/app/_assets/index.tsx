@@ -45,8 +45,54 @@ import {
   ShoppingBagIcon,
   ShoppingBasketIcon,
 } from "./Icon";
+import { Circle as CraftCircle } from "./shapes/circle/circle";
+import { Square as CraftSquare } from "./shapes/square/square";
+import { Triangle as CraftTriangle } from "./shapes/triangle/triangle";
 
 import { TemplateEntry } from "./_types";
+
+
+export const Circle = ({ width = 60, height = 60 }: { width?: number; height?: number }) => (
+  <svg width={width} height={height} viewBox="0 0 60 60">
+    <circle cx="30" cy="30" r="28" fill="#ccc" />
+  </svg>
+);
+
+export const Square = ({ width = 60, height = 60 }: { width?: number; height?: number }) => (
+  <svg width={width} height={height} viewBox="0 0 60 60">
+    <rect x="4" y="4" width="52" height="52" fill="#ccc" />
+  </svg>
+);
+
+export const Triangle = ({ width = 60, height = 60 }: { width?: number; height?: number }) => (
+  <svg width={width} height={height} viewBox="0 0 60 60">
+    <polygon points="30,6 54,54 6,54" fill="#ccc" />
+  </svg>
+);
+
+export const CircleTemplate: TemplateEntry = {
+  label: "Circle",
+  description: "A simple SVG circle shape.",
+  preview: <Circle />,
+  element: <CraftCircle />, // Draggable Craft.js component
+  category: "icon",
+};
+
+export const SquareTemplate: TemplateEntry = {
+  label: "Square",
+  description: "A simple SVG square shape.",
+  preview: <Square />,
+  element: <CraftSquare />, // Draggable Craft.js component
+  category: "icon",
+};
+
+export const TriangleTemplate: TemplateEntry = {
+  label: "Triangle",
+  description: "A simple SVG triangle shape.",
+  preview: <Triangle />,
+  element: <CraftTriangle />, // Draggable Craft.js component
+  category: "icon",
+};
 
 export const TEMPLATES: TemplateEntry[] = [
   SimpleHeader,
@@ -92,6 +138,9 @@ export const TEMPLATES: TemplateEntry[] = [
   CartIcon,
   ShoppingBagIcon,
   ShoppingBasketIcon,
+  CircleTemplate,
+  SquareTemplate,
+  TriangleTemplate,
 ];
 
 export const GROUPED_TEMPLATES = [
@@ -160,5 +209,9 @@ export const GROUPED_TEMPLATES = [
       ShoppingBagIcon,
       ShoppingBasketIcon,
     ],
+  },
+  {
+    folder: "Shapes",
+    items: [CircleTemplate, SquareTemplate, TriangleTemplate],
   },
 ];

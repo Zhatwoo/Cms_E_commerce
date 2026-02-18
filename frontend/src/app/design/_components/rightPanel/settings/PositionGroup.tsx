@@ -22,6 +22,12 @@ const DISPLAY_OPTIONS: { value: PositionProps["display"]; label: string }[] = [
   { value: "none", label: "None" },
 ];
 
+const EDITOR_VISIBILITY_OPTIONS: { value: NonNullable<PositionProps["editorVisibility"]>; label: string }[] = [
+  { value: "auto", label: "Auto" },
+  { value: "show", label: "Show" },
+  { value: "hide", label: "Hide" },
+];
+
 export const PositionGroup = ({
   position = "static",
   display = "flex",
@@ -30,6 +36,7 @@ export const PositionGroup = ({
   right = "auto",
   bottom = "auto",
   left = "auto",
+  editorVisibility = "auto",
   setProp,
 }: PositionGroupProps) => {
   const showOffsets = position !== "static";
@@ -132,6 +139,31 @@ export const PositionGroup = ({
           className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none appearance-none"
         >
           {DISPLAY_OPTIONS.map((opt) => (
+            <option
+              key={opt.value}
+              value={opt.value}
+              className="text-brand-light bg-brand-dark"
+            >
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label className="text-[12px] text-brand-lighter font-base">
+          Canvas Visibility
+        </label>
+        <select
+          value={editorVisibility}
+          onChange={(e) =>
+            setProp((props) => {
+              props.editorVisibility = e.target.value as PositionProps["editorVisibility"];
+            })
+          }
+          className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none appearance-none"
+        >
+          {EDITOR_VISIBILITY_OPTIONS.map((opt) => (
             <option
               key={opt.value}
               value={opt.value}
