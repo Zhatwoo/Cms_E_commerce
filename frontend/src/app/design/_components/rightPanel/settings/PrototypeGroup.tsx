@@ -101,15 +101,17 @@ export const PrototypeGroup = ({ selectedIds }: PrototypeGroupProps) => {
     try {
       const state = query.getState();
       const nodes = state.nodes ?? {};
+      const rootNode = nodes["ROOT"];
+      const pageIds = (rootNode?.data?.nodes as string[] | undefined) ?? [];
       const list: PageOption[] = [];
-      Object.keys(nodes).forEach((id) => {
+      pageIds.forEach((id, index) => {
         const node = nodes[id];
         if (node?.data?.displayName === "Page") {
           const props = node.data.props ?? {};
           list.push({
             id,
-            name: (props.pageName as string) ?? "Page Name",
-            slug: (props.pageSlug as string) ?? "page",
+            name: (props.pageName as string) ?? `Page ${index + 1}`,
+            slug: (props.pageSlug as string) ?? `page-${index}`,
           });
         }
       });

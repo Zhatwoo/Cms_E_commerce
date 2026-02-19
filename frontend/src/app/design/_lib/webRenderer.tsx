@@ -469,14 +469,40 @@ function wrapWithPrototype(
     if (i) onPrototypeAction(i);
   };
 
-  const handlers: Record<string, () => void> = {};
-  if (interactions.some((x) => x.trigger === "click")) handlers.onClick = () => run("click");
-  if (interactions.some((x) => x.trigger === "doubleClick")) handlers.onDoubleClick = () => run("doubleClick");
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    run("click");
+  };
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    run("doubleClick");
+  };
+
+  const handlers: Record<string, unknown> = {};
+  if (interactions.some((x) => x.trigger === "click")) {
+    handlers.onClickCapture = handleClick;
+  }
+  if (interactions.some((x) => x.trigger === "doubleClick")) {
+    handlers.onDoubleClickCapture = handleDoubleClick;
+  }
   if (interactions.some((x) => x.trigger === "hover")) handlers.onMouseEnter = () => run("hover");
   if (interactions.some((x) => x.trigger === "mouseLeave")) handlers.onMouseLeave = () => run("mouseLeave");
 
   return (
-    <div style={{ display: "contents" }} {...handlers}>
+    <div
+      style={{ display: "contents", cursor: "pointer" }}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          run("click");
+        }
+      }}
+      {...handlers}
+    >
       {element}
     </div>
   );
@@ -1241,22 +1267,35 @@ export function WebPreview({
 /**
  * Full-width live site renderer. No shadow, no border-radius, no max-width box.
  * The design fills the entire browser viewport as a real website.
+ * Supports multi-page prototype navigation (Navigate to page) via currentPageSlug state.
  */
 export function LiveSite({
   doc,
   pageIndex = 0,
   storeContext,
+  initialPageSlug,
 }: {
   doc: BuilderDocument;
   pageIndex?: number;
   storeContext?: StoreContext | null;
+  /** Optional initial page slug from URL (e.g. ?page=page-1) for deep linking */
+  initialPageSlug?: string;
 }): React.ReactElement {
-  const page = doc.pages[pageIndex];
-  if (!page) {
+  const firstSlug = doc.pages[0] ? getPageSlug(doc.pages[0], 0) : "page";
+  const [currentPageSlug, setCurrentPageSlug] = React.useState(
+    initialPageSlug ?? getPageSlug(doc.pages[pageIndex] ?? doc.pages[0], pageIndex) ?? firstSlug
+  );
+  const [history, setHistory] = React.useState<string[]>([]);
+  const [transitionStyle, setTransitionStyle] = React.useState<React.CSSProperties>({});
+
+  const currentPage = doc.pages.find((p, i) => getPageSlug(p, i) === currentPageSlug) ?? doc.pages[0];
+  const currentPageIndex = doc.pages.findIndex((p, i) => getPageSlug(p, i) === currentPageSlug);
+
+  if (!currentPage) {
     return <div style={{ padding: 24, color: "#666" }}>No page to display.</div>;
   }
 
-  const pageProps = mergeProps("Page", page.props) as Record<string, unknown>;
+  const pageProps = mergeProps("Page", currentPage.props) as Record<string, unknown>;
   const background = (pageProps.background as string) || "#ffffff";
   const { ref, width: viewportWidth } = useContainerWidth();
   const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
@@ -1281,28 +1320,74 @@ export function LiveSite({
     });
   }, []);
 
-  return (
-    <div
-      ref={ref}
-      style={{
-        width: "100%",
-        minHeight: "100vh",
-        backgroundColor: background,
-      }}
-    >
-      {page.children.map((id) => {
-        const node = doc.nodes[id];
-        if (!node) return null;
-        function onPrototypeAction(interaction: Interaction): void {
-          throw new Error("Function not implemented.");
+  const onPrototypeAction = React.useCallback((interaction: Interaction) => {
+    if (interaction.action === "openUrl" && interaction.destination) {
+      window.open(interaction.destination, "_blank", "noopener");
+    } else if (interaction.action === "scrollTo" && interaction.destination) {
+      document.getElementById(interaction.destination)?.scrollIntoView({ behavior: "smooth" });
+    } else if (interaction.action === "navigateTo" && interaction.destination) {
+      const dest = interaction.destination;
+      const isPageSlug = doc.pages.some((p, i) => getPageSlug(p, i) === dest);
+      if (isPageSlug) {
+        setHistory((h) => [...h, currentPageSlug]);
+        const duration = (interaction.duration ?? 300) / 1000;
+        const trans = (interaction.transition as keyof typeof PAGE_TRANSITION_STYLES) ?? "dissolve";
+        setTransitionStyle({
+          ...PAGE_TRANSITION_STYLES[trans],
+          animationDuration: `${duration}s`,
+        });
+        setCurrentPageSlug(dest);
+      } else {
+        const el = document.getElementById(dest);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth" });
+        } else if (dest.startsWith("http://") || dest.startsWith("https://") || dest.startsWith("mailto:") || dest.startsWith("/")) {
+          window.location.href = dest;
         }
+      }
+    } else if (interaction.action === "back") {
+      if (history.length > 0) {
+        const prev = history[history.length - 1];
+        setHistory((h) => h.slice(0, -1));
+        setTransitionStyle(PAGE_TRANSITION_STYLES.dissolve);
+        setCurrentPageSlug(prev);
+      } else {
+        window.history.back();
+      }
+    }
+  }, [currentPageSlug, doc.pages, history]);
 
-        return (
-          <RenderNode
+  return (
+    <>
+      <style>{`
+        @keyframes page-dissolve { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes page-slide-left { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes page-slide-right { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes page-slide-up { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes page-slide-down { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes page-push { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+        @keyframes page-move-in { from { opacity: 0; } to { opacity: 1; } }
+      `}</style>
+      <div
+        key={currentPageSlug}
+        ref={ref}
+        style={{
+          width: "100%",
+          minHeight: "100vh",
+          backgroundColor: background,
+          ...transitionStyle,
+        }}
+      >
+        {currentPage.children.map((id) => {
+          const node = doc.nodes[id];
+          if (!node) return null;
+
+          return (
+            <RenderNode
             key={id}
             node={node}
             nodes={doc.nodes}
-            pageIndex={pageIndex}
+            pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
             viewportWidth={viewportWidth}
             interactionState={interactionState}
             availableTriggerTargets={availableTriggerTargets}
@@ -1310,9 +1395,10 @@ export function LiveSite({
             storeContext={storeContext}
             nodeId={id}
             onPrototypeAction={onPrototypeAction}
-          />
-        );
-      })}
-    </div>
+            />
+          );
+        })}
+      </div>
+    </>
   );
 }
