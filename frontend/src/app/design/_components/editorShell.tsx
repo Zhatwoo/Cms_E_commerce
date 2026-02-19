@@ -79,6 +79,44 @@ function getStorageKey(projectId: string) {
   return `${STORAGE_KEY_PREFIX}_${projectId}`;
 }
 
+function isQuotaError(error: unknown): boolean {
+  return (
+    error instanceof DOMException &&
+    (error.code === 22 || error.code === 1014 || error.name === "QuotaExceededError" || error.name === "NS_ERROR_DOM_QUOTA_REACHED")
+  );
+}
+
+function safeSessionGet(key: string): string | null {
+  try {
+    if (typeof window === "undefined" || !window.sessionStorage) return null;
+    return window.sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeSessionSet(key: string, value: string): void {
+  try {
+    if (typeof window === "undefined" || !window.sessionStorage) return;
+    window.sessionStorage.setItem(key, value);
+  } catch (error) {
+    if (isQuotaError(error)) {
+      console.warn("SessionStorage quota exceeded, skipping save:", key);
+    } else {
+      console.warn("Failed to save to sessionStorage:", error);
+    }
+  }
+}
+
+function safeSessionRemove(key: string): void {
+  try {
+    if (typeof window === "undefined" || !window.sessionStorage) return;
+    window.sessionStorage.removeItem(key);
+  } catch {
+    // Ignore errors when removing
+  }
+}
+
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 type EditorShellProps = {
@@ -510,6 +548,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
     if (activeTool === "hand" || isSpacePressed || e.button === 1) {
       setIsPanning(true);
       e.preventDefault();
+      e.stopPropagation(); // Prevent Craft.js from handling drag events
     }
   };
 
@@ -902,18 +941,8 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
               transform: canvasRotation !== 0 ? `rotate(${canvasRotation}deg)` : 'none',
             }}
           >
-            {initialJson === undefined ? null : initialJson ? (
-              <Frame data={initialJson} />
-            ) : (
-              <Frame>
-                <Element is={Viewport} canvas>
-                  {/* Single empty page as starting point */}
-                  <Element is={Page} canvas>
-                    <Element is={Container} padding={40} background="#ffffff" canvas>
-                    </Element>
-                  </Element>
-                </Element>
-              </Frame>
+            {initialJson === undefined ? null : (
+              <SafeFrame data={initialJson} onError={handleFrameError} />
             )}
           </div>
         </div>
@@ -962,6 +991,17 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             </div>
           </div>
         )}
+        {/* Bottom Panel: Move & Hand tools */}
+        {panelsReady && (
+          <BottomPanel
+            activeTool={activeTool}
+            onToolChange={setActiveTool}
+            showHints={true}
+            saveStatus={saveStatus}
+            saveError={saveError}
+            onResetData={handleDeleteData}
+          />
+        )}
         {/* Canvas Controls Overlay: ito yung nasa baba :> */}
         <div data-panel="canvas-controls" className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">
           <div className="flex gap-4 items-center">
@@ -989,6 +1029,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             )}
           </div>
         </div>
+        </InlineTextEditProvider>
         </TransformModeProvider>
         </CanvasToolProvider>
         </PrototypeTabProvider>

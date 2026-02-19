@@ -28,7 +28,10 @@ interface RightPanelProps {
   setActiveTab?: (tab: TabId) => void;
 }
 
-export const RightPanel = ({ projectId, activeTab: controlledTab, setActiveTab: setControlledTab }: RightPanelProps) => {
+// Inner panel that subscribes to Craft editor.
+// Mounted lazily by RightPanel to avoid "setState during render" warnings
+// when Frame is rendering initial data.
+const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: setControlledTab }: RightPanelProps) => {
   const { showAlert } = useAlert();
   const [internalTab, setInternalTab] = useState<TabId>("design");
   const activeTab = controlledTab ?? internalTab;
@@ -221,4 +224,31 @@ export const RightPanel = ({ projectId, activeTab: controlledTab, setActiveTab: 
       )}
     </div>
   );
+};
+
+export const RightPanel = (props: RightPanelProps) => {
+  const [ready, setReady] = useState(false);
+
+  // Delay mounting the editor-subscribed content by one frame.
+  // This avoids React warnings like:
+  // "Cannot update a component (RightPanel) while rendering a different component (De)"
+  // caused by Craft.js internal synchronous updates during initial Frame render.
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setReady(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  if (!ready) {
+    return (
+      <div
+        data-panel="configs"
+        className="w-80 bg-brand-darker/75 backdrop-blur-lg rounded-3xl p-6 h-full shadow-2xl overflow-y-auto border border-white/10 transition-shadow duration-300 flex items-center justify-center text-xs text-brand-light/60"
+        style={{ boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)" }}
+      >
+        Loading inspector…
+      </div>
+    );
+  }
+
+  return <RightPanelInner {...props} />;
 };

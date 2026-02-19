@@ -5,6 +5,9 @@ import { useEditor } from "@craftjs/core";
 import { useCanvasTool } from "./CanvasToolContext";
 
 const DRAGGING_ATTR = "data-dragging";
+const DRAG_THRESHOLD = 4;
+
+type NodesMap = Record<string, { data?: { parent?: string; isCanvas?: boolean } }>;
 const EDITOR_DRAGGING_FLAG = "editorDragging";
 const EDITOR_DROP_COMMIT_FLAG = "editorDropCommit";
 
@@ -106,6 +109,68 @@ function getDraggedDoms(
   return doms;
 }
 
+function getDropTargetAt(
+  clientX: number,
+  clientY: number,
+  nodes: NodesMap,
+  excludeIds: string[],
+  _doms: HTMLElement[]
+): string | null {
+  const exclude = new Set(excludeIds);
+  const elements = document.elementsFromPoint(clientX, clientY) as HTMLElement[];
+  for (const el of elements) {
+    const withNode = el.closest("[data-node-id]") as HTMLElement | null;
+    if (!withNode) continue;
+    const id = withNode.getAttribute("data-node-id");
+    if (!id || exclude.has(id)) continue;
+    const node = nodes[id];
+    if (node?.data?.isCanvas) return id;
+  }
+  return null;
+}
+
+/**
+ * Finds the most specific (deepest) node-id in the element's ancestor chain.
+ * This ensures we get the actual clicked element, not a parent container.
+ */
+function findDeepestNodeId(element: HTMLElement | null): string | null {
+  if (!element) return null;
+  
+  // Check if element itself has data-node-id
+  const selfId = element.getAttribute("data-node-id");
+  if (selfId) return selfId;
+  
+  // Walk up the tree and collect all node-ids
+  const nodeIds: Array<{ id: string; element: HTMLElement }> = [];
+  let current: HTMLElement | null = element;
+  
+  while (current && current !== document.body) {
+    const id = current.getAttribute("data-node-id");
+    if (id) {
+      nodeIds.push({ id, element: current });
+    }
+    current = current.parentElement;
+  }
+  
+  // Return the first (deepest) node-id found
+  return nodeIds.length > 0 ? nodeIds[0].id : null;
+}
+
+function canAcceptNode(nodes: NodesMap, _targetId: string, _nodeId: string): boolean {
+  return true;
+}
+
+function computeInsertIndex(
+  _targetId: string,
+  _clientX: number,
+  _clientY: number,
+  nodes: NodesMap,
+  ids: string[],
+  _queryNode: (id: string) => { get: () => { dom: HTMLElement | null } | null }
+): number {
+  return 0;
+}
+
 export const FigmaStyleDragHandler = () => {
   const { actions, query } = useEditor();
   const actionsRef = useRef(actions);
@@ -119,6 +184,7 @@ export const FigmaStyleDragHandler = () => {
     lastX: number;
     lastY: number;
     zoom: number;
+    committed: boolean;
     nodeMargins: Array<{
       id: string;
       marginTop: number;
@@ -131,71 +197,49 @@ export const FigmaStyleDragHandler = () => {
     dirty: boolean;
   } | null>(null);
 
+  const rafRef = useRef<number>(0);
+  const processDragRef = useRef<(() => void) | null>(null);
+  const activeTool = useCanvasTool();
+
   useEffect(() => {
     actionsRef.current = actions;
     queryRef.current = query;
   }, [actions, query]);
 
   useEffect(() => {
-    const handleMouseDown = (e: MouseEvent) => {
-      if (e.button !== 0) return;
-
-      const target = e.target as HTMLElement | null;
-      if (!target) return;
-
-      if (
-        target.closest("input") ||
-        target.closest("textarea") ||
-        target.closest("select") ||
-        target.closest("[contenteditable=true]") ||
-        target.closest("[data-resize-handle]") ||
-        target.closest("[data-panel]")
-      ) {
-        return;
-      }
-
-      const nodes = queryRef.current?.getState()?.nodes ?? {};
-      const validEntries = d.nodeMargins.filter((entry) => entry.id && nodes[entry.id]);
-      validEntries.forEach((entry) => {
-        const { id, mode, marginTop, marginLeft, top, left } = entry;
-        actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
-          if (mode === "offset") {
-            props.top = `${top + dy}px`;
-            props.left = `${left + dx}px`;
-          } else {
-            props.marginTop = marginTop + dy;
-            props.marginLeft = marginLeft + dx;
-          }
-        });
-      });
-
-      d.startX = d.lastX;
-      d.startY = d.lastY;
-      d.nodeMargins = validEntries.map((n) => ({
-        ...n,
-        marginTop: n.marginTop + dy,
-        marginLeft: n.marginLeft + dx,
-        top: n.top + dy,
-        left: n.left + dx,
-      }));
-
-      rafRef.current = requestAnimationFrame(tick);
+    const tick = () => {
+      rafRef.current = 0;
+      const d = dragRef.current;
+      if (!d || !d.committed || !d.dirty) return;
+      const dx = (d.lastX - d.startX) / d.zoom;
+      const dy = (d.lastY - d.startY) / d.zoom;
+      setDragPreview(draggedDomsRef.current, dx, dy);
+      d.dirty = false;
     };
+    processDragRef.current = tick;
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+      processDragRef.current = null;
+    };
+  }, []);
 
-    rafRef.current = requestAnimationFrame(tick);
-
+  useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
       if (e.button !== 0) return;
       const target = e.target as HTMLElement | null;
       if (!target) return;
+
+      // Hand tool: do not start dragging elements, let panning handle it
+      if (activeTool === "hand") return;
 
       if (target.closest("INPUT") || target.closest("TEXTAREA") || target.closest("SELECT") || target.closest("[contenteditable=true]")) return;
       if (document.body.dataset.spacePan === "true") return;
       if (target.closest("[data-panel]") && !target.closest("[data-panel='resize-overlay']")) return;
       if (target.closest("[data-resize-handle]")) return;
 
-      const onNode = target.closest("[data-node-id]") as HTMLElement | null;
-      const nodeIdFromTarget = onNode?.getAttribute("data-node-id") ?? null;
+      // Find the most specific (deepest) node-id in the element path
+      const nodeIdFromTarget = findDeepestNodeId(target);
 
       const state = queryRef.current.getState();
       const nodesMap = state.nodes;
@@ -220,6 +264,16 @@ export const FigmaStyleDragHandler = () => {
       const d = dragRef.current;
       if (!d) return;
 
+      // Hand tool: cancel any ongoing drag
+      if (activeTool === "hand") {
+        dragRef.current = null;
+        document.body.style.userSelect = "";
+        document.body.style.cursor = "";
+        setDraggingStyle(draggedDomsRef.current, false);
+        draggedDomsRef.current = [];
+        return;
+      }
+
       d.lastX = e.clientX;
       d.lastY = e.clientY;
 
@@ -230,9 +284,38 @@ export const FigmaStyleDragHandler = () => {
 
         const state = queryRef.current.getState();
         let ids = selectedToIds(state.events.selected).filter((id) => id && id !== "ROOT" && state.nodes[id]);
-        if (ids.length === 0 && d.fallbackNodeId && state.nodes[d.fallbackNodeId]) {
-          ids = [d.fallbackNodeId];
+        
+        // If we clicked on a specific node and it's not in the selection, use the clicked node
+        // This prevents dragging parent containers when clicking on child elements
+        if (d.fallbackNodeId && state.nodes[d.fallbackNodeId]) {
+          const clickedNodeId = d.fallbackNodeId;
+          const clickedNodeInSelection = ids.includes(clickedNodeId);
+          
+          // If clicked node is not in selection, prioritize the clicked node
+          // This ensures we drag the actual clicked element, not a parent container
+          if (!clickedNodeInSelection && ids.length > 0) {
+            // Check if clicked node is a descendant of any selected node
+            const isDescendant = ids.some((selectedId) => {
+              let current: string | undefined = clickedNodeId;
+              while (current && current !== "ROOT") {
+                const node = state.nodes[current];
+                const parentId = node?.data?.parent as string | undefined;
+                if (parentId === selectedId) return true;
+                current = parentId;
+              }
+              return false;
+            });
+            
+            // If clicked node is a descendant, use the clicked node instead
+            if (isDescendant) {
+              ids = [clickedNodeId];
+            }
+          } else if (ids.length === 0) {
+            // No selection, use clicked node
+            ids = [clickedNodeId];
+          }
         }
+        
         ids = ids.filter((id) => state.nodes[id]?.data?.props?.locked !== true);
         if (ids.length === 0) { dragRef.current = null; return; }
 
@@ -273,7 +356,15 @@ export const FigmaStyleDragHandler = () => {
 
     const handleMouseUp = () => {
       const d = dragRef.current;
-      if (!d) return;
+      if (!d) {
+        // Always clear any stray drag styles on mouseup
+        clearDragPreview(draggedDomsRef.current);
+        setDraggingStyle(draggedDomsRef.current, false);
+        draggedDomsRef.current = [];
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        return;
+      }
 
       const totalDx = (d.lastX - d.startX) / d.zoom;
       const totalDy = (d.lastY - d.startY) / d.zoom;
@@ -339,9 +430,14 @@ export const FigmaStyleDragHandler = () => {
             });
           });
         }
-        document.body.style.cursor = "";
-        document.body.style.userSelect = "";
       }
+
+      // Always reset cursor, selection, and drag styles on mouseup
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      clearDragPreview(draggedDomsRef.current);
+      setDraggingStyle(draggedDomsRef.current, false);
+      draggedDomsRef.current = [];
       dragRef.current = null;
     };
 

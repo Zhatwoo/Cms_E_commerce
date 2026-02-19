@@ -117,10 +117,6 @@ function parsePxOrAuto(value: unknown): number {
   return 0;
 }
 
-function isNearlyEqual(a: number, b: number, eps = EPSILON): boolean {
-  return Math.abs(a - b) < eps;
-}
-
 type GuideLine = { type: "v" | "h"; value: number };
 type GuideState = {
   lines: GuideLine[];

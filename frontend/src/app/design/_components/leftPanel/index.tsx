@@ -36,11 +36,19 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
   const setActivePanel = setControlledPanel ?? setInternalPanel;
   const [menuOpen, setMenuOpen] = useState(false);
   const [saveFlash, setSaveFlash] = useState(false);
+  // Delay mounting FilesPanel to avoid "setState during render" warnings
+  // caused by Craft.js internal synchronous updates while Frame is rendering.
+  const [filesPanelReady, setFilesPanelReady] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { websiteName } = useDesignProject();
 
   const { query } = useEditor();
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setFilesPanelReady(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   // Close dropdown on click outside or Escape
   useEffect(() => {
@@ -268,7 +276,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
 
       {/* Panel content: only this area scrolls */}
       <div className={`flex-1 min-h-0 overflow-y-auto mt-4 ${activePanel === "components" ? "no-scrollbar" : ""}`}>
-        {activePanel === "files" && <FilesPanel />}
+        {activePanel === "files" && (filesPanelReady ? <FilesPanel /> : null)}
         {activePanel === "assets" && <AssetsPanel />}
         {activePanel === "components" && <ComponentsPanel />}
         {activePanel === "templates" && <TemplatePanel />}

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useEditor } from "@craftjs/core";
+import { useCanvasTool } from "./CanvasToolContext";
 
 /**
  * Handles multi-selection on the canvas via mousedown on capture phase.
@@ -14,6 +15,7 @@ import { useEditor } from "@craftjs/core";
 export const CanvasSelectionHandler = () => {
   const { actions, query } = useEditor();
   const activeTool = useCanvasTool();
+  const lastSelectedNodeIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
@@ -62,12 +64,12 @@ export const CanvasSelectionHandler = () => {
       };
 
       const updateLastSelected = (id: string | null) => {
-        lastSelectedNodeIdRef = id;
+        lastSelectedNodeIdRef.current = id;
       };
 
       if (nodeId && exists(nodeId)) {
         if (isRange) {
-          const lastId = lastSelectedNodeIdRef && exists(lastSelectedNodeIdRef) ? lastSelectedNodeIdRef : null;
+          const lastId = lastSelectedNodeIdRef.current && exists(lastSelectedNodeIdRef.current) ? lastSelectedNodeIdRef.current : null;
           if (lastId && lastId !== nodeId) {
             const parentId = nodesMap[nodeId]?.data?.parent as string | undefined;
             const lastParentId = nodesMap[lastId]?.data?.parent as string | undefined;
