@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useTransition } from "react";
 import ReactDOM from "react-dom";
 import { useEditor } from "@craftjs/core";
 import {
@@ -21,6 +21,8 @@ export const FilesPanel = () => {
     nodes: state.nodes,
     selected: state.events.selected,
   }));
+
+  const [isPending, startTransition] = useTransition();
 
   // ── Context menu state ────────────────────────────────────
   const [contextMenu, setContextMenu] = useState<{
@@ -51,100 +53,106 @@ export const FilesPanel = () => {
   // ── Context menu actions ──────────────────────────────────
   const handleSelect = useCallback(
     (nodeId: string) => {
-      actions.selectNode(nodeId);
-      setContextMenu(null);
+      startTransition(() => {
+        actions.selectNode(nodeId);
+        setContextMenu(null);
+      });
     },
-    [actions]
+    [actions, startTransition]
   );
 
   const handleDuplicate = useCallback(
     (nodeId: string) => {
-      try {
-        // Get the full current serialized editor state
-        const serialized = query.serialize();
-        const data: Record<string, any> = JSON.parse(serialized);
+      startTransition(() => {
+        try {
+          // Get the full current serialized editor state
+          const serialized = query.serialize();
+          const data: Record<string, any> = JSON.parse(serialized);
 
-        const original = data[nodeId];
-        if (!original) return;
-        const parentId = original.parent;
-        if (!parentId || !data[parentId]) return;
+          const original = data[nodeId];
+          if (!original) return;
+          const parentId = original.parent;
+          if (!parentId || !data[parentId]) return;
 
-        // Collect all existing IDs so we can generate new unique ones
-        const existingIds = new Set(Object.keys(data));
+          // Collect all existing IDs so we can generate new unique ones
+          const existingIds = new Set(Object.keys(data));
 
-        const generateId = (): string => {
-          let id = "";
-          do {
-            id = Math.random().toString(36).slice(2, 11);
-          } while (existingIds.has(id));
-          existingIds.add(id);
-          return id;
-        };
-
-        // Recursively clone a subtree with new IDs
-        const cloneSubtree = (sourceId: string, newParentId: string): string | null => {
-          const sourceNode = data[sourceId];
-          if (!sourceNode) return null;
-
-          const newId = generateId();
-          const childIds: string[] = Array.isArray(sourceNode.nodes) ? sourceNode.nodes : [];
-
-          const clonedNode: any = {
-            ...sourceNode,
-            parent: newParentId,
-            nodes: [] as string[],
+          const generateId = (): string => {
+            let id = "";
+            do {
+              id = Math.random().toString(36).slice(2, 11);
+            } while (existingIds.has(id));
+            existingIds.add(id);
+            return id;
           };
 
-          for (const childId of childIds) {
-            const clonedChildId = cloneSubtree(childId, newId);
-            if (clonedChildId) {
-              clonedNode.nodes.push(clonedChildId);
+          // Recursively clone a subtree with new IDs
+          const cloneSubtree = (sourceId: string, newParentId: string): string | null => {
+            const sourceNode = data[sourceId];
+            if (!sourceNode) return null;
+
+            const newId = generateId();
+            const childIds: string[] = Array.isArray(sourceNode.nodes) ? sourceNode.nodes : [];
+
+            const clonedNode: any = {
+              ...sourceNode,
+              parent: newParentId,
+              nodes: [] as string[],
+            };
+
+            for (const childId of childIds) {
+              const clonedChildId = cloneSubtree(childId, newId);
+              if (clonedChildId) {
+                clonedNode.nodes.push(clonedChildId);
+              }
             }
+
+            data[newId] = clonedNode;
+            return newId;
+          };
+
+          // Clone the selected node subtree
+          const clonedRootId = cloneSubtree(nodeId, parentId);
+          if (!clonedRootId) return;
+
+          // Insert the cloned node as a sibling after the original
+          const parentNode = data[parentId];
+          const siblings: string[] = Array.isArray(parentNode.nodes) ? [...parentNode.nodes] : [];
+          const index = siblings.indexOf(nodeId);
+          if (index === -1) {
+            siblings.push(clonedRootId);
+          } else {
+            siblings.splice(index + 1, 0, clonedRootId);
           }
+          parentNode.nodes = siblings;
 
-          data[newId] = clonedNode;
-          return newId;
-        };
-
-        // Clone the selected node subtree
-        const clonedRootId = cloneSubtree(nodeId, parentId);
-        if (!clonedRootId) return;
-
-        // Insert the cloned node as a sibling after the original
-        const parentNode = data[parentId];
-        const siblings: string[] = Array.isArray(parentNode.nodes) ? [...parentNode.nodes] : [];
-        const index = siblings.indexOf(nodeId);
-        if (index === -1) {
-          siblings.push(clonedRootId);
-        } else {
-          siblings.splice(index + 1, 0, clonedRootId);
+          // Apply the new state to the editor
+          actions.deserialize(JSON.stringify(data));
+        } catch (e) {
+          console.warn("Failed to duplicate node:", e);
         }
-        parentNode.nodes = siblings;
-
-        // Apply the new state to the editor
-        actions.deserialize(JSON.stringify(data));
-      } catch (e) {
-        console.warn("Failed to duplicate node:", e);
-      }
-      setContextMenu(null);
+        setContextMenu(null);
+      });
     },
-    [actions, query]
+    [actions, query, startTransition]
   );
 
   const handleDelete = useCallback(
     (nodeId: string) => {
-      try {
-        if (nodeId === "ROOT") return;
-        const node = query.node(nodeId).get();
-        if (PROTECTED.has(node.data.displayName)) return;
-        if (!query.node(nodeId).isDeletable()) return;
-        actions.delete(nodeId);
-      } catch {
-        // node might already be gone
-      }
-      setContextMenu(null);
+      startTransition(() => {
+        try {
+          if (nodeId === "ROOT") return;
+          const node = query.node(nodeId).get();
+          if (PROTECTED.has(node.data.displayName)) return;
+          if (!query.node(nodeId).isDeletable()) return;
+          actions.delete(nodeId);
+        } catch {
+          // node might already be gone
+        }
+        setContextMenu(null);
+      });
     },
-    [actions, query]
+    [actions, query, startTransition]
   );
 
   // ── Check if a node can be modified (not ROOT / Viewport) ─
@@ -190,14 +198,17 @@ export const FilesPanel = () => {
           onClick={(e) => {
             e.stopPropagation();
             const isMulti = e.ctrlKey || e.metaKey;
-            if (isMulti) {
-              const next = new Set(selected);
-              if (next.has(nodeId)) next.delete(nodeId);
-              else next.add(nodeId);
-              actions.selectNode(next.size === 0 ? undefined : Array.from(next));
-            } else {
-              actions.selectNode(nodeId);
-            }
+            // Defer selection updates to avoid setState during render
+            startTransition(() => {
+              if (isMulti) {
+                const next = new Set(selected);
+                if (next.has(nodeId)) next.delete(nodeId);
+                else next.add(nodeId);
+                actions.selectNode(next.size === 0 ? undefined : Array.from(next));
+              } else {
+                actions.selectNode(nodeId);
+              }
+            });
           }}
           onContextMenu={openContextMenu}
           className={`
