@@ -33,6 +33,29 @@ function getStorageKey(projectId: string) {
   return `${STORAGE_KEY_PREFIX}_${projectId}`;
 }
 
+function safeStorageGet(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch (error) {
+    console.warn("localStorage getItem failed:", error);
+    return null;
+  }
+}
+
+function safeStorageSet(key: string, value: string): boolean {
+  void key;
+  void value;
+  return false;
+}
+
+function safeStorageRemove(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch (error) {
+    console.warn("localStorage removeItem failed:", error);
+  }
+}
+
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 type EditorShellProps = {
@@ -202,7 +225,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
         // Try localStorage per-project so Start from Scratch gets blank canvas
         const storageKey = getStorageKey(projectId);
-        const sessionSaved = localStorage.getItem(storageKey);
+        const sessionSaved = safeStorageGet(storageKey);
 
         // Try to load from database
         console.log('📡 Calling getDraft()...');
@@ -232,7 +255,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
               console.log(`✅ Loaded valid draft from DB (${Object.keys(parsed).length} internal nodes)`);
               contentToLoad = content;
               // Sync to localStorage (per-project)
-              localStorage.setItem(storageKey, contentToLoad!);
+              safeStorageSet(storageKey, contentToLoad!);
             } else {
               console.warn('⚠️ Invalid draft structure: missing ROOT or ROOT.nodes');
             }
@@ -251,11 +274,11 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
               contentToLoad = sessionSaved;
             } else {
               console.warn('⚠️ Invalid draft structure in localStorage: missing ROOT or ROOT.nodes');
-              localStorage.removeItem(storageKey);
+              safeStorageRemove(storageKey);
             }
           } catch (e) {
             console.error('Failed to parse localStorage draft:', e);
-            localStorage.removeItem(storageKey);
+            safeStorageRemove(storageKey);
           }
         }
 
@@ -298,7 +321,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
     if (result.success) {
       console.log('✅ Draft deleted');
-      localStorage.removeItem(getStorageKey(projectId));
+      safeStorageRemove(getStorageKey(projectId));
       location.reload(); // Reload to reset editorstate
     } else {
       showAlert('Failed to delete draft: ' + (result.error || 'Unknown error'));
@@ -333,7 +356,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
           console.log('🔄 Auto-save executing (Clean Code)...');
 
           // Save to localStorage per-project so other projects stay untouched
-          localStorage.setItem(getStorageKey(projectId), next);
+          safeStorageSet(getStorageKey(projectId), next);
 
           // Save CLEAN CODE to database (only when projectId is set)
           if (projectId) {

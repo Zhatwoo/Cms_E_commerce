@@ -1035,51 +1035,41 @@ function RenderNode({
             padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
             boxShadow: props.boxShadow as string,
             opacity: toNumber(props.opacity, 1),
-            overflow: props.overflow as string,
+            overflow: "visible",
             cursor: interactiveClick ? "pointer" : (props.cursor as string),
           }}
           onClick={interactiveClick}
         >
           {type === "Triangle" ? (
-            <>
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  clipPath: "polygon(0 100%, 50% 0, 100% 100%)",
-                  backgroundColor: fill,
-                  backgroundImage: bgImage
-                    ? overlay
-                      ? `linear-gradient(${overlay}, ${overlay}), url(${bgImage})`
-                      : `url(${bgImage})`
-                    : undefined,
-                  backgroundSize: bgImage ? (props.backgroundSize as string) : undefined,
-                  backgroundPosition: bgImage ? (props.backgroundPosition as string) : undefined,
-                  backgroundRepeat: bgImage ? (props.backgroundRepeat as string) : undefined,
-                  pointerEvents: "none",
-                }}
+            <svg
+              width="100%"
+              height="100%"
+              viewBox="0 0 100 100"
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                pointerEvents: "none",
+                display: "block",
+              }}
+              preserveAspectRatio="xMidYMid slice"
+            >
+              <polygon
+                points="0,100 50,0 100,100"
+                fill={fill}
+                stroke={props.borderColor as string}
+                strokeWidth={toNumber(props.borderWidth, 0)}
+                strokeDasharray={
+                  props.borderStyle === "dashed"
+                    ? "6,6"
+                    : props.borderStyle === "dotted"
+                      ? "3,3"
+                      : undefined
+                }
               />
-              <svg
-                width="100%"
-                height="100%"
-                viewBox="0 0 100 100"
-                style={{ position: "absolute", top: 0, left: 0, pointerEvents: "none" }}
-              >
-                <polygon
-                  points="0,100 50,0 100,100"
-                  fill="transparent"
-                  stroke={props.borderColor as string}
-                  strokeWidth={toNumber(props.borderWidth, 0)}
-                  strokeDasharray={
-                    props.borderStyle === "dashed"
-                      ? "6,6"
-                      : props.borderStyle === "dotted"
-                        ? "3,3"
-                        : undefined
-                  }
-                />
-              </svg>
-            </>
+            </svg>
           ) : null}
           {children}
         </div>,

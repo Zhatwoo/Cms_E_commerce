@@ -37,11 +37,31 @@ function rectChanged(prev: DOMRect | null, next: DOMRect): boolean {
 }
 
 function getEffectiveZoom(el: HTMLElement): number {
-  const ow = el.offsetWidth;
-  if (!ow) return 1;
-  const bw = el.getBoundingClientRect().width;
-  const z = bw / ow;
-  return z > 0.01 ? z : 1;
+  let zoom = 1;
+  let current: HTMLElement | null = el;
+  while (current) {
+    const zoomText = window.getComputedStyle(current).zoom;
+    const parsed = parseFloat(zoomText);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      zoom *= parsed;
+    }
+    current = current.parentElement;
+  }
+  return zoom > 0.01 ? zoom : 1;
+}
+
+function getOverlayRect(el: HTMLElement): DOMRect {
+  const bounds = el.getBoundingClientRect();
+  const zoom = getEffectiveZoom(el);
+  const rawWidth = el.offsetWidth;
+  const rawHeight = el.offsetHeight;
+  if (!rawWidth || !rawHeight) return bounds;
+
+  const width = rawWidth * zoom;
+  const height = rawHeight * zoom;
+  const left = bounds.left + (bounds.width - width) / 2;
+  const top = bounds.top + (bounds.height - height) / 2;
+  return new DOMRect(left, top, width, height);
 }
 
 type DragState = {
@@ -60,6 +80,8 @@ type DragState = {
   startProps: Record<string, unknown>;
   zoom: number;
   startAngle?: number;
+  lastPointerAngle?: number;
+  accumulatedAngleDeg?: number;
   dirty: boolean;
 };
 
@@ -88,6 +110,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
 
   const dragRef = useRef<DragState | null>(null);
   const rafRef = useRef<number>(0);
+  const processDragRef = useRef<(() => void) | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragType, setDragType] = useState<"move" | "resize" | "rotate" | null>(null);
   const [rect, setRect] = useState<DOMRect | null>(null);
@@ -98,7 +121,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
   useEffect(() => {
     if (!dom) return;
     const update = () => {
-      const next = dom.getBoundingClientRect();
+      const next = getOverlayRect(dom);
       setRect((prev) => (rectChanged(prev, next) ? next : prev));
     };
     update();
@@ -196,11 +219,12 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
     (e: React.MouseEvent, type: "move" | "resize" | "rotate", handle?: Handle) => {
       e.stopPropagation();
       e.preventDefault();
-      const startRect = dom.getBoundingClientRect();
+      const startRect = getOverlayRect(dom);
       const startProps = getProps();
       const zoom = getEffectiveZoom(dom);
       const cx = startRect.left + startRect.width / 2;
       const cy = startRect.top + startRect.height / 2;
+      const pointerAngle = Math.atan2(e.clientY - cy, e.clientX - cx);
 
       if (type === "resize") {
         try {
@@ -232,7 +256,9 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         parentCenterY: undefined,
         startProps,
         zoom,
-        startAngle: type === "rotate" ? Math.atan2(e.clientY - cy, e.clientX - cx) : undefined,
+        startAngle: type === "rotate" ? pointerAngle : undefined,
+        lastPointerAngle: type === "rotate" ? pointerAngle : undefined,
+        accumulatedAngleDeg: type === "rotate" ? 0 : undefined,
         dirty: false,
       };
 
@@ -310,7 +336,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
     const tick = () => {
       const d = dragRef.current;
       if (!d || !d.dirty) {
-        rafRef.current = requestAnimationFrame(tick);
+        rafRef.current = 0;
         return;
       }
 
@@ -321,12 +347,12 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       const p = d.startProps;
 
       if (!Number.isFinite(dx) || !Number.isFinite(dy)) {
-        rafRef.current = requestAnimationFrame(tick);
+        rafRef.current = 0;
         return;
       }
 
       if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) {
-        rafRef.current = requestAnimationFrame(tick);
+        rafRef.current = 0;
         return;
       }
 
@@ -414,20 +440,37 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         const cx = d.startRect.left + d.startRect.width / 2;
         const cy = d.startRect.top + d.startRect.height / 2;
         const currentAngle = Math.atan2(d.lastY - cy, d.lastX - cx);
-        const deltaDeg = ((currentAngle - d.startAngle) * 180) / Math.PI;
+        const prevAngle = d.lastPointerAngle ?? d.startAngle;
+        let deltaRad = currentAngle - prevAngle;
+        if (deltaRad > Math.PI) deltaRad -= Math.PI * 2;
+        if (deltaRad < -Math.PI) deltaRad += Math.PI * 2;
+        const deltaDeg = (deltaRad * 180) / Math.PI;
         const startRot = typeof d.startProps.rotation === "number" ? d.startProps.rotation : 0;
-        const nextRot = startRot + deltaDeg;
+        const accumulated = (d.accumulatedAngleDeg ?? 0) + deltaDeg;
+        d.accumulatedAngleDeg = accumulated;
+        d.lastPointerAngle = currentAngle;
+        const nextRot = startRot + accumulated;
         actions.setProp(nodeId, (props: Record<string, unknown>) => {
           props.rotation = nextRot;
         });
         setRotateAngle((prev) => (prev == null || Math.abs(prev - nextRot) > 0.1 ? nextRot : prev));
       }
 
-      rafRef.current = requestAnimationFrame(tick);
+      if (d.dirty) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        rafRef.current = 0;
+      }
     };
 
-    rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
+    processDragRef.current = tick;
+    return () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = 0;
+      }
+      processDragRef.current = null;
+    };
   }, [isDragging, actions, nodeId, setGuidesIfChanged]);
 
   // Global move/up listeners
@@ -440,6 +483,9 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       d.lastX = e.clientX;
       d.lastY = e.clientY;
       d.dirty = true;
+      if (!rafRef.current && processDragRef.current) {
+        rafRef.current = requestAnimationFrame(processDragRef.current);
+      }
     };
 
     const handleMouseUp = (e: MouseEvent) => {
@@ -504,6 +550,10 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       }
 
       dragRef.current = null;
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = 0;
+      }
       setIsDragging(false);
       setDragType(null);
       setGuides(null);
@@ -538,7 +588,11 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
     : allHandles;
   const centerX = rect.left + rect.width / 2;
   const centerY = rect.top + rect.height / 2;
-  const displayAngle = rotateAngle ?? 0;
+  const currentRotation = (() => {
+    const props = getProps();
+    return typeof props.rotation === "number" ? props.rotation : 0;
+  })();
+  const displayAngle = rotateAngle ?? currentRotation;
 
   return ReactDOM.createPortal(
     <div
@@ -650,73 +704,82 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         </>
       )}
 
-      {/* Border = grab to move */}
       <div
         style={{
           position: "absolute",
           inset: 0,
-          border: "2px solid #3b82f6",
-          borderRadius: 2,
-          cursor: "grab",
-          pointerEvents: "auto",
+          transform: displayAngle ? `rotate(${displayAngle}deg)` : undefined,
+          transformOrigin: "center center",
         }}
-        onMouseDown={(e) => startDrag(e, "move")}
-      />
-
-      {/* Resize handles */}
-      {handles.map((h) => (
+      >
+        {/* Border = grab to move */}
         <div
-          key={h.key}
+          style={{
+            position: "absolute",
+            inset: 0,
+            border: "2px solid #3b82f6",
+            borderRadius: 2,
+            cursor: "grab",
+            pointerEvents: "auto",
+          }}
+          onMouseDown={(e) => startDrag(e, "move")}
+        />
+
+        {/* Resize handles */}
+        {handles.map((h) => (
+          <div
+            key={h.key}
+            data-resize-handle
+            style={{
+              position: "absolute",
+              width: HANDLE_SIZE,
+              height: HANDLE_SIZE,
+              backgroundColor: "#ffffff",
+              border: "2px solid #3b82f6",
+              borderRadius: 2,
+              cursor: HANDLE_CURSORS[h.key],
+              pointerEvents: "auto",
+              zIndex: 1,
+              ...h.style,
+            }}
+            onMouseDown={(e) => startDrag(e, "resize", h.key)}
+          />
+        ))}
+
+        {/* Rotation handle */}
+        <div
           data-resize-handle
           style={{
             position: "absolute",
-            width: HANDLE_SIZE,
-            height: HANDLE_SIZE,
-            backgroundColor: "#ffffff",
+            left: "50%",
+            top: -ROTATION_HANDLE_OFFSET,
+            transform: "translate(-50%, -50%)",
+            width: 20,
+            height: 20,
+            borderRadius: "50%",
             border: "2px solid #3b82f6",
-            borderRadius: 2,
-            cursor: HANDLE_CURSORS[h.key],
+            backgroundColor: "#ffffff",
+            cursor: "grab",
             pointerEvents: "auto",
-            zIndex: 1,
-            ...h.style,
+            zIndex: 2,
           }}
-          onMouseDown={(e) => startDrag(e, "resize", h.key)}
+          onMouseDown={(e) => startDrag(e, "rotate")}
+          title="Rotate"
         />
-      ))}
-
-      {/* Rotation handle */}
-      <div
-        data-resize-handle
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: -ROTATION_HANDLE_OFFSET,
-          transform: "translate(-50%, -50%)",
-          width: 20,
-          height: 20,
-          borderRadius: "50%",
-          border: "2px solid #3b82f6",
-          backgroundColor: "#ffffff",
-          cursor: "grab",
-          pointerEvents: "auto",
-          zIndex: 2,
-        }}
-        onMouseDown={(e) => startDrag(e, "rotate")}
-        title="Rotate"
-      />
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: -ROTATION_HANDLE_OFFSET / 2,
-          width: 2,
-          height: ROTATION_HANDLE_OFFSET,
-          backgroundColor: "#3b82f6",
-          transform: "translateX(-50%)",
-          pointerEvents: "none",
-          zIndex: 1,
-        }}
-      />
+        <div
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: -ROTATION_HANDLE_OFFSET / 2,
+            width: 2,
+            height: ROTATION_HANDLE_OFFSET,
+            backgroundColor: "#3b82f6",
+            transform: "translateX(-50%)",
+            pointerEvents: "none",
+            zIndex: 1,
+          }}
+        />
+      </div>
 
       {/* Size tooltip while resizing */}
       {isDragging && dragType === "resize" && (

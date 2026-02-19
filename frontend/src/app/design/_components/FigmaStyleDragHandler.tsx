@@ -7,11 +7,17 @@ const DRAG_THRESHOLD = 3;
 
 function getEffectiveZoom(el: HTMLElement | null): number {
   if (!el) return 1;
-  const ow = el.offsetWidth;
-  if (!ow) return 1;
-  const bw = el.getBoundingClientRect().width;
-  const z = bw / ow;
-  return z > 0.01 ? z : 1;
+  let zoom = 1;
+  let current: HTMLElement | null = el;
+  while (current) {
+    const zoomText = window.getComputedStyle(current).zoom;
+    const parsed = parseFloat(zoomText);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      zoom *= parsed;
+    }
+    current = current.parentElement;
+  }
+  return zoom > 0.01 ? zoom : 1;
 }
 
 function selectedToIds(raw: unknown): string[] {
