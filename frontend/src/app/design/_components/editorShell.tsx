@@ -72,6 +72,34 @@ function getStorageKey(projectId: string) {
   return `${STORAGE_KEY_PREFIX}_${projectId}`;
 }
 
+function isQuotaError(error: unknown): boolean {
+  if (!(error instanceof DOMException)) return false;
+  return error.name === "QuotaExceededError" || error.code === 22 || error.code === 1014;
+}
+
+function safeSessionGet(key: string): string | null {
+  try {
+    return sessionStorage.getItem(key);
+  } catch (error) {
+    console.warn("sessionStorage getItem failed:", error);
+    return null;
+  }
+}
+
+function safeSessionSet(key: string, value: string): boolean {
+  void key;
+  void value;
+  return false;
+}
+
+function safeSessionRemove(key: string): void {
+  try {
+    sessionStorage.removeItem(key);
+  } catch (error) {
+    console.warn("sessionStorage removeItem failed:", error);
+  }
+}
+
 function safeStorageGet(key: string): string | null {
   try {
     return localStorage.getItem(key);
@@ -490,6 +518,33 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   // Track if editor is fully loaded to prevent stale closure issues
   const isReadyRef = useRef(false);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const storageProto = Object.getPrototypeOf(window.sessionStorage) as Storage;
+    const originalSetItem = storageProto.setItem;
+
+    storageProto.setItem = function (this: Storage, key: string, value: string) {
+      if (typeof key === "string" && key.startsWith(STORAGE_KEY_PREFIX)) {
+        try {
+          return originalSetItem.call(this, key, value);
+        } catch (error) {
+          if (isQuotaError(error)) {
+            console.warn("Skipped sessionStorage write for oversized craft preview payload:", key);
+            return;
+          }
+          throw error;
+        }
+      }
+
+      return originalSetItem.call(this, key, value);
+    };
+
+    return () => {
+      storageProto.setItem = originalSetItem;
+    };
+  }, []);
+
   // Restore saved editor state from database on mount
   useEffect(() => {
     if (!projectId) {
@@ -504,7 +559,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
         // Try sessionStorage per-project (no localStorage — auth/drafts in cookies or session only)
         const storageKey = getStorageKey(projectId);
-        const sessionSaved = sessionStorage.getItem(storageKey);
+        const sessionSaved = safeSessionGet(storageKey);
 
         // Try to load from database
         console.log('📡 Calling getDraft()...');
@@ -534,12 +589,12 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
               console.log(`✅ Loaded valid draft from DB (${Object.keys(parsed).length} internal nodes)`);
               contentToLoad = content;
               // Sync to sessionStorage (per-project)
-              sessionStorage.setItem(storageKey, contentToLoad!);
+              safeSessionSet(storageKey, contentToLoad!);
             } else {
               console.warn('⚠️ Invalid draft structure: missing ROOT or ROOT.nodes. Clearing from database...');
               // Clear invalid data from database
               await deleteDraft(projectId);
-              localStorage.removeItem(storageKey);
+              safeSessionRemove(storageKey);
             }
           } catch (e) {
             console.error('Failed to parse draft content:', e);
@@ -555,11 +610,11 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
               contentToLoad = sessionSaved;
             } else {
               console.warn('⚠️ Invalid draft structure in session: missing ROOT or ROOT.nodes');
-              sessionStorage.removeItem(storageKey);
+              safeSessionRemove(storageKey);
             }
           } catch (e) {
             console.error('Failed to parse session draft:', e);
-            sessionStorage.removeItem(storageKey);
+            safeSessionRemove(storageKey);
           }
         }
 
@@ -602,7 +657,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
     if (result.success) {
       console.log('✅ Draft deleted');
-      sessionStorage.removeItem(getStorageKey(projectId));
+      safeSessionRemove(getStorageKey(projectId));
       location.reload(); // Reload to reset editorstate
     } else {
       showAlert('Failed to delete draft: ' + (result.error || 'Unknown error'));
@@ -612,6 +667,17 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   // Auto-save editor state to database (debounced)
   const handleNodesChange = useCallback(
     (query: { serialize: () => string }) => {
+      if (
+        document.body.dataset.editorDragging === "true" ||
+        document.body.dataset.editorDropCommit === "true"
+      ) {
+        if (saveTimerRef.current) {
+          clearTimeout(saveTimerRef.current);
+          saveTimerRef.current = null;
+        }
+        return;
+      }
+
       // Check Ref instead of State to avoid stale closure
       if (!isReadyRef.current) {
         // console.log('🛑 Aborting save: Editor not yet ready');
@@ -635,9 +701,6 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
           const cleanCode = serializeCraftToClean(next);
 
           console.log('🔄 Auto-save executing (Clean Code)...');
-
-          // Save to sessionStorage per-project (no localStorage)
-          sessionStorage.setItem(getStorageKey(projectId), next);
 
           // Save CLEAN CODE to database (only when projectId is set)
           if (projectId) {
