@@ -31,6 +31,7 @@ export function LandingHeader({ onAuthClick }: LandingHeaderProps) {
           ref={loginRef}
           onClick={() => onAuthClick?.('login')}
           className="text-sm font-medium text-white/95 transition hover:text-white cursor-pointer"
+          suppressHydrationWarning
         >
           Log in
         </button>
@@ -38,6 +39,7 @@ export function LandingHeader({ onAuthClick }: LandingHeaderProps) {
           ref={signupRef}
           onClick={() => onAuthClick?.('register')}
           className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-neutral-900 shadow-sm transition hover:bg-white/95 cursor-pointer"
+          suppressHydrationWarning
         >
           Start for free
         </button>
