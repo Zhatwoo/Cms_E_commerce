@@ -13,19 +13,22 @@ exports.getBySubdomain = async (req, res) => {
     if (!domain || !domain.userId || !domain.projectId) {
       return res.status(404).json({ success: false, message: 'Site not found. Publish from Preview or sync domains in Dashboard.' });
     }
-    let draft = null;
-    try {
-      draft = await Page.getPageData(domain.userId, domain.projectId, domain.userId);
-    } catch (e) {
-      console.error('getBySubdomain getPageData error:', e);
-      return res.status(200).json({ success: true, data: { content: null }, subdomain: domain.subdomain });
+    // Serve only the published snapshot so edits that are not yet published are not visible
+    let content = domain.publishedContent ?? null;
+    if (content == null) {
+      try {
+        const draft = await Page.getPageData(domain.userId, domain.projectId, domain.userId);
+        if (draft && draft.content) content = draft.content;
+      } catch (e) {
+        console.error('getBySubdomain getPageData error:', e);
+      }
     }
-    if (!draft || !draft.content) {
-      return res.status(200).json({ success: true, data: { content: null }, subdomain: domain.subdomain });
+    if (content == null) {
+      return res.status(200).json({ success: true, data: { content: null }, subdomain: domain.subdomain, projectTitle: domain.projectTitle });
     }
     res.status(200).json({
       success: true,
-      data: { content: draft.content },
+      data: { content },
       subdomain: domain.subdomain,
       projectTitle: domain.projectTitle,
     });

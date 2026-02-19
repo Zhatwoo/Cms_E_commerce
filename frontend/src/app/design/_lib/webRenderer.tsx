@@ -46,8 +46,8 @@ function toNumber(value: unknown, fallback: number): number {
   return fallback;
 }
 
-function shouldRenderNodeAtWidth(props: Record<string, unknown>, viewportWidth: number): boolean {
-  const breakpoint = toNumber(props.mobileBreakpoint, 900);
+function shouldRenderNodeAtWidth(props: Record<string, unknown>, viewportWidth: number, defaultBreakpoint: number = 900): boolean {
+  const breakpoint = toNumber(props.mobileBreakpoint, defaultBreakpoint);
   const isMobile = viewportWidth <= breakpoint;
   const showOn = (props.showOn as string | undefined)?.toLowerCase();
 
@@ -469,14 +469,40 @@ function wrapWithPrototype(
     if (i) onPrototypeAction(i);
   };
 
-  const handlers: Record<string, () => void> = {};
-  if (interactions.some((x) => x.trigger === "click")) handlers.onClick = () => run("click");
-  if (interactions.some((x) => x.trigger === "doubleClick")) handlers.onDoubleClick = () => run("doubleClick");
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    run("click");
+  };
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    run("doubleClick");
+  };
+
+  const handlers: Record<string, unknown> = {};
+  if (interactions.some((x) => x.trigger === "click")) {
+    handlers.onClickCapture = handleClick;
+  }
+  if (interactions.some((x) => x.trigger === "doubleClick")) {
+    handlers.onDoubleClickCapture = handleDoubleClick;
+  }
   if (interactions.some((x) => x.trigger === "hover")) handlers.onMouseEnter = () => run("hover");
   if (interactions.some((x) => x.trigger === "mouseLeave")) handlers.onMouseLeave = () => run("mouseLeave");
 
   return (
-    <div style={{ display: "contents" }} {...handlers}>
+    <div
+      style={{ display: "contents", cursor: "pointer" }}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          run("click");
+        }
+      }}
+      {...handlers}
+    >
       {element}
     </div>
   );
@@ -493,6 +519,7 @@ function RenderNode({
   storeContext,
   nodeId,
   onPrototypeAction,
+  mobileBreakpoint,
 }: {
   node: CleanNode;
   nodes: Record<string, CleanNode>;
@@ -504,10 +531,19 @@ function RenderNode({
   storeContext?: StoreContext | null;
   nodeId?: string;
   onPrototypeAction?: (interaction: Interaction) => void;
+  mobileBreakpoint?: number;
 }): React.ReactElement {
-  const type = node.type as ComponentType;
+  // Craft.js resolver uses lowercase keys (text, circle, etc.); normalize for switch/mergeProps
+  const rawType = node.type as string;
+  const type = (
+    rawType === "text" ? "Text"
+      : rawType === "circle" ? "Circle"
+      : rawType === "square" ? "Square"
+      : rawType === "triangle" ? "Triangle"
+      : rawType
+  ) as ComponentType;
   const props = mergeProps(type, node.props) as Record<string, unknown>;
-  if (!shouldRenderNodeAtWidth(props, viewportWidth)) {
+  if (!shouldRenderNodeAtWidth(props, viewportWidth, mobileBreakpoint)) {
     return <></>;
   }
   if (!isCollapsibleOpen(props, viewportWidth, interactionState, availableTriggerTargets)) {
@@ -528,9 +564,14 @@ function RenderNode({
         node={n}
         nodes={nodes}
         pageIndex={pageIndex}
+        viewportWidth={viewportWidth}
+        interactionState={interactionState}
+        availableTriggerTargets={availableTriggerTargets}
+        onToggle={onToggle}
         storeContext={storeContext}
         nodeId={id}
         onPrototypeAction={onPrototypeAction}
+        mobileBreakpoint={mobileBreakpoint}
       />
     );
   });
@@ -541,6 +582,10 @@ function RenderNode({
   switch (type) {
     case "Container": {
       const hasRenderableChildren = childIds.some((id) => Boolean(nodes[id]));
+      const rawHeight = props.height as string | undefined;
+      const showEmptyMinHeight = !rawHeight && !hasRenderableChildren;
+      const effectiveDisplay =
+        (props.display as React.CSSProperties["display"] | undefined) ?? "block";
       const isProductSlot =
         storeContext &&
         storeContext.products.length > 0 &&
@@ -660,8 +705,7 @@ function RenderNode({
       const bw = (props.borderWidth ?? 0) as number;
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
-      const rawHeight = props.height as string | undefined;
-      const showEmptyMinHeight = !rawHeight || rawHeight === "auto" || rawHeight === "";
+      const displayVal = (props.display as React.CSSProperties["display"]) ?? "flex";
       return wrap(
         <div
           style={{
@@ -677,21 +721,21 @@ function RenderNode({
             padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
             margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
             width: props.width as string,
-            height: rawHeight as string,
-            minHeight: showEmptyMinHeight ? "50px" : undefined,
+            height: (props.height as string) ?? "auto",
+            minHeight: !hasRenderableChildren ? "50px" : undefined,
             borderRadius: `${br}px`,
             border: `${bw}px ${props.borderStyle} ${props.borderColor}`,
             position: props.position as React.CSSProperties["position"],
-            display: effectiveDisplay,
-            flexDirection: effectiveDisplay === "flex" ? (props.flexDirection as React.CSSProperties["flexDirection"]) : undefined,
-            flexWrap: effectiveDisplay === "flex" ? (props.flexWrap as React.CSSProperties["flexWrap"]) : undefined,
-            alignItems: effectiveDisplay === "flex" || effectiveDisplay === "grid" ? (props.alignItems as string) : undefined,
-            justifyContent: effectiveDisplay === "flex" || effectiveDisplay === "grid" ? (props.justifyContent as string) : undefined,
-            gap: effectiveDisplay === "flex" ? px(props.gap) : undefined,
-            gridTemplateColumns: effectiveDisplay === "grid" ? (props.gridTemplateColumns as string) : undefined,
-            gridTemplateRows: effectiveDisplay === "grid" ? (props.gridTemplateRows as string) : undefined,
-            columnGap: effectiveDisplay === "grid" ? px(props.gridColumnGap ?? props.gridGap) : undefined,
-            rowGap: effectiveDisplay === "grid" ? px(props.gridRowGap ?? props.gridGap) : undefined,
+            display: displayVal,
+            flexDirection: displayVal === "flex" ? (props.flexDirection as React.CSSProperties["flexDirection"]) : undefined,
+            flexWrap: displayVal === "flex" ? (props.flexWrap as React.CSSProperties["flexWrap"]) : undefined,
+            alignItems: displayVal === "flex" || displayVal === "grid" ? (props.alignItems as string) : undefined,
+            justifyContent: displayVal === "flex" || displayVal === "grid" ? (props.justifyContent as string) : undefined,
+            gap: displayVal === "flex" ? px(props.gap) : undefined,
+            gridTemplateColumns: displayVal === "grid" ? (props.gridTemplateColumns as string) : undefined,
+            gridTemplateRows: displayVal === "grid" ? (props.gridTemplateRows as string) : undefined,
+            columnGap: displayVal === "grid" ? px(props.gridColumnGap ?? props.gridGap) : undefined,
+            rowGap: displayVal === "grid" ? px(props.gridRowGap ?? props.gridGap) : undefined,
             boxShadow: props.boxShadow as string,
             opacity: props.opacity as number,
             overflow: props.overflow as string,
@@ -736,8 +780,8 @@ function RenderNode({
             borderRadius: px(props.borderRadius),
             border: `${props.borderWidth}px ${props.borderStyle} ${props.borderColor}`,
             display: "flex",
-            flexDirection: props.flexDirection as string,
-            flexWrap: props.flexWrap as string,
+            flexDirection: props.flexDirection as React.CSSProperties["flexDirection"],
+            flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
             alignItems: props.alignItems as string,
             justifyContent: props.justifyContent as string,
             gap: px(props.gap),
@@ -775,8 +819,8 @@ function RenderNode({
             borderRadius: px(props.borderRadius),
             border: `${props.borderWidth}px ${props.borderStyle} ${props.borderColor}`,
             display: "flex",
-            flexDirection: props.flexDirection as string,
-            flexWrap: props.flexWrap as string,
+            flexDirection: props.flexDirection as React.CSSProperties["flexDirection"],
+            flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
             alignItems: props.alignItems as string,
             justifyContent: props.justifyContent as string,
             gap: px(props.gap),
@@ -816,8 +860,8 @@ function RenderNode({
             borderRadius: px(props.borderRadius),
             border: `${props.borderWidth}px ${props.borderStyle} ${props.borderColor}`,
             display: "flex",
-            flexDirection: props.flexDirection as string,
-            flexWrap: props.flexWrap as string,
+            flexDirection: props.flexDirection as React.CSSProperties["flexDirection"],
+            flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
             alignItems: props.alignItems as string,
             justifyContent: props.justifyContent as string,
             gap: px(props.gap),
@@ -844,6 +888,7 @@ function RenderNode({
       const pb = (props.paddingBottom ?? p) as number;
       const pl = (props.paddingLeft ?? p) as number;
       const pr = (props.paddingRight ?? p) as number;
+      const textContent = (props.text != null && props.text !== "") ? String(props.text) : ((DEFAULTS["Text"]?.text as string) ?? "Edit me!");
       return wrap(
         <div
           style={{
@@ -854,7 +899,7 @@ function RenderNode({
             letterSpacing: px(props.letterSpacing),
             textAlign: props.textAlign as React.CSSProperties["textAlign"],
             textTransform: props.textTransform as React.CSSProperties["textTransform"],
-            color: props.color as string,
+            color: (props.color as string) || "#000000",
             margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
             padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
             opacity: props.opacity as number,
@@ -863,7 +908,7 @@ function RenderNode({
           }}
           onClick={interactiveClick}
         >
-          {(props.text as string) ?? ""}
+          {textContent}
         </div>
       );
     }
@@ -1102,12 +1147,16 @@ export function WebPreview({
   pageIndex = 0,
   initialPageSlug,
   storeContext,
+  simulatedWidth,
+  mobileBreakpoint,
 }: {
   doc: BuilderDocument;
   pageIndex?: number;
   /** Initial page slug for multi-page (overrides pageIndex when set). */
   initialPageSlug?: string;
   storeContext?: StoreContext | null;
+  simulatedWidth?: number;
+  mobileBreakpoint?: number;
 }): React.ReactElement {
   const firstSlug = doc.pages[0] ? getPageSlug(doc.pages[0], 0) : "page";
   const [currentPageSlug, setCurrentPageSlug] = useState(initialPageSlug ?? getPageSlug(doc.pages[pageIndex] ?? doc.pages[0], pageIndex) ?? firstSlug);
@@ -1153,7 +1202,8 @@ export function WebPreview({
   const background = (pageProps.background as string) || "#ffffff";
   const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
   const frameStyles = resolvePageFrameStyles(width);
-  const { ref, width: viewportWidth } = useContainerWidth(1000);
+  const { ref, width: measuredWidth } = useContainerWidth(1000);
+  const viewportWidth = simulatedWidth ?? measuredWidth;
   const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
   const availableTriggerTargets = React.useMemo(() => {
     const targets = new Set<string>();
@@ -1170,8 +1220,8 @@ export function WebPreview({
       const current = prev[target] ?? false;
       const next =
         action === "open" ? true :
-        action === "close" ? false :
-        !current;
+          action === "close" ? false :
+            !current;
       return { ...prev, [target]: next };
     });
   }, []);
@@ -1186,9 +1236,22 @@ export function WebPreview({
         @keyframes page-slide-down { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes page-push { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         @keyframes page-move-in { from { opacity: 0; } to { opacity: 1; } }
+        /* Responsive preview styles */
+        @media (max-width: 900px) {
+          .responsive-preview {
+            width: 100vw !important;
+            min-width: 0 !important;
+            max-width: 100vw !important;
+            border-radius: 0 !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+          }
+        }
       `}</style>
       <div
         key={currentPageSlug}
+        className="responsive-preview"
         style={{
           width,
           minHeight,
@@ -1199,6 +1262,7 @@ export function WebPreview({
           overflow: "hidden",
           ...transitionStyle,
         }}
+        ref={ref}
       >
         {currentPage.children.map((id) => {
           const node = doc.nodes[id];
@@ -1209,9 +1273,14 @@ export function WebPreview({
               node={node}
               nodes={doc.nodes}
               pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
+              viewportWidth={viewportWidth}
+              interactionState={interactionState}
+              availableTriggerTargets={availableTriggerTargets}
+              onToggle={handleToggle}
               storeContext={storeContext}
               nodeId={id}
               onPrototypeAction={onPrototypeAction}
+              mobileBreakpoint={mobileBreakpoint}
             />
           );
         })}
@@ -1223,22 +1292,35 @@ export function WebPreview({
 /**
  * Full-width live site renderer. No shadow, no border-radius, no max-width box.
  * The design fills the entire browser viewport as a real website.
+ * Supports multi-page prototype navigation (Navigate to page) via currentPageSlug state.
  */
 export function LiveSite({
   doc,
   pageIndex = 0,
   storeContext,
+  initialPageSlug,
 }: {
   doc: BuilderDocument;
   pageIndex?: number;
   storeContext?: StoreContext | null;
+  /** Optional initial page slug from URL (e.g. ?page=page-1) for deep linking */
+  initialPageSlug?: string;
 }): React.ReactElement {
-  const page = doc.pages[pageIndex];
-  if (!page) {
+  const firstSlug = doc.pages[0] ? getPageSlug(doc.pages[0], 0) : "page";
+  const [currentPageSlug, setCurrentPageSlug] = React.useState(
+    initialPageSlug ?? getPageSlug(doc.pages[pageIndex] ?? doc.pages[0], pageIndex) ?? firstSlug
+  );
+  const [history, setHistory] = React.useState<string[]>([]);
+  const [transitionStyle, setTransitionStyle] = React.useState<React.CSSProperties>({});
+
+  const currentPage = doc.pages.find((p, i) => getPageSlug(p, i) === currentPageSlug) ?? doc.pages[0];
+  const currentPageIndex = doc.pages.findIndex((p, i) => getPageSlug(p, i) === currentPageSlug);
+
+  if (!currentPage) {
     return <div style={{ padding: 24, color: "#666" }}>No page to display.</div>;
   }
 
-  const pageProps = mergeProps("Page", page.props) as Record<string, unknown>;
+  const pageProps = mergeProps("Page", currentPage.props) as Record<string, unknown>;
   const background = (pageProps.background as string) || "#ffffff";
   const { ref, width: viewportWidth } = useContainerWidth();
   const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
@@ -1257,38 +1339,91 @@ export function LiveSite({
       const current = prev[target] ?? false;
       const next =
         action === "open" ? true :
-        action === "close" ? false :
-        !current;
+          action === "close" ? false :
+            !current;
       return { ...prev, [target]: next };
     });
   }, []);
 
+  const onPrototypeAction = React.useCallback((interaction: Interaction) => {
+    if (interaction.action === "openUrl" && interaction.destination) {
+      window.open(interaction.destination, "_blank", "noopener");
+    } else if (interaction.action === "scrollTo" && interaction.destination) {
+      document.getElementById(interaction.destination)?.scrollIntoView({ behavior: "smooth" });
+    } else if (interaction.action === "navigateTo" && interaction.destination) {
+      const dest = interaction.destination;
+      const isPageSlug = doc.pages.some((p, i) => getPageSlug(p, i) === dest);
+      if (isPageSlug) {
+        setHistory((h) => [...h, currentPageSlug]);
+        const duration = (interaction.duration ?? 300) / 1000;
+        const trans = (interaction.transition as keyof typeof PAGE_TRANSITION_STYLES) ?? "dissolve";
+        setTransitionStyle({
+          ...PAGE_TRANSITION_STYLES[trans],
+          animationDuration: `${duration}s`,
+        });
+        setCurrentPageSlug(dest);
+      } else {
+        const el = document.getElementById(dest);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth" });
+        } else if (dest.startsWith("http://") || dest.startsWith("https://") || dest.startsWith("mailto:") || dest.startsWith("/")) {
+          window.location.href = dest;
+        }
+      }
+    } else if (interaction.action === "back") {
+      if (history.length > 0) {
+        const prev = history[history.length - 1];
+        setHistory((h) => h.slice(0, -1));
+        setTransitionStyle(PAGE_TRANSITION_STYLES.dissolve);
+        setCurrentPageSlug(prev);
+      } else {
+        window.history.back();
+      }
+    }
+  }, [currentPageSlug, doc.pages, history]);
+
   return (
-    <div
-      ref={ref}
-      style={{
-        width: "100%",
-        minHeight: "100vh",
-        backgroundColor: background,
-      }}
-    >
-      {page.children.map((id) => {
-        const node = doc.nodes[id];
-        if (!node) return null;
-        return (
-          <RenderNode
+    <>
+      <style>{`
+        @keyframes page-dissolve { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes page-slide-left { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes page-slide-right { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes page-slide-up { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes page-slide-down { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes page-push { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+        @keyframes page-move-in { from { opacity: 0; } to { opacity: 1; } }
+      `}</style>
+      <div
+        key={currentPageSlug}
+        ref={ref}
+        style={{
+          width: "100%",
+          minHeight: "100vh",
+          backgroundColor: background,
+          ...transitionStyle,
+        }}
+      >
+        {currentPage.children.map((id) => {
+          const node = doc.nodes[id];
+          if (!node) return null;
+
+          return (
+            <RenderNode
             key={id}
             node={node}
             nodes={doc.nodes}
-            pageIndex={pageIndex}
+            pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
             viewportWidth={viewportWidth}
             interactionState={interactionState}
             availableTriggerTargets={availableTriggerTargets}
             onToggle={handleToggle}
             storeContext={storeContext}
-          />
-        );
-      })}
-    </div>
+            nodeId={id}
+            onPrototypeAction={onPrototypeAction}
+            />
+          );
+        })}
+      </div>
+    </>
   );
 }

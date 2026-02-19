@@ -9,6 +9,7 @@ type Handle = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 
 const HANDLE_SIZE = 8;
 const ROTATION_HANDLE_OFFSET = 24;
+const EPSILON = 0.01;
 
 const HANDLE_CURSORS: Record<Handle, string> = {
   n: "ns-resize",
@@ -65,7 +66,7 @@ function getOverlayRect(el: HTMLElement): DOMRect {
 }
 
 type DragState = {
-  type: "move" | "resize" | "rotate";
+  type: "resize" | "rotate";
   handle?: Handle;
   moveMode?: "margin" | "offset";
   startX: number;
@@ -112,7 +113,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
   const rafRef = useRef<number>(0);
   const processDragRef = useRef<(() => void) | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [dragType, setDragType] = useState<"move" | "resize" | "rotate" | null>(null);
+  const [dragType, setDragType] = useState<"resize" | "rotate" | null>(null);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [guides, setGuides] = useState<GuideState>(null);
   const [rotateAngle, setRotateAngle] = useState<number | null>(null);
@@ -216,7 +217,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
   );
 
   const startDrag = useCallback(
-    (e: React.MouseEvent, type: "move" | "resize" | "rotate", handle?: Handle) => {
+    (e: React.MouseEvent, type: "resize" | "rotate", handle?: Handle) => {
       e.stopPropagation();
       e.preventDefault();
       const startRect = getOverlayRect(dom);
@@ -300,7 +301,6 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       }
       document.body.style.userSelect = "none";
       document.body.style.cursor =
-        type === "move" ? "grabbing" :
         type === "rotate" ? "grabbing" :
         handle ? HANDLE_CURSORS[handle] : "default";
     },
@@ -424,6 +424,16 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         if (h.includes("s")) newH = Math.max(20, startH + dy);
         if (h.includes("n")) { newH = Math.max(20, startH - dy); extraMT = dy; }
 
+        if (
+          isNearlyEqual(newW, startW) &&
+          isNearlyEqual(newH, startH) &&
+          isNearlyEqual(extraMT, 0) &&
+          isNearlyEqual(extraML, 0)
+        ) {
+          rafRef.current = requestAnimationFrame(tick);
+          return;
+        }
+
         actions.setProp(nodeId, (props: Record<string, unknown>) => {
           props.width = `${newW}px`;
           props.height = `${newH}px`;
@@ -480,6 +490,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
     const handleMouseMove = (e: MouseEvent) => {
       const d = dragRef.current;
       if (!d) return;
+      if (e.clientX === d.lastX && e.clientY === d.lastY) return;
       d.lastX = e.clientX;
       d.lastY = e.clientY;
       d.dirty = true;
@@ -508,7 +519,6 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         const zoom = d.zoom;
         const dx = (d.lastX - d.startX) / zoom;
         const dy = (d.lastY - d.startY) / zoom;
-        const p = d.startProps;
 
         if (d.type === "move") {
           if (d.moveMode === "offset") {

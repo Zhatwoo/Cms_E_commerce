@@ -35,14 +35,7 @@ export const HeaderWithMegamenu: TemplateEntry = {
         React.createElement(
           Element as any,
           { is: Column, width: "auto", canvas: true },
-          React.createElement(
-            Element as any,
-            { is: Row, gap: 32, canvas: true },
-            React.createElement(Text, { text: "Electronics ▼", fontSize: 16, color: "#f1f5f9" }),
-            React.createElement(Text, { text: "Fashion ▼", fontSize: 16, color: "#f1f5f9" }),
-            React.createElement(Text, { text: "Home ▼", fontSize: 16, color: "#f1f5f9" }),
-            React.createElement(Text, { text: "Sports ▼", fontSize: 16, color: "#f1f5f9" })
-          )
+          React.createElement(Element as any, { is: Row, gap: 32, canvas: true })
         ),
         React.createElement(
           Element as any,

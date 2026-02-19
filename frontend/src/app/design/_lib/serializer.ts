@@ -523,8 +523,9 @@ export function deserializeCleanToCraft(doc: BuilderDocument): string {
   // Reconstruct Pages (backward compat: name/slug default from index)
   doc.pages.forEach((page, index) => {
     const defaults = COMPONENT_DEFAULTS["Page"] ?? {};
-    const name = page.name ?? `Page ${index + 1}`;
-    const slug = page.slug ?? `page-${index}`;
+    const name = (page.props?.pageName as string) ?? page.name ?? `Page ${index + 1}`;
+    const slug = (page.props?.pageSlug as string) ?? page.slug ?? `page-${index}`;
+    const validChildren = page.children ?? [];
     craft[page.id] = {
       type: { resolvedName: "Page" },
       isCanvas: true,
@@ -533,10 +534,11 @@ export function deserializeCleanToCraft(doc: BuilderDocument): string {
       custom: {},
       parent: "ROOT",
       hidden: false,
-      nodes: page.children,
+      nodes: validChildren,
       linkedNodes: {},
     };
 
+    // Reconstruct child nodes
     reconstructChildren(page.children, page.id, doc.nodes, craft);
   });
 
@@ -554,10 +556,19 @@ function reconstructChildren(
 ): void {
   for (const id of childIds) {
     const cleanNode = nodes[id];
-    if (!cleanNode) continue;
+    if (!cleanNode) {
+      console.warn(`⚠️ Node ${parentId} references missing child node: ${id}`);
+      continue;
+    }
 
     // Already reconstructed
     if (craft[id]) continue;
+
+    // Validate that the node has a type
+    if (!cleanNode.type) {
+      console.error(`❌ Node ${id} is missing required 'type' property. Skipping.`);
+      continue;
+    }
 
     const defaults = COMPONENT_DEFAULTS[cleanNode.type] ?? {};
     const canvasTypes = new Set([
@@ -571,6 +582,15 @@ function reconstructChildren(
       "Triangle",
     ]);
 
+    // Validate and filter children to only include existing nodes
+    const validChildren = (cleanNode.children || []).filter((childId) => {
+      const exists = !!nodes[childId];
+      if (!exists) {
+        console.warn(`⚠️ Node ${id} references missing child node: ${childId}`);
+      }
+      return exists;
+    });
+
     craft[id] = {
       type: { resolvedName: cleanNode.type },
       isCanvas: canvasTypes.has(cleanNode.type),
@@ -579,13 +599,13 @@ function reconstructChildren(
       custom: {},
       parent: parentId,
       hidden: false,
-      nodes: cleanNode.children,
+      nodes: validChildren,
       linkedNodes: {},
     };
 
     // Recurse
-    if (cleanNode.children.length > 0) {
-      reconstructChildren(cleanNode.children, id, nodes, craft);
+    if (validChildren.length > 0) {
+      reconstructChildren(validChildren, id, nodes, craft);
     }
   }
 }

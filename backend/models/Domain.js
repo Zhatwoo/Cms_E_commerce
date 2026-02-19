@@ -14,6 +14,12 @@ function getPublishedSubdomainsRef() {
   return db.collection(PUBLISHED_SUBDOMAINS);
 }
 
+/** List all published sites from Firestore collection published_subdomains. */
+async function listAllFromPublishedSubdomains() {
+  const snap = await getPublishedSubdomainsRef().get();
+  return snap.docs.map((d) => docToObject(d));
+}
+
 async function create(data) {
   const doc = {
     user_id: data.userId || null,
@@ -59,6 +65,74 @@ async function update(id, data) {
 
 async function deleteById(id) {
   await db.collection(COLLECTION).doc(id).delete();
+}
+
+/**
+ * Publish for a client: write to BOTH paths in one batch so both always stay in sync for any client UID.
+ * Saves a snapshot of content so the public site shows only what was published, not the live draft.
+ * - user/roles/client/{userId}/domains/{domainId}
+ * - published_subdomains/{subdomain}
+ */
+async function publishForClientBatch(userId, { projectId, projectTitle, subdomain, publishedContent }) {
+  const normalized = (subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  if (!normalized) throw new Error('subdomain is required');
+  if (!userId || !projectId) throw new Error('userId and projectId are required');
+
+  const clientRef = getDomainsRef(userId);
+  const publishedRef = getPublishedSubdomainsRef();
+  const now = new Date();
+
+  const existing = await findByProjectId(userId, projectId);
+  const batch = db.batch();
+
+  let domainId;
+  const clientDoc = {
+    project_id: projectId,
+    project_title: projectTitle || null,
+    subdomain: normalized,
+    domain: null,
+    status: 'published',
+    updated_at: now,
+    published_content: publishedContent ?? null,
+  };
+
+  if (existing) {
+    domainId = existing.id;
+    const ref = clientRef.doc(domainId);
+    batch.update(ref, {
+      project_title: clientDoc.project_title,
+      subdomain: clientDoc.subdomain,
+      status: clientDoc.status,
+      updated_at: clientDoc.updated_at,
+      published_content: clientDoc.published_content,
+    });
+  } else {
+    clientDoc.created_at = now;
+    const newRef = clientRef.doc(); // auto-generated id
+    domainId = newRef.id;
+    batch.set(newRef, clientDoc);
+  }
+
+  const publishedDoc = {
+    user_id: userId,
+    project_id: projectId,
+    domain_id: domainId,
+    status: 'published',
+    project_title: projectTitle || null,
+    updated_at: now,
+    published_content: publishedContent ?? null,
+  };
+  batch.set(publishedRef.doc(normalized), publishedDoc, { merge: true });
+
+  await batch.commit();
+
+  return {
+    id: domainId,
+    subdomain: normalized,
+    projectId,
+    projectTitle: projectTitle || null,
+    status: 'published',
+  };
 }
 
 /** Write public lookup and ensure client domains path is up to date. */
@@ -132,13 +206,14 @@ async function findBySubdomain(subdomain) {
         subdomain: normalized,
         projectTitle: data.projectTitle,
         status: data.status,
+        publishedContent: data.publishedContent ?? data.published_content ?? null,
       };
     }
   } catch (e) {
     console.warn('findBySubdomain collectionGroup query failed, falling back:', e.message);
   }
 
-  // Fallback: published_subdomains
+  // Fallback: published_subdomains (includes published_content snapshot)
   const snap = await getPublishedSubdomainsRef().doc(normalized).get();
   if (!snap.exists) return null;
   const data = docToObject(snap);
@@ -150,6 +225,7 @@ async function findBySubdomain(subdomain) {
     subdomain: normalized,
     projectTitle: data.projectTitle,
     status: data.status,
+    publishedContent: data.publishedContent ?? data.published_content ?? null,
   };
 }
 
@@ -213,8 +289,10 @@ module.exports = {
   findAll,
   update,
   delete: deleteById,
+  publishForClientBatch,
   setSubdomainLookup,
   findBySubdomain,
+  listAllFromPublishedSubdomains,
   listByClient,
   get,
   getDomainsRef,

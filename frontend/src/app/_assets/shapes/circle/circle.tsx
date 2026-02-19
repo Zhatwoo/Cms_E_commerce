@@ -88,10 +88,11 @@ export const Circle = (props: CircleProps) => {
     );
   }
 
-  const { connectors: { connect, drag } } = useNode();
+  const { id, connectors: { connect, drag } } = useNode((node) => ({ id: node.id }));
   
   return (
     <div
+      data-node-id={id}
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}

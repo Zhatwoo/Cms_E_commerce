@@ -1,5 +1,6 @@
 // routes/authRoutes.js
 const express = require('express');
+const multer = require('multer');
 const { body } = require('express-validator');
 const {
   register,
@@ -9,6 +10,7 @@ const {
   getMe,
   getFirebaseCustomToken,
   updateProfile,
+  uploadAvatar,
   changePassword,
   forgotPassword,
   resetPassword,
@@ -17,6 +19,15 @@ const {
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) return cb(null, true);
+    cb(new Error('Only images are allowed'));
+  }
+});
 
 const router = express.Router();
 
@@ -35,6 +46,7 @@ router.get('/', (req, res) => {
       resetPassword: 'POST /api/auth/reset-password',
       getMe: 'GET /api/auth/me (Authorization: Bearer <token>)',
       updateProfile: 'PUT /api/auth/profile',
+      uploadAvatar: 'POST /api/auth/avatar (multipart: avatar)',
       changePassword: 'PUT /api/auth/change-password'
     }
   });
@@ -84,6 +96,15 @@ router.post('/logout', logout);
 router.get('/me', protect, getMe);
 router.get('/firebase-custom-token', protect, getFirebaseCustomToken);
 router.put('/profile', protect, updateProfile);
+router.post('/avatar', protect, (req, res, next) => {
+  upload.single('avatar')(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ success: false, message: 'File too large (max 5MB).' });
+      return res.status(400).json({ success: false, message: err.message || 'Invalid file' });
+    }
+    next();
+  });
+}, uploadAvatar);
 router.put('/change-password', protect, [
   body('currentPassword').notEmpty().withMessage('Current password is required'),
   body('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters')

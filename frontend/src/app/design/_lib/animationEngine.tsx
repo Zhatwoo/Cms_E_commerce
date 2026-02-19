@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useState, useMemo } from "react";
 import { motion, useInView } from "framer-motion";
 import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import type {
   AnimationConfig,
   AnimateInType,
@@ -329,6 +329,14 @@ export function AnimationWrapper({
       setHasTriggered(true);
     }
   }, [config.trigger.type, isInView]);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (el.ownerDocument !== document) {
+      setHasTriggered(true);
+    }
+  }, []);
 
   const shouldAnimate =
     config.trigger.type === "onLoad"
