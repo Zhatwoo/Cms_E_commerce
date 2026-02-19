@@ -345,7 +345,9 @@ export const FigmaStyleDragHandler = () => {
         return;
       }
 
-      d.nodeMargins.forEach((entry) => {
+      const nodes = queryRef.current?.getState()?.nodes ?? {};
+      const validEntries = d.nodeMargins.filter((entry) => entry.id && nodes[entry.id]);
+      validEntries.forEach((entry) => {
         const { id, mode, marginTop, marginLeft, top, left } = entry;
         actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
           if (mode === "offset") {
@@ -360,7 +362,7 @@ export const FigmaStyleDragHandler = () => {
 
       d.startX = d.lastX;
       d.startY = d.lastY;
-      d.nodeMargins = d.nodeMargins.map((n) => ({
+      d.nodeMargins = validEntries.map((n) => ({
         ...n,
         marginTop: n.marginTop + dy,
         marginLeft: n.marginLeft + dx,
@@ -507,7 +509,8 @@ export const FigmaStyleDragHandler = () => {
               });
             });
           } catch {
-            d.nodeMargins.forEach((entry) => {
+            const nodes = queryRef.current?.getState()?.nodes ?? {};
+            d.nodeMargins.filter((e) => e.id && nodes[e.id]).forEach((entry) => {
               const { id, mode, marginTop, marginLeft, top, left } = entry;
               actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
                 if (mode === "offset") {
@@ -521,7 +524,8 @@ export const FigmaStyleDragHandler = () => {
             });
           }
         } else {
-          d.nodeMargins.forEach((entry) => {
+          const nodes = queryRef.current?.getState()?.nodes ?? {};
+          d.nodeMargins.filter((e) => e.id && nodes[e.id]).forEach((entry) => {
             const { id, mode, marginTop, marginLeft, top, left } = entry;
             actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
               if (mode === "offset") {
