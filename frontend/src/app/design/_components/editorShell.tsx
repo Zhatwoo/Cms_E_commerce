@@ -22,7 +22,9 @@ import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
 import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
 import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import { TransformModeProvider } from "./TransformModeContext";
+import { InlineTextEditProvider } from "./InlineTextEditContext";
 import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
+import { CanvasContextMenu } from "./CanvasContextMenu";
 import { PrototypeTabProvider } from "./PrototypeTabContext";
 import { PrototypeFlowLines } from "./PrototypeFlowLines";
 import type { TabId } from "./rightPanel";
@@ -76,7 +78,6 @@ const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 function getStorageKey(projectId: string) {
   return `${STORAGE_KEY_PREFIX}_${projectId}`;
 }
-
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -526,6 +527,33 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   // Track if editor is fully loaded to prevent stale closure issues
   const isReadyRef = useRef(false);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const storageProto = Object.getPrototypeOf(window.sessionStorage) as Storage;
+    const originalSetItem = storageProto.setItem;
+
+    storageProto.setItem = function (this: Storage, key: string, value: string) {
+      if (typeof key === "string" && key.startsWith(STORAGE_KEY_PREFIX)) {
+        try {
+          return originalSetItem.call(this, key, value);
+        } catch (error) {
+          if (isQuotaError(error)) {
+            console.warn("Skipped sessionStorage write for oversized craft preview payload:", key);
+            return;
+          }
+          throw error;
+        }
+      }
+
+      return originalSetItem.call(this, key, value);
+    };
+
+    return () => {
+      storageProto.setItem = originalSetItem;
+    };
+  }, []);
+
   // Restore saved editor state from database on mount
   useEffect(() => {
     if (!projectId) {
@@ -540,7 +568,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
         // Try sessionStorage per-project (no localStorage — auth/drafts in cookies or session only)
         const storageKey = getStorageKey(projectId);
-        const sessionSaved = sessionStorage.getItem(storageKey);
+        const sessionSaved = safeSessionGet(storageKey);
 
         // Try to load from database
         console.log('📡 Calling getDraft()...');
@@ -570,12 +598,12 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
               console.log(`✅ Loaded valid draft from DB (${Object.keys(parsed).length} internal nodes)`);
               contentToLoad = content;
               // Sync to sessionStorage (per-project)
-              sessionStorage.setItem(storageKey, contentToLoad!);
+              safeSessionSet(storageKey, contentToLoad!);
             } else {
               console.warn('⚠️ Invalid draft structure: missing ROOT or ROOT.nodes. Clearing from database...');
               // Clear invalid data from database
               await deleteDraft(projectId);
-              localStorage.removeItem(storageKey);
+              safeSessionRemove(storageKey);
             }
           } catch (e) {
             console.error('Failed to parse draft content:', e);
@@ -591,11 +619,11 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
               contentToLoad = sessionSaved;
             } else {
               console.warn('⚠️ Invalid draft structure in session: missing ROOT or ROOT.nodes');
-              sessionStorage.removeItem(storageKey);
+              safeSessionRemove(storageKey);
             }
           } catch (e) {
             console.error('Failed to parse session draft:', e);
-            sessionStorage.removeItem(storageKey);
+            safeSessionRemove(storageKey);
           }
         }
 
@@ -638,7 +666,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
     if (result.success) {
       console.log('✅ Draft deleted');
-      sessionStorage.removeItem(getStorageKey(projectId));
+      safeSessionRemove(getStorageKey(projectId));
       location.reload(); // Reload to reset editorstate
     } else {
       showAlert('Failed to delete draft: ' + (result.error || 'Unknown error'));
@@ -648,6 +676,17 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   // Auto-save editor state to database (debounced)
   const handleNodesChange = useCallback(
     (query: { serialize: () => string }) => {
+      if (
+        document.body.dataset.editorDragging === "true" ||
+        document.body.dataset.editorDropCommit === "true"
+      ) {
+        if (saveTimerRef.current) {
+          clearTimeout(saveTimerRef.current);
+          saveTimerRef.current = null;
+        }
+        return;
+      }
+
       // Check Ref instead of State to avoid stale closure
       if (!isReadyRef.current) {
         // console.log('🛑 Aborting save: Editor not yet ready');
@@ -671,9 +710,6 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
           const cleanCode = serializeCraftToClean(next);
 
           console.log('🔄 Auto-save executing (Clean Code)...');
-
-          // Save to sessionStorage per-project (no localStorage)
-          sessionStorage.setItem(getStorageKey(projectId), next);
 
           // Save CLEAN CODE to database (only when projectId is set)
           if (projectId) {
@@ -738,11 +774,13 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         canonicalByLower.set(key.toLowerCase(), key);
       }
 
+      const allIds = new Set(Object.keys(parsed));
+
       for (const id of Object.keys(parsed)) {
-        const node = parsed[id] as any;
+        const node = parsed[id] as Record<string, unknown> | null;
         if (!node || typeof node !== "object") continue;
         const t = node.type;
-        const rawName = ((typeof t === "string" ? t : t?.resolvedName) ?? "").toString().trim();
+        const rawName = ((typeof t === "string" ? t : (t as { resolvedName?: string })?.resolvedName) ?? "").toString().trim();
         if (!rawName) return null;
 
         if (!keys.has(rawName)) {
@@ -750,12 +788,15 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
           if (normalized) {
             node.type = { resolvedName: normalized };
             node.displayName = normalized;
-            continue;
+          } else {
+            node.type = { resolvedName: "Container" };
+            node.displayName = "Container";
           }
-
-          node.type = { resolvedName: "Container" };
-          node.displayName = "Container";
         }
+
+        const childIds = Array.isArray(node.nodes) ? node.nodes : [];
+        const validChildIds = childIds.filter((cid: string) => allIds.has(cid));
+        node.nodes = validChildIds;
       }
       return JSON.stringify(parsed);
     } catch {
@@ -805,13 +846,15 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
       <Editor
         resolver={resolver}
         onRender={RenderNode}
-        onNodesChange={handleNodesChange}
+        onNodesChange={(query) => requestAnimationFrame(() => handleNodesChange(query))}
       >
         <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
         <CanvasToolProvider value={activeTool}>
         <TransformModeProvider>
+        <InlineTextEditProvider>
           <KeyboardShortcuts />
           <CanvasSelectionHandler />
+          <CanvasContextMenu />
           <FigmaStyleDragHandler />
           <BoxSelectionHandler />
           <DoubleClickTransformHandler />
@@ -859,8 +902,8 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
               transform: canvasRotation !== 0 ? `rotate(${canvasRotation}deg)` : 'none',
             }}
           >
-            {initialJson === undefined ? null : (validFrameData ?? initialJson) ? (
-              <Frame data={validFrameData ?? initialJson} />
+            {initialJson === undefined ? null : initialJson ? (
+              <Frame data={initialJson} />
             ) : (
               <Frame>
                 <Element is={Viewport} canvas>
@@ -919,17 +962,33 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             </div>
           </div>
         )}
-        {/* Bottom Panel: Move & Hand tools + hints + save status */}
-        {panelsReady && (
-          <BottomPanel
-            activeTool={activeTool}
-            onToolChange={setActiveTool}
-            showHints
-            saveStatus={saveStatus}
-            saveError={saveError}
-            onResetData={handleDeleteData}
-          />
-        )}
+        {/* Canvas Controls Overlay: ito yung nasa baba :> */}
+        <div data-panel="canvas-controls" className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">
+          <div className="flex gap-4 items-center">
+            <span>{Math.round(scale * 100)}%</span>
+            <span>Space + Drag to Pan</span>
+            <span>Ctrl + Scroll to Zoom</span>
+            <span>Ctrl (Win) / ⌘ Cmd (Mac) + Click to multi-select</span>
+            {/* Delete Button */}
+            <button
+              onClick={handleDeleteData}
+              className="pointer-events-auto text-red-400 hover:text-red-300 transition-colors ml-2"
+              title="Delete stored data and reset"
+            >
+              🗑️ Reset Data
+            </button>
+            {saveStatus !== 'idle' && (
+              <span className={`${saveStatus === 'saving' ? 'text-yellow-400' :
+                saveStatus === 'saved' ? 'text-green-400' :
+                  'text-red-400'
+                }`}>
+                {saveStatus === 'saving' ? '💾 Saving...' :
+                  saveStatus === 'saved' ? '✓ Saved' :
+                    saveError ? `⚠ Save failed: ${saveError}` : '⚠ Save failed'}
+              </span>
+            )}
+          </div>
+        </div>
         </TransformModeProvider>
         </CanvasToolProvider>
         </PrototypeTabProvider>

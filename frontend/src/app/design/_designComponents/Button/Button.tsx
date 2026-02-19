@@ -43,6 +43,8 @@ export const Button = ({
   opacity = 1,
   boxShadow = "none",
   rotation = 0,
+  flipHorizontal = false,
+  flipVertical = false,
   children,
 }: ButtonProps) => {
   const { id, connectors: { connect, drag } } = useNode();
@@ -87,7 +89,7 @@ export const Button = ({
         marginLeft: `${ml}px`,
         opacity,
         boxShadow,
-        transform: rotation ? `rotate(${rotation}deg)` : undefined,
+        transform: [rotation ? `rotate(${rotation}deg)` : null, flipHorizontal ? "scaleX(-1)" : null, flipVertical ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined,
         cursor: "pointer",
         display: "inline-flex",
         alignItems: "center",

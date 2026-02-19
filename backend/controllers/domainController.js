@@ -249,6 +249,21 @@ exports.getSchedule = async (req, res) => {
   }
 };
 
+// Get publish history for a project (stack of last publish/update times)
+exports.getPublishHistory = async (req, res) => {
+  try {
+    const { projectId } = req.query;
+    if (!projectId || !String(projectId).trim()) {
+      return res.status(400).json({ success: false, message: 'projectId is required' });
+    }
+    const userId = req.user.id;
+    const history = await Domain.getPublishHistoryByProject(userId, String(projectId).trim());
+    res.status(200).json({ success: true, data: { history } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
 // Sync public lookup from user/roles/client/{userId}/domains so GET /api/public/sites/:subdomain works
 exports.syncPublicLookup = async (req, res) => {
   try {

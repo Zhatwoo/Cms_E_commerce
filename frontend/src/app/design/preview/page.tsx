@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, Suspense } from "react";
+import React, { useEffect, useState, useMemo, useRef, Suspense } from "react";
 import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload, Monitor, Tablet, Smartphone } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
@@ -10,7 +10,7 @@ import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 import { publishProject, getProject, schedulePublish, getSchedule } from "@/lib/api";
 import { createPortal } from "react-dom";
-
+//vdxvx
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 
 type ViewMode = "Web-Preview" | "clean" | "raw";
@@ -100,6 +100,8 @@ function PreviewContent() {
   const [scheduleInfo, setScheduleInfo] = useState<{ scheduledAt: string; subdomain: string | null } | null>(null);
   const [scheduling, setScheduling] = useState(false);
   const [mobileBreakpoint, setMobileBreakpoint] = useState(900);
+  const thumbnailCaptureRef = useRef(false);
+  const previewRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     async function loadData() {
@@ -136,6 +138,22 @@ function PreviewContent() {
     }
 
     loadData();
+  }, [projectId]);
+
+  useEffect(() => {
+    let active = true;
+    async function loadProject() {
+      try {
+        const res = await getProject(projectId);
+        if (active && res.success && res.project) {
+          setProject(res.project);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    loadProject();
+    return () => { active = false; };
   }, [projectId]);
 
   // Compute clean document
@@ -184,6 +202,58 @@ function PreviewContent() {
       : previewViewport === "tablet"
         ? "w-[768px]"
         : "w-[390px]";
+
+  const capturePreviewThumbnail = async () => {
+    if (thumbnailCaptureRef.current || !previewRef.current || !projectId) return;
+    if (viewMode !== "Web-Preview" || loading || !cleanDoc) return;
+
+    thumbnailCaptureRef.current = true;
+    try {
+      const canvas = await html2canvas(previewRef.current, {
+        backgroundColor: "#ffffff",
+        scale: 0.7,
+        useCORS: true,
+      });
+
+      const blob: Blob | null = await new Promise((resolve) => {
+        canvas.toBlob((b) => resolve(b), "image/jpeg", 0.85);
+      });
+
+      if (!blob) throw new Error("Thumbnail capture failed");
+
+      const file = new File([blob], `preview-${projectId}.jpg`, { type: "image/jpeg" });
+      const user = getStoredUser();
+      const clientName = user?.name || user?.email || "client";
+      const websiteName = project?.title || "project";
+
+      const url = await uploadClientFile(file, {
+        clientName,
+        websiteName,
+        folder: "images",
+      });
+
+      const updated = await updateProject(projectId, { thumbnail: url });
+      if (updated.success) {
+        setProject(updated.project);
+      }
+    } catch (err) {
+      console.warn("Preview thumbnail capture failed:", err);
+    } finally {
+      thumbnailCaptureRef.current = false;
+    }
+  };
+
+  useEffect(() => {
+    thumbnailCaptureRef.current = false;
+  }, [projectId]);
+
+  useEffect(() => {
+    if (viewMode !== "Web-Preview" || loading || !cleanDoc) return;
+    const timeout = setTimeout(() => {
+      capturePreviewThumbnail();
+    }, 800);
+    return () => clearTimeout(timeout);
+  }, [viewMode, loading, cleanDoc]);
 
   // ── Stats ──────────────────────────────────────────
   const rawBytes = rawJson ? new Blob([rawJson]).size : 0;
@@ -261,7 +331,7 @@ function PreviewContent() {
       setSaving(false);
     }
   };
-
+//cjdhv
   const handlePublishClick = async () => {
     setPublishDomainError("");
     try {
@@ -528,7 +598,7 @@ function PreviewContent() {
             <p>Fetching latest clean data...</p>
           </div>
         ) : viewMode === "Web-Preview" ? (
-          <div className={`h-full ${previewViewport === "desktop" ? "" : "flex justify-center py-6"}`}>
+          <div className="flex justify-center py-6 h-full">
             {cleanDoc ? (
               <PreviewIframe
                 width={

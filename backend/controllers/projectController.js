@@ -114,10 +114,11 @@ exports.update = async (req, res) => {
         message: 'Project not found',
       });
     }
-    const { title, status } = req.body;
+    const { title, status, thumbnail } = req.body;
     const project = await Project.update(userId, req.params.id, {
       ...(title !== undefined && { title }),
       ...(status !== undefined && { status }),
+      ...(thumbnail !== undefined && { thumbnail }),
     });
     res.status(200).json({
       success: true,

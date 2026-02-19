@@ -16,11 +16,13 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
     dom,
     name,
     parent,
+    visibility,
   } = useNode((node) => ({
     isHover: node.events.hovered,
     dom: node.dom,
     name: node.data.custom.displayName || node.data.displayName,
     parent: node.data.parent,
+    visibility: (node.data.props?.visibility as "visible" | "hidden" | undefined) ?? "visible",
   }));
 
   const [mounted, setMounted] = useState(false);
@@ -66,12 +68,20 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
         )
         : null}
 
-      {/* Resize / Move overlay — hidden when Hand tool is active so blue outline doesn't affect assets */}
-      {!isHandTool && mounted && isActive && dom ? (
+      {/* Resize / Move overlay — only for actively selected nodes */}
+      {mounted && isActive && dom ? (
         <ResizeOverlay nodeId={id} dom={dom} />
       ) : null}
 
-      {render}
+      <div
+        style={
+          visibility === "hidden"
+            ? { visibility: "hidden" as const, pointerEvents: "none" as const }
+            : { display: "contents" }
+        }
+      >
+        {render}
+      </div>
     </>
   );
 };

@@ -145,199 +145,222 @@ export function Globe3D({ className }: { className?: string }) {
     let css2dRenderer: CSS2DRenderer;
 
     const init = async () => {
-      const [THREE, ThreeGlobe, controlsModule, css2dModule] = await Promise.all([
-        import('three'),
-        import('three-globe'),
-        import('three/examples/jsm/controls/OrbitControls.js'),
-        import('three/examples/jsm/renderers/CSS2DRenderer.js'),
-      ]);
+      try {
+        const [THREE, ThreeGlobe, controlsModule, css2dModule] = await Promise.all([
+          import('three'),
+          import('three-globe'),
+          import('three/examples/jsm/controls/OrbitControls.js'),
+          import('three/examples/jsm/renderers/CSS2DRenderer.js'),
+        ]);
 
-      const { OrbitControls } = controlsModule;
-      const rect = container.getBoundingClientRect();
-      const size = Math.min(rect.width, rect.height) || 400;
+        const { OrbitControls } = controlsModule;
+        const rect = container.getBoundingClientRect();
+        const size = Math.min(rect.width, rect.height) || 400;
 
-      const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x050507);
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050507);
 
-      const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 2000);
-      camera.position.z = 360;
-      camera.position.x = 0;
-      camera.position.y = 0;
+        const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 2000);
+        camera.position.z = 360;
+        camera.position.x = 0;
+        camera.position.y = 0;
 
-      scene.add(new THREE.AmbientLight(0xbbbbbb, 0.3));
-      const dLight = new THREE.DirectionalLight(0xffffff, 0.8);
-      dLight.position.set(-800, 2000, 400);
-      camera.add(dLight);
-      const dLight1 = new THREE.DirectionalLight(0x7982f6, 1);
-      dLight1.position.set(-200, 500, 200);
-      camera.add(dLight1);
-      const dLight2 = new THREE.PointLight(0x8566cc, 0.5);
-      dLight2.position.set(-200, 500, 200);
-      camera.add(dLight2);
-      scene.add(camera);
+        scene.add(new THREE.AmbientLight(0xbbbbbb, 0.3));
+        const dLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dLight.position.set(-800, 2000, 400);
+        camera.add(dLight);
+        const dLight1 = new THREE.DirectionalLight(0x7982f6, 1);
+        dLight1.position.set(-200, 500, 200);
+        camera.add(dLight1);
+        const dLight2 = new THREE.PointLight(0x8566cc, 0.5);
+        dLight2.position.set(-200, 500, 200);
+        camera.add(dLight2);
+        scene.add(camera);
 
-      scene.fog = new THREE.Fog(0x535ef3, 400, 2000);
+        scene.fog = new THREE.Fog(0x535ef3, 400, 2000);
 
-      renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
-      renderer.setSize(size, size);
-      const canvas = renderer.domElement as HTMLCanvasElement;
-      canvas.style.display = 'block';
-      canvas.style.width = '100%';
-      canvas.style.height = '100%';
-      container.appendChild(renderer.domElement);
+        renderer = new THREE.WebGLRenderer({ antialias: true, failIfMajorPerformanceCaveat: false });
+        renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+        renderer.setSize(size, size);
+        const canvas = renderer.domElement as HTMLCanvasElement;
+        canvas.style.display = 'block';
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        
+        // Handle WebGL context loss
+        const handleContextLoss = () => {
+          console.warn('WebGL context lost');
+        };
+        const handleContextRestored = () => {
+          console.warn('WebGL context restored');
+        };
+        canvas.addEventListener('webglcontextlost', handleContextLoss, false);
+        canvas.addEventListener('webglcontextrestored', handleContextRestored, false);
+        
+        container.appendChild(renderer.domElement);
 
-      const { CSS2DRenderer: CSS2DRendererClass } = css2dModule;
-      css2dRenderer = new CSS2DRendererClass();
-      css2dRenderer.setSize(size, size);
-      (css2dRenderer.domElement as HTMLElement).style.position = 'absolute';
-      (css2dRenderer.domElement as HTMLElement).style.top = '0';
-      (css2dRenderer.domElement as HTMLElement).style.left = '0';
-      (css2dRenderer.domElement as HTMLElement).style.width = '100%';
-      (css2dRenderer.domElement as HTMLElement).style.height = '100%';
-      (css2dRenderer.domElement as HTMLElement).style.pointerEvents = 'none';
-      container.appendChild(css2dRenderer.domElement);
+        const { CSS2DRenderer: CSS2DRendererClass } = css2dModule;
+        css2dRenderer = new CSS2DRendererClass();
+        css2dRenderer.setSize(size, size);
+        (css2dRenderer.domElement as HTMLElement).style.position = 'absolute';
+        (css2dRenderer.domElement as HTMLElement).style.top = '0';
+        (css2dRenderer.domElement as HTMLElement).style.left = '0';
+        (css2dRenderer.domElement as HTMLElement).style.width = '100%';
+        (css2dRenderer.domElement as HTMLElement).style.height = '100%';
+        (css2dRenderer.domElement as HTMLElement).style.pointerEvents = 'none';
+        container.appendChild(css2dRenderer.domElement);
 
-      const res = await fetch(GLOBE_DATA_URL);
-      const data = (await res.json()) as GlobeData;
-      const features = data?.features ?? [];
+        const res = await fetch(GLOBE_DATA_URL);
+        const data = (await res.json()) as GlobeData;
+        const features = data?.features ?? [];
 
-      const GlobeClass = (ThreeGlobe as unknown as { default: new (opts?: object) => GlobeInstance }).default;
-      const globe: GlobeInstance = new GlobeClass({
-        waitForGlobeReady: true,
-        animateIn: true,
-      });
-
-      globe
-        .hexPolygonsData(features)
-        .hexPolygonResolution(3)
-        .hexPolygonMargin(0.60)
-        .showAtmosphere(true)
-        .atmosphereColor('#3a228a')
-        .atmosphereAltitude(0.25)
-        .hexPolygonColor(() => 'rgba(80, 255, 120, 0.9)');
-
-      globe.arcsData(ARC_DATA)
-        .arcColor(() => '#ffffff')
-        .arcAltitude((e: { arcAlt?: number }) => (e as { arcAlt?: number }).arcAlt ?? 0.2)
-        .arcStroke(0.5)
-        .arcDashLength(0.9)
-        .arcDashGap(4)
-        .arcDashAnimateTime(1000)
-        .arcsTransitionDuration(1000)
-        .arcDashInitialGap((e: { order?: number }) => (e as { order?: number }).order ?? 0);
-
-      const landings: LandingDatum[] = [];
-      let arcLandIndex = 0;
-      let landingId = 0;
-
-      globe
-        .htmlElementsData(landings)
-        .htmlLat((d) => d.lat)
-        .htmlLng((d) => d.lng)
-        .htmlAltitude(0.015)
-        .htmlElement(createTestimonialCardEl)
-        .htmlElementVisibilityModifier((el, isVisible) => {
-          el.style.opacity = isVisible ? '1' : '0';
-          el.style.visibility = isVisible ? 'visible' : 'hidden';
+        const GlobeClass = (ThreeGlobe as unknown as { default: new (opts?: object) => GlobeInstance }).default;
+        const globe: GlobeInstance = new GlobeClass({
+          waitForGlobeReady: true,
+          animateIn: true,
         });
 
-      globe.rotateY(-Math.PI * (5 / 9));
-      globe.rotateZ(-Math.PI / 6);
+        globe
+          .hexPolygonsData(features)
+          .hexPolygonResolution(3)
+          .hexPolygonMargin(0.60)
+          .showAtmosphere(true)
+          .atmosphereColor('#3a228a')
+          .atmosphereAltitude(0.25)
+          .hexPolygonColor(() => 'rgba(80, 255, 120, 0.9)');
 
-      const globeMaterial = globe.globeMaterial();
-      globeMaterial.color = new THREE.Color(0x3a228a);
-      globeMaterial.emissive = new THREE.Color(0x220038);
-      globeMaterial.emissiveIntensity = 0.1;
-      globeMaterial.shininess = 0.7;
+        globe.arcsData(ARC_DATA)
+          .arcColor(() => '#ffffff')
+          .arcAltitude((e: { arcAlt?: number }) => (e as { arcAlt?: number }).arcAlt ?? 0.2)
+          .arcStroke(0.5)
+          .arcDashLength(0.9)
+          .arcDashGap(4)
+          .arcDashAnimateTime(1000)
+          .arcsTransitionDuration(1000)
+          .arcDashInitialGap((e: { order?: number }) => (e as { order?: number }).order ?? 0);
 
-      scene.add(globe as never);
+        const landings: LandingDatum[] = [];
+        let arcLandIndex = 0;
+        let landingId = 0;
 
-      globe.rendererSize(new THREE.Vector2(size, size));
-      globe.setPointOfView(camera);
+        globe
+          .htmlElementsData(landings)
+          .htmlLat((d) => d.lat)
+          .htmlLng((d) => d.lng)
+          .htmlAltitude(0.015)
+          .htmlElement(createTestimonialCardEl)
+          .htmlElementVisibilityModifier((el, isVisible) => {
+            el.style.opacity = isVisible ? '1' : '0';
+            el.style.visibility = isVisible ? 'visible' : 'hidden';
+          });
 
-      const arcLandInterval = setInterval(() => {
-        const slotIndex = landings.length % MAX_LANDINGS;
-        const arc = ARCS[slotIndex];
-        const off = SLOT_OFFSETS[slotIndex];
-        const testimonial = DUMMY_TESTIMONIALS[arcLandIndex % DUMMY_TESTIMONIALS.length];
-        landings.push({
-          id: landingId++,
-          lat: arc.endLat + off.lat,
-          lng: arc.endLng + off.lng,
-          quote: testimonial.quote,
-          title: testimonial.title,
-          description: testimonial.description,
-        });
-        if (landings.length > MAX_LANDINGS) landings.shift();
-        globe.htmlElementsData([...landings]);
-        arcLandIndex++;
-      }, ARC_LAND_INTERVAL_MS);
+        globe.rotateY(-Math.PI * (5 / 9));
+        globe.rotateZ(-Math.PI / 6);
 
-      const controls = new OrbitControls(camera, renderer.domElement);
-      controls.enableDamping = true;
-      controls.dampingFactor = 0.05;
-      controls.enablePan = false;
-      controls.minDistance = 180;
-      controls.maxDistance = 450;
-      controls.rotateSpeed = 0.8;
-      controls.autoRotate = true;
-      controls.autoRotateSpeed = 0.3;
-      controls.minPolarAngle = Math.PI / 3.5;
-      controls.maxPolarAngle = Math.PI - Math.PI / 3;
+        const globeMaterial = globe.globeMaterial();
+        globeMaterial.color = new THREE.Color(0x3a228a);
+        globeMaterial.emissive = new THREE.Color(0x220038);
+        globeMaterial.emissiveIntensity = 0.1;
+        globeMaterial.shininess = 0.7;
 
-      const onResize = () => {
-        if (!container.parentElement) return;
-        const r = container.getBoundingClientRect();
-        const s = Math.min(r.width, r.height) || 400;
-        camera.aspect = 1;
-        camera.updateProjectionMatrix();
-        renderer.setSize(s, s);
-        css2dRenderer.setSize(s, s);
-        globe.rendererSize(new THREE.Vector2(s, s));
-      };
-      window.addEventListener('resize', onResize);
+        scene.add(globe as never);
 
-      const animate = () => {
-        frameId = requestAnimationFrame(animate);
-        controls.update();
+        globe.rendererSize(new THREE.Vector2(size, size));
         globe.setPointOfView(camera);
-        renderer.render(scene, camera);
-        css2dRenderer.render(scene, camera);
-      };
-      animate();
 
-      // First card after a short delay (slot 0)
-      setTimeout(() => {
-        const arc = ARCS[0];
-        const off = SLOT_OFFSETS[0];
-        const t = DUMMY_TESTIMONIALS[0];
-        landings.push({
-          id: landingId++,
-          lat: arc.endLat + off.lat,
-          lng: arc.endLng + off.lng,
-          quote: t.quote,
-          title: t.title,
-          description: t.description,
-        });
-        globe.htmlElementsData([...landings]);
-        arcLandIndex++;
-      }, 600);
+        const arcLandInterval = setInterval(() => {
+          const slotIndex = landings.length % MAX_LANDINGS;
+          const arc = ARCS[slotIndex];
+          const off = SLOT_OFFSETS[slotIndex];
+          const testimonial = DUMMY_TESTIMONIALS[arcLandIndex % DUMMY_TESTIMONIALS.length];
+          landings.push({
+            id: landingId++,
+            lat: arc.endLat + off.lat,
+            lng: arc.endLng + off.lng,
+            quote: testimonial.quote,
+            title: testimonial.title,
+            description: testimonial.description,
+          });
+          if (landings.length > MAX_LANDINGS) landings.shift();
+          globe.htmlElementsData([...landings]);
+          arcLandIndex++;
+        }, ARC_LAND_INTERVAL_MS);
 
-      return () => {
-        clearInterval(arcLandInterval);
-        window.removeEventListener('resize', onResize);
-        cancelAnimationFrame(frameId);
-        controls.dispose();
-        renderer.dispose();
-        if (typeof (css2dRenderer as unknown as { dispose?: () => void }).dispose === 'function') {
-          (css2dRenderer as unknown as { dispose: () => void }).dispose();
-        }
-        if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
-        if (css2dRenderer?.domElement && container.contains(css2dRenderer.domElement)) {
-          container.removeChild(css2dRenderer.domElement);
-        }
-      };
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.enablePan = false;
+        controls.minDistance = 180;
+        controls.maxDistance = 450;
+        controls.rotateSpeed = 0.8;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.3;
+        controls.minPolarAngle = Math.PI / 3.5;
+        controls.maxPolarAngle = Math.PI - Math.PI / 3;
+
+        const onResize = () => {
+          if (!container.parentElement) return;
+          const r = container.getBoundingClientRect();
+          const s = Math.min(r.width, r.height) || 400;
+          camera.aspect = 1;
+          camera.updateProjectionMatrix();
+          renderer.setSize(s, s);
+          css2dRenderer.setSize(s, s);
+          globe.rendererSize(new THREE.Vector2(s, s));
+        };
+        window.addEventListener('resize', onResize);
+
+        const animate = () => {
+          frameId = requestAnimationFrame(animate);
+          controls.update();
+          globe.setPointOfView(camera);
+          renderer.render(scene, camera);
+          css2dRenderer.render(scene, camera);
+        };
+        animate();
+
+        // First card after a short delay (slot 0)
+        setTimeout(() => {
+          const arc = ARCS[0];
+          const off = SLOT_OFFSETS[0];
+          const t = DUMMY_TESTIMONIALS[0];
+          landings.push({
+            id: landingId++,
+            lat: arc.endLat + off.lat,
+            lng: arc.endLng + off.lng,
+            quote: t.quote,
+            title: t.title,
+            description: t.description,
+          });
+          globe.htmlElementsData([...landings]);
+          arcLandIndex++;
+        }, 600);
+
+        return () => {
+          clearInterval(arcLandInterval);
+          window.removeEventListener('resize', onResize);
+          cancelAnimationFrame(frameId);
+          controls.dispose();
+          renderer.dispose();
+          if (typeof (css2dRenderer as unknown as { dispose?: () => void }).dispose === 'function') {
+            (css2dRenderer as unknown as { dispose: () => void }).dispose();
+          }
+          if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
+          if (css2dRenderer?.domElement && container.contains(css2dRenderer.domElement)) {
+            container.removeChild(css2dRenderer.domElement);
+          }
+        };
+      } catch (error) {
+        console.error('Error initializing Globe3D:', error);
+        // Return a fallback cleanup function
+        return () => {
+          // Attempt basic cleanup
+          if (renderer?.dispose) renderer.dispose();
+          if ((css2dRenderer as unknown as { dispose?: () => void })?.dispose) {
+            (css2dRenderer as unknown as { dispose: () => void }).dispose();
+          }
+        };
+      }
     };
 
     let cleanup: (() => void) | void;

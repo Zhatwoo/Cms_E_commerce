@@ -68,6 +68,7 @@ export function Testimonials() {
                   type="text"
                   className="w-full rounded-lg border border-neutral-600 bg-white px-4 py-3 text-neutral-900 placeholder:text-neutral-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   placeholder=""
+                  suppressHydrationWarning
                 />
               </div>
               <div>
@@ -79,6 +80,7 @@ export function Testimonials() {
                   type="text"
                   className="w-full rounded-lg border border-neutral-600 bg-white px-4 py-3 text-neutral-900 placeholder:text-neutral-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   placeholder=""
+                  suppressHydrationWarning
                 />
               </div>
               <div>
@@ -90,6 +92,7 @@ export function Testimonials() {
                   type="text"
                   className="w-full rounded-lg border border-neutral-600 bg-white px-4 py-3 text-neutral-900 placeholder:text-neutral-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   placeholder=""
+                  suppressHydrationWarning
                 />
               </div>
               <div>
@@ -101,6 +104,7 @@ export function Testimonials() {
                   type="email"
                   className="w-full rounded-lg border border-neutral-600 bg-white px-4 py-3 text-neutral-900 placeholder:text-neutral-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   placeholder=""
+                  suppressHydrationWarning
                 />
               </div>
             </form>
@@ -108,6 +112,7 @@ export function Testimonials() {
               <button
                 type="submit"
                 className="rounded-lg border-2 border-white bg-black px-8 py-3 text-sm font-semibold text-white transition hover:bg-white hover:text-black"
+                suppressHydrationWarning
               >
                 Submit
               </button>
