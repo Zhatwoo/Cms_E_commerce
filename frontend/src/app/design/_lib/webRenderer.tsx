@@ -124,6 +124,259 @@ function useContainerWidth(defaultWidth = 1200): {
   return { ref, width };
 }
 
+/** Responsive asset styles: images/video inside frame scale properly on all devices */
+const frameResponsiveStyles = (
+  <style dangerouslySetInnerHTML={{
+    __html: `
+      .frame-responsive-inner img,
+      .frame-responsive-inner video,
+      .frame-responsive-inner iframe,
+      .frame-responsive-inner [data-responsive-asset] {
+        max-width: 100%;
+        height: auto;
+        object-fit: contain;
+      }
+      .frame-responsive-inner table { width: 100%; max-width: 100%; }
+      
+      /* Responsive Navigation Styles */
+      .frame-responsive-inner [data-nav-container] {
+        position: relative;
+      }
+      
+      /* Mobile hamburger menu button */
+      .frame-responsive-inner [data-nav-container] .nav-hamburger {
+        display: none;
+      }
+      
+      .frame-responsive-inner [data-nav-container] .nav-hamburger.active span:nth-child(1) {
+        transform: rotate(45deg) translate(5px, 5px) !important;
+      }
+      
+      .frame-responsive-inner [data-nav-container] .nav-hamburger.active span:nth-child(2) {
+        opacity: 0 !important;
+      }
+      
+      .frame-responsive-inner [data-nav-container] .nav-hamburger.active span:nth-child(3) {
+        transform: rotate(-45deg) translate(7px, -6px) !important;
+      }
+      
+      /* Mobile nav menu - default desktop view */
+      .frame-responsive-inner [data-nav-container] .nav-menu {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 16px;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        width: 100%;
+      }
+      
+      /* Mobile breakpoint - convert nav to hamburger menu */
+      @media (max-width: 768px) {
+        .frame-responsive-inner [data-nav-container] {
+          display: flex !important;
+          justify-content: space-between !important;
+          align-items: center !important;
+          width: 100% !important;
+          position: relative !important;
+        }
+        
+        .frame-responsive-inner [data-nav-container] .nav-hamburger {
+          display: flex !important;
+        }
+        
+        .frame-responsive-inner [data-nav-container] .nav-menu {
+          position: absolute !important;
+          top: 100% !important;
+          left: 0 !important;
+          right: 0 !important;
+          flex-direction: column !important;
+          align-items: stretch !important;
+          background: rgba(255, 255, 255, 0.98) !important;
+          backdrop-filter: blur(10px);
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+          padding: 0 !important;
+          gap: 0 !important;
+          max-height: 0 !important;
+          overflow: hidden !important;
+          opacity: 0 !important;
+          transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease !important;
+          z-index: 1000 !important;
+          margin-top: 8px !important;
+        }
+        
+        .frame-responsive-inner [data-nav-container] .nav-menu.open {
+          max-height: 500px !important;
+          opacity: 1 !important;
+          padding: 16px !important;
+        }
+        
+        .frame-responsive-inner [data-nav-container] .nav-menu > * {
+          width: 100% !important;
+          padding: 12px !important;
+          text-align: left !important;
+          border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+          display: block !important;
+        }
+        
+        .frame-responsive-inner [data-nav-container] .nav-menu > *:last-child {
+          border-bottom: none !important;
+        }
+      }
+    `,
+  }} />
+);
+
+/** Responsive Navigation Component - converts nav bars to hamburger menu on mobile */
+function ResponsiveNav({ children, containerStyle, onClick }: { 
+  children: React.ReactNode;
+  containerStyle: React.CSSProperties;
+  onClick?: () => void;
+}) {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const navRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (navRef.current && !navRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isOpen]);
+
+  return (
+    <div 
+      ref={navRef} 
+      data-nav-container 
+      style={{ ...containerStyle, position: "relative" }}
+      onClick={onClick}
+    >
+      <div className={`nav-menu ${isOpen ? "open" : ""}`}>
+        {children}
+      </div>
+      <button
+        className={`nav-hamburger ${isOpen ? "active" : ""}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
+        aria-label="Toggle menu"
+        aria-expanded={isOpen}
+        style={{ 
+          color: "inherit",
+          display: "none",
+          flexDirection: "column",
+          gap: "4px",
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          padding: "8px",
+          zIndex: 1001,
+          position: "relative"
+        }}
+      >
+        <span style={{ display: "block", width: "24px", height: "2px", backgroundColor: "currentColor", transition: "all 0.3s ease" }}></span>
+        <span style={{ display: "block", width: "24px", height: "2px", backgroundColor: "currentColor", transition: "all 0.3s ease" }}></span>
+        <span style={{ display: "block", width: "24px", height: "2px", backgroundColor: "currentColor", transition: "all 0.3s ease" }}></span>
+      </button>
+    </div>
+  );
+}
+
+/** Wrapper that measures container size and scales inner content for responsiveness (desktop/tablet/mobile). */
+function ResponsiveFrameWrapper({
+  referenceWidth,
+  referenceHeight,
+  fitMode,
+  children,
+  outerStyle,
+}: {
+  referenceWidth: number;
+  referenceHeight: number;
+  fitMode: "contain" | "cover" | "width" | "fluid";
+  children: React.ReactNode;
+  outerStyle: React.CSSProperties;
+}) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [size, setSize] = React.useState({ w: 0, h: 0 });
+
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => setSize({ w: el.clientWidth || 0, h: el.clientHeight || 0 });
+    update();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
+    if (ro) ro.observe(el);
+    return () => ro?.disconnect();
+  }, []);
+
+  const { w, h } = size;
+  const isFluid = fitMode === "fluid";
+
+  if (isFluid) {
+    return (
+      <div ref={ref} style={{ ...outerStyle, overflow: "hidden", boxSizing: "border-box" }}>
+        {frameResponsiveStyles}
+        <div
+          className="frame-responsive-inner"
+          style={{
+            width: "100%",
+            minHeight: referenceHeight ? `${referenceHeight}px` : undefined,
+            boxSizing: "border-box",
+          }}
+        >
+          {children}
+        </div>
+      </div>
+    );
+  }
+
+  let scale = 1;
+  if (referenceWidth > 0 && referenceHeight > 0 && w > 0 && h > 0) {
+    const scaleX = w / referenceWidth;
+    const scaleY = h / referenceHeight;
+    if (fitMode === "contain") scale = Math.min(scaleX, scaleY);
+    else if (fitMode === "cover") scale = Math.max(scaleX, scaleY);
+    else scale = scaleX;
+  }
+
+  const scaledHeight = referenceHeight * scale;
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        ...outerStyle,
+        overflow: "hidden",
+        position: "relative",
+        ...(scaledHeight > 0 ? { height: scaledHeight } : {}),
+      }}
+    >
+      {frameResponsiveStyles}
+      <div
+        className="frame-responsive-inner"
+        style={{
+          width: referenceWidth,
+          height: referenceHeight,
+          transform: `scale(${scale})`,
+          transformOrigin: "0 0",
+          position: "absolute",
+          left: 0,
+          top: 0,
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 // Default props per type (merge with node.props for full props). Minimal set for rendering.
 const DEFAULTS: Record<string, Record<string, unknown>> = {
   Page: { width: "1000px", height: "auto", background: "#ffffff", pageName: "Page Name", pageSlug: "page" },
@@ -316,6 +569,24 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
     opacity: 1,
     link: "",
   },
+  Frame: {
+    referenceWidth: 1440,
+    referenceHeight: 900,
+    fitMode: "contain",
+    width: "100%",
+    minHeight: "400px",
+    height: "400px",
+    padding: 0,
+    margin: 0,
+    paddingTop: 0,
+    paddingRight: 0,
+    paddingBottom: 0,
+    paddingLeft: 0,
+    marginTop: 0,
+    marginRight: 0,
+    marginBottom: 0,
+    marginLeft: 0,
+  },
   Circle: {
     color: "#10b981",
     width: "200px",
@@ -454,6 +725,39 @@ function wrapWithAnimation(
 ): React.ReactElement {
   if (!hasActiveAnimation(animation)) return element;
   return <AnimationWrapper animation={animation}>{element}</AnimationWrapper>;
+}
+
+/** Check if a container looks like a navigation bar */
+function isNavContainer(
+  node: CleanNode,
+  nodes: Record<string, CleanNode>,
+  props: Record<string, unknown>
+): boolean {
+  const flexDirection = props.flexDirection as string;
+  const isHorizontal = flexDirection === "row" || flexDirection === undefined;
+  const childIds = node.children ?? [];
+  
+  // Check if it has multiple buttons, links, or text elements (typical nav items)
+  let navItemCount = 0;
+  for (const childId of childIds) {
+    const child = nodes[childId];
+    if (!child) continue;
+    const childType = child.type as string;
+    const childProps = child.props ?? {};
+    
+    // Count buttons, links, or text elements that could be nav items
+    if (
+      childType === "Button" ||
+      childType === "button" ||
+      (childType === "Text" && (childProps.link || childProps.href)) ||
+      (childType === "Container" && isNavContainer(child, nodes, childProps))
+    ) {
+      navItemCount++;
+    }
+  }
+  
+  // Consider it a nav if horizontal layout with 2+ nav-like items
+  return isHorizontal && navItemCount >= 2;
 }
 
 function wrapWithPrototype(
@@ -706,46 +1010,53 @@ function RenderNode({
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
       const displayVal = (props.display as React.CSSProperties["display"]) ?? "flex";
-      return wrap(
-        <div
-          style={{
-            backgroundColor: props.background as string,
-            backgroundImage: bgImage
-              ? overlay
-                ? `linear-gradient(${overlay}, ${overlay}), url(${bgImage})`
-                : `url(${bgImage})`
-              : undefined,
-            backgroundSize: bgImage ? (props.backgroundSize as string) : undefined,
-            backgroundPosition: bgImage ? (props.backgroundPosition as string) : undefined,
-            backgroundRepeat: bgImage ? (props.backgroundRepeat as string) : undefined,
-            padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
-            margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
-            width: props.width as string,
-            height: (props.height as string) ?? "auto",
-            minHeight: !hasRenderableChildren ? "50px" : undefined,
-            borderRadius: `${br}px`,
-            border: `${bw}px ${props.borderStyle} ${props.borderColor}`,
-            position: props.position as React.CSSProperties["position"],
-            display: displayVal,
-            flexDirection: displayVal === "flex" ? (props.flexDirection as React.CSSProperties["flexDirection"]) : undefined,
-            flexWrap: displayVal === "flex" ? (props.flexWrap as React.CSSProperties["flexWrap"]) : undefined,
-            alignItems: displayVal === "flex" || displayVal === "grid" ? (props.alignItems as string) : undefined,
-            justifyContent: displayVal === "flex" || displayVal === "grid" ? (props.justifyContent as string) : undefined,
-            gap: displayVal === "flex" ? px(props.gap) : undefined,
-            gridTemplateColumns: displayVal === "grid" ? (props.gridTemplateColumns as string) : undefined,
-            gridTemplateRows: displayVal === "grid" ? (props.gridTemplateRows as string) : undefined,
-            columnGap: displayVal === "grid" ? px(props.gridColumnGap ?? props.gridGap) : undefined,
-            rowGap: displayVal === "grid" ? px(props.gridRowGap ?? props.gridGap) : undefined,
-            boxShadow: props.boxShadow as string,
-            opacity: props.opacity as number,
-            overflow: props.overflow as string,
-            cursor: interactiveClick ? "pointer" : (props.cursor as string),
-          }}
-          onClick={interactiveClick}
-        >
+      const isNav = isNavContainer(node, nodes, props);
+      
+      const containerStyle: React.CSSProperties = {
+        backgroundColor: props.background as string,
+        backgroundImage: bgImage
+          ? overlay
+            ? `linear-gradient(${overlay}, ${overlay}), url(${bgImage})`
+            : `url(${bgImage})`
+          : undefined,
+        backgroundSize: bgImage ? (props.backgroundSize as string) : undefined,
+        backgroundPosition: bgImage ? (props.backgroundPosition as string) : undefined,
+        backgroundRepeat: bgImage ? (props.backgroundRepeat as string) : undefined,
+        padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
+        margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
+        width: props.width as string,
+        height: (props.height as string) ?? "auto",
+        minHeight: !hasRenderableChildren ? "50px" : undefined,
+        borderRadius: `${br}px`,
+        border: `${bw}px ${props.borderStyle} ${props.borderColor}`,
+        position: props.position as React.CSSProperties["position"],
+        display: displayVal,
+        flexDirection: displayVal === "flex" ? (props.flexDirection as React.CSSProperties["flexDirection"]) : undefined,
+        flexWrap: displayVal === "flex" ? (props.flexWrap as React.CSSProperties["flexWrap"]) : undefined,
+        alignItems: displayVal === "flex" || displayVal === "grid" ? (props.alignItems as string) : undefined,
+        justifyContent: displayVal === "flex" || displayVal === "grid" ? (props.justifyContent as string) : undefined,
+        gap: displayVal === "flex" ? px(props.gap) : undefined,
+        gridTemplateColumns: displayVal === "grid" ? (props.gridTemplateColumns as string) : undefined,
+        gridTemplateRows: displayVal === "grid" ? (props.gridTemplateRows as string) : undefined,
+        columnGap: displayVal === "grid" ? px(props.gridColumnGap ?? props.gridGap) : undefined,
+        rowGap: displayVal === "grid" ? px(props.gridRowGap ?? props.gridGap) : undefined,
+        boxShadow: props.boxShadow as string,
+        opacity: props.opacity as number,
+        overflow: props.overflow as string,
+        cursor: interactiveClick ? "pointer" : (props.cursor as string),
+      };
+      
+      const containerContent = isNav ? (
+        <ResponsiveNav containerStyle={containerStyle} onClick={interactiveClick}>
+          {children}
+        </ResponsiveNav>
+      ) : (
+        <div style={containerStyle} onClick={interactiveClick}>
           {children}
         </div>
       );
+      
+      return wrap(containerContent);
     }
 
     case "Section": {
@@ -794,6 +1105,39 @@ function RenderNode({
         >
           {children}
         </section>
+      );
+    }
+
+    case "Frame": {
+      const p = typeof props.padding === "number" ? props.padding : 0;
+      const pl = (props.paddingLeft ?? p) as number;
+      const pr = (props.paddingRight ?? p) as number;
+      const pt = (props.paddingTop ?? p) as number;
+      const pb = (props.paddingBottom ?? p) as number;
+      const m = typeof props.margin === "number" ? props.margin : 0;
+      const ml = (props.marginLeft ?? m) as number;
+      const mr = (props.marginRight ?? m) as number;
+      const mt = (props.marginTop ?? m) as number;
+      const mb = (props.marginBottom ?? m) as number;
+      const refW = Math.max(320, (props.referenceWidth as number) ?? 1440);
+      const refH = Math.max(200, (props.referenceHeight as number) ?? 900);
+      const fit = (props.fitMode as "contain" | "cover" | "width" | "fluid") ?? "contain";
+      const minH = (props.minHeight as string) ?? (props.height as string) ?? "400px";
+      return wrap(
+        <ResponsiveFrameWrapper
+          referenceWidth={refW}
+          referenceHeight={refH}
+          fitMode={fit}
+          outerStyle={{
+            padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
+            margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
+            width: (props.width as string) ?? "100%",
+            minHeight: minH,
+            boxSizing: "border-box",
+          }}
+        >
+          {children}
+        </ResponsiveFrameWrapper>
       );
     }
 
@@ -1179,6 +1523,7 @@ export function WebPreview({
   const frameStyles = resolvePageFrameStyles(width);
   const { ref, width: measuredWidth } = useContainerWidth(1000);
   const viewportWidth = simulatedWidth ?? measuredWidth;
+  const isDesktopMode = simulatedWidth === undefined;
   const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
   const availableTriggerTargets = React.useMemo(() => {
     const targets = new Set<string>();
@@ -1228,12 +1573,12 @@ export function WebPreview({
         key={currentPageSlug}
         className="responsive-preview"
         style={{
-          width,
+          width: isDesktopMode ? "100%" : width,
           minHeight,
           backgroundColor: background,
-          margin: "0 auto",
-          boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
-          borderRadius: 8,
+          margin: isDesktopMode ? 0 : "0 auto",
+          boxShadow: isDesktopMode ? "none" : "0 25px 50px -12px rgba(0,0,0,0.25)",
+          borderRadius: isDesktopMode ? 0 : 8,
           overflow: "hidden",
           ...transitionStyle,
         }}

@@ -2,9 +2,11 @@ import React, { useEffect, useState } from "react";
 import { useNode, useEditor } from "@craftjs/core";
 import ReactDOM from "react-dom";
 import { ResizeOverlay } from "./ResizeOverlay";
+import { useCanvasTool } from "./CanvasToolContext";
 
 export const RenderNode = ({ render }: { render: React.ReactElement }) => {
   const { id } = useNode();
+  const activeTool = useCanvasTool();
   const { isActive } = useEditor((_, query) => ({
     isActive: query.getEvent('selected').contains(id),
   }));
@@ -22,19 +24,22 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
   }));
 
   const [mounted, setMounted] = useState(false);
+  const isHandTool = activeTool === "hand";
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // When Hand tool is active, don't show selection/hover outline or labels on assets
   useEffect(() => {
     if (dom) {
-      if (isActive || isHover) {
+      if (!isHandTool && (isActive || isHover)) {
         dom.classList.add("component-selected");
       } else {
         dom.classList.remove("component-selected");
       }
     }
-  }, [dom, isActive, isHover]);
+  }, [dom, isActive, isHover, isHandTool]);
 
   // Don't render overlays for Root or Viewport
   if (parent === 'ROOT') {
@@ -43,8 +48,8 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
 
   return (
     <>
-      {/* Label overlay (portal) */}
-      {mounted && (isHover || isActive) && dom ?
+      {/* Label overlay (portal) — hidden when Hand tool is active */}
+      {!isHandTool && mounted && (isHover || isActive) && dom ?
         ReactDOM.createPortal(
           <div
             data-panel="node-label"
@@ -61,8 +66,8 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
         )
         : null}
 
-      {/* Resize / Move overlay — only for actively selected nodes */}
-      {mounted && isActive && dom ? (
+      {/* Resize / Move overlay — hidden when Hand tool is active so blue outline doesn't affect assets */}
+      {!isHandTool && mounted && isActive && dom ? (
         <ResizeOverlay nodeId={id} dom={dom} />
       ) : null}
 

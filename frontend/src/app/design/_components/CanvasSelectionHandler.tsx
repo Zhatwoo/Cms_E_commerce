@@ -2,20 +2,26 @@
 
 import { useEffect } from "react";
 import { useEditor } from "@craftjs/core";
+import { useCanvasTool } from "./CanvasToolContext";
 
 /**
  * Handles multi-selection on the canvas via mousedown on capture phase.
  * - Click: select single node (or clear if clicking empty area)
  * - Ctrl (Win) / Cmd (Mac) + Click: toggle node in selection
+ * - When Hand tool is active, selection is disabled (canvas pan only).
  *
  * Uses query.getState() inside the handler to avoid reactive subscriptions
  * that cause "Cannot update component while rendering another" errors.
  */
 export const CanvasSelectionHandler = () => {
   const { actions, query } = useEditor();
+  const activeTool = useCanvasTool();
 
   useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
+      // Hand tool: do not select nodes, let panning handle it
+      if (activeTool === "hand") return;
+
       const target = e.target as HTMLElement | null;
       if (!target) return;
 
@@ -77,7 +83,7 @@ export const CanvasSelectionHandler = () => {
     // Use capture on document so we intercept before Craft.js handlers
     document.addEventListener("mousedown", handleMouseDown, true);
     return () => document.removeEventListener("mousedown", handleMouseDown, true);
-  }, [actions, query]);
+  }, [actions, query, activeTool]);
 
   return null;
 };

@@ -16,7 +16,7 @@ const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 type ViewMode = "Web-Preview" | "clean" | "raw";
 type PreviewViewport = "desktop" | "tablet" | "mobile";
 
-function PreviewIframe({ children, width, height = "80vh" }: { children: React.ReactNode; width: string | number; height?: string | number }) {
+function PreviewIframe({ children, width, height = "80vh", isDesktop = false }: { children: React.ReactNode; width: string | number; height?: string | number; isDesktop?: boolean }) {
   const [mountNode, setMountNode] = useState<HTMLElement | null>(null);
   const iframeRef = React.useRef<HTMLIFrameElement>(null);
 
@@ -46,14 +46,23 @@ function PreviewIframe({ children, width, height = "80vh" }: { children: React.R
   if (width === "responsive") {
     // fallback: 100vw for desktop, 768px for tablet, 390px for mobile
     responsiveWidth = "100vw";
+  } else if (typeof width === "number") {
+    // Convert number to pixel value
+    responsiveWidth = `${width}px`;
   }
 
   return (
     <>
       <iframe
         ref={iframeRef}
-        style={{ width: responsiveWidth, height, transition: "width 0.3s ease" }}
-        className="rounded-xl border border-white/10 bg-white min-h-full"
+        style={{ 
+          width: responsiveWidth, 
+          height, 
+          transition: "width 0.3s ease",
+          borderRadius: isDesktop ? 0 : undefined,
+          border: isDesktop ? "none" : undefined,
+        }}
+        className={isDesktop ? "bg-white min-h-full" : "rounded-xl border border-white/10 bg-white min-h-full"}
         srcDoc={`<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1'/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/><style>*,*::before,*::after{box-sizing:border-box;}body{margin:0;font-family:'Inter',sans-serif;}</style></head><body><div id='preview-root'></div></body></html>`}
         sandbox="allow-scripts allow-same-origin"
         tabIndex={-1}
@@ -519,7 +528,7 @@ function PreviewContent() {
             <p>Fetching latest clean data...</p>
           </div>
         ) : viewMode === "Web-Preview" ? (
-          <div className="flex justify-center py-6 h-full">
+          <div className={`h-full ${previewViewport === "desktop" ? "" : "flex justify-center py-6"}`}>
             {cleanDoc ? (
               <PreviewIframe
                 width={
@@ -530,6 +539,7 @@ function PreviewContent() {
                       : 390
                 }
                 height="calc(100vh - 200px)"
+                isDesktop={previewViewport === "desktop"}
               >
                 <WebPreview
                   doc={cleanDoc}

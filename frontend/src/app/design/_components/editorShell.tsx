@@ -1,10 +1,15 @@
 import * as React from "react";
 import { useRef, useState, useEffect, useLayoutEffect, useCallback } from "react";
-import { Editor, Frame, Element } from "@craftjs/core";
+import { Editor, Frame, Element, useEditor } from "@craftjs/core";
 import { PanelLeft, PanelRight } from "lucide-react";
 import { RenderBlocks } from "../_designComponents";
+// Direct import ensures Frame is bundled and resolver never misses it
+import { Frame as ResponsiveFrameComponent } from "../_designComponents/Frame/Frame";
 import { LeftPanel } from "./leftPanel";
 import { RightPanel } from "./rightPanel";
+import { TopPanel, type DevicePreset } from "./TopPanel";
+import { BottomPanel, type CanvasTool } from "./BottomPanel";
+import { CanvasToolProvider } from "./CanvasToolContext";
 import { Container } from "../_designComponents/Container/Container";
 import { Text } from "../_designComponents/Text/Text";
 import { Page } from "../_designComponents/Page/Page";
@@ -71,6 +76,7 @@ const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 function getStorageKey(projectId: string) {
   return `${STORAGE_KEY_PREFIX}_${projectId}`;
 }
+
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -314,6 +320,10 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [rightPanelTab, setRightPanelTab] = useState<TabId>("design");
+  const [canvasWidth, setCanvasWidth] = useState(1440);
+  const [canvasHeight, setCanvasHeight] = useState(900);
+  const [canvasRotation, setCanvasRotation] = useState(0);
+  const [activeTool, setActiveTool] = useState<CanvasTool>("move");
 
   // Cleanup corrupted data when error boundary triggers
   const handleFrameError = useCallback(async () => {
@@ -412,6 +422,54 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
     return () => cancelAnimationFrame(id);
   }, []);
 
+  // Handle canvas rotation
+  const handleRotateCanvas = useCallback(() => {
+    setCanvasRotation((prev) => (prev + 90) % 360);
+  }, []);
+
+  // Handle fit to canvas
+  const handleFitToCanvas = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    // Reset zoom to fit content
+    const contentWidth = canvasWidth;
+    const contentHeight = canvasHeight;
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+
+    const scaleX = (containerWidth * 0.9) / contentWidth;
+    const scaleY = (containerHeight * 0.9) / contentHeight;
+    const newScale = Math.min(scaleX, scaleY, 1);
+
+    setScale(Math.max(newScale, 0.3));
+
+    // Center the canvas
+    setTimeout(() => {
+      if (container) {
+        const x = (container.scrollWidth - container.clientWidth) / 2;
+        const y = (container.scrollHeight - container.clientHeight) / 2;
+        container.scrollLeft = x;
+        container.scrollTop = y;
+      }
+    }, 100);
+  }, [canvasWidth, canvasHeight]);
+
+  // Handle device preset selection - this will be passed to DevicePresetHandler
+  const handleDevicePresetSelect = useCallback((preset: DevicePreset) => {
+    setCanvasWidth(preset.width);
+    setCanvasHeight(preset.height);
+    // Optionally adjust zoom to fit the new size
+    setTimeout(() => {
+      handleFitToCanvas();
+    }, 100);
+  }, [handleFitToCanvas]);
+
+  // Handle add button (open left panel)
+  const handleAddButton = useCallback(() => {
+    setLeftPanelOpen(true);
+  }, []);
+
   // Handle Panning Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -447,7 +505,8 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   }, [isSpacePressed]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (isSpacePressed || e.button === 1) { // Space or Middle Click
+    // Hand tool active, or Space held, or middle click → pan
+    if (activeTool === "hand" || isSpacePressed || e.button === 1) {
       setIsPanning(true);
       e.preventDefault();
     }
@@ -647,6 +706,8 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
     };
   }, []);
 
+  // Frame (responsive layout): ensure resolver always has a valid component (never undefined)
+  const FrameComponent = ResponsiveFrameComponent ?? (RenderBlocks as Record<string, React.ComponentType>).Frame ?? Container;
   const resolver = {
     ...RenderBlocks,
     Text: Text || Container,
@@ -657,6 +718,8 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
     circle: Circle || Container,
     square: Square || Container,
     triangle: Triangle || Container,
+    Frame: FrameComponent,
+    frame: FrameComponent,
   } as any;
 
   /** Only pass to Frame if data is valid Craft format and every node type exists in resolver */
@@ -700,45 +763,42 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
     }
   }, [initialJson]);
 
-  // Debug: list resolver keys so we can confirm components are registered at runtime
-  if (typeof window !== "undefined") {
-    try {
-      // Delay slightly so logs are clearer in console
-      setTimeout(() => {
+  // Debug: list resolver keys after mount (must run in useEffect to avoid setState-during-render)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const t = setTimeout(() => {
+      try {
+        const res = resolverRef.current;
         // eslint-disable-next-line no-console
-        console.log("[EditorShell] resolver keys:", Object.keys(resolver));
-
-        // If there is saved initial JSON, attempt to parse and list component types used so we can identify missing resolver entries
-        try {
-          if (initialJson) {
-            const parsed = typeof initialJson === 'string' ? JSON.parse(initialJson) : initialJson;
-            const nodeTypes = new Set<string>();
-            if (parsed && parsed.nodes) {
-              Object.values(parsed.nodes as any).forEach((n: any) => {
-                try {
-                  const display = n?.data?.displayName || n?.data?.name || (n?.data?.type && (typeof n.data.type === 'string' ? n.data.type : n.data.type?.name));
-                  if (display) nodeTypes.add(display);
-                } catch (e) {
-                  // ignore
-                }
-              });
-            }
-            const resolverKeys = Object.keys(resolver);
-            const missing = [...nodeTypes].filter((t) => !resolverKeys.includes(t) && !resolverKeys.includes((t || '').replace(/\s+/g, '')));
-            // eslint-disable-next-line no-console
-            console.log('[EditorShell] Serialized node types:', [...nodeTypes]);
-            // eslint-disable-next-line no-console
-            console.log('[EditorShell] Missing resolver types:', missing);
+        console.log("[EditorShell] resolver keys:", Object.keys(res));
+        if (initialJson) {
+          const parsed = typeof initialJson === "string" ? JSON.parse(initialJson) : initialJson;
+          const nodeTypes = new Set<string>();
+          if (parsed && parsed.nodes) {
+            Object.values(parsed.nodes as Record<string, unknown>).forEach((n: unknown) => {
+              try {
+                const node = n as { data?: { displayName?: string; name?: string; type?: string | { name?: string } } };
+                const display = node?.data?.displayName ?? node?.data?.name ?? (typeof node?.data?.type === "string" ? node.data.type : node?.data?.type?.name);
+                if (display) nodeTypes.add(display);
+              } catch {
+                // ignore
+              }
+            });
           }
-        } catch (err) {
+          const resolverKeys = Object.keys(res);
+          const missing = [...nodeTypes].filter((typeName) => !resolverKeys.includes(typeName) && !resolverKeys.includes((typeName || "").replace(/\s+/g, "")));
           // eslint-disable-next-line no-console
-          console.warn('[EditorShell] failed to parse initialJson for debug', err);
+          console.log("[EditorShell] Serialized node types:", [...nodeTypes]);
+          // eslint-disable-next-line no-console
+          console.log("[EditorShell] Missing resolver types:", missing);
         }
-      }, 50);
-    } catch (e) {
-      // ignore
-    }
-  }
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn("[EditorShell] failed to parse initialJson for debug", err);
+      }
+    }, 50);
+    return () => clearTimeout(t);
+  }, [initialJson]);
 
   return (
     <div className="h-screen bg-brand-black text-brand-lighter overflow-hidden font-sans relative">
@@ -748,6 +808,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         onNodesChange={handleNodesChange}
       >
         <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
+        <CanvasToolProvider value={activeTool}>
         <TransformModeProvider>
           <KeyboardShortcuts />
           <CanvasSelectionHandler />
@@ -755,12 +816,36 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
           <BoxSelectionHandler />
           <DoubleClickTransformHandler />
           <PrototypeFlowLines />
+          {/* Top Panel */}
+          {panelsReady && (
+            <TopPanel
+              scale={scale}
+              onScaleChange={setScale}
+              onRotateCanvas={handleRotateCanvas}
+              onFitToCanvas={handleFitToCanvas}
+              onAddButton={handleAddButton}
+              canvasWidth={canvasWidth}
+              canvasHeight={canvasHeight}
+              onDevicePresetSelect={handleDevicePresetSelect}
+            />
+          )}
           {/* Canvas Area (Background) */}
         <div
           ref={containerRef}
           data-canvas-container
-          className="absolute inset-0 overflow-auto bg-brand-darker"
-          style={{ cursor: isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : 'default' }}
+          className={`absolute inset-0 overflow-auto bg-brand-darker ${activeTool === "hand" ? "canvas-hand-tool" : ""} ${activeTool === "hand" && isPanning ? "canvas-hand-panning" : ""}`}
+          style={{
+            cursor:
+              activeTool === "hand"
+                ? isPanning
+                  ? "grabbing"
+                  : "grab"
+                : isSpacePressed
+                  ? isPanning
+                    ? "grabbing"
+                    : "grab"
+                  : "default",
+          }}
           onMouseDown={handleMouseDown}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
@@ -768,11 +853,14 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         >
           {/* Inner Content - Infinite Canvas */}
           <div
-            className="min-w-[200vw] min-h-[200vh] flex items-center justify-center p-40"
-            style={{ zoom: scale }}
+            className="min-w-[200vw] min-h-[200vh] flex items-center justify-center p-40 transition-transform duration-300"
+            style={{ 
+              zoom: scale,
+              transform: canvasRotation !== 0 ? `rotate(${canvasRotation}deg)` : 'none',
+            }}
           >
-            {initialJson === undefined ? null : initialJson ? (
-              <Frame data={initialJson} />
+            {initialJson === undefined ? null : (validFrameData ?? initialJson) ? (
+              <Frame data={validFrameData ?? initialJson} />
             ) : (
               <Frame>
                 <Element is={Viewport} canvas>
@@ -791,7 +879,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         {panelsReady && (
           <div>
             {/* Left Panel */}
-            <div className="absolute top-4 left-4 z-50 h-[calc(100vh-2rem)] w-80 flex items-start pointer-events-none">
+            <div className="absolute top-14 left-4 z-50 h-[calc(100vh-3.5rem)] w-80 flex items-start pointer-events-none">
               <div
                 className="h-full w-80 flex items-start pointer-events-auto"
               >
@@ -821,7 +909,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         )}
         {/* Right Panel */}
         {panelsReady && (
-          <div className="absolute top-4 right-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
+          <div className="absolute top-14 right-4 z-50 h-[calc(100vh-3.5rem)] pointer-events-none">
             <div className="pointer-events-auto h-full">
               <RightPanel
                 projectId={projectId}
@@ -831,34 +919,19 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             </div>
           </div>
         )}
-        {/* Canvas Controls Overlay: ito yung nasa baba :> */}
-        <div data-panel="canvas-controls" className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">
-          <div className="flex gap-4 items-center">
-            <span>{Math.round(scale * 100)}%</span>
-            <span>Space + Drag to Pan</span>
-            <span>Ctrl + Scroll to Zoom</span>
-            <span>Ctrl (Win) / ⌘ Cmd (Mac) + Click to multi-select</span>
-            {/* Delete Button */}
-            <button
-              onClick={handleDeleteData}
-              className="pointer-events-auto text-red-400 hover:text-red-300 transition-colors ml-2"
-              title="Delete stored data and reset"
-            >
-              🗑️ Reset Data
-            </button>
-            {saveStatus !== 'idle' && (
-              <span className={`${saveStatus === 'saving' ? 'text-yellow-400' :
-                saveStatus === 'saved' ? 'text-green-400' :
-                  'text-red-400'
-                }`}>
-                {saveStatus === 'saving' ? '💾 Saving...' :
-                  saveStatus === 'saved' ? '✓ Saved' :
-                    saveError ? `⚠ Save failed: ${saveError}` : '⚠ Save failed'}
-              </span>
-            )}
-          </div>
-        </div>
+        {/* Bottom Panel: Move & Hand tools + hints + save status */}
+        {panelsReady && (
+          <BottomPanel
+            activeTool={activeTool}
+            onToolChange={setActiveTool}
+            showHints
+            saveStatus={saveStatus}
+            saveError={saveError}
+            onResetData={handleDeleteData}
+          />
+        )}
         </TransformModeProvider>
+        </CanvasToolProvider>
         </PrototypeTabProvider>
       </Editor>
     </div>

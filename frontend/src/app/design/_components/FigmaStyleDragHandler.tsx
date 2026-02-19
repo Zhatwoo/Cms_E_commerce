@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useEditor } from "@craftjs/core";
+import { useCanvasTool } from "./CanvasToolContext";
 
 const DRAG_THRESHOLD = 3;
 
@@ -277,6 +278,7 @@ function getDraggedDoms(
 
 export const FigmaStyleDragHandler = () => {
   const { actions, query } = useEditor();
+  const activeTool = useCanvasTool();
   const actionsRef = useRef(actions);
   const queryRef = useRef(query);
   actionsRef.current = actions;
@@ -353,6 +355,8 @@ export const FigmaStyleDragHandler = () => {
 
       if (target.closest("INPUT") || target.closest("TEXTAREA") || target.closest("SELECT") || target.closest("[contenteditable=true]")) return;
       if (document.body.dataset.spacePan === "true") return;
+      // Hand tool: don't start drag — pan only, assets must not move
+      if (activeTool === "hand") return;
       if (target.closest("[data-panel]") && !target.closest("[data-panel='resize-overlay']")) return;
       if (target.closest("[data-resize-handle]")) return;
 
@@ -520,7 +524,7 @@ export const FigmaStyleDragHandler = () => {
       window.removeEventListener("mouseup", handleMouseUp, true);
       document.removeEventListener("mouseleave", handleMouseUp, true);
     };
-  }, []);
+  }, [activeTool]);
 
   return (
     <style>{`
