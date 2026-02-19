@@ -290,6 +290,9 @@ export const FigmaStyleDragHandler = () => {
 
   const rafRef = useRef<number>(0);
   const processDragRef = useRef<(() => void) | null>(null);
+  const dropTargetHighlightRef = useRef<HTMLElement | null>(null);
+  const insertIndicatorRef = useRef<HTMLElement | null>(null);
+  const draggedDomsRef = useRef<HTMLElement[]>([]);
   const dragRef = useRef<{
     startX: number;
     startY: number;

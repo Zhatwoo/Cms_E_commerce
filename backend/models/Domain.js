@@ -100,15 +100,21 @@ async function publishForClientBatch(userId, { projectId, projectTitle, subdomai
   if (existing) {
     domainId = existing.id;
     const ref = clientRef.doc(domainId);
+    const prevHistory = Array.isArray(existing.publishHistory) ? existing.publishHistory : (Array.isArray(existing.publish_history) ? existing.publish_history : []);
+    const publish_history = prevHistory
+      .concat({ at: now.toISOString(), type: 'published' })
+      .slice(-50);
     batch.update(ref, {
       project_title: clientDoc.project_title,
       subdomain: clientDoc.subdomain,
       status: clientDoc.status,
       updated_at: clientDoc.updated_at,
       published_content: clientDoc.published_content,
+      publish_history,
     });
   } else {
     clientDoc.created_at = now;
+    clientDoc.publish_history = [{ at: now.toISOString(), type: 'published' }];
     const newRef = clientRef.doc(); // auto-generated id
     domainId = newRef.id;
     batch.set(newRef, clientDoc);
@@ -337,6 +343,49 @@ async function getScheduleByProject(userId, projectId) {
   return { scheduledAt: date.toISOString(), subdomain: existing.subdomain || null };
 }
 
+/** Get publish history for a project (stack of { at, type }), newest first. Backfills from updatedAt/createdAt if no history. Returns at most 10 most recent. */
+async function getPublishHistoryByProject(userId, projectId) {
+  const existing = await findByProjectId(userId, projectId);
+  if (!existing) return [];
+  const raw = existing.publishHistory ?? existing.publish_history;
+  let list = Array.isArray(raw) ? raw : [];
+
+  const toIso = (v) => {
+    if (!v) return '';
+    if (typeof v.toDate === 'function') return v.toDate().toISOString();
+    if (v instanceof Date) return v.toISOString();
+    if (typeof v === 'object' && v.seconds != null) return new Date(v.seconds * 1000).toISOString();
+    return String(v);
+  };
+
+  list = list
+    .map((entry) => {
+      let at = toIso(entry?.at);
+      return at ? { at, type: entry?.type || 'published' } : null;
+    })
+    .filter(Boolean);
+
+  const updatedAt = existing.updatedAt ?? existing.updated_at;
+  const createdAt = existing.createdAt ?? existing.created_at;
+  if (list.length === 0 && (updatedAt || createdAt)) {
+    const entries = [];
+    if (createdAt) entries.push({ at: toIso(createdAt), type: 'published' });
+    if (updatedAt) entries.push({ at: toIso(updatedAt), type: 'published' });
+    list = entries
+      .filter((e) => e.at)
+      .sort((a, b) => (b.at < a.at ? -1 : b.at > a.at ? 1 : 0));
+    const seen = new Set();
+    list = list.filter((e) => {
+      if (seen.has(e.at)) return false;
+      seen.add(e.at);
+      return true;
+    });
+  }
+
+  const sorted = list.sort((a, b) => (b.at < a.at ? -1 : b.at > a.at ? 1 : 0));
+  return sorted.slice(0, 10);
+}
+
 /**
  * Apply due scheduled publishes: copy scheduled_published_content to published_content and clear schedule.
  * Call periodically (e.g. every minute) from server.
@@ -404,5 +453,6 @@ module.exports = {
   updateForClient,
   schedulePublish,
   getScheduleByProject,
+  getPublishHistoryByProject,
   applyScheduledPublishes,
 };

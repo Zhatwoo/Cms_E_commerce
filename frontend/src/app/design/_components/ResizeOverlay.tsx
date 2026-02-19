@@ -66,7 +66,7 @@ function getOverlayRect(el: HTMLElement): DOMRect {
 }
 
 type DragState = {
-  type: "resize" | "rotate";
+  type: "resize" | "rotate" | "move";
   handle?: Handle;
   moveMode?: "margin" | "offset";
   startX: number;
@@ -96,6 +96,10 @@ function parsePxOrAuto(value: unknown): number {
   return 0;
 }
 
+function isNearlyEqual(a: number, b: number, eps = EPSILON): boolean {
+  return Math.abs(a - b) < eps;
+}
+
 type GuideState = {
   v?: number;
   h?: number;
@@ -113,7 +117,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
   const rafRef = useRef<number>(0);
   const processDragRef = useRef<(() => void) | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [dragType, setDragType] = useState<"resize" | "rotate" | null>(null);
+  const [dragType, setDragType] = useState<"resize" | "rotate" | "move" | null>(null);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [guides, setGuides] = useState<GuideState>(null);
   const [rotateAngle, setRotateAngle] = useState<number | null>(null);
@@ -217,7 +221,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
   );
 
   const startDrag = useCallback(
-    (e: React.MouseEvent, type: "resize" | "rotate", handle?: Handle) => {
+    (e: React.MouseEvent, type: "resize" | "rotate" | "move", handle?: Handle) => {
       e.stopPropagation();
       e.preventDefault();
       const startRect = getOverlayRect(dom);
@@ -357,9 +361,10 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       }
 
       if (d.type === "move") {
+        const startProps = d.startProps;
         if (d.moveMode === "offset") {
-          const baseTop = parsePxOrAuto(p.top);
-          const baseLeft = parsePxOrAuto(p.left);
+          const baseTop = parsePxOrAuto(startProps.top);
+          const baseLeft = parsePxOrAuto(startProps.left);
           const nextTop = Math.round((baseTop + dy) * 2) / 2;
           const nextLeft = Math.round((baseLeft + dx) * 2) / 2;
           actions.setProp(nodeId, (props: Record<string, unknown>) => {
@@ -372,8 +377,8 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
           });
           d.startProps = { ...d.startProps, top: `${nextTop}px`, left: `${nextLeft}px` };
         } else {
-          const baseMT = typeof p.marginTop === "number" ? p.marginTop : 0;
-          const baseML = typeof p.marginLeft === "number" ? p.marginLeft : 0;
+          const baseMT = typeof startProps.marginTop === "number" ? startProps.marginTop : 0;
+          const baseML = typeof startProps.marginLeft === "number" ? startProps.marginLeft : 0;
           const nextMT = Math.round((baseMT + dy) * 2) / 2;
           const nextML = Math.round((baseML + dx) * 2) / 2;
           actions.setProp(nodeId, (props: Record<string, unknown>) => {
@@ -521,9 +526,10 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         const dy = (d.lastY - d.startY) / zoom;
 
         if (d.type === "move") {
+          const startProps = d.startProps;
           if (d.moveMode === "offset") {
-            const baseTop = parsePxOrAuto(p.top);
-            const baseLeft = parsePxOrAuto(p.left);
+            const baseTop = parsePxOrAuto(startProps.top);
+            const baseLeft = parsePxOrAuto(startProps.left);
             const roundedTop = Math.round(baseTop + dy);
             const roundedLeft = Math.round(baseLeft + dx);
             actions.setProp(nodeId, (props: Record<string, unknown>) => {
@@ -532,8 +538,8 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
               props.left = `${roundedLeft}px`;
             });
           } else {
-            const baseMT = typeof p.marginTop === "number" ? p.marginTop : 0;
-            const baseML = typeof p.marginLeft === "number" ? p.marginLeft : 0;
+            const baseMT = typeof startProps.marginTop === "number" ? startProps.marginTop : 0;
+            const baseML = typeof startProps.marginLeft === "number" ? startProps.marginLeft : 0;
             actions.setProp(nodeId, (props: Record<string, unknown>) => {
               props.marginTop = Math.round(baseMT + dy);
               props.marginLeft = Math.round(baseML + dx);
