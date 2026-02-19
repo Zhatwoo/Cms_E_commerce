@@ -1,10 +1,22 @@
 import { useEffect } from "react";
 import { useEditor } from "@craftjs/core";
+import {
+  selectedToIds,
+  duplicateNodes,
+  copySelection,
+  pasteClipboard,
+  cutSelection,
+  groupSelection,
+  ungroupSelection,
+} from "../_lib/canvasActions";
 
 const STORAGE_KEY = "craftjs_preview_json";
 
 /** Node types that should never be deleted via keyboard shortcut */
 const PROTECTED = new Set(["Viewport"]);
+
+const NUDGE_PX = 1;
+const BIG_NUDGE_PX = 10;
 
 /** Returns true if the event target is an input, textarea, select, or contenteditable */
 const isEditableTarget = (target: EventTarget | null) => {
@@ -18,12 +30,13 @@ const isEditableTarget = (target: EventTarget | null) => {
   );
 };
 
-/** Normalize Craft.js selected (Set, array, or plain object) to string[] */
-function selectedToIds(selected: unknown): string[] {
-  if (Array.isArray(selected)) return selected.filter((id) => id && id !== "ROOT");
-  if (selected instanceof Set) return Array.from(selected).filter((id) => id && id !== "ROOT");
-  if (selected && typeof selected === "object") return Object.keys(selected).filter((id) => id && id !== "ROOT");
-  return [];
+function parsePx(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const n = parseFloat(value.replace("px", ""));
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
 }
 
 /**
@@ -83,6 +96,161 @@ export const KeyboardShortcuts = () => {
           actions.selectNode(undefined);
         } catch {
           // ignore
+        }
+        return;
+      }
+
+      // ── Duplicate: Cmd/Ctrl + D ──
+      if (ctrl && e.key === "d") {
+        e.preventDefault();
+        const state = query.getState();
+        const ids = selectedToIds(state.events.selected);
+        if (ids.length > 0) duplicateNodes(actions, query, ids);
+        return;
+      }
+
+      // ── Copy: Cmd/Ctrl + C ──
+      if (ctrl && e.key === "c") {
+        e.preventDefault();
+        const state = query.getState();
+        const ids = selectedToIds(state.events.selected);
+        copySelection(query, ids);
+        return;
+      }
+
+      // ── Cut: Cmd/Ctrl + X ──
+      if (ctrl && e.key === "x") {
+        e.preventDefault();
+        const state = query.getState();
+        const ids = selectedToIds(state.events.selected);
+        cutSelection(actions, query, ids);
+        return;
+      }
+
+      // ── Paste: Cmd/Ctrl + V ──
+      if (ctrl && e.key === "v") {
+        e.preventDefault();
+        const state = query.getState();
+        const selectedIds = selectedToIds(state.events.selected);
+        let parentId: string | undefined;
+        let atIndex: number | undefined;
+        if (selectedIds.length > 0) {
+          const firstId = selectedIds[0];
+          const lastId = selectedIds[selectedIds.length - 1];
+          const firstNode = state.nodes[firstId];
+          const lastNode = state.nodes[lastId];
+          parentId = firstNode?.data?.parent as string | undefined;
+          if (parentId && state.nodes[parentId]) {
+            const siblings = (state.nodes[parentId]?.data?.nodes as string[]) ?? [];
+            const lastIndex = siblings.indexOf(lastId);
+            atIndex = lastIndex === -1 ? siblings.length : lastIndex + 1;
+          }
+        }
+        pasteClipboard(actions, query, { parentId, atIndex });
+        return;
+      }
+
+      // ── Select all: Cmd/Ctrl + A ──
+      if (ctrl && e.key === "a") {
+        e.preventDefault();
+        try {
+          const state = query.getState();
+          const root = state.nodes.ROOT;
+          const viewportId = root?.data?.nodes?.[0];
+          if (!viewportId || !state.nodes[viewportId]) return;
+          const collect: string[] = [];
+          const walk = (id: string) => {
+            if (id !== "ROOT" && id !== viewportId) collect.push(id);
+            const kids = (state.nodes[id]?.data?.nodes as string[]) ?? [];
+            kids.forEach(walk);
+          };
+          walk(viewportId);
+          if (collect.length > 0) actions.selectNode(collect.length === 1 ? collect[0] : collect);
+        } catch {
+          // ignore
+        }
+        return;
+      }
+
+      // ── Group: Cmd/Ctrl + G ──
+      if (ctrl && !e.shiftKey && e.key === "g") {
+        e.preventDefault();
+        const state = query.getState();
+        const ids = selectedToIds(state.events.selected);
+        groupSelection(actions, query, ids);
+        return;
+      }
+
+      // ── Ungroup: Cmd/Ctrl + Shift + G ──
+      if (ctrl && e.shiftKey && e.key === "g") {
+        e.preventDefault();
+        const state = query.getState();
+        const ids = selectedToIds(state.events.selected);
+        ungroupSelection(actions, query, ids);
+        return;
+      }
+
+      // ── Select inside: Enter ──
+      if (!ctrl && !e.shiftKey && e.key === "Enter") {
+        const state = query.getState();
+        const ids = selectedToIds(state.events.selected);
+        if (ids.length !== 1) return;
+        const node = state.nodes[ids[0]];
+        const children = (node?.data?.nodes as string[]) ?? [];
+        if (children.length > 0) {
+          e.preventDefault();
+          actions.selectNode(children[0]);
+        }
+        return;
+      }
+
+      // ── Select parent: Cmd/Ctrl + Enter ──
+      if (ctrl && e.key === "Enter") {
+        e.preventDefault();
+        const state = query.getState();
+        const ids = selectedToIds(state.events.selected);
+        if (ids.length !== 1) return;
+        const parentId = state.nodes[ids[0]]?.data?.parent as string | undefined;
+        if (parentId && parentId !== "ROOT" && state.nodes[parentId]) {
+          actions.selectNode(parentId);
+        }
+        return;
+      }
+
+      // ── Arrow nudge ──
+      if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) {
+        const state = query.getState();
+        const ids = selectedToIds(state.events.selected);
+        if (ids.length === 0) return;
+        const step = e.shiftKey ? BIG_NUDGE_PX : NUDGE_PX;
+        const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
+        const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
+        if (dx === 0 && dy === 0) return;
+        e.preventDefault();
+        for (const id of ids) {
+          try {
+            const node = query.node(id).get();
+            const props = node?.data?.props ?? {};
+            const pos = (props.position as string) ?? "static";
+            const hasOffset = pos === "absolute" || pos === "relative" || pos === "fixed";
+            if (hasOffset) {
+              const top = parsePx(props.top);
+              const left = parsePx(props.left);
+              actions.setProp(id, (p: Record<string, unknown>) => {
+                p.top = `${top + dy}px`;
+                p.left = `${left + dx}px`;
+              });
+            } else {
+              const marginTop = typeof props.marginTop === "number" ? props.marginTop : parsePx(props.marginTop);
+              const marginLeft = typeof props.marginLeft === "number" ? props.marginLeft : parsePx(props.marginLeft);
+              actions.setProp(id, (p: Record<string, unknown>) => {
+                p.marginTop = marginTop + dy;
+                p.marginLeft = marginLeft + dx;
+              });
+            }
+          } catch {
+            // skip node
+          }
         }
         return;
       }

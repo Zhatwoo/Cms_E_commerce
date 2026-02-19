@@ -17,6 +17,7 @@ import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
 import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
 import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import { TransformModeProvider } from "./TransformModeContext";
+import { InlineTextEditProvider } from "./InlineTextEditContext";
 import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
 import { PrototypeTabProvider } from "./PrototypeTabContext";
 import { PrototypeFlowLines } from "./PrototypeFlowLines";
@@ -835,6 +836,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
       >
         <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
         <TransformModeProvider>
+        <InlineTextEditProvider>
           <KeyboardShortcuts />
           <CanvasSelectionHandler />
           <FigmaStyleDragHandler />
@@ -944,6 +946,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             )}
           </div>
         </div>
+        </InlineTextEditProvider>
         </TransformModeProvider>
         </PrototypeTabProvider>
       </Editor>

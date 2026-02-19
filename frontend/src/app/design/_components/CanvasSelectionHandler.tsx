@@ -3,10 +3,14 @@
 import { useEffect } from "react";
 import { useEditor } from "@craftjs/core";
 
+/** Persists last selected node for Shift+click range selection (Figma-like). */
+let lastSelectedNodeIdRef: string | null = null;
+
 /**
  * Handles multi-selection on the canvas via mousedown on capture phase.
  * - Click: select single node (or clear if clicking empty area)
  * - Ctrl (Win) / Cmd (Mac) + Click: toggle node in selection
+ * - Shift + Click: select range from last selected to clicked (siblings)
  *
  * Uses query.getState() inside the handler to avoid reactive subscriptions
  * that cause "Cannot update component while rendering another" errors.
@@ -29,6 +33,7 @@ export const CanvasSelectionHandler = () => {
       const nodeEl = target.closest("[data-node-id]") as HTMLElement | null;
       const nodeId = nodeEl?.getAttribute("data-node-id") ?? null;
       const isMulti = e.ctrlKey || e.metaKey;
+      const isRange = e.shiftKey;
 
       // Read current state lazily (no reactive subscription)
       const state = query.getState();
@@ -56,7 +61,37 @@ export const CanvasSelectionHandler = () => {
         }
       };
 
+      const updateLastSelected = (id: string | null) => {
+        lastSelectedNodeIdRef = id;
+      };
+
       if (nodeId && exists(nodeId)) {
+        if (isRange) {
+          const lastId = lastSelectedNodeIdRef && exists(lastSelectedNodeIdRef) ? lastSelectedNodeIdRef : null;
+          if (lastId && lastId !== nodeId) {
+            const parentId = nodesMap[nodeId]?.data?.parent as string | undefined;
+            const lastParentId = nodesMap[lastId]?.data?.parent as string | undefined;
+            if (parentId && parentId === lastParentId) {
+              const siblings = (nodesMap[parentId]?.data?.nodes as string[]) ?? [];
+              const idxClick = siblings.indexOf(nodeId);
+              const idxLast = siblings.indexOf(lastId);
+              if (idxClick !== -1 && idxLast !== -1) {
+                const min = Math.min(idxClick, idxLast);
+                const max = Math.max(idxClick, idxLast);
+                const rangeIds = siblings.slice(min, max + 1).filter(exists);
+                if (rangeIds.length > 0) {
+                  safeSelect(rangeIds.length === 1 ? rangeIds[0] : rangeIds);
+                  updateLastSelected(nodeId);
+                  return;
+                }
+              }
+            }
+          }
+          // Different parent or no last: replace selection with clicked node
+          safeSelect(nodeId);
+          updateLastSelected(nodeId);
+          return;
+        }
         if (isMulti) {
           const next = new Set(currentIds.filter(exists));
           if (next.has(nodeId)) {
@@ -66,8 +101,10 @@ export const CanvasSelectionHandler = () => {
           }
           const validIds = Array.from(next).filter(exists);
           safeSelect(validIds.length === 0 ? null : validIds.length === 1 ? validIds[0] : validIds);
+          updateLastSelected(validIds.length > 0 ? (validIds.includes(nodeId) ? nodeId : validIds[validIds.length - 1]!) : null);
         } else {
           safeSelect(nodeId);
+          updateLastSelected(nodeId);
         }
       }
       // Empty area: do not clear here — BoxSelectionHandler will clear on mouseup
