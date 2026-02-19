@@ -283,6 +283,7 @@ export function CommercePlatform() {
               <button
                 type="button"
                 className="mt-3 rounded-md bg-violet-500 px-3 py-1.5 text-xs font-medium text-white"
+                suppressHydrationWarning
               >
                 Start designing
               </button>

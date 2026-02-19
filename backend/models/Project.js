@@ -13,6 +13,7 @@ async function create(userId, data) {
     status: 'draft',
     template_id: data.templateId || null,
     subdomain: subdomain || null,
+    thumbnail: data.thumbnail || null,
     created_at: new Date(),
     updated_at: new Date(),
   };
@@ -38,6 +39,7 @@ async function update(userId, projectId, data) {
   if (data.title !== undefined) updates.title = data.title;
   if (data.status !== undefined) updates.status = data.status;
   if (data.subdomain !== undefined) updates.subdomain = (data.subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || null;
+  if (data.thumbnail !== undefined) updates.thumbnail = data.thumbnail || null;
   if (Object.keys(updates).length === 0) return get(userId, projectId);
   updates.updated_at = new Date();
   await ref.update(updates);

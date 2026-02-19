@@ -263,6 +263,7 @@ export type Project = {
   status: string;
   templateId?: string | null;
   subdomain?: string | null;
+  thumbnail?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -298,7 +299,7 @@ export async function getProjectBySubdomain(subdomain: string): Promise<{ succes
 
 export async function updateProject(
   id: string,
-  params: { title?: string; status?: string; subdomain?: string | null }
+  params: { title?: string; status?: string; subdomain?: string | null; thumbnail?: string | null }
 ): Promise<{ success: boolean; project: Project }> {
   return apiFetch<{ success: boolean; project: Project }>(`/api/projects/${id}`, {
     method: 'PATCH',

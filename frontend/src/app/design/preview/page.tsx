@@ -129,6 +129,22 @@ function PreviewContent() {
     loadData();
   }, [projectId]);
 
+  useEffect(() => {
+    let active = true;
+    async function loadProject() {
+      try {
+        const res = await getProject(projectId);
+        if (active && res.success && res.project) {
+          setProject(res.project);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    loadProject();
+    return () => { active = false; };
+  }, [projectId]);
+
   // Compute clean document
   const cleanDoc = useMemo(() => {
     if (!rawJson) return null;
@@ -175,6 +191,58 @@ function PreviewContent() {
       : previewViewport === "tablet"
         ? "w-[768px]"
         : "w-[390px]";
+
+  const capturePreviewThumbnail = async () => {
+    if (thumbnailCaptureRef.current || !previewRef.current || !projectId) return;
+    if (viewMode !== "Web-Preview" || loading || !cleanDoc) return;
+
+    thumbnailCaptureRef.current = true;
+    try {
+      const canvas = await html2canvas(previewRef.current, {
+        backgroundColor: "#ffffff",
+        scale: 0.7,
+        useCORS: true,
+      });
+
+      const blob: Blob | null = await new Promise((resolve) => {
+        canvas.toBlob((b) => resolve(b), "image/jpeg", 0.85);
+      });
+
+      if (!blob) throw new Error("Thumbnail capture failed");
+
+      const file = new File([blob], `preview-${projectId}.jpg`, { type: "image/jpeg" });
+      const user = getStoredUser();
+      const clientName = user?.name || user?.email || "client";
+      const websiteName = project?.title || "project";
+
+      const url = await uploadClientFile(file, {
+        clientName,
+        websiteName,
+        folder: "images",
+      });
+
+      const updated = await updateProject(projectId, { thumbnail: url });
+      if (updated.success) {
+        setProject(updated.project);
+      }
+    } catch (err) {
+      console.warn("Preview thumbnail capture failed:", err);
+    } finally {
+      // no-op
+    }
+  };
+
+  useEffect(() => {
+    thumbnailCaptureRef.current = false;
+  }, [projectId]);
+
+  useEffect(() => {
+    if (viewMode !== "Web-Preview" || loading || !cleanDoc) return;
+    const timeout = setTimeout(() => {
+      capturePreviewThumbnail();
+    }, 800);
+    return () => clearTimeout(timeout);
+  }, [viewMode, loading, cleanDoc]);
 
   // ── Stats ──────────────────────────────────────────
   const rawBytes = rawJson ? new Blob([rawJson]).size : 0;
