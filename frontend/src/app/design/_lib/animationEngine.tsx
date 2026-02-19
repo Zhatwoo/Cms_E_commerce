@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useState, useMemo } from "react";
 import { motion, useInView } from "framer-motion";
 import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import type {
   AnimationConfig,
   AnimateInType,

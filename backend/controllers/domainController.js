@@ -1,6 +1,7 @@
 // controllers/domainController.js
 const Domain = require('../models/Domain');
 const Project = require('../models/Project');
+const Page = require('../models/Page');
 const User = require('../models/User');
 const { getRealtimeDb, db } = require('../config/firebase');
 
@@ -141,7 +142,7 @@ exports.delete = async (req, res) => {
   }
 };
 
-// Publish: create/update domain at user/roles/client/{userId}/domains and set public lookup (define as published)
+// Publish: create/update domain and save a snapshot of current draft so public site shows only published content
 exports.publish = async (req, res) => {
   try {
     const { projectId, subdomain: subdomainOverride } = req.body;
@@ -157,11 +158,21 @@ exports.publish = async (req, res) => {
       ? String(subdomainOverride).trim().toLowerCase().replace(/[^a-z0-9-]/g, '')
       : (project.subdomain || (project.title || 'site').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'site');
 
-    // Save to BOTH paths in one batch (dynamic per client UID): user/roles/client/{userId}/domains + published_subdomains
+    // Snapshot current draft so published site shows only this until next Publish (not live draft)
+    let publishedContent = null;
+    try {
+      const draft = await Page.getPageData(userId, String(projectId).trim(), userId);
+      if (draft && draft.content) publishedContent = draft.content;
+    } catch (e) {
+      console.warn('publish: could not read draft for snapshot:', e.message);
+    }
+
+    // Save to BOTH paths with published_content snapshot
     const data = await Domain.publishForClientBatch(userId, {
       projectId: String(projectId).trim(),
       projectTitle: project.title,
       subdomain,
+      publishedContent,
     });
 
     // So Domains dashboard shows the published domain: update project subdomain in Firestore and Realtime DB
