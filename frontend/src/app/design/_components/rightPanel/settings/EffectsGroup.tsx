@@ -13,13 +13,34 @@ export const EffectsGroup = ({
   setProp
 }: EffectsGroupProps) => {
 
+  const opacityPct = Math.round(opacity * 100);
+  const setOpacityFromPct = (pct: number) => {
+    const v = Math.max(0, Math.min(100, pct)) / 100;
+    setProp((props) => { props.opacity = v; });
+  };
+
   return (
     <div className="flex flex-col gap-4">
-      {/* Opacity */}
+      {/* Opacity: % input + slider */}
       <div className="flex flex-col gap-1">
-        <div className="flex justify-between">
+        <div className="flex justify-between items-center gap-2">
           <label className="text-[12px] text-brand-lighter font-base">Opacity</label>
-          <span className="text-[10px] text-brand-light">{Math.round(opacity * 100)}%</span>
+          <div className="flex items-center bg-brand-medium-dark rounded-lg px-2 border border-brand-medium/30 w-20">
+            <input
+              type="text"
+              value={opacityPct}
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10);
+                if (!isNaN(v)) setOpacityFromPct(v);
+              }}
+              onBlur={(e) => {
+                const v = parseInt(e.target.value, 10);
+                setOpacityFromPct(isNaN(v) ? opacityPct : v);
+              }}
+              className="w-full bg-transparent text-xs text-brand-lighter p-1 focus:outline-none text-right"
+            />
+            <span className="text-[10px] text-brand-medium">%</span>
+          </div>
         </div>
         <input
           type="range"
@@ -63,20 +84,33 @@ export const EffectsGroup = ({
         </div>
       </div>
 
-      {/* Box Shadow (Simplified for now) */}
+      {/* Box Shadow presets */}
       <div className="flex flex-col gap-1">
         <label className="text-[12px] text-brand-lighter font-base">Shadow</label>
         <select
-          value={boxShadow === "none" ? "none" : "sm"}
+          value={(() => {
+            if (!boxShadow || boxShadow === "none") return "none";
+            const sm = "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)";
+            const md = "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)";
+            const lg = "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)";
+            if (boxShadow === sm) return "sm";
+            if (boxShadow === md) return "md";
+            if (boxShadow === lg) return "lg";
+            return "sm";
+          })()}
           onChange={(e) => {
             const val = e.target.value;
             if (val === "none") setProp((props) => { props.boxShadow = "none"; });
-            else setProp((props) => { props.boxShadow = "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)"; });
+            else if (val === "sm") setProp((props) => { props.boxShadow = "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)"; });
+            else if (val === "md") setProp((props) => { props.boxShadow = "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)"; });
+            else setProp((props) => { props.boxShadow = "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"; });
           }}
           className="w-full bg-brand-medium-dark rounded-md text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none appearance-none"
         >
           <option value="none">None</option>
-          <option value="sm">Small Drop Shadow</option>
+          <option value="sm">Small</option>
+          <option value="md">Medium</option>
+          <option value="lg">Large</option>
         </select>
       </div>
     </div>

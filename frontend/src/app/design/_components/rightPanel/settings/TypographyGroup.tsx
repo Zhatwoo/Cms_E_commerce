@@ -125,15 +125,33 @@ export const TypographyGroup = ({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {/* Line Height */}
+        {/* Line Height: Auto | Custom */}
         <div className="flex flex-col gap-1">
           <label className="text-[10px] text-brand-lighter">Line Height</label>
-          <div className="bg-brand-medium-dark rounded-lg px-2.5">
-            <NumericInput
-              value={Number(lineHeight)}
-              step={0.1}
-              onChange={(val) => setProp((props) => { props.lineHeight = val; })}
-            />
+          <div className="flex items-center gap-1.5">
+            <select
+              value={lineHeight === "normal" || lineHeight === 0 ? "auto" : "custom"}
+              onChange={(e) => {
+                if (e.target.value === "auto") {
+                  setProp((props) => { props.lineHeight = "normal"; });
+                } else {
+                  setProp((props) => { props.lineHeight = typeof lineHeight === "number" ? lineHeight : 1.5; });
+                }
+              }}
+              className="flex-1 bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2 py-1.5 focus:outline-none appearance-none"
+            >
+              <option value="auto" className="text-brand-light bg-brand-dark">Auto</option>
+              <option value="custom" className="text-brand-light bg-brand-dark">Custom</option>
+            </select>
+            {lineHeight !== "normal" && lineHeight !== 0 && (
+              <div className="flex-1 bg-brand-medium-dark rounded-lg px-2">
+                <NumericInput
+                  value={Number(lineHeight)}
+                  step={0.1}
+                  onChange={(val) => setProp((props) => { props.lineHeight = val; })}
+                />
+              </div>
+            )}
           </div>
         </div>
 

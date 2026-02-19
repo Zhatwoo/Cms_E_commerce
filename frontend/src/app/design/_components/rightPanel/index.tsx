@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useEditor } from "@craftjs/core";
 import { useRouter } from "next/navigation";
-import { PanelRight, Play, X } from "lucide-react";
+import { Eye, EyeOff, Lock, LockOpen, Play } from "lucide-react";
 import { serializeCraftToClean } from "../../_lib/serializer";
 import { autoSavePage } from "../../_lib/pageApi";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
@@ -37,6 +37,7 @@ export const RightPanel = ({ projectId, activeTab: controlledTab, setActiveTab: 
   const router = useRouter();
   const panelRef = useRef<HTMLDivElement>(null);
 
+  const { actions } = useEditor();
   const { selectedIds, primary, query } = useEditor((state) => {
     const sel = state.events.selected;
     const ids: string[] = Array.isArray(sel)
@@ -47,11 +48,15 @@ export const RightPanel = ({ projectId, activeTab: controlledTab, setActiveTab: 
           ? Object.keys(sel).filter((id) => id && id !== "ROOT")
           : [];
     const firstId = ids[0];
-    const primary = firstId && state.nodes[firstId]
+    const firstNode = firstId ? state.nodes[firstId] : null;
+    const firstProps = firstNode?.data?.props as Record<string, unknown> | undefined;
+    const primary = firstId && firstNode
       ? {
           id: firstId,
-          name: state.nodes[firstId].data.displayName,
-          settings: state.nodes[firstId].related?.settings,
+          name: firstNode.data.displayName,
+          settings: firstNode.related?.settings,
+          visibility: (firstProps?.visibility as "visible" | "hidden" | undefined) ?? "visible",
+          locked: (firstProps?.locked as boolean | undefined) ?? false,
         }
       : null;
     return { selectedIds: ids, primary };
@@ -128,12 +133,46 @@ export const RightPanel = ({ projectId, activeTab: controlledTab, setActiveTab: 
       {selectedIds.length > 0 ? (
         <div>
           <div className="mb-6">
-            <div className="bg-brand-medium/20 p-2 rounded-lg text-center border border-brand-medium/30">
-              <span className="text-brand-lighter font-medium text-sm">
+            <div className="flex items-center gap-2 bg-brand-medium/20 p-2 rounded-lg border border-brand-medium/30">
+              <span className="flex-1 text-brand-lighter font-medium text-sm text-center">
                 {selectedIds.length === 1 && primary
                   ? primary.name
                   : `${selectedIds.length} components selected`}
               </span>
+              {primary && (
+                <div className="flex items-center gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = primary.visibility === "hidden" ? "visible" : "hidden";
+                      selectedIds.forEach((id) => {
+                        try {
+                          actions.setProp(id, (p: Record<string, unknown>) => { p.visibility = next; });
+                        } catch { /* skip */ }
+                      });
+                    }}
+                    className={`p-1.5 rounded transition-colors ${primary.visibility === "hidden" ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
+                    title={primary.visibility === "hidden" ? "Show" : "Hide"}
+                  >
+                    {primary.visibility === "hidden" ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !primary.locked;
+                      selectedIds.forEach((id) => {
+                        try {
+                          actions.setProp(id, (p: Record<string, unknown>) => { p.locked = next; });
+                        } catch { /* skip */ }
+                      });
+                    }}
+                    className={`p-1.5 rounded transition-colors ${primary.locked ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
+                    title={primary.locked ? "Unlock" : "Lock"}
+                  >
+                    {primary.locked ? <Lock size={14} /> : <LockOpen size={14} />}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
