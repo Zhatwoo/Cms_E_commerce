@@ -1,5 +1,6 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
+import type { Node } from "@craftjs/core";
 import { ColumnSettings } from "./ColumnSettings";
 import type { ContainerProps } from "../../_types/components";
 
@@ -44,7 +45,9 @@ export const Column = ({
   designHeight,
   children,
 }: ContainerProps) => {
-  const { id, connectors: { connect, drag } } = useNode();
+  const { id, connectors: { connect, drag }, childCount } = useNode((node) => ({
+    childCount: node.data.nodes.length,
+  }));
 
   const wPx = parsePx(width);
   const hPx = parsePx(height);
@@ -118,9 +121,27 @@ export const Column = ({
           }}
         >
           {children}
+          {childCount === 0 && (
+            <div
+              className="w-full min-h-[52px] border border-dashed border-brand-medium/50 rounded-lg flex items-center justify-center text-xs text-brand-light/70"
+              data-column-drop-zone="true"
+            >
+              Drop components here
+            </div>
+          )}
         </div>
       ) : (
-        children
+        <>
+          {children}
+          {childCount === 0 && (
+            <div
+              className="w-full min-h-[52px] border border-dashed border-brand-medium/50 rounded-lg flex items-center justify-center text-xs text-brand-light/70"
+              data-column-drop-zone="true"
+            >
+              Drop components here
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -157,6 +178,13 @@ export const ColumnDefaultProps: Partial<ContainerProps> = {
 Column.craft = {
   displayName: "Column",
   props: ColumnDefaultProps,
+  rules: {
+    canMoveIn: (incomingNodes: Node[]) =>
+      incomingNodes.every((node) => {
+        const name = node.data.displayName;
+        return name !== "Page" && name !== "Viewport";
+      }),
+  },
   related: {
     settings: ColumnSettings,
   },
