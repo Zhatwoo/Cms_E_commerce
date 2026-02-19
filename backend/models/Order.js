@@ -67,4 +67,55 @@ async function deleteById(id) {
   await db.collection(COLLECTION).doc(id).delete();
 }
 
-module.exports = { create, findById, findByUserId, findAll, update, delete: deleteById };
+async function count(filters = {}) {
+  let ref = db.collection(COLLECTION);
+  if (filters.status) ref = ref.where('status', '==', filters.status);
+  const snap = await ref.get();
+  return snap.size;
+}
+
+async function getTotalRevenue() {
+  const snap = await db.collection(COLLECTION).get();
+  let total = 0;
+  snap.docs.forEach((d) => {
+    const data = d.data();
+    const t = typeof data.total === 'number' ? data.total : parseFloat(data.total);
+    if (!Number.isNaN(t)) total += t;
+  });
+  return total;
+}
+
+function getStartDate(period) {
+  const now = new Date();
+  const d = new Date(now);
+  if (period === '7days') d.setDate(d.getDate() - 7);
+  else if (period === '30days') d.setDate(d.getDate() - 30);
+  else if (period === '3months') d.setMonth(d.getMonth() - 3);
+  else d.setDate(d.getDate() - 7);
+  return d;
+}
+
+async function getRevenueByPeriod(period) {
+  const start = getStartDate(period);
+  const snap = await db.collection(COLLECTION).orderBy('created_at', 'asc').get();
+  const buckets = period === '7days' ? 7 : period === '30days' ? 4 : 3;
+  const bucketMs = (Date.now() - start.getTime()) / buckets;
+  const sums = new Array(buckets).fill(0);
+  const labels = [];
+  for (let i = 0; i < buckets; i++) {
+    const t = new Date(start.getTime() + (i + 1) * bucketMs);
+    labels.push(period === '7days' ? t.toLocaleDateString('en-US', { weekday: 'short' }) : period === '30days' ? `Week ${i + 1}` : t.toLocaleDateString('en-US', { month: 'short' }));
+  }
+  snap.docs.forEach((d) => {
+    const data = d.data();
+    const created = data.created_at?.toDate?.() || new Date(data.created_at);
+    if (created < start) return;
+    const t = typeof data.total === 'number' ? data.total : parseFloat(data.total);
+    if (Number.isNaN(t)) return;
+    const idx = Math.min(Math.floor((created - start) / bucketMs), buckets - 1);
+    if (idx >= 0) sums[idx] += t;
+  });
+  return { labels, data: sums };
+}
+
+module.exports = { create, findById, findByUserId, findAll, update, delete: deleteById, count, getTotalRevenue, getRevenueByPeriod };

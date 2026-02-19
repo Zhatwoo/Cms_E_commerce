@@ -479,9 +479,9 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
       try {
         console.log('📥 loadDraft starting...', projectId);
 
-        // Try localStorage per-project so Start from Scratch gets blank canvas
+        // Try sessionStorage per-project (no localStorage — auth/drafts in cookies or session only)
         const storageKey = getStorageKey(projectId);
-        const sessionSaved = localStorage.getItem(storageKey);
+        const sessionSaved = sessionStorage.getItem(storageKey);
 
         // Try to load from database
         console.log('📡 Calling getDraft()...');
@@ -508,21 +508,10 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             const parsed = JSON.parse(content);
             // Validate structure: must have ROOT and ROOT must have nodes property and type
             if (parsed && parsed.ROOT && parsed.ROOT.nodes && Array.isArray(parsed.ROOT.nodes)) {
-              // Deep validation: check entire tree and clean invalid references
-              const validation = validateCraftData(content);
-              
-              if (validation.valid && validation.data) {
-                console.log(`✅ Loaded and validated draft from DB`);
-                contentToLoad = validation.data;
-                // Sync to localStorage (per-project)
-                localStorage.setItem(storageKey, contentToLoad);
-              } else {
-                console.error('❌ Draft validation failed. Data is corrupted. Clearing from database...');
-                // Clear corrupted data from database to prevent recurring errors
-                await deleteDraft(projectId);
-                // Clear from localStorage too
-                localStorage.removeItem(storageKey);
-              }
+              console.log(`✅ Loaded valid draft from DB (${Object.keys(parsed).length} internal nodes)`);
+              contentToLoad = content;
+              // Sync to sessionStorage (per-project)
+              sessionStorage.setItem(storageKey, contentToLoad!);
             } else {
               console.warn('⚠️ Invalid draft structure: missing ROOT or ROOT.nodes. Clearing from database...');
               // Clear invalid data from database
@@ -534,29 +523,20 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
           }
         }
 
-        // 2. Check LocalStorage (fallback for this project only)
+        // 2. Check sessionStorage (fallback for this project only)
         if (!contentToLoad && sessionSaved) {
           try {
             const parsed = JSON.parse(sessionSaved);
-            // Validate structure: must have ROOT and ROOT must have nodes property
             if (parsed && parsed.ROOT && parsed.ROOT.nodes && Array.isArray(parsed.ROOT.nodes)) {
-              // Deep validation: check entire tree and clean invalid references
-              const validation = validateCraftData(sessionSaved);
-              
-              if (validation.valid && validation.data) {
-                console.log('✅ Loaded and validated draft from localStorage');
-                contentToLoad = validation.data;
-              } else {
-                console.error('❌ localStorage draft validation failed. Clearing.');
-                localStorage.removeItem(storageKey);
-              }
+              console.log('✅ Loaded valid draft from session (this project)');
+              contentToLoad = sessionSaved;
             } else {
-              console.warn('⚠️ Invalid draft structure in localStorage: missing ROOT or ROOT.nodes');
-              localStorage.removeItem(storageKey);
+              console.warn('⚠️ Invalid draft structure in session: missing ROOT or ROOT.nodes');
+              sessionStorage.removeItem(storageKey);
             }
           } catch (e) {
-            console.error('Failed to parse localStorage draft:', e);
-            localStorage.removeItem(storageKey);
+            console.error('Failed to parse session draft:', e);
+            sessionStorage.removeItem(storageKey);
           }
         }
 
@@ -599,7 +579,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
     if (result.success) {
       console.log('✅ Draft deleted');
-      localStorage.removeItem(getStorageKey(projectId));
+      sessionStorage.removeItem(getStorageKey(projectId));
       location.reload(); // Reload to reset editorstate
     } else {
       showAlert('Failed to delete draft: ' + (result.error || 'Unknown error'));
@@ -633,8 +613,8 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
           console.log('🔄 Auto-save executing (Clean Code)...');
 
-          // Save to localStorage per-project so other projects stay untouched
-          localStorage.setItem(getStorageKey(projectId), next);
+          // Save to sessionStorage per-project (no localStorage)
+          sessionStorage.setItem(getStorageKey(projectId), next);
 
           // Save CLEAN CODE to database (only when projectId is set)
           if (projectId) {
@@ -744,102 +724,105 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         onNodesChange={handleNodesChange}
       >
         <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
-          <TransformModeProvider>
-            <KeyboardShortcuts />
-            <CanvasSelectionHandler />
-            <FigmaStyleDragHandler />
-            <BoxSelectionHandler />
-            <DoubleClickTransformHandler />
-            <PrototypeFlowLines />
-            {/* Canvas Area (Background) */}
-            <div
-              ref={containerRef}
-              data-canvas-container
-              className="absolute inset-0 overflow-auto bg-brand-darker"
-              style={{ cursor: isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : 'default' }}
-              onMouseDown={handleMouseDown}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
-              onMouseMove={handleMouseMove}
-            >
-              {/* Inner Content - Infinite Canvas */}
+        <TransformModeProvider>
+          <KeyboardShortcuts />
+          <CanvasSelectionHandler />
+          <FigmaStyleDragHandler />
+          <BoxSelectionHandler />
+          <DoubleClickTransformHandler />
+          <PrototypeFlowLines />
+          {/* Canvas Area (Background) */}
+        <div
+          ref={containerRef}
+          data-canvas-container
+          className="absolute inset-0 overflow-auto bg-brand-darker"
+          style={{ cursor: isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : 'default' }}
+          onMouseDown={handleMouseDown}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onMouseMove={handleMouseMove}
+        >
+          {/* Inner Content - Infinite Canvas */}
+          <div
+            className="min-w-[200vw] min-h-[200vh] flex items-center justify-center p-40"
+            style={{ zoom: scale }}
+          >
+            {initialJson === undefined ? null : <SafeFrame data={initialJson} onError={handleFrameError} />}
+          </div>
+        </div>
+        {/* Floating Panels */}
+        {/* Left Panel */}
+        {panelsReady && (
+          <div>
+            {/* Left Panel */}
+            <div className="absolute top-4 left-4 z-50 h-[calc(100vh-2rem)] w-80 flex items-start pointer-events-none">
               <div
-                className="min-w-[200vw] min-h-[200vh] flex items-center justify-center p-40"
-                style={{ zoom: scale }}
+                className="h-full w-80 flex items-start pointer-events-auto"
               >
-                {initialJson === undefined ? null : <SafeFrame data={initialJson} onError={handleFrameError} />}
-              </div>
-            </div>
-            {/* Floating Panels */}
-            {panelsReady && (
-              <>
-                {/* Left Panel */}
-                <div className="absolute top-4 left-4 z-50 h-[calc(100vh-2rem)] w-80 flex items-start pointer-events-none">
+                <div className="h-full w-80 overflow-hidden shrink-0 pointer-events-none">
                   <div
-                    className="h-full w-80 flex items-start pointer-events-auto"
+                    className={`h-full w-80 origin-left transition-[transform,opacity] duration-300 ease-out will-change-transform ${
+                      leftPanelOpen
+                        ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
+                        : '-translate-x-full scale-90 opacity-0 pointer-events-none'
+                    }`}
                   >
-                    <div className="h-full w-80 overflow-hidden shrink-0 pointer-events-none">
-                      <div
-                        className={`h-full w-80 origin-left transition-[transform,opacity] duration-300 ease-out will-change-transform ${
-                          leftPanelOpen
-                            ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
-                            : '-translate-x-full scale-90 opacity-0 pointer-events-none'
-                        }`}
-                      >
-                        <LeftPanel onToggle={() => setLeftPanelOpen(false)} />
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setLeftPanelOpen((open) => !open)}
-                      className={`absolute left-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${
-                        leftPanelOpen ? 'opacity-0 pointer-events-none scale-95' : 'opacity-100 pointer-events-auto scale-100'
-                      }`}
-                      title={leftPanelOpen ? "Hide left panel" : "Show left panel"}
-                    >
-                      <PanelLeft className="w-5 h-5 text-brand-light" />
-                    </button>
+                    <LeftPanel onToggle={() => setLeftPanelOpen(false)} />
                   </div>
                 </div>
-                {/* Right Panel */}
-                <div className="absolute top-4 right-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
-                  <div className="pointer-events-auto h-full">
-                    <RightPanel
-                      projectId={projectId}
-                      activeTab={rightPanelTab}
-                      setActiveTab={setRightPanelTab}
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-            {/* Canvas Controls Overlay: ito yung nasa baba :> */}
-            <div data-panel="canvas-controls" className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">
-              <div className="flex gap-4 items-center">
-                <span>{Math.round(scale * 100)}%</span>
-                <span>Space + Drag to Pan</span>
-                <span>Ctrl + Scroll to Zoom</span>
-                <span>Ctrl (Win) / ⌘ Cmd (Mac) + Click to multi-select</span>
-                {/* Delete Button */}
                 <button
-                  onClick={handleDeleteData}
-                  className="pointer-events-auto text-red-400 hover:text-red-300 transition-colors ml-2"
-                  title="Delete stored data and reset"
+                  onClick={() => setLeftPanelOpen((open) => !open)}
+                  className={`absolute left-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${
+                    leftPanelOpen ? 'opacity-0 pointer-events-none scale-95' : 'opacity-100 pointer-events-auto scale-100'
+                  }`}
+                  title={leftPanelOpen ? "Hide left panel" : "Show left panel"}
                 >
-                  🗑️ Reset Data
+                  <PanelLeft className="w-5 h-5 text-brand-light" />
                 </button>
-                {saveStatus !== 'idle' && (
-                  <span className={`${saveStatus === 'saving' ? 'text-yellow-400' :
-                    saveStatus === 'saved' ? 'text-green-400' :
-                      'text-red-400'
-                    }`}>
-                    {saveStatus === 'saving' ? '💾 Saving...' :
-                      saveStatus === 'saved' ? '✓ Saved' :
-                        saveError ? `⚠ Save failed: ${saveError}` : '⚠ Save failed'}
-                  </span>
-                )}
               </div>
             </div>
-          </TransformModeProvider>
+          </>
+        )}
+        {/* Right Panel */}
+        {panelsReady && (
+          <div className="absolute top-4 right-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
+            <div className="pointer-events-auto h-full">
+              <RightPanel
+                projectId={projectId}
+                activeTab={rightPanelTab}
+                setActiveTab={setRightPanelTab}
+              />
+            </div>
+          </div>
+        )}
+        {/* Canvas Controls Overlay: ito yung nasa baba :> */}
+        <div data-panel="canvas-controls" className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">
+          <div className="flex gap-4 items-center">
+            <span>{Math.round(scale * 100)}%</span>
+            <span>Space + Drag to Pan</span>
+            <span>Ctrl + Scroll to Zoom</span>
+            <span>Ctrl (Win) / ⌘ Cmd (Mac) + Click to multi-select</span>
+            {/* Delete Button */}
+            <button
+              onClick={handleDeleteData}
+              className="pointer-events-auto text-red-400 hover:text-red-300 transition-colors ml-2"
+              title="Delete stored data and reset"
+            >
+              🗑️ Reset Data
+            </button>
+            {saveStatus !== 'idle' && (
+              <span className={`${saveStatus === 'saving' ? 'text-yellow-400' :
+                saveStatus === 'saved' ? 'text-green-400' :
+                  'text-red-400'
+                }`}>
+                {saveStatus === 'saving' ? '💾 Saving...' :
+                  saveStatus === 'saved' ? '✓ Saved' :
+                    saveError ? `⚠ Save failed: ${saveError}` : '⚠ Save failed'}
+              </span>
+            )}
+          </div>
+        </div>
+        </TransformModeProvider>
         </PrototypeTabProvider>
       </Editor>
     </div>

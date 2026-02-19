@@ -124,7 +124,7 @@ exports.createUser = async (req, res) => {
 // @access  Private/Admin
 exports.updateUser = async (req, res) => {
   try {
-    const { name, email, role, status, phone, bio, avatar, isActive } = req.body;
+    const { name, email, role, status, phone, bio, avatar, isActive, subscriptionPlan } = req.body;
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({
@@ -142,6 +142,7 @@ exports.updateUser = async (req, res) => {
     if (bio !== undefined) updates.bio = bio;
     if (avatar !== undefined) updates.avatar = avatar;
     if (isActive !== undefined) updates.isActive = isActive;
+    if (subscriptionPlan !== undefined) updates.subscriptionPlan = subscriptionPlan;
 
     const updated = await User.update(req.params.id, updates);
     res.status(200).json({
@@ -155,6 +156,28 @@ exports.updateUser = async (req, res) => {
       message: 'Server error',
       error: error.message
     });
+  }
+};
+
+// @desc    Update client subscription plan
+// @route   PUT /api/users/:id/plan
+// @access  Private/Admin
+exports.updateSubscriptionPlan = async (req, res) => {
+  try {
+    const { plan } = req.body;
+    const allowed = ['free', 'basic', 'pro'];
+    const normalized = (plan || '').toString().trim().toLowerCase();
+    if (!allowed.includes(normalized)) {
+      return res.status(400).json({ success: false, message: `Invalid plan. Must be: ${allowed.join(', ')}` });
+    }
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    const updated = await User.update(req.params.id, { subscriptionPlan: normalized });
+    res.status(200).json({ success: true, message: 'Subscription plan updated', user: stripPassword(updated) });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
 
