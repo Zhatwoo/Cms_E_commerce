@@ -47,7 +47,7 @@ export const Text = ({
     if (isEditing && editRef.current) {
       editRef.current.focus();
       const range = document.createRange();
-      range.selectContents(editRef.current);
+      range.selectNodeContents(editRef.current);
       const sel = window.getSelection();
       sel?.removeAllRanges();
       sel?.addRange(range);
