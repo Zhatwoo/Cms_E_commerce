@@ -5,9 +5,11 @@ import {
   duplicateNodes,
   copySelection,
   pasteClipboard,
+  pasteToReplaceSelection,
   cutSelection,
   groupSelection,
   ungroupSelection,
+  getClipboard,
 } from "../_lib/canvasActions";
 
 const STORAGE_KEY = "craftjs_preview_json";
@@ -187,6 +189,145 @@ export const KeyboardShortcuts = () => {
         const state = query.getState();
         const ids = selectedToIds(state.events.selected);
         ungroupSelection(actions, query, ids);
+        return;
+      }
+
+      // ── Paste to replace: Shift + Cmd/Ctrl + R ──
+      if (ctrl && e.shiftKey && e.key === "r") {
+        e.preventDefault();
+        const state = query.getState();
+        const ids = selectedToIds(state.events.selected);
+        const clip = getClipboard();
+        if (ids.length === 1 && clip && clip.nodeIds.length > 0) {
+          pasteToReplaceSelection(actions, query, ids);
+        }
+        return;
+      }
+
+      // ── Bring to front: ] ──
+      if (!ctrl && !e.shiftKey && e.key === "]") {
+        e.preventDefault();
+        let state = query.getState();
+        const ids = selectedToIds(state.events.selected);
+        if (ids.length === 0 || !actions.move) return;
+        const parentId = state.nodes[ids[0]]?.data?.parent as string | undefined;
+        if (!parentId || !state.nodes[parentId]) return;
+        const allSameParent = ids.every((id) => (state.nodes[id]?.data?.parent as string) === parentId);
+        if (!allSameParent) return;
+        const siblings = (state.nodes[parentId]?.data?.nodes as string[]) ?? [];
+        const sorted = [...ids].sort((a, b) => siblings.indexOf(a) - siblings.indexOf(b));
+        for (const id of sorted) {
+          try {
+            state = query.getState();
+            const sibs = (state.nodes[parentId]?.data?.nodes as string[]) ?? [];
+            const lastIndex = sibs.length - 1;
+            const idx = sibs.indexOf(id);
+            if (idx >= 0 && idx !== lastIndex) actions.move(id, parentId, lastIndex);
+          } catch {
+            /* skip */
+          }
+        }
+        return;
+      }
+
+      // ── Send to back: [ ──
+      if (!ctrl && !e.shiftKey && e.key === "[") {
+        e.preventDefault();
+        let state = query.getState();
+        const ids = selectedToIds(state.events.selected);
+        if (ids.length === 0 || !actions.move) return;
+        const parentId = state.nodes[ids[0]]?.data?.parent as string | undefined;
+        if (!parentId || !state.nodes[parentId]) return;
+        const allSameParent = ids.every((id) => (state.nodes[id]?.data?.parent as string) === parentId);
+        if (!allSameParent) return;
+        const siblings = (state.nodes[parentId]?.data?.nodes as string[]) ?? [];
+        const sorted = [...ids].sort((a, b) => siblings.indexOf(a) - siblings.indexOf(b));
+        for (let i = 0; i < sorted.length; i++) {
+          try {
+            state = query.getState();
+            const sibs = (state.nodes[parentId]?.data?.nodes as string[]) ?? [];
+            const currentIndex = sibs.indexOf(sorted[i]!);
+            if (currentIndex >= 0 && currentIndex !== i) actions.move(sorted[i]!, parentId, i);
+          } catch {
+            /* skip */
+          }
+        }
+        return;
+      }
+
+      // ── Show/Hide: Shift + Cmd/Ctrl + H ──
+      if (ctrl && e.shiftKey && e.key === "h") {
+        e.preventDefault();
+        const state = query.getState();
+        const ids = selectedToIds(state.events.selected);
+        if (ids.length === 0) return;
+        const firstProps = state.nodes[ids[0]]?.data?.props as Record<string, unknown> | undefined;
+        const next = firstProps?.visibility === "hidden" ? "visible" : "hidden";
+        ids.forEach((id) => {
+          try {
+            actions.setProp(id, (p: Record<string, unknown>) => {
+              p.visibility = next;
+            });
+          } catch {
+            /* skip */
+          }
+        });
+        return;
+      }
+
+      // ── Lock/Unlock: Shift + Cmd/Ctrl + L ──
+      if (ctrl && e.shiftKey && e.key === "l") {
+        e.preventDefault();
+        const state = query.getState();
+        const ids = selectedToIds(state.events.selected);
+        if (ids.length === 0) return;
+        const firstProps = state.nodes[ids[0]]?.data?.props as Record<string, unknown> | undefined;
+        const next = !(firstProps?.locked as boolean);
+        ids.forEach((id) => {
+          try {
+            actions.setProp(id, (p: Record<string, unknown>) => {
+              p.locked = next;
+            });
+          } catch {
+            /* skip */
+          }
+        });
+        return;
+      }
+
+      // ── Flip horizontal: Shift + H (no Cmd to avoid conflict with Hide) ──
+      if (!ctrl && e.shiftKey && e.key === "h") {
+        e.preventDefault();
+        const state = query.getState();
+        const ids = selectedToIds(state.events.selected);
+        if (ids.length === 0) return;
+        ids.forEach((id) => {
+          try {
+            actions.setProp(id, (p: Record<string, unknown>) => {
+              p.flipHorizontal = !(p.flipHorizontal as boolean);
+            });
+          } catch {
+            /* skip */
+          }
+        });
+        return;
+      }
+
+      // ── Flip vertical: Shift + V ──
+      if (!ctrl && e.shiftKey && e.key === "v") {
+        e.preventDefault();
+        const state = query.getState();
+        const ids = selectedToIds(state.events.selected);
+        if (ids.length === 0) return;
+        ids.forEach((id) => {
+          try {
+            actions.setProp(id, (p: Record<string, unknown>) => {
+              p.flipVertical = !(p.flipVertical as boolean);
+            });
+          } catch {
+            /* skip */
+          }
+        });
         return;
       }
 

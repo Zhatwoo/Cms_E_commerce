@@ -348,8 +348,8 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
     left: "auto",
   },
   Page: {
-    width: "1000px",
-    height: "auto",
+    width: "1920px",
+    height: "1200px",
     background: "#ffffff",
     pageName: "Page Name",
     pageSlug: "page",

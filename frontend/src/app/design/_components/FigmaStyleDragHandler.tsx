@@ -36,6 +36,17 @@ function getEffectiveZoom(el: HTMLElement | null): number {
   return zoom > 0.01 ? zoom : 1;
 }
 
+function parsePx(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const n = parseFloat(value.replace("px", "").trim());
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
+
+const OFFSET_MOVE_TYPES = new Set(["Image", "Text", "Icon", "Button", "Circle", "Square", "Triangle"]);
+
 function selectedToIds(raw: unknown): string[] {
   if (Array.isArray(raw)) return raw;
   if (raw instanceof Set) return Array.from(raw);
@@ -300,7 +311,14 @@ export const FigmaStyleDragHandler = () => {
     lastY: number;
     committed: boolean;
     zoom: number;
-    nodeMargins: Array<{ id: string; marginTop: number; marginLeft: number }>;
+    nodeMargins: Array<{
+      id: string;
+      marginTop: number;
+      marginLeft: number;
+      mode: "margin" | "offset";
+      top: number;
+      left: number;
+    }>;
     fallbackNodeId: string | null;
     dirty: boolean;
   } | null>(null);
@@ -327,15 +345,16 @@ export const FigmaStyleDragHandler = () => {
         return;
       }
 
-      if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) {
-        rafRef.current = 0;
-        return;
-      }
-
-      d.nodeMargins.forEach(({ id, marginTop, marginLeft }) => {
+      d.nodeMargins.forEach((entry) => {
+        const { id, mode, marginTop, marginLeft, top, left } = entry;
         actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
-          props.marginTop = marginTop + dy;
-          props.marginLeft = marginLeft + dx;
+          if (mode === "offset") {
+            props.top = `${top + dy}px`;
+            props.left = `${left + dx}px`;
+          } else {
+            props.marginTop = marginTop + dy;
+            props.marginLeft = marginLeft + dx;
+          }
         });
       });
 
@@ -345,6 +364,8 @@ export const FigmaStyleDragHandler = () => {
         ...n,
         marginTop: n.marginTop + dy,
         marginLeft: n.marginLeft + dx,
+        top: n.top + dy,
+        left: n.left + dx,
       }));
 
       if (d.dirty) {
@@ -374,6 +395,9 @@ export const FigmaStyleDragHandler = () => {
       const exists = (id: string) => !!id && id !== "ROOT" && !!nodesMap[id];
 
       if (nodeIdFromTarget && exists(nodeIdFromTarget)) {
+        const node = nodesMap[nodeIdFromTarget];
+        const locked = node?.data?.props?.locked === true;
+        if (locked) return;
         dragRef.current = {
           startX: e.clientX, startY: e.clientY,
           lastX: e.clientX, lastY: e.clientY,
@@ -402,6 +426,7 @@ export const FigmaStyleDragHandler = () => {
         if (ids.length === 0 && d.fallbackNodeId && state.nodes[d.fallbackNodeId]) {
           ids = [d.fallbackNodeId];
         }
+        ids = ids.filter((id) => state.nodes[id]?.data?.props?.locked !== true);
         if (ids.length === 0) { dragRef.current = null; return; }
 
         let firstDom: HTMLElement | null = null;
@@ -414,10 +439,18 @@ export const FigmaStyleDragHandler = () => {
         d.zoom = getEffectiveZoom(firstDom);
         d.nodeMargins = ids.map((id) => {
           const props = state.nodes[id]?.data?.props ?? {};
+          const displayName = state.nodes[id]?.data?.displayName as string | undefined;
+          const position = (props.position as string) ?? "static";
+          const useOffset =
+            (position === "absolute" || position === "relative" || position === "fixed") ||
+            (displayName && OFFSET_MOVE_TYPES.has(displayName));
           return {
             id,
             marginTop: typeof props.marginTop === "number" ? props.marginTop : 0,
             marginLeft: typeof props.marginLeft === "number" ? props.marginLeft : 0,
+            mode: useOffset ? "offset" : "margin",
+            top: parsePx(props.top),
+            left: parsePx(props.left),
           };
         });
 
@@ -469,21 +502,35 @@ export const FigmaStyleDragHandler = () => {
               actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
                 props.marginTop = 0;
                 props.marginLeft = 0;
+                props.top = "0px";
+                props.left = "0px";
               });
             });
           } catch {
-            d.nodeMargins.forEach(({ id, marginTop, marginLeft }) => {
+            d.nodeMargins.forEach((entry) => {
+              const { id, mode, marginTop, marginLeft, top, left } = entry;
               actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
-                props.marginTop = Math.round(marginTop);
-                props.marginLeft = Math.round(marginLeft);
+                if (mode === "offset") {
+                  props.top = `${Math.round(top)}px`;
+                  props.left = `${Math.round(left)}px`;
+                } else {
+                  props.marginTop = Math.round(marginTop);
+                  props.marginLeft = Math.round(marginLeft);
+                }
               });
             });
           }
         } else {
-          d.nodeMargins.forEach(({ id, marginTop, marginLeft }) => {
+          d.nodeMargins.forEach((entry) => {
+            const { id, mode, marginTop, marginLeft, top, left } = entry;
             actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
-              props.marginTop = Math.round(marginTop);
-              props.marginLeft = Math.round(marginLeft);
+              if (mode === "offset") {
+                props.top = `${Math.round(top)}px`;
+                props.left = `${Math.round(left)}px`;
+              } else {
+                props.marginTop = Math.round(marginTop);
+                props.marginLeft = Math.round(marginLeft);
+              }
             });
           });
         }
@@ -501,7 +548,9 @@ export const FigmaStyleDragHandler = () => {
     document.addEventListener("mousemove", handleMouseMove, true);
     document.addEventListener("mouseup", handleMouseUp, true);
     window.addEventListener("mouseup", handleMouseUp, true);
-    document.addEventListener("mouseleave", handleMouseUp, true);
+    window.addEventListener("blur", handleMouseUp, true);
+    // Do NOT end drag on document mouseleave — keep tracking when cursor moves
+    // outside canvas (panels or window edge); only end on mouseup or window blur
     return () => {
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
@@ -512,7 +561,7 @@ export const FigmaStyleDragHandler = () => {
       document.removeEventListener("mousemove", handleMouseMove, true);
       document.removeEventListener("mouseup", handleMouseUp, true);
       window.removeEventListener("mouseup", handleMouseUp, true);
-      document.removeEventListener("mouseleave", handleMouseUp, true);
+      window.removeEventListener("blur", handleMouseUp, true);
     };
   }, []);
 

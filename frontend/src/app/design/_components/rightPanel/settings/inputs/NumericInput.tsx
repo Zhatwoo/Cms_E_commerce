@@ -63,9 +63,9 @@ export const NumericInput = ({
         e.preventDefault();
         e.stopImmediatePropagation();
         
-        // Get current value from ref to avoid stale closure
+        const effectiveStep = e.shiftKey ? step * 10 : step;
         const current = parseFloat(localValRef.current) || 0;
-        const delta = e.deltaY > 0 ? -step : step;
+        const delta = e.deltaY > 0 ? -effectiveStep : effectiveStep;
         const next = current + delta;
         
         // Call validateAndChange using the current ref value
@@ -160,20 +160,15 @@ export const NumericInput = ({
   };
 
   const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    // Only adjust when input is focused or hovered
     if (isFocused || isHovered) {
-      // Prevent scrolling the config panel
       e.preventDefault();
       e.stopPropagation();
-      
-      // Also stop on native event to prevent any parent scroll
       if (e.nativeEvent) {
         e.nativeEvent.stopImmediatePropagation();
       }
-      
+      const effectiveStep = e.shiftKey ? step * 10 : step;
       const current = parseFloat(localVal) || 0;
-      // Scroll up (negative deltaY) = increase, scroll down (positive deltaY) = decrease
-      const delta = e.deltaY > 0 ? -step : step;
+      const delta = e.deltaY > 0 ? -effectiveStep : effectiveStep;
       const next = current + delta;
       validateAndChange(next.toString(), true);
     }

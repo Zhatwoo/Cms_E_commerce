@@ -19,6 +19,7 @@ import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import { TransformModeProvider } from "./TransformModeContext";
 import { InlineTextEditProvider } from "./InlineTextEditContext";
 import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
+import { CanvasContextMenu } from "./CanvasContextMenu";
 import { PrototypeTabProvider } from "./PrototypeTabContext";
 import { PrototypeFlowLines } from "./PrototypeFlowLines";
 import type { TabId } from "./rightPanel";
@@ -699,11 +700,13 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         canonicalByLower.set(key.toLowerCase(), key);
       }
 
+      const allIds = new Set(Object.keys(parsed));
+
       for (const id of Object.keys(parsed)) {
-        const node = parsed[id] as any;
+        const node = parsed[id] as Record<string, unknown> | null;
         if (!node || typeof node !== "object") continue;
         const t = node.type;
-        const rawName = ((typeof t === "string" ? t : t?.resolvedName) ?? "").toString().trim();
+        const rawName = ((typeof t === "string" ? t : (t as { resolvedName?: string })?.resolvedName) ?? "").toString().trim();
         if (!rawName) return null;
 
         if (!keys.has(rawName)) {
@@ -711,12 +714,15 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
           if (normalized) {
             node.type = { resolvedName: normalized };
             node.displayName = normalized;
-            continue;
+          } else {
+            node.type = { resolvedName: "Container" };
+            node.displayName = "Container";
           }
-
-          node.type = { resolvedName: "Container" };
-          node.displayName = "Container";
         }
+
+        const childIds = Array.isArray(node.nodes) ? node.nodes : [];
+        const validChildIds = childIds.filter((cid: string) => allIds.has(cid));
+        node.nodes = validChildIds;
       }
       return JSON.stringify(parsed);
     } catch {
@@ -769,13 +775,14 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
       <Editor
         resolver={resolver}
         onRender={RenderNode}
-        onNodesChange={handleNodesChange}
+        onNodesChange={(query) => requestAnimationFrame(() => handleNodesChange(query))}
       >
         <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
         <TransformModeProvider>
         <InlineTextEditProvider>
           <KeyboardShortcuts />
           <CanvasSelectionHandler />
+          <CanvasContextMenu />
           <FigmaStyleDragHandler />
           <BoxSelectionHandler />
           <DoubleClickTransformHandler />
@@ -796,8 +803,8 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             className="min-w-[200vw] min-h-[200vh] flex items-center justify-center p-40"
             style={{ zoom: scale }}
           >
-            {initialJson === undefined ? null : initialJson ? (
-              <Frame data={initialJson} />
+            {initialJson === undefined ? null : validFrameData ? (
+              <Frame data={validFrameData} />
             ) : (
               <Frame>
                 <Element is={Viewport} canvas>

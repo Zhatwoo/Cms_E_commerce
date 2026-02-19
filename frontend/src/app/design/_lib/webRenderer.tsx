@@ -126,7 +126,7 @@ function useContainerWidth(defaultWidth = 1200): {
 
 // Default props per type (merge with node.props for full props). Minimal set for rendering.
 const DEFAULTS: Record<string, Record<string, unknown>> = {
-  Page: { width: "1000px", height: "auto", background: "#ffffff", pageName: "Page Name", pageSlug: "page" },
+  Page: { width: "1920px", height: "1200px", background: "#ffffff", pageName: "Page Name", pageSlug: "page" },
   Container: {
     background: "#27272a",
     padding: 20,
@@ -419,7 +419,7 @@ function px(v: unknown): string {
 }
 
 function resolvePageFrameStyles(pageWidth: string): Pick<React.CSSProperties, "width" | "maxWidth"> {
-  const normalized = (pageWidth || "1000px").trim();
+  const normalized = (pageWidth || "1920px").trim();
   if (!normalized || normalized === "auto") {
     return { width: "100%" };
   }
@@ -889,6 +889,10 @@ function RenderNode({
       const pl = (props.paddingLeft ?? p) as number;
       const pr = (props.paddingRight ?? p) as number;
       const textContent = (props.text != null && props.text !== "") ? String(props.text) : ((DEFAULTS["Text"]?.text as string) ?? "Edit me!");
+      const rot = toNumber(props.rotation, 0);
+      const flipH = props.flipHorizontal === true;
+      const flipV = props.flipVertical === true;
+      const textTransformStyle = [rot ? `rotate(${rot}deg)` : null, flipH ? "scaleX(-1)" : null, flipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
       return wrap(
         <div
           style={{
@@ -905,6 +909,8 @@ function RenderNode({
             opacity: props.opacity as number,
             boxShadow: props.boxShadow as string,
             cursor: interactiveClick ? "pointer" : undefined,
+            transform: textTransformStyle,
+            transformOrigin: "center center",
           }}
           onClick={interactiveClick}
         >
@@ -913,7 +919,11 @@ function RenderNode({
       );
     }
 
-    case "Image":
+    case "Image": {
+      const imgRot = toNumber(props.rotation, 0);
+      const imgFlipH = props.flipHorizontal === true;
+      const imgFlipV = props.flipVertical === true;
+      const imgTransform = [imgRot ? `rotate(${imgRot}deg)` : null, imgFlipH ? "scaleX(-1)" : null, imgFlipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
       return wrap(
         <img
           src={(props.src as string) || "https://placehold.co/600x400?text=Image"}
@@ -927,9 +937,12 @@ function RenderNode({
             margin: px(props.margin),
             opacity: props.opacity as number,
             boxShadow: props.boxShadow as string,
+            transform: imgTransform,
+            transformOrigin: "center center",
           }}
         />
       );
+    }
 
     case "Button": {
       const variant = (props.variant as string) || "primary";
@@ -948,6 +961,10 @@ function RenderNode({
       const link =
         explicitLink ||
         (storeContext ? getDefaultLinkForLabel(labelStr) : "");
+      const btnRot = toNumber(props.rotation, 0);
+      const btnFlipH = props.flipHorizontal === true;
+      const btnFlipV = props.flipVertical === true;
+      const btnTransform = [btnRot ? `rotate(${btnRot}deg)` : null, btnFlipH ? "scaleX(-1)" : null, btnFlipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
       const content = (
         <span
           style={{
@@ -964,6 +981,8 @@ function RenderNode({
             boxShadow: props.boxShadow as string,
             display: "inline-block",
             cursor: interactiveClick ? "pointer" : undefined,
+            transform: btnTransform,
+            transformOrigin: "center center",
           }}
           onClick={interactiveClick}
         >
@@ -1056,9 +1075,13 @@ function RenderNode({
             right: (props.position as string) !== "static" ? (props.right as string) : undefined,
             bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
             left: (props.position as string) !== "static" ? (props.left as string) : undefined,
-            transform: toNumber(props.rotation, 0)
-              ? `rotate(${toNumber(props.rotation, 0)}deg)`
-              : undefined,
+            transform: (() => {
+              const r = toNumber(props.rotation, 0);
+              const fh = props.flipHorizontal === true;
+              const fv = props.flipVertical === true;
+              const parts = [r ? `rotate(${r}deg)` : null, fh ? "scaleX(-1)" : null, fv ? "scaleY(-1)" : null].filter(Boolean);
+              return parts.length ? parts.join(" ") : undefined;
+            })(),
             transformOrigin: "center center",
             backgroundColor: type === "Triangle" ? undefined : fill,
             backgroundImage:
@@ -1198,7 +1221,7 @@ export function WebPreview({
   }
 
   const pageProps = mergeProps("Page", currentPage.props) as Record<string, unknown>;
-  const width = (pageProps.width as string) || "1000px";
+  const width = (pageProps.width as string) || "1920px";
   const background = (pageProps.background as string) || "#ffffff";
   const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
   const frameStyles = resolvePageFrameStyles(width);

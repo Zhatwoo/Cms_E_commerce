@@ -122,6 +122,7 @@ type GuideState = {
 
 export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
   const { actions, query } = useEditor();
+  const locked = useEditor((state) => state.nodes[nodeId]?.data?.props?.locked === true);
   const { isTransformMode } = useTransformMode();
   const transformMode = isTransformMode(nodeId);
 
@@ -753,6 +754,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
     };
   }, [isDragging, actions, nodeId]);
 
+  if (locked) return null;
   if (!rect) return null;
 
   const half = HANDLE_SIZE / 2;

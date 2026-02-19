@@ -37,6 +37,8 @@ export const Text = ({
   opacity = 1,
   boxShadow = "none",
   rotation = 0,
+  flipHorizontal = false,
+  flipVertical = false,
 }: TextProps & { width?: string; height?: string }) => {
   const { id, connectors: { connect, drag }, actions } = useNode((node) => ({ actions: node.actions }));
   const { editingTextNodeId, setEditingTextNodeId } = useInlineTextEdit();
@@ -96,7 +98,7 @@ export const Text = ({
     paddingRight: `${pr}px`,
     opacity,
     boxShadow,
-    transform: rotation ? `rotate(${rotation}deg)` : undefined,
+    transform: [rotation ? `rotate(${rotation}deg)` : null, flipHorizontal ? "scaleX(-1)" : null, flipVertical ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined,
   };
 
   const handleBlur = () => {

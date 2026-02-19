@@ -1,6 +1,7 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
+import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
 import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
@@ -10,15 +11,17 @@ import type { TextProps, SetProp } from "../../_types/components";
 export const TextSettings = () => {
   const {
     text,
-    fontSize, fontFamily, fontWeight, lineHeight, letterSpacing, textAlign, textTransform, color,
+    fontSize, fontFamily, fontWeight, fontStyle, lineHeight, letterSpacing, textAlign, textTransform, color,
     margin, marginTop, marginBottom, marginLeft, marginRight,
     padding, paddingTop, paddingBottom, paddingLeft, paddingRight,
     opacity, boxShadow,
+    rotation, flipHorizontal, flipVertical,
     toggleTarget, triggerAction, collapsibleKey, defaultOpen, defaultOpenMobile, defaultOpenDesktop, showOn, mobileBreakpoint,
     actions: { setProp }
   } = useNode(node => ({
     text: node.data.props.text,
     fontSize: node.data.props.fontSize,
+    fontStyle: node.data.props.fontStyle,
     fontFamily: node.data.props.fontFamily,
     fontWeight: node.data.props.fontWeight,
     lineHeight: node.data.props.lineHeight,
@@ -38,6 +41,9 @@ export const TextSettings = () => {
     paddingRight: node.data.props.paddingRight,
     opacity: node.data.props.opacity,
     boxShadow: node.data.props.boxShadow,
+    rotation: node.data.props.rotation,
+    flipHorizontal: node.data.props.flipHorizontal,
+    flipVertical: node.data.props.flipVertical,
     toggleTarget: node.data.props.toggleTarget,
     triggerAction: node.data.props.triggerAction,
     collapsibleKey: node.data.props.collapsibleKey,
@@ -52,29 +58,16 @@ export const TextSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
-      <DesignSection title="Content">
-        <textarea
-          value={text}
-          onChange={(e) => typedSetProp((props) => { props.text = e.target.value; })}
-          className="w-full bg-brand-medium-dark p-2 rounded-lg text-brand-lighter focus:border-brand-light focus:outline-none resize-y min-h-[40px]"
-        />
-      </DesignSection>
-
-      <DesignSection title="Typography">
-        <TypographyGroup
-          fontFamily={fontFamily}
-          fontWeight={fontWeight}
-          fontSize={fontSize}
-          lineHeight={lineHeight}
-          letterSpacing={letterSpacing}
-          textAlign={textAlign}
-          textTransform={textTransform}
-          color={color}
+      <DesignSection title="Position & Transform">
+        <TransformGroup
+          rotation={rotation}
+          flipHorizontal={flipHorizontal}
+          flipVertical={flipVertical}
           setProp={typedSetProp}
         />
       </DesignSection>
 
-      <DesignSection title="Size & Position">
+      <DesignSection title="Size & Spacing">
         <SizePositionGroup
           width="auto"
           height="auto"
@@ -87,6 +80,29 @@ export const TextSettings = () => {
           marginTop={marginTop}
           marginBottom={marginBottom}
           setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Typography">
+        <TypographyGroup
+          fontFamily={fontFamily}
+          fontWeight={fontWeight}
+          fontStyle={fontStyle}
+          fontSize={fontSize}
+          lineHeight={lineHeight}
+          letterSpacing={letterSpacing}
+          textAlign={textAlign}
+          textTransform={textTransform}
+          color={color}
+          setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Content">
+        <textarea
+          value={text}
+          onChange={(e) => typedSetProp((props) => { props.text = e.target.value; })}
+          className="w-full bg-brand-medium-dark p-2 rounded-lg text-brand-lighter focus:border-brand-light focus:outline-none resize-y min-h-[40px]"
         />
       </DesignSection>
 

@@ -6,8 +6,8 @@ import { slugFromName } from "../../_lib/slug";
 
 export const Page = ({
   children,
-  width = "1000px",
-  height = "auto",
+  width = "1920px",
+  height = "1200px",
   background = "#ffffff",
   pageName = "Page Name",
 }: PageProps) => {
@@ -83,8 +83,8 @@ export const Page = ({
 };
 
 export const PageDefaultProps: Partial<PageProps> = {
-  width: "1000px",
-  height: "auto",
+  width: "1920px",
+  height: "1200px",
   background: "#E6E6E9",
   pageName: "Page Name",
 };
