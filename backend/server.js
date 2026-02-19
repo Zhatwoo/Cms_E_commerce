@@ -284,6 +284,8 @@ function onListenSuccess(port) {
   console.log('========================================');
 }
 
+const Domain = require('./models/Domain');
+
 function tryListen(port) {
   const server = http.createServer(app);
   server.on('error', (err) => {
@@ -294,7 +296,18 @@ function tryListen(port) {
       throw err;
     }
   });
-  server.listen(port, () => onListenSuccess(port));
+  server.listen(port, () => {
+    onListenSuccess(port);
+    // Run scheduled publishes every minute (edits set for a date go live automatically)
+    setInterval(async () => {
+      try {
+        const n = await Domain.applyScheduledPublishes();
+        if (n > 0) console.log(`[Schedule] Applied ${n} scheduled publish(es).`);
+      } catch (e) {
+        console.warn('[Schedule] applyScheduledPublishes error:', e.message);
+      }
+    }, 60 * 1000);
+  });
   return server;
 }
 

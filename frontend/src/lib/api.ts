@@ -318,6 +318,25 @@ export async function publishProject(projectId: string, subdomain?: string | nul
   });
 }
 
+/** Schedule publish: current draft will go live at the given date/time (site must be published at least once). */
+export async function schedulePublish(
+  projectId: string,
+  scheduledAt: string,
+  subdomain?: string | null
+): Promise<{ success: boolean; message?: string; data?: { subdomain?: string; scheduledAt?: string } }> {
+  return apiFetch('/api/domains/schedule-publish', {
+    method: 'POST',
+    body: JSON.stringify({ projectId, subdomain: subdomain || undefined, scheduledAt }),
+  });
+}
+
+/** Get scheduled publish for a project (if any). */
+export async function getSchedule(projectId: string): Promise<{ success: boolean; data?: { scheduledAt: string; subdomain: string | null } | null }> {
+  return apiFetch<{ success: boolean; data?: { scheduledAt: string; subdomain: string | null } | null }>(
+    `/api/domains/schedule?projectId=${encodeURIComponent(projectId)}`
+  );
+}
+
 /** Admin: User and Website Management — list websites with owner and plan from user/roles/client (subscription_plan). */
 export type WebsiteManagementRow = {
   id: string;

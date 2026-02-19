@@ -9,6 +9,11 @@ export const Triangle = (props: TriangleProps) => {
     width = "200px",
     height = "200px",
     background,
+    backgroundImage = "",
+    backgroundSize = "cover",
+    backgroundPosition = "center",
+    backgroundRepeat = "no-repeat",
+    backgroundOverlay = "",
     margin = 0,
     marginTop,
     marginRight,
@@ -59,6 +64,7 @@ export const Triangle = (props: TriangleProps) => {
   const pr = paddingRight ?? p;
   const pb = paddingBottom ?? p;
   const pl = paddingLeft ?? p;
+  const effectiveOverflow = overflow === "visible" ? "hidden" : overflow;
   const { connectors: { connect, drag }, id } = useNode();
 
   return (
@@ -81,7 +87,7 @@ export const Triangle = (props: TriangleProps) => {
         justifyContent: "center",
         boxShadow,
         opacity,
-        overflow,
+        overflow: effectiveOverflow,
         cursor,
         padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
         margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
@@ -102,7 +108,7 @@ export const Triangle = (props: TriangleProps) => {
       >
         <polygon
           points="0,100 50,0 100,100"
-          fill={fillColor}
+          fill="transparent"
           stroke={borderColor}
           strokeWidth={borderWidth}
           strokeDasharray={borderStyle === "dashed" ? "6,6" : borderStyle === "dotted" ? "3,3" : undefined}
@@ -110,13 +116,32 @@ export const Triangle = (props: TriangleProps) => {
       </svg>
       <div
         style={{
+          position: "absolute",
+          inset: 0,
+          zIndex: 1,
+          clipPath: "polygon(0 100%, 50% 0, 100% 100%)",
+          backgroundColor: fillColor,
+          backgroundImage: backgroundImage
+            ? backgroundOverlay
+              ? `linear-gradient(${backgroundOverlay}, ${backgroundOverlay}), url(${backgroundImage})`
+              : `url(${backgroundImage})`
+            : undefined,
+          backgroundSize: backgroundImage ? backgroundSize : undefined,
+          backgroundPosition: backgroundImage ? backgroundPosition : undefined,
+          backgroundRepeat: backgroundImage ? backgroundRepeat : undefined,
+        }}
+      />
+      <div
+        style={{
           position: "relative",
-          zIndex: 2,
+          zIndex: 3,
           width: "100%",
           height: "100%",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          clipPath: "polygon(0 100%, 50% 0, 100% 100%)",
+          overflow: "hidden",
         }}
       >
         {children}
@@ -135,7 +160,7 @@ export const TriangleDefaultProps: Partial<TriangleProps> = {
   borderStyle: "solid",
   boxShadow: "none",
   opacity: 1,
-  overflow: "visible",
+  overflow: "hidden",
   cursor: "default",
 };
 

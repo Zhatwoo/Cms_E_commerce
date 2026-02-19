@@ -5,6 +5,18 @@
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 const API_BASE_URL = `${BASE.replace(/\/$/, '')}/api`;
 
+/** Wraps fetch; returns null on network/parse errors so callers can handle gracefully. */
+async function safeFetch(
+    input: RequestInfo | URL,
+    init?: RequestInit
+): Promise<Response | null> {
+    try {
+        return await fetch(input, init);
+    } catch {
+        return null;
+    }
+}
+
 /** Auth uses HttpOnly cookie (mercato_token); no token in localStorage. Use credentials: 'include' for API calls. */
 function getAuthToken(): string | null {
     return null;
@@ -31,12 +43,16 @@ export async function autoSavePage(content: string, projectId: string): Promise<
 
         const url = `${API_BASE_URL}/pages/autosave`;
 
-        const response = await fetch(url, {
+        const response = await safeFetch(url, {
             method: 'POST',
             headers,
             credentials: 'include',
             body: JSON.stringify({ content, projectId }) // Passing projectId
         });
+
+        if (!response) {
+            return { success: false, error: 'Network error' };
+        }
 
         const data = await response.json();
 
@@ -62,11 +78,16 @@ export async function getMyId(): Promise<void> {
         const headers: Record<string, string> = {};
         if (token) headers['Authorization'] = `Bearer ${token}`;
 
-        const response = await fetch(`${API_BASE_URL}/auth/me`, {
+        const response = await safeFetch(`${API_BASE_URL}/auth/me`, {
             method: 'GET',
             headers,
             credentials: 'include'
         });
+
+        if (!response) {
+            console.warn('👤 Current User: NOT LOGGED IN (network unavailable)');
+            return;
+        }
 
         if (response.ok) {
             const data = await response.json();
@@ -94,11 +115,15 @@ export async function getDraft(projectId: string): Promise<{ success: boolean; d
         }
 
         // Pass projectId in query with timestamp to avoid caching
-        const response = await fetch(`${API_BASE_URL}/pages/draft?projectId=${projectId}&t=${Date.now()}`, {
+        const response = await safeFetch(`${API_BASE_URL}/pages/draft?projectId=${projectId}&t=${Date.now()}`, {
             method: 'GET',
             headers,
             credentials: 'include'
         });
+
+        if (!response) {
+            return { success: true, data: null };
+        }
 
         const data = await response.json();
 
@@ -128,11 +153,15 @@ export async function deleteDraft(projectId: string): Promise<{ success: boolean
             headers['Authorization'] = `Bearer ${token}`;
         }
 
-        const response = await fetch(`${API_BASE_URL}/pages/draft?projectId=${projectId}`, {
+        const response = await safeFetch(`${API_BASE_URL}/pages/draft?projectId=${projectId}`, {
             method: 'DELETE',
             headers,
             credentials: 'include'
         });
+
+        if (!response) {
+            return { success: false, error: 'Network error' };
+        }
 
         if (!response.ok) {
             const data = await response.json();

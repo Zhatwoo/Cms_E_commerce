@@ -1,6 +1,7 @@
 // controllers/domainController.js
 const Domain = require('../models/Domain');
 const Project = require('../models/Project');
+const Page = require('../models/Page');
 const User = require('../models/User');
 const { getRealtimeDb, db } = require('../config/firebase');
 
@@ -141,7 +142,7 @@ exports.delete = async (req, res) => {
   }
 };
 
-// Publish: create/update domain at user/roles/client/{userId}/domains and set public lookup (define as published)
+// Publish: create/update domain and save a snapshot of current draft so public site shows only published content
 exports.publish = async (req, res) => {
   try {
     const { projectId, subdomain: subdomainOverride } = req.body;
@@ -157,11 +158,21 @@ exports.publish = async (req, res) => {
       ? String(subdomainOverride).trim().toLowerCase().replace(/[^a-z0-9-]/g, '')
       : (project.subdomain || (project.title || 'site').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'site');
 
-    // Save to BOTH paths in one batch (dynamic per client UID): user/roles/client/{userId}/domains + published_subdomains
+    // Snapshot current draft so published site shows only this until next Publish (not live draft)
+    let publishedContent = null;
+    try {
+      const draft = await Page.getPageData(userId, String(projectId).trim(), userId);
+      if (draft && draft.content) publishedContent = draft.content;
+    } catch (e) {
+      console.warn('publish: could not read draft for snapshot:', e.message);
+    }
+
+    // Save to BOTH paths with published_content snapshot
     const data = await Domain.publishForClientBatch(userId, {
       projectId: String(projectId).trim(),
       projectTitle: project.title,
       subdomain,
+      publishedContent,
     });
 
     // So Domains dashboard shows the published domain: update project subdomain in Firestore and Realtime DB
@@ -177,6 +188,62 @@ exports.publish = async (req, res) => {
     }
 
     res.status(200).json({ success: true, message: 'Published', data: { ...data, subdomain } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+// Schedule publish: set a date when current draft will go live (must have published at least once)
+exports.schedulePublish = async (req, res) => {
+  try {
+    const { projectId, subdomain: subdomainOverride, scheduledAt } = req.body;
+    if (!projectId || !String(projectId).trim()) {
+      return res.status(400).json({ success: false, message: 'projectId is required' });
+    }
+    if (!scheduledAt) {
+      return res.status(400).json({ success: false, message: 'scheduledAt is required (ISO date string)' });
+    }
+    const userId = req.user.id;
+    const project = await Project.get(userId, String(projectId).trim());
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'Project not found' });
+    }
+    const subdomain = (subdomainOverride && String(subdomainOverride).trim())
+      ? String(subdomainOverride).trim().toLowerCase().replace(/[^a-z0-9-]/g, '')
+      : (project.subdomain || (project.title || 'site').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'site');
+
+    let scheduledContent = null;
+    try {
+      const draft = await Page.getPageData(userId, String(projectId).trim(), userId);
+      if (draft && draft.content) scheduledContent = draft.content;
+    } catch (e) {
+      console.warn('schedulePublish: could not read draft:', e.message);
+    }
+
+    const data = await Domain.schedulePublish(userId, {
+      projectId: String(projectId).trim(),
+      projectTitle: project.title,
+      subdomain,
+      scheduledAt,
+      scheduledContent,
+    });
+
+    res.status(200).json({ success: true, message: 'Scheduled', data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });
+  }
+};
+
+// Get scheduled publish for a project (if any)
+exports.getSchedule = async (req, res) => {
+  try {
+    const { projectId } = req.query;
+    if (!projectId || !String(projectId).trim()) {
+      return res.status(400).json({ success: false, message: 'projectId is required' });
+    }
+    const userId = req.user.id;
+    const schedule = await Domain.getScheduleByProject(userId, String(projectId).trim());
+    res.status(200).json({ success: true, data: schedule });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }

@@ -8,12 +8,63 @@ import { getDraft } from "../_lib/pageApi";
 import { WebPreview } from "../_lib/webRenderer";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
-import { getProject, publishProject } from "@/lib/api";
+import { publishProject, getProject, schedulePublish, getSchedule } from "@/lib/api";
+import { createPortal } from "react-dom";
 
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 
 type ViewMode = "Web-Preview" | "clean" | "raw";
 type PreviewViewport = "desktop" | "tablet" | "mobile";
+
+function PreviewIframe({ children, width, height = "80vh" }: { children: React.ReactNode; width: string | number; height?: string | number }) {
+  const [mountNode, setMountNode] = useState<HTMLElement | null>(null);
+  const iframeRef = React.useRef<HTMLIFrameElement>(null);
+
+  React.useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+
+    const handleLoad = () => {
+      const doc = iframe.contentDocument;
+      if (doc && doc.head && doc.body) {
+        const root = doc.getElementById("preview-root");
+        if (root) setMountNode(root);
+      }
+    };
+
+    iframe.addEventListener("load", handleLoad);
+    // If already loaded (e.g. from cache or srcDoc fast load)
+    if (iframe.contentDocument?.readyState === "complete" || iframe.contentDocument?.body) {
+      handleLoad();
+    }
+
+    return () => iframe.removeEventListener("load", handleLoad);
+  }, []);
+
+  // Responsive: set width based on device
+  let responsiveWidth = width;
+  if (width === "responsive") {
+    // fallback: 100vw for desktop, 768px for tablet, 390px for mobile
+    responsiveWidth = "100vw";
+  }
+
+  return (
+    <>
+      <iframe
+        ref={iframeRef}
+        style={{ width: responsiveWidth, height, transition: "width 0.3s ease" }}
+        className="rounded-xl border border-white/10 bg-white min-h-full"
+        srcDoc={`<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1'/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/><style>*,*::before,*::after{box-sizing:border-box;}body{margin:0;font-family:'Inter',sans-serif;}</style></head><body><div id='preview-root'></div></body></html>`}
+        sandbox="allow-scripts allow-same-origin"
+        tabIndex={-1}
+        aria-hidden
+      />
+      {mountNode && createPortal(children, mountNode)}
+    </>
+  );
+}
+
+
 
 function PreviewContent() {
   const router = useRouter();
@@ -35,6 +86,11 @@ function PreviewContent() {
   const [showPublishDialog, setShowPublishDialog] = useState(false);
   const [publishDomainName, setPublishDomainName] = useState("");
   const [publishDomainError, setPublishDomainError] = useState("");
+  const [publishMode, setPublishMode] = useState<"now" | "schedule">("now");
+  const [scheduledAt, setScheduledAt] = useState("");
+  const [scheduleInfo, setScheduleInfo] = useState<{ scheduledAt: string; subdomain: string | null } | null>(null);
+  const [scheduling, setScheduling] = useState(false);
+  const [mobileBreakpoint, setMobileBreakpoint] = useState(900);
 
   useEffect(() => {
     async function loadData() {
@@ -115,10 +171,10 @@ function PreviewContent() {
   const activeJson = viewMode === "clean" ? cleanJson : viewMode === "raw" ? rawFormatted : null;
   const viewportClass =
     previewViewport === "desktop"
-      ? "w-full"
+      ? "w-[1200px]"
       : previewViewport === "tablet"
-        ? "w-[768px] max-w-full"
-        : "w-[390px] max-w-full";
+        ? "w-[768px]"
+        : "w-[390px]";
 
   // ── Stats ──────────────────────────────────────────
   const rawBytes = rawJson ? new Blob([rawJson]).size : 0;
@@ -209,6 +265,17 @@ function PreviewContent() {
       setPublishDomainName("");
     }
     setShowPublishDialog(true);
+    setPublishMode("now");
+    setScheduleInfo(null);
+    if (projectId) {
+      getSchedule(projectId).then((r) => {
+        if (r.success && r.data) setScheduleInfo(r.data);
+      });
+    }
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    setScheduledAt(tomorrow.toISOString().slice(0, 16));
   };
 
   const handlePublishConfirm = async () => {
@@ -242,6 +309,44 @@ function PreviewContent() {
       showAlert(error instanceof Error ? error.message : "Publish failed.");
     } finally {
       setPublishing(false);
+    }
+  };
+
+  const handleScheduleConfirm = async () => {
+    const domain = publishDomainName.trim().toLowerCase();
+    if (!domain) {
+      setPublishDomainError("Domain name is required.");
+      return;
+    }
+    if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(domain)) {
+      setPublishDomainError("Use only letters, numbers, and hyphens.");
+      return;
+    }
+    if (!scheduledAt) {
+      setPublishDomainError("Pick a date and time.");
+      return;
+    }
+    if (!projectId) {
+      showAlert("No project selected.");
+      return;
+    }
+    setPublishDomainError("");
+    setScheduling(true);
+    try {
+      const res = await schedulePublish(projectId, new Date(scheduledAt).toISOString(), domain);
+      if (res.success) {
+        setShowPublishDialog(false);
+        setPublishDomainName("");
+        setScheduleInfo({ scheduledAt: res.data!.scheduledAt!, subdomain: res.data?.subdomain ?? null });
+        showAlert(`Scheduled! Your changes will go live on ${new Date(res.data!.scheduledAt!).toLocaleString()}.`);
+      } else {
+        showAlert(res.message || "Schedule failed.");
+      }
+    } catch (error) {
+      console.error("Schedule error:", error);
+      showAlert(error instanceof Error ? error.message : "Schedule failed.");
+    } finally {
+      setScheduling(false);
     }
   };
 
@@ -414,17 +519,38 @@ function PreviewContent() {
             <p>Fetching latest clean data...</p>
           </div>
         ) : viewMode === "Web-Preview" ? (
-          <div className="flex justify-center py-6">
-            <div className={`${viewportClass} min-h-[80vh] rounded-xl overflow-auto bg-white transition-all duration-300`}>
-              {cleanDoc ? (
-                <WebPreview doc={cleanDoc} pageIndex={0} initialPageSlug={initialPageSlug} />
-              ) : (
-                <div className="flex flex-col items-center justify-center min-h-[400px] text-zinc-500 p-8">
-                  <p className="text-base mb-1">No page data</p>
-                  <p className="text-sm">Go back to the editor and press the play button to generate output.</p>
-                </div>
-              )}
-            </div>
+          <div className="flex justify-center py-6 h-full">
+            {cleanDoc ? (
+              <PreviewIframe
+                width={
+                  previewViewport === "desktop"
+                    ? "100%"
+                    : previewViewport === "tablet"
+                      ? 768
+                      : 390
+                }
+                height="calc(100vh - 200px)"
+              >
+                <WebPreview
+                  doc={cleanDoc}
+                  pageIndex={0}
+                  initialPageSlug={initialPageSlug}
+                  mobileBreakpoint={mobileBreakpoint}
+                  simulatedWidth={
+                    previewViewport === "desktop"
+                      ? undefined
+                      : previewViewport === "tablet"
+                        ? 768
+                        : 390
+                  }
+                />
+              </PreviewIframe>
+            ) : (
+              <div className="flex flex-col items-center justify-center min-h-[400px] text-zinc-500 p-8 border border-white/10 rounded-xl">
+                <p className="text-base mb-1">No page data</p>
+                <p className="text-sm">Go back to the editor and press the play button to generate output.</p>
+              </div>
+            )}
           </div>
         ) : activeJson ? (
           <pre className="bg-[#111] rounded-xl border border-white/10 p-6 text-sm leading-relaxed overflow-auto max-h-[calc(100vh-200px)] font-mono text-zinc-300 whitespace-pre-wrap wrap-break-word">
@@ -440,17 +566,22 @@ function PreviewContent() {
         )}
       </div>
 
-      {/* Publish confirmation – connected to Create project (Preferred subdomain). Required; confirm name. */}
+      {/* Publish confirmation – Publish now or Schedule for a date */}
       {showPublishDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md">
             <h2 className="text-xl font-semibold text-white mb-2">Publish site</h2>
+            {scheduleInfo && (
+              <p className="text-sm text-amber-400/90 mb-2">
+                Already scheduled for {new Date(scheduleInfo.scheduledAt).toLocaleString()}. Setting a new date will replace it.
+              </p>
+            )}
             <p className="text-sm text-zinc-400 mb-4">
               {publishDomainName.trim()
-                ? "Confirm your domain name and publish. You can change it later in the dashboard."
-                : "Domain name is required. Set it here or in Create project (Preferred subdomain). You can change it later in the dashboard."}
+                ? "Confirm your domain name. You can change it later in the dashboard."
+                : "Domain name (subdomain) is required. Set it here or in Create project."}
             </p>
-            <div className="space-y-2">
+            <div className="space-y-2 mb-4">
               <label className="block text-sm font-medium text-gray-300">
                 Domain name (subdomain) <span className="text-red-400">*</span>
               </label>
@@ -465,13 +596,42 @@ function PreviewContent() {
                 className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 autoFocus
               />
-              <p className="text-xs text-zinc-500">
-                Only letters, numbers, and hyphens.
-              </p>
+              <p className="text-xs text-zinc-500">Only letters, numbers, and hyphens.</p>
               {publishDomainError && (
                 <p className="text-xs text-red-400">{publishDomainError}</p>
               )}
             </div>
+            <div className="flex gap-2 mb-4 p-1 bg-[#0a0a0a] rounded-lg">
+              <button
+                type="button"
+                onClick={() => setPublishMode("now")}
+                className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${publishMode === "now" ? "bg-blue-600 text-white" : "text-zinc-400 hover:text-white"}`}
+              >
+                Publish now
+              </button>
+              <button
+                type="button"
+                onClick={() => setPublishMode("schedule")}
+                className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${publishMode === "schedule" ? "bg-blue-600 text-white" : "text-zinc-400 hover:text-white"}`}
+              >
+                Schedule for date
+              </button>
+            </div>
+            {publishMode === "schedule" && (
+              <div className="space-y-2 mb-4">
+                <label className="block text-sm font-medium text-gray-300">
+                  When should your edits go live?
+                </label>
+                <input
+                  type="datetime-local"
+                  value={scheduledAt}
+                  onChange={(e) => setScheduledAt(e.target.value)}
+                  min={new Date().toISOString().slice(0, 16)}
+                  className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-zinc-500">Your current draft will go live at this date and time.</p>
+              </div>
+            )}
             <div className="flex justify-end gap-3 mt-6">
               <button
                 type="button"
@@ -484,14 +644,25 @@ function PreviewContent() {
               >
                 Cancel
               </button>
-              <button
-                type="button"
-                onClick={handlePublishConfirm}
-                disabled={publishing}
-                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {publishing ? "Publishing…" : "Confirm & Publish"}
-              </button>
+              {publishMode === "now" ? (
+                <button
+                  type="button"
+                  onClick={handlePublishConfirm}
+                  disabled={publishing}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {publishing ? "Publishing…" : "Confirm & Publish"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleScheduleConfirm}
+                  disabled={scheduling}
+                  className="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {scheduling ? "Scheduling…" : "Set schedule"}
+                </button>
+              )}
             </div>
           </div>
         </div>

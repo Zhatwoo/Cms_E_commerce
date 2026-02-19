@@ -24,9 +24,9 @@ import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
-import { Triangle } from "@/app/_assets/shapes/triangle/triangle";
-import { Square } from "@/app/_assets/shapes/square/square";
-import { Circle } from "@/app/_assets/shapes/circle/circle";
+import { Circle } from "../../_assets/shapes/circle/circle";
+import { Square } from "../../_assets/shapes/square/square";
+import { Triangle } from "../../_assets/shapes/triangle/triangle";
 
 /**
  * React Error Boundary to catch rendering errors in Frame component
@@ -649,9 +649,14 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
   const resolver = {
     ...RenderBlocks,
+    Text: Text || Container,
+    text: Text || Container,
     Circle: Circle || Container,
     Square: Square || Container,
     Triangle: Triangle || Container,
+    circle: Circle || Container,
+    square: Square || Container,
+    triangle: Triangle || Container,
   } as any;
 
   /** Only pass to Frame if data is valid Craft format and every node type exists in resolver */
@@ -662,15 +667,34 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
     try {
       const parsed = typeof initialJson === "string" ? JSON.parse(initialJson) : initialJson;
       if (!parsed || typeof parsed !== "object" || !parsed.ROOT || !Array.isArray(parsed.ROOT?.nodes)) return null;
-      const keys = new Set(Object.keys(resolverRef.current));
+      const resolverKeys = Object.keys(resolverRef.current);
+      const keys = new Set(resolverKeys);
+
+      const canonicalByLower = new Map<string, string>();
+      for (const key of resolverKeys) {
+        canonicalByLower.set(key.toLowerCase(), key);
+      }
+
       for (const id of Object.keys(parsed)) {
-        const node = parsed[id];
+        const node = parsed[id] as any;
         if (!node || typeof node !== "object") continue;
         const t = node.type;
-        const name = (typeof t === "string" ? t : t?.resolvedName) ?? "";
-        if (!name || !keys.has(name)) return null;
+        const rawName = ((typeof t === "string" ? t : t?.resolvedName) ?? "").toString().trim();
+        if (!rawName) return null;
+
+        if (!keys.has(rawName)) {
+          const normalized = canonicalByLower.get(rawName.toLowerCase());
+          if (normalized) {
+            node.type = { resolvedName: normalized };
+            node.displayName = normalized;
+            continue;
+          }
+
+          node.type = { resolvedName: "Container" };
+          node.displayName = "Container";
+        }
       }
-      return typeof initialJson === "string" ? initialJson : JSON.stringify(parsed);
+      return JSON.stringify(parsed);
     } catch {
       return null;
     }
@@ -747,8 +771,8 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             className="min-w-[200vw] min-h-[200vh] flex items-center justify-center p-40"
             style={{ zoom: scale }}
           >
-            {initialJson === undefined ? null : validFrameData ? (
-              <Frame data={validFrameData} />
+            {initialJson === undefined ? null : initialJson ? (
+              <Frame data={initialJson} />
             ) : (
               <Frame>
                 <Element is={Viewport} canvas>
@@ -793,7 +817,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
                 </button>
               </div>
             </div>
-          </>
+          </div>
         )}
         {/* Right Panel */}
         {panelsReady && (
