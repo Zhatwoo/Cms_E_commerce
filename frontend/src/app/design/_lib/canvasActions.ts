@@ -284,6 +284,37 @@ export function cutSelection(
   }
 }
 
+/** Paste from clipboard and replace the selected node(s). Uses first selected node's parent and index. */
+export function pasteToReplaceSelection(
+  actions: EditorActions,
+  query: EditorQuery,
+  nodeIds: string[]
+): string[] {
+  if (nodeIds.length === 0) return [];
+  const state = query.getState();
+  const firstId = nodeIds[0]!;
+  const firstNode = state.nodes[firstId];
+  if (!firstNode) return [];
+  const parentId = firstNode.data?.parent as string | undefined;
+  if (!parentId || !state.nodes[parentId]) return [];
+  const siblings = (state.nodes[parentId]?.data?.nodes as string[]) ?? [];
+  const atIndex = siblings.indexOf(firstId);
+  if (atIndex === -1) return [];
+  const pasted = pasteClipboard(actions, query, { parentId, atIndex });
+  if (pasted.length === 0) return [];
+  const deletable: string[] = [];
+  for (const id of nodeIds) {
+    if (!state.nodes[id] || PROTECTED.has(state.nodes[id]?.data?.displayName as string)) continue;
+    try {
+      if (query.node(id).isDeletable()) deletable.push(id);
+    } catch {
+      // skip
+    }
+  }
+  if (deletable.length > 0) actions.delete(deletable.length === 1 ? deletable[0] : deletable);
+  return pasted;
+}
+
 /** Recursively collect all descendant ids. */
 function getDescendantIds(data: CraftData, nodeId: string): string[] {
   const node = data[nodeId];

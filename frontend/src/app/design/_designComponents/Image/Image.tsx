@@ -27,6 +27,8 @@ export const Image = ({
   opacity = 1,
   boxShadow = "none",
   rotation = 0,
+  flipHorizontal = false,
+  flipVertical = false,
 }: ImageProps) => {
   const { id, connectors: { connect, drag } } = useNode();
 
@@ -80,7 +82,7 @@ export const Image = ({
         opacity,
         boxShadow,
         display: "block",
-        transform: rotation ? `rotate(${rotation}deg)` : undefined,
+        transform: [rotation ? `rotate(${rotation}deg)` : null, flipHorizontal ? "scaleX(-1)" : null, flipVertical ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined,
       }}
       className="hover:outline hover:outline-blue-500 cursor-pointer"
     />

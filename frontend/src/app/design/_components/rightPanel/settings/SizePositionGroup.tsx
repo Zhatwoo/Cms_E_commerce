@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Maximize, Move } from "lucide-react";
+import { Maximize2, Square, Shrink, Move, Lock, LockOpen } from "lucide-react";
 import { NumericInput } from "./inputs/NumericInput";
 import type { SpacingProps, SizeProps, SetProp } from "../../../_types/components";
 
@@ -25,6 +25,7 @@ export const SizePositionGroup = ({
 
   const [expandPadding, setExpandPadding] = useState(false);
   const [expandMargin, setExpandMargin] = useState(false);
+  const [aspectLocked, setAspectLocked] = useState(false);
 
   // Store last known fixed values to restore them when switching back to Fixed mode
   const [lastFixedWidth, setLastFixedWidth] = useState("200px");
@@ -38,7 +39,7 @@ export const SizePositionGroup = ({
     return "fixed";
   };
 
-  // Sync last fixed values when props change and mode is fixed
+  // Sync last fixed values when props change and mode is fixed (0 is valid)
   useEffect(() => {
     if (getMode(width) === "fixed") {
       setLastFixedWidth(typeof width === "string" ? width : `${width ?? 200}px`);
@@ -58,8 +59,33 @@ export const SizePositionGroup = ({
       } else if (mode === "hug") {
         props[dim] = "fit-content";
       } else {
-        // Restore last fixed value
         props[dim] = dim === "width" ? lastFixedWidth : lastFixedHeight;
+      }
+    });
+  };
+
+  const bothFixed = getMode(String(width ?? "")) === "fixed" && getMode(String(height ?? "")) === "fixed";
+  const parsePx = (v: string | number | undefined): number =>
+    typeof v === "number" ? v : parseInt(String(v ?? "").replace("px", ""), 10) || 0;
+  const currentW = parsePx(width);
+  const currentH = parsePx(height);
+  const aspectRatio = currentH > 0 ? currentW / currentH : 1;
+
+  const handleWidthPxChange = (newW: number) => {
+    const wPx = `${Math.max(0, newW)}px`;
+    setProp((props) => {
+      props.width = wPx;
+      if (aspectLocked && bothFixed && currentH > 0) {
+        props.height = `${Math.max(0, Math.round(newW / aspectRatio))}px`;
+      }
+    });
+  };
+  const handleHeightPxChange = (newH: number) => {
+    const hPx = `${Math.max(0, newH)}px`;
+    setProp((props) => {
+      props.height = hPx;
+      if (aspectLocked && bothFixed && currentW > 0) {
+        props.width = `${Math.max(0, Math.round(newH * aspectRatio))}px`;
       }
     });
   };
@@ -110,7 +136,7 @@ export const SizePositionGroup = ({
           </div>
         ) : (
           <div className="flex items-center gap-2 bg-brand-medium-dark px-3 rounded-lg border border-brand-medium/20">
-            <Maximize size={12} className="text-brand-medium" />
+            <Maximize2 size={12} className="text-brand-medium" />
             <NumericInput
               value={top}
               onChange={handleAll}
@@ -156,61 +182,48 @@ export const SizePositionGroup = ({
     });
   };
 
-  // Helper render for Width/Height inputs (val may be string or number from props)
-  const renderSizeInput = (dim: "width" | "height", val: string | number | undefined, setLast: (v: string) => void) => {
+  const renderSizeRow = (dim: "width" | "height", val: string | number | undefined, setLast: (v: string) => void, onPxChange: (n: number) => void) => {
     const strVal = String(val ?? "");
     const mode = getMode(strVal);
-    const numVal = strVal.replace("px", "");
+    const propNumStr = strVal.replace("px", "");
+    const isFixed = mode === "fixed";
 
     return (
       <div className="flex flex-col gap-1">
         <label className="text-[10px] text-brand-lighter capitalize">{dim}</label>
-        <div className="flex items-center bg-brand-medium-dark rounded-lg px-1.5">
-          <input
-            type="text"
-            value={numVal}
-            disabled={mode !== "fixed"}
-            onChange={(e) => {
-              const v = e.target.value;
-              if (/^\d*$/.test(v)) {
-                setProp((props) => { props[dim] = v + "px"; });
-              }
-            }}
-            onFocus={(e) => e.target.select()}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.currentTarget.blur();
-              }
-            }}
-            onWheel={(e) => {
-              if (mode !== "fixed") return;
-              e.preventDefault();
-              e.stopPropagation();
-              // Also stop native propagation to prevent the config panel from scrolling
-              if (e.nativeEvent && "stopImmediatePropagation" in e.nativeEvent) {
-                (e.nativeEvent as any).stopImmediatePropagation();
-              }
-              const current = parseInt(numVal || "0", 10) || 0;
-              const step = e.shiftKey ? 10 : 1;
-              const delta = e.deltaY > 0 ? -step : step;
-              const next = Math.max(0, current + delta);
-              setProp((props) => {
-                props[dim] = `${next}px`;
-              });
-            }}
-            className={`w-full bg-transparent text-xs p-1.5 focus:outline-none ${mode !== "fixed" ? "text-brand-light" : "text-brand-lighter"}`}
+        <div className="flex items-center gap-1">
+          <SizePxInput
+            propNumStr={propNumStr}
+            disabled={!isFixed}
+            setLast={setLast}
+            onPxChange={onPxChange}
           />
-          <div className="w-px h-4 bg-brand-medium mx-1" />
-
-          <select
-            value={mode}
-            onChange={(e) => handleSizeChange(dim, e.target.value)}
-            className="text-xs text-brand-light focus:outline-none appearance-none px-2 text-center"
+          <div className="flex rounded-lg border border-brand-medium/30 overflow-hidden">
+            <button
+            type="button"
+            onClick={() => handleSizeChange(dim, "hug")}
+            className={`p-1.5 ${mode === "hug" ? "bg-brand-light text-brand-dark" : "bg-brand-medium-dark text-brand-light hover:text-brand-lighter"}`}
+            title="Hug contents"
           >
-            <option value="fixed" className="text-brand-light bg-brand-dark">Fixed</option>
-            <option value="fill" className="text-brand-light bg-brand-dark">Fill</option>
-            <option value="hug" className="text-brand-light bg-brand-dark">Hug</option>
-          </select>
+            <Shrink size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSizeChange(dim, "fixed")}
+            className={`p-1.5 ${mode === "fixed" ? "bg-brand-light text-brand-dark" : "bg-brand-medium-dark text-brand-light hover:text-brand-lighter"}`}
+            title="Fixed"
+          >
+            <Square size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSizeChange(dim, "fill")}
+            className={`p-1.5 ${mode === "fill" ? "bg-brand-light text-brand-dark" : "bg-brand-medium-dark text-brand-light hover:text-brand-lighter"}`}
+            title="Fill"
+          >
+            <Maximize2 size={14} />
+          </button>
+          </div>
         </div>
       </div>
     );
@@ -218,9 +231,29 @@ export const SizePositionGroup = ({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-3">
-        {renderSizeInput("width", width, setLastFixedWidth)}
-        {renderSizeInput("height", height, setLastFixedHeight)}
+      <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-[1fr_auto] gap-2 items-end">
+          <div className="flex flex-col gap-2">
+            {renderSizeRow("width", width, setLastFixedWidth, (n) => {
+              setLastFixedWidth(`${n}px`);
+              handleWidthPxChange(n);
+            })}
+            {renderSizeRow("height", height, setLastFixedHeight, (n) => {
+              setLastFixedHeight(`${n}px`);
+              handleHeightPxChange(n);
+            })}
+          </div>
+          {bothFixed && (
+            <button
+              type="button"
+              onClick={() => setAspectLocked((a) => !a)}
+              className={`p-2 rounded-lg border self-center ${aspectLocked ? "bg-brand-light text-brand-dark border-brand-light" : "bg-brand-medium-dark border-brand-medium/30 text-brand-light hover:text-brand-lighter"}`}
+              title={aspectLocked ? "Unlock aspect ratio" : "Lock aspect ratio"}
+            >
+              {aspectLocked ? <Lock size={16} /> : <LockOpen size={16} />}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="w-full h-px bg-brand-medium/20 my-1"></div>
@@ -245,3 +278,82 @@ export const SizePositionGroup = ({
     </div>
   );
 };
+
+/** Width/Height px input with local state so user can clear and type 0; allows zero value. */
+function SizePxInput({
+  propNumStr,
+  disabled,
+  setLast,
+  onPxChange,
+}: {
+  propNumStr: string;
+  disabled: boolean;
+  setLast: (v: string) => void;
+  onPxChange: (n: number) => void;
+}) {
+  const [localStr, setLocalStr] = useState(propNumStr);
+  const [isFocused, setIsFocused] = useState(false);
+
+  useEffect(() => {
+    if (!isFocused && localStr !== propNumStr) {
+      setLocalStr(propNumStr);
+    }
+  }, [propNumStr, isFocused]);
+
+  const displayVal = isFocused ? localStr : propNumStr;
+
+  return (
+    <div className="flex flex-1 items-center bg-brand-medium-dark rounded-lg px-1.5 border border-brand-medium/30">
+          <input
+            type="text"
+            value={displayVal}
+            disabled={disabled}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (/^\d*$/.test(v)) {
+                setLocalStr(v);
+                const n = parseInt(v, 10);
+                if (!isNaN(n) && n >= 0) {
+                  onPxChange(n);
+                  setLast(`${n}px`);
+                }
+              }
+            }}
+            onFocus={(e) => {
+              setIsFocused(true);
+              setLocalStr(propNumStr);
+              e.target.select();
+            }}
+            onBlur={() => {
+              setIsFocused(false);
+              const n = localStr === "" ? 0 : parseInt(localStr, 10);
+              const valid = !isNaN(n) && n >= 0 ? n : 0;
+              onPxChange(valid);
+              setLast(`${valid}px`);
+              setLocalStr(String(valid));
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+            }}
+            onWheel={(e) => {
+              if (disabled) return;
+              e.preventDefault();
+              e.stopPropagation();
+              if (e.nativeEvent && "stopImmediatePropagation" in e.nativeEvent) {
+                (e.nativeEvent as React.WheelEvent["nativeEvent"] & { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.();
+              }
+              const current = parseInt(localStr || "0", 10);
+              const safeCurrent = isNaN(current) || current < 0 ? 0 : current;
+              const step = e.shiftKey ? 10 : 1;
+              const delta = e.deltaY > 0 ? -step : step;
+              const next = Math.max(0, safeCurrent + delta);
+              onPxChange(next);
+              setLast(`${next}px`);
+              setLocalStr(String(next));
+            }}
+            className={`w-full bg-transparent text-xs p-1.5 focus:outline-none ${disabled ? "text-brand-light" : "text-brand-lighter"}`}
+          />
+          <span className="text-[10px] text-brand-medium pr-1">px</span>
+    </div>
+  );
+}
