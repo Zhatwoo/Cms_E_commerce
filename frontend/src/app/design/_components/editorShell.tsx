@@ -506,7 +506,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
                 <RightPanel projectId={projectId} />
               </div>
             </div>
-          </div>
+          </>
         )}
         {/* Canvas Controls Overlay: ito yung nasa baba :> */}
         <div data-panel="canvas-controls" className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">

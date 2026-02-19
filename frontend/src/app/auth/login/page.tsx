@@ -76,17 +76,9 @@ export default function LoginPage() {
               />
             </div>
             <div>
-              <div className="flex items-center justify-between">
-                <label htmlFor="password" className="block text-sm font-medium text-white/90">
-                  Password
-                </label>
-                <Link
-                  href="/auth/forgotPassword"
-                  className="text-sm text-violet-400 hover:text-violet-300"
-                >
-                  Forgot password?
-                </Link>
-              </div>
+              <label htmlFor="password" className="block text-sm font-medium text-white/90">
+                Password
+              </label>
               <input
                 id="password"
                 type="password"
@@ -96,6 +88,12 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="mt-2 w-full rounded-lg border border-neutral-600 bg-neutral-900/80 px-4 py-3 text-white placeholder:text-neutral-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
               />
+              <Link
+                href="/auth/forgotPassword"
+                className="mt-3 inline-block text-sm text-violet-400 hover:text-violet-300"
+              >
+                forgot password?
+              </Link>
             </div>
             <button
               type="submit"

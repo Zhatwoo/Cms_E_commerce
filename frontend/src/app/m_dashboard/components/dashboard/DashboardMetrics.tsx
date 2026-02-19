@@ -17,7 +17,7 @@ export function DashboardMetrics() {
   const { theme, colors } = useTheme();
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-5xl">
       {/* Total Projects */}
       <motion.div
         className="relative overflow-hidden rounded-2xl p-6 flex items-center justify-between border shadow-2xl"
@@ -36,9 +36,9 @@ export function DashboardMetrics() {
           <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: colors.text.muted }}>
             Total projects
           </p>
-          <p className="mt-2 text-3xl font-semibold" style={{ color: colors.text.primary }}>123,456</p>
+          <p className="mt-2 text-3xl font-semibold" style={{ color: colors.text.primary }}>0</p>
           <p className="mt-1.5 text-xs" style={{ color: colors.text.subtle }}>
-            +1,204 new <span style={{ color: colors.status.good }}>this week</span>
+            No new projects <span style={{ color: colors.status.good }}>this week</span>
           </p>
         </div>
         <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl shadow-lg" style={{ backgroundColor: theme === 'dark' ? colors.text.muted : colors.bg.elevated, color: theme === 'dark' ? colors.bg.dark : colors.text.primary }}>
@@ -65,13 +65,12 @@ export function DashboardMetrics() {
           <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: colors.text.muted }}>
             Published sites
           </p>
-          <p className="mt-2 text-3xl font-semibold" style={{ color: colors.text.primary }}>123,456</p>
+          <p className="mt-2 text-3xl font-semibold" style={{ color: colors.text.primary }}>0</p>
           <div className="mt-1.5 flex items-center gap-2 text-xs">
             <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] border" style={{ backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(163,230,53,0.1)', borderColor: colors.status.good, color: colors.status.good }}>
               <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-current" />
-              98.6% live
+              Ready to publish
             </span>
-            <span style={{ color: colors.text.subtle }}>+6.4% vs last week</span>
           </div>
         </div>
         <div
@@ -101,7 +100,7 @@ export function DashboardMetrics() {
           <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: colors.text.muted }}>
             Under review
           </p>
-          <p className="mt-2 text-3xl font-semibold" style={{ color: colors.text.primary }}>8,204</p>
+          <p className="mt-2 text-3xl font-semibold" style={{ color: colors.text.primary }}>0</p>
           <p className="mt-1.5 text-xs" style={{ color: colors.text.subtle }}>
             Awaiting publish / rollback
           </p>
