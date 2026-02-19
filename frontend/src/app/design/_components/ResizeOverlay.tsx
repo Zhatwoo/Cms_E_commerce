@@ -77,7 +77,7 @@ type SiblingRect = {
 };
 
 type DragState = {
-  type: "resize" | "rotate" | "move";
+  type: "move" | "resize" | "rotate";
   handle?: Handle;
   moveMode?: "margin" | "offset";
   startX: number;
@@ -95,10 +95,17 @@ type DragState = {
   startAngle?: number;
   lastPointerAngle?: number;
   accumulatedAngleDeg?: number;
+  previewX?: number;
+  previewY?: number;
+  previousTransition?: string;
   dirty: boolean;
   constrainRatio?: boolean;
   resizeFromCenter?: boolean;
 };
+
+function isNearlyEqual(a: number, b: number, epsilon = EPSILON): boolean {
+  return Math.abs(a - b) <= epsilon;
+}
 
 function parsePxOrAuto(value: unknown): number {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -128,18 +135,29 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
   const MOVE_TARGET_TYPES = new Set(["Page", "Section", "Container", "Row", "Column", "Button"]);
 
   const dragRef = useRef<DragState | null>(null);
+  const overlayRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef<number>(0);
   const processDragRef = useRef<(() => void) | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [dragType, setDragType] = useState<"resize" | "rotate" | "move" | null>(null);
+  const [dragType, setDragType] = useState<"move" | "resize" | "rotate" | null>(null);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [guides, setGuides] = useState<GuideState>(null);
   const [rotateAngle, setRotateAngle] = useState<number | null>(null);
+
+  const applyOverlayRect = useCallback((nextRect: DOMRect) => {
+    const el = overlayRef.current;
+    if (!el) return;
+    el.style.left = `${nextRect.left}px`;
+    el.style.top = `${nextRect.top}px`;
+    el.style.width = `${nextRect.width}px`;
+    el.style.height = `${nextRect.height}px`;
+  }, []);
 
   // Track DOM rect
   useEffect(() => {
     if (!dom) return;
     const update = () => {
+      if (dragRef.current?.type === "move") return;
       const next = getOverlayRect(dom);
       setRect((prev) => (rectChanged(prev, next) ? next : prev));
     };
@@ -235,7 +253,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
   );
 
   const startDrag = useCallback(
-    (e: React.MouseEvent, type: "resize" | "rotate" | "move", handle?: Handle) => {
+    (e: React.MouseEvent, type: "move" | "resize" | "rotate", handle?: Handle) => {
       e.stopPropagation();
       e.preventDefault();
       const startRect = getOverlayRect(dom);
@@ -279,12 +297,23 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         startAngle: type === "rotate" ? pointerAngle : undefined,
         lastPointerAngle: type === "rotate" ? pointerAngle : undefined,
         accumulatedAngleDeg: type === "rotate" ? 0 : undefined,
+        previewX: type === "move" ? 0 : undefined,
+        previewY: type === "move" ? 0 : undefined,
+        previousTransition: type === "move" ? dom.style.transition : undefined,
         dirty: false,
         constrainRatio: e.shiftKey,
         resizeFromCenter: e.altKey,
       };
 
       if (type === "move") {
+        applyOverlayRect(startRect);
+      }
+
+      if (type === "move") {
+        dom.style.transition = "none";
+        dom.style.setProperty("translate", "0px 0px");
+        dom.style.willChange = "translate";
+
         try {
           const state = query.getState();
           const displayName = state.nodes[nodeId]?.data?.displayName as string | undefined;
@@ -344,6 +373,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       }
       document.body.style.userSelect = "none";
       document.body.style.cursor =
+        type === "move" ? "grabbing" :
         type === "rotate" ? "grabbing" :
         handle ? HANDLE_CURSORS[handle] : "default";
     },
@@ -398,19 +428,9 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       }
 
       if (d.type === "move") {
-        const startProps = d.startProps;
-        let nextTop: number, nextLeft: number;
-        if (d.moveMode === "offset") {
-          const baseTop = parsePxOrAuto(startProps.top);
-          const baseLeft = parsePxOrAuto(startProps.left);
-          nextTop = Math.round((baseTop + dy) * 2) / 2;
-          nextLeft = Math.round((baseLeft + dx) * 2) / 2;
-        } else {
-          const baseMT = typeof startProps.marginTop === "number" ? startProps.marginTop : 0;
-          const baseML = typeof startProps.marginLeft === "number" ? startProps.marginLeft : 0;
-          nextTop = Math.round((baseMT + dy) * 2) / 2;
-          nextLeft = Math.round((baseML + dx) * 2) / 2;
-        }
+        d.previewX = (d.previewX ?? 0) + dx;
+        d.previewY = (d.previewY ?? 0) + dy;
+        dom.style.setProperty("translate", `${d.previewX}px ${d.previewY}px`);
 
         const deltaPx = d.lastX - d.startX;
         const deltaPy = d.lastY - d.startY;
@@ -421,6 +441,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
             d.currentRect.width,
             d.currentRect.height
           );
+          applyOverlayRect(d.currentRect);
         }
 
         const r = d.currentRect;
@@ -648,9 +669,35 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
     const handleMouseUp = (e: MouseEvent) => {
       const d = dragRef.current;
       if (d) {
+        const totalDx = (d.previewX ?? 0) + (d.lastX - d.startX) / d.zoom;
+        const totalDy = (d.previewY ?? 0) + (d.lastY - d.startY) / d.zoom;
+
+        const clearPreviewStyles = () => {
+          dom.style.removeProperty("translate");
+          dom.style.willChange = "";
+        };
+
+        const restoreTransitionLater = () => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              if (d.previousTransition !== undefined) {
+                dom.style.transition = d.previousTransition;
+              } else {
+                dom.style.transition = "";
+              }
+            });
+          });
+        };
+
+        const resetPreviewStyles = () => {
+          clearPreviewStyles();
+          restoreTransitionLater();
+        };
+
         if (d.type === "move") {
           const moved = tryMoveIntoDropTarget(e.clientX, e.clientY);
           if (moved) {
+            resetPreviewStyles();
             dragRef.current = null;
             setIsDragging(false);
             setDragType(null);
@@ -665,27 +712,43 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         const zoom = d.zoom;
         const dx = (d.lastX - d.startX) / zoom;
         const dy = (d.lastY - d.startY) / zoom;
+        const p = d.startProps;
 
         if (d.type === "move") {
           const startProps = d.startProps;
           if (d.moveMode === "offset") {
-            const baseTop = parsePxOrAuto(startProps.top);
-            const baseLeft = parsePxOrAuto(startProps.left);
-            const roundedTop = Math.round(baseTop + dy);
-            const roundedLeft = Math.round(baseLeft + dx);
+            const baseTop = parsePxOrAuto(p.top);
+            const baseLeft = parsePxOrAuto(p.left);
+            const finalTop = baseTop + totalDy;
+            const finalLeft = baseLeft + totalDx;
+
+            if (!dom.style.position || dom.style.position === "static") {
+              dom.style.position = "relative";
+            }
+            dom.style.top = `${finalTop}px`;
+            dom.style.left = `${finalLeft}px`;
+
             actions.setProp(nodeId, (props: Record<string, unknown>) => {
               if (!props.position || props.position === "static") props.position = "relative";
-              props.top = `${roundedTop}px`;
-              props.left = `${roundedLeft}px`;
+              props.top = `${finalTop}px`;
+              props.left = `${finalLeft}px`;
             });
           } else {
-            const baseMT = typeof startProps.marginTop === "number" ? startProps.marginTop : 0;
-            const baseML = typeof startProps.marginLeft === "number" ? startProps.marginLeft : 0;
+            const baseMT = typeof p.marginTop === "number" ? p.marginTop : 0;
+            const baseML = typeof p.marginLeft === "number" ? p.marginLeft : 0;
+            const finalMT = baseMT + totalDy;
+            const finalML = baseML + totalDx;
+
+            dom.style.marginTop = `${finalMT}px`;
+            dom.style.marginLeft = `${finalML}px`;
+
             actions.setProp(nodeId, (props: Record<string, unknown>) => {
-              props.marginTop = Math.round(baseMT + dy);
-              props.marginLeft = Math.round(baseML + dx);
+              props.marginTop = finalMT;
+              props.marginLeft = finalML;
             });
           }
+
+          resetPreviewStyles();
         } else if (d.type === "resize" && d.handle) {
           const h = d.handle;
           const startW = d.startRect.width / zoom;
@@ -737,6 +800,9 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = 0;
       }
+      const finalRect = getOverlayRect(dom);
+      applyOverlayRect(finalRect);
+      setRect(finalRect);
       setIsDragging(false);
       setDragType(null);
       setGuides(null);
@@ -751,7 +817,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isDragging, actions, nodeId]);
+  }, [isDragging, actions, nodeId, applyOverlayRect, dom]);
 
   if (!rect) return null;
 
@@ -779,6 +845,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
 
   return ReactDOM.createPortal(
     <div
+      ref={overlayRef}
       data-panel="resize-overlay"
       style={{
         position: "fixed",
