@@ -111,7 +111,7 @@ app.use(express.urlencoded({ extended: true }));
 // Rate limit for auth (stricter in production; relaxed in dev so you can retry)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: process.env.NODE_ENV === 'production' ? 10 : 100,
+  max: process.env.NODE_ENV === 'production' ? 10 : 500,
   message: { success: false, message: 'Too many attempts, please try again later' }
 });
 app.use('/api/auth', authLimiter);
@@ -284,6 +284,8 @@ function onListenSuccess(port) {
   console.log('========================================');
 }
 
+const Domain = require('./models/Domain');
+
 function tryListen(port) {
   const server = http.createServer(app);
   server.on('error', (err) => {
@@ -294,7 +296,18 @@ function tryListen(port) {
       throw err;
     }
   });
-  server.listen(port, () => onListenSuccess(port));
+  server.listen(port, () => {
+    onListenSuccess(port);
+    // Run scheduled publishes every minute (edits set for a date go live automatically)
+    setInterval(async () => {
+      try {
+        const n = await Domain.applyScheduledPublishes();
+        if (n > 0) console.log(`[Schedule] Applied ${n} scheduled publish(es).`);
+      } catch (e) {
+        console.warn('[Schedule] applyScheduledPublishes error:', e.message);
+      }
+    }, 60 * 1000);
+  });
   return server;
 }
 

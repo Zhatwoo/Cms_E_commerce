@@ -219,7 +219,7 @@ export interface IconProps extends SpacingProps, PositionProps, AnimatableProps 
 }
 
 export interface CircleProps
-  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps {
+  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps {
   color?: string;
   size?: number;
   width?: string;

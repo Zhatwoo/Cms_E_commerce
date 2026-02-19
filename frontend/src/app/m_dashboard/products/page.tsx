@@ -4,82 +4,7 @@ import { motion } from 'framer-motion';
 import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
 import { PieChart } from '../components/analytics/PieChart';
-
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  price: number;
-  stock: number;
-  status: 'active' | 'inactive' | 'draft';
-  image: string;
-  sku: string;
-  description: string;
-  createdAt: string;
-}
-
-const mockProducts: Product[] = [
-  {
-    id: '1',
-    name: 'Premium Wireless Headphones',
-    category: 'Electronics',
-    price: 299.99,
-    stock: 45,
-    status: 'active',
-    image: '🎧',
-    sku: 'WH-001',
-    description: 'High-quality wireless headphones with noise cancellation',
-    createdAt: '2024-01-15'
-  },
-  {
-    id: '2',
-    name: 'Organic Cotton T-Shirt',
-    category: 'Clothing',
-    price: 29.99,
-    stock: 120,
-    status: 'active',
-    image: '👕',
-    sku: 'CT-002',
-    description: 'Comfortable organic cotton t-shirt in various colors',
-    createdAt: '2024-01-20'
-  },
-  {
-    id: '3',
-    name: 'Smart Watch Pro',
-    category: 'Electronics',
-    price: 449.99,
-    stock: 0,
-    status: 'inactive',
-    image: '⌚',
-    sku: 'SW-003',
-    description: 'Advanced smartwatch with health tracking features',
-    createdAt: '2024-01-10'
-  },
-  {
-    id: '4',
-    name: 'Leather Backpack',
-    category: 'Accessories',
-    price: 89.99,
-    stock: 30,
-    status: 'active',
-    image: '🎒',
-    sku: 'LB-004',
-    description: 'Genuine leather backpack with laptop compartment',
-    createdAt: '2024-01-25'
-  },
-  {
-    id: '5',
-    name: 'Ceramic Coffee Mug Set',
-    category: 'Home',
-    price: 34.99,
-    stock: 15,
-    status: 'draft',
-    image: '☕',
-    sku: 'CM-005',
-    description: 'Set of 4 ceramic coffee mugs with modern design',
-    createdAt: '2024-01-28'
-  }
-];
+import { getAllProducts, type Product } from '../lib/productsData';
 
 const ProductCard = ({ product, colors, onEdit, onDelete, onToggleStatus }: {
   product: Product;
@@ -174,14 +99,14 @@ const ProductCard = ({ product, colors, onEdit, onDelete, onToggleStatus }: {
 export default function ProductsPage() {
   const { colors } = useTheme();
   const { showConfirm } = useAlert();
-  const [products, setProducts] = useState<Product[]>(mockProducts);
+  const [products, setProducts] = useState<Product[]>(getAllProducts());
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showAddModal, setShowAddModal] = useState(false);
   const [perPage, setPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
-  const categories = ['All', 'Electronics', 'Clothing', 'Accessories', 'Home'];
+  const categories = ['All', 'Electronics', 'Clothing', 'Accessories', 'Home', 'Sports'];
 
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

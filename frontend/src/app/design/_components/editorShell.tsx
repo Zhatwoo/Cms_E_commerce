@@ -72,6 +72,29 @@ function getStorageKey(projectId: string) {
   return `${STORAGE_KEY_PREFIX}_${projectId}`;
 }
 
+function safeStorageGet(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch (error) {
+    console.warn("localStorage getItem failed:", error);
+    return null;
+  }
+}
+
+function safeStorageSet(key: string, value: string): boolean {
+  void key;
+  void value;
+  return false;
+}
+
+function safeStorageRemove(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch (error) {
+    console.warn("localStorage removeItem failed:", error);
+  }
+}
+
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 type EditorShellProps = {
@@ -829,7 +852,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
                 setActiveTab={setRightPanelTab}
               />
             </div>
-          </div>
+          </>
         )}
         {/* Canvas Controls Overlay: ito yung nasa baba :> */}
         <div data-panel="canvas-controls" className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">

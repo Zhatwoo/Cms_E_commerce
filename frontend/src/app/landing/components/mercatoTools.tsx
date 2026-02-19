@@ -266,10 +266,10 @@ export function MercatoTools() {
           <div className="md:col-span-5" style={moveInOut(STAGGER_MS * 2, { fromRight: true, fromBottom: false })}>
             <div className="rounded-xl border border-neutral-600 bg-neutral-800/90 overflow-hidden shadow-xl h-full">
               <div className="flex border-b border-neutral-600">
-                <button type="button" className="px-4 py-2 text-xs font-medium text-white border-b-2 border-violet-500">
+                <button type="button" className="px-4 py-2 text-xs font-medium text-white border-b-2 border-violet-500" suppressHydrationWarning>
                   Files
                 </button>
-                <button type="button" className="px-4 py-2 text-xs text-neutral-400">
+                <button type="button" className="px-4 py-2 text-xs text-neutral-400" suppressHydrationWarning>
                   Layers
                 </button>
               </div>

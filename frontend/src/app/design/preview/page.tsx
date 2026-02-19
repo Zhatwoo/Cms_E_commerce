@@ -8,9 +8,9 @@ import { getDraft } from "../_lib/pageApi";
 import { WebPreview } from "../_lib/webRenderer";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
-import { publishProject, getProject } from "@/lib/api";
+import { publishProject, getProject, schedulePublish, getSchedule } from "@/lib/api";
 import { createPortal } from "react-dom";
-
+//vdxvx
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 
 type ViewMode = "Web-Preview" | "clean" | "raw";
@@ -86,6 +86,10 @@ function PreviewContent() {
   const [showPublishDialog, setShowPublishDialog] = useState(false);
   const [publishDomainName, setPublishDomainName] = useState("");
   const [publishDomainError, setPublishDomainError] = useState("");
+  const [publishMode, setPublishMode] = useState<"now" | "schedule">("now");
+  const [scheduledAt, setScheduledAt] = useState("");
+  const [scheduleInfo, setScheduleInfo] = useState<{ scheduledAt: string; subdomain: string | null } | null>(null);
+  const [scheduling, setScheduling] = useState(false);
   const [mobileBreakpoint, setMobileBreakpoint] = useState(900);
 
   useEffect(() => {
@@ -123,6 +127,22 @@ function PreviewContent() {
     }
 
     loadData();
+  }, [projectId]);
+
+  useEffect(() => {
+    let active = true;
+    async function loadProject() {
+      try {
+        const res = await getProject(projectId);
+        if (active && res.success && res.project) {
+          setProject(res.project);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    loadProject();
+    return () => { active = false; };
   }, [projectId]);
 
   // Compute clean document
@@ -171,6 +191,58 @@ function PreviewContent() {
       : previewViewport === "tablet"
         ? "w-[768px]"
         : "w-[390px]";
+
+  const capturePreviewThumbnail = async () => {
+    if (thumbnailCaptureRef.current || !previewRef.current || !projectId) return;
+    if (viewMode !== "Web-Preview" || loading || !cleanDoc) return;
+
+    thumbnailCaptureRef.current = true;
+    try {
+      const canvas = await html2canvas(previewRef.current, {
+        backgroundColor: "#ffffff",
+        scale: 0.7,
+        useCORS: true,
+      });
+
+      const blob: Blob | null = await new Promise((resolve) => {
+        canvas.toBlob((b) => resolve(b), "image/jpeg", 0.85);
+      });
+
+      if (!blob) throw new Error("Thumbnail capture failed");
+
+      const file = new File([blob], `preview-${projectId}.jpg`, { type: "image/jpeg" });
+      const user = getStoredUser();
+      const clientName = user?.name || user?.email || "client";
+      const websiteName = project?.title || "project";
+
+      const url = await uploadClientFile(file, {
+        clientName,
+        websiteName,
+        folder: "images",
+      });
+
+      const updated = await updateProject(projectId, { thumbnail: url });
+      if (updated.success) {
+        setProject(updated.project);
+      }
+    } catch (err) {
+      console.warn("Preview thumbnail capture failed:", err);
+    } finally {
+      // no-op
+    }
+  };
+
+  useEffect(() => {
+    thumbnailCaptureRef.current = false;
+  }, [projectId]);
+
+  useEffect(() => {
+    if (viewMode !== "Web-Preview" || loading || !cleanDoc) return;
+    const timeout = setTimeout(() => {
+      capturePreviewThumbnail();
+    }, 800);
+    return () => clearTimeout(timeout);
+  }, [viewMode, loading, cleanDoc]);
 
   // ── Stats ──────────────────────────────────────────
   const rawBytes = rawJson ? new Blob([rawJson]).size : 0;
@@ -248,7 +320,7 @@ function PreviewContent() {
       setSaving(false);
     }
   };
-
+//cjdhv
   const handlePublishClick = async () => {
     setPublishDomainError("");
     try {
@@ -261,6 +333,17 @@ function PreviewContent() {
       setPublishDomainName("");
     }
     setShowPublishDialog(true);
+    setPublishMode("now");
+    setScheduleInfo(null);
+    if (projectId) {
+      getSchedule(projectId).then((r) => {
+        if (r.success && r.data) setScheduleInfo(r.data);
+      });
+    }
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    setScheduledAt(tomorrow.toISOString().slice(0, 16));
   };
 
   const handlePublishConfirm = async () => {
@@ -294,6 +377,44 @@ function PreviewContent() {
       showAlert(error instanceof Error ? error.message : "Publish failed.");
     } finally {
       setPublishing(false);
+    }
+  };
+
+  const handleScheduleConfirm = async () => {
+    const domain = publishDomainName.trim().toLowerCase();
+    if (!domain) {
+      setPublishDomainError("Domain name is required.");
+      return;
+    }
+    if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(domain)) {
+      setPublishDomainError("Use only letters, numbers, and hyphens.");
+      return;
+    }
+    if (!scheduledAt) {
+      setPublishDomainError("Pick a date and time.");
+      return;
+    }
+    if (!projectId) {
+      showAlert("No project selected.");
+      return;
+    }
+    setPublishDomainError("");
+    setScheduling(true);
+    try {
+      const res = await schedulePublish(projectId, new Date(scheduledAt).toISOString(), domain);
+      if (res.success) {
+        setShowPublishDialog(false);
+        setPublishDomainName("");
+        setScheduleInfo({ scheduledAt: res.data!.scheduledAt!, subdomain: res.data?.subdomain ?? null });
+        showAlert(`Scheduled! Your changes will go live on ${new Date(res.data!.scheduledAt!).toLocaleString()}.`);
+      } else {
+        showAlert(res.message || "Schedule failed.");
+      }
+    } catch (error) {
+      console.error("Schedule error:", error);
+      showAlert(error instanceof Error ? error.message : "Schedule failed.");
+    } finally {
+      setScheduling(false);
     }
   };
 
@@ -513,17 +634,22 @@ function PreviewContent() {
         )}
       </div>
 
-      {/* Publish confirmation – connected to Create project (Preferred subdomain). Required; confirm name. */}
+      {/* Publish confirmation – Publish now or Schedule for a date */}
       {showPublishDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md">
             <h2 className="text-xl font-semibold text-white mb-2">Publish site</h2>
+            {scheduleInfo && (
+              <p className="text-sm text-amber-400/90 mb-2">
+                Already scheduled for {new Date(scheduleInfo.scheduledAt).toLocaleString()}. Setting a new date will replace it.
+              </p>
+            )}
             <p className="text-sm text-zinc-400 mb-4">
               {publishDomainName.trim()
-                ? "Confirm your domain name and publish. You can change it later in the dashboard."
-                : "Domain name is required. Set it here or in Create project (Preferred subdomain). You can change it later in the dashboard."}
+                ? "Confirm your domain name. You can change it later in the dashboard."
+                : "Domain name (subdomain) is required. Set it here or in Create project."}
             </p>
-            <div className="space-y-2">
+            <div className="space-y-2 mb-4">
               <label className="block text-sm font-medium text-gray-300">
                 Domain name (subdomain) <span className="text-red-400">*</span>
               </label>
@@ -538,13 +664,42 @@ function PreviewContent() {
                 className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 autoFocus
               />
-              <p className="text-xs text-zinc-500">
-                Only letters, numbers, and hyphens.
-              </p>
+              <p className="text-xs text-zinc-500">Only letters, numbers, and hyphens.</p>
               {publishDomainError && (
                 <p className="text-xs text-red-400">{publishDomainError}</p>
               )}
             </div>
+            <div className="flex gap-2 mb-4 p-1 bg-[#0a0a0a] rounded-lg">
+              <button
+                type="button"
+                onClick={() => setPublishMode("now")}
+                className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${publishMode === "now" ? "bg-blue-600 text-white" : "text-zinc-400 hover:text-white"}`}
+              >
+                Publish now
+              </button>
+              <button
+                type="button"
+                onClick={() => setPublishMode("schedule")}
+                className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${publishMode === "schedule" ? "bg-blue-600 text-white" : "text-zinc-400 hover:text-white"}`}
+              >
+                Schedule for date
+              </button>
+            </div>
+            {publishMode === "schedule" && (
+              <div className="space-y-2 mb-4">
+                <label className="block text-sm font-medium text-gray-300">
+                  When should your edits go live?
+                </label>
+                <input
+                  type="datetime-local"
+                  value={scheduledAt}
+                  onChange={(e) => setScheduledAt(e.target.value)}
+                  min={new Date().toISOString().slice(0, 16)}
+                  className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-zinc-500">Your current draft will go live at this date and time.</p>
+              </div>
+            )}
             <div className="flex justify-end gap-3 mt-6">
               <button
                 type="button"
@@ -557,14 +712,25 @@ function PreviewContent() {
               >
                 Cancel
               </button>
-              <button
-                type="button"
-                onClick={handlePublishConfirm}
-                disabled={publishing}
-                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {publishing ? "Publishing…" : "Confirm & Publish"}
-              </button>
+              {publishMode === "now" ? (
+                <button
+                  type="button"
+                  onClick={handlePublishConfirm}
+                  disabled={publishing}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {publishing ? "Publishing…" : "Confirm & Publish"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleScheduleConfirm}
+                  disabled={scheduling}
+                  className="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {scheduling ? "Scheduling…" : "Set schedule"}
+                </button>
+              )}
             </div>
           </div>
         </div>
