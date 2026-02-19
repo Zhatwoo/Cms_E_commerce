@@ -781,7 +781,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
                 </button>
               </div>
             </div>
-          </>
+          </div>
         )}
         {/* Right Panel */}
         {panelsReady && (
