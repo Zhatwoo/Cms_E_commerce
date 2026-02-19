@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, Suspense } from "react";
+import React, { useEffect, useState, useMemo, useRef, Suspense } from "react";
 import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload, Monitor, Tablet, Smartphone } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
@@ -91,6 +91,8 @@ function PreviewContent() {
   const [scheduleInfo, setScheduleInfo] = useState<{ scheduledAt: string; subdomain: string | null } | null>(null);
   const [scheduling, setScheduling] = useState(false);
   const [mobileBreakpoint, setMobileBreakpoint] = useState(900);
+  const thumbnailCaptureRef = useRef(false);
+  const previewRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     async function loadData() {
@@ -228,7 +230,7 @@ function PreviewContent() {
     } catch (err) {
       console.warn("Preview thumbnail capture failed:", err);
     } finally {
-      // no-op
+      thumbnailCaptureRef.current = false;
     }
   };
 
@@ -587,7 +589,7 @@ function PreviewContent() {
             <p>Fetching latest clean data...</p>
           </div>
         ) : viewMode === "Web-Preview" ? (
-          <div className="flex justify-center py-6 h-full">
+          <div ref={previewRef} className="flex justify-center py-6 h-full">
             {cleanDoc ? (
               <PreviewIframe
                 width={

@@ -103,6 +103,10 @@ function parsePxOrAuto(value: unknown): number {
   return 0;
 }
 
+function isNearlyEqual(a: number, b: number, eps = EPSILON): boolean {
+  return Math.abs(a - b) < eps;
+}
+
 type GuideState = {
   v?: number;
   h?: number;
@@ -556,6 +560,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         const p = d.startProps;
 
         if (d.type === "move") {
+          const startProps = d.startProps;
           if (d.moveMode === "offset") {
             const baseTop = parsePxOrAuto(p.top);
             const baseLeft = parsePxOrAuto(p.left);

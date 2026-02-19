@@ -338,6 +338,14 @@ export async function getSchedule(projectId: string): Promise<{ success: boolean
   );
 }
 
+/** Get publish history for a project (stack of { at, type }), newest first. */
+export type PublishHistoryEntry = { at: string; type: string };
+export async function getPublishHistory(projectId: string): Promise<{ success: boolean; data?: { history: PublishHistoryEntry[] } }> {
+  return apiFetch<{ success: boolean; data?: { history: PublishHistoryEntry[] } }>(
+    `/api/domains/publish-history?projectId=${encodeURIComponent(projectId)}`
+  );
+}
+
 /** Admin: User and Website Management — list websites with owner and plan from user/roles/client (subscription_plan). */
 export type WebsiteManagementRow = {
   id: string;
