@@ -993,6 +993,9 @@ function RenderNode({
       const fill = (props.background as string) || (props.color as string) || "#999999";
       const w = (props.width as string) || "200px";
       const h = (props.height as string) || "200px";
+      const bgImage = props.backgroundImage as string;
+      const overlay = props.backgroundOverlay as string;
+      const triangleStroke = `${toNumber(props.borderWidth, 0)}px ${props.borderStyle as string} ${props.borderColor as string}`;
 
       return wrapWithAnimation(
         <div
@@ -1008,11 +1011,24 @@ function RenderNode({
             right: (props.position as string) !== "static" ? (props.right as string) : undefined,
             bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
             left: (props.position as string) !== "static" ? (props.left as string) : undefined,
+            transform: toNumber(props.rotation, 0)
+              ? `rotate(${toNumber(props.rotation, 0)}deg)`
+              : undefined,
+            transformOrigin: "center center",
             backgroundColor: type === "Triangle" ? undefined : fill,
+            backgroundImage:
+              type !== "Triangle" && bgImage
+                ? overlay
+                  ? `linear-gradient(${overlay}, ${overlay}), url(${bgImage})`
+                  : `url(${bgImage})`
+                : undefined,
+            backgroundSize: type !== "Triangle" && bgImage ? (props.backgroundSize as string) : undefined,
+            backgroundPosition: type !== "Triangle" && bgImage ? (props.backgroundPosition as string) : undefined,
+            backgroundRepeat: type !== "Triangle" && bgImage ? (props.backgroundRepeat as string) : undefined,
             borderRadius: type === "Circle" ? "50%" : undefined,
             border: type === "Triangle"
               ? undefined
-              : `${toNumber(props.borderWidth, 0)}px ${props.borderStyle as string} ${props.borderColor as string}`,
+              : triangleStroke,
             alignItems: "center",
             justifyContent: "center",
             margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
@@ -1025,26 +1041,45 @@ function RenderNode({
           onClick={interactiveClick}
         >
           {type === "Triangle" ? (
-            <svg
-              width="100%"
-              height="100%"
-              viewBox="0 0 100 100"
-              style={{ position: "absolute", top: 0, left: 0, pointerEvents: "none" }}
-            >
-              <polygon
-                points="0,100 50,0 100,100"
-                fill={fill}
-                stroke={props.borderColor as string}
-                strokeWidth={toNumber(props.borderWidth, 0)}
-                strokeDasharray={
-                  props.borderStyle === "dashed"
-                    ? "6,6"
-                    : props.borderStyle === "dotted"
-                      ? "3,3"
-                      : undefined
-                }
+            <>
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  clipPath: "polygon(0 100%, 50% 0, 100% 100%)",
+                  backgroundColor: fill,
+                  backgroundImage: bgImage
+                    ? overlay
+                      ? `linear-gradient(${overlay}, ${overlay}), url(${bgImage})`
+                      : `url(${bgImage})`
+                    : undefined,
+                  backgroundSize: bgImage ? (props.backgroundSize as string) : undefined,
+                  backgroundPosition: bgImage ? (props.backgroundPosition as string) : undefined,
+                  backgroundRepeat: bgImage ? (props.backgroundRepeat as string) : undefined,
+                  pointerEvents: "none",
+                }}
               />
-            </svg>
+              <svg
+                width="100%"
+                height="100%"
+                viewBox="0 0 100 100"
+                style={{ position: "absolute", top: 0, left: 0, pointerEvents: "none" }}
+              >
+                <polygon
+                  points="0,100 50,0 100,100"
+                  fill="transparent"
+                  stroke={props.borderColor as string}
+                  strokeWidth={toNumber(props.borderWidth, 0)}
+                  strokeDasharray={
+                    props.borderStyle === "dashed"
+                      ? "6,6"
+                      : props.borderStyle === "dotted"
+                        ? "3,3"
+                        : undefined
+                  }
+                />
+              </svg>
+            </>
           ) : null}
           {children}
         </div>,

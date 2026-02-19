@@ -30,6 +30,7 @@ export const FigmaStyleDragHandler = () => {
   const actionsRef = useRef(actions);
   const queryRef = useRef(query);
   const rafRef = useRef<number>(0);
+  const processDragRef = useRef<(() => void) | null>(null);
   const dragRef = useRef<{
     startX: number;
     startY: number;
@@ -51,7 +52,7 @@ export const FigmaStyleDragHandler = () => {
     const tick = () => {
       const d = dragRef.current;
       if (!d || !d.committed || !d.dirty) {
-        rafRef.current = requestAnimationFrame(tick);
+        rafRef.current = 0;
         return;
       }
 
@@ -60,12 +61,12 @@ export const FigmaStyleDragHandler = () => {
       const dy = (d.lastY - d.startY) / d.zoom;
 
       if (!Number.isFinite(dx) || !Number.isFinite(dy)) {
-        rafRef.current = requestAnimationFrame(tick);
+        rafRef.current = 0;
         return;
       }
 
-      if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) {
-        rafRef.current = requestAnimationFrame(tick);
+      if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) {
+        rafRef.current = 0;
         return;
       }
 
@@ -88,10 +89,13 @@ export const FigmaStyleDragHandler = () => {
         marginLeft: n.marginLeft + dx,
       }));
 
-      rafRef.current = requestAnimationFrame(tick);
+      if (d.dirty) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        rafRef.current = 0;
+      }
     };
-
-    rafRef.current = requestAnimationFrame(tick);
+    processDragRef.current = tick;
 
     const handleMouseDown = (e: MouseEvent) => {
       if (e.button !== 0) return;
@@ -100,11 +104,11 @@ export const FigmaStyleDragHandler = () => {
 
       if (target.closest("INPUT") || target.closest("TEXTAREA") || target.closest("SELECT") || target.closest("[contenteditable=true]")) return;
       if (document.body.dataset.spacePan === "true") return;
-      if (target.closest("[data-panel]") && !target.closest("[data-panel='resize-overlay']")) return;
+      if (target.closest("[data-panel='resize-overlay']")) return;
+      if (target.closest("[data-panel]")) return;
       if (target.closest("[data-resize-handle]")) return;
 
       const onNode = target.closest("[data-node-id]") as HTMLElement | null;
-      const onOverlay = target.closest("[data-panel='resize-overlay']");
       const nodeIdFromTarget = onNode?.getAttribute("data-node-id") ?? null;
 
       const state = queryRef.current.getState();
@@ -125,22 +129,7 @@ export const FigmaStyleDragHandler = () => {
         };
         return;
       }
-      if (onOverlay) {
-        const ids = selectedToIds(state.events.selected).filter(exists);
-        if (ids.length > 0) {
-          dragRef.current = {
-            startX: e.clientX,
-            startY: e.clientY,
-            lastX: e.clientX,
-            lastY: e.clientY,
-            committed: false,
-            zoom: 1,
-            nodeMargins: [],
-            fallbackNodeId: null,
-            dirty: false,
-          };
-        }
-      }
+      
     };
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -183,6 +172,9 @@ export const FigmaStyleDragHandler = () => {
       }
 
       d.dirty = true;
+      if (d.committed && !rafRef.current && processDragRef.current) {
+        rafRef.current = requestAnimationFrame(processDragRef.current);
+      }
     };
 
     const handleMouseUp = () => {
@@ -204,13 +196,21 @@ export const FigmaStyleDragHandler = () => {
         document.body.style.userSelect = "";
       }
       dragRef.current = null;
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = 0;
+      }
     };
 
     document.addEventListener("mousedown", handleMouseDown, true);
     document.addEventListener("mousemove", handleMouseMove, true);
     document.addEventListener("mouseup", handleMouseUp, true);
     return () => {
-      cancelAnimationFrame(rafRef.current);
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = 0;
+      }
+      processDragRef.current = null;
       document.removeEventListener("mousedown", handleMouseDown, true);
       document.removeEventListener("mousemove", handleMouseMove, true);
       document.removeEventListener("mouseup", handleMouseUp, true);
