@@ -33,6 +33,7 @@ export function InfrastructureVisualization() {
         return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     });
     const [isVisible, setIsVisible] = useState(true);
+    const [webglFailed, setWebglFailed] = useState(false);
 
     useEffect(() => {
         const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -48,7 +49,7 @@ export function InfrastructureVisualization() {
     }, []);
 
     useEffect(() => {
-        if (!containerRef.current || !isVisible) return;
+        if (!containerRef.current || !isVisible || webglFailed) return;
         const container = containerRef.current;
         const width = container.clientWidth;
         const height = container.clientHeight || 360;
@@ -58,6 +59,13 @@ export function InfrastructureVisualization() {
 
         const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
         camera.position.set(0, 1.4, 4.2);
+
+        const testCanvas = document.createElement('canvas');
+        const gl = testCanvas.getContext('webgl2') || testCanvas.getContext('webgl') || testCanvas.getContext('experimental-webgl');
+        if (!gl) {
+            setWebglFailed(true);
+            return;
+        }
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -167,7 +175,7 @@ export function InfrastructureVisualization() {
             particlesMat.dispose();
             renderer.dispose();
         };
-    }, [isVisible, reducedMotion, colors, theme]);
+    }, [isVisible, reducedMotion, colors, theme, webglFailed]);
 
     return (
         <div
@@ -177,6 +185,16 @@ export function InfrastructureVisualization() {
             aria-label="Live 3D infrastructure visualization"
             role="img"
         >
+            {webglFailed && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-center opacity-40" style={{ color: colors.text.muted }}>
+                        <div className="w-16 h-16 mx-auto mb-3 rounded-full border-2 border-current flex items-center justify-center">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                        </div>
+                        <p className="text-xs">3D visualization unavailable</p>
+                    </div>
+                </div>
+            )}
             <div className={`pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(244,244,246,0.055),transparent_68%)] ${theme === 'dark' ? 'mix-blend-screen' : 'mix-blend-multiply opacity-50'}`} />
             <div
                 className="pointer-events-none absolute inset-0"

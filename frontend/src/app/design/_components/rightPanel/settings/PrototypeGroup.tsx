@@ -9,8 +9,8 @@ import type {
   InteractionTrigger,
   InteractionAction,
   TransitionType,
-  EasingType,
 } from "../../../_types/prototype";
+import type { EasingType } from "../../../_types/animation";
 import { DEFAULT_PROTOTYPE } from "../../../_types/prototype";
 
 const selectClass =
@@ -46,11 +46,17 @@ const TRANSITION_LABELS: Record<TransitionType, string> = {
 };
 
 const EASING_LABELS: Record<EasingType, string> = {
-  ease: "Ease",
+  linear: "Linear",
   easeIn: "Ease in",
   easeOut: "Ease out",
   easeInOut: "Ease in out",
-  linear: "Linear",
+  circIn: "Circle in",
+  circOut: "Circle out",
+  circInOut: "Circle in out",
+  backIn: "Back in",
+  backOut: "Back out",
+  backInOut: "Back in out",
+  anticipate: "Anticipate",
 };
 
 function getPrototype(props: Record<string, unknown>): PrototypeConfig {
@@ -101,15 +107,17 @@ export const PrototypeGroup = ({ selectedIds }: PrototypeGroupProps) => {
     try {
       const state = query.getState();
       const nodes = state.nodes ?? {};
+      const rootNode = nodes["ROOT"];
+      const pageIds = (rootNode?.data?.nodes as string[] | undefined) ?? [];
       const list: PageOption[] = [];
-      Object.keys(nodes).forEach((id) => {
+      pageIds.forEach((id, index) => {
         const node = nodes[id];
         if (node?.data?.displayName === "Page") {
           const props = node.data.props ?? {};
           list.push({
             id,
-            name: (props.pageName as string) ?? "Page Name",
-            slug: (props.pageSlug as string) ?? "page",
+            name: (props.pageName as string) ?? `Page ${index + 1}`,
+            slug: (props.pageSlug as string) ?? `page-${index}`,
           });
         }
       });

@@ -523,18 +523,9 @@ export function deserializeCleanToCraft(doc: BuilderDocument): string {
   // Reconstruct Pages (backward compat: name/slug default from index)
   doc.pages.forEach((page, index) => {
     const defaults = COMPONENT_DEFAULTS["Page"] ?? {};
-    const name = page.name ?? `Page ${index + 1}`;
-    const slug = page.slug ?? `page-${index}`;
-    
-    // Validate and filter children to only include existing nodes
-    const validChildren = page.children.filter((childId) => {
-      const exists = !!doc.nodes[childId];
-      if (!exists) {
-        console.warn(`⚠️ Page ${page.id} references missing child node: ${childId}`);
-      }
-      return exists;
-    });
-
+    const name = (page.props?.pageName as string) ?? page.name ?? `Page ${index + 1}`;
+    const slug = (page.props?.pageSlug as string) ?? page.slug ?? `page-${index}`;
+    const validChildren = page.children ?? [];
     craft[page.id] = {
       type: { resolvedName: "Page" },
       isCanvas: true,
@@ -548,7 +539,7 @@ export function deserializeCleanToCraft(doc: BuilderDocument): string {
     };
 
     // Reconstruct child nodes
-    reconstructChildren(validChildren, page.id, doc.nodes, craft);
+    reconstructChildren(page.children, page.id, doc.nodes, craft);
   });
 
   return JSON.stringify(craft);
@@ -585,6 +576,7 @@ function reconstructChildren(
       "Section",
       "Row",
       "Column",
+      "Button",
       "Circle",
       "Square",
       "Triangle",

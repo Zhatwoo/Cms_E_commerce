@@ -9,6 +9,10 @@ import {
   FileDown,
   Trash2,
   X,
+  FileStack,
+  Layout,
+  Image,
+  LayoutTemplate,
 } from "lucide-react";
 import { useDesignProject } from "../../_context/DesignProjectContext";
 import { FilesPanel } from "./filesPanel";
@@ -18,12 +22,18 @@ import { TemplatePanel } from "./templatePanel";
 
 const STORAGE_KEY = "craftjs_preview_json";
 
+export type LeftPanelTabId = "files" | "components" | "assets" | "templates";
+
 interface LeftPanelProps {
   onToggle?: () => void;
+  activePanel?: LeftPanelTabId;
+  setActivePanel?: (tab: LeftPanelTabId) => void;
 }
 
-export const LeftPanel = ({ onToggle }: LeftPanelProps) => {
-  const [activePanel, setActivePanel] = useState("files");
+export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePanel: setControlledPanel }: LeftPanelProps) => {
+  const [internalPanel, setInternalPanel] = useState<LeftPanelTabId>("files");
+  const activePanel = controlledPanel ?? internalPanel;
+  const setActivePanel = setControlledPanel ?? setInternalPanel;
   const [menuOpen, setMenuOpen] = useState(false);
   const [saveFlash, setSaveFlash] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -101,22 +111,24 @@ export const LeftPanel = ({ onToggle }: LeftPanelProps) => {
   return (
     <div
       data-panel="left"
-      className={`w-80 bg-brand-dark/75 backdrop-blur-lg rounded-3xl p-6 flex flex-col gap-4 h-full overflow-y-auto border border-white/10 transition-shadow duration-300 ${
-        activePanel === "components" ? "no-scrollbar" : ""
-      }`}
+      className="w-80 bg-brand-dark/75 backdrop-blur-lg rounded-3xl p-6 flex flex-col h-full border border-white/10 transition-shadow duration-300 overflow-hidden"
       style={{ boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)" }}
     >
+      {/* Header + Title + Tabs: fixed at top, do not scroll */}
+      <div className="flex flex-col gap-4 shrink-0">
       {/* Left Panel Header */}
-      <div className="flex items-center justify-between mb-2 gap-2">
+      <div className="flex items-start justify-between mb-2 gap-2">
         {/* Project dropdown trigger */}
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setMenuOpen(!menuOpen)}
             className="flex items-center gap-2 hover:bg-white/5 rounded-lg px-2 py-1 -ml-2 transition-colors cursor-pointer"
           >
-            <h3 className="text-brand-lighter font-bold text-lg leading-none">Project</h3>
+            <h3 className="text-brand-lighter font-bold text-lg truncate max-w-[200px]" title={websiteName ?? "Project Title"}>
+              {websiteName ?? "Project Title"}
+            </h3>
             <ChevronDown
-              className={`w-4 h-4 text-brand-light transition-transform duration-200 ${menuOpen ? "rotate-180" : ""
+              className={`w-4 h-4 text-brand-light transition-transform duration-200 shrink-0 ${menuOpen ? "rotate-180" : ""
                 }`}
             />
           </button>
@@ -180,7 +192,7 @@ export const LeftPanel = ({ onToggle }: LeftPanelProps) => {
           )}
         </div>
 
-        <div className="flex flex-col items-end justify-center gap-1">
+        <div className="flex flex-col items-end gap-1">
           {/* Close / Exit button */}
           {onToggle && (
             <button
@@ -201,63 +213,66 @@ export const LeftPanel = ({ onToggle }: LeftPanelProps) => {
         </div>
       </div>
 
-      {/* Project Title */}
-      <label className="text-brand-white text-lg tracking-wider font-semibold truncate block" title={websiteName ?? "Project Title"}>
-        {websiteName ?? "Project Title"}
-      </label>
-
       {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 text-[11px] sm:text-xs py-2 px-3 border-y border-brand-medium overflow-x-auto no-scrollbar">
+      <div className="flex text-sm items-stretch justify-center py-1.5 px-1 border-y border-brand-medium gap-1 min-h-0">
         <button
+          type="button"
           onClick={() => setActivePanel("files")}
-          className={
-            `${activePanel === "files"
+          className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-colors cursor-pointer ${
+            activePanel === "files"
               ? "text-brand-lighter bg-brand-medium/50"
-              : "text-brand-light hover:text-brand-lighter"} rounded-lg px-2.5 py-1 flex-none min-w-[72px] whitespace-nowrap`
-          }
-          style={{ textAlign: "center" }}
+              : "text-brand-light"
+          }`}
         >
-          Files
+          <FileStack className="w-5 h-5 shrink-0" />
+          <span className="text-[10px] font-medium truncate w-full text-center">Files</span>
         </button>
         <button
+          type="button"
           onClick={() => setActivePanel("components")}
-          className={
-            `${activePanel === "components"
+          className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-colors cursor-pointer ${
+            activePanel === "components"
               ? "text-brand-lighter bg-brand-medium/50"
-              : "text-brand-light hover:text-brand-lighter"} rounded-lg px-2.5 py-1 flex-none min-w-[88px] whitespace-nowrap`
-          }
-          style={{ textAlign: "center" }}
+              : "text-brand-light"
+          }`}
         >
-          Component
+          <Layout className="w-5 h-5 shrink-0" />
+          <span className="text-[10px] font-medium truncate w-full text-center">Component</span>
         </button>
         <button
+          type="button"
           onClick={() => setActivePanel("assets")}
-          className={
-            `${activePanel === "assets"
+          className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-colors cursor-pointer ${
+            activePanel === "assets"
               ? "text-brand-lighter bg-brand-medium/50"
-              : "text-brand-light hover:text-brand-lighter"} rounded-lg px-2.5 py-1 flex-none min-w-[72px] whitespace-nowrap`
-          }
-          style={{ textAlign: "center" }}
+              : "text-brand-light"
+          }`}
         >
-          Assets
+          <Image className="w-5 h-5 shrink-0" />
+          <span className="text-[10px] font-medium truncate w-full text-center">Assets</span>
         </button>
         <button
+          type="button"
           onClick={() => setActivePanel("templates")}
-          className={
-            `${activePanel === "templates"
+          className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-colors cursor-pointer ${
+            activePanel === "templates"
               ? "text-brand-lighter bg-brand-medium/50"
-              : "text-brand-light hover:text-brand-lighter"} rounded-lg px-2.5 py-1 flex-none min-w-[88px] whitespace-nowrap`
-          }
-          style={{ textAlign: "center" }}
+              : "text-brand-light"
+          }`}
         >
-          Templates
+          <LayoutTemplate className="w-5 h-5 shrink-0" />
+          <span className="text-[10px] font-medium truncate w-full text-center">Templates</span>
         </button>
       </div>
+      </div>
 
-      {activePanel === "files" && <FilesPanel />}
-      {activePanel === "assets" && <AssetsPanel />}
-      {activePanel === "components" && <ComponentsPanel />}
-      {activePanel === "templates" && <TemplatePanel />}
+      {/* Panel content: only this area scrolls */}
+      <div className={`flex-1 min-h-0 overflow-y-auto mt-4 ${activePanel === "components" ? "no-scrollbar" : ""}`}>
+        {activePanel === "files" && <FilesPanel />}
+        {activePanel === "assets" && <AssetsPanel />}
+        {activePanel === "components" && <ComponentsPanel />}
+        {activePanel === "templates" && <TemplatePanel />}
+      </div>
     </div>
   );
 };

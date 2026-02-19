@@ -23,8 +23,6 @@ export type TransitionType =
   | "push"
   | "moveIn";
 
-export type EasingType = "ease" | "easeIn" | "easeOut" | "easeInOut" | "linear";
-
 export interface Interaction {
   trigger: InteractionTrigger;
   action: InteractionAction;
