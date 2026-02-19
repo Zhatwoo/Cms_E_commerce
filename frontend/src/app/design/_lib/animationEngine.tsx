@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useState, useMemo } from "react";
 import { motion, useInView } from "framer-motion";
 import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import type {
   AnimationConfig,
   AnimateInType,
@@ -330,6 +330,14 @@ export function AnimationWrapper({
     }
   }, [config.trigger.type, isInView]);
 
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (el.ownerDocument !== document) {
+      setHasTriggered(true);
+    }
+  }, []);
+
   const shouldAnimate =
     config.trigger.type === "onLoad"
       ? hasTriggered
@@ -377,8 +385,8 @@ export function AnimationWrapper({
       ref={ref}
       className={className}
       style={{ ...style, willChange: hasAny ? "transform, opacity" : undefined }}
-      initial={combinedInitial}
-      animate={combinedAnimate}
+      initial={combinedInitial as any}
+      animate={combinedAnimate as any}
       exit={hasOut ? outVariants.exit : undefined}
       transition={inTransition}
       onHoverStart={config.trigger.type === "onHover" ? () => setIsHovered(true) : undefined}

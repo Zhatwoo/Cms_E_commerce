@@ -1,13 +1,32 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
-import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
+import { InteractionGroup } from "../../_components/rightPanel/settings/InteractionGroup";
 import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
 import { ColorInput } from "../../_components/rightPanel/settings/inputs/ColorInput";
 import type { ButtonProps, SetProp } from "../../_types/components";
+
+const FONT_OPTIONS = [
+  "Inter",
+  "Roboto",
+  "Open Sans",
+  "Poppins",
+  "Ubuntu",
+  "Lato",
+  "Raleway",
+  "Playfair Display",
+  "EB Garamond",
+  "Merriweather",
+  "Lora",
+  "Montserrat",
+  "Oswald",
+  "Pacifico",
+  "JetBrains Mono",
+  "Fira Code",
+];
 
 export const ButtonSettings = () => {
   const {
@@ -19,6 +38,7 @@ export const ButtonSettings = () => {
     paddingLeft, paddingRight, paddingTop, paddingBottom,
     marginLeft, marginRight, marginTop, marginBottom,
     opacity, boxShadow,
+    toggleTarget, triggerAction, collapsibleKey, defaultOpen, defaultOpenMobile, defaultOpenDesktop, showOn, mobileBreakpoint,
     actions: { setProp }
   } = useNode(node => ({
     label: node.data.props.label,
@@ -44,6 +64,14 @@ export const ButtonSettings = () => {
     marginBottom: node.data.props.marginBottom,
     opacity: node.data.props.opacity,
     boxShadow: node.data.props.boxShadow,
+    toggleTarget: node.data.props.toggleTarget,
+    triggerAction: node.data.props.triggerAction,
+    collapsibleKey: node.data.props.collapsibleKey,
+    defaultOpen: node.data.props.defaultOpen,
+    defaultOpenMobile: node.data.props.defaultOpenMobile,
+    defaultOpenDesktop: node.data.props.defaultOpenDesktop,
+    showOn: node.data.props.showOn,
+    mobileBreakpoint: node.data.props.mobileBreakpoint,
   }));
 
   const typedSetProp = setProp as SetProp<ButtonProps>;
@@ -181,6 +209,19 @@ export const ButtonSettings = () => {
               </select>
             </div>
           </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-brand-lighter">Font</label>
+            <select
+              value={fontFamily || "Inter"}
+              onChange={(e) => typedSetProp((props) => { props.fontFamily = e.target.value; })}
+              className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none"
+            >
+              {FONT_OPTIONS.map((font) => (
+                <option key={font} value={font}>{font}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </DesignSection>
 
@@ -204,6 +245,20 @@ export const ButtonSettings = () => {
         <EffectsGroup
           opacity={opacity}
           boxShadow={boxShadow}
+          setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Interactions" defaultOpen={false}>
+        <InteractionGroup
+          toggleTarget={toggleTarget}
+          triggerAction={triggerAction}
+          collapsibleKey={collapsibleKey}
+          defaultOpen={defaultOpen}
+          defaultOpenMobile={defaultOpenMobile}
+          defaultOpenDesktop={defaultOpenDesktop}
+          showOn={showOn}
+          mobileBreakpoint={mobileBreakpoint}
           setProp={typedSetProp}
         />
       </DesignSection>

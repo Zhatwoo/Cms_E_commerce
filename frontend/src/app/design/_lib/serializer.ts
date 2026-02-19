@@ -6,8 +6,9 @@
  * editor, only this file and its counterpart (deserializer) need to change.
  */
 
-import type { BuilderDocument, CleanNode, ComponentType, PageNode, SCHEMA_VERSION } from "../_types/schema";
+import type { BuilderDocument, CleanNode, ComponentType, PageNode } from "../_types/schema";
 import { DEFAULT_ANIMATION } from "../_types/animation";
+import { DEFAULT_PROTOTYPE } from "../_types/prototype";
 
 // ─── Craft.js Raw Types ─────────────────────────────────────────────────────
 
@@ -82,6 +83,7 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
     fontSize: 16,
     fontFamily: "Inter",
     fontWeight: "400",
+    fontStyle: "normal",
     lineHeight: 1.5,
     letterSpacing: 0,
     textAlign: "left",
@@ -236,10 +238,121 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
     opacity: 1,
     overflow: "visible",
   },
+  Icon: {
+    iconType: "home",
+    size: 24,
+    color: "currentColor",
+    width: "auto",
+    height: "auto",
+    margin: 0,
+    marginTop: 0,
+    marginRight: 0,
+    marginBottom: 0,
+    marginLeft: 0,
+    padding: 0,
+    paddingTop: 0,
+    paddingRight: 0,
+    paddingBottom: 0,
+    paddingLeft: 0,
+    opacity: 1,
+    link: "",
+  },
+  Circle: {
+    color: "#10b981",
+    width: "200px",
+    height: "200px",
+    background: undefined,
+    borderColor: "transparent",
+    borderWidth: 0,
+    borderStyle: "solid",
+    boxShadow: "none",
+    opacity: 1,
+    overflow: "visible",
+    cursor: "default",
+    margin: 0,
+    marginTop: 0,
+    marginRight: 0,
+    marginBottom: 0,
+    marginLeft: 0,
+    padding: 0,
+    paddingTop: 0,
+    paddingRight: 0,
+    paddingBottom: 0,
+    paddingLeft: 0,
+    position: "relative",
+    display: "flex",
+    zIndex: 0,
+    top: "auto",
+    right: "auto",
+    bottom: "auto",
+    left: "auto",
+  },
+  Square: {
+    color: "#e74c3c",
+    width: "200px",
+    height: "200px",
+    background: "#e74c3c",
+    borderColor: "transparent",
+    borderWidth: 0,
+    borderStyle: "solid",
+    boxShadow: "none",
+    opacity: 1,
+    overflow: "visible",
+    cursor: "default",
+    margin: 0,
+    marginTop: 0,
+    marginRight: 0,
+    marginBottom: 0,
+    marginLeft: 0,
+    padding: 0,
+    paddingTop: 0,
+    paddingRight: 0,
+    paddingBottom: 0,
+    paddingLeft: 0,
+    position: "relative",
+    display: "flex",
+    zIndex: 0,
+    top: "auto",
+    right: "auto",
+    bottom: "auto",
+    left: "auto",
+  },
+  Triangle: {
+    color: "#3498db",
+    width: "200px",
+    height: "200px",
+    background: "#3498db",
+    borderColor: "transparent",
+    borderWidth: 0,
+    borderStyle: "solid",
+    boxShadow: "none",
+    opacity: 1,
+    overflow: "visible",
+    cursor: "default",
+    margin: 0,
+    marginTop: 0,
+    marginRight: 0,
+    marginBottom: 0,
+    marginLeft: 0,
+    padding: 0,
+    paddingTop: 0,
+    paddingRight: 0,
+    paddingBottom: 0,
+    paddingLeft: 0,
+    position: "relative",
+    display: "flex",
+    zIndex: 0,
+    top: "auto",
+    right: "auto",
+    bottom: "auto",
+    left: "auto",
+  },
   Page: {
     width: "1000px",
     height: "auto",
     background: "#ffffff",
+    pageName: "Page Name",
+    pageSlug: "page",
   },
 };
 
@@ -250,6 +363,7 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
 const SHORTHAND_PROPS = new Set(["padding", "margin"]);
 
 const DEFAULT_ANIMATION_JSON = JSON.stringify(DEFAULT_ANIMATION);
+const DEFAULT_PROTOTYPE_JSON = JSON.stringify(DEFAULT_PROTOTYPE);
 
 // ─── Serializer ──────────────────────────────────────────────────────────────
 
@@ -271,6 +385,14 @@ function cleanProps(
     // Deep compare animation objects — only keep if non-default
     if (key === "animation") {
       if (value && JSON.stringify(value) !== DEFAULT_ANIMATION_JSON) {
+        cleaned[key] = value;
+      }
+      continue;
+    }
+
+    // Deep compare prototype — only keep if non-default
+    if (key === "prototype") {
+      if (value && JSON.stringify(value) !== DEFAULT_PROTOTYPE_JSON) {
         cleaned[key] = value;
       }
       continue;
@@ -307,28 +429,32 @@ export function serializeCraftToClean(rawJson: string): BuilderDocument {
   // ROOT's children are Pages (inside the Viewport)
   const pageIds = rootNode.nodes;
 
-  for (const pageId of pageIds) {
+  pageIds.forEach((pageId, index) => {
     const pageRaw = raw[pageId];
     if (!pageRaw || pageRaw.type.resolvedName !== "Page") {
       console.warn('⚠️ Serializer: Skipping node in ROOT that is not a Page:', pageId);
-      continue;
+      return;
     }
 
-    // Extract page
+    const pageProps = pageRaw.props ?? {};
+    const name = (pageProps.pageName as string) ?? `Page ${index + 1}`;
+    const slug = (pageProps.pageSlug as string) ?? `page-${index}`;
+
     pages.push({
       id: pageId,
+      name,
+      slug,
       props: cleanProps("Page", pageRaw.props),
       children: pageRaw.nodes,
     });
 
-    // Recursively process all descendant nodes
     processChildren(pageRaw.nodes, raw, nodes);
-  }
+  });
 
   console.log(`✅ Serializer: Processed ${pages.length} pages and ${Object.keys(nodes).length} unique nodes.`);
 
   return {
-    version: 1,
+    version: 2,
     pages,
     nodes,
   };
@@ -394,24 +520,27 @@ export function deserializeCleanToCraft(doc: BuilderDocument): string {
     linkedNodes: {},
   };
 
-  // Reconstruct Pages
-  for (const page of doc.pages) {
+  // Reconstruct Pages (backward compat: name/slug default from index)
+  doc.pages.forEach((page, index) => {
     const defaults = COMPONENT_DEFAULTS["Page"] ?? {};
+    const name = (page.props?.pageName as string) ?? page.name ?? `Page ${index + 1}`;
+    const slug = (page.props?.pageSlug as string) ?? page.slug ?? `page-${index}`;
+    const validChildren = page.children ?? [];
     craft[page.id] = {
       type: { resolvedName: "Page" },
       isCanvas: true,
-      props: { ...defaults, ...page.props },
+      props: { ...defaults, ...page.props, pageName: name, pageSlug: slug },
       displayName: "Page",
       custom: {},
       parent: "ROOT",
       hidden: false,
-      nodes: page.children,
+      nodes: validChildren,
       linkedNodes: {},
     };
 
     // Reconstruct child nodes
     reconstructChildren(page.children, page.id, doc.nodes, craft);
-  }
+  });
 
   return JSON.stringify(craft);
 }
@@ -427,10 +556,19 @@ function reconstructChildren(
 ): void {
   for (const id of childIds) {
     const cleanNode = nodes[id];
-    if (!cleanNode) continue;
+    if (!cleanNode) {
+      console.warn(`⚠️ Node ${parentId} references missing child node: ${id}`);
+      continue;
+    }
 
     // Already reconstructed
     if (craft[id]) continue;
+
+    // Validate that the node has a type
+    if (!cleanNode.type) {
+      console.error(`❌ Node ${id} is missing required 'type' property. Skipping.`);
+      continue;
+    }
 
     const defaults = COMPONENT_DEFAULTS[cleanNode.type] ?? {};
     const canvasTypes = new Set([
@@ -438,7 +576,20 @@ function reconstructChildren(
       "Section",
       "Row",
       "Column",
+      "Button",
+      "Circle",
+      "Square",
+      "Triangle",
     ]);
+
+    // Validate and filter children to only include existing nodes
+    const validChildren = (cleanNode.children || []).filter((childId) => {
+      const exists = !!nodes[childId];
+      if (!exists) {
+        console.warn(`⚠️ Node ${id} references missing child node: ${childId}`);
+      }
+      return exists;
+    });
 
     craft[id] = {
       type: { resolvedName: cleanNode.type },
@@ -448,13 +599,13 @@ function reconstructChildren(
       custom: {},
       parent: parentId,
       hidden: false,
-      nodes: cleanNode.children,
+      nodes: validChildren,
       linkedNodes: {},
     };
 
     // Recurse
-    if (cleanNode.children.length > 0) {
-      reconstructChildren(cleanNode.children, id, nodes, craft);
+    if (validChildren.length > 0) {
+      reconstructChildren(validChildren, id, nodes, craft);
     }
   }
 }

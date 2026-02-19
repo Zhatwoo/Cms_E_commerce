@@ -85,6 +85,16 @@ async function getBySubdomain(userId, subdomain) {
   return null;
 }
 
+async function countAll() {
+  const clientSnap = await db.collection('user').doc('roles').collection('client').get();
+  let total = 0;
+  for (const doc of clientSnap.docs) {
+    const projSnap = await doc.ref.collection('projects').get();
+    total += projSnap.size;
+  }
+  return total;
+}
+
 module.exports = {
   create,
   list,
@@ -92,4 +102,5 @@ module.exports = {
   getBySubdomain,
   update,
   delete: deleteProject,
+  countAll,
 };

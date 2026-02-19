@@ -64,6 +64,7 @@ if (!(process.env.FIREBASE_API_KEY || '').trim() && (process.env.NEXT_PUBLIC_FIR
 const { validateEnv } = require('./config/env');
 validateEnv();
 
+const http = require('http');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -267,12 +268,13 @@ app.use((req, res) => {
 
 // Start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+
+function onListenSuccess(port) {
   console.log('========================================');
   console.log('🚀 CMS E-commerce API with Firebase');
   console.log('========================================');
   console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 Server: http://localhost:${PORT}`);
+  console.log(`🔗 Server: http://localhost:${port}`);
   console.log('🔥 Database: Firebase (Auth + Firestore)');
   console.log(`🔑 Login API key: ${hasLoginKey ? 'set' : 'MISSING — set FIREBASE_API_KEY in .env'}`);
   console.log('========================================');
@@ -280,6 +282,35 @@ app.listen(PORT, () => {
   console.log('       /api/dashboard | /api/products | /api/orders');
   console.log('       /api/templates | /api/domains | /api/projects');
   console.log('========================================');
-});
+}
+
+const Domain = require('./models/Domain');
+
+function tryListen(port) {
+  const server = http.createServer(app);
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE' && port === 5000) {
+      console.error(`Port ${port} in use. Trying 5001...`);
+      tryListen(5001);
+    } else {
+      throw err;
+    }
+  });
+  server.listen(port, () => {
+    onListenSuccess(port);
+    // Run scheduled publishes every minute (edits set for a date go live automatically)
+    setInterval(async () => {
+      try {
+        const n = await Domain.applyScheduledPublishes();
+        if (n > 0) console.log(`[Schedule] Applied ${n} scheduled publish(es).`);
+      } catch (e) {
+        console.warn('[Schedule] applyScheduledPublishes error:', e.message);
+      }
+    }, 60 * 1000);
+  });
+  return server;
+}
+
+tryListen(PORT);
 
 module.exports = app;

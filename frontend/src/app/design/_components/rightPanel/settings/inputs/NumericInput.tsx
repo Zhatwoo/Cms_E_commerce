@@ -44,12 +44,11 @@ export const NumericInput = ({
   }, [isHovered]);
 
   useEffect(() => {
-    // Only update from props if not currently editing (or if prop value changed externally significantly)
-    // Actually, usually we want to sync, but avoid cursor jumping.
-    // For simple settings panels, syncing on blur or effect is usually fine.
-    // Let's sync always but only if we are not focused or if the parsed value is different.
     if (!isFocused) {
-      setLocalVal(value.toString());
+      const next = value.toString();
+      if (localValRef.current !== next) {
+        setLocalVal(next);
+      }
     }
   }, [value, isFocused]);
 

@@ -9,6 +9,7 @@ const {
   deleteUser,
   updateUserRole,
   updateUserStatus,
+  updateSubscriptionPlan,
   getUserStats
 } = require('../controllers/userController');
 const { protect, admin } = require('../middleware/auth');
@@ -30,8 +31,9 @@ router.route('/:id')
   .put(updateUser)
   .delete(deleteUser);
 
-// Special routes for role and status updates
+// Special routes for role, status, and plan updates
 router.put('/:id/role', updateUserRole);
 router.put('/:id/status', updateUserStatus);
+router.put('/:id/plan', updateSubscriptionPlan);
 
 module.exports = router;

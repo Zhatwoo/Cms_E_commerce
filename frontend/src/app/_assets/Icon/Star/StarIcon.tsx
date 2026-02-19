@@ -4,7 +4,7 @@ import React from "react";
 import { Element } from "@craftjs/core";
 import { Icon } from "../../../design/_designComponents/Icon/Icon";
 import { Star } from "../Star/Star";
-import { TemplateEntry } from "../_types";
+import { TemplateEntry } from "../../_types";
 
 export const StarIcon: TemplateEntry = {
   label: "Star Icon",

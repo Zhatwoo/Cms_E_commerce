@@ -4,7 +4,7 @@ import React from "react";
 import { Element } from "@craftjs/core";
 import { Icon } from "../../../design/_designComponents/Icon/Icon";
 import { ChevronRight } from "../ChevronRight/ChevronRight";
-import { TemplateEntry } from "../_types";
+import { TemplateEntry } from "../../_types";
 
 export const ChevronRightIcon: TemplateEntry = {
   label: "Chevron Right Icon",

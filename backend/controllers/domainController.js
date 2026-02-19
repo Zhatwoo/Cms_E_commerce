@@ -1,12 +1,91 @@
 // controllers/domainController.js
 const Domain = require('../models/Domain');
 const Project = require('../models/Project');
+const Page = require('../models/Page');
+const User = require('../models/User');
+const { getRealtimeDb, db } = require('../config/firebase');
+
+const BASE_DOMAIN = process.env.BASE_DOMAIN || process.env.NEXT_PUBLIC_BASE_DOMAIN || 'cms.com';
 
 // List for current user (protect)
 exports.getMyDomains = async (req, res) => {
   try {
     const items = await Domain.findByUserId(req.user.id);
     res.status(200).json({ success: true, data: items });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+// Admin: list all websites by fetching from Firestore published_subdomains; owner/plan from user/roles/client
+exports.getManagementList = async (req, res) => {
+  try {
+    const published = await Domain.listAllFromPublishedSubdomains();
+    const rows = [];
+    for (const doc of published) {
+      const subdomain = doc.id || '';
+      const userId = doc.userId || doc.user_id;
+      const status = (doc.status || 'published').toString().toLowerCase();
+      const statusDisplay = status === 'published' ? 'Live' : status === 'draft' ? 'Draft' : status === 'flagged' ? 'Flagged' : status;
+      const domainName = subdomain ? `${subdomain}.${BASE_DOMAIN}` : '—';
+      let owner = 'Unknown User';
+      let planDisplay = 'Free';
+      if (userId) {
+        try {
+          const user = await User.findById(userId);
+          if (user) {
+            owner = user.displayName || user.fullName || user.email || owner;
+            const plan = (user.subscriptionPlan || 'free').toString().trim().toLowerCase();
+            planDisplay = plan.charAt(0).toUpperCase() + plan.slice(1);
+          }
+        } catch (e) {
+          // keep defaults
+        }
+      }
+      rows.push({
+        id: doc.domainId || doc.id || subdomain,
+        userId: userId || '',
+        domainName,
+        owner,
+        status: statusDisplay,
+        plan: planDisplay,
+        domainType: 'Subdomain',
+      });
+    }
+    const total = rows.length;
+    const live = rows.filter((r) => r.status === 'Live').length;
+    const underReview = rows.filter((r) => r.status === 'Draft').length;
+    const flagged = rows.filter((r) => r.status === 'Flagged').length;
+    res.status(200).json({
+      success: true,
+      data: rows,
+      stats: { total, live, underReview, flagged },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+// Admin: set client domain status (user/roles/client/{userId}/domains + published_subdomains)
+exports.setClientDomainStatus = async (req, res) => {
+  try {
+    const { userId, domainId, status } = req.body;
+    if (!userId || !domainId || !String(status).trim()) {
+      return res.status(400).json({ success: false, message: 'userId, domainId, and status are required' });
+    }
+    const normalized = String(status).trim().toLowerCase();
+    if (!['published', 'suspended', 'flagged', 'draft'].includes(normalized)) {
+      return res.status(400).json({ success: false, message: 'status must be published, suspended, flagged, or draft' });
+    }
+    const updated = await Domain.updateForClient(userId, domainId, { status: normalized });
+    const subdomain = (updated && updated.subdomain) ? String(updated.subdomain).trim() : null;
+    if (subdomain) {
+      await db.collection('published_subdomains').doc(subdomain).set(
+        { status: normalized, updated_at: new Date() },
+        { merge: true }
+      );
+    }
+    res.status(200).json({ success: true, message: 'Status updated', data: updated });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
@@ -63,7 +142,7 @@ exports.delete = async (req, res) => {
   }
 };
 
-// Publish: create/update domain at user/roles/client/{userId}/domains and set public lookup (define as published)
+// Publish: create/update domain and save a snapshot of current draft so public site shows only published content
 exports.publish = async (req, res) => {
   try {
     const { projectId, subdomain: subdomainOverride } = req.body;
@@ -78,30 +157,93 @@ exports.publish = async (req, res) => {
     const subdomain = (subdomainOverride && String(subdomainOverride).trim())
       ? String(subdomainOverride).trim().toLowerCase().replace(/[^a-z0-9-]/g, '')
       : (project.subdomain || (project.title || 'site').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'site');
-    const existing = await Domain.findByProjectId(userId, projectId);
-    let data;
-    if (existing) {
-      data = await Domain.updateForClient(userId, existing.id, {
-        projectTitle: project.title,
-        subdomain,
-        status: 'published',
-      });
-    } else {
-      data = await Domain.createForClient(userId, {
-        projectId,
-        projectTitle: project.title,
-        subdomain,
-        status: 'published',
-      });
+
+    // Snapshot current draft so published site shows only this until next Publish (not live draft)
+    let publishedContent = null;
+    try {
+      const draft = await Page.getPageData(userId, String(projectId).trim(), userId);
+      if (draft && draft.content) publishedContent = draft.content;
+    } catch (e) {
+      console.warn('publish: could not read draft for snapshot:', e.message);
     }
-    await Domain.setSubdomainLookup(subdomain, {
-      userId,
-      projectId,
-      domainId: data.id,
-      status: 'published',
+
+    // Save to BOTH paths with published_content snapshot
+    const data = await Domain.publishForClientBatch(userId, {
+      projectId: String(projectId).trim(),
       projectTitle: project.title,
+      subdomain,
+      publishedContent,
     });
-    res.status(200).json({ success: true, message: 'Published', data });
+
+    // So Domains dashboard shows the published domain: update project subdomain in Firestore and Realtime DB
+    await Project.update(userId, projectId, { subdomain, status: 'published' });
+    const rtdb = getRealtimeDb();
+    if (rtdb) {
+      try {
+        const rtdbRef = rtdb.ref(`user/roles/client/${userId}/projects/${projectId}`);
+        await rtdbRef.update({ subdomain });
+      } catch (e) {
+        console.warn('publish: Realtime DB sync failed:', e.message);
+      }
+    }
+
+    res.status(200).json({ success: true, message: 'Published', data: { ...data, subdomain } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+// Schedule publish: set a date when current draft will go live (must have published at least once)
+exports.schedulePublish = async (req, res) => {
+  try {
+    const { projectId, subdomain: subdomainOverride, scheduledAt } = req.body;
+    if (!projectId || !String(projectId).trim()) {
+      return res.status(400).json({ success: false, message: 'projectId is required' });
+    }
+    if (!scheduledAt) {
+      return res.status(400).json({ success: false, message: 'scheduledAt is required (ISO date string)' });
+    }
+    const userId = req.user.id;
+    const project = await Project.get(userId, String(projectId).trim());
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'Project not found' });
+    }
+    const subdomain = (subdomainOverride && String(subdomainOverride).trim())
+      ? String(subdomainOverride).trim().toLowerCase().replace(/[^a-z0-9-]/g, '')
+      : (project.subdomain || (project.title || 'site').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'site');
+
+    let scheduledContent = null;
+    try {
+      const draft = await Page.getPageData(userId, String(projectId).trim(), userId);
+      if (draft && draft.content) scheduledContent = draft.content;
+    } catch (e) {
+      console.warn('schedulePublish: could not read draft:', e.message);
+    }
+
+    const data = await Domain.schedulePublish(userId, {
+      projectId: String(projectId).trim(),
+      projectTitle: project.title,
+      subdomain,
+      scheduledAt,
+      scheduledContent,
+    });
+
+    res.status(200).json({ success: true, message: 'Scheduled', data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });
+  }
+};
+
+// Get scheduled publish for a project (if any)
+exports.getSchedule = async (req, res) => {
+  try {
+    const { projectId } = req.query;
+    if (!projectId || !String(projectId).trim()) {
+      return res.status(400).json({ success: false, message: 'projectId is required' });
+    }
+    const userId = req.user.id;
+    const schedule = await Domain.getScheduleByProject(userId, String(projectId).trim());
+    res.status(200).json({ success: true, data: schedule });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
