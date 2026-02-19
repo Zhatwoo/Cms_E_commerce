@@ -10,7 +10,10 @@ import {
   MousePointer2,
   Copy,
   Trash2,
+  Group,
+  Ungroup,
 } from "lucide-react";
+import { duplicateNodes, groupSelection, ungroupSelection, selectedToIds } from "../../_lib/canvasActions";
 
 /** Node types that cannot be deleted, duplicated, or dragged */
 const PROTECTED = new Set(["Viewport"]);
@@ -135,49 +138,23 @@ export const FilesPanel = () => {
 
   const handleDuplicate = useCallback(
     (nodeId: string) => {
-      try {
-        const serialized = query.serialize();
-        const data: Record<string, any> = JSON.parse(serialized);
-        const original = data[nodeId];
-        if (!original) return;
-        const parentId = original.parent;
-        if (!parentId || !data[parentId]) return;
-        const existingIds = new Set(Object.keys(data));
-        const generateId = (): string => {
-          let id = "";
-          do { id = Math.random().toString(36).slice(2, 11); } while (existingIds.has(id));
-          existingIds.add(id);
-          return id;
-        };
-        const cloneSubtree = (sourceId: string, newParentId: string): string | null => {
-          const sourceNode = data[sourceId];
-          if (!sourceNode) return null;
-          const newId = generateId();
-          const childIds: string[] = Array.isArray(sourceNode.nodes) ? sourceNode.nodes : [];
-          const clonedNode: any = { ...sourceNode, parent: newParentId, nodes: [] as string[] };
-          for (const childId of childIds) {
-            const clonedChildId = cloneSubtree(childId, newId);
-            if (clonedChildId) clonedNode.nodes.push(clonedChildId);
-          }
-          data[newId] = clonedNode;
-          return newId;
-        };
-        const clonedRootId = cloneSubtree(nodeId, parentId);
-        if (!clonedRootId) return;
-        const parentNode = data[parentId];
-        const siblings: string[] = Array.isArray(parentNode.nodes) ? [...parentNode.nodes] : [];
-        const index = siblings.indexOf(nodeId);
-        if (index === -1) siblings.push(clonedRootId);
-        else siblings.splice(index + 1, 0, clonedRootId);
-        parentNode.nodes = siblings;
-        actions.deserialize(JSON.stringify(data));
-      } catch (e) {
-        console.warn("Failed to duplicate node:", e);
-      }
+      duplicateNodes(actions, query, [nodeId]);
       setContextMenu(null);
     },
     [actions, query]
   );
+
+  const handleGroup = useCallback(() => {
+    const ids = selectedToIds(selected);
+    if (ids.length >= 1) groupSelection(actions, query, ids);
+    setContextMenu(null);
+  }, [actions, query, selected]);
+
+  const handleUngroup = useCallback(() => {
+    const ids = selectedToIds(selected);
+    if (ids.length === 1) ungroupSelection(actions, query, ids);
+    setContextMenu(null);
+  }, [actions, query, selected]);
 
   const handleDelete = useCallback(
     (nodeId: string) => {
@@ -633,6 +610,9 @@ export const FilesPanel = () => {
     if (!contextMenu) return null;
     const nodeProtected = isProtected(contextMenu.nodeId);
     const nodeName = nodes[contextMenu.nodeId]?.data.displayName || "Node";
+    const selectedIds = selectedToIds(selected);
+    const canGroup = selectedIds.length >= 1;
+    const canUngroup = selectedIds.length === 1 && (nodes[selectedIds[0]!]?.data?.displayName === "Container" || nodes[selectedIds[0]!]?.data?.displayName === "Group");
 
     return ReactDOM.createPortal(
       <div
@@ -659,6 +639,26 @@ export const FilesPanel = () => {
         >
           <Copy className="w-3.5 h-3.5" />
           Duplicate
+        </button>
+        <button
+          onClick={() => canGroup && handleGroup()}
+          disabled={!canGroup}
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${
+            !canGroup ? "text-brand-light/30 cursor-not-allowed" : "text-brand-lighter hover:bg-white/10 cursor-pointer"
+          }`}
+        >
+          <Group className="w-3.5 h-3.5" />
+          Group
+        </button>
+        <button
+          onClick={() => canUngroup && handleUngroup()}
+          disabled={!canUngroup}
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${
+            !canUngroup ? "text-brand-light/30 cursor-not-allowed" : "text-brand-lighter hover:bg-white/10 cursor-pointer"
+          }`}
+        >
+          <Ungroup className="w-3.5 h-3.5" />
+          Ungroup
         </button>
         <div className="border-t border-white/5 my-0.5" />
         <button
