@@ -107,14 +107,14 @@ export const LeftPanel = ({ onToggle }: LeftPanelProps) => {
       style={{ boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)" }}
     >
       {/* Left Panel Header */}
-      <div className="flex items-start justify-between mb-2 gap-2">
+      <div className="flex items-center justify-between mb-2 gap-2">
         {/* Project dropdown trigger */}
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setMenuOpen(!menuOpen)}
             className="flex items-center gap-2 hover:bg-white/5 rounded-lg px-2 py-1 -ml-2 transition-colors cursor-pointer"
           >
-            <h3 className="text-brand-lighter font-bold text-lg">Project</h3>
+            <h3 className="text-brand-lighter font-bold text-lg leading-none">Project</h3>
             <ChevronDown
               className={`w-4 h-4 text-brand-light transition-transform duration-200 ${menuOpen ? "rotate-180" : ""
                 }`}
@@ -180,7 +180,7 @@ export const LeftPanel = ({ onToggle }: LeftPanelProps) => {
           )}
         </div>
 
-        <div className="flex flex-col items-end gap-1">
+        <div className="flex flex-col items-end justify-center gap-1">
           {/* Close / Exit button */}
           {onToggle && (
             <button
@@ -207,15 +207,15 @@ export const LeftPanel = ({ onToggle }: LeftPanelProps) => {
       </label>
 
       {/* Navigation Tabs */}
-      <div className="flex overflow-x-auto no-scrollbar text-sm items-center py-1.5 px-4 border-y border-brand-medium gap-2" style={{ WebkitOverflowScrolling: "touch", minHeight: 44 }}>
+      <div className="flex items-center gap-2 text-[11px] sm:text-xs py-2 px-3 border-y border-brand-medium overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActivePanel("files")}
           className={
             `${activePanel === "files"
               ? "text-brand-lighter bg-brand-medium/50"
-              : "text-brand-light hover:text-brand-lighter"} rounded-lg px-2.5 py-1`
+              : "text-brand-light hover:text-brand-lighter"} rounded-lg px-2.5 py-1 flex-none min-w-[72px] whitespace-nowrap`
           }
-          style={{ minWidth: 100, maxWidth: 120, flex: '0 0 auto', textAlign: 'center' }}
+          style={{ textAlign: "center" }}
         >
           Files
         </button>
@@ -224,9 +224,9 @@ export const LeftPanel = ({ onToggle }: LeftPanelProps) => {
           className={
             `${activePanel === "components"
               ? "text-brand-lighter bg-brand-medium/50"
-              : "text-brand-light hover:text-brand-lighter"} rounded-lg px-2.5 py-1`
+              : "text-brand-light hover:text-brand-lighter"} rounded-lg px-2.5 py-1 flex-none min-w-[88px] whitespace-nowrap`
           }
-          style={{ minWidth: 100, maxWidth: 120, flex: '0 0 auto', textAlign: 'center' }}
+          style={{ textAlign: "center" }}
         >
           Component
         </button>
@@ -235,9 +235,9 @@ export const LeftPanel = ({ onToggle }: LeftPanelProps) => {
           className={
             `${activePanel === "assets"
               ? "text-brand-lighter bg-brand-medium/50"
-              : "text-brand-light hover:text-brand-lighter"} rounded-lg px-2.5 py-1`
+              : "text-brand-light hover:text-brand-lighter"} rounded-lg px-2.5 py-1 flex-none min-w-[72px] whitespace-nowrap`
           }
-          style={{ minWidth: 100, maxWidth: 120, flex: '0 0 auto', textAlign: 'center' }}
+          style={{ textAlign: "center" }}
         >
           Assets
         </button>
@@ -246,9 +246,9 @@ export const LeftPanel = ({ onToggle }: LeftPanelProps) => {
           className={
             `${activePanel === "templates"
               ? "text-brand-lighter bg-brand-medium/50"
-              : "text-brand-light hover:text-brand-lighter"} rounded-lg px-2.5 py-1`
+              : "text-brand-light hover:text-brand-lighter"} rounded-lg px-2.5 py-1 flex-none min-w-[88px] whitespace-nowrap`
           }
-          style={{ minWidth: 100, maxWidth: 120, flex: '0 0 auto', textAlign: 'center' }}
+          style={{ textAlign: "center" }}
         >
           Templates
         </button>
