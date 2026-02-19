@@ -1294,7 +1294,22 @@ export function LiveSite({
         const node = doc.nodes[id];
         if (!node) return null;
         function onPrototypeAction(interaction: Interaction): void {
-          throw new Error("Function not implemented.");
+          const dest = interaction.destination;
+          if (interaction.action === "openUrl" && dest) {
+            window.open(dest, "_blank", "noopener");
+          } else if (interaction.action === "scrollTo" && dest) {
+            document.getElementById(dest)?.scrollIntoView({ behavior: "smooth" });
+          } else if (interaction.action === "back") {
+            window.history.back();
+          } else if (interaction.action === "openOverlay" && dest) {
+            handleToggle(dest, "open");
+          } else if (interaction.action === "closeOverlay" && dest) {
+            handleToggle(dest, "close");
+          }
+          // navigateTo: single-page view has no other pages; scroll to element with id if present
+          else if (interaction.action === "navigateTo" && dest) {
+            document.getElementById(dest)?.scrollIntoView({ behavior: "smooth" });
+          }
         }
 
         return (

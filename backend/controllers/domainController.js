@@ -193,6 +193,62 @@ exports.publish = async (req, res) => {
   }
 };
 
+// Schedule publish: set a date when current draft will go live (must have published at least once)
+exports.schedulePublish = async (req, res) => {
+  try {
+    const { projectId, subdomain: subdomainOverride, scheduledAt } = req.body;
+    if (!projectId || !String(projectId).trim()) {
+      return res.status(400).json({ success: false, message: 'projectId is required' });
+    }
+    if (!scheduledAt) {
+      return res.status(400).json({ success: false, message: 'scheduledAt is required (ISO date string)' });
+    }
+    const userId = req.user.id;
+    const project = await Project.get(userId, String(projectId).trim());
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'Project not found' });
+    }
+    const subdomain = (subdomainOverride && String(subdomainOverride).trim())
+      ? String(subdomainOverride).trim().toLowerCase().replace(/[^a-z0-9-]/g, '')
+      : (project.subdomain || (project.title || 'site').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'site');
+
+    let scheduledContent = null;
+    try {
+      const draft = await Page.getPageData(userId, String(projectId).trim(), userId);
+      if (draft && draft.content) scheduledContent = draft.content;
+    } catch (e) {
+      console.warn('schedulePublish: could not read draft:', e.message);
+    }
+
+    const data = await Domain.schedulePublish(userId, {
+      projectId: String(projectId).trim(),
+      projectTitle: project.title,
+      subdomain,
+      scheduledAt,
+      scheduledContent,
+    });
+
+    res.status(200).json({ success: true, message: 'Scheduled', data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });
+  }
+};
+
+// Get scheduled publish for a project (if any)
+exports.getSchedule = async (req, res) => {
+  try {
+    const { projectId } = req.query;
+    if (!projectId || !String(projectId).trim()) {
+      return res.status(400).json({ success: false, message: 'projectId is required' });
+    }
+    const userId = req.user.id;
+    const schedule = await Domain.getScheduleByProject(userId, String(projectId).trim());
+    res.status(200).json({ success: true, data: schedule });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
 // Sync public lookup from user/roles/client/{userId}/domains so GET /api/public/sites/:subdomain works
 exports.syncPublicLookup = async (req, res) => {
   try {

@@ -1,13 +1,15 @@
 // routes/domainRoutes.js
 const express = require('express');
 const router = express.Router();
-const { getMyDomains, getOne, create, delete: deleteDomain, getAll, updateStatus, syncPublicLookup, publish, getManagementList, setClientDomainStatus } = require('../controllers/domainController');
+const { getMyDomains, getOne, create, delete: deleteDomain, getAll, updateStatus, syncPublicLookup, publish, schedulePublish, getSchedule, getManagementList, setClientDomainStatus } = require('../controllers/domainController');
 const { protect, admin } = require('../middleware/auth');
 
 router.get('/my', protect, getMyDomains);
 router.get('/admin/management', protect, admin, getManagementList);
 router.post('/admin/set-client-status', protect, admin, setClientDomainStatus);
 router.post('/publish', protect, publish);
+router.post('/schedule-publish', protect, schedulePublish);
+router.get('/schedule', protect, getSchedule);
 router.post('/sync-public', protect, syncPublicLookup);
 router.get('/', protect, admin, getAll);
 router.get('/:id', protect, getOne);

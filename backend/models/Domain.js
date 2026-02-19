@@ -1,5 +1,6 @@
-const { db } = require('../config/firebase');
+const { db, admin } = require('../config/firebase');
 const { docToObject } = require('../utils/firestoreHelper');
+const FieldValue = admin.firestore.FieldValue;
 
 const COLLECTION = 'domains';
 
@@ -275,11 +276,113 @@ async function updateForClient(userId, domainId, data) {
   if (data.projectTitle !== undefined) updates.project_title = data.projectTitle;
   if (data.subdomain !== undefined) updates.subdomain = (data.subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || null;
   if (data.status !== undefined) updates.status = data.status;
+  if (data.publishedContent !== undefined) updates.published_content = data.publishedContent;
+  if (data.scheduledPublishAt !== undefined) updates.scheduled_publish_at = data.scheduledPublishAt;
+  if (data.scheduledPublishedContent !== undefined) updates.scheduled_published_content = data.scheduledPublishedContent;
   if (Object.keys(updates).length === 0) return get(userId, domainId);
   updates.updated_at = new Date();
   await ref.update(updates);
   const snap = await ref.get();
   return docToObject(snap);
+}
+
+/**
+ * Schedule a publish at a future date. Saves current draft snapshot; at that date it will go live.
+ * Domain must already exist (site published at least once).
+ */
+async function schedulePublish(userId, { projectId, projectTitle, subdomain, scheduledAt, scheduledContent }) {
+  const normalized = (subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  if (!normalized) throw new Error('subdomain is required');
+  if (!userId || !projectId) throw new Error('userId and projectId are required');
+  const at = scheduledAt ? new Date(scheduledAt) : null;
+  if (!at || isNaN(at.getTime())) throw new Error('valid scheduledAt date is required');
+
+  const existing = await findByProjectId(userId, projectId);
+  if (!existing) throw new Error('Publish the site at least once before scheduling. Use Publish now first.');
+
+  const domainId = existing.id;
+  const clientRef = getDomainsRef(userId).doc(domainId);
+  const publishedRef = getPublishedSubdomainsRef().doc(normalized);
+
+  const batch = db.batch();
+  const now = new Date();
+  batch.update(clientRef, {
+    scheduled_publish_at: at,
+    scheduled_published_content: scheduledContent ?? null,
+    updated_at: now,
+  });
+  batch.set(publishedRef, {
+    user_id: userId,
+    project_id: projectId,
+    domain_id: domainId,
+    status: 'published',
+    project_title: projectTitle || null,
+    updated_at: now,
+    scheduled_publish_at: at,
+    scheduled_published_content: scheduledContent ?? null,
+  }, { merge: true });
+
+  await batch.commit();
+  return { subdomain: normalized, scheduledAt: at.toISOString() };
+}
+
+/** Get scheduled publish for a project (if any). */
+async function getScheduleByProject(userId, projectId) {
+  const existing = await findByProjectId(userId, projectId);
+  if (!existing) return null;
+  const at = existing.scheduled_publish_at ?? existing.scheduledPublishAt;
+  if (!at) return null;
+  const date = at && typeof at.toDate === 'function' ? at.toDate() : new Date(at);
+  if (isNaN(date.getTime())) return null;
+  return { scheduledAt: date.toISOString(), subdomain: existing.subdomain || null };
+}
+
+/**
+ * Apply due scheduled publishes: copy scheduled_published_content to published_content and clear schedule.
+ * Call periodically (e.g. every minute) from server.
+ */
+async function applyScheduledPublishes() {
+  const snap = await getPublishedSubdomainsRef().get();
+  const now = new Date();
+  const toApply = [];
+  snap.docs.forEach((doc) => {
+    const d = doc.data();
+    const at = d.scheduled_publish_at;
+    if (!at) return;
+    const date = at && typeof at.toDate === 'function' ? at.toDate() : new Date(at);
+    if (isNaN(date.getTime()) || date > now) return;
+    toApply.push({
+      subdomain: doc.id,
+      userId: d.user_id,
+      projectId: d.project_id,
+      domainId: d.domain_id,
+      scheduledContent: d.scheduled_published_content,
+    });
+  });
+
+  for (const item of toApply) {
+    try {
+      const clientRef = getDomainsRef(item.userId).doc(item.domainId);
+      const publishedRef = getPublishedSubdomainsRef().doc(item.subdomain);
+      const batch = db.batch();
+      batch.update(clientRef, {
+        published_content: item.scheduledContent ?? null,
+        scheduled_publish_at: FieldValue.delete(),
+        scheduled_published_content: FieldValue.delete(),
+        updated_at: now,
+      });
+      batch.update(publishedRef, {
+        published_content: item.scheduledContent ?? null,
+        scheduled_publish_at: FieldValue.delete(),
+        scheduled_published_content: FieldValue.delete(),
+        updated_at: now,
+      });
+      await batch.commit();
+    } catch (e) {
+      console.warn('applyScheduledPublishes failed for', item.subdomain, e.message);
+    }
+  }
+  return toApply.length;
 }
 
 module.exports = {
@@ -299,4 +402,7 @@ module.exports = {
   createForClient,
   findByProjectId,
   updateForClient,
+  schedulePublish,
+  getScheduleByProject,
+  applyScheduledPublishes,
 };
