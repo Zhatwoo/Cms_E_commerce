@@ -198,20 +198,24 @@ export const FigmaStyleDragHandler = () => {
 
       const totalDx = (d.lastX - d.startX) / d.zoom;
       const totalDy = (d.lastY - d.startY) / d.zoom;
+      const currentState = queryRef.current.getState();
 
       document.body.dataset[EDITOR_DROP_COMMIT_FLAG] = "true";
 
       d.nodeStates.forEach((node) => {
-        actionsRef.current.setProp(node.id, (props: any) => {
-          if (node.moveMode === "offset") {
-            if (!props.position || props.position === "static") props.position = "relative";
-            props.left = `${node.left + totalDx}px`;
-            props.top = `${node.top + totalDy}px`;
-          } else {
-            props.marginLeft = node.marginLeft + totalDx;
-            props.marginTop = node.marginTop + totalDy;
-          }
-        });
+        if (!currentState.nodes[node.id]) return;
+        try {
+          actionsRef.current.setProp(node.id, (props: any) => {
+            if (node.moveMode === "offset") {
+              if (!props.position || props.position === "static") props.position = "relative";
+              props.left = `${node.left + totalDx}px`;
+              props.top = `${node.top + totalDy}px`;
+            } else {
+              props.marginLeft = node.marginLeft + totalDx;
+              props.marginTop = node.marginTop + totalDy;
+            }
+          });
+        } catch {}
       });
 
       requestAnimationFrame(() => {

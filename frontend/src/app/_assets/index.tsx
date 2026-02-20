@@ -13,13 +13,11 @@ import {
 import { CenteredHero, HeroWithImage } from "./Hero";
 import { FeaturesGrid, Testimonial } from "./Content";
 import { ContactForm, NewsletterSignup, OrderForm, LoginForm, SignupForm, AddToCart, PaymentForm } from "./Forms";
-import { ProductCard, TeamMemberCard } from "./Cards";
+import { ProductCard, TeamMemberCard, GridViewCard, ProductDescription, FeaturedProduct } from "./Cards";
 import {
   SimpleFooter,
   MultiColumnFooter,
   NewsletterFooter,
-  TrustFooter,
-  CheckoutFooter,
   BrandFooter
 } from "./Footer";
 import {
@@ -115,11 +113,11 @@ export const TEMPLATES: TemplateEntry[] = [
   PaymentForm,
   ProductCard,
   TeamMemberCard,
+  GridViewCard,
+  FeaturedProduct,
   SimpleFooter,
   MultiColumnFooter,
   NewsletterFooter,
-  TrustFooter,
-  CheckoutFooter,
   BrandFooter,
   FacebookIcon,
   GoogleIcon,
@@ -153,8 +151,6 @@ export const GROUPED_TEMPLATES = [
       MultiColumnFooter,
       SimpleFooter,
       NewsletterFooter,
-      TrustFooter,
-      CheckoutFooter,
       BrandFooter,
     ],
   },
@@ -185,7 +181,7 @@ export const GROUPED_TEMPLATES = [
   },
   {
     folder: "Cards",
-    items: [ProductCard, TeamMemberCard],
+    items: [ProductCard, TeamMemberCard, GridViewCard, ProductDescription, FeaturedProduct],
   },
   {
     folder: "Icons",
