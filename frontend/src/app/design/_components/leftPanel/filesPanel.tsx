@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useTransition } from "react";
 import ReactDOM from "react-dom";
 import { useEditor } from "@craftjs/core";
 import {
@@ -12,12 +12,19 @@ import {
   Trash2,
   Group,
   Ungroup,
+  Eye,
+  EyeOff,
+  Lock,
+  LockOpen,
 } from "lucide-react";
 import { duplicateNodes, groupSelection, ungroupSelection, selectedToIds } from "../../_lib/canvasActions";
 
 /** Node types that cannot be deleted, duplicated, or dragged */
 const PROTECTED = new Set(["Viewport"]);
 const UNDRAGGABLE = new Set(["ROOT", "Viewport", "Page"]);
+
+/** Display names that accept drop "inside" (canvas containers). */
+const CANVAS_CONTAINERS = new Set(["Viewport", "Page", "Section", "Row", "Column", "Container", "Frame"]);
 
 /** Get ordered child node IDs from a node (Craft state or serialized shape). */
 function getChildIds(node: Record<string, unknown> | null | undefined): string[] {
@@ -75,6 +82,8 @@ export const FilesPanel = () => {
     selected: state.events.selected,
   }));
 
+  const [isPending, startTransition] = useTransition();
+
   // ── Refs for stable access in event handlers ─
   const nodesRef = useRef(nodes);
   nodesRef.current = nodes;
@@ -106,6 +115,16 @@ export const FilesPanel = () => {
     return map[nodeId] !== false; // default expanded
   }
 
+  // ── Scroll selected layer into view (Figma-like) ─
+  useEffect(() => {
+    const ids = selectedToIds(selected);
+    if (ids.length === 0) return;
+    const firstId = ids[0];
+    if (!firstId) return;
+    const row = document.querySelector(`[data-layer-id="${firstId}"]`) as HTMLElement | null;
+    if (row) row.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [selected]);
+
   // ── Context menu state ─
   const [contextMenu, setContextMenu] = useState<{
     nodeId: string;
@@ -118,22 +137,33 @@ export const FilesPanel = () => {
 
   useEffect(() => {
     if (!contextMenu) return;
-    const close = () => setContextMenu(null);
-    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
-    window.addEventListener("click", close);
-    window.addEventListener("contextmenu", close);
-    window.addEventListener("keydown", handleKey);
+    const close = (e?: MouseEvent) => {
+      const target = e?.target as HTMLElement | null;
+      if (target?.closest?.("[data-context-menu]")) return;
+      setContextMenu(null);
+    };
+    const handleClick = (e: MouseEvent) => close(e);
+    const handleContextMenu = (e: MouseEvent) => close(e);
+    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") setContextMenu(null); };
+    window.addEventListener("click", handleClick, true);
+    window.addEventListener("contextmenu", handleContextMenu, true);
+    window.addEventListener("keydown", handleKey, true);
     return () => {
-      window.removeEventListener("click", close);
-      window.removeEventListener("contextmenu", close);
-      window.removeEventListener("keydown", handleKey);
+      window.removeEventListener("click", handleClick, true);
+      window.removeEventListener("contextmenu", handleContextMenu, true);
+      window.removeEventListener("keydown", handleKey, true);
     };
   }, [contextMenu]);
 
   // ── Context menu actions ──────────────────────────────────
   const handleSelect = useCallback(
-    (nodeId: string) => { actions.selectNode(nodeId); setContextMenu(null); },
-    [actions]
+    (nodeId: string) => {
+      startTransition(() => {
+        actions.selectNode(nodeId);
+        setContextMenu(null);
+      });
+    },
+    [actions, startTransition]
   );
 
   const handleDuplicate = useCallback(
@@ -141,7 +171,7 @@ export const FilesPanel = () => {
       duplicateNodes(actions, query, [nodeId]);
       setContextMenu(null);
     },
-    [actions, query]
+    [actions, query, startTransition]
   );
 
   const handleGroup = useCallback(() => {
@@ -158,16 +188,18 @@ export const FilesPanel = () => {
 
   const handleDelete = useCallback(
     (nodeId: string) => {
-      try {
-        if (nodeId === "ROOT") return;
-        const node = query.node(nodeId).get();
-        if (PROTECTED.has(node.data.displayName)) return;
-        if (!query.node(nodeId).isDeletable()) return;
-        actions.delete(nodeId);
-      } catch { /* node might already be gone */ }
-      setContextMenu(null);
+      startTransition(() => {
+        try {
+          if (nodeId === "ROOT") return;
+          const node = query.node(nodeId).get();
+          if (PROTECTED.has(node.data.displayName)) return;
+          if (!query.node(nodeId).isDeletable()) return;
+          actions.delete(nodeId);
+        } catch { /* node might already be gone */ }
+        setContextMenu(null);
+      });
     },
-    [actions, query]
+    [actions, query, startTransition]
   );
 
   const isProtected = (nodeId: string): boolean => {
@@ -393,9 +425,10 @@ export const FilesPanel = () => {
       } else if (fraction > 0.75) {
         zone = "below";
       } else {
-        // "inside" only valid for canvas nodes
+        // "inside" only valid for canvas containers
         const targetNode = nodesRef.current[targetNodeId];
-        if (targetNode && targetNode.data?.isCanvas) {
+        const displayName = targetNode?.data?.displayName as string | undefined;
+        if (displayName && CANVAS_CONTAINERS.has(displayName)) {
           zone = "inside";
         } else {
           zone = fraction < 0.5 ? "above" : "below";
@@ -405,7 +438,8 @@ export const FilesPanel = () => {
       // Also prevent dropping above/below ROOT or Viewport
       if (UNDRAGGABLE.has(targetNodeId) && zone !== "inside") {
         const targetNode = nodesRef.current[targetNodeId];
-        if (targetNode?.data?.isCanvas) {
+        const displayName = targetNode?.data?.displayName as string | undefined;
+        if (displayName && CANVAS_CONTAINERS.has(displayName)) {
           zone = "inside";
         } else {
           clearIndicator();
@@ -522,6 +556,9 @@ export const FilesPanel = () => {
     const childIds = getChildIds(node as Record<string, unknown>);
     const isSel = isNodeSelected(selected, nodeId);
     const hasChildren = childIds.length > 0;
+    const props = (node.data?.props ?? {}) as Record<string, unknown>;
+    const visibility = (props.visibility as string | undefined) ?? "visible";
+    const locked = (props.locked as boolean | undefined) ?? false;
 
     let Icon = Box;
     const name = node.data.displayName || node.data.name || "";
@@ -547,15 +584,17 @@ export const FilesPanel = () => {
             if (dragRef.current?.activated) return;
             e.stopPropagation();
             const isMulti = e.ctrlKey || e.metaKey;
-            if (isMulti) {
-              const selArr = selected instanceof Set ? Array.from(selected) : Array.isArray(selected) ? selected : [];
-              const next = new Set(selArr);
-              if (next.has(nodeId)) next.delete(nodeId);
-              else next.add(nodeId);
-              actions.selectNode(next.size === 0 ? undefined : Array.from(next));
-            } else {
-              actions.selectNode(nodeId);
-            }
+            startTransition(() => {
+              if (isMulti) {
+                const selArr = selected instanceof Set ? Array.from(selected) : Array.isArray(selected) ? selected : [];
+                const next = new Set(selArr);
+                if (next.has(nodeId)) next.delete(nodeId);
+                else next.add(nodeId);
+                actions.selectNode(next.size === 0 ? undefined : Array.from(next));
+              } else {
+                actions.selectNode(nodeId);
+              }
+            });
           }}
           onContextMenu={openContextMenu}
           className={`
@@ -582,6 +621,37 @@ export const FilesPanel = () => {
           <span className="text-sm font-medium truncate flex-1 min-w-0">
             {name || "Node"}
           </span>
+          {/* Visibility and Lock toggles (visible on hover or when selected) */}
+          <div className={`flex items-center gap-0 shrink-0 ${isSel ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}>
+            <button
+              type="button"
+              title={visibility === "hidden" ? "Show" : "Hide"}
+              onClick={(e) => {
+                e.stopPropagation();
+                const next = visibility === "hidden" ? "visible" : "hidden";
+                try {
+                  actions.setProp(nodeId, (p: Record<string, unknown>) => { p.visibility = next; });
+                } catch { /* skip */ }
+              }}
+              className={`p-1 rounded transition-colors ${visibility === "hidden" ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
+            >
+              {visibility === "hidden" ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+            <button
+              type="button"
+              title={locked ? "Unlock" : "Lock"}
+              onClick={(e) => {
+                e.stopPropagation();
+                const next = !locked;
+                try {
+                  actions.setProp(nodeId, (p: Record<string, unknown>) => { p.locked = next; });
+                } catch { /* skip */ }
+              }}
+              className={`p-1 rounded transition-colors ${locked ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
+            >
+              {locked ? <Lock size={14} /> : <LockOpen size={14} />}
+            </button>
+          </div>
         </div>
 
         {/* Children */}
@@ -616,6 +686,7 @@ export const FilesPanel = () => {
 
     return ReactDOM.createPortal(
       <div
+        data-context-menu
         className="fixed z-9999 min-w-[160px] bg-brand-darker border border-white/10 rounded-lg shadow-2xl px-2.5 py-1 text-sm"
         style={{ left: contextMenu.x, top: contextMenu.y }}
         onClick={(e) => e.stopPropagation()}

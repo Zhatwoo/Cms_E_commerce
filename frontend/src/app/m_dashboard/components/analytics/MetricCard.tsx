@@ -19,7 +19,7 @@ export const MetricCard = ({ title, value, growth, icon, color, colors }: Metric
     <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-xl border p-6 shadow-sm hover:shadow-lg transition-all duration-300"
+        className="rounded-xl border p-6 shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer group"
         style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
     >
         <div className="flex items-center justify-between mb-4">
@@ -46,7 +46,7 @@ export const MetricCard = ({ title, value, growth, icon, color, colors }: Metric
         </div>
         <div>
             <p className="text-sm font-medium mb-1" style={{ color: colors.text.muted }}>{title}</p>
-            <p className="text-2xl font-bold" style={{ color: colors.text.primary }}>{value}</p>
+            <p className="text-2xl font-bold group-hover:text-blue-600 transition-colors" style={{ color: colors.text.primary }}>{value}</p>
         </div>
     </motion.div>
 );

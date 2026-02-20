@@ -99,8 +99,16 @@ export interface GridProps {
   gridAutoFlow?: "row" | "column" | "dense" | "row dense" | "column dense";
 }
 
+/** Layer visibility and lock — shared by all design components for panel toggles */
+export interface LayerProps {
+  /** Layer visibility in canvas and export */
+  visibility?: "visible" | "hidden";
+  /** When true, prevent move/resize/rotate on canvas */
+  locked?: boolean;
+}
+
 /** Position & display properties → PositionGroup */
-export interface PositionProps {
+export interface PositionProps extends LayerProps {
   position?: "static" | "relative" | "absolute" | "fixed" | "sticky";
   display?: "flex" | "grid" | "block" | "inline-block" | "none";
   zIndex?: number;
@@ -111,9 +119,11 @@ export interface PositionProps {
   editorVisibility?: "auto" | "show" | "hide";
 }
 
-/** Transform properties (rotation) — used for double-click transform mode */
+/** Transform properties (rotation, flip) — used in panel and overlay */
 export interface TransformProps {
   rotation?: number; // degrees, 0 = no rotation
+  flipHorizontal?: boolean;
+  flipVertical?: boolean;
 }
 
 /** Visual effects properties → EffectsGroup */
@@ -148,14 +158,14 @@ export interface ContainerProps
 
 /** Text component props — combines typography, spacing, and basic effects. */
 // export interface TextProps extends SpacingProps, TypographyProps, TransformProps, AnimatableProps, InteractableProps {
-export interface TextProps extends SpacingProps, TypographyProps, TransformProps, AnimatableProps, InteractionProps {
+export interface TextProps extends SpacingProps, TypographyProps, TransformProps, LayerProps, AnimatableProps, InteractionProps {
   text: string;
   opacity?: number;
   boxShadow?: string;
 }
 
 /** Image component props — media display with sizing, corners, and effects. */
-export interface ImageProps extends SpacingProps, SizeProps, EffectsProps, TransformProps, AnimatableProps, InteractableProps {
+export interface ImageProps extends SpacingProps, SizeProps, EffectsProps, TransformProps, LayerProps, AnimatableProps, InteractableProps {
   src?: string;
   alt?: string;
   objectFit?: "cover" | "contain" | "fill" | "none" | "scale-down";
@@ -168,7 +178,7 @@ export interface ImageProps extends SpacingProps, SizeProps, EffectsProps, Trans
 
 /** Button component props — interactive element with label, link, and variant. */
 // export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps, AnimatableProps, InteractableProps {
-export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps, AnimatableProps, InteractionProps {
+export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps, LayerProps, AnimatableProps, InteractionProps {
   label?: string;
   link?: string;
   variant?: "primary" | "secondary" | "outline" | "ghost";
@@ -222,12 +232,30 @@ export interface CircleProps
   extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps {
   color?: string;
   size?: number;
-  color?: string;
   width?: string;
   height?: string;
   opacity?: number;
   link?: string;
+  children?: ReactNode;
+  isPreview?: boolean;
 }
 
 export interface SquareProps extends CircleProps {}
 export interface TriangleProps extends CircleProps {}
+
+/** Frame component props — responsive wrapper so content scales for all devices (desktop, tablet, mobile). */
+export interface FrameProps extends SpacingProps, AnimatableProps, InteractionProps {
+  /** Design/reference width in px; content is laid out at this width then scaled to fit. */
+  referenceWidth?: number;
+  /** Design/reference height in px; if set, frame scales to fit within container (contain mode). */
+  referenceHeight?: number;
+  /** How the frame content fits: "contain" = scale to fit (no crop), "cover" = fill and crop, "width" = scale by width only, "fluid" = 100% width, assets reflow (max-width: 100%). */
+  fitMode?: "contain" | "cover" | "width" | "fluid";
+  /** Outer container width (e.g. "100%" or "1200px"). */
+  width?: string;
+  /** Outer container min-height (e.g. "400px" or "50vh"). When set, overrides height for display. */
+  minHeight?: string;
+  /** Treated as minHeight when minHeight is not set (for settings panel compatibility). */
+  height?: string;
+  children?: ReactNode;
+}

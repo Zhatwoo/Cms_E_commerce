@@ -60,11 +60,7 @@ const UserIcon = () => (
     </svg>
 );
 
-const NOTIFICATIONS = [
-    { id: 1, text: "Project 'Mercato Launch' deployed successfully.", time: "2m ago", unread: true },
-    { id: 2, text: "New order #1023 received ($120.00).", time: "1h ago", unread: true },
-    { id: 3, text: "Domain verification failed for shop.mercato.tools", time: "5h ago", unread: false },
-];
+const NOTIFICATIONS: { id: number; text: string; time: string; unread: boolean }[] = [];
 
 type DashboardHeaderProps = {
     onMenuToggle: () => void;
@@ -77,6 +73,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     const [showMenu, setShowMenu] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const userName = user?.name || user?.email || '';
+    const unreadCount = NOTIFICATIONS.filter((n) => n.unread).length;
 
     const handleLogout = async () => {
         await logout();
@@ -130,7 +127,9 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                             aria-label="Notifications"
                         >
                             <BellIcon />
-                            <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 border border-white dark:border-black" />
+                            {unreadCount > 0 && (
+                                <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 border border-white dark:border-black" />
+                            )}
                         </button>
                         {showNotifications && (
                             <>
@@ -143,12 +142,18 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                                         <p className="text-sm font-semibold" style={{ color: colors.text.primary }}>Notifications</p>
                                     </div>
                                     <div className="max-h-64 overflow-y-auto">
-                                        {NOTIFICATIONS.map(n => (
-                                            <div key={n.id} className="px-4 py-3 border-b last:border-0 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer" style={{ borderColor: colors.border.faint }}>
-                                                <p className="text-sm" style={{ color: colors.text.primary }}>{n.text}</p>
-                                                <p className="text-xs mt-1" style={{ color: colors.text.muted }}>{n.time}</p>
-                                            </div>
-                                        ))}
+                                        {NOTIFICATIONS.length > 0 ? (
+                                            NOTIFICATIONS.map(n => (
+                                                <div key={n.id} className="px-4 py-3 border-b last:border-0 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer" style={{ borderColor: colors.border.faint }}>
+                                                    <p className="text-sm" style={{ color: colors.text.primary }}>{n.text}</p>
+                                                    <p className="text-xs mt-1" style={{ color: colors.text.muted }}>{n.time}</p>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <p className="px-4 py-4 text-sm" style={{ color: colors.text.muted }}>
+                                                No notifications yet.
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                             </>

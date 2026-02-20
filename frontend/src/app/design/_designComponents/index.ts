@@ -9,6 +9,7 @@ import { Section } from "./Section/Section";
 import { Row } from "./Row/Row";
 import { Column } from "./Column/Column";
 import { Icon } from "./Icon/Icon";
+import { Frame } from "./Frame/Frame";
 
 export const RenderBlocks: Record<string, any> = {
   Container,
@@ -23,4 +24,5 @@ export const RenderBlocks: Record<string, any> = {
   Row,
   Column,
   Icon,
+  Frame,
 };

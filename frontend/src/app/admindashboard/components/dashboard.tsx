@@ -55,77 +55,45 @@ export function AdminDashboard() {
     const metricCards = [
         {
             title: 'Active Users Today',
-            value: '842',
-            delta: '+4.1% vs yesterday',
+            value: '—',
+            delta: 'No data yet',
             tooltip: 'Users active in the last 24 hours',
             icon: <UsersIcon />,
         },
         {
             title: 'Websites per User (avg)',
-            value: '2.4',
-            delta: '+0.3 from last month',
+            value: '—',
+            delta: 'No data yet',
             tooltip: 'Average websites created per user',
             icon: <GlobeIcon />,
         },
         {
             title: 'Suspended Users',
-            value: '37',
-            delta: '-5 vs last week',
+            value: '—',
+            delta: 'No data yet',
             tooltip: 'Users currently suspended or inactive',
             icon: <StatusIcon />,
         },
         {
             title: 'Inactive Users',
-            value: '156',
-            delta: '+9 from last week',
+            value: '—',
+            delta: 'No data yet',
             tooltip: 'Users with no activity in the last 7 days',
             icon: <RatioIcon />,
         },
     ];
 
 
-    const recentUserActions = [
-        { action: 'Jamie Lee created a new site', time: '1', tone: 'bg-blue-500' },
-        { action: 'User ID #342 upgraded plan', time: '2', tone: 'bg-emerald-500' },
-        { action: 'User ID #219 exceeded bandwidth', time: '3', tone: 'bg-amber-500' },
-        { action: 'Account suspended due to inactivity', time: '5', tone: 'bg-rose-500' },
-        { action: 'User ID #114 reset password', time: '6', tone: 'bg-slate-400' },
-    ];
+    const recentUserActions: { action: string; time: string; tone: string }[] = [];
 
-    const notifications = [
-        {
-            title: 'Storage nearly full',
-            message: 'Tenant storage at 96%',
-            time: '4m ago',
-            priority: 'Critical',
-            tone: 'bg-rose-600',
-            badge: 'bg-rose-100 text-rose-700',
-        },
-        {
-            title: 'Capacity at 80%',
-            message: 'Bandwidth usage reached 80%',
-            time: '18m ago',
-            priority: 'Warning',
-            tone: 'bg-amber-600',
-            badge: 'bg-amber-100 text-amber-700',
-        },
-        {
-            title: 'New user signup',
-            message: 'John Doe registered',
-            time: '28m ago',
-            priority: 'Info',
-            tone: 'bg-emerald-600',
-            badge: 'bg-emerald-100 text-emerald-700',
-        },
-        {
-            title: 'Security scan completed',
-            message: 'No vulnerabilities found',
-            time: '1h ago',
-            priority: 'Info',
-            tone: 'bg-blue-600',
-            badge: 'bg-blue-100 text-blue-700',
-        },
-    ];
+    const notifications: {
+        title: string;
+        message: string;
+        time: string;
+        priority: string;
+        tone: string;
+        badge: string;
+    }[] = [];
 
     return (
         <main className="flex-1 overflow-y-auto bg-slate-50">
@@ -209,23 +177,27 @@ export function AdminDashboard() {
                                 </button>
                             </div>
                             <div className="p-6 space-y-2">
-                                {recentUserActions.map((item, idx) => (
-                                    <motion.div
-                                        key={item.action}
-                                        className="flex items-center gap-3 py-2 text-sm text-slate-700"
-                                        initial={{ opacity: 0, x: -10 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{
-                                            duration: 0.35,
-                                            delay: 0.43 + 0.05 * idx,
-                                            ease: [0.25, 0.8, 0.25, 1],
-                                        }}
-                                    >
-                                        <span className={`h-2 w-2 rounded-full ${item.tone} flex-shrink-0`} />
-                                        <span className="text-slate-800">{item.action}</span>
-                                        <span className="ml-auto text-xs text-slate-500">~{item.time}h ago</span>
-                                    </motion.div>
-                                ))}
+                                {recentUserActions.length > 0 ? (
+                                    recentUserActions.map((item, idx) => (
+                                        <motion.div
+                                            key={item.action}
+                                            className="flex items-center gap-3 py-2 text-sm text-slate-700"
+                                            initial={{ opacity: 0, x: -10 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{
+                                                duration: 0.35,
+                                                delay: 0.43 + 0.05 * idx,
+                                                ease: [0.25, 0.8, 0.25, 1],
+                                            }}
+                                        >
+                                            <span className={`h-2 w-2 rounded-full ${item.tone} flex-shrink-0`} />
+                                            <span className="text-slate-800">{item.action}</span>
+                                            <span className="ml-auto text-xs text-slate-500">~{item.time}h ago</span>
+                                        </motion.div>
+                                    ))
+                                ) : (
+                                    <p className="text-sm text-slate-500">No recent actions yet.</p>
+                                )}
                             </div>
                         </motion.div>
                     </div>
@@ -248,31 +220,35 @@ export function AdminDashboard() {
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    {notifications.map((notif, idx) => (
-                                        <motion.div
-                                            key={notif.title}
-                                            className="flex gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200 hover:bg-white transition-colors"
-                                            initial={{ opacity: 0, x: -8 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            transition={{
-                                                duration: 0.35,
-                                                delay: 0.5 + 0.04 * idx,
-                                                ease: [0.25, 0.8, 0.25, 1],
-                                            }}
-                                        >
-                                            <div className={`h-2.5 w-2.5 rounded-full flex-shrink-0 mt-1.5 ${notif.tone}`} />
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <p className="text-sm font-medium text-slate-900">{notif.title}</p>
-                                                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${notif.badge}`}>
-                                                        {notif.priority}
-                                                    </span>
+                                    {notifications.length > 0 ? (
+                                        notifications.map((notif, idx) => (
+                                            <motion.div
+                                                key={notif.title}
+                                                className="flex gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200 hover:bg-white transition-colors"
+                                                initial={{ opacity: 0, x: -8 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{
+                                                    duration: 0.35,
+                                                    delay: 0.5 + 0.04 * idx,
+                                                    ease: [0.25, 0.8, 0.25, 1],
+                                                }}
+                                            >
+                                                <div className={`h-2.5 w-2.5 rounded-full flex-shrink-0 mt-1.5 ${notif.tone}`} />
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <p className="text-sm font-medium text-slate-900">{notif.title}</p>
+                                                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${notif.badge}`}>
+                                                            {notif.priority}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs text-slate-600 truncate">{notif.message}</p>
+                                                    <p className="text-[10px] text-slate-500 mt-1">{notif.time}</p>
                                                 </div>
-                                                <p className="text-xs text-slate-600 truncate">{notif.message}</p>
-                                                <p className="text-[10px] text-slate-500 mt-1">{notif.time}</p>
-                                            </div>
-                                        </motion.div>
-                                    ))}
+                                            </motion.div>
+                                        ))
+                                    ) : (
+                                        <p className="text-sm text-slate-500">No notifications yet.</p>
+                                    )}
                                 </div>
                             </div>
                         </div>

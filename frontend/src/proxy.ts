@@ -7,7 +7,7 @@ const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'websitelink';
  * When the request host is subdomain.base (e.g. sampledomain3.websitelink or sampledomain3.localhost),
  * rewrite to /sites/[subdomain] so the public site page runs. URL bar stays subdomain-based.
  */
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const host = request.headers.get('host') ?? '';
   const hostname = host.split(':')[0];
 

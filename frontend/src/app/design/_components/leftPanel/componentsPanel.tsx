@@ -9,6 +9,7 @@ import { Divider } from "../../_designComponents/Divider/Divider";
 import { Section } from "../../_designComponents/Section/Section";
 import { Row } from "../../_designComponents/Row/Row";
 import { Column } from "../../_designComponents/Column/Column";
+import { Frame } from "../../_designComponents/Frame/Frame";
 
 // Dito naman ilalagay yung mga raw components na may default na properties
 interface ComponentEntry {
@@ -55,6 +56,13 @@ const COMPONENTS: ComponentEntry[] = [
     preview: "Container Preview",
     previewBg: "bg-brand-medium-dark",
     element: <Element is={Container} background="#27272a" padding={20} canvas />,
+    category: "layout",
+  },
+  {
+    label: "Frame",
+    preview: "▢ Responsive",
+    previewBg: "bg-brand-medium-dark",
+    element: <Element is={Frame} referenceWidth={1440} referenceHeight={900} canvas />,
     category: "layout",
   },
   // ─── Basic ─────────────────────────────────────────

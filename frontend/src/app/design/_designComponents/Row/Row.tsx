@@ -41,6 +41,7 @@ export const Row = ({
     childCount: node.data.nodes.length,
   }));
 
+  const isHeaderAsset = /header/i.test(id ?? "");
   const effectiveAlignItems = alignItems === "stretch" ? "flex-start" : alignItems;
 
   const p = typeof padding === "number" ? padding : 0;
@@ -58,6 +59,8 @@ export const Row = ({
   return (
     <div
       data-node-id={id}
+      {...(isHeaderAsset ? { "data-header": "true" } : {})}
+      data-layout={flexDirection === "row" ? "row" : "column"}
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}

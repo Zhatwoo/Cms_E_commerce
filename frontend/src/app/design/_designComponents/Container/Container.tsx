@@ -61,6 +61,8 @@ export const Container = ({
   overflow = "visible",
   cursor = "default",
   rotation = 0,
+  flipHorizontal = false,
+  flipVertical = false,
   designWidth,
   designHeight,
   children
@@ -165,7 +167,8 @@ export const Container = ({
         opacity,
         overflow,
         cursor,
-        transform: rotation ? `rotate(${rotation}deg)` : undefined,
+        transform: [rotation ? `rotate(${rotation}deg)` : null, flipHorizontal ? "scaleX(-1)" : null, flipVertical ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined,
+        transformOrigin: "center center",
       }}
     >
       {canScale ? (

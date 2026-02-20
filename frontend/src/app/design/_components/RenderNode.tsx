@@ -1,50 +1,59 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useNode, useEditor } from "@craftjs/core";
 import ReactDOM from "react-dom";
 import { ResizeOverlay } from "./ResizeOverlay";
+import { useCanvasTool } from "./CanvasToolContext";
 
 export const RenderNode = ({ render }: { render: React.ReactElement }) => {
   const { id } = useNode();
+  const activeTool = useCanvasTool();
   const { isActive } = useEditor((_, query) => ({
     isActive: query.getEvent('selected').contains(id),
   }));
 
   const {
+    id,
+    isSelectedEvent,
     isHover,
     dom,
     name,
-    parent,
+    visibility,
   } = useNode((node) => ({
+    id: node.id,
+    isSelectedEvent: node.events.selected,
     isHover: node.events.hovered,
     dom: node.dom,
     name: node.data.custom.displayName || node.data.displayName,
-    parent: node.data.parent,
+    visibility: (node.data.props?.visibility as "visible" | "hidden" | undefined) ?? "visible",
   }));
 
   const [mounted, setMounted] = useState(false);
+  const isHandTool = activeTool === "hand";
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // When Hand tool is active, don't show selection/hover outline or labels on assets
   useEffect(() => {
     if (dom) {
-      if (isActive || isHover) {
+      if (!isHandTool && (isActive || isHover)) {
         dom.classList.add("component-selected");
       } else {
         dom.classList.remove("component-selected");
       }
     }
-  }, [dom, isActive, isHover]);
+  }, [dom, isActive, isHover, isHandTool]);
 
-  // Don't render overlays for Root or Viewport
-  if (parent === 'ROOT') {
+  // Don't render overlays for ROOT/Viewport shells only
+  if (id === "ROOT" || name === "Viewport") {
     return <>{render}</>;
   }
 
   return (
     <>
-      {/* Label overlay (portal) */}
-      {mounted && (isHover || isActive) && dom ?
+      {/* Label overlay (portal) — hidden when Hand tool is active */}
+      {!isHandTool && mounted && (isHover || isActive) && dom ?
         ReactDOM.createPortal(
           <div
             data-panel="node-label"
@@ -66,7 +75,15 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
         <ResizeOverlay nodeId={id} dom={dom} />
       ) : null}
 
-      {render}
+      <div
+        style={
+          visibility === "hidden"
+            ? { visibility: "hidden" as const, pointerEvents: "none" as const }
+            : { display: "contents" }
+        }
+      >
+        {render}
+      </div>
     </>
   );
 };

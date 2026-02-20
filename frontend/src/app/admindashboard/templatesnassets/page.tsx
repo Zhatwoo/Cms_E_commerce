@@ -26,20 +26,9 @@ export default function TemplatesAssetsPage() {
   const [activeTab, setActiveTab] = useState<'builtin' | 'user'>('builtin');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Sample built-in templates
-  const builtInTemplates: Template[] = [
-    { id: '1', name: 'E-commerce Starter', category: 'E-commerce', thumbnail: '🛒' },
-    { id: '2', name: 'Business Landing', category: 'Business', thumbnail: '💼' },
-    { id: '3', name: 'Portfolio Modern', category: 'Portfolio', thumbnail: '🎨' },
-    { id: '4', name: 'Blog Classic', category: 'Blog', thumbnail: '📝' },
-  ];
+  const builtInTemplates: Template[] = [];
 
-  // Sample user-created templates
-  const userTemplates: Template[] = [
-    { id: '1', name: 'Custom Shop', category: 'E-commerce', username: 'Abby Lee', domainName: 'abbyshop.com', thumbnail: '🏪' },
-    { id: '2', name: 'Personal Blog', category: 'Blog', username: 'Ben Ten', domainName: 'bensblog.com', thumbnail: '✍️' },
-    { id: '3', name: 'Agency Site', category: 'Business', username: 'John Doe', domainName: 'johndoe.com', thumbnail: '🏢' },
-  ];
+  const userTemplates: Template[] = [];
 
   const filteredBuiltInTemplates = builtInTemplates.filter(
     (template) =>

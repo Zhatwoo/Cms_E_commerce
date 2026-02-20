@@ -6,36 +6,7 @@ import { UserAccountShell } from "../page";
 import { UserAccountSidebar } from "../components/ua_sidebar";
 
 export default function ActivityPage() {
-	const activityItems = [
-		{
-			id: 1,
-			action: "Suspended user",
-			target: "User: janedoe@site.com",
-			time: "Today, 09:41 AM",
-			status: "Warning",
-		},
-		{
-			id: 2,
-			action: "Approved website",
-			target: "Site: Blue Horizon Travel",
-			time: "Yesterday, 05:12 PM",
-			status: "Success",
-		},
-		{
-			id: 3,
-			action: "Edited platform rule",
-			target: "Policy: Content moderation v3",
-			time: "Yesterday, 02:05 PM",
-			status: "Success",
-		},
-		{
-			id: 4,
-			action: "Failed login attempt",
-			target: "System: Admin Panel",
-			time: "Jan 18, 2026 · 11:14 PM",
-			status: "Warning",
-		},
-	];
+	const activityItems: { id: number; action: string; target: string; time: string; status: string }[] = [];
 
 	return (
 		<UserAccountShell activePath="Activity">
@@ -67,24 +38,30 @@ export default function ActivityPage() {
 							</div>
 
 							<div className="space-y-3">
-								{activityItems.map((item) => (
-									<div key={item.id} className="rounded-xl border border-gray-200 p-4 flex flex-col md:flex-row md:items-center gap-3">
-										<div className="flex-1">
-											<div className="text-sm font-semibold text-gray-900">{item.action}</div>
-											<div className="text-xs text-gray-500">{item.target}</div>
+								{activityItems.length > 0 ? (
+									activityItems.map((item) => (
+										<div key={item.id} className="rounded-xl border border-gray-200 p-4 flex flex-col md:flex-row md:items-center gap-3">
+											<div className="flex-1">
+												<div className="text-sm font-semibold text-gray-900">{item.action}</div>
+												<div className="text-xs text-gray-500">{item.target}</div>
+											</div>
+											<div className="text-xs text-gray-500 md:w-40 md:text-right">{item.time}</div>
+											<span
+												className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+													item.status === "Success"
+														? "bg-emerald-50 text-emerald-700"
+														: "bg-amber-50 text-amber-700"
+												}`}
+											>
+												{item.status}
+											</span>
 										</div>
-										<div className="text-xs text-gray-500 md:w-40 md:text-right">{item.time}</div>
-										<span
-											className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-												item.status === "Success"
-													? "bg-emerald-50 text-emerald-700"
-													: "bg-amber-50 text-amber-700"
-											}`}
-										>
-											{item.status}
-										</span>
+									))
+								) : (
+									<div className="rounded-xl border border-gray-200 p-4 text-sm text-gray-500">
+										No recent activity yet.
 									</div>
-								))}
+								)}
 							</div>
 						</motion.div>
 					</motion.div>

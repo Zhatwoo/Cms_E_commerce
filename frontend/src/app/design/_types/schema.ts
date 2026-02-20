@@ -53,6 +53,7 @@ export type ComponentType =
   | "Row"
   | "Column"
   | "Icon"
+  | "Frame"
   | "Circle"
   | "Square"
   | "Triangle";
