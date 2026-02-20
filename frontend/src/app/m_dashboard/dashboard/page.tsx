@@ -14,7 +14,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   return (
     <div className="space-y-6 md:space-y-10 max-w-full overflow-x-hidden">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <section className="rounded-2xl border p-5 md:p-6" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
         <div className="relative flex flex-col gap-3">
           <div
             className="absolute -inset-x-6 -inset-y-4 rounded-3xl opacity-70 blur-2xl"
@@ -33,7 +33,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
             }}
           />
           <motion.h1
-            className="text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight bg-clip-text text-transparent"
+            className="text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight bg-clip-text text-transparent text-center"
             style={{
               backgroundImage: theme === 'dark' 
                 ? 'linear-gradient(180deg, #ffffff 25%, #888888 100%)'
@@ -46,7 +46,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
             What website will you build?
           </motion.h1>
           <motion.p
-            className="text-sm sm:text-base max-w-xl"
+            className="text-sm sm:text-base max-w-xl mx-auto text-center"
             style={{ color: colors.text.muted }}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -55,7 +55,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
             Monitor deployments, domains and templates live health &amp; usage at a glance.
           </motion.p>
         </div>
-      </div>
+      </section>
 
       {/* Recent Projects - Full Width Horizontal Scroll */}
       <RecentProjects />
@@ -65,8 +65,9 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
         <TopSellingProducts />
         
         {/* Usage summary */}
-        <motion.div
-          className="rounded-2xl p-4 md:p-6 border flex flex-col gap-4 md:gap-5 col-span-1 lg:col-span-1"
+        <motion.a
+          href="/m_dashboard/analytics#overview-section"
+          className="rounded-2xl p-4 md:p-6 border flex flex-col gap-4 md:gap-5 col-span-1 lg:col-span-1 cursor-pointer group"
           style={{
             backgroundColor: colors.bg.card,
             borderColor: colors.border.default,
@@ -75,11 +76,17 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
           initial={{ opacity: 0, x: 18 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, delay: 0.15 }}
+          whileHover={{ scale: 1.01 }}
         >
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-            <h3 className="text-base md:text-lg font-semibold tracking-tight" style={{ color: colors.text.primary }}>
-              Usage summary
-            </h3>
+            <div>
+              <h3 className="text-base md:text-lg font-semibold tracking-tight" style={{ color: colors.text.primary }}>
+                Usage summary
+              </h3>
+              <p className="text-xs mt-0.5 group-hover:underline" style={{ color: colors.text.muted }}>
+                Click to view full analytics →
+              </p>
+            </div>
             <span className="rounded-full border px-2 py-0.5 md:px-2.5 md:py-1 text-[9px] md:text-[11px] font-medium" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
               30 days
             </span>
@@ -96,7 +103,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                   fill="none"
                   stroke="url(#grad)"
                   strokeWidth="14"
-                  strokeDasharray={`${2 * Math.PI * 78 * 0.76} ${2 * Math.PI * 78}`}
+                  strokeDasharray={`0 ${2 * Math.PI * 78}`}
                   strokeLinecap="round"
                 />
                 <defs>
@@ -111,8 +118,8 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                 <p className="text-[10px] md:text-xs font-medium uppercase tracking-wider" style={{ color: colors.text.muted }}>
                   Plan capacity
                 </p>
-                <p className="mt-0.5 md:mt-1 text-2xl md:text-3xl font-semibold" style={{ color: colors.text.primary }}>76%</p>
-                <p className="text-xs md:text-sm mt-0.5 md:mt-1" style={{ color: colors.status.good }}>Healthy</p>
+                <p className="mt-0.5 md:mt-1 text-2xl md:text-3xl font-semibold" style={{ color: colors.text.primary }}>0</p>
+                <p className="text-xs md:text-sm mt-0.5 md:mt-1" style={{ color: colors.status.good }}>-</p>
               </div>
             </div>
           </div>
@@ -120,16 +127,16 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
           <div className="grid grid-cols-2 gap-3 md:gap-4 text-xs">
             <div className="rounded-xl border px-3 py-2 md:px-4 md:py-3" style={{ borderColor: colors.border.faint, backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.4)' : colors.bg.elevated }}>
               <p className="text-[10px] md:text-[11px] font-medium uppercase tracking-wider" style={{ color: colors.text.muted }}>Bandwidth</p>
-              <p className="mt-0.5 md:mt-1 text-sm md:text-base font-semibold" style={{ color: colors.text.primary }}>3.2 TB</p>
-              <p className="text-[9px] md:text-[11px] mt-0.5 md:mt-1" style={{ color: colors.text.subtle }}>of 5 TB included</p>
+              <p className="mt-0.5 md:mt-1 text-sm md:text-base font-semibold" style={{ color: colors.text.primary }}>0</p>
+              <p className="text-[9px] md:text-[11px] mt-0.5 md:mt-1" style={{ color: colors.text.subtle }}>-</p>
             </div>
             <div className="rounded-xl border px-3 py-2 md:px-4 md:py-3" style={{ borderColor: colors.border.faint, backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.4)' : colors.bg.elevated }}>
               <p className="text-[10px] md:text-[11px] font-medium uppercase tracking-wider" style={{ color: colors.text.muted }}>Builds</p>
-              <p className="mt-0.5 md:mt-1 text-sm md:text-base font-semibold" style={{ color: colors.text.primary }}>428</p>
-              <p className="text-[9px] md:text-[11px] mt-0.5 md:mt-1" style={{ color: colors.status.good }}>+38 automated</p>
+              <p className="mt-0.5 md:mt-1 text-sm md:text-base font-semibold" style={{ color: colors.text.primary }}>0</p>
+              <p className="text-[9px] md:text-[11px] mt-0.5 md:mt-1" style={{ color: colors.status.good }}>-</p>
             </div>
           </div>
-        </motion.div>
+        </motion.a>
       </div>
 
     </div>

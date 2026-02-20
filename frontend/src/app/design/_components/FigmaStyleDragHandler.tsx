@@ -301,6 +301,9 @@ export const FigmaStyleDragHandler = () => {
     fallbackNodeId: string | null;
     dirty: boolean;
   } | null>(null);
+  const dropTargetHighlightRef = useRef<HTMLElement | null>(null);
+  const insertIndicatorRef = useRef<HTMLElement | null>(null);
+  const draggedDomsRef = useRef<HTMLElement[]>([]);
 
   useEffect(() => {
     actionsRef.current = actions;

@@ -7,18 +7,25 @@ import { useTheme } from '../context/theme-context';
 
 type Template = { id: string; name: string; description: string };
 
-const SAMPLE: Template[] = [
-  { id: 't1', name: 'Mercato Modern', description: 'Feature-rich eCommerce layout with hero and product grid.' },
-  { id: 't2', name: 'Marketplace Classic', description: 'Multi-vendor marketplace focused on listings.' },
-  { id: 't3', name: 'Minimal Store', description: 'Fast, minimal storefront for single-product shops.' },
-];
+const templateItems: Template[] = [];
 
 export default function TemplatesLibrary({ onUse }: { onUse?: (t: Template) => void }) {
   const { colors, theme } = useTheme();
 
+  if (templateItems.length === 0) {
+    return (
+      <div
+        className="rounded-xl border p-6 text-sm"
+        style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, color: colors.text.muted }}
+      >
+        No templates available yet.
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      {SAMPLE.map(t => (
+      {templateItems.map(t => (
         <div
           key={t.id}
           className="rounded-xl p-4 border transition-colors"

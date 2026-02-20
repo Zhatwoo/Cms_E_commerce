@@ -33,129 +33,7 @@ interface Order {
     trackingNumber?: string;
 }
 
-const mockOrders: Order[] = [
-    {
-        id: '1',
-        orderNumber: 'ORD-2024-001',
-        customer: {
-            name: 'John Smith',
-            email: 'john.smith@email.com',
-            phone: '+1 (555) 123-4567'
-        },
-        items: [
-            { name: 'Premium Wireless Headphones', quantity: 1, price: 299.99 },
-            { name: 'Smart Watch Pro', quantity: 1, price: 449.99 }
-        ],
-        total: 749.98,
-        status: 'shipped',
-        paymentStatus: 'paid',
-        shippingAddress: {
-            street: '123 Main St',
-            city: 'New York',
-            state: 'NY',
-            zip: '10001',
-            country: 'United States'
-        },
-        createdAt: '2024-01-28',
-        estimatedDelivery: '2024-02-02',
-        trackingNumber: 'TRK123456789'
-    },
-    {
-        id: '2',
-        orderNumber: 'ORD-2024-002',
-        customer: {
-            name: 'Sarah Johnson',
-            email: 'sarah.j@email.com',
-            phone: '+1 (555) 987-6543'
-        },
-        items: [
-            { name: 'Organic Cotton T-Shirt', quantity: 3, price: 29.99 },
-            { name: 'Leather Backpack', quantity: 1, price: 89.99 }
-        ],
-        total: 179.96,
-        status: 'processing',
-        paymentStatus: 'paid',
-        shippingAddress: {
-            street: '456 Oak Ave',
-            city: 'Los Angeles',
-            state: 'CA',
-            zip: '90001',
-            country: 'United States'
-        },
-        createdAt: '2024-01-29',
-        estimatedDelivery: '2024-02-05'
-    },
-    {
-        id: '3',
-        orderNumber: 'ORD-2024-003',
-        customer: {
-            name: 'Mike Davis',
-            email: 'mike.d@email.com',
-            phone: '+1 (555) 456-7890'
-        },
-        items: [
-            { name: 'Ceramic Coffee Mug Set', quantity: 2, price: 34.99 }
-        ],
-        total: 69.98,
-        status: 'pending',
-        paymentStatus: 'pending',
-        shippingAddress: {
-            street: '789 Pine Rd',
-            city: 'Chicago',
-            state: 'IL',
-            zip: '60007',
-            country: 'United States'
-        },
-        createdAt: '2024-01-30'
-    },
-    {
-        id: '4',
-        orderNumber: 'ORD-2024-004',
-        customer: {
-            name: 'Emma Wilson',
-            email: 'emma.w@email.com',
-            phone: '+1 (555) 321-6547'
-        },
-        items: [
-            { name: 'Premium Wireless Headphones', quantity: 2, price: 299.99 }
-        ],
-        total: 599.98,
-        status: 'delivered',
-        paymentStatus: 'paid',
-        shippingAddress: {
-            street: '321 Elm St',
-            city: 'Houston',
-            state: 'TX',
-            zip: '77001',
-            country: 'United States'
-        },
-        createdAt: '2024-01-25',
-        trackingNumber: 'TRK987654321'
-    },
-    {
-        id: '5',
-        orderNumber: 'ORD-2024-005',
-        customer: {
-            name: 'Robert Brown',
-            email: 'robert.b@email.com',
-            phone: '+1 (555) 654-3210'
-        },
-        items: [
-            { name: 'Smart Watch Pro', quantity: 1, price: 449.99 }
-        ],
-        total: 449.99,
-        status: 'cancelled',
-        paymentStatus: 'failed',
-        shippingAddress: {
-            street: '654 Maple Dr',
-            city: 'Phoenix',
-            state: 'AZ',
-            zip: '85001',
-            country: 'United States'
-        },
-        createdAt: '2024-01-27'
-    }
-];
+const initialOrders: Order[] = [];
 
 const OrderCard = ({ order, colors, onViewDetails, onUpdateStatus }: {
     order: Order;
@@ -302,8 +180,8 @@ const OrderCard = ({ order, colors, onViewDetails, onUpdateStatus }: {
 };
 
 export default function OrdersPage() {
-    const { colors } = useTheme();
-    const [orders, setOrders] = useState<Order[]>(mockOrders);
+    const { colors, theme } = useTheme();
+    const [orders, setOrders] = useState<Order[]>(initialOrders);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedStatus, setSelectedStatus] = useState('All');
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -386,20 +264,64 @@ export default function OrdersPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight" style={{ color: colors.text.primary }}>
-                        Orders
-                    </h1>
-                    <p className="mt-2 text-base" style={{ color: colors.text.secondary }}>
-                        Manage customer orders and fulfillment
-                    </p>
+            <section
+                className="rounded-2xl border p-5 md:p-6"
+                style={{
+                    backgroundColor: colors.bg.card,
+                    borderColor: colors.border.faint,
+                    boxShadow: theme === 'dark'
+                        ? 'inset 0 1px 0 rgba(255,255,255,0.06), 0 20px 50px rgba(2,6,23,0.55)'
+                        : 'inset 0 1px 0 rgba(255,255,255,0.8), 0 12px 30px rgba(15,23,42,0.12)',
+                }}
+            >
+                <div className="relative">
+                    <div
+                        className="absolute -inset-x-6 -inset-y-4 rounded-3xl opacity-70 blur-2xl"
+                        style={{
+                            background: theme === 'dark'
+                                ? 'radial-gradient(60% 60% at 20% 20%, rgba(99,102,241,0.2), transparent 60%), radial-gradient(55% 55% at 80% 20%, rgba(14,165,233,0.16), transparent 60%), radial-gradient(50% 50% at 40% 80%, rgba(16,185,129,0.14), transparent 60%)'
+                                : 'radial-gradient(60% 60% at 20% 20%, rgba(99,102,241,0.14), transparent 60%), radial-gradient(55% 55% at 80% 20%, rgba(14,165,233,0.12), transparent 60%), radial-gradient(50% 50% at 40% 80%, rgba(16,185,129,0.1), transparent 60%)'
+                        }}
+                    />
+                    <div className="relative z-10">
+                        <motion.p
+                            className="text-xs uppercase tracking-[0.2em] mb-2"
+                            style={{ color: colors.text.muted }}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.4 }}
+                        >
+                            Dashboard Insights
+                        </motion.p>
+                        <motion.h1
+                            className="text-3xl font-bold tracking-tight bg-clip-text text-transparent"
+                            style={{
+                                backgroundImage: theme === 'dark'
+                                    ? 'linear-gradient(180deg, #ffffff 25%, #9ca3af 100%)'
+                                    : 'linear-gradient(180deg, #111827 25%, #4b5563 100%)'
+                            }}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.45 }}
+                        >
+                            Orders
+                        </motion.h1>
+                        <motion.p
+                            className="mt-2 text-sm md:text-base"
+                            style={{ color: colors.text.secondary }}
+                            initial={{ opacity: 0, y: 12 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.45, delay: 0.08 }}
+                        >
+                            Manage customer orders and fulfillment
+                        </motion.p>
+                    </div>
                 </div>
-            </div>
+            </section>
 
             {/* Charts Row: Pie for status, Bar for revenue per order */}
             <div className="flex flex-col md:flex-row gap-6">
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border p-6 w-fit flex flex-col" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border p-6 w-fit flex flex-col" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
                     <h4 className="text-sm font-semibold mb-4" style={{ color: colors.text.primary }}>Orders by status</h4>
                     <div className="flex flex-col items-center">
                         <PieChart data={statusChartData} size={120} />
@@ -411,7 +333,7 @@ export default function OrdersPage() {
                     </div>
                 </motion.div>
 
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border p-6 w-fit flex flex-col" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border p-6 w-fit flex flex-col" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
                     <h4 className="text-sm font-semibold mb-4" style={{ color: colors.text.primary }}>Revenue (by date)</h4>
                     <div className="flex flex-col items-center mt-6">
                         <BarChart data={revenueByDate} colors={{ bar: '#7c3aed' }} compact={true} />
@@ -425,7 +347,7 @@ export default function OrdersPage() {
             </div>
 
             {/* Filters + Table Controls */}
-            <div className="flex flex-col sm:flex-row gap-4 items-center">
+            <div className="flex flex-col sm:flex-row gap-4 items-center rounded-2xl border p-4" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
                 <div className="w-full sm:w-1/2">
                     <input
                         type="text"

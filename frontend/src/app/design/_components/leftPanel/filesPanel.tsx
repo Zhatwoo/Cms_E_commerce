@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useTransition } from "react";
 import ReactDOM from "react-dom";
 import { useEditor } from "@craftjs/core";
 import {
@@ -72,6 +72,8 @@ export const FilesPanel = () => {
     selected: state.events.selected,
   }));
 
+  const [isPending, startTransition] = useTransition();
+
   // ── Refs for stable access in event handlers ─
   const nodesRef = useRef(nodes);
   nodesRef.current = nodes;
@@ -129,20 +131,26 @@ export const FilesPanel = () => {
 
   // ── Context menu actions ──────────────────────────────────
   const handleSelect = useCallback(
-    (nodeId: string) => { actions.selectNode(nodeId); setContextMenu(null); },
-    [actions]
+    (nodeId: string) => {
+      startTransition(() => {
+        actions.selectNode(nodeId);
+        setContextMenu(null);
+      });
+    },
+    [actions, startTransition]
   );
 
   const handleDuplicate = useCallback(
     (nodeId: string) => {
-      try {
-        const serialized = query.serialize();
-        const data: Record<string, any> = JSON.parse(serialized);
-        const original = data[nodeId];
-        if (!original) return;
-        const parentId = original.parent;
-        if (!parentId || !data[parentId]) return;
-        const existingIds = new Set(Object.keys(data));
+      startTransition(() => {
+        try {
+          const serialized = query.serialize();
+          const data: Record<string, any> = JSON.parse(serialized);
+          const original = data[nodeId];
+          if (!original) return;
+          const parentId = original.parent;
+          if (!parentId || !data[parentId]) return;
+          const existingIds = new Set(Object.keys(data));
         const generateId = (): string => {
           let id = "";
           do { id = Math.random().toString(36).slice(2, 11); } while (existingIds.has(id));
@@ -171,26 +179,29 @@ export const FilesPanel = () => {
         else siblings.splice(index + 1, 0, clonedRootId);
         parentNode.nodes = siblings;
         actions.deserialize(JSON.stringify(data));
-      } catch (e) {
-        console.warn("Failed to duplicate node:", e);
-      }
-      setContextMenu(null);
+        } catch (e) {
+          console.warn("Failed to duplicate node:", e);
+        }
+        setContextMenu(null);
+      });
     },
-    [actions, query]
+    [actions, query, startTransition]
   );
 
   const handleDelete = useCallback(
     (nodeId: string) => {
-      try {
-        if (nodeId === "ROOT") return;
-        const node = query.node(nodeId).get();
-        if (PROTECTED.has(node.data.displayName)) return;
-        if (!query.node(nodeId).isDeletable()) return;
-        actions.delete(nodeId);
-      } catch { /* node might already be gone */ }
-      setContextMenu(null);
+      startTransition(() => {
+        try {
+          if (nodeId === "ROOT") return;
+          const node = query.node(nodeId).get();
+          if (PROTECTED.has(node.data.displayName)) return;
+          if (!query.node(nodeId).isDeletable()) return;
+          actions.delete(nodeId);
+        } catch { /* node might already be gone */ }
+        setContextMenu(null);
+      });
     },
-    [actions, query]
+    [actions, query, startTransition]
   );
 
   const isProtected = (nodeId: string): boolean => {
@@ -570,15 +581,17 @@ export const FilesPanel = () => {
             if (dragRef.current?.activated) return;
             e.stopPropagation();
             const isMulti = e.ctrlKey || e.metaKey;
-            if (isMulti) {
-              const selArr = selected instanceof Set ? Array.from(selected) : Array.isArray(selected) ? selected : [];
-              const next = new Set(selArr);
-              if (next.has(nodeId)) next.delete(nodeId);
-              else next.add(nodeId);
-              actions.selectNode(next.size === 0 ? undefined : Array.from(next));
-            } else {
-              actions.selectNode(nodeId);
-            }
+            startTransition(() => {
+              if (isMulti) {
+                const selArr = selected instanceof Set ? Array.from(selected) : Array.isArray(selected) ? selected : [];
+                const next = new Set(selArr);
+                if (next.has(nodeId)) next.delete(nodeId);
+                else next.add(nodeId);
+                actions.selectNode(next.size === 0 ? undefined : Array.from(next));
+              } else {
+                actions.selectNode(nodeId);
+              }
+            });
           }}
           onContextMenu={openContextMenu}
           className={`
