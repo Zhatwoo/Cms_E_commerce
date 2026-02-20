@@ -7,7 +7,18 @@ import { useCanvasTool } from "./CanvasToolContext";
 const DRAGGING_ATTR = "data-dragging";
 const DRAG_THRESHOLD = 4;
 
-type NodesMap = Record<string, { data?: { parent?: string; isCanvas?: boolean } }>;
+type NodesMap = Record<string, { data?: { parent?: string; isCanvas?: boolean; displayName?: string } }>;
+
+const CANVAS_DISPLAY_NAMES = new Set([
+  "Page",
+  "Viewport",
+  "Container",
+  "Section",
+  "Row",
+  "Column",
+  "Frame",
+  "Button",
+]);
 const EDITOR_DRAGGING_FLAG = "editorDragging";
 const EDITOR_DROP_COMMIT_FLAG = "editorDropCommit";
 
@@ -124,7 +135,9 @@ function getDropTargetAt(
     const id = withNode.getAttribute("data-node-id");
     if (!id || exclude.has(id)) continue;
     const node = nodes[id];
-    if (node?.data?.isCanvas) return id;
+    if (!node?.data) continue;
+    if (node.data.isCanvas) return id;
+    if (node.data.displayName && CANVAS_DISPLAY_NAMES.has(node.data.displayName)) return id;
   }
   return null;
 }

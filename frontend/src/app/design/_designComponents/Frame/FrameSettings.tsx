@@ -12,6 +12,7 @@ export const FrameSettings = () => {
     referenceHeight,
     fitMode,
     width,
+    height,
     minHeight,
     paddingLeft,
     paddingRight,
@@ -35,6 +36,7 @@ export const FrameSettings = () => {
     referenceHeight: node.data.props.referenceHeight,
     fitMode: node.data.props.fitMode,
     width: node.data.props.width,
+    height: node.data.props.height,
     minHeight: node.data.props.minHeight,
     paddingLeft: node.data.props.paddingLeft,
     paddingRight: node.data.props.paddingRight,
@@ -91,10 +93,10 @@ export const FrameSettings = () => {
               onChange={(e) => typedSetProp((p) => { p.fitMode = e.target.value as FrameProps["fitMode"]; })}
               className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-2 focus:outline-none"
             >
-              <option value="contain">Contain (scale to fit, lahat ng assets sumabay)</option>
-              <option value="cover">Cover (fill, may crop kung kailangan)</option>
-              <option value="width">Width (scale by width lang)</option>
-              <option value="fluid">Fluid (100% width, assets nag reflow)</option>
+              <option value="contain">Contain</option>
+              <option value="cover">Cover</option>
+              <option value="width">Width</option>
+              <option value="fluid">Fluid</option>
             </select>
           </div>
           <div>

@@ -24,7 +24,7 @@ const PROTECTED = new Set(["Viewport"]);
 const UNDRAGGABLE = new Set(["ROOT", "Viewport", "Page"]);
 
 /** Display names that accept drop "inside" (canvas containers). */
-const CANVAS_CONTAINERS = new Set(["Viewport", "Page", "Section", "Row", "Column", "Container"]);
+const CANVAS_CONTAINERS = new Set(["Viewport", "Page", "Section", "Row", "Column", "Container", "Frame"]);
 
 /** Get ordered child node IDs from a node (Craft state or serialized shape). */
 function getChildIds(node: Record<string, unknown> | null | undefined): string[] {

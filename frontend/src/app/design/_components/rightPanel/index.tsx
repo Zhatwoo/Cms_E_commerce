@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useEditor } from "@craftjs/core";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Lock, LockOpen, Play } from "lucide-react";
+import { Eye, EyeOff, Lock, LockOpen, Play, X } from "lucide-react";
 import { serializeCraftToClean } from "../../_lib/serializer";
 import { autoSavePage } from "../../_lib/pageApi";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
@@ -26,12 +26,16 @@ interface RightPanelProps {
   projectId: string;
   activeTab?: TabId;
   setActiveTab?: (tab: TabId) => void;
+  /** When false, RightPanelInner is not mounted to avoid Craft.js setState-during-render. Set by EditorShell after Frame has committed. */
+  frameReady?: boolean;
+  /** Called when the user clicks the X to close the Configs panel. */
+  onClose?: () => void;
 }
 
 // Inner panel that subscribes to Craft editor.
 // Mounted lazily by RightPanel to avoid "setState during render" warnings
 // when Frame is rendering initial data.
-const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: setControlledTab }: RightPanelProps) => {
+const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: setControlledTab, onClose }: RightPanelProps) => {
   const { showAlert } = useAlert();
   const [internalTab, setInternalTab] = useState<TabId>("design");
   const activeTab = controlledTab ?? internalTab;
@@ -123,14 +127,26 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
     >
       <div className="flex items-center justify-between mb-6 gap-2">
         <h3 className="text-brand-lighter font-bold text-lg">Configs</h3>
-        <button
-          onClick={handlePreview}
-          disabled={isPreviewing}
-          className={`p-1 rounded-lg transition-colors cursor-pointer ${isPreviewing ? 'opacity-50 cursor-wait' : 'hover:bg-brand-medium/40'}`}
-          title="Preview (Web / Clean / Raw)"
-        >
-          <Play strokeWidth={2} className={`w-5 h-5 transition-colors ${isPreviewing ? 'text-yellow-400 animate-pulse' : 'text-brand-light hover:text-brand-lighter'}`} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handlePreview}
+            disabled={isPreviewing}
+            className={`p-1 rounded-lg transition-colors cursor-pointer ${isPreviewing ? 'opacity-50 cursor-wait' : 'hover:bg-brand-medium/40'}`}
+            title="Preview (Web / Clean / Raw)"
+          >
+            <Play strokeWidth={2} className={`w-5 h-5 transition-colors ${isPreviewing ? 'text-yellow-400 animate-pulse' : 'text-brand-light hover:text-brand-lighter'}`} />
+          </button>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1 rounded-lg transition-colors hover:bg-brand-medium/40 text-brand-light hover:text-brand-lighter"
+              title="Close panel"
+            >
+              <X className="w-5 h-5" strokeWidth={2} />
+            </button>
+          )}
+        </div>
       </div>
 
       {selectedIds.length > 0 ? (
@@ -226,19 +242,19 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
   );
 };
 
-export const RightPanel = (props: RightPanelProps) => {
+export const RightPanel = ({ frameReady = true, ...props }: RightPanelProps) => {
   const [ready, setReady] = useState(false);
 
-  // Delay mounting the editor-subscribed content by one frame.
-  // This avoids React warnings like:
-  // "Cannot update a component (RightPanel) while rendering a different component (De)"
-  // caused by Craft.js internal synchronous updates during initial Frame render.
+  // Delay mounting the editor-subscribed content until after Frame has committed (frameReady)
+  // and one extra frame. Avoids "Cannot update RightPanelInner while rendering De".
   useEffect(() => {
     const id = requestAnimationFrame(() => setReady(true));
     return () => cancelAnimationFrame(id);
   }, []);
 
-  if (!ready) {
+  const canMountInner = frameReady && ready;
+
+  if (!canMountInner) {
     return (
       <div
         data-panel="configs"

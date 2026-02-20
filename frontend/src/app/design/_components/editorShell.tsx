@@ -3,8 +3,7 @@ import { useRef, useState, useEffect, useLayoutEffect, useCallback } from "react
 import { Editor, Frame, Element, useEditor } from "@craftjs/core";
 import { PanelLeft, PanelRight } from "lucide-react";
 import { RenderBlocks } from "../_designComponents";
-// Direct import ensures Frame is bundled and resolver never misses it
-import { Frame as ResponsiveFrameComponent } from "../_designComponents/Frame/Frame";
+import { Frame as FrameComponentFromFile } from "../_designComponents/Frame/Frame";
 import { LeftPanel } from "./leftPanel";
 import { RightPanel } from "./rightPanel";
 import { TopPanel, type DevicePreset } from "./TopPanel";
@@ -27,6 +26,7 @@ import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
 import { CanvasContextMenu } from "./CanvasContextMenu";
 import { PrototypeTabProvider } from "./PrototypeTabContext";
 import { PrototypeFlowLines } from "./PrototypeFlowLines";
+import { EditorPhonePreview } from "./EditorPhonePreview";
 import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
@@ -267,9 +267,19 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
 }
 
 /**
- * SafeFrame component that catches Frame rendering errors and falls back to empty canvas
+ * SafeFrame component that catches Frame rendering errors and falls back to empty canvas.
+ * Calls onFrameMounted after the Frame has committed, so panels that use useEditor()
+ * (e.g. FilesPanel) can mount in the next tick and avoid "setState during render" from Craft.js.
  */
-const SafeFrame = ({ data, onError }: { data: string | null; onError?: () => void }) => {
+const SafeFrame = ({
+  data,
+  onError,
+  onFrameMounted,
+}: {
+  data: string | null;
+  onError?: () => void;
+  onFrameMounted?: () => void;
+}) => {
   const [renderData, setRenderData] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [hasErrorBoundaryError, setHasErrorBoundaryError] = useState(false);
@@ -306,6 +316,14 @@ const SafeFrame = ({ data, onError }: { data: string | null; onError?: () => voi
     setRenderData(null);
     onError?.();
   }, [onError]);
+
+  // Signal after Frame has committed so panels using useEditor() (e.g. FilesPanel) mount next tick
+  // and avoid "Cannot update FilesPanel while rendering De" from Craft.js synchronous store updates.
+  useEffect(() => {
+    if (!isReady || !onFrameMounted) return;
+    const id = requestAnimationFrame(() => onFrameMounted());
+    return () => cancelAnimationFrame(id);
+  }, [isReady, onFrameMounted]);
 
   if (!isReady) {
     return (
@@ -357,12 +375,14 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
-  const [rightPanelOpen, setRightPanelOpen] = useState(false);
+  const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [rightPanelTab, setRightPanelTab] = useState<TabId>("design");
   const [canvasWidth, setCanvasWidth] = useState(1440);
   const [canvasHeight, setCanvasHeight] = useState(900);
   const [canvasRotation, setCanvasRotation] = useState(0);
   const [activeTool, setActiveTool] = useState<CanvasTool>("move");
+  const [frameReady, setFrameReady] = useState(false);
+  const [showDualView, setShowDualView] = useState(false);
 
   // Cleanup corrupted data when error boundary triggers
   const handleFrameError = useCallback(async () => {
@@ -494,11 +514,10 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
     }, 100);
   }, [canvasWidth, canvasHeight]);
 
-  // Handle device preset selection - this will be passed to DevicePresetHandler
+  // Handle device preset selection - only width changes; preserve page height so it doesn't reset
   const handleDevicePresetSelect = useCallback((preset: DevicePreset) => {
     setCanvasWidth(preset.width);
-    setCanvasHeight(preset.height);
-    // Optionally adjust zoom to fit the new size
+    // Do not set canvasHeight so existing page height is preserved when switching device sizes
     setTimeout(() => {
       handleFitToCanvas();
     }, 100);
@@ -781,24 +800,33 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
     };
   }, []);
 
-  // Frame (responsive layout): ensure resolver always has a valid component (never undefined)
-  const FrameComponent = ResponsiveFrameComponent ?? (RenderBlocks as Record<string, React.ComponentType>).Frame ?? Container;
-  const resolver = {
-    ...RenderBlocks,
-    Text: Text || Container,
-    text: Text || Container,
-    Circle: Circle || Container,
-    Square: Square || Container,
-    Triangle: Triangle || Container,
-    circle: Circle || Container,
-    square: Square || Container,
-    triangle: Triangle || Container,
-    Frame: FrameComponent,
-    frame: FrameComponent,
-  } as any;
+  // Frame must be in resolver or Craft throws "does not exist in the resolver". Use direct import first; never leave Frame undefined.
+  const FrameForResolver: React.ComponentType =
+    (typeof FrameComponentFromFile === "function" ? FrameComponentFromFile : null) ??
+    (typeof RenderBlocks?.Frame === "function" ? RenderBlocks.Frame : null) ??
+    Container;
 
   /** Only pass to Frame if data is valid Craft format and every node type exists in resolver */
-  const resolverRef = useRef(resolver);
+  const resolverRef = useRef<Record<string, React.ComponentType>>({});
+
+  const resolver: Record<string, React.ComponentType> = React.useMemo(() => {
+    const base: Record<string, React.ComponentType> = {
+      ...RenderBlocks,
+      Text: Text || Container,
+      text: Text || Container,
+      Circle: Circle || Container,
+      Square: Square || Container,
+      Triangle: Triangle || Container,
+      circle: Circle || Container,
+      square: Square || Container,
+      triangle: Triangle || Container,
+    };
+    // Force Frame to always exist; Craft looks up by "Frame" and sometimes "frame"
+    base.Frame = FrameForResolver;
+    base.frame = FrameForResolver;
+    return base;
+  }, [FrameForResolver]);
+
   resolverRef.current = resolver;
   const validFrameData = React.useMemo(() => {
     if (initialJson === undefined || initialJson === null || initialJson === "") return null;
@@ -814,6 +842,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
       }
 
       const allIds = new Set(Object.keys(parsed));
+      const CANVAS_TYPES = new Set(["Frame", "Container", "Section", "Row", "Column", "Page", "Viewport", "Button"]);
 
       for (const id of Object.keys(parsed)) {
         const node = parsed[id] as Record<string, unknown> | null;
@@ -830,6 +859,13 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
           } else {
             node.type = { resolvedName: "Container" };
             node.displayName = "Container";
+          }
+        }
+
+        if (CANVAS_TYPES.has(rawName)) {
+          node.isCanvas = true;
+          if (typeof node.data === "object" && node.data !== null) {
+            (node.data as Record<string, unknown>).isCanvas = true;
           }
         }
 
@@ -909,13 +945,15 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
               canvasWidth={canvasWidth}
               canvasHeight={canvasHeight}
               onDevicePresetSelect={handleDevicePresetSelect}
+              showDualView={showDualView}
+              onDualViewToggle={() => setShowDualView((v) => !v)}
             />
           )}
-          {/* Canvas Area (Background) */}
+          {/* Canvas Area (Background) — when dual view: leave room for phone preview on the right */}
         <div
           ref={containerRef}
           data-canvas-container
-          className={`absolute inset-0 overflow-auto bg-brand-darker ${activeTool === "hand" ? "canvas-hand-tool" : ""} ${activeTool === "hand" && isPanning ? "canvas-hand-panning" : ""}`}
+          className={`absolute inset-0 overflow-auto bg-brand-darker canvas-scroll-container ${activeTool === "hand" ? "canvas-hand-tool" : ""} ${activeTool === "hand" && isPanning ? "canvas-hand-panning" : ""}`}
           style={{
             cursor:
               activeTool === "hand"
@@ -942,10 +980,20 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             }}
           >
             {initialJson === undefined ? null : (
-              <SafeFrame data={initialJson} onError={handleFrameError} />
+              <SafeFrame
+                data={validFrameData ?? initialJson}
+                onError={handleFrameError}
+                onFrameMounted={() => setFrameReady(true)}
+              />
             )}
           </div>
         </div>
+        {/* Floating phone preview — device mockup on top of canvas */}
+        {showDualView && (
+          <div className="absolute inset-0 z-40 pointer-events-none">
+            <EditorPhonePreview />
+          </div>
+        )}
         {/* Floating Panels */}
         {/* Left Panel */}
         {panelsReady && (
@@ -963,7 +1011,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
                         : '-translate-x-full scale-90 opacity-0 pointer-events-none'
                     }`}
                   >
-                    <LeftPanel onToggle={() => setLeftPanelOpen(false)} />
+                    <LeftPanel onToggle={() => setLeftPanelOpen(false)} frameReady={frameReady} />
                   </div>
                 </div>
                 <button
@@ -981,13 +1029,32 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         )}
         {/* Right Panel */}
         {panelsReady && (
-          <div className="absolute top-14 right-4 z-50 h-[calc(100vh-3.5rem)] pointer-events-none">
-            <div className="pointer-events-auto h-full">
-              <RightPanel
-                projectId={projectId}
-                activeTab={rightPanelTab}
-                setActiveTab={setRightPanelTab}
-              />
+          <div className="absolute top-14 right-4 z-50 h-[calc(100vh-3.5rem)] w-80 flex items-start pointer-events-none">
+            <div className="h-full w-80 flex items-start justify-end pointer-events-auto">
+              <div
+                className={`h-full w-80 origin-right transition-[transform,opacity] duration-300 ease-out will-change-transform ${
+                  rightPanelOpen
+                    ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
+                    : 'translate-x-full scale-90 opacity-0 pointer-events-none'
+                }`}
+              >
+                <RightPanel
+                  projectId={projectId}
+                  activeTab={rightPanelTab}
+                  setActiveTab={setRightPanelTab}
+                  frameReady={frameReady}
+                  onClose={() => setRightPanelOpen(false)}
+                />
+              </div>
+              <button
+                onClick={() => setRightPanelOpen((open) => !open)}
+                className={`absolute right-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${
+                  rightPanelOpen ? 'opacity-0 pointer-events-none scale-95' : 'opacity-100 pointer-events-auto scale-100'
+                }`}
+                title={rightPanelOpen ? "Hide right panel" : "Show Configs panel"}
+              >
+                <PanelRight className="w-5 h-5 text-brand-light" />
+              </button>
             </div>
           </div>
         )}

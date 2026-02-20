@@ -51,11 +51,13 @@ const responsiveAssetStyles = (
       .frame-responsive-inner [data-nav-container] {
         position: relative;
         display: flex;
+        flex-direction: row;
         align-items: center;
+        justify-content: space-between;
         width: 100%;
       }
       
-      /* Mobile hamburger menu button - hidden by default */
+      /* Hamburger always on the right: order last + margin-left auto */
       .frame-responsive-inner [data-nav-container] .nav-hamburger {
         display: none;
         flex-direction: column;
@@ -67,6 +69,13 @@ const responsiveAssetStyles = (
         z-index: 1001;
         position: relative;
         color: inherit;
+        margin-left: auto !important;
+        order: 999 !important;
+        flex-shrink: 0;
+      }
+      
+      .frame-responsive-inner [data-nav-container] .nav-menu {
+        order: 0;
       }
       
       .frame-responsive-inner [data-nav-container] .nav-hamburger span {
@@ -101,6 +110,14 @@ const responsiveAssetStyles = (
         padding: 0;
         width: 100%;
       }
+
+      .frame-responsive-inner [data-nav-container] .nav-menu ul,
+      .frame-responsive-inner [data-nav-container] .nav-menu ol {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        width: 100%;
+      }
       
       /* Mobile breakpoint - convert nav to hamburger menu */
       /* Based on container size, not viewport - using container queries if available */
@@ -115,13 +132,17 @@ const responsiveAssetStyles = (
         
         .frame-responsive-inner [data-nav-container] .nav-hamburger {
           display: flex !important;
+          order: 999 !important;
+          margin-left: auto !important;
         }
         
         .frame-responsive-inner [data-nav-container] .nav-menu {
           position: absolute !important;
           top: 100% !important;
-          left: 0 !important;
+          left: auto !important;
           right: 0 !important;
+          min-width: 200px !important;
+          max-width: 100% !important;
           flex-direction: column !important;
           align-items: stretch !important;
           background: rgba(255, 255, 255, 0.98) !important;
@@ -135,6 +156,7 @@ const responsiveAssetStyles = (
           transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease !important;
           z-index: 1000 !important;
           margin-top: 8px !important;
+          border-radius: 0 0 8px 8px !important;
         }
         
         .frame-responsive-inner [data-nav-container] .nav-menu.open {
@@ -146,8 +168,29 @@ const responsiveAssetStyles = (
         .frame-responsive-inner [data-nav-container] .nav-menu > * {
           width: 100% !important;
           padding: 12px !important;
-          text-align: left !important;
+          text-align: right !important;
           border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+          display: block !important;
+        }
+
+        .frame-responsive-inner [data-nav-container] .nav-menu ul,
+        .frame-responsive-inner [data-nav-container] .nav-menu ol {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 0 !important;
+          width: 100% !important;
+        }
+
+        .frame-responsive-inner [data-nav-container] .nav-menu ul > li,
+        .frame-responsive-inner [data-nav-container] .nav-menu ol > li {
+          width: 100% !important;
+          margin: 0 !important;
+          display: block !important;
+        }
+
+        .frame-responsive-inner [data-nav-container] .nav-menu ul > li > a,
+        .frame-responsive-inner [data-nav-container] .nav-menu ol > li > a {
+          width: 100% !important;
           display: block !important;
         }
         
@@ -169,14 +212,18 @@ const responsiveAssetStyles = (
       .frame-responsive-inner.frame-mobile [data-nav-container] .nav-hamburger,
       .frame-mobile .frame-responsive-inner [data-nav-container] .nav-hamburger {
         display: flex !important;
+        order: 999 !important;
+        margin-left: auto !important;
       }
       
       .frame-responsive-inner.frame-mobile [data-nav-container] .nav-menu,
       .frame-mobile .frame-responsive-inner [data-nav-container] .nav-menu {
         position: absolute !important;
         top: 100% !important;
-        left: 0 !important;
+        left: auto !important;
         right: 0 !important;
+        min-width: 200px !important;
+        max-width: 100% !important;
         flex-direction: column !important;
         align-items: stretch !important;
         background: rgba(255, 255, 255, 0.98) !important;
@@ -190,6 +237,7 @@ const responsiveAssetStyles = (
         transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease !important;
         z-index: 1000 !important;
         margin-top: 8px !important;
+        border-radius: 0 0 8px 8px !important;
       }
       
       .frame-responsive-inner.frame-mobile [data-nav-container] .nav-menu.open,
@@ -203,8 +251,35 @@ const responsiveAssetStyles = (
       .frame-mobile .frame-responsive-inner [data-nav-container] .nav-menu > * {
         width: 100% !important;
         padding: 12px !important;
-        text-align: left !important;
+        text-align: right !important;
         border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+        display: block !important;
+      }
+
+      .frame-responsive-inner.frame-mobile [data-nav-container] .nav-menu ul,
+      .frame-responsive-inner.frame-mobile [data-nav-container] .nav-menu ol,
+      .frame-mobile .frame-responsive-inner [data-nav-container] .nav-menu ul,
+      .frame-mobile .frame-responsive-inner [data-nav-container] .nav-menu ol {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0 !important;
+        width: 100% !important;
+      }
+
+      .frame-responsive-inner.frame-mobile [data-nav-container] .nav-menu ul > li,
+      .frame-responsive-inner.frame-mobile [data-nav-container] .nav-menu ol > li,
+      .frame-mobile .frame-responsive-inner [data-nav-container] .nav-menu ul > li,
+      .frame-mobile .frame-responsive-inner [data-nav-container] .nav-menu ol > li {
+        width: 100% !important;
+        margin: 0 !important;
+        display: block !important;
+      }
+
+      .frame-responsive-inner.frame-mobile [data-nav-container] .nav-menu ul > li > a,
+      .frame-responsive-inner.frame-mobile [data-nav-container] .nav-menu ol > li > a,
+      .frame-mobile .frame-responsive-inner [data-nav-container] .nav-menu ul > li > a,
+      .frame-mobile .frame-responsive-inner [data-nav-container] .nav-menu ol > li > a {
+        width: 100% !important;
         display: block !important;
       }
       
@@ -225,13 +300,17 @@ const responsiveAssetStyles = (
         
         .frame-responsive-inner [data-nav-container] .nav-hamburger {
           display: flex !important;
+          order: 999 !important;
+          margin-left: auto !important;
         }
         
         .frame-responsive-inner [data-nav-container] .nav-menu {
           position: absolute !important;
           top: 100% !important;
-          left: 0 !important;
+          left: auto !important;
           right: 0 !important;
+          min-width: 200px !important;
+          max-width: 100% !important;
           flex-direction: column !important;
           align-items: stretch !important;
           background: rgba(255, 255, 255, 0.98) !important;
@@ -245,6 +324,7 @@ const responsiveAssetStyles = (
           transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease !important;
           z-index: 1000 !important;
           margin-top: 8px !important;
+          border-radius: 0 0 8px 8px !important;
         }
         
         .frame-responsive-inner [data-nav-container] .nav-menu.open {
@@ -256,8 +336,29 @@ const responsiveAssetStyles = (
         .frame-responsive-inner [data-nav-container] .nav-menu > * {
           width: 100% !important;
           padding: 12px !important;
-          text-align: left !important;
+          text-align: right !important;
           border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+          display: block !important;
+        }
+
+        .frame-responsive-inner [data-nav-container] .nav-menu ul,
+        .frame-responsive-inner [data-nav-container] .nav-menu ol {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 0 !important;
+          width: 100% !important;
+        }
+
+        .frame-responsive-inner [data-nav-container] .nav-menu ul > li,
+        .frame-responsive-inner [data-nav-container] .nav-menu ol > li {
+          width: 100% !important;
+          margin: 0 !important;
+          display: block !important;
+        }
+
+        .frame-responsive-inner [data-nav-container] .nav-menu ul > li > a,
+        .frame-responsive-inner [data-nav-container] .nav-menu ol > li > a {
+          width: 100% !important;
           display: block !important;
         }
         
@@ -292,6 +393,45 @@ const responsiveAssetStyles = (
       .frame-responsive-inner textarea {
         max-width: 100%;
         box-sizing: border-box;
+      }
+      
+      /* Fluid mode: maayos na alignment, compatible sa lahat ng devices */
+      .frame-responsive-inner.frame-fluid {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+      }
+      .frame-responsive-inner.frame-fluid * { box-sizing: border-box; }
+      .frame-responsive-inner.frame-fluid > * {
+        max-width: 100% !important;
+        min-width: 0 !important;
+      }
+      .frame-responsive-inner.frame-fluid img,
+      .frame-responsive-inner.frame-fluid video,
+      .frame-responsive-inner.frame-fluid iframe {
+        max-width: 100% !important;
+        height: auto !important;
+        display: block !important;
+        object-fit: contain;
+      }
+      .frame-responsive-inner.frame-fluid [data-node-id] {
+        max-width: 100% !important;
+        min-width: 0;
+      }
+      /* Maliit na canvas (phone): row -> column — text sa taas, image sa ibaba (hero) */
+      @container (max-width: 640px) {
+        .frame-responsive-inner.frame-fluid [data-layout="row"] {
+          flex-direction: column !important;
+          align-items: stretch !important;
+        }
+        .frame-responsive-inner.frame-fluid [data-layout="row"] > * {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+        }
+      }
+      @container (max-width: 400px) {
+        .frame-responsive-inner.frame-fluid [data-layout="row"] { gap: 12px !important; }
       }
     `,
   }} />
@@ -343,6 +483,7 @@ export const Frame = ({
     ...RESPONSIVE_INNER_STYLE,
     flexShrink: 0,
     position: "relative",
+    overflow: "hidden",
   };
 
   if (isFluid) {
@@ -419,82 +560,61 @@ export const Frame = ({
     const innerEl = innerRef.current;
     if (!innerEl) return;
 
-    // Function to check if a container looks like a navigation bar
-    const isNavContainer = (el: HTMLElement): boolean => {
-      const style = window.getComputedStyle(el);
-      const flexDirection = style.flexDirection;
-      const display = style.display;
-      const isHorizontal = (flexDirection === "row" || flexDirection === "" || flexDirection === "initial") && 
-                           (display === "flex" || display === "inline-flex");
-      
-      if (!isHorizontal) return false;
-      
-      // Check if it has multiple buttons, links, or interactive elements
-      const children = Array.from(el.children);
-      let navItemCount = 0;
-      
-      for (const child of children) {
-        const tagName = child.tagName.toLowerCase();
-        const childEl = child as HTMLElement;
-        const childCursor = window.getComputedStyle(childEl).cursor;
-        const looksClickable =
-          childCursor === "pointer" ||
-          childEl.getAttribute("role") === "button" ||
-          childEl.hasAttribute("onclick");
-
-        if (
-          tagName === "button" ||
-          tagName === "a" ||
-          child.querySelector("button, a") ||
-          looksClickable
-        ) {
-          navItemCount++;
-        }
-      }
-      
-      return navItemCount >= 2;
+    // Detect header/nav containers, including hand-made headers with UL menus
+    const isHeaderAsset = (el: HTMLElement): boolean => {
+      const tag = el.tagName.toLowerCase();
+      if (el.getAttribute("data-header") !== null) return true;
+      const className = (el.className || "") as string;
+      if (/header/i.test(className)) return true;
+      if (el.getAttribute("role") === "banner") return true;
+      if (el.getAttribute("role") === "navigation") return true;
+      if (tag === "header" || tag === "nav") return true;
+      if (el.querySelector("ul") && (el.querySelector("a") || el.querySelector("li"))) return true;
+      return false;
     };
 
-    // Function to enhance a navigation container
-    const enhanceNavContainer = (container: HTMLElement) => {
-      // Skip if already enhanced
-      if (container.hasAttribute("data-nav-enhanced")) return;
-      
-      // Mark as enhanced
-      container.setAttribute("data-nav-enhanced", "true");
-      container.setAttribute("data-nav-container", "true");
-      
-      // Wrap existing children in nav-menu div
-      const existingChildren = Array.from(container.children);
+    // Function to enhance a navigation container: only UL (nav links) go in dropdown; logo stays visible
+    const enhanceNavContainer = (container: HTMLElement): boolean => {
+      if (container.hasAttribute("data-nav-enhanced")) return false;
+
+      const existingChildren = Array.from(container.children).filter(
+        (c) => !(c as HTMLElement).classList.contains("nav-hamburger")
+      );
+
+      // Only UL (or element that contains UL) goes in dropdown; logos and first child stay visible
+      const navChildren: Element[] = [];
+      for (const child of existingChildren) {
+        const el = child as HTMLElement;
+        const isUl = el.tagName.toLowerCase() === "ul";
+        const containsUl = el.querySelector("ul");
+        if (isUl || containsUl) navChildren.push(child);
+      }
+      // Fallback when no UL: first child = logo (stays visible), rest = nav (dropdown)
+      const toDropDown = navChildren.length > 0
+        ? navChildren
+        : existingChildren.length > 1
+          ? existingChildren.slice(1)
+          : [];
+
       const menuWrapper = document.createElement("div");
       menuWrapper.className = "nav-menu";
-      
-      // Move all non-hamburger children to menu wrapper
-      existingChildren.forEach((child) => {
-        if (!child.classList.contains("nav-hamburger")) {
-          menuWrapper.appendChild(child);
-        }
-      });
-      
-      // Insert menu wrapper at the beginning
-      if (menuWrapper.children.length > 0) {
-        container.insertBefore(menuWrapper, container.firstChild);
-      }
-      
-      // Add hamburger button
+      toDropDown.forEach((c) => menuWrapper.appendChild(c));
+
+      if (menuWrapper.children.length === 0) return false;
+
+      container.setAttribute("data-nav-enhanced", "true");
+      container.setAttribute("data-nav-container", "true");
+      container.append(menuWrapper);
+
       const hamburger = document.createElement("button");
       hamburger.className = "nav-hamburger";
       hamburger.setAttribute("aria-label", "Toggle menu");
       hamburger.setAttribute("aria-expanded", "false");
       hamburger.type = "button";
-      
-      // Create hamburger icon spans
       for (let i = 0; i < 3; i++) {
         const span = document.createElement("span");
         hamburger.appendChild(span);
       }
-      
-      // Add click handler
       hamburger.addEventListener("click", (e) => {
         e.stopPropagation();
         e.preventDefault();
@@ -506,29 +626,24 @@ export const Frame = ({
           hamburger.setAttribute("aria-expanded", String(!isOpen));
         }
       });
-      
-      // Append hamburger button
       container.appendChild(hamburger);
+      return true;
     };
 
-    // Function to scan and enhance navigation containers
+    // Scan and enhance only Header assets (first match only)
     const scanAndEnhance = () => {
-      // Use a small delay to ensure DOM is ready
       setTimeout(() => {
         if (!innerEl) return;
-        
-        // Find all div containers
-        const containers = innerEl.querySelectorAll("div");
-        
-        containers.forEach((container) => {
+
+        const containers = innerEl.querySelectorAll("header, nav, div, section");
+        for (const container of containers) {
           const el = container as HTMLElement;
-          // Skip if it's already a nav-menu or hamburger
-          if (el.classList.contains("nav-menu") || el.classList.contains("nav-hamburger")) return;
-          
-          if (isNavContainer(el)) {
-            enhanceNavContainer(el);
+          if (el.classList.contains("nav-menu") || el.classList.contains("nav-hamburger")) continue;
+          if (isHeaderAsset(el)) {
+            const enhanced = enhanceNavContainer(el);
+            if (enhanced) break;
           }
-        });
+        }
       }, 100);
     };
 
@@ -561,7 +676,7 @@ export const Frame = ({
         (frameContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
         if (el) connect(drag(el));
       }}
-      className="min-h-[80px] transition-[outline] duration-150 hover:outline hover:outline-blue-500 box-border flex items-start justify-start overflow-hidden"
+      className="min-h-[80px] transition-[outline] duration-150 hover:outline hover:outline-blue-500 box-border flex items-center justify-center overflow-hidden"
       style={{
         width,
         minHeight: effectiveMinHeight,
@@ -573,8 +688,9 @@ export const Frame = ({
     >
       {responsiveAssetStyles}
       <div 
-        ref={innerRef} 
-        className="frame-responsive-inner" 
+        ref={innerRef}
+        data-node-id={id}
+        className={`frame-responsive-inner${isFluid ? " frame-fluid" : ""} min-h-[60px]`}
         style={{
           ...innerStyle,
           containerType: "inline-size", // Enable container queries for inner content

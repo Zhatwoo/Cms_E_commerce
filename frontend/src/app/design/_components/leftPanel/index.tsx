@@ -28,9 +28,11 @@ interface LeftPanelProps {
   onToggle?: () => void;
   activePanel?: LeftPanelTabId;
   setActivePanel?: (tab: LeftPanelTabId) => void;
+  /** When false, FilesPanel is not mounted to avoid Craft.js setState-during-render. Set by EditorShell after Frame has committed. */
+  frameReady?: boolean;
 }
 
-export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePanel: setControlledPanel }: LeftPanelProps) => {
+export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePanel: setControlledPanel, frameReady = true }: LeftPanelProps) => {
   const [internalPanel, setInternalPanel] = useState<LeftPanelTabId>("files");
   const activePanel = controlledPanel ?? internalPanel;
   const setActivePanel = setControlledPanel ?? setInternalPanel;
@@ -39,6 +41,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
   // Delay mounting FilesPanel to avoid "setState during render" warnings
   // caused by Craft.js internal synchronous updates while Frame is rendering.
   const [filesPanelReady, setFilesPanelReady] = useState(false);
+  const canMountFilesPanel = frameReady && filesPanelReady;
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { websiteName } = useDesignProject();
@@ -276,7 +279,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
 
       {/* Panel content: only this area scrolls */}
       <div className={`flex-1 min-h-0 overflow-y-auto mt-4 ${activePanel === "components" ? "no-scrollbar" : ""}`}>
-        {activePanel === "files" && (filesPanelReady ? <FilesPanel /> : null)}
+        {activePanel === "files" && (canMountFilesPanel ? <FilesPanel /> : null)}
         {activePanel === "assets" && <AssetsPanel />}
         {activePanel === "components" && <ComponentsPanel />}
         {activePanel === "templates" && <TemplatePanel />}
