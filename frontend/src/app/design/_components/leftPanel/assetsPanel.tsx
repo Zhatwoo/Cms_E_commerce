@@ -12,11 +12,6 @@ export const AssetsPanel = () => {
 
   return (
     <div className="flex flex-col gap-4 p-4">
-      <div>
-        <h3 className="text-sm font-semibold text-brand-light mb-1">Templates</h3>
-        <p className="text-xs text-brand-medium">Drag and drop templates to the canvas</p>
-      </div>
-
       <div className="flex flex-col gap-2">
         {GROUPED_TEMPLATES.map((group) => (
           <div key={group.folder} className="border border-brand-medium/30 rounded-lg overflow-hidden">
@@ -30,11 +25,10 @@ export const AssetsPanel = () => {
 
             <div className={`template-category-content ${open[group.folder] ? 'open' : 'closed'}`}>
               <div
-                className={`p-3 ${
-                  group.folder.toLowerCase() === "icons"
-                    ? "grid grid-cols-4 gap-2"
-                    : "space-y-2"
-                }`}
+                className={`p-3 ${group.folder.toLowerCase() === "icons"
+                  ? "grid grid-cols-4 gap-2"
+                  : "space-y-2"
+                  }`}
               >
                 {group.items.map((item: any, idx: number) => (
                   <div
