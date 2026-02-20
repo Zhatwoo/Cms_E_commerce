@@ -3,7 +3,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import { useEditor } from "@craftjs/core";
-import { useTransformMode } from "./TransformModeContext";
 
 type Handle = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 
@@ -65,8 +64,19 @@ function getOverlayRect(el: HTMLElement): DOMRect {
   return new DOMRect(left, top, width, height);
 }
 
+const SNAP_THRESHOLD = 4;
+
+type SiblingRect = {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+  centerX: number;
+  centerY: number;
+};
+
 type DragState = {
-  type: "resize" | "rotate";
+  type: "move" | "resize" | "rotate";
   handle?: Handle;
   moveMode?: "margin" | "offset";
   startX: number;
@@ -78,13 +88,23 @@ type DragState = {
   guideBounds?: { left: number; top: number; right: number; bottom: number };
   parentCenterX?: number;
   parentCenterY?: number;
+  siblingRects?: SiblingRect[];
   startProps: Record<string, unknown>;
   zoom: number;
   startAngle?: number;
   lastPointerAngle?: number;
   accumulatedAngleDeg?: number;
+  previewX?: number;
+  previewY?: number;
+  previousTransition?: string;
   dirty: boolean;
+  constrainRatio?: boolean;
+  resizeFromCenter?: boolean;
 };
+
+function isNearlyEqual(a: number, b: number, epsilon = EPSILON): boolean {
+  return Math.abs(a - b) <= epsilon;
+}
 
 function parsePxOrAuto(value: unknown): number {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -96,36 +116,41 @@ function parsePxOrAuto(value: unknown): number {
   return 0;
 }
 
-function isNearlyEqual(a: number, b: number, tolerance: number = EPSILON): boolean {
-  return Math.abs(a - b) <= tolerance;
-}
-
+type GuideLine = { type: "v" | "h"; value: number };
 type GuideState = {
-  v?: number;
-  h?: number;
+  lines: GuideLine[];
   bounds?: { left: number; top: number; right: number; bottom: number };
 } | null;
 
 export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
   const { actions, query } = useEditor();
-  const { isTransformMode } = useTransformMode();
-  const transformMode = isTransformMode(nodeId);
 
   const MOVE_TARGET_TYPES = new Set(["Page", "Section", "Container", "Row", "Column", "Button"]);
 
   const dragRef = useRef<DragState | null>(null);
+  const overlayRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef<number>(0);
   const processDragRef = useRef<(() => void) | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [dragType, setDragType] = useState<"resize" | "rotate" | null>(null);
+  const [dragType, setDragType] = useState<"move" | "resize" | "rotate" | null>(null);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [guides, setGuides] = useState<GuideState>(null);
   const [rotateAngle, setRotateAngle] = useState<number | null>(null);
+
+  const applyOverlayRect = useCallback((nextRect: DOMRect) => {
+    const el = overlayRef.current;
+    if (!el) return;
+    el.style.left = `${nextRect.left}px`;
+    el.style.top = `${nextRect.top}px`;
+    el.style.width = `${nextRect.width}px`;
+    el.style.height = `${nextRect.height}px`;
+  }, []);
 
   // Track DOM rect
   useEffect(() => {
     if (!dom) return;
     const update = () => {
+      if (dragRef.current?.type === "move") return;
       const next = getOverlayRect(dom);
       setRect((prev) => (rectChanged(prev, next) ? next : prev));
     };
@@ -221,7 +246,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
   );
 
   const startDrag = useCallback(
-    (e: React.MouseEvent, type: "resize" | "rotate", handle?: Handle) => {
+    (e: React.MouseEvent, type: "move" | "resize" | "rotate", handle?: Handle) => {
       e.stopPropagation();
       e.preventDefault();
       const startRect = getOverlayRect(dom);
@@ -259,15 +284,29 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         guideBounds: undefined,
         parentCenterX: undefined,
         parentCenterY: undefined,
+        siblingRects: undefined,
         startProps,
         zoom,
         startAngle: type === "rotate" ? pointerAngle : undefined,
         lastPointerAngle: type === "rotate" ? pointerAngle : undefined,
         accumulatedAngleDeg: type === "rotate" ? 0 : undefined,
+        previewX: type === "move" ? 0 : undefined,
+        previewY: type === "move" ? 0 : undefined,
+        previousTransition: type === "move" ? dom.style.transition : undefined,
         dirty: false,
+        constrainRatio: e.shiftKey,
+        resizeFromCenter: e.altKey,
       };
 
       if (type === "move") {
+        applyOverlayRect(startRect);
+      }
+
+      if (type === "move") {
+        dom.style.transition = "none";
+        dom.style.setProperty("translate", "0px 0px");
+        dom.style.willChange = "translate";
+
         try {
           const state = query.getState();
           const displayName = state.nodes[nodeId]?.data?.displayName as string | undefined;
@@ -278,16 +317,38 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
 
           const parentId = state.nodes[nodeId]?.data?.parent;
           const parentDom = parentId ? query.node(parentId).get()?.dom ?? null : null;
-          if (parentDom && dragRef.current) {
-            const parentRect = parentDom.getBoundingClientRect();
-            dragRef.current.guideBounds = {
-              left: parentRect.left,
-              right: parentRect.right,
-              top: parentRect.top,
-              bottom: parentRect.bottom,
-            };
-            dragRef.current.parentCenterX = parentRect.left + parentRect.width / 2;
-            dragRef.current.parentCenterY = parentRect.top + parentRect.height / 2;
+          const siblingIds = (state.nodes[parentId ?? ""]?.data?.nodes as string[]) ?? [];
+          const siblingRects: SiblingRect[] = [];
+          for (const sid of siblingIds) {
+            if (sid === nodeId) continue;
+            try {
+              const el = query.node(sid).get()?.dom;
+              if (el) {
+                const r = el.getBoundingClientRect();
+                siblingRects.push({
+                  left: r.left,
+                  right: r.right,
+                  top: r.top,
+                  bottom: r.bottom,
+                  centerX: r.left + r.width / 2,
+                  centerY: r.top + r.height / 2,
+                });
+              }
+            } catch { /* skip */ }
+          }
+          if (dragRef.current) {
+            dragRef.current.siblingRects = siblingRects;
+            if (parentDom) {
+              const parentRect = parentDom.getBoundingClientRect();
+              dragRef.current.guideBounds = {
+                left: parentRect.left,
+                right: parentRect.right,
+                top: parentRect.top,
+                bottom: parentRect.bottom,
+              };
+              dragRef.current.parentCenterX = parentRect.left + parentRect.width / 2;
+              dragRef.current.parentCenterY = parentRect.top + parentRect.height / 2;
+            }
           }
         } catch {
           // ignore guide cache failures
@@ -305,6 +366,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       }
       document.body.style.userSelect = "none";
       document.body.style.cursor =
+        type === "move" ? "grabbing" :
         type === "rotate" ? "grabbing" :
         handle ? HANDLE_CURSORS[handle] : "default";
     },
@@ -322,14 +384,12 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         Math.abs(prevBounds.right - nextBounds.right) < 0.5 &&
         Math.abs(prevBounds.top - nextBounds.top) < 0.5 &&
         Math.abs(prevBounds.bottom - nextBounds.bottom) < 0.5;
-      if (
-        Math.abs((prev.v ?? 0) - (next.v ?? 0)) < 0.5 &&
-        Math.abs((prev.h ?? 0) - (next.h ?? 0)) < 0.5 &&
-        boundsSame
-      ) {
-        return prev;
-      }
-      return next;
+      if (prev.lines?.length !== next.lines?.length || !boundsSame) return next;
+      const same = next.lines!.every((l, i) => {
+        const p = prev!.lines![i];
+        return p && p.type === l.type && Math.abs(p.value - l.value) < 0.5;
+      });
+      return same ? prev : next;
     });
   }, []);
 
@@ -361,32 +421,16 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       }
 
       if (d.type === "move") {
-        if (d.moveMode === "offset") {
-          const baseTop = parsePxOrAuto(p.top);
-          const baseLeft = parsePxOrAuto(p.left);
-          const nextTop = Math.round((baseTop + dy) * 2) / 2;
-          const nextLeft = Math.round((baseLeft + dx) * 2) / 2;
-          actions.setProp(nodeId, (props: Record<string, unknown>) => {
-            const currentTop = parsePxOrAuto(props.top);
-            const currentLeft = parsePxOrAuto(props.left);
-            if (currentTop === nextTop && currentLeft === nextLeft) return;
-            if (!props.position || props.position === "static") props.position = "relative";
-            props.top = `${nextTop}px`;
-            props.left = `${nextLeft}px`;
-          });
-          d.startProps = { ...d.startProps, top: `${nextTop}px`, left: `${nextLeft}px` };
-        } else {
-          const baseMT = typeof p.marginTop === "number" ? p.marginTop : 0;
-          const baseML = typeof p.marginLeft === "number" ? p.marginLeft : 0;
-          const nextMT = Math.round((baseMT + dy) * 2) / 2;
-          const nextML = Math.round((baseML + dx) * 2) / 2;
-          actions.setProp(nodeId, (props: Record<string, unknown>) => {
-            if (props.marginTop === nextMT && props.marginLeft === nextML) return;
-            props.marginTop = nextMT;
-            props.marginLeft = nextML;
-          });
-          d.startProps = { ...d.startProps, marginTop: nextMT, marginLeft: nextML };
-        }
+        let nextLeft = d.moveMode === "offset"
+          ? parsePxOrAuto(p.left) + dx
+          : parsePxOrAuto(p.marginLeft) + dx;
+        let nextTop = d.moveMode === "offset"
+          ? parsePxOrAuto(p.top) + dy
+          : parsePxOrAuto(p.marginTop) + dy;
+
+        d.previewX = (d.previewX ?? 0) + dx;
+        d.previewY = (d.previewY ?? 0) + dy;
+        dom.style.setProperty("translate", `${d.previewX}px ${d.previewY}px`);
 
         const deltaPx = d.lastX - d.startX;
         const deltaPy = d.lastY - d.startY;
@@ -397,18 +441,107 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
             d.currentRect.width,
             d.currentRect.height
           );
+          applyOverlayRect(d.currentRect);
         }
 
-        if (d.guideBounds && d.parentCenterX != null && d.parentCenterY != null) {
-          const childCenterX = d.currentRect.left + d.currentRect.width / 2;
-          const childCenterY = d.currentRect.top + d.currentRect.height / 2;
-          const threshold = 4;
-          const v = Math.abs(childCenterX - d.parentCenterX) <= threshold ? d.parentCenterX : undefined;
-          const h = Math.abs(childCenterY - d.parentCenterY) <= threshold ? d.parentCenterY : undefined;
+        const r = d.currentRect;
+        const centerX = r.left + r.width / 2;
+        const centerY = r.top + r.height / 2;
+        const th = SNAP_THRESHOLD;
+        let snapV: number | undefined;
+        let snapH: number | undefined;
+        if (d.parentCenterX != null && Math.abs(centerX - d.parentCenterX) <= th) snapV = d.parentCenterX;
+        if (d.parentCenterY != null && Math.abs(centerY - d.parentCenterY) <= th) snapH = d.parentCenterY;
+        for (const s of d.siblingRects ?? []) {
+          if (Math.abs(centerX - s.left) <= th || Math.abs(centerX - s.centerX) <= th || Math.abs(centerX - s.right) <= th) {
+            const v = Math.abs(centerX - s.left) <= Math.abs(centerX - s.centerX) && Math.abs(centerX - s.left) <= Math.abs(centerX - s.right) ? s.left : Math.abs(centerX - s.centerX) <= Math.abs(centerX - s.right) ? s.centerX : s.right;
+            if (snapV === undefined || Math.abs(centerX - v) < Math.abs(centerX - (snapV ?? 0))) snapV = v;
+          }
+          if (Math.abs(centerY - s.top) <= th || Math.abs(centerY - s.centerY) <= th || Math.abs(centerY - s.bottom) <= th) {
+            const h = Math.abs(centerY - s.top) <= Math.abs(centerY - s.centerY) && Math.abs(centerY - s.top) <= Math.abs(centerY - s.bottom) ? s.top : Math.abs(centerY - s.centerY) <= Math.abs(centerY - s.bottom) ? s.centerY : s.bottom;
+            if (snapH === undefined || Math.abs(centerY - h) < Math.abs(centerY - (snapH ?? 0))) snapH = h;
+          }
+        }
+        const zoom = d.zoom;
+        let snapOffsetX = 0;
+        let snapOffsetY = 0;
+        if (snapV != null) {
+          snapOffsetX = snapV - centerX;
+        }
+        if (snapH != null) {
+          snapOffsetY = snapH - centerY;
+        }
+
+        if (snapOffsetX !== 0 || snapOffsetY !== 0) {
+          d.previewX = (d.previewX ?? 0) + snapOffsetX / zoom;
+          d.previewY = (d.previewY ?? 0) + snapOffsetY / zoom;
+          dom.style.setProperty("translate", `${d.previewX}px ${d.previewY}px`);
+          d.currentRect = new DOMRect(
+            d.currentRect.left + snapOffsetX,
+            d.currentRect.top + snapOffsetY,
+            d.currentRect.width,
+            d.currentRect.height
+          );
+          applyOverlayRect(d.currentRect);
+        }
+
+        if (d.guideBounds) {
+          const r = d.currentRect;
+          const left = r.left;
+          const right = r.right;
+          const top = r.top;
+          const bottom = r.bottom;
+          const centerX = r.left + r.width / 2;
+          const centerY = r.top + r.height / 2;
+          const th = SNAP_THRESHOLD;
+          const lines: GuideLine[] = [];
+
+          const snapX = (v: number) => Math.abs(v - centerX) <= th;
+          const snapY = (v: number) => Math.abs(v - centerY) <= th;
+          const snapLeft = (v: number) => Math.abs(v - left) <= th;
+          const snapRight = (v: number) => Math.abs(v - right) <= th;
+          const snapTop = (v: number) => Math.abs(v - top) <= th;
+          const snapBottom = (v: number) => Math.abs(v - bottom) <= th;
+
+          let snapV: number | undefined;
+          let snapH: number | undefined;
+          const allRects = [...(d.siblingRects ?? [])];
+          if (d.parentCenterX != null && Math.abs(centerX - d.parentCenterX) <= th) {
+            snapV = d.parentCenterX;
+            if (!lines.some((l) => l.type === "v" && Math.abs(l.value - snapV!) < 0.5)) lines.push({ type: "v", value: d.parentCenterX });
+          }
+          if (d.parentCenterY != null && Math.abs(centerY - d.parentCenterY) <= th) {
+            snapH = d.parentCenterY;
+            if (!lines.some((l) => l.type === "h" && Math.abs(l.value - snapH!) < 0.5)) lines.push({ type: "h", value: d.parentCenterY });
+          }
+          for (const s of allRects) {
+            if (snapX(s.left) || snapX(s.centerX) || snapX(s.right)) {
+              const v = Math.abs(centerX - s.left) <= Math.abs(centerX - s.centerX) && Math.abs(centerX - s.left) <= Math.abs(centerX - s.right) ? s.left : Math.abs(centerX - s.centerX) <= Math.abs(centerX - s.right) ? s.centerX : s.right;
+              if (snapV === undefined || Math.abs(v - centerX) < Math.abs((snapV ?? 0) - centerX)) snapV = v;
+            }
+            if (snapY(s.top) || snapY(s.centerY) || snapY(s.bottom)) {
+              const h = Math.abs(centerY - s.top) <= Math.abs(centerY - s.centerY) && Math.abs(centerY - s.top) <= Math.abs(centerY - s.bottom) ? s.top : Math.abs(centerY - s.centerY) <= Math.abs(centerY - s.bottom) ? s.centerY : s.bottom;
+              if (snapH === undefined || Math.abs(h - centerY) < Math.abs((snapH ?? 0) - centerY)) snapH = h;
+            }
+            if (snapLeft(s.left) && !lines.some((l) => l.type === "v" && Math.abs(l.value - s.left) < 0.5)) lines.push({ type: "v", value: s.left });
+            if (snapLeft(s.centerX) && !lines.some((l) => l.type === "v" && Math.abs(l.value - s.centerX) < 0.5)) lines.push({ type: "v", value: s.centerX });
+            if (snapLeft(s.right) && !lines.some((l) => l.type === "v" && Math.abs(l.value - s.right) < 0.5)) lines.push({ type: "v", value: s.right });
+            if (snapRight(s.left)) lines.push({ type: "v", value: s.left });
+            if (snapRight(s.centerX)) lines.push({ type: "v", value: s.centerX });
+            if (snapRight(s.right)) lines.push({ type: "v", value: s.right });
+            if (snapTop(s.top) && !lines.some((l) => l.type === "h" && Math.abs(l.value - s.top) < 0.5)) lines.push({ type: "h", value: s.top });
+            if (snapTop(s.centerY) && !lines.some((l) => l.type === "h" && Math.abs(l.value - s.centerY) < 0.5)) lines.push({ type: "h", value: s.centerY });
+            if (snapTop(s.bottom) && !lines.some((l) => l.type === "h" && Math.abs(l.value - s.bottom) < 0.5)) lines.push({ type: "h", value: s.bottom });
+            if (snapBottom(s.top)) lines.push({ type: "h", value: s.top });
+            if (snapBottom(s.centerY)) lines.push({ type: "h", value: s.centerY });
+            if (snapBottom(s.bottom)) lines.push({ type: "h", value: s.bottom });
+          }
+          const dedupeLines = lines.filter((l, i) => lines.findIndex((x) => x.type === l.type && Math.abs(x.value - l.value) < 0.5) === i);
+          if (snapV != null && !dedupeLines.some((l) => l.type === "v" && Math.abs(l.value - snapV!) < 0.5)) dedupeLines.push({ type: "v", value: snapV });
+          if (snapH != null && !dedupeLines.some((l) => l.type === "h" && Math.abs(l.value - snapH!) < 0.5)) dedupeLines.push({ type: "h", value: snapH });
 
           setGuidesIfChanged({
-            v,
-            h,
+            lines: dedupeLines,
             bounds: d.guideBounds,
           });
         } else {
@@ -421,12 +554,36 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         const h = d.handle;
         const startW = d.startRect.width / zoom;
         const startH = d.startRect.height / zoom;
+        const ratio = startW / Math.max(startH, 1);
         let newW = startW, newH = startH, extraMT = 0, extraML = 0;
 
         if (h.includes("e")) newW = Math.max(20, startW + dx);
         if (h.includes("w")) { newW = Math.max(20, startW - dx); extraML = dx; }
         if (h.includes("s")) newH = Math.max(20, startH + dy);
         if (h.includes("n")) { newH = Math.max(20, startH - dy); extraMT = dy; }
+
+        if (d.constrainRatio && (h.includes("n") || h.includes("s") || h.includes("e") || h.includes("w"))) {
+          const isCorner = ["ne", "nw", "se", "sw"].includes(h);
+          if (isCorner) {
+            const dw = newW - startW;
+            const dh = newH - startH;
+            if (Math.abs(dw) >= Math.abs(dh)) {
+              newH = newW / ratio;
+              if (h.includes("n")) extraMT = newH - startH;
+              if (h.includes("w")) extraML = (newW - startW);
+            } else {
+              newW = newH * ratio;
+              if (h.includes("w")) extraML = newW - startW;
+              if (h.includes("n")) extraMT = newH - startH;
+            }
+          }
+        }
+        if (d.resizeFromCenter) {
+          const dw = newW - startW;
+          const dh = newH - startH;
+          if (h.includes("e") || h.includes("w")) extraML = -dw / 2;
+          if (h.includes("n") || h.includes("s")) extraMT = -dh / 2;
+        }
 
         if (
           isNearlyEqual(newW, startW) &&
@@ -459,14 +616,21 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         if (deltaRad > Math.PI) deltaRad -= Math.PI * 2;
         if (deltaRad < -Math.PI) deltaRad += Math.PI * 2;
         const deltaDeg = (deltaRad * 180) / Math.PI;
+
+        // Skip update if rotation change is too small
+        if (Math.abs(deltaDeg) < 0.1) {
+          rafRef.current = 0;
+          return;
+        }
+
         const startRot = typeof d.startProps.rotation === "number" ? d.startProps.rotation : 0;
         const accumulated = (d.accumulatedAngleDeg ?? 0) + deltaDeg;
         d.accumulatedAngleDeg = accumulated;
         d.lastPointerAngle = currentAngle;
         const nextRot = startRot + accumulated;
-        actions.setProp(nodeId, (props: Record<string, unknown>) => {
-          props.rotation = nextRot;
-        });
+        
+        // Only update local state for visual feedback during drag
+        // Final prop update happens in handleMouseUp
         setRotateAngle((prev) => (prev == null || Math.abs(prev - nextRot) > 0.1 ? nextRot : prev));
       }
 
@@ -494,6 +658,8 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
     const handleMouseMove = (e: MouseEvent) => {
       const d = dragRef.current;
       if (!d) return;
+      d.constrainRatio = e.shiftKey;
+      d.resizeFromCenter = e.altKey;
       if (e.clientX === d.lastX && e.clientY === d.lastY) return;
       d.lastX = e.clientX;
       d.lastY = e.clientY;
@@ -506,9 +672,35 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
     const handleMouseUp = (e: MouseEvent) => {
       const d = dragRef.current;
       if (d) {
+        const totalDx = (d.previewX ?? 0) + (d.lastX - d.startX) / d.zoom;
+        const totalDy = (d.previewY ?? 0) + (d.lastY - d.startY) / d.zoom;
+
+        const clearPreviewStyles = () => {
+          dom.style.removeProperty("translate");
+          dom.style.willChange = "";
+        };
+
+        const restoreTransitionLater = () => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              if (d.previousTransition !== undefined) {
+                dom.style.transition = d.previousTransition;
+              } else {
+                dom.style.transition = "";
+              }
+            });
+          });
+        };
+
+        const resetPreviewStyles = () => {
+          clearPreviewStyles();
+          restoreTransitionLater();
+        };
+
         if (d.type === "move") {
           const moved = tryMoveIntoDropTarget(e.clientX, e.clientY);
           if (moved) {
+            resetPreviewStyles();
             dragRef.current = null;
             setIsDragging(false);
             setDragType(null);
@@ -526,40 +718,84 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         const p = d.startProps;
 
         if (d.type === "move") {
+          const startProps = d.startProps;
           if (d.moveMode === "offset") {
             const baseTop = parsePxOrAuto(p.top);
             const baseLeft = parsePxOrAuto(p.left);
-            const roundedTop = Math.round(baseTop + dy);
-            const roundedLeft = Math.round(baseLeft + dx);
+            const finalTop = baseTop + totalDy;
+            const finalLeft = baseLeft + totalDx;
+
+            if (!dom.style.position || dom.style.position === "static") {
+              dom.style.position = "relative";
+            }
+            dom.style.top = `${finalTop}px`;
+            dom.style.left = `${finalLeft}px`;
+
             actions.setProp(nodeId, (props: Record<string, unknown>) => {
               if (!props.position || props.position === "static") props.position = "relative";
-              props.top = `${roundedTop}px`;
-              props.left = `${roundedLeft}px`;
+              props.top = `${finalTop}px`;
+              props.left = `${finalLeft}px`;
             });
           } else {
             const baseMT = typeof p.marginTop === "number" ? p.marginTop : 0;
             const baseML = typeof p.marginLeft === "number" ? p.marginLeft : 0;
+            const finalMT = baseMT + totalDy;
+            const finalML = baseML + totalDx;
+
+            dom.style.marginTop = `${finalMT}px`;
+            dom.style.marginLeft = `${finalML}px`;
+
             actions.setProp(nodeId, (props: Record<string, unknown>) => {
-              props.marginTop = Math.round(baseMT + dy);
-              props.marginLeft = Math.round(baseML + dx);
+              props.marginTop = finalMT;
+              props.marginLeft = finalML;
             });
           }
+
+          resetPreviewStyles();
         } else if (d.type === "resize" && d.handle) {
           const h = d.handle;
           const startW = d.startRect.width / zoom;
           const startH = d.startRect.height / zoom;
-          let newW = startW, newH = startH;
+          const ratio = startW / Math.max(startH, 1);
+          let newW = startW, newH = startH, extraMT = 0, extraML = 0;
           if (h.includes("e")) newW = Math.max(20, startW + dx);
-          if (h.includes("w")) newW = Math.max(20, startW - dx);
+          if (h.includes("w")) { newW = Math.max(20, startW - dx); extraML = dx; }
           if (h.includes("s")) newH = Math.max(20, startH + dy);
-          if (h.includes("n")) newH = Math.max(20, startH - dy);
+          if (h.includes("n")) { newH = Math.max(20, startH - dy); extraMT = dy; }
+          if (d.constrainRatio && ["ne", "nw", "se", "sw"].includes(h)) {
+            const dw = newW - startW, dh = newH - startH;
+            if (Math.abs(dw) >= Math.abs(dh)) {
+              newH = newW / ratio;
+              if (h.includes("n")) extraMT = newH - startH;
+              if (h.includes("w")) extraML = newW - startW;
+            } else {
+              newW = newH * ratio;
+              if (h.includes("w")) extraML = newW - startW;
+              if (h.includes("n")) extraMT = newH - startH;
+            }
+          }
+          if (d.resizeFromCenter) {
+            const dw = newW - startW, dh = newH - startH;
+            if (h.includes("e") || h.includes("w")) extraML = -dw / 2;
+            if (h.includes("n") || h.includes("s")) extraMT = -dh / 2;
+          }
           actions.setProp(nodeId, (props: Record<string, unknown>) => {
             props.width = `${Math.round(newW)}px`;
             props.height = `${Math.round(newH)}px`;
+            if (extraMT !== 0) {
+              const bMT = typeof d.startProps.marginTop === "number" ? d.startProps.marginTop as number : 0;
+              props.marginTop = Math.round(bMT + extraMT);
+            }
+            if (extraML !== 0) {
+              const bML = typeof d.startProps.marginLeft === "number" ? d.startProps.marginLeft as number : 0;
+              props.marginLeft = Math.round(bML + extraML);
+            }
           });
         } else if (d.type === "rotate") {
+          const startRot = typeof d.startProps.rotation === "number" ? d.startProps.rotation : 0;
+          const finalRot = startRot + (d.accumulatedAngleDeg ?? 0);
           actions.setProp(nodeId, (props: Record<string, unknown>) => {
-            props.rotation = Math.round((typeof props.rotation === "number" ? props.rotation : 0) * 10) / 10;
+            props.rotation = Math.round(finalRot * 10) / 10;
           });
         }
       }
@@ -569,6 +805,9 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = 0;
       }
+      const finalRect = getOverlayRect(dom);
+      applyOverlayRect(finalRect);
+      setRect(finalRect);
       setIsDragging(false);
       setDragType(null);
       setGuides(null);
@@ -583,8 +822,10 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isDragging, actions, nodeId]);
+  }, [isDragging, actions, nodeId, applyOverlayRect, dom]);
 
+  const locked = query.getState().nodes[nodeId]?.data?.props?.locked === true;
+  if (locked) return null;
   if (!rect) return null;
 
   const half = HANDLE_SIZE / 2;
@@ -598,9 +839,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
     { key: "w", style: { left: -half, top: "50%", transform: "translateY(-50%)" } },
     { key: "e", style: { right: -half, top: "50%", transform: "translateY(-50%)" } },
   ];
-  const handles = transformMode
-    ? allHandles.filter((h) => ["nw", "ne", "sw", "se"].includes(h.key))
-    : allHandles;
+  const handles = allHandles;
   const centerX = rect.left + rect.width / 2;
   const centerY = rect.top + rect.height / 2;
   const currentRotation = (() => {
@@ -611,6 +850,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
 
   return ReactDOM.createPortal(
     <div
+      ref={overlayRef}
       data-panel="resize-overlay"
       style={{
         position: "fixed",
@@ -619,41 +859,44 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         width: rect.width,
         height: rect.height,
         zIndex: 9999,
-        pointerEvents: isDragging ? "auto" : "none",
+        pointerEvents: "none",
         willChange: isDragging ? "left, top, width, height" : undefined,
       }}
     >
       {isDragging && dragType === "move" && guides?.bounds && (
         <>
-          {guides.v != null && (
-            <div
-              style={{
-                position: "fixed",
-                left: guides.v,
-                top: guides.bounds.top,
-                width: 1,
-                height: guides.bounds.bottom - guides.bounds.top,
-                backgroundColor: "#38bdf8",
-                boxShadow: "0 0 0 1px rgba(56, 189, 248, 0.3)",
-                pointerEvents: "none",
-                zIndex: 10000,
-              }}
-            />
-          )}
-          {guides.h != null && (
-            <div
-              style={{
-                position: "fixed",
-                top: guides.h,
-                left: guides.bounds.left,
-                height: 1,
-                width: guides.bounds.right - guides.bounds.left,
-                backgroundColor: "#38bdf8",
-                boxShadow: "0 0 0 1px rgba(56, 189, 248, 0.3)",
-                pointerEvents: "none",
-                zIndex: 10000,
-              }}
-            />
+          {guides.lines?.map((line, i) =>
+            line.type === "v" ? (
+              <div
+                key={`v-${i}-${line.value}`}
+                style={{
+                  position: "fixed",
+                  left: line.value,
+                  top: guides.bounds!.top,
+                  width: 1,
+                  height: guides.bounds!.bottom - guides.bounds!.top,
+                  backgroundColor: "#38bdf8",
+                  boxShadow: "0 0 0 1px rgba(56, 189, 248, 0.3)",
+                  pointerEvents: "none",
+                  zIndex: 10000,
+                }}
+              />
+            ) : (
+              <div
+                key={`h-${i}-${line.value}`}
+                style={{
+                  position: "fixed",
+                  top: line.value,
+                  left: guides.bounds!.left,
+                  height: 1,
+                  width: guides.bounds!.right - guides.bounds!.left,
+                  backgroundColor: "#38bdf8",
+                  boxShadow: "0 0 0 1px rgba(56, 189, 248, 0.3)",
+                  pointerEvents: "none",
+                  zIndex: 10000,
+                }}
+              />
+            )
           )}
         </>
       )}

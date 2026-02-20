@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react";
 import { useNode } from "@craftjs/core";
 import { Upload, X, Loader2 } from "lucide-react";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
+import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
@@ -18,6 +19,7 @@ export const ImageSettings = () => {
     paddingLeft, paddingRight, paddingTop, paddingBottom,
     marginLeft, marginRight, marginTop, marginBottom,
     opacity, boxShadow,
+    rotation, flipHorizontal, flipVertical,
     actions: { setProp }
   } = useNode(node => ({
     src: node.data.props.src,
@@ -40,6 +42,9 @@ export const ImageSettings = () => {
     marginBottom: node.data.props.marginBottom,
     opacity: node.data.props.opacity,
     boxShadow: node.data.props.boxShadow,
+    rotation: node.data.props.rotation,
+    flipHorizontal: node.data.props.flipHorizontal,
+    flipVertical: node.data.props.flipVertical,
   }));
 
   const typedSetProp = setProp as SetProp<ImageProps>;
@@ -108,6 +113,15 @@ export const ImageSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
+      <DesignSection title="Position & Transform">
+        <TransformGroup
+          rotation={rotation}
+          flipHorizontal={flipHorizontal}
+          flipVertical={flipVertical}
+          setProp={typedSetProp}
+        />
+      </DesignSection>
+
       <DesignSection title="Image">
         <div className="flex flex-col gap-3">
           {/* Source URL */}
@@ -237,6 +251,7 @@ export const ImageSettings = () => {
           radiusTopRight={radiusTopRight}
           radiusBottomRight={radiusBottomRight}
           radiusBottomLeft={radiusBottomLeft}
+          showBackgroundImageOption={false}
           setProp={typedSetProp}
         />
       </DesignSection>

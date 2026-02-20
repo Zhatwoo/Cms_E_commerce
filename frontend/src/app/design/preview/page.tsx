@@ -233,7 +233,7 @@ function PreviewContent() {
     } catch (err) {
       console.warn("Preview thumbnail capture failed:", err);
     } finally {
-      // no-op
+      thumbnailCaptureRef.current = false;
     }
   };
 

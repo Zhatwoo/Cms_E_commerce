@@ -56,14 +56,14 @@ export const PageSettings = () => {
             />
             <span className="text-[10px] text-brand-medium">Used as path: /{pageSlug ?? "page"}</span>
           </div>
-          <div className="flex flex-row gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {/* Width */}
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 min-w-0">
               <label className="text-[10px] text-brand-lighter">Width</label>
               <div className="flex items-center px-2.5 bg-brand-medium-dark rounded-lg overflow-hidden">
                 <input
                   type="text"
-                  value={width?.replace("px", "") ?? "1000"}
+                  value={width?.replace("px", "") ?? "1920"}
                   onChange={(e) => {
                     const v = e.target.value;
                     if (/^\d*$/.test(v)) {
@@ -71,29 +71,52 @@ export const PageSettings = () => {
                     }
                   }}
                   onFocus={(e) => e.target.select()}
-                  className="w-full bg-transparent text-xs text-brand-lighter p-2 focus:outline-none"
+                  className="w-full min-w-0 bg-transparent text-xs text-brand-lighter p-2 focus:outline-none"
                 />
-                <span className="text-[10px] text-brand-medium pr-2 select-none">px</span>
+                <span className="text-[10px] text-brand-medium pr-2 select-none shrink-0">px</span>
               </div>
             </div>
 
-            {/* Height */}
-            <div className="flex flex-col gap-1">
+            {/* Height: Auto or editable Fixed (px) */}
+            <div className="flex flex-col gap-1 min-w-0">
               <label className="text-[10px] text-brand-lighter">Height</label>
-              <select
-                value={height === "auto" ? "auto" : "fixed"}
-                onChange={(e) => {
-                  if (e.target.value === "auto") {
-                    typedSetProp((props) => { props.height = "auto"; });
-                  } else {
-                    typedSetProp((props) => { props.height = "1200px"; });
-                  }
-                }}
-                className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none appearance-none"
-              >
-                <option value="auto">Auto</option>
-                <option value="fixed">Fixed</option>
-              </select>
+              <div className="flex items-center gap-1.5">
+                <select
+                  value={height === "auto" ? "auto" : "fixed"}
+                  onChange={(e) => {
+                    if (e.target.value === "auto") {
+                      typedSetProp((props) => { props.height = "auto"; });
+                    } else {
+                      typedSetProp((props) => { props.height = "1200px"; });
+                    }
+                  }}
+                  className="shrink-0 w-14 bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2 py-1.5 focus:outline-none appearance-none"
+                >
+                  <option value="auto">Auto</option>
+                  <option value="fixed">Fixed</option>
+                </select>
+                {height === "auto" ? (
+                  <div className="flex-1 flex items-center px-2.5 py-1.5 bg-brand-medium-dark rounded-lg text-xs text-brand-light min-h-[34px]">
+                    Auto
+                  </div>
+                ) : (
+                  <div className="flex-1 flex items-center px-2.5 bg-brand-medium-dark rounded-lg overflow-hidden min-w-0">
+                    <input
+                      type="text"
+                      value={height?.replace("px", "") ?? "1200"}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (/^\d*$/.test(v)) {
+                          typedSetProp((props) => { props.height = v + "px"; });
+                        }
+                      }}
+                      onFocus={(e) => e.target.select()}
+                      className="w-full min-w-0 bg-transparent text-xs text-brand-lighter p-2 focus:outline-none"
+                    />
+                    <span className="text-[10px] text-brand-medium pr-2 select-none shrink-0">px</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

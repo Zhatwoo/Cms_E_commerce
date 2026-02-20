@@ -6,6 +6,7 @@ import type { AppearanceProps, SetProp } from "../../../_types/components";
 
 interface AppearanceGroupProps extends AppearanceProps {
   setProp: SetProp<AppearanceProps>;
+  showBackgroundImageOption?: boolean;
 }
 
 const BG_SIZE_OPTIONS: { value: AppearanceProps["backgroundSize"]; label: string }[] = [
@@ -40,6 +41,7 @@ export const AppearanceGroup = ({
   radiusTopRight = 0,
   radiusBottomRight = 0,
   radiusBottomLeft = 0,
+  showBackgroundImageOption = true,
   setProp
 }: AppearanceGroupProps) => {
   const [expandRadius, setExpandRadius] = useState(false);
@@ -115,121 +117,125 @@ export const AppearanceGroup = ({
         </div>
       </div>
 
-      {/* Background Image */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <label className="text-[12px] text-brand-lighter font-base">Background Image</label>
-          <button
-            onClick={() => {
-              if (showBgImage) {
-                setProp((props) => { props.backgroundImage = ""; });
-              }
-              setShowBgImage(!showBgImage);
-            }}
-            className="p-0.5 rounded text-brand-medium hover:text-brand-lighter"
-            title={showBgImage ? "Remove background image" : "Add background image"}
-          >
-            {showBgImage ? <X size={12} /> : <ImageIcon size={12} />}
-          </button>
-        </div>
-
-        {showBgImage && (
+      {showBackgroundImageOption && (
+        <>
+          {/* Background Image */}
           <div className="flex flex-col gap-2">
-            <input
-              ref={bgFileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleBackgroundImageUpload}
-              className="hidden"
-            />
-
-            {/* Image URL */}
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={backgroundImage}
-                onChange={(e) => setProp((props) => { props.backgroundImage = e.target.value; })}
-                onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-                placeholder="https://example.com/image.jpg"
-                className="flex-1 bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none placeholder:text-brand-medium"
-              />
+            <div className="flex items-center justify-between">
+              <label className="text-[12px] text-brand-lighter font-base">Background Image</label>
               <button
-                type="button"
-                onClick={() => bgFileInputRef.current?.click()}
-                disabled={uploadingBg}
-                className="px-2.5 py-1.5 bg-brand-medium/30 hover:bg-brand-medium/50 border border-brand-medium/30 rounded-lg transition-colors flex items-center justify-center disabled:opacity-50"
-                title="Upload image"
+                onClick={() => {
+                  if (showBgImage) {
+                    setProp((props) => { props.backgroundImage = ""; });
+                  }
+                  setShowBgImage(!showBgImage);
+                }}
+                className="p-0.5 rounded text-brand-medium hover:text-brand-lighter"
+                title={showBgImage ? "Remove background image" : "Add background image"}
               >
-                {uploadingBg ? (
-                  <Loader2 className="w-3.5 h-3.5 text-brand-light animate-spin" />
-                ) : (
-                  <Upload className="w-3.5 h-3.5 text-brand-light" />
-                )}
+                {showBgImage ? <X size={12} /> : <ImageIcon size={12} />}
               </button>
             </div>
 
-            {/* Size & Position Row */}
-            <div className="grid grid-cols-2 gap-2">
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] text-brand-light">Size</span>
-                <select
-                  value={backgroundSize}
-                  onChange={(e) => setProp((props) => { props.backgroundSize = e.target.value as AppearanceProps["backgroundSize"]; })}
-                  className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2 py-1.5 focus:outline-none appearance-none"
-                >
-                  {BG_SIZE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value} className="bg-brand-dark">{opt.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] text-brand-light">Position</span>
-                <select
-                  value={backgroundPosition}
-                  onChange={(e) => setProp((props) => { props.backgroundPosition = e.target.value; })}
-                  className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2 py-1.5 focus:outline-none appearance-none"
-                >
-                  {BG_POSITION_OPTIONS.map((pos) => (
-                    <option key={pos} value={pos} className="bg-brand-dark capitalize">{pos}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Repeat */}
-            <div className="flex flex-col gap-1">
-              <span className="text-[10px] text-brand-light">Repeat</span>
-              <select
-                value={backgroundRepeat}
-                onChange={(e) => setProp((props) => { props.backgroundRepeat = e.target.value as AppearanceProps["backgroundRepeat"]; })}
-                className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2 py-1.5 focus:outline-none appearance-none"
-              >
-                {BG_REPEAT_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value} className="bg-brand-dark">{opt.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Overlay Color */}
-            <div className="flex flex-col gap-1">
-              <span className="text-[10px] text-brand-light">Overlay</span>
-              <div className="flex items-center gap-4 bg-brand-medium-dark rounded-lg px-2.5 py-1 color-picker-wrapper">
+            {showBgImage && (
+              <div className="flex flex-col gap-2">
                 <input
-                  type="color"
-                  value={backgroundOverlay || "#000000"}
-                  onChange={(e) => setProp((props) => { props.backgroundOverlay = e.target.value + "80"; })}
-                  className="w-7 h-6 rounded cursor-pointer border-none bg-transparent color-picker-button"
+                  ref={bgFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleBackgroundImageUpload}
+                  className="hidden"
                 />
-                <ColorInput
-                  value={backgroundOverlay || "transparent"}
-                  onChange={(val) => setProp((props) => { props.backgroundOverlay = val; })}
-                  className="flex-1"
-                />
+
+                {/* Image URL */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={backgroundImage}
+                    onChange={(e) => setProp((props) => { props.backgroundImage = e.target.value; })}
+                    onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                    placeholder="https://example.com/image.jpg"
+                    className="flex-1 bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none placeholder:text-brand-medium"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => bgFileInputRef.current?.click()}
+                    disabled={uploadingBg}
+                    className="px-2.5 py-1.5 bg-brand-medium/30 hover:bg-brand-medium/50 border border-brand-medium/30 rounded-lg transition-colors flex items-center justify-center disabled:opacity-50"
+                    title="Upload image"
+                  >
+                    {uploadingBg ? (
+                      <Loader2 className="w-3.5 h-3.5 text-brand-light animate-spin" />
+                    ) : (
+                      <Upload className="w-3.5 h-3.5 text-brand-light" />
+                    )}
+                  </button>
+                </div>
+
+                {/* Size & Position Row */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] text-brand-light">Size</span>
+                    <select
+                      value={backgroundSize}
+                      onChange={(e) => setProp((props) => { props.backgroundSize = e.target.value as AppearanceProps["backgroundSize"]; })}
+                      className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2 py-1.5 focus:outline-none appearance-none"
+                    >
+                      {BG_SIZE_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value} className="bg-brand-dark">{opt.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] text-brand-light">Position</span>
+                    <select
+                      value={backgroundPosition}
+                      onChange={(e) => setProp((props) => { props.backgroundPosition = e.target.value; })}
+                      className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2 py-1.5 focus:outline-none appearance-none"
+                    >
+                      {BG_POSITION_OPTIONS.map((pos) => (
+                        <option key={pos} value={pos} className="bg-brand-dark capitalize">{pos}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Repeat */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] text-brand-light">Repeat</span>
+                  <select
+                    value={backgroundRepeat}
+                    onChange={(e) => setProp((props) => { props.backgroundRepeat = e.target.value as AppearanceProps["backgroundRepeat"]; })}
+                    className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2 py-1.5 focus:outline-none appearance-none"
+                  >
+                    {BG_REPEAT_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value} className="bg-brand-dark">{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Overlay Color */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] text-brand-light">Overlay</span>
+                  <div className="flex items-center gap-4 bg-brand-medium-dark rounded-lg px-2.5 py-1 color-picker-wrapper">
+                    <input
+                      type="color"
+                      value={backgroundOverlay || "#000000"}
+                      onChange={(e) => setProp((props) => { props.backgroundOverlay = e.target.value + "80"; })}
+                      className="w-7 h-6 rounded cursor-pointer border-none bg-transparent color-picker-button"
+                    />
+                    <ColorInput
+                      value={backgroundOverlay || "transparent"}
+                      onChange={(val) => setProp((props) => { props.backgroundOverlay = val; })}
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
 
       {/* Stroke / Border */}
       <div className="flex flex-col gap-2">

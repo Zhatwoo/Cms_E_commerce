@@ -1,30 +1,32 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useNode, useEditor } from "@craftjs/core";
 import ReactDOM from "react-dom";
 import { ResizeOverlay } from "./ResizeOverlay";
 
 export const RenderNode = ({ render }: { render: React.ReactElement }) => {
-  const { id } = useNode();
-  const { isActive } = useEditor((_, query) => ({
-    isActive: query.getEvent('selected').contains(id),
-  }));
-
   const {
+    id,
+    isSelectedEvent,
     isHover,
     dom,
     name,
-    parent,
+    visibility,
   } = useNode((node) => ({
+    id: node.id,
+    isSelectedEvent: node.events.selected,
     isHover: node.events.hovered,
     dom: node.dom,
     name: node.data.custom.displayName || node.data.displayName,
-    parent: node.data.parent,
+    visibility: (node.data.props?.visibility as "visible" | "hidden" | undefined) ?? "visible",
   }));
 
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const { isSelectedByEditor } = useEditor((_, query) => ({
+    isSelectedByEditor: query.getEvent("selected").contains(id),
+  }));
+
+  const isActive = isSelectedByEditor || isSelectedEvent;
+
+  const mounted = typeof window !== "undefined";
 
   useEffect(() => {
     if (dom) {
@@ -36,8 +38,8 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
     }
   }, [dom, isActive, isHover]);
 
-  // Don't render overlays for Root or Viewport
-  if (parent === 'ROOT') {
+  // Don't render overlays for ROOT/Viewport shells only
+  if (id === "ROOT" || name === "Viewport") {
     return <>{render}</>;
   }
 
@@ -61,12 +63,20 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
         )
         : null}
 
-      {/* Resize / Move overlay — only for actively selected nodes */}
+      {/* Resize / Move overlay — show ONLY on selected, not on hover */}
       {mounted && isActive && dom ? (
         <ResizeOverlay nodeId={id} dom={dom} />
       ) : null}
 
-      {render}
+      <div
+        style={
+          visibility === "hidden"
+            ? { visibility: "hidden" as const, pointerEvents: "none" as const }
+            : { display: "contents" }
+        }
+      >
+        {render}
+      </div>
     </>
   );
 };
