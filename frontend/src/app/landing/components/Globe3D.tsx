@@ -17,16 +17,7 @@ const SLOT_OFFSETS: { lat: number; lng: number }[] = [
   { lat: 1, lng: -3 },
 ];
 
-const DUMMY_TESTIMONIALS = [
-  { quote: 'Great platform.', title: 'Jane D.', description: 'CEO' },
-  { quote: 'Smooth onboarding.', title: 'Mark T.', description: 'Founder' },
-  { quote: 'Go global.', title: 'Sarah L.', description: 'Director' },
-  { quote: 'Best decision.', title: 'Alex K.', description: 'Ops' },
-  { quote: 'Reliable.', title: 'Chris M.', description: 'CTO' },
-  { quote: 'Customers love it.', title: 'Pat R.', description: 'Product' },
-  { quote: 'Fast and easy.', title: 'Sam W.', description: 'Manager' },
-  { quote: 'Highly recommend.', title: 'Jordan P.', description: 'Lead' },
-];
+const TESTIMONIALS: Array<{ quote: string; title: string; description: string }> = [];
 
 type LandingDatum = {
   id: number;
@@ -269,10 +260,11 @@ export function Globe3D({ className }: { className?: string }) {
         globe.setPointOfView(camera);
 
         const arcLandInterval = setInterval(() => {
+          if (TESTIMONIALS.length === 0) return;
           const slotIndex = landings.length % MAX_LANDINGS;
           const arc = ARCS[slotIndex];
           const off = SLOT_OFFSETS[slotIndex];
-          const testimonial = DUMMY_TESTIMONIALS[arcLandIndex % DUMMY_TESTIMONIALS.length];
+          const testimonial = TESTIMONIALS[arcLandIndex % TESTIMONIALS.length];
           landings.push({
             id: landingId++,
             lat: arc.endLat + off.lat,
@@ -321,9 +313,10 @@ export function Globe3D({ className }: { className?: string }) {
 
         // First card after a short delay (slot 0)
         setTimeout(() => {
+          if (TESTIMONIALS.length === 0) return;
           const arc = ARCS[0];
           const off = SLOT_OFFSETS[0];
-          const t = DUMMY_TESTIMONIALS[0];
+          const t = TESTIMONIALS[0];
           landings.push({
             id: landingId++,
             lat: arc.endLat + off.lat,

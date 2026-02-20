@@ -3,7 +3,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useTheme } from '../context/theme-context';
-import { listProjects, type Project } from '@/lib/api';
+import { useAlert } from '../context/alert-context';
+import { listProjects, createProject, getStoredUser, type Project } from '@/lib/api';
+import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
 
 const ChevronLeftIcon = () => (
   <svg className="w-4 h-4 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -26,9 +28,14 @@ const ImageIcon = () => (
 export function RecentProjects() {
   const { theme, colors } = useTheme();
   const router = useRouter();
+  const { showAlert } = useAlert();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createTitle, setCreateTitle] = useState('');
+  const [createSubdomain, setCreateSubdomain] = useState('');
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,6 +90,43 @@ export function RecentProjects() {
     return colors[idx % colors.length];
   };
 
+  const handleCreateFromModal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setCreating(true);
+      const title = createTitle.trim() || 'Untitled Project';
+      const subdomain = createSubdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+
+      const res = await createProject({
+        title,
+        subdomain: subdomain || undefined,
+      });
+
+      if (!res.success || !res.project) {
+        showAlert('Failed to create project. Please try again.');
+        return;
+      }
+
+      const user = getStoredUser();
+      const clientName = (user?.name || user?.username || 'client').trim() || 'client';
+      ensureProjectStorageFolder(clientName, res.project.title || 'website').catch(() => {});
+
+      setCreateModalOpen(false);
+      setCreateTitle('');
+      setCreateSubdomain('');
+      router.push(`/design?projectId=${res.project.id}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : '';
+      if (msg.includes('Route not found') || msg.includes('404')) {
+        showAlert('Project API not found. Make sure the backend is running and restart it.');
+      } else {
+        showAlert('Failed to create project. Please try again.');
+      }
+    } finally {
+      setCreating(false);
+    }
+  };
+
   return (
     <div className="mb-8 md:mb-12 w-full min-w-0 max-w-full overflow-x-hidden">
       <div className="flex items-center justify-between mb-5 md:mb-6">
@@ -90,7 +134,7 @@ export function RecentProjects() {
           Recent Projects
         </h2>
         <button
-          onClick={() => router.push('/m_dashboard/web-builder')}
+          onClick={() => router.push('/m_dashboard/web-builder#projects-section')}
           className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
           style={{
             backgroundColor: colors.bg.elevated,
@@ -129,6 +173,43 @@ export function RecentProjects() {
         </div>
       ) : (
         <div className="flex gap-4 md:gap-5 flex-wrap lg:flex-nowrap">
+          <motion.button
+            type="button"
+            className="group/add cursor-pointer flex-shrink-0 w-[calc(50%-8px)] sm:w-[calc(33.333%-11px)] md:w-[240px] lg:w-[240px] text-left"
+            onClick={() => setCreateModalOpen(true)}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{
+              delay: 0,
+              type: 'spring',
+              stiffness: 100,
+              damping: 15,
+            }}
+          >
+            <div
+              className="relative rounded-lg mb-3 h-[180px] border-2 border-dashed flex items-center justify-center transition-all duration-200 group-hover/add:scale-[1.01]"
+              style={{
+                borderColor: colors.border.default,
+                backgroundColor: colors.bg.card,
+              }}
+            >
+              <div className="w-16 h-16 rounded-2xl border flex items-center justify-center" style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}>
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: colors.text.primary }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+            </div>
+
+            <div>
+              <p className="font-semibold text-base truncate mb-1.5" style={{ color: colors.text.primary }}>
+                New Project
+              </p>
+              <p className="text-sm truncate" style={{ color: colors.text.muted }}>
+                Create a project and open it in builder
+              </p>
+            </div>
+          </motion.button>
+
           {projects.map((project, idx) => (
             <motion.div
               key={project.id}
@@ -137,7 +218,7 @@ export function RecentProjects() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{
-                delay: idx * 0.1,
+                delay: (idx + 1) * 0.1,
                 type: "spring",
                 stiffness: 100,
                 damping: 15
@@ -197,6 +278,64 @@ export function RecentProjects() {
               </div>
             </motion.div>
           ))}
+        </div>
+      )}
+
+      {createModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setCreateModalOpen(false)}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden"
+            style={{ backgroundColor: colors.bg.card, borderColor: colors.border.default }}
+          >
+            <div className="p-6 border-b" style={{ borderColor: colors.border.faint }}>
+              <h3 className="text-xl font-semibold" style={{ color: colors.text.primary }}>Create project</h3>
+              <p className="text-sm mt-1" style={{ color: colors.text.secondary }}>
+                Set a title and preferred subdomain. The subdomain will be ready when you deploy.
+              </p>
+            </div>
+
+            <form onSubmit={handleCreateFromModal} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1.5" style={{ color: colors.text.primary }}>Project title</label>
+                <input
+                  type="text"
+                  value={createTitle}
+                  onChange={(e) => setCreateTitle(e.target.value)}
+                  placeholder="My Store"
+                  className="w-full px-4 py-2.5 rounded-lg border bg-transparent focus:outline-none focus:ring-2"
+                  style={{ borderColor: colors.border.default, color: colors.text.primary }}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1.5" style={{ color: colors.text.primary }}>Preferred subdomain</label>
+                <input
+                  type="text"
+                  value={createSubdomain}
+                  onChange={(e) => setCreateSubdomain(e.target.value)}
+                  placeholder="mystore"
+                  className="w-full px-4 py-2.5 rounded-lg border bg-transparent focus:outline-none focus:ring-2"
+                  style={{ borderColor: colors.border.default, color: colors.text.primary }}
+                />
+                <p className="text-xs mt-1" style={{ color: colors.text.muted }}>
+                  Only letters, numbers, and hyphens. Example: mystore → mystore.yourdomain.com
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setCreateModalOpen(false)} className="px-4 py-2 rounded-lg text-sm font-medium hover:opacity-80" style={{ color: colors.text.primary }}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={creating} className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">
+                  {creating ? 'Creating…' : 'Create & open'}
+                </button>
+              </div>
+            </form>
+          </motion.div>
         </div>
       )}
     </div>

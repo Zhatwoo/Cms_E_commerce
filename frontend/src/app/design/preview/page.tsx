@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, useRef, Suspense } from "react";
+import React, { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload, Monitor, Tablet, Smartphone } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
@@ -8,8 +8,10 @@ import { getDraft } from "../_lib/pageApi";
 import { WebPreview } from "../_lib/webRenderer";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
-import { publishProject, getProject, schedulePublish, getSchedule } from "@/lib/api";
+import { getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, type Project } from "@/lib/api";
+import { uploadClientFile } from "@/lib/firebaseStorage";
 import { createPortal } from "react-dom";
+import html2canvas from "html2canvas";
 //vdxvx
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 
@@ -91,8 +93,9 @@ function PreviewContent() {
   const [scheduleInfo, setScheduleInfo] = useState<{ scheduledAt: string; subdomain: string | null } | null>(null);
   const [scheduling, setScheduling] = useState(false);
   const [mobileBreakpoint, setMobileBreakpoint] = useState(900);
-  const thumbnailCaptureRef = useRef(false);
+  const [project, setProject] = useState<Project | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
+  const thumbnailCaptureRef = useRef(false);
 
   useEffect(() => {
     async function loadData() {
@@ -207,7 +210,7 @@ function PreviewContent() {
       });
 
       const blob: Blob | null = await new Promise((resolve) => {
-        canvas.toBlob((b) => resolve(b), "image/jpeg", 0.85);
+        canvas.toBlob((b: Blob | null) => resolve(b), "image/jpeg", 0.85);
       });
 
       if (!blob) throw new Error("Thumbnail capture failed");

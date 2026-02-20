@@ -387,8 +387,8 @@ export function AnimationWrapper({
       style={{ ...style, willChange: hasAny ? "transform, opacity" : undefined }}
       initial={combinedInitial as any}
       animate={combinedAnimate as any}
-      exit={hasOut ? outVariants.exit : undefined}
-      transition={inTransition}
+      exit={hasOut ? (outVariants.exit as any) : undefined}
+      transition={inTransition as any}
       onHoverStart={config.trigger.type === "onHover" ? () => setIsHovered(true) : undefined}
       onHoverEnd={config.trigger.type === "onHover" ? () => setIsHovered(false) : undefined}
       onTap={config.trigger.type === "onClick" ? () => setIsClicked((c) => !c) : undefined}
