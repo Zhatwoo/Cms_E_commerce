@@ -39,6 +39,7 @@ export const BoxSelectionHandler = () => {
 
   useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
+      startedOnEmptyRef.current = false;
       if (e.button !== 0) return;
       const target = e.target as HTMLElement | null;
       if (!target) return;
@@ -52,6 +53,8 @@ export const BoxSelectionHandler = () => {
 
       const onNode = target.closest("[data-node-id]");
       if (onNode) return;
+
+      startedOnEmptyRef.current = true;
 
       setMarquee({
         startX: e.clientX,
@@ -69,6 +72,9 @@ export const BoxSelectionHandler = () => {
     const handleMouseUp = () => {
       const m = marquee;
       setMarquee(null);
+
+      if (!startedOnEmptyRef.current) return;
+      startedOnEmptyRef.current = false;
 
       if (!m) return;
 

@@ -6,6 +6,19 @@ import { useTheme } from '../components/context/theme-context';
 import { useAuth } from '../components/context/auth-context';
 import { listProjects, getSchedule, getPublishHistory, type Project, type PublishHistoryEntry } from '@/lib/api';
 import { subscribeUserProjectSubdomains, type ProjectSubdomainEntry } from '@/lib/firebase';
+import { 
+  Globe, 
+  Plus, 
+  Search, 
+  ExternalLink, 
+  Copy, 
+  Settings, 
+  Trash2, 
+  Check,
+  AlertCircle,
+  Clock,
+  TrendingUp
+} from 'lucide-react';
 
 const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'websitelink';
 /** Host for subdomain display (e.g. panes/localhost:3000 or panes.websitelink) */
@@ -40,12 +53,14 @@ function getSiteDisplayUrl(subdomain: string, origin: string | null): string {
 }
 
 export default function DomainsPage() {
-  const { colors } = useTheme();
+  const { colors, theme } = useTheme();
   const { user, loading: authLoading } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [subdomainsByProject, setSubdomainsByProject] = useState<Record<string, ProjectSubdomainEntry>>({});
   const [origin, setOrigin] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
     setOrigin(typeof window !== 'undefined' ? window.location.origin : null);
@@ -115,13 +130,140 @@ export default function DomainsPage() {
     : '';
 
   return (
-    <section className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold" style={{ color: colors.text.primary }}>Domains</h1>
-        <p className="mt-1 text-sm" style={{ color: colors.text.secondary }}>
-          Connect and manage domains for your published sites. Subdomains are synced from your projects.
-        </p>
-      </header>
+    <div className="space-y-6">
+      {/* Header */}
+      <section
+        className="rounded-2xl border p-5 md:p-6"
+        style={{
+          backgroundColor: colors.bg.card,
+          borderColor: colors.border.faint,
+          boxShadow: theme === 'dark'
+            ? 'inset 0 1px 0 rgba(255,255,255,0.06), 0 20px 50px rgba(2,6,23,0.55)'
+            : 'inset 0 1px 0 rgba(255,255,255,0.8), 0 12px 30px rgba(15,23,42,0.12)',
+        }}
+      >
+        <div className="relative">
+          <div
+            className="absolute -inset-x-6 -inset-y-4 rounded-3xl opacity-70 blur-2xl"
+            style={{
+              background: theme === 'dark'
+                ? 'radial-gradient(60% 60% at 20% 20%, rgba(99,102,241,0.2), transparent 60%), radial-gradient(55% 55% at 80% 20%, rgba(14,165,233,0.16), transparent 60%), radial-gradient(50% 50% at 40% 80%, rgba(16,185,129,0.14), transparent 60%)'
+                : 'radial-gradient(60% 60% at 20% 20%, rgba(99,102,241,0.14), transparent 60%), radial-gradient(55% 55% at 80% 20%, rgba(14,165,233,0.12), transparent 60%), radial-gradient(50% 50% at 40% 80%, rgba(16,185,129,0.1), transparent 60%)'
+            }}
+          />
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+            <div>
+              <motion.p
+                className="text-xs uppercase tracking-[0.2em] mb-2"
+                style={{ color: colors.text.muted }}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+              >
+                Dashboard Insights
+              </motion.p>
+              <motion.h1
+                className="text-3xl font-bold tracking-tight bg-clip-text text-transparent"
+                style={{
+                  backgroundImage: theme === 'dark'
+                    ? 'linear-gradient(180deg, #ffffff 25%, #9ca3af 100%)'
+                    : 'linear-gradient(180deg, #111827 25%, #4b5563 100%)'
+                }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.45 }}
+              >
+                Domains
+              </motion.h1>
+              <motion.p
+                className="mt-2 text-sm md:text-base"
+                style={{ color: colors.text.secondary }}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.45, delay: 0.08 }}
+              >
+                Manage and connect domains for your published sites
+              </motion.p>
+            </div>
+            <button
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Add Domain
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Stats Cards */}
+      {!loading && domainsList.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-xl border p-4"
+            style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-blue-500/10">
+                <Globe className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold" style={{ color: colors.text.primary }}>
+                  {stats.total}
+                </p>
+                <p className="text-sm" style={{ color: colors.text.muted }}>
+                  Total Domains
+                </p>
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="rounded-xl border p-4"
+            style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-green-500/10">
+                <Check className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold" style={{ color: colors.text.primary }}>
+                  {stats.active}
+                </p>
+                <p className="text-sm" style={{ color: colors.text.muted }}>
+                  Active Sites
+                </p>
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="rounded-xl border p-4"
+            style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-orange-500/10">
+                <Clock className="w-5 h-5 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold" style={{ color: colors.text.primary }}>
+                  {stats.draft}
+                </p>
+                <p className="text-sm" style={{ color: colors.text.muted }}>
+                  In Draft
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       <div className="flex flex-col md:flex-row md:gap-6">
         {loading ? (
@@ -181,8 +323,8 @@ export default function DomainsPage() {
                 <span
                   className="text-xs px-2 py-1 rounded-full capitalize"
                   style={{
-                    backgroundColor: project.status === 'published' ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)',
-                    color: project.status === 'published' ? 'rgb(22,163,74)' : 'rgb(180,83,9)',
+                    backgroundColor: colors.bg.card,
+                    borderColor: colors.border.faint,
                   }}
                 >
                   {project.status || 'draft'}

@@ -12,17 +12,18 @@ interface FunnelChartProps {
 
 export const FunnelChart = ({ colors }: FunnelChartProps) => {
     const funnelData = [
-        { stage: 'Visits', count: 45678, percentage: 100, color: '#3b82f6' },
-        { stage: 'Add to Cart', count: 12890, percentage: 28.2, color: '#8b5cf6' },
-        { stage: 'Checkout', count: 8234, percentage: 18.0, color: '#f59e0b' },
-        { stage: 'Purchase', count: 342, percentage: 7.5, color: '#10b981' }
+        { stage: 'Visits', count: 0, percentage: 0, color: '#3b82f6' },
+        { stage: 'Add to Cart', count: 0, percentage: 0, color: '#8b5cf6' },
+        { stage: 'Checkout', count: 0, percentage: 0, color: '#f59e0b' },
+        { stage: 'Purchase', count: 0, percentage: 0, color: '#10b981' }
     ];
 
-    const maxCount = funnelData[0].count;
+    const maxCount = funnelData[0].count || 1; // Prevent division by zero
     const funnelHeight = 240;
     const stageHeight = 50;
     const maxWidth = 300;
     const minWidth = 80;
+    const hasData = funnelData[0].count > 0;
 
     return (
         <div className="relative w-full flex flex-col items-center">
@@ -32,7 +33,8 @@ export const FunnelChart = ({ colors }: FunnelChartProps) => {
                     {/* Funnel Shape */}
                     {funnelData.map((stage, index) => {
                         const y = index * stageHeight;
-                        const width = minWidth + (maxWidth - minWidth) * (stage.count / maxCount);
+                        const ratio = hasData ? (stage.count / maxCount) : 0;
+                        const width = minWidth + (maxWidth - minWidth) * ratio;
                         const x = (maxWidth - width) / 2;
 
                         if (index === funnelData.length - 1) {
@@ -64,7 +66,8 @@ export const FunnelChart = ({ colors }: FunnelChartProps) => {
                             );
                         } else {
                             // Create trapezoid segments
-                            const nextWidth = minWidth + (maxWidth - minWidth) * (funnelData[index + 1].count / maxCount);
+                            const nextRatio = hasData ? (funnelData[index + 1].count / maxCount) : 0;
+                            const nextWidth = minWidth + (maxWidth - minWidth) * nextRatio;
                             const nextX = (maxWidth - nextWidth) / 2;
 
                             return (
@@ -109,7 +112,8 @@ export const FunnelChart = ({ colors }: FunnelChartProps) => {
                     {/* Connector Lines */}
                     {funnelData.map((stage, index) => {
                         const y = index * stageHeight + stageHeight / 2;
-                        const width = minWidth + (maxWidth - minWidth) * (stage.count / maxCount);
+                        const ratio = hasData ? (stage.count / maxCount) : 0;
+                        const width = minWidth + (maxWidth - minWidth) * ratio;
                         const x = (maxWidth - width) / 2;
                         const labelX = maxWidth + 20;
 
@@ -134,10 +138,11 @@ export const FunnelChart = ({ colors }: FunnelChartProps) => {
                 {/* Stage Labels on the Right */}
                 {funnelData.map((stage, index) => {
                     const y = index * stageHeight + stageHeight / 2;
-                    const width = minWidth + (maxWidth - minWidth) * (stage.count / maxCount);
+                    const ratio = hasData ? (stage.count / maxCount) : 0;
+                    const width = minWidth + (maxWidth - minWidth) * ratio;
                     const x = (maxWidth - width) / 2;
                     const labelX = maxWidth + 30;
-                    const dropoff = index > 0 ?
+                    const dropoff = (index > 0 && funnelData[index - 1].count > 0) ?
                         ((funnelData[index - 1].count - stage.count) / funnelData[index - 1].count * 100) : 0;
 
                     return (
@@ -172,7 +177,7 @@ export const FunnelChart = ({ colors }: FunnelChartProps) => {
                     borderColor: colors.border.faint
                 }}>
                     <p className="text-2xl font-bold text-green-500">
-                        7.5%
+                        0%
                     </p>
                     <p className="text-sm mt-1" style={{ color: colors.text.muted }}>Conversion Rate</p>
                 </div>
@@ -181,7 +186,7 @@ export const FunnelChart = ({ colors }: FunnelChartProps) => {
                     borderColor: colors.border.faint
                 }}>
                     <p className="text-2xl font-bold" style={{ color: colors.text.primary }}>
-                        $367
+                        $0
                     </p>
                     <p className="text-sm mt-1" style={{ color: colors.text.muted }}>Avg Order Value</p>
                 </div>

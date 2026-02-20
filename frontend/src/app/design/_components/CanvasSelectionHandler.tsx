@@ -107,6 +107,7 @@ export const CanvasSelectionHandler = () => {
         } else {
           safeSelect(nodeId);
           updateLastSelected(nodeId);
+          return;
         }
       }
       // Empty area: do not clear here — BoxSelectionHandler will clear on mouseup

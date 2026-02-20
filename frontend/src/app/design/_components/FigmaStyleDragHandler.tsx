@@ -21,12 +21,13 @@ const CANVAS_DISPLAY_NAMES = new Set([
 ]);
 const EDITOR_DRAGGING_FLAG = "editorDragging";
 const EDITOR_DROP_COMMIT_FLAG = "editorDropCommit";
+const DRAG_THRESHOLD = 5;
 
 type MoveMode = "margin" | "offset";
 
 type DragNodeState = {
   id: string;
-  moveMode: MoveMode;
+  mode: MoveMode;
   marginTop: number;
   marginLeft: number;
   top: number;
@@ -38,7 +39,7 @@ function getEffectiveZoom(el: HTMLElement | null): number {
   let zoom = 1;
   let current: HTMLElement | null = el;
   while (current) {
-    const zoomText = window.getComputedStyle(current).zoom;
+    const zoomText = window.getComputedStyle(current).getPropertyValue("zoom");
     const parsed = parseFloat(zoomText);
     if (Number.isFinite(parsed) && parsed > 0) {
       zoom *= parsed;
@@ -46,24 +47,6 @@ function getEffectiveZoom(el: HTMLElement | null): number {
     current = current.parentElement;
   }
   return zoom > 0.01 ? zoom : 1;
-}
-
-function parsePx(value: unknown): number {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string") {
-    const n = parseFloat(value.replace("px", "").trim());
-    return Number.isFinite(n) ? n : 0;
-  }
-  return 0;
-}
-
-const OFFSET_MOVE_TYPES = new Set(["Image", "Text", "Icon", "Button", "Circle", "Square", "Triangle"]);
-
-function selectedToIds(raw: unknown): string[] {
-  if (Array.isArray(raw)) return raw;
-  if (raw instanceof Set) return Array.from(raw);
-  if (raw && typeof raw === "object") return Object.keys(raw as Record<string, unknown>);
-  return [];
 }
 
 function parsePxOrAuto(value: unknown): number {
@@ -80,6 +63,15 @@ function parseNumberOrZero(value: unknown): number {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   const parsed = parseFloat(String(value ?? "0"));
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+const OFFSET_MOVE_TYPES = new Set(["Image", "Text", "Icon", "Button", "Circle", "Square", "Triangle"]);
+
+function selectedToIds(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw;
+  if (raw instanceof Set) return Array.from(raw);
+  if (raw && typeof raw === "object") return Object.keys(raw as Record<string, unknown>);
+  return [];
 }
 
 function setDraggingStyle(doms: HTMLElement[], on: boolean) {
@@ -115,7 +107,9 @@ function getDraggedDoms(
     try {
       const dom = queryNode(id).get()?.dom;
       if (dom) doms.push(dom);
-    } catch {}
+    } catch {
+      // ignore
+    }
   }
   return doms;
 }
@@ -188,6 +182,8 @@ export const FigmaStyleDragHandler = () => {
   const { actions, query } = useEditor();
   const actionsRef = useRef(actions);
   const queryRef = useRef(query);
+  const rafRef = useRef<number>(0);
+  const processDragRef = useRef<(() => void) | null>(null);
 
   const draggedDomsRef = useRef<HTMLElement[]>([]);
 
@@ -207,8 +203,12 @@ export const FigmaStyleDragHandler = () => {
       left: number;
     }>;
     fallbackNodeId: string | null;
+    committed: boolean;
     dirty: boolean;
   } | null>(null);
+  const dropTargetHighlightRef = useRef<HTMLElement | null>(null);
+  const insertIndicatorRef = useRef<HTMLElement | null>(null);
+  const draggedDomsRef = useRef<HTMLElement[]>([]);
 
   const rafRef = useRef<number>(0);
   const processDragRef = useRef<(() => void) | null>(null);
@@ -255,22 +255,28 @@ export const FigmaStyleDragHandler = () => {
       const nodeIdFromTarget = findDeepestNodeId(target);
 
       const state = queryRef.current.getState();
-      const nodesMap = state.nodes;
+      const nodesMap = state.nodes as Record<string, { data?: { props?: { locked?: boolean } } }>;
       const exists = (id: string) => !!id && id !== "ROOT" && !!nodesMap[id];
 
-      if (nodeIdFromTarget && exists(nodeIdFromTarget)) {
-        const node = nodesMap[nodeIdFromTarget];
-        const locked = node?.data?.props?.locked === true;
-        if (locked) return;
-        dragRef.current = {
-          startX: e.clientX, startY: e.clientY,
-          lastX: e.clientX, lastY: e.clientY,
-          committed: false, zoom: 1,
-          nodeMargins: [], fallbackNodeId: nodeIdFromTarget, dirty: false,
-        };
+      if (!nodeIdFromTarget || !exists(nodeIdFromTarget)) {
         return;
       }
-      
+
+      const node = nodesMap[nodeIdFromTarget];
+      const locked = node?.data?.props?.locked === true;
+      if (locked) return;
+
+      dragRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        lastX: e.clientX,
+        lastY: e.clientY,
+        zoom: 1,
+        nodeMargins: [],
+        fallbackNodeId: nodeIdFromTarget,
+        committed: false,
+        dirty: false,
+      };
     };
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -330,17 +336,21 @@ export const FigmaStyleDragHandler = () => {
         }
         
         ids = ids.filter((id) => state.nodes[id]?.data?.props?.locked !== true);
-        if (ids.length === 0) { dragRef.current = null; return; }
+        if (ids.length === 0) {
+          dragRef.current = null;
+          return;
+        }
 
         let firstDom: HTMLElement | null = null;
-        try { firstDom = queryRef.current.node(ids[0]).get()?.dom ?? null; } catch { /* ignore */ }
-
-        document.body.style.userSelect = "none";
-        document.body.style.cursor = "grabbing";
+        try {
+          firstDom = queryRef.current.node(ids[0]).get()?.dom ?? null;
+        } catch {
+          // ignore
+        }
 
         d.committed = true;
         d.zoom = getEffectiveZoom(firstDom);
-        d.nodeMargins = ids.map((id) => {
+        d.nodeMargins = ids.map((id): DragNodeState => {
           const props = state.nodes[id]?.data?.props ?? {};
           const displayName = state.nodes[id]?.data?.displayName as string | undefined;
           const position = (props.position as string) ?? "static";
@@ -349,16 +359,19 @@ export const FigmaStyleDragHandler = () => {
             (displayName && OFFSET_MOVE_TYPES.has(displayName));
           return {
             id,
-            marginTop: typeof props.marginTop === "number" ? props.marginTop : 0,
-            marginLeft: typeof props.marginLeft === "number" ? props.marginLeft : 0,
+            marginTop: parseNumberOrZero(props.marginTop),
+            marginLeft: parseNumberOrZero(props.marginLeft),
             mode: useOffset ? "offset" : "margin",
-            top: parsePx(props.top),
-            left: parsePx(props.left),
+            top: parsePxOrAuto(props.top),
+            left: parsePxOrAuto(props.left),
           };
         });
 
         draggedDomsRef.current = getDraggedDoms(ids, queryRef.current.node);
         setDraggingStyle(draggedDomsRef.current, true);
+        document.body.dataset[EDITOR_DRAGGING_FLAG] = "true";
+        document.body.style.userSelect = "none";
+        document.body.style.cursor = "grabbing";
       }
 
       d.dirty = true;
@@ -379,8 +392,10 @@ export const FigmaStyleDragHandler = () => {
         return;
       }
 
-      const totalDx = (d.lastX - d.startX) / d.zoom;
-      const totalDy = (d.lastY - d.startY) / d.zoom;
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = 0;
+      }
 
       document.body.dataset[EDITOR_DROP_COMMIT_FLAG] = "true";
 
@@ -459,9 +474,20 @@ export const FigmaStyleDragHandler = () => {
     document.addEventListener("mouseup", handleMouseUp, true);
     window.addEventListener("mouseup", handleMouseUp, true);
     window.addEventListener("blur", handleMouseUp, true);
-    // Do NOT end drag on document mouseleave — keep tracking when cursor moves
-    // outside canvas (panels or window edge); only end on mouseup or window blur
+
     return () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = 0;
+      }
+      clearDragPreview(draggedDomsRef.current);
+      setDraggingStyle(draggedDomsRef.current, false);
+      draggedDomsRef.current = [];
+      delete document.body.dataset[EDITOR_DRAGGING_FLAG];
+      delete document.body.dataset[EDITOR_DROP_COMMIT_FLAG];
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+
       document.removeEventListener("mousedown", handleMouseDown, true);
       document.removeEventListener("mousemove", handleMouseMove, true);
       document.removeEventListener("mouseup", handleMouseUp, true);
