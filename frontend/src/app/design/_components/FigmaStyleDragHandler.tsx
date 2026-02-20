@@ -6,12 +6,13 @@ import { useEditor } from "@craftjs/core";
 const DRAGGING_ATTR = "data-dragging";
 const EDITOR_DRAGGING_FLAG = "editorDragging";
 const EDITOR_DROP_COMMIT_FLAG = "editorDropCommit";
+const DRAG_THRESHOLD = 5;
 
 type MoveMode = "margin" | "offset";
 
 type DragNodeState = {
   id: string;
-  moveMode: MoveMode;
+  mode: MoveMode;
   marginTop: number;
   marginLeft: number;
   top: number;
@@ -23,7 +24,7 @@ function getEffectiveZoom(el: HTMLElement | null): number {
   let zoom = 1;
   let current: HTMLElement | null = el;
   while (current) {
-    const zoomText = window.getComputedStyle(current).zoom;
+    const zoomText = window.getComputedStyle(current).getPropertyValue("zoom");
     const parsed = parseFloat(zoomText);
     if (Number.isFinite(parsed) && parsed > 0) {
       zoom *= parsed;
@@ -31,24 +32,6 @@ function getEffectiveZoom(el: HTMLElement | null): number {
     current = current.parentElement;
   }
   return zoom > 0.01 ? zoom : 1;
-}
-
-function parsePx(value: unknown): number {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string") {
-    const n = parseFloat(value.replace("px", "").trim());
-    return Number.isFinite(n) ? n : 0;
-  }
-  return 0;
-}
-
-const OFFSET_MOVE_TYPES = new Set(["Image", "Text", "Icon", "Button", "Circle", "Square", "Triangle"]);
-
-function selectedToIds(raw: unknown): string[] {
-  if (Array.isArray(raw)) return raw;
-  if (raw instanceof Set) return Array.from(raw);
-  if (raw && typeof raw === "object") return Object.keys(raw as Record<string, unknown>);
-  return [];
 }
 
 function parsePxOrAuto(value: unknown): number {
@@ -65,6 +48,15 @@ function parseNumberOrZero(value: unknown): number {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   const parsed = parseFloat(String(value ?? "0"));
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+const OFFSET_MOVE_TYPES = new Set(["Image", "Text", "Icon", "Button", "Circle", "Square", "Triangle"]);
+
+function selectedToIds(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw;
+  if (raw instanceof Set) return Array.from(raw);
+  if (raw && typeof raw === "object") return Object.keys(raw as Record<string, unknown>);
+  return [];
 }
 
 function setDraggingStyle(doms: HTMLElement[], on: boolean) {
@@ -100,7 +92,9 @@ function getDraggedDoms(
     try {
       const dom = queryNode(id).get()?.dom;
       if (dom) doms.push(dom);
-    } catch {}
+    } catch {
+      // ignore
+    }
   }
   return doms;
 }
@@ -110,6 +104,8 @@ export const FigmaStyleDragHandler = () => {
 
   const actionsRef = useRef(actions);
   const queryRef = useRef(query);
+  const rafRef = useRef<number>(0);
+  const processDragRef = useRef<(() => void) | null>(null);
 
   const draggedDomsRef = useRef<HTMLElement[]>([]);
 
@@ -119,15 +115,9 @@ export const FigmaStyleDragHandler = () => {
     lastX: number;
     lastY: number;
     zoom: number;
-    nodeMargins: Array<{
-      id: string;
-      marginTop: number;
-      marginLeft: number;
-      mode: "margin" | "offset";
-      top: number;
-      left: number;
-    }>;
+    nodeMargins: DragNodeState[];
     fallbackNodeId: string | null;
+    committed: boolean;
     dirty: boolean;
   } | null>(null);
 
@@ -137,25 +127,25 @@ export const FigmaStyleDragHandler = () => {
   }, [actions, query]);
 
   useEffect(() => {
-    const handleMouseDown = (e: MouseEvent) => {
-      if (e.button !== 0) return;
+    const tick = () => {
+      const d = dragRef.current;
+      if (!d || !d.committed) {
+        rafRef.current = 0;
+        return;
+      }
 
-      const target = e.target as HTMLElement | null;
-      if (!target) return;
+      const dx = (d.lastX - d.startX) / d.zoom;
+      const dy = (d.lastY - d.startY) / d.zoom;
+      d.dirty = false;
 
-      if (
-        target.closest("input") ||
-        target.closest("textarea") ||
-        target.closest("select") ||
-        target.closest("[contenteditable=true]") ||
-        target.closest("[data-resize-handle]") ||
-        target.closest("[data-panel]")
-      ) {
+      if (dx === 0 && dy === 0) {
+        rafRef.current = 0;
         return;
       }
 
       const nodes = queryRef.current?.getState()?.nodes ?? {};
       const validEntries = d.nodeMargins.filter((entry) => entry.id && nodes[entry.id]);
+      setDragPreview(draggedDomsRef.current, d.lastX - d.startX, d.lastY - d.startY);
       validEntries.forEach((entry) => {
         const { id, mode, marginTop, marginLeft, top, left } = entry;
         actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
@@ -185,34 +175,56 @@ export const FigmaStyleDragHandler = () => {
         rafRef.current = 0;
       }
     };
+
     processDragRef.current = tick;
 
-      setDraggingStyle(draggedDomsRef.current, true);
-      document.body.dataset[EDITOR_DRAGGING_FLAG] = "true";
+    const handleMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0) return;
 
-      document.body.style.userSelect = "none";
-      document.body.style.cursor = "grabbing";
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+
+      if (
+        target.closest("input") ||
+        target.closest("textarea") ||
+        target.closest("select") ||
+        target.closest("[contenteditable=true]") ||
+        target.closest("[data-resize-handle]") ||
+        target.closest("[data-panel]")
+      ) {
+        return;
+      }
+
+      if (document.body.dataset.spacePan === "true") {
+        return;
+      }
 
       const onNode = target.closest("[data-node-id]") as HTMLElement | null;
       const nodeIdFromTarget = onNode?.getAttribute("data-node-id") ?? null;
 
       const state = queryRef.current.getState();
-      const nodesMap = state.nodes;
+      const nodesMap = state.nodes as Record<string, { data?: { props?: { locked?: boolean } } }>;
       const exists = (id: string) => !!id && id !== "ROOT" && !!nodesMap[id];
 
-      if (nodeIdFromTarget && exists(nodeIdFromTarget)) {
-        const node = nodesMap[nodeIdFromTarget];
-        const locked = node?.data?.props?.locked === true;
-        if (locked) return;
-        dragRef.current = {
-          startX: e.clientX, startY: e.clientY,
-          lastX: e.clientX, lastY: e.clientY,
-          committed: false, zoom: 1,
-          nodeMargins: [], fallbackNodeId: nodeIdFromTarget, dirty: false,
-        };
+      if (!nodeIdFromTarget || !exists(nodeIdFromTarget)) {
         return;
       }
-      
+
+      const node = nodesMap[nodeIdFromTarget];
+      const locked = node?.data?.props?.locked === true;
+      if (locked) return;
+
+      dragRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        lastX: e.clientX,
+        lastY: e.clientY,
+        zoom: 1,
+        nodeMargins: [],
+        fallbackNodeId: nodeIdFromTarget,
+        committed: false,
+        dirty: false,
+      };
     };
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -233,17 +245,21 @@ export const FigmaStyleDragHandler = () => {
           ids = [d.fallbackNodeId];
         }
         ids = ids.filter((id) => state.nodes[id]?.data?.props?.locked !== true);
-        if (ids.length === 0) { dragRef.current = null; return; }
+        if (ids.length === 0) {
+          dragRef.current = null;
+          return;
+        }
 
         let firstDom: HTMLElement | null = null;
-        try { firstDom = queryRef.current.node(ids[0]).get()?.dom ?? null; } catch { /* ignore */ }
-
-        document.body.style.userSelect = "none";
-        document.body.style.cursor = "grabbing";
+        try {
+          firstDom = queryRef.current.node(ids[0]).get()?.dom ?? null;
+        } catch {
+          // ignore
+        }
 
         d.committed = true;
         d.zoom = getEffectiveZoom(firstDom);
-        d.nodeMargins = ids.map((id) => {
+        d.nodeMargins = ids.map((id): DragNodeState => {
           const props = state.nodes[id]?.data?.props ?? {};
           const displayName = state.nodes[id]?.data?.displayName as string | undefined;
           const position = (props.position as string) ?? "static";
@@ -252,16 +268,19 @@ export const FigmaStyleDragHandler = () => {
             (displayName && OFFSET_MOVE_TYPES.has(displayName));
           return {
             id,
-            marginTop: typeof props.marginTop === "number" ? props.marginTop : 0,
-            marginLeft: typeof props.marginLeft === "number" ? props.marginLeft : 0,
+            marginTop: parseNumberOrZero(props.marginTop),
+            marginLeft: parseNumberOrZero(props.marginLeft),
             mode: useOffset ? "offset" : "margin",
-            top: parsePx(props.top),
-            left: parsePx(props.left),
+            top: parsePxOrAuto(props.top),
+            left: parsePxOrAuto(props.left),
           };
         });
 
         draggedDomsRef.current = getDraggedDoms(ids, queryRef.current.node);
         setDraggingStyle(draggedDomsRef.current, true);
+        document.body.dataset[EDITOR_DRAGGING_FLAG] = "true";
+        document.body.style.userSelect = "none";
+        document.body.style.cursor = "grabbing";
       }
 
       d.dirty = true;
@@ -274,73 +293,24 @@ export const FigmaStyleDragHandler = () => {
       const d = dragRef.current;
       if (!d) return;
 
-      const totalDx = (d.lastX - d.startX) / d.zoom;
-      const totalDy = (d.lastY - d.startY) / d.zoom;
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = 0;
+      }
 
       document.body.dataset[EDITOR_DROP_COMMIT_FLAG] = "true";
 
       if (d.committed) {
-        const state = queryRef.current.getState();
-        const nodes = state.nodes as NodesMap;
-        const ids = d.nodeMargins.map((n) => n.id);
-        const currentParentId = nodes[ids[0]]?.data?.parent ?? null;
+        clearDragPreview(draggedDomsRef.current);
+        setDraggingStyle(draggedDomsRef.current, false);
+        draggedDomsRef.current = [];
 
-        const doms = getDraggedDoms(ids, queryRef.current.node);
-        const dropTargetId = getDropTargetAt(d.lastX, d.lastY, nodes, ids, doms);
-
-        if (
-          dropTargetId &&
-          dropTargetId !== currentParentId &&
-          ids.every((id) => canAcceptNode(nodes, dropTargetId, id))
-        ) {
-          try {
-            const insertIndex = computeInsertIndex(dropTargetId, d.lastX, d.lastY, nodes, ids, queryRef.current.node);
-
-            ids.forEach((nodeId, i) => {
-              actionsRef.current.move(nodeId, dropTargetId, insertIndex + i);
-            });
-
-            ids.forEach((id) => {
-              actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
-                props.marginTop = 0;
-                props.marginLeft = 0;
-                props.top = "0px";
-                props.left = "0px";
-              });
-            });
-          } catch {
-            const nodes = queryRef.current?.getState()?.nodes ?? {};
-            d.nodeMargins.filter((e) => e.id && nodes[e.id]).forEach((entry) => {
-              const { id, mode, marginTop, marginLeft, top, left } = entry;
-              actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
-                if (mode === "offset") {
-                  props.top = `${Math.round(top)}px`;
-                  props.left = `${Math.round(left)}px`;
-                } else {
-                  props.marginTop = Math.round(marginTop);
-                  props.marginLeft = Math.round(marginLeft);
-                }
-              });
-            });
-          }
-        } else {
-          const nodes = queryRef.current?.getState()?.nodes ?? {};
-          d.nodeMargins.filter((e) => e.id && nodes[e.id]).forEach((entry) => {
-            const { id, mode, marginTop, marginLeft, top, left } = entry;
-            actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
-              if (mode === "offset") {
-                props.top = `${Math.round(top)}px`;
-                props.left = `${Math.round(left)}px`;
-              } else {
-                props.marginTop = Math.round(marginTop);
-                props.marginLeft = Math.round(marginLeft);
-              }
-            });
-          });
-        }
+        delete document.body.dataset[EDITOR_DRAGGING_FLAG];
+        delete document.body.dataset[EDITOR_DROP_COMMIT_FLAG];
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
       }
+
       dragRef.current = null;
     };
 
@@ -349,9 +319,20 @@ export const FigmaStyleDragHandler = () => {
     document.addEventListener("mouseup", handleMouseUp, true);
     window.addEventListener("mouseup", handleMouseUp, true);
     window.addEventListener("blur", handleMouseUp, true);
-    // Do NOT end drag on document mouseleave — keep tracking when cursor moves
-    // outside canvas (panels or window edge); only end on mouseup or window blur
+
     return () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = 0;
+      }
+      clearDragPreview(draggedDomsRef.current);
+      setDraggingStyle(draggedDomsRef.current, false);
+      draggedDomsRef.current = [];
+      delete document.body.dataset[EDITOR_DRAGGING_FLAG];
+      delete document.body.dataset[EDITOR_DROP_COMMIT_FLAG];
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+
       document.removeEventListener("mousedown", handleMouseDown, true);
       document.removeEventListener("mousemove", handleMouseMove, true);
       document.removeEventListener("mouseup", handleMouseUp, true);

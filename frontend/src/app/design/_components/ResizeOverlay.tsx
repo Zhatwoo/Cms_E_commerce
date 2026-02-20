@@ -117,10 +117,6 @@ function parsePxOrAuto(value: unknown): number {
   return 0;
 }
 
-function isNearlyEqual(a: number, b: number, eps = EPSILON): boolean {
-  return Math.abs(a - b) < eps;
-}
-
 type GuideLine = { type: "v" | "h"; value: number };
 type GuideState = {
   lines: GuideLine[];
@@ -429,6 +425,13 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       }
 
       if (d.type === "move") {
+        let nextLeft = d.moveMode === "offset"
+          ? parsePxOrAuto(p.left) + dx
+          : parsePxOrAuto(p.marginLeft) + dx;
+        let nextTop = d.moveMode === "offset"
+          ? parsePxOrAuto(p.top) + dy
+          : parsePxOrAuto(p.marginTop) + dy;
+
         d.previewX = (d.previewX ?? 0) + dx;
         d.previewY = (d.previewY ?? 0) + dy;
         dom.style.setProperty("translate", `${d.previewX}px ${d.previewY}px`);
@@ -464,30 +467,26 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
           }
         }
         const zoom = d.zoom;
+        let snapOffsetX = 0;
+        let snapOffsetY = 0;
         if (snapV != null) {
-          const offsetPx = snapV - centerX;
-          nextLeft += offsetPx / zoom;
-          d.currentRect = new DOMRect(r.left + offsetPx, r.top, r.width, r.height);
+          snapOffsetX = snapV - centerX;
         }
         if (snapH != null) {
-          const offsetPx = snapH - centerY;
-          nextTop += offsetPx / zoom;
-          d.currentRect = new DOMRect(d.currentRect.left, d.currentRect.top + offsetPx, d.currentRect.width, d.currentRect.height);
+          snapOffsetY = snapH - centerY;
         }
 
-        if (d.moveMode === "offset") {
-          actions.setProp(nodeId, (props: Record<string, unknown>) => {
-            if (!props.position || props.position === "static") props.position = "relative";
-            props.top = `${nextTop}px`;
-            props.left = `${nextLeft}px`;
-          });
-          d.startProps = { ...d.startProps, top: `${nextTop}px`, left: `${nextLeft}px` };
-        } else {
-          actions.setProp(nodeId, (props: Record<string, unknown>) => {
-            props.marginTop = nextTop;
-            props.marginLeft = nextLeft;
-          });
-          d.startProps = { ...d.startProps, marginTop: nextTop, marginLeft: nextLeft };
+        if (snapOffsetX !== 0 || snapOffsetY !== 0) {
+          d.previewX = (d.previewX ?? 0) + snapOffsetX / zoom;
+          d.previewY = (d.previewY ?? 0) + snapOffsetY / zoom;
+          dom.style.setProperty("translate", `${d.previewX}px ${d.previewY}px`);
+          d.currentRect = new DOMRect(
+            d.currentRect.left + snapOffsetX,
+            d.currentRect.top + snapOffsetY,
+            d.currentRect.width,
+            d.currentRect.height
+          );
+          applyOverlayRect(d.currentRect);
         }
 
         if (d.guideBounds) {
