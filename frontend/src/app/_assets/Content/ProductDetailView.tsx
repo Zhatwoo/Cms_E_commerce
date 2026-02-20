@@ -136,7 +136,7 @@ export const ProductDetailView: TemplateEntry = {
             <Element
               is={Container as any}
               flexDirection="column"
-              alignItems="flex"
+              alignItems="flex-start"
               justifyContent="center"
               background="transparent"
               style={{ minWidth: 180, maxWidth: 220 }}
@@ -162,7 +162,7 @@ export const ProductDetailView: TemplateEntry = {
             <Element
               is={Container as any}
               flexDirection="column"
-              alignItems="flex"
+              alignItems="flex-start"
               justifyContent="center"
               background="transparent"
               style={{ minWidth: 120, maxWidth: 160, marginLeft: 24 }}
