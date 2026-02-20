@@ -24,7 +24,7 @@ function getEffectiveZoom(el: HTMLElement | null): number {
   let zoom = 1;
   let current: HTMLElement | null = el;
   while (current) {
-    const zoomText = window.getComputedStyle(current).zoom;
+    const zoomText = window.getComputedStyle(current).getPropertyValue("zoom");
     const parsed = parseFloat(zoomText);
     if (Number.isFinite(parsed) && parsed > 0) {
       zoom *= parsed;
@@ -143,9 +143,10 @@ export const FigmaStyleDragHandler = () => {
         return;
       }
 
+      const nodes = queryRef.current?.getState()?.nodes ?? {};
+      const validEntries = d.nodeMargins.filter((entry) => entry.id && nodes[entry.id]);
       setDragPreview(draggedDomsRef.current, d.lastX - d.startX, d.lastY - d.startY);
-
-      d.nodeMargins.forEach((entry: DragNodeState) => {
+      validEntries.forEach((entry) => {
         const { id, mode, marginTop, marginLeft, top, left } = entry;
         actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
           if (mode === "offset") {
@@ -160,7 +161,7 @@ export const FigmaStyleDragHandler = () => {
 
       d.startX = d.lastX;
       d.startY = d.lastY;
-      d.nodeMargins = d.nodeMargins.map((n) => ({
+      d.nodeMargins = validEntries.map((n) => ({
         ...n,
         marginTop: n.marginTop + dy,
         marginLeft: n.marginLeft + dx,
