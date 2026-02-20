@@ -11,7 +11,7 @@
   --dur-slow: 460ms;
 }
 
-@theme inline {
+:root {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
@@ -276,4 +276,14 @@ body {
   outline: 2px solid #3b82f6 !important;
   /* Blue 500 */
   position: relative;
+}
+
+/* Hand tool: force hand cursor over entire canvas (including nodes) */
+[data-canvas-container].canvas-hand-tool,
+[data-canvas-container].canvas-hand-tool * {
+  cursor: grab !important;
+}
+[data-canvas-container].canvas-hand-panning,
+[data-canvas-container].canvas-hand-panning * {
+  cursor: grabbing !important;
 }

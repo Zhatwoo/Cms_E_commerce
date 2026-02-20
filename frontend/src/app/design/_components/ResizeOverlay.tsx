@@ -125,7 +125,7 @@ type GuideState = {
 export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
   const { actions, query } = useEditor();
 
-  const MOVE_TARGET_TYPES = new Set(["Page", "Section", "Container", "Row", "Column", "Button"]);
+  const MOVE_TARGET_TYPES = new Set(["Page", "Section", "Container", "Row", "Column", "Button", "Frame"]);
 
   const dragRef = useRef<DragState | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
@@ -216,10 +216,10 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
           if (isDescendantOfDraggedNode(candidateId)) return false;
 
           const candidate = state.nodes[candidateId];
-          if (!candidate?.data?.isCanvas) return false;
-
-          const displayName = candidate.data.displayName;
-          return MOVE_TARGET_TYPES.has(displayName as string);
+          const displayName = candidate?.data?.displayName as string | undefined;
+          const isCanvas = candidate?.data?.isCanvas ?? MOVE_TARGET_TYPES.has(displayName ?? "");
+          if (!isCanvas) return false;
+          return displayName ? MOVE_TARGET_TYPES.has(displayName) : false;
         });
 
         if (!dropParentId || dropParentId === sourceParentId) return false;

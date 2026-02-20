@@ -242,3 +242,20 @@ export interface CircleProps
 
 export interface SquareProps extends CircleProps {}
 export interface TriangleProps extends CircleProps {}
+
+/** Frame component props — responsive wrapper so content scales for all devices (desktop, tablet, mobile). */
+export interface FrameProps extends SpacingProps, AnimatableProps, InteractionProps {
+  /** Design/reference width in px; content is laid out at this width then scaled to fit. */
+  referenceWidth?: number;
+  /** Design/reference height in px; if set, frame scales to fit within container (contain mode). */
+  referenceHeight?: number;
+  /** How the frame content fits: "contain" = scale to fit (no crop), "cover" = fill and crop, "width" = scale by width only, "fluid" = 100% width, assets reflow (max-width: 100%). */
+  fitMode?: "contain" | "cover" | "width" | "fluid";
+  /** Outer container width (e.g. "100%" or "1200px"). */
+  width?: string;
+  /** Outer container min-height (e.g. "400px" or "50vh"). When set, overrides height for display. */
+  minHeight?: string;
+  /** Treated as minHeight when minHeight is not set (for settings panel compatibility). */
+  height?: string;
+  children?: ReactNode;
+}

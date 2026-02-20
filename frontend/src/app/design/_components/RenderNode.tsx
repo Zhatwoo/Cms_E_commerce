@@ -2,8 +2,15 @@ import React, { useEffect } from "react";
 import { useNode, useEditor } from "@craftjs/core";
 import ReactDOM from "react-dom";
 import { ResizeOverlay } from "./ResizeOverlay";
+import { useCanvasTool } from "./CanvasToolContext";
 
 export const RenderNode = ({ render }: { render: React.ReactElement }) => {
+  const { id } = useNode();
+  const activeTool = useCanvasTool();
+  const { isActive } = useEditor((_, query) => ({
+    isActive: query.getEvent('selected').contains(id),
+  }));
+
   const {
     id,
     isSelectedEvent,
@@ -20,23 +27,23 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
     visibility: (node.data.props?.visibility as "visible" | "hidden" | undefined) ?? "visible",
   }));
 
-  const { isSelectedByEditor } = useEditor((_, query) => ({
-    isSelectedByEditor: query.getEvent("selected").contains(id),
-  }));
-
-  const isActive = isSelectedByEditor || isSelectedEvent;
-
-  const mounted = typeof window !== "undefined";
+  const [mounted, setMounted] = useState(false);
+  const isHandTool = activeTool === "hand";
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // When Hand tool is active, don't show selection/hover outline or labels on assets
+  useEffect(() => {
     if (dom) {
-      if (isActive || isHover) {
+      if (!isHandTool && (isActive || isHover)) {
         dom.classList.add("component-selected");
       } else {
         dom.classList.remove("component-selected");
       }
     }
-  }, [dom, isActive, isHover]);
+  }, [dom, isActive, isHover, isHandTool]);
 
   // Don't render overlays for ROOT/Viewport shells only
   if (id === "ROOT" || name === "Viewport") {
@@ -45,8 +52,8 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
 
   return (
     <>
-      {/* Label overlay (portal) */}
-      {mounted && (isHover || isActive) && dom ?
+      {/* Label overlay (portal) — hidden when Hand tool is active */}
+      {!isHandTool && mounted && (isHover || isActive) && dom ?
         ReactDOM.createPortal(
           <div
             data-panel="node-label"
@@ -63,7 +70,7 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
         )
         : null}
 
-      {/* Resize / Move overlay — show ONLY on selected, not on hover */}
+      {/* Resize / Move overlay — only for actively selected nodes */}
       {mounted && isActive && dom ? (
         <ResizeOverlay nodeId={id} dom={dom} />
       ) : null}
