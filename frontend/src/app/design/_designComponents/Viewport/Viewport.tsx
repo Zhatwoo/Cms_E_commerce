@@ -1,9 +1,15 @@
 import React, { useEffect, useRef } from "react";
-import { useNode } from "@craftjs/core";
+import { useEditor, useNode } from "@craftjs/core";
 import type { Node } from "@craftjs/core";
 
 const MOBILE_WIDTH = 390;
 const MOBILE_MIN_HEIGHT = 640;
+const MOBILE_SIDE_GUTTER = 14;
+const MOBILE_INNER_WIDTH = MOBILE_WIDTH - MOBILE_SIDE_GUTTER * 2;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
 
 function parsePx(value: string | null | undefined): number | null {
   if (!value) return null;
@@ -72,9 +78,16 @@ function applyHamburgerIfNeeded(root: HTMLElement): HTMLElement | null {
   menu.style.width = "100%";
 
   menuItems.forEach((item) => {
+    item.style.position = "static";
+    item.style.top = "auto";
+    item.style.right = "auto";
+    item.style.bottom = "auto";
+    item.style.left = "auto";
+    item.style.transform = "none";
     item.style.display = "block";
     item.style.width = "100%";
     item.style.textAlign = "left";
+    item.style.margin = "0";
     menu.appendChild(item);
   });
 
@@ -88,6 +101,12 @@ function applyHamburgerIfNeeded(root: HTMLElement): HTMLElement | null {
   };
 
   header.textContent = "";
+  logo.style.position = "static";
+  logo.style.top = "auto";
+  logo.style.right = "auto";
+  logo.style.bottom = "auto";
+  logo.style.left = "auto";
+  logo.style.transform = "none";
   header.appendChild(logo);
   header.appendChild(toggle);
   header.insertAdjacentElement("afterend", shell);
@@ -99,8 +118,9 @@ function adaptCloneForMobile(root: HTMLElement) {
   const all = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
 
   all.forEach((el) => {
-    el.removeAttribute("data-node-id");
+    el.dataset.mobilePreviewClone = "true";
 
+    el.style.boxSizing = "border-box";
     el.style.maxWidth = "100%";
 
     if (el === root) {
@@ -111,9 +131,15 @@ function adaptCloneForMobile(root: HTMLElement) {
     const isMobileNavShell = el.dataset.mobileNavShell === "true";
 
     const position = (el.style.position || "").toLowerCase();
+    const children = asElements(el.children);
+    const hasChildren = children.length > 0;
+    const textContent = (el.textContent || "").trim();
+    const hasReadableText = textContent.length > 0;
+    const tag = el.tagName.toLowerCase();
+    const isMediaElement = ["img", "svg", "canvas", "video", "path"].includes(tag);
     if (position === "absolute" || position === "fixed") {
-      const hasText = (el.textContent || "").trim().length > 0;
-      if (hasText || !!el.closest("[data-mobile-nav-root='true']")) {
+      const insideMobileNav = !!el.closest("[data-mobile-nav-root='true']") || !!el.closest("[data-mobile-nav-shell='true']");
+      if (insideMobileNav) {
         el.style.position = "static";
         el.style.top = "auto";
         el.style.right = "auto";
@@ -124,13 +150,61 @@ function adaptCloneForMobile(root: HTMLElement) {
     }
 
     const widthPx = parsePx(el.style.width);
-    if (widthPx !== null && widthPx > MOBILE_WIDTH) {
+    if (widthPx !== null && widthPx > MOBILE_INNER_WIDTH) {
       el.style.width = "100%";
     }
 
+    if (!isMediaElement && hasReadableText && widthPx !== null && widthPx > 0 && widthPx < 140) {
+      el.style.width = "100%";
+      el.style.minWidth = "0px";
+    }
+
+    const minWidthPx = parsePx(el.style.minWidth);
+    if (minWidthPx !== null && minWidthPx > MOBILE_INNER_WIDTH) {
+      el.style.minWidth = "0px";
+    }
+
     const leftPx = parsePx(el.style.left);
-    if (leftPx !== null && leftPx > 8) {
+    if (leftPx !== null && (leftPx > 8 || leftPx < 0)) {
       el.style.left = "0px";
+    }
+
+    const rightPx = parsePx(el.style.right);
+    if (rightPx !== null && (rightPx > 8 || rightPx < 0)) {
+      el.style.right = "0px";
+    }
+
+    const marginLeftPx = parsePx(el.style.marginLeft);
+    if (marginLeftPx !== null && marginLeftPx > 20) {
+      el.style.marginLeft = "0px";
+    }
+
+    const marginRightPx = parsePx(el.style.marginRight);
+    if (marginRightPx !== null && marginRightPx > 20) {
+      el.style.marginRight = "0px";
+    }
+
+    const horizontalPaddingLeft = parsePx(el.style.paddingLeft);
+    if (horizontalPaddingLeft !== null && horizontalPaddingLeft > 20) {
+      el.style.paddingLeft = `${clamp(horizontalPaddingLeft, 8, 20)}px`;
+    }
+
+    const horizontalPaddingRight = parsePx(el.style.paddingRight);
+    if (horizontalPaddingRight !== null && horizontalPaddingRight > 20) {
+      el.style.paddingRight = `${clamp(horizontalPaddingRight, 8, 20)}px`;
+    }
+
+    const heightPx = parsePx(el.style.height);
+    if (heightPx !== null && hasChildren && heightPx > 520) {
+      el.style.height = "auto";
+      if (!el.style.minHeight) {
+        el.style.minHeight = "0px";
+      }
+    }
+
+    const minHeightPx = parsePx(el.style.minHeight);
+    if (minHeightPx !== null && minHeightPx > 680) {
+      el.style.minHeight = "0px";
     }
 
     if ((el.style.display || "").toLowerCase() === "grid") {
@@ -143,27 +217,52 @@ function adaptCloneForMobile(root: HTMLElement) {
     if ((el.style.display || "").toLowerCase() === "flex") {
       const direction = (el.style.flexDirection || "row").toLowerCase();
       if (direction === "row" && !isMobileNavHeader && !isMobileNavShell) {
-        const childCount = asElements(el.children).length;
-        if (childCount > 1) {
+        const childCount = children.length;
+        const widthPx = parsePx(el.style.width);
+        const fixedChildrenWidth = children.reduce((sum, child) => {
+          const childWidth = parsePx(child.style.width);
+          return sum + (childWidth ?? 0);
+        }, 0);
+        const shouldStack =
+          childCount > 1 &&
+          (
+            (widthPx !== null && widthPx > MOBILE_INNER_WIDTH) ||
+            fixedChildrenWidth > MOBILE_INNER_WIDTH * 0.9
+          );
+        if (shouldStack) {
           el.style.flexDirection = "column";
           el.style.alignItems = "stretch";
           el.style.justifyContent = "flex-start";
           if (!el.style.gap) el.style.gap = "10px";
+          children.forEach((child) => {
+            child.style.maxWidth = "100%";
+            const childWidth = parsePx(child.style.width);
+            if (childWidth !== null) {
+              child.style.width = "100%";
+              child.style.minWidth = "0px";
+            }
+          });
         }
       }
     }
 
-    const fontPx = parsePx(el.style.fontSize);
-    if (fontPx !== null && fontPx > 20) {
-      el.style.fontSize = `${Math.round(fontPx * 0.8)}px`;
-    }
+    el.style.wordBreak = "normal";
+    el.style.overflowWrap = "break-word";
   });
+
+  root.style.width = "100%";
+  root.style.minWidth = "0px";
+  root.style.paddingLeft = `${MOBILE_SIDE_GUTTER}px`;
+  root.style.paddingRight = `${MOBILE_SIDE_GUTTER}px`;
 }
 
 export const Viewport = ({ children }: { children?: React.ReactNode }) => {
   const desktopCanvasRef = useRef<HTMLDivElement | null>(null);
   const mobileCanvasRef = useRef<HTMLDivElement | null>(null);
-  const { connectors: { connect, drag } } = useNode();
+  const { id: viewportId, connectors: { connect, drag } } = useNode((node) => ({
+    id: node.id,
+  }));
+  const { actions, query } = useEditor();
 
   useEffect(() => {
     const desktopRoot = desktopCanvasRef.current;
@@ -187,8 +286,24 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       clone.style.width = "100%";
       clone.style.height = "auto";
       clone.style.transform = "none";
+      clone.dataset.mobilePreviewRoot = "true";
 
       adaptCloneForMobile(clone);
+
+      let selectedNodeId: string | null = null;
+      try {
+        selectedNodeId = query.getEvent("selected").first() ?? null;
+      } catch {
+        selectedNodeId = null;
+      }
+
+      if (selectedNodeId) {
+        const selectedEl = clone.querySelector<HTMLElement>(`[data-node-id="${selectedNodeId}"]`);
+        if (selectedEl) {
+          selectedEl.style.outline = "2px solid #3b82f6";
+          selectedEl.style.outlineOffset = "1px";
+        }
+      }
 
       mobileRoot.innerHTML = "";
       const wrapper = document.createElement("div");
@@ -200,6 +315,8 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       wrapper.style.background = "#e5e7eb";
       wrapper.style.borderRadius = "0.5rem";
       wrapper.style.padding = "0";
+      wrapper.style.boxSizing = "border-box";
+      wrapper.style.overflowX = "hidden";
       wrapper.appendChild(clone);
       mobileRoot.appendChild(wrapper);
     };
@@ -207,6 +324,24 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
     const queueRender = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(renderMobilePreview);
+    };
+
+    const handleMobileClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+
+      const nodeEl = target.closest<HTMLElement>("[data-node-id]");
+      if (!nodeEl) return;
+
+      const nodeId = nodeEl.getAttribute("data-node-id");
+      if (!nodeId || nodeId === "ROOT" || nodeId === viewportId) return;
+
+      if (!query.getState().nodes[nodeId]) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      actions.selectNode(nodeId);
+      queueRender();
     };
 
     const mutation = new MutationObserver(queueRender);
@@ -220,14 +355,17 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
     const resizeObserver = new ResizeObserver(queueRender);
     resizeObserver.observe(desktopRoot);
 
+    mobileRoot.addEventListener("click", handleMobileClick, true);
+
     queueRender();
 
     return () => {
       cancelAnimationFrame(frame);
       mutation.disconnect();
       resizeObserver.disconnect();
+      mobileRoot.removeEventListener("click", handleMobileClick, true);
     };
-  }, [children]);
+  }, [children, actions, query, viewportId]);
 
   return (
     <div

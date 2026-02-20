@@ -1,25 +1,27 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useEditor } from "@craftjs/core";
-
-/** Persists last selected node for Shift+click range selection (Figma-like). */
-let lastSelectedNodeIdRef: string | null = null;
+import { useCanvasTool } from "./CanvasToolContext";
 
 /**
  * Handles multi-selection on the canvas via mousedown on capture phase.
  * - Click: select single node (or clear if clicking empty area)
  * - Ctrl (Win) / Cmd (Mac) + Click: toggle node in selection
- * - Shift + Click: select range from last selected to clicked (siblings)
  *
  * Uses query.getState() inside the handler to avoid reactive subscriptions
  * that cause "Cannot update component while rendering another" errors.
  */
 export const CanvasSelectionHandler = () => {
   const { actions, query } = useEditor();
+  const activeTool = useCanvasTool();
+  const lastSelectedNodeIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
+      // Hand tool: do not select nodes, let panning handle it
+      if (activeTool === "hand") return;
+
       const target = e.target as HTMLElement | null;
       if (!target) return;
 
@@ -62,12 +64,12 @@ export const CanvasSelectionHandler = () => {
       };
 
       const updateLastSelected = (id: string | null) => {
-        lastSelectedNodeIdRef = id;
+        lastSelectedNodeIdRef.current = id;
       };
 
       if (nodeId && exists(nodeId)) {
         if (isRange) {
-          const lastId = lastSelectedNodeIdRef && exists(lastSelectedNodeIdRef) ? lastSelectedNodeIdRef : null;
+          const lastId = lastSelectedNodeIdRef.current && exists(lastSelectedNodeIdRef.current) ? lastSelectedNodeIdRef.current : null;
           if (lastId && lastId !== nodeId) {
             const parentId = nodesMap[nodeId]?.data?.parent as string | undefined;
             const lastParentId = nodesMap[lastId]?.data?.parent as string | undefined;
@@ -105,6 +107,7 @@ export const CanvasSelectionHandler = () => {
         } else {
           safeSelect(nodeId);
           updateLastSelected(nodeId);
+          return;
         }
       }
       // Empty area: do not clear here — BoxSelectionHandler will clear on mouseup
@@ -114,7 +117,7 @@ export const CanvasSelectionHandler = () => {
     // Use capture on document so we intercept before Craft.js handlers
     document.addEventListener("mousedown", handleMouseDown, true);
     return () => document.removeEventListener("mousedown", handleMouseDown, true);
-  }, [actions, query]);
+  }, [actions, query, activeTool]);
 
   return null;
 };

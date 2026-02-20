@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useTransition } from "react";
 import ReactDOM from "react-dom";
 import { useEditor } from "@craftjs/core";
 import {
@@ -24,7 +24,7 @@ const PROTECTED = new Set(["Viewport"]);
 const UNDRAGGABLE = new Set(["ROOT", "Viewport", "Page"]);
 
 /** Display names that accept drop "inside" (canvas containers). */
-const CANVAS_CONTAINERS = new Set(["Viewport", "Page", "Section", "Row", "Column", "Container"]);
+const CANVAS_CONTAINERS = new Set(["Viewport", "Page", "Section", "Row", "Column", "Container", "Frame"]);
 
 /** Get ordered child node IDs from a node (Craft state or serialized shape). */
 function getChildIds(node: Record<string, unknown> | null | undefined): string[] {
@@ -81,6 +81,8 @@ export const FilesPanel = () => {
     nodes: state.nodes,
     selected: state.events.selected,
   }));
+
+  const [isPending, startTransition] = useTransition();
 
   // ── Refs for stable access in event handlers ─
   const nodesRef = useRef(nodes);
@@ -155,8 +157,13 @@ export const FilesPanel = () => {
 
   // ── Context menu actions ──────────────────────────────────
   const handleSelect = useCallback(
-    (nodeId: string) => { actions.selectNode(nodeId); setContextMenu(null); },
-    [actions]
+    (nodeId: string) => {
+      startTransition(() => {
+        actions.selectNode(nodeId);
+        setContextMenu(null);
+      });
+    },
+    [actions, startTransition]
   );
 
   const handleDuplicate = useCallback(
@@ -164,7 +171,7 @@ export const FilesPanel = () => {
       duplicateNodes(actions, query, [nodeId]);
       setContextMenu(null);
     },
-    [actions, query]
+    [actions, query, startTransition]
   );
 
   const handleGroup = useCallback(() => {
@@ -181,16 +188,18 @@ export const FilesPanel = () => {
 
   const handleDelete = useCallback(
     (nodeId: string) => {
-      try {
-        if (nodeId === "ROOT") return;
-        const node = query.node(nodeId).get();
-        if (PROTECTED.has(node.data.displayName)) return;
-        if (!query.node(nodeId).isDeletable()) return;
-        actions.delete(nodeId);
-      } catch { /* node might already be gone */ }
-      setContextMenu(null);
+      startTransition(() => {
+        try {
+          if (nodeId === "ROOT") return;
+          const node = query.node(nodeId).get();
+          if (PROTECTED.has(node.data.displayName)) return;
+          if (!query.node(nodeId).isDeletable()) return;
+          actions.delete(nodeId);
+        } catch { /* node might already be gone */ }
+        setContextMenu(null);
+      });
     },
-    [actions, query]
+    [actions, query, startTransition]
   );
 
   const isProtected = (nodeId: string): boolean => {
@@ -575,15 +584,17 @@ export const FilesPanel = () => {
             if (dragRef.current?.activated) return;
             e.stopPropagation();
             const isMulti = e.ctrlKey || e.metaKey;
-            if (isMulti) {
-              const selArr = selected instanceof Set ? Array.from(selected) : Array.isArray(selected) ? selected : [];
-              const next = new Set(selArr);
-              if (next.has(nodeId)) next.delete(nodeId);
-              else next.add(nodeId);
-              actions.selectNode(next.size === 0 ? undefined : Array.from(next));
-            } else {
-              actions.selectNode(nodeId);
-            }
+            startTransition(() => {
+              if (isMulti) {
+                const selArr = selected instanceof Set ? Array.from(selected) : Array.isArray(selected) ? selected : [];
+                const next = new Set(selArr);
+                if (next.has(nodeId)) next.delete(nodeId);
+                else next.add(nodeId);
+                actions.selectNode(next.size === 0 ? undefined : Array.from(next));
+              } else {
+                actions.selectNode(nodeId);
+              }
+            });
           }}
           onContextMenu={openContextMenu}
           className={`

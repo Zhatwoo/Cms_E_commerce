@@ -13,13 +13,11 @@ import {
 import { CenteredHero, HeroWithImage, HeroBannerCTA, HeroBannerCTA_v2, HeroBannerCTA_v3 } from "./Hero";
 import { FeaturesGrid, Testimonial } from "./Content";
 import { ContactForm, NewsletterSignup, OrderForm, LoginForm, SignupForm, AddToCart, PaymentForm } from "./Forms";
-import { ProductCard, TeamMemberCard } from "./Cards";
+import { ProductCard, TeamMemberCard, GridViewCard, ProductDescription, FeaturedProduct } from "./Cards";
 import {
   SimpleFooter,
   MultiColumnFooter,
   NewsletterFooter,
-  TrustFooter,
-  CheckoutFooter,
   BrandFooter
 } from "./Footer";
 import {
@@ -123,8 +121,6 @@ export const TEMPLATES: TemplateEntry[] = [
   SimpleFooter,
   MultiColumnFooter,
   NewsletterFooter,
-  TrustFooter,
-  CheckoutFooter,
   BrandFooter,
   FacebookIcon,
   GoogleIcon,

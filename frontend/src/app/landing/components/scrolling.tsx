@@ -182,7 +182,7 @@ export function FrontLayerWrapper({ children }: { children: React.ReactNode }) {
   const translateY = `${(1 - frontLayerProgress) * 100}vh`;
   return (
     <div
-      className="fixed left-0 right-0 top-0 z-20 overflow-y-auto overflow-x-hidden rounded-t-3xl bg-[#020205] transition-transform duration-500 ease-out will-change-transform"
+      className="fixed left-0 right-0 top-0 z-20 overflow-y-auto overflow-x-hidden no-scrollbar rounded-t-3xl bg-[#020205] transition-transform duration-500 ease-out will-change-transform"
       style={{
         height: '100vh',
         minHeight: '100dvh',
@@ -210,6 +210,7 @@ export function LandingScrollRoot({ children, headerSlot }: LandingScrollRootPro
   const [scrollY, setScrollY] = useState(0);
   const [gateProgress, setGateProgress] = useState(0);
   const [gateEndScrollY, setGateEndScrollYState] = useState<number | null>(null);
+  const [animatedFrontLayerProgress, setAnimatedFrontLayerProgress] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const isScrolled = scrollY > SCROLL_THRESHOLD_HEADER;
@@ -221,7 +222,7 @@ export function LandingScrollRoot({ children, headerSlot }: LandingScrollRootPro
     gateEndScrollY != null && scrollY >= gateEndScrollY
       ? Math.min(1, (scrollY - gateEndScrollY) / FRONT_LAYER_ENTRANCE_PX)
       : 0;
-  const frontLayerProgress = Math.max(frontFromGate, frontFromScroll);
+  const frontLayerTargetProgress = Math.max(frontFromGate, frontFromScroll);
 
   const setGateEndScrollY = useCallback((y: number | null) => {
     setGateEndScrollYState((prev) =>
@@ -238,11 +239,28 @@ export function LandingScrollRoot({ children, headerSlot }: LandingScrollRootPro
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  useEffect(() => {
+    let rafId = 0;
+    const animate = () => {
+      setAnimatedFrontLayerProgress((prev) => {
+        const delta = frontLayerTargetProgress - prev;
+        if (Math.abs(delta) < 0.001) {
+          return frontLayerTargetProgress;
+        }
+        return prev + delta * 0.14;
+      });
+      rafId = requestAnimationFrame(animate);
+    };
+
+    rafId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafId);
+  }, [frontLayerTargetProgress]);
+
   const value: LandingScrollContextValue = {
     scrollY,
     gateProgress,
     gateEndScrollY,
-    frontLayerProgress,
+    frontLayerProgress: animatedFrontLayerProgress,
     isScrolled,
     scrollContainerRef,
   };
