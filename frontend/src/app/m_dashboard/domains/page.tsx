@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { ExternalLink, X, Globe, Calendar, FileText } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useTheme } from '../components/context/theme-context';
 import { useAuth } from '../components/context/auth-context';
 import { listProjects, getSchedule, getPublishHistory, type Project, type PublishHistoryEntry } from '@/lib/api';
@@ -11,6 +11,9 @@ import {
   Plus, 
   Search, 
   ExternalLink, 
+  X,
+  Calendar,
+  FileText,
   Copy, 
   Settings, 
   Trash2, 
@@ -100,6 +103,12 @@ export default function DomainsPage() {
       subdomain: subdomainsByProject[p.id]?.subdomain ?? p.subdomain ?? null,
     }))
     .filter((d) => d.subdomain);
+
+  const stats = {
+    total: domainsList.length,
+    active: domainsList.filter((d) => d.project.status === 'published').length,
+    draft: domainsList.filter((d) => (d.project.status ?? 'draft') !== 'published').length,
+  };
 
   type DomainEntry = { project: Project; subdomain: string };
   const [selectedDomain, setSelectedDomain] = useState<DomainEntry | null>(null);

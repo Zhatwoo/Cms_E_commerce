@@ -21,6 +21,7 @@ function rectsIntersect(
 export const BoxSelectionHandler = () => {
   const { actions, query } = useEditor();
   const activeTool = useCanvasTool();
+  const startedOnEmptyRef = useRef(false);
   const [marquee, setMarquee] = useState<{
     startX: number;
     startY: number;

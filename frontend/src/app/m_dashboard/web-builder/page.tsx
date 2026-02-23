@@ -365,6 +365,8 @@ export default function WebBuilderPage() {
       const msg = error instanceof Error ? error.message : '';
       if (msg.includes('Route not found') || msg.includes('404')) {
         showAlert('Project API not found. Make sure the backend is running and restart it (e.g. in backend folder: npm start).');
+      } else if (msg.includes('Backend is unreachable') || msg.includes('Failed to fetch')) {
+        showAlert('Cannot reach backend API. Start backend server and check if it is running on port 5000 or 5001.');
       } else {
         showAlert('Failed to create project. Please try again.');
       }
@@ -477,7 +479,7 @@ export default function WebBuilderPage() {
     });
 
   return (
-    <section className="space-y-8 min-h-screen pb-20">
+    <section className="space-y-8 min-h-screen pb-20 max-w-full overflow-x-hidden">
       {/* Header Section */}
       <section
         className="rounded-2xl border p-5 md:p-6"
@@ -628,11 +630,11 @@ export default function WebBuilderPage() {
             No projects yet. Start from scratch or use a template above.
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          <div className="grid w-full max-w-full min-w-0 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
             {projects.map((p) => (
               <motion.div
                 key={p.id}
-                className="relative rounded-lg border overflow-hidden cursor-pointer hover:border-opacity-80 transition-colors"
+                className="relative min-w-0 rounded-lg border overflow-hidden cursor-pointer hover:border-opacity-80 transition-colors"
                 style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -743,7 +745,7 @@ export default function WebBuilderPage() {
 
         {/* Filters and Sorting - Similar to Orders Page */}
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-          <div className="flex flex-wrap gap-3 w-full">
+          <div className="flex flex-wrap gap-3 flex-1 min-w-0">
             {/* Type Filter */}
             <select
               value={selectedCategory}
@@ -828,7 +830,7 @@ export default function WebBuilderPage() {
           </div>
 
           {/* Right side controls */}
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-2 sm:ml-auto shrink-0">
             {/* List view toggle */}
             <div className="flex items-center rounded-lg overflow-hidden border" style={{ borderColor: colors.border.faint }}>
               <button
