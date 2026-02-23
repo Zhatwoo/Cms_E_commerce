@@ -271,6 +271,18 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+html.m-dashboard-scroll-lock,
+body.m-dashboard-scroll-lock {
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+html:has(.m-dashboard-shell),
+body:has(.m-dashboard-shell) {
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
 /* Builder Styles */
 .component-selected {
   outline: 2px solid #3b82f6 !important;

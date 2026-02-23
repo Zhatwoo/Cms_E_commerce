@@ -1,66 +1,240 @@
 // Eto yung mismong dashboard page
 
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 import { useTheme } from '../components/context/theme-context';
 import { RecentProjects } from '../components/dashboard/RecentProjects';
 import { TopSellingProducts } from '../components/dashboard/TopSellingProducts';
 
+type HeroTab = 'designs' | 'templates' | 'mercato-ai';
+
+const quickActions = [
+  { label: 'Presentation' },
+  { label: 'Social' },
+  { label: 'Video' },
+  { label: 'Print' },
+  { label: 'Website' },
+  { label: 'Email' },
+  { label: 'Upload' },
+];
+
+const templateCards = [
+  { title: 'Presentation', subtitle: 'Pitch, report, proposal' },
+  { title: 'Poster', subtitle: 'Promo and campaign' },
+  { title: 'Resume', subtitle: 'Professional profile' },
+  { title: 'Email', subtitle: 'Newsletter and updates' },
+  { title: 'Logo', subtitle: 'Brand starter kits' },
+  { title: 'Flyer', subtitle: 'Events and promotions' },
+  { title: 'Brochure', subtitle: 'Products and services' },
+  { title: 'Menu', subtitle: 'Cafe and restaurant' },
+  { title: 'Whiteboard', subtitle: 'Team collaboration' },
+  { title: 'Website', subtitle: 'Landing and business sites' },
+];
+
+const inspiredCards = [
+  { title: 'Modern Storefront', cta: 'Edit project' },
+  { title: 'Agency Landing', cta: 'Open builder' },
+  { title: 'Portfolio Homepage', cta: 'Continue design' },
+  { title: 'Product Showcase', cta: 'Customize now' },
+];
+
 // ── Main Dashboard ───────────────────────────────────────────────────────────
 export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const { theme, colors } = useTheme();
+  const router = useRouter();
+  const [activeHeroTab, setActiveHeroTab] = useState<HeroTab>('templates');
+  const tabNavigateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (tabNavigateTimeoutRef.current) {
+        clearTimeout(tabNavigateTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleHeroTabSwitch = (tab: HeroTab, href: string) => {
+    setActiveHeroTab(tab);
+    if (tabNavigateTimeoutRef.current) {
+      clearTimeout(tabNavigateTimeoutRef.current);
+    }
+    tabNavigateTimeoutRef.current = setTimeout(() => {
+      router.push(href);
+    }, 170);
+  };
 
   return (
-    <div className="space-y-6 md:space-y-10 max-w-full overflow-x-hidden">
-      {/* Header */}
-      <section className="rounded-2xl border p-5 md:p-6" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
-        <div className="relative flex flex-col gap-3">
-          <div
-            className="absolute -inset-x-6 -inset-y-4 rounded-3xl opacity-70 blur-2xl"
-            style={{
-              background: theme === 'dark'
-                ? 'radial-gradient(60% 60% at 20% 20%, rgba(99,102,241,0.22), transparent 60%), radial-gradient(55% 55% at 80% 20%, rgba(14,165,233,0.18), transparent 60%), radial-gradient(50% 50% at 40% 80%, rgba(16,185,129,0.16), transparent 60%)'
-                : 'radial-gradient(60% 60% at 20% 20%, rgba(99,102,241,0.18), transparent 60%), radial-gradient(55% 55% at 80% 20%, rgba(14,165,233,0.14), transparent 60%), radial-gradient(50% 50% at 40% 80%, rgba(16,185,129,0.12), transparent 60%)'
-            }}
-          />
-          <div
-            className="absolute -top-6 -left-8 h-24 w-24 rounded-full blur-2xl opacity-40"
-            style={{
-              background: theme === 'dark'
-                ? 'radial-gradient(circle, rgba(120,150,255,0.35) 0%, rgba(0,0,0,0) 70%)'
-                : 'radial-gradient(circle, rgba(120,150,255,0.25) 0%, rgba(255,255,255,0) 70%)'
-            }}
-          />
+    <div className="space-y-6 md:space-y-8 max-w-full overflow-x-hidden">
+      {/* Hero */}
+      <section
+        className="relative overflow-hidden rounded-3xl border p-5 md:p-8"
+        style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+      >
+        <div className="relative z-10 flex flex-col items-center gap-4 md:gap-5 text-center">
           <motion.h1
-            className="text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight bg-clip-text text-transparent text-center"
-            style={{
-              backgroundImage: theme === 'dark' 
-                ? 'linear-gradient(180deg, #ffffff 25%, #888888 100%)'
-                : 'linear-gradient(180deg, #1a1a1a 25%, #555555 100%)'
-            }}
+            className="text-3xl sm:text-4xl font-semibold leading-tight tracking-tight"
+            style={{ color: colors.text.primary }}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45 }}
+            transition={{ duration: 0.35 }}
           >
-            What website will you build?
+            What will you design today?
           </motion.h1>
-          <motion.p
-            className="text-sm sm:text-base max-w-xl mx-auto text-center"
-            style={{ color: colors.text.muted }}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, delay: 0.08 }}
+
+          <div
+            className="inline-flex items-center gap-2 rounded-full border px-2 py-1"
+            style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}
           >
-            Monitor deployments, domains and templates live health &amp; usage at a glance.
-          </motion.p>
+            <button
+              type="button"
+              className="relative rounded-full px-3 py-1 text-xs font-medium"
+              onClick={() => handleHeroTabSwitch('designs', '/m_dashboard/web-builder#projects-section')}
+              style={{ color: activeHeroTab === 'designs' ? colors.text.primary : colors.text.muted }}
+            >
+              {activeHeroTab === 'designs' ? (
+                <motion.span
+                  layoutId="hero-tab-active-pill"
+                  className="absolute inset-0 rounded-full"
+                  style={{ backgroundColor: colors.bg.card }}
+                  transition={{ type: 'spring', stiffness: 420, damping: 32, mass: 0.6 }}
+                />
+              ) : null}
+              <span className="relative z-10">Your designs</span>
+            </button>
+            <button
+              type="button"
+              className="relative rounded-full px-3 py-1 text-xs font-medium"
+              onClick={() => handleHeroTabSwitch('templates', '/m_dashboard/web-builder')}
+              style={{ color: activeHeroTab === 'templates' ? colors.text.primary : colors.text.muted }}
+            >
+              {activeHeroTab === 'templates' ? (
+                <motion.span
+                  layoutId="hero-tab-active-pill"
+                  className="absolute inset-0 rounded-full"
+                  style={{ backgroundColor: colors.bg.card }}
+                  transition={{ type: 'spring', stiffness: 420, damping: 32, mass: 0.6 }}
+                />
+              ) : null}
+              <span className="relative z-10">Templates</span>
+            </button>
+            <button
+              type="button"
+              className="relative rounded-full px-3 py-1 text-xs font-medium"
+              onClick={() => handleHeroTabSwitch('mercato-ai', '/m_dashboard/web-builder')}
+              style={{ color: activeHeroTab === 'mercato-ai' ? colors.text.primary : colors.text.muted }}
+            >
+              {activeHeroTab === 'mercato-ai' ? (
+                <motion.span
+                  layoutId="hero-tab-active-pill"
+                  className="absolute inset-0 rounded-full"
+                  style={{ backgroundColor: colors.bg.card }}
+                  transition={{ type: 'spring', stiffness: 420, damping: 32, mass: 0.6 }}
+                />
+              ) : null}
+              <span className="relative z-10">Mercato AI</span>
+            </button>
+          </div>
+
+          <div
+            className="w-full max-w-2xl rounded-xl border px-4 py-3 flex items-center gap-3"
+            style={{ borderColor: colors.border.default, backgroundColor: colors.bg.elevated }}
+          >
+            <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none" style={{ color: colors.text.muted }}>
+              <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
+            <input
+              type="text"
+              readOnly
+              value="Search millions of templates"
+              className="w-full bg-transparent text-sm focus:outline-none"
+              style={{ color: colors.text.secondary }}
+            />
+          </div>
+
+          <div className="w-full overflow-x-auto flex justify-center">
+            <div className="inline-flex min-w-max items-start gap-5 px-1 py-1">
+              {quickActions.map((item, idx) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  className="flex items-center"
+                  onClick={() => router.push('/m_dashboard/web-builder')}
+                >
+                  <span
+                    className="h-10 px-4 rounded-full border flex items-center justify-center text-xs font-semibold whitespace-nowrap"
+                    style={{
+                      borderColor: colors.border.default,
+                      backgroundColor: idx % 2 === 0 ? colors.bg.elevated : colors.bg.card,
+                      color: colors.text.primary,
+                    }}
+                  >
+                    {item.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Recent Projects - Full Width Horizontal Scroll */}
+      {/* Explore Templates */}
+      <section className="space-y-3">
+        <h2 className="text-xl font-semibold" style={{ color: colors.text.primary }}>
+          Explore templates
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {templateCards.map((item) => (
+            <button
+              key={item.title}
+              type="button"
+              onClick={() => router.push('/m_dashboard/web-builder')}
+              className="rounded-xl border p-3 text-left transition-transform hover:-translate-y-0.5"
+              style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}
+            >
+              <div className="h-12 rounded-lg mb-2" style={{ backgroundColor: colors.bg.card }} />
+              <p className="text-sm font-semibold" style={{ color: colors.text.primary }}>{item.title}</p>
+              <p className="text-xs mt-0.5" style={{ color: colors.text.muted }}>{item.subtitle}</p>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Inspired by your designs */}
+      <section className="space-y-3">
+        <h2 className="text-xl font-semibold" style={{ color: colors.text.primary }}>
+          Inspired by your designs
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {inspiredCards.map((item, idx) => (
+            <button
+              key={item.title}
+              type="button"
+              onClick={() => router.push('/m_dashboard/web-builder#projects-section')}
+              className="rounded-2xl border p-4 min-h-[140px] flex flex-col justify-between text-left"
+              style={{
+                borderColor: colors.border.default,
+                backgroundColor: colors.bg.card,
+              }}
+            >
+              <span
+                className="w-8 h-1.5 rounded-full"
+                style={{ backgroundColor: idx % 2 === 0 ? colors.status.good : colors.text.subtle }}
+              />
+              <div>
+                <p className="text-base font-semibold" style={{ color: colors.text.primary }}>{item.title}</p>
+                <p className="text-xs mt-1" style={{ color: colors.text.muted }}>{item.cta}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Projects & Commerce Rows */}
       <RecentProjects />
 
-      {/* Top Selling Products + Usage Summary */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 w-full">
         <TopSellingProducts />
         
@@ -138,7 +312,6 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
           </div>
         </motion.a>
       </div>
-
     </div>
   );
 }
