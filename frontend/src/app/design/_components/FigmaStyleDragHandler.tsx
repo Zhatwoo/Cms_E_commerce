@@ -5,9 +5,8 @@ import { useEditor } from "@craftjs/core";
 import { useCanvasTool } from "./CanvasToolContext";
 
 const DRAGGING_ATTR = "data-dragging";
-const DRAG_THRESHOLD = 4;
 
-type NodesMap = Record<string, { data?: { parent?: string; isCanvas?: boolean; displayName?: string } }>;
+type NodesMap = Record<string, { data?: { parent?: string; isCanvas?: boolean; displayName?: string } }>
 
 const CANVAS_DISPLAY_NAMES = new Set([
   "Page",
@@ -203,15 +202,10 @@ export const FigmaStyleDragHandler = () => {
       left: number;
     }>;
     fallbackNodeId: string | null;
-    committed: boolean;
     dirty: boolean;
   } | null>(null);
   const dropTargetHighlightRef = useRef<HTMLElement | null>(null);
   const insertIndicatorRef = useRef<HTMLElement | null>(null);
-  const draggedDomsRef = useRef<HTMLElement[]>([]);
-
-  const rafRef = useRef<number>(0);
-  const processDragRef = useRef<(() => void) | null>(null);
   const activeTool = useCanvasTool();
 
   useEffect(() => {

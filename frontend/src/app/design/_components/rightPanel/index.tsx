@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useEditor } from "@craftjs/core";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Lock, LockOpen, Play, Code2, GripVertical } from "lucide-react";
+import { Eye, EyeOff, Lock, LockOpen, Play, Code2, GripVertical, X, Terminal } from "lucide-react";
 import { serializeCraftToClean } from "../../_lib/serializer";
 import { autoSavePage } from "../../_lib/pageApi";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
@@ -44,8 +44,10 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
   const setActiveTab = setControlledTab ?? setInternalTab;
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isCodeEditorOpen, setIsCodeEditorOpen] = useState(false);
-  const [panelWidth, setPanelWidth] = useState(320); // w-80 = 320px
+  const [panelWidth, setPanelWidth] = useState(320); // Default width
   const [isResizing, setIsResizing] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [startWidth, setStartWidth] = useState(320);
   const router = useRouter();
   const panelRef = useRef<HTMLDivElement>(null);
   const resizeRef = useRef<HTMLDivElement>(null);
@@ -129,9 +131,11 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing) return;
-      const newWidth = window.innerWidth - e.clientX;
-      // Min width: 320px, Max width: 80% of screen
-      setPanelWidth(Math.max(320, Math.min(newWidth, window.innerWidth * 0.8)));
+      const deltaX = startX - e.clientX; // Positive when dragging left (increase width)
+      const newWidth = startWidth + deltaX;
+      // Min width: 280px, Max width: 70% of screen for better UX
+      const constrainedWidth = Math.max(280, Math.min(newWidth, window.innerWidth * 0.7));
+      setPanelWidth(constrainedWidth);
     };
 
     const handleMouseUp = () => {
@@ -143,11 +147,21 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
       document.addEventListener("mouseup", handleMouseUp);
       document.body.style.userSelect = "none";
       document.body.style.cursor = "col-resize";
+      // Add visual feedback to the panel during resize
+      if (panelRef.current) {
+        panelRef.current.style.transition = 'none';
+        panelRef.current.style.opacity = '0.8';
+      }
       return () => {
         document.removeEventListener("mousemove", handleMouseMove);
         document.removeEventListener("mouseup", handleMouseUp);
         document.body.style.userSelect = "auto";
         document.body.style.cursor = "auto";
+        // Restore panel styling
+        if (panelRef.current) {
+          panelRef.current.style.transition = '';
+          panelRef.current.style.opacity = '';
+        }
       };
     }
   }, [isResizing]);
@@ -157,20 +171,37 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
       {/* Resize Handle */}
       <div
         ref={resizeRef}
-        onMouseDown={() => setIsResizing(true)}
-        className="w-1 bg-brand-medium/30 hover:bg-blue-500/50 cursor-col-resize transition-colors group hover:w-1.5"
+        onMouseDown={(e) => {
+          e.preventDefault();
+          setStartX(e.clientX);
+          setStartWidth(panelWidth);
+          setIsResizing(true);
+        }}
+        className={`${
+          isResizing ? 'w-2 bg-blue-500/70' : 'w-3 bg-brand-medium/20 hover:bg-blue-500/40'
+        } cursor-col-resize transition-all duration-200 group relative flex items-center justify-center select-none z-10`}
         title="Drag to resize panel"
-      />
+      >
+        {/* Visual grip indicator */}
+        <div className={`flex flex-col gap-0.5 transition-opacity duration-200 ${
+          isResizing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+        }`}>
+          <div className="w-0.5 h-1 bg-brand-light/60 rounded-full"></div>
+          <div className="w-0.5 h-1 bg-brand-light/60 rounded-full"></div>
+          <div className="w-0.5 h-1 bg-brand-light/60 rounded-full"></div>
+        </div>
+      </div>
       
       <div
         ref={panelRef}
         data-panel="configs"
-        className="bg-brand-darker/75 backdrop-blur-lg rounded-3xl p-6 h-full shadow-2xl overflow-y-auto border border-white/10 transition-shadow duration-300"
+        className="bg-brand-darker/75 backdrop-blur-lg rounded-3xl h-full shadow-2xl border border-white/10 transition-all duration-300 overflow-hidden"
         style={{
           width: `${panelWidth}px`,
           boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)",
         }}
       >
+        <div className="h-full overflow-y-auto p-6">
       <div className="flex items-center justify-between mb-6 gap-2">
         <h3 className="text-brand-lighter font-bold text-lg">Configs</h3>
         <div className="flex items-center gap-1">
@@ -291,9 +322,10 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
                   </p>
                   <button
                     onClick={() => setIsCodeEditorOpen(true)}
-                    className="w-full px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all font-medium text-sm"
+                    className="w-full px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all font-medium text-sm flex items-center justify-center gap-2"
                   >
-                    🚀 Open Code Editor
+                    <Terminal size={16} />
+                    Open Code Editor
                   </button>
                 </div>
               </div>
@@ -312,6 +344,7 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
         onClose={() => setIsCodeEditorOpen(false)}
         projectId={projectId}
       />
+        </div>
       </div>
     </div>
   );
