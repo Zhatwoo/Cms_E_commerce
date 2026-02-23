@@ -309,12 +309,18 @@ function PreviewContent() {
       return;
     }
 
+    if (!rawJson) {
+      showAlert("No design to save. Edit your page in the design editor first, then open Preview and save as template.");
+      return;
+    }
+
     setSaving(true);
     try {
       const template = templateService.saveTemplate(
         templateName.trim(),
         templateCategory,
-        templateDescription.trim()
+        templateDescription.trim(),
+        rawJson
       );
 
       if (template) {

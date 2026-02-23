@@ -84,18 +84,32 @@ class TemplateService {
     ];
   }
 
-  // Save template from design editor
-  saveTemplate(name: string, category: string, description: string): Template | null {
+  /**
+   * Save template from design editor.
+   * @param name - Template name
+   * @param category - Template category
+   * @param description - Template description
+   * @param content - Optional: current design JSON (Craft or clean format). If not provided, falls back to sessionStorage 'craftjs_preview_json'.
+   */
+  saveTemplate(name: string, category: string, description: string, content?: string | null): Template | null {
     if (typeof window === 'undefined') return null;
 
-    // Get current design from sessionStorage
-    const rawJson = sessionStorage.getItem('craftjs_preview_json');
-    if (!rawJson) return null;
+    // Use provided content (e.g. from preview page) or fall back to sessionStorage
+    const rawJson = content ?? sessionStorage.getItem('craftjs_preview_json');
+    if (!rawJson || !rawJson.trim()) return null;
 
     try {
-      // Import the serializer function
-      const { serializeCraftToClean } = require('@/app/design/_lib/serializer');
-      const cleanData = serializeCraftToClean(rawJson);
+      let cleanData: BuilderDocument;
+      const parsed = JSON.parse(rawJson) as Record<string, unknown>;
+
+      // Already clean format (from API/draft): has version + pages
+      if (typeof parsed?.version === 'number' && Array.isArray(parsed?.pages)) {
+        cleanData = parsed as BuilderDocument;
+      } else {
+        // Craft.js raw format: convert to clean
+        const { serializeCraftToClean } = require('@/app/design/_lib/serializer');
+        cleanData = serializeCraftToClean(rawJson);
+      }
 
       const template: Template = {
         id: `template-${Date.now()}`,

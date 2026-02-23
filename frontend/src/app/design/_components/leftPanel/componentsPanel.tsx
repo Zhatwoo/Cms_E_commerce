@@ -68,9 +68,16 @@ const COMPONENTS: ComponentEntry[] = [
   // ─── Basic ─────────────────────────────────────────
   {
     label: "Text",
-    preview: "Text Preview",
+    preview: "Aa",
     previewBg: "bg-brand-dark",
     element: <Text text="New Text" fontSize={16} />,
+    category: "basic",
+  },
+  {
+    label: "Heading",
+    preview: "Aa",
+    previewBg: "bg-brand-dark",
+    element: <Text text="Heading" fontSize={24} fontWeight="600" />,
     category: "basic",
   },
   {

@@ -26,7 +26,6 @@ import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
 import { CanvasContextMenu } from "./CanvasContextMenu";
 import { PrototypeTabProvider } from "./PrototypeTabContext";
 import { PrototypeFlowLines } from "./PrototypeFlowLines";
-import { EditorPhonePreview } from "./EditorPhonePreview";
 import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
@@ -382,8 +381,6 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   const [canvasRotation, setCanvasRotation] = useState(0);
   const [activeTool, setActiveTool] = useState<CanvasTool>("move");
   const [frameReady, setFrameReady] = useState(false);
-  const [showDualView, setShowDualView] = useState(false);
-
   // Cleanup corrupted data when error boundary triggers
   const handleFrameError = useCallback(async () => {
     if (errorCleanupDoneRef.current) return;
@@ -945,8 +942,6 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
               canvasWidth={canvasWidth}
               canvasHeight={canvasHeight}
               onDevicePresetSelect={handleDevicePresetSelect}
-              showDualView={showDualView}
-              onDualViewToggle={() => setShowDualView((v) => !v)}
             />
           )}
           {/* Canvas Area (Background) — when dual view: leave room for phone preview on the right */}
@@ -988,12 +983,6 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             )}
           </div>
         </div>
-        {/* Floating phone preview — device mockup on top of canvas */}
-        {showDualView && (
-          <div className="absolute inset-0 z-40 pointer-events-none">
-            <EditorPhonePreview />
-          </div>
-        )}
         {/* Floating Panels */}
         {/* Left Panel */}
         {panelsReady && (
@@ -1058,7 +1047,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             </div>
           </div>
         )}
-        {/* Bottom Panel: Move & Hand tools */}
+        {/* Bottom Panel: Move, Hand, Zoom fit & 100% */}
         {panelsReady && (
           <BottomPanel
             activeTool={activeTool}
@@ -1067,6 +1056,9 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             saveStatus={saveStatus}
             saveError={saveError}
             onResetData={handleDeleteData}
+            onZoomFit={handleFitToCanvas}
+            scale={scale}
+            onScaleChange={setScale}
           />
         )}
         {/* Canvas Controls Overlay: ito yung nasa baba :> */}

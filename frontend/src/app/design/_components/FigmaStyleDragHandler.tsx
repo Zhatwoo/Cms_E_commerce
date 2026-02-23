@@ -21,7 +21,6 @@ const CANVAS_DISPLAY_NAMES = new Set([
 ]);
 const EDITOR_DRAGGING_FLAG = "editorDragging";
 const EDITOR_DROP_COMMIT_FLAG = "editorDropCommit";
-const DRAG_THRESHOLD = 5;
 
 type MoveMode = "margin" | "offset";
 
@@ -184,8 +183,10 @@ export const FigmaStyleDragHandler = () => {
   const queryRef = useRef(query);
   const rafRef = useRef<number>(0);
   const processDragRef = useRef<(() => void) | null>(null);
-
   const draggedDomsRef = useRef<HTMLElement[]>([]);
+  const dropTargetHighlightRef = useRef<HTMLElement | null>(null);
+  const insertIndicatorRef = useRef<HTMLElement | null>(null);
+  const activeTool = useCanvasTool();
 
   const dragRef = useRef<{
     startX: number;
@@ -203,16 +204,8 @@ export const FigmaStyleDragHandler = () => {
       left: number;
     }>;
     fallbackNodeId: string | null;
-    committed: boolean;
     dirty: boolean;
   } | null>(null);
-  const dropTargetHighlightRef = useRef<HTMLElement | null>(null);
-  const insertIndicatorRef = useRef<HTMLElement | null>(null);
-  const draggedDomsRef = useRef<HTMLElement[]>([]);
-
-  const rafRef = useRef<number>(0);
-  const processDragRef = useRef<(() => void) | null>(null);
-  const activeTool = useCanvasTool();
 
   useEffect(() => {
     actionsRef.current = actions;

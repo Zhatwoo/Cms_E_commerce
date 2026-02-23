@@ -493,6 +493,6 @@ export default function DomainsPage() {
         </aside>
         )}
       </div>
-    </section>
+    </div>
   );
 }

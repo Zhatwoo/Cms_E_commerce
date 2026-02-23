@@ -1,16 +1,12 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNode, useEditor } from "@craftjs/core";
 import ReactDOM from "react-dom";
 import { ResizeOverlay } from "./ResizeOverlay";
 import { useCanvasTool } from "./CanvasToolContext";
 
 export const RenderNode = ({ render }: { render: React.ReactElement }) => {
-  const { id } = useNode();
   const activeTool = useCanvasTool();
-  const { isActive } = useEditor((_, query) => ({
-    isActive: query.getEvent('selected').contains(id),
-  }));
-
+  
   const {
     id,
     isSelectedEvent,
@@ -25,6 +21,10 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
     dom: node.dom,
     name: node.data.custom.displayName || node.data.displayName,
     visibility: (node.data.props?.visibility as "visible" | "hidden" | undefined) ?? "visible",
+  }));
+
+  const { isActive } = useEditor((_, query) => ({
+    isActive: query.getEvent('selected').contains(id),
   }));
 
   const [mounted, setMounted] = useState(false);
