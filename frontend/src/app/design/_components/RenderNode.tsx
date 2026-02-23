@@ -1,9 +1,4 @@
-<<<<<<< Updated upstream
 import React, { useEffect, useState } from "react";
-=======
-import { useState } from "react";
-import React, { useEffect } from "react";
->>>>>>> Stashed changes
 import { useNode, useEditor } from "@craftjs/core";
 import ReactDOM from "react-dom";
 import { ResizeOverlay } from "./ResizeOverlay";
@@ -13,6 +8,7 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
   const activeTool = useCanvasTool();
 
   const {
+    id,
     isSelectedEvent,
     isHover,
     dom,
