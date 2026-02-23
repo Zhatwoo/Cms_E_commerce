@@ -183,8 +183,6 @@ export const GROUPED_TEMPLATES = [
       MultiColumnFooter,
       SimpleFooter,
       NewsletterFooter,
-      TrustFooter,
-      CheckoutFooter,
       BrandFooter,
     ],
   },
