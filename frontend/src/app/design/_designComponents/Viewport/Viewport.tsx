@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useEditor, useNode } from "@craftjs/core";
 import type { Node } from "@craftjs/core";
 
@@ -6,6 +6,15 @@ const MOBILE_WIDTH = 390;
 const MOBILE_MIN_HEIGHT = 640;
 const MOBILE_SIDE_GUTTER = 14;
 const MOBILE_INNER_WIDTH = MOBILE_WIDTH - MOBILE_SIDE_GUTTER * 2;
+const PAGE_BASE_WIDTH = 1920;
+const PAGE_BASE_HEIGHT = 1200;
+const PAGE_GAP_X = 220;
+const PAGE_GAP_Y = 220;
+const PAGE_COLUMNS = 3;
+const VIEWPORT_BASE_MIN_WIDTH = 7200;
+const VIEWPORT_BASE_MIN_HEIGHT = 5200;
+const VIEWPORT_EDGE_PADDING = 256;
+const MOBILE_PREVIEW_SAFE_WIDTH = 520;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -15,6 +24,17 @@ function parsePx(value: string | null | undefined): number | null {
   if (!value) return null;
   const parsed = parseFloat(value.replace("px", "").trim());
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function toDimensionPx(value: unknown, fallback: number): number {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = parsePx(value);
+    if (parsed !== null && parsed > 0) return parsed;
+  }
+  return fallback;
 }
 
 function asElements(collection: HTMLCollection): HTMLElement[] {
@@ -259,10 +279,76 @@ function adaptCloneForMobile(root: HTMLElement) {
 export const Viewport = ({ children }: { children?: React.ReactNode }) => {
   const desktopCanvasRef = useRef<HTMLDivElement | null>(null);
   const mobileCanvasRef = useRef<HTMLDivElement | null>(null);
+  const [viewportSize, setViewportSize] = useState({
+    minWidth: VIEWPORT_BASE_MIN_WIDTH,
+    minHeight: VIEWPORT_BASE_MIN_HEIGHT,
+  });
   const { id: viewportId, connectors: { connect, drag } } = useNode((node) => ({
     id: node.id,
   }));
   const { actions, query } = useEditor();
+
+  useEffect(() => {
+    const state = query.getState();
+    const nodes = state?.nodes ?? {};
+    const viewportNode = nodes[viewportId];
+    const pageIds: string[] = Array.isArray(viewportNode?.data?.nodes)
+      ? viewportNode.data.nodes
+      : [];
+
+    let maxRight = 0;
+    let maxBottom = 0;
+
+    pageIds.forEach((pageId, index) => {
+      const pageNode = nodes[pageId];
+      if (!pageNode || pageNode.data?.displayName !== "Page") return;
+
+      const props = (pageNode.data?.props ?? {}) as Record<string, unknown>;
+      const hasCanvasX = typeof props.canvasX === "number";
+      const hasCanvasY = typeof props.canvasY === "number";
+      const isDefaultZeroOnNonFirstPage =
+        index > 0 && Number(props.canvasX ?? 0) === 0 && Number(props.canvasY ?? 0) === 0;
+      if (hasCanvasX && hasCanvasY && !isDefaultZeroOnNonFirstPage) return;
+      // Last page with (0,0): leave for NewPageDropPlacementHandler so drop position is preserved
+      const isLastPageWithZero =
+        index === pageIds.length - 1 && Number(props.canvasX ?? 0) === 0 && Number(props.canvasY ?? 0) === 0;
+      if (isLastPageWithZero) return;
+
+      const col = index % PAGE_COLUMNS;
+      const row = Math.floor(index / PAGE_COLUMNS);
+      const canvasX = col * (PAGE_BASE_WIDTH + PAGE_GAP_X);
+      const canvasY = row * (PAGE_BASE_HEIGHT + PAGE_GAP_Y);
+
+      const finalCanvasX = hasCanvasX ? Number(props.canvasX) : canvasX;
+      const finalCanvasY = hasCanvasY ? Number(props.canvasY) : canvasY;
+      const pageWidth = toDimensionPx(props.width, PAGE_BASE_WIDTH);
+      const pageHeight = toDimensionPx(props.height, PAGE_BASE_HEIGHT);
+
+      maxRight = Math.max(maxRight, finalCanvasX + pageWidth);
+      maxBottom = Math.max(maxBottom, finalCanvasY + pageHeight);
+
+      actions.setProp(pageId, (pageProps: Record<string, unknown>) => {
+        if (typeof pageProps.canvasX !== "number") pageProps.canvasX = canvasX;
+        if (typeof pageProps.canvasY !== "number") pageProps.canvasY = canvasY;
+      });
+    });
+
+    const dynamicMinWidth = Math.max(
+      VIEWPORT_BASE_MIN_WIDTH,
+      Math.ceil(maxRight + VIEWPORT_EDGE_PADDING + MOBILE_PREVIEW_SAFE_WIDTH)
+    );
+    const dynamicMinHeight = Math.max(
+      VIEWPORT_BASE_MIN_HEIGHT,
+      Math.ceil(maxBottom + VIEWPORT_EDGE_PADDING)
+    );
+
+    setViewportSize((prev) => {
+      if (prev.minWidth === dynamicMinWidth && prev.minHeight === dynamicMinHeight) {
+        return prev;
+      }
+      return { minWidth: dynamicMinWidth, minHeight: dynamicMinHeight };
+    });
+  }, [actions, query, viewportId, children]);
 
   useEffect(() => {
     const desktopRoot = desktopCanvasRef.current;
@@ -372,14 +458,16 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className="flex gap-16 p-20 min-w-max min-h-max items-start"
+      className="relative p-32"
+      style={{ minWidth: `${viewportSize.minWidth}px`, minHeight: `${viewportSize.minHeight}px` }}
     >
-      <div className="flex flex-col gap-2" ref={desktopCanvasRef}>
-        <span className="text-xs uppercase tracking-wide text-brand-light/70">Desktop</span>
+      <div className="absolute top-16 left-16 z-10 pointer-events-none text-xs uppercase tracking-wide text-brand-light/70">Desktop</div>
+
+      <div data-viewport-desktop className="relative w-full h-full" ref={desktopCanvasRef}>
         {children}
       </div>
 
-      <div className="flex flex-col gap-2 select-none">
+      <div className="absolute top-16 right-16 flex flex-col gap-2 select-none z-20">
         <span className="text-xs uppercase tracking-wide text-brand-light/70">Mobile</span>
         <div
           ref={mobileCanvasRef}

@@ -24,6 +24,8 @@ const TABS: Tab[] = [
   { id: "code", label: "Code" },
 ];
 
+const STORAGE_KEY_PREFIX = "craftjs_preview_json";
+
 interface RightPanelProps {
   projectId: string;
   activeTab?: TabId;
@@ -86,12 +88,36 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
       const rawCount = Object.keys(JSON.parse(json)).length;
       console.log(`📊 Preview: Raw Craft.js has ${rawCount} nodes.`);
 
-      const cleanCode = serializeCraftToClean(json);
-      const cleanCount = Object.keys(cleanCode.nodes).length;
-      console.log(`📊 Preview: Clean output has ${cleanCount} nodes.`);
+      let previewSnapshot: string;
+      try {
+        const cleanCode = serializeCraftToClean(json);
+        const cleanCount = Object.keys(cleanCode.nodes).length;
+        const rawCountSafe = Object.keys(JSON.parse(json)).length;
+        console.log(`📊 Preview: Clean output has ${cleanCode.pages.length} pages, ${cleanCount} nodes.`);
 
-      // Force save to DB before navigating
-      await autoSavePage(JSON.stringify(cleanCode), projectId);
+        if (cleanCode.pages.length === 0 && rawCountSafe > 1) {
+          console.warn('⚠️ Preview: clean output has 0 pages while raw has content. Using raw snapshot fallback to prevent data loss.');
+          previewSnapshot = json;
+        } else {
+          previewSnapshot = JSON.stringify(cleanCode);
+        }
+      } catch (serializeError) {
+        console.warn('⚠️ Preview: serializeCraftToClean failed, saving raw Craft JSON for preview fallback:', serializeError);
+        previewSnapshot = json;
+      }
+
+      try {
+        window.sessionStorage.setItem(`${STORAGE_KEY_PREFIX}_${projectId}`, previewSnapshot);
+        window.sessionStorage.setItem(STORAGE_KEY_PREFIX, previewSnapshot);
+      } catch (storageError) {
+        console.warn('⚠️ Preview: failed to cache snapshot in sessionStorage', storageError);
+      }
+
+      // Force save to DB before navigating (save clean format when possible)
+      const saveResult = await autoSavePage(previewSnapshot, projectId);
+      if (!saveResult.success) {
+        console.warn('⚠️ Preview: DB save failed, using session snapshot fallback.');
+      }
 
       console.log('✅ Save complete, navigating to preview...');
       router.push(`/design/preview?projectId=${encodeURIComponent(projectId)}`);

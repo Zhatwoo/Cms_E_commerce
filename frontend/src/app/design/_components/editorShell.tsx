@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useRef, useState, useEffect, useLayoutEffect, useCallback } from "react";
+import { useRef, useState, useEffect, useLayoutEffect, useCallback, startTransition } from "react";
 import { Editor, Frame, Element, useEditor } from "@craftjs/core";
 import { PanelLeft, PanelRight } from "lucide-react";
 import { RenderBlocks } from "../_designComponents";
@@ -26,6 +26,7 @@ import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
 import { CanvasContextMenu } from "./CanvasContextMenu";
 import { PrototypeTabProvider } from "./PrototypeTabContext";
 import { PrototypeFlowLines } from "./PrototypeFlowLines";
+import { NewPageDropPlacementHandler } from "./NewPageDropPlacementHandler";
 import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
@@ -33,6 +34,7 @@ import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 import { Circle } from "../../_assets/shapes/circle/circle";
 import { Square } from "../../_assets/shapes/square/square";
 import { Triangle } from "../../_assets/shapes/triangle/triangle";
+import { CRAFT_RESOLVER } from "./craftResolver";
 
 /**
  * React Error Boundary to catch rendering errors in Frame component
@@ -74,6 +76,41 @@ class FrameErrorBoundary extends React.Component<
 }
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
+
+const EMPTY_FRAME_DATA = JSON.stringify({
+  ROOT: {
+    type: { resolvedName: "Viewport" },
+    isCanvas: true,
+    props: {},
+    displayName: "Viewport",
+    custom: {},
+    hidden: false,
+    nodes: ["page-1"],
+    linkedNodes: {},
+  },
+  "page-1": {
+    type: { resolvedName: "Page" },
+    isCanvas: true,
+    props: { pageName: "Page 1", pageSlug: "page-0" },
+    displayName: "Page",
+    custom: {},
+    parent: "ROOT",
+    hidden: false,
+    nodes: ["container-1"],
+    linkedNodes: {},
+  },
+  "container-1": {
+    type: { resolvedName: "Container" },
+    isCanvas: true,
+    props: { padding: 40, background: "#ffffff" },
+    displayName: "Container",
+    custom: {},
+    parent: "page-1",
+    hidden: false,
+    nodes: [],
+    linkedNodes: {},
+  },
+});
 function getStorageKey(projectId: string) {
   return `${STORAGE_KEY_PREFIX}_${projectId}`;
 }
@@ -122,6 +159,10 @@ type EditorShellProps = {
   projectId: string;
   pageId?: string | null;
 };
+
+const MIN_SCALE = 0.01;
+const MAX_SCALE = 3;
+const ZOOM_SENSITIVITY = 0.003;
 
 /**
  * Deep validation function that walks through the entire Craft.js node tree
@@ -267,9 +308,38 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
 }
 
 /**
+ * Renders Frame only after the first commit (via useEffect), so Craft's store updates
+ * happen in a separate commit and don't trigger "Cannot update Ee while rendering De".
+ */
+const DeferredFrame = ({ data, onMounted }: { data: string; onMounted?: () => void }) => {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted || !onMounted) return;
+    const id = requestAnimationFrame(() => onMounted());
+    return () => cancelAnimationFrame(id);
+  }, [mounted, onMounted]);
+
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-brand-light">Loading editor...</div>
+      </div>
+    );
+  }
+  return <Frame data={data} />;
+};
+
+/**
  * SafeFrame component that catches Frame rendering errors and falls back to empty canvas.
  * Calls onFrameMounted after the Frame has committed, so panels that use useEditor()
  * (e.g. FilesPanel) can mount in the next tick and avoid "setState during render" from Craft.js.
+ * Defers mounting <Frame data={...} /> to a separate commit so Craft.js deserialize doesn't
+ * update the store while SafeFrame (or EditorShell) is still rendering.
  */
 const SafeFrame = ({
   data,
@@ -283,9 +353,17 @@ const SafeFrame = ({
   const [renderData, setRenderData] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [canRenderFrame, setCanRenderFrame] = useState(false);
+  /** Deferred data so Frame mounts in next commit — avoids "Cannot update component while rendering another" */
+  const [frameDataToShow, setFrameDataToShow] = useState<string | null>(null);
   const [hasErrorBoundaryError, setHasErrorBoundaryError] = useState(false);
+  const mountedSignalSentRef = useRef(false);
 
   useEffect(() => {
+    setFrameDataToShow(null);
+    setIsReady(false);
+    setCanRenderFrame(false);
+    mountedSignalSentRef.current = false;
+
     // Reset error state when data changes
     setHasErrorBoundaryError(false);
 
@@ -319,27 +397,35 @@ const SafeFrame = ({
     return () => cancelAnimationFrame(id);
   }, [isReady]);
 
-  // Signal after Frame has committed so panels using useEditor() (e.g. FilesPanel) mount next tick
+  // Defer actual Frame mount to a later macrotask + low-priority update so Craft deserialize
+  // never runs during another component's render (avoids "Cannot update Ee while rendering De").
   useEffect(() => {
-    if (!canRenderFrame || !onFrameMounted) return;
-    const id = requestAnimationFrame(() => onFrameMounted());
-    return () => cancelAnimationFrame(id);
-  }, [canRenderFrame, onFrameMounted]);
+    if (!canRenderFrame || hasErrorBoundaryError) return;
+    const t = setTimeout(() => {
+      startTransition(() => {
+        setFrameDataToShow(renderData);
+      });
+    }, 0);
+    return () => clearTimeout(t);
+  }, [canRenderFrame, hasErrorBoundaryError, renderData]);
+
+  const handleDeferredFrameMounted = useCallback(() => {
+    if (!onFrameMounted || mountedSignalSentRef.current) return;
+    mountedSignalSentRef.current = true;
+    onFrameMounted();
+  }, [onFrameMounted]);
 
   const handleError = useCallback(() => {
     console.error('❌ SafeFrame: Error boundary triggered, falling back to empty canvas');
     setHasErrorBoundaryError(true);
     setRenderData(null);
-  // Signal after Frame has committed so panels using useEditor() (e.g. FilesPanel) mount next tick
-  // and avoid "Cannot update FilesPanel while rendering De" from Craft.js synchronous store updates.
-  useEffect(() => {
-    if (!isReady || !onFrameMounted) return;
-    const id = requestAnimationFrame(() => requestAnimationFrame(() => onFrameMounted()));
-    return () => cancelAnimationFrame(id);
-  }, [isReady, onFrameMounted]);
-
+    setFrameDataToShow(null);
     onError?.();
-  }, [onError]);
+    // Defer so we don't trigger EditorShell setState during error boundary update
+    if (onFrameMounted) {
+      requestAnimationFrame(() => requestAnimationFrame(onFrameMounted));
+    }
+  }, [onError, onFrameMounted]);
 
   if (!isReady) {
     return (
@@ -357,24 +443,23 @@ const SafeFrame = ({
     );
   }
 
-  const emptyCanvas = (
-    <Frame>
-      <Element is={Viewport} canvas>
-        <Element is={Page} canvas>
-          <Element is={Container} padding={40} background="#ffffff" canvas>
-          </Element>
-        </Element>
-      </Element>
-    </Frame>
-  );
-
   if (hasErrorBoundaryError || !renderData) {
-    return emptyCanvas;
+    return <DeferredFrame data={EMPTY_FRAME_DATA} onMounted={handleDeferredFrameMounted} />;
+  }
+
+  // Only mount Frame with data in a separate commit (frameDataToShow set in useEffect)
+  // so Craft.js deserialize doesn't cause "setState while rendering" in sibling/parent.
+  if (frameDataToShow === null) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-brand-light">Loading editor...</div>
+      </div>
+    );
   }
 
   return (
     <FrameErrorBoundary onError={handleError}>
-      <Frame data={renderData} />
+      <DeferredFrame data={frameDataToShow} onMounted={handleDeferredFrameMounted} />
     </FrameErrorBoundary>
   );
 };
@@ -408,6 +493,13 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [canvasRotation, setCanvasRotation] = useState(0);
   const [activeTool, setActiveTool] = useState<CanvasTool>("move");
   const [frameReady, setFrameReady] = useState(false);
+  const [showDualView, setShowDualView] = useState(false);
+  const [suppressDropIndicator, setSuppressDropIndicator] = useState(false);
+  const [dropIndicatorPulse, setDropIndicatorPulse] = useState(false);
+  const zoomFactor = Math.max(scale, 1);
+  const infiniteCanvasWidthVw = Math.max(220, Math.round(220 * zoomFactor));
+  const infiniteCanvasHeightVh = Math.max(220, Math.round(220 * zoomFactor));
+  const infiniteCanvasPaddingPx = Math.max(160, Math.round(160 * zoomFactor));
   // Cleanup corrupted data when error boundary triggers
   const handleFrameError = useCallback(async () => {
     if (errorCleanupDoneRef.current) return;
@@ -477,6 +569,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     }
   }, [initialJson, pages, projectId, loadPages, showAlert]);
 
+  /** Sync pages list when a new page is added to the canvas via Craft (Add Page button / FAB) */
+  const handlePageAdded = useCallback((id: string, name: string) => {
+    setPages((prev) => [...prev, { id, name }]);
+    setCurrentPageId(id);
+  }, []);
+
   const handleSelectPage = useCallback((pageId: string) => {
     setCurrentPageId(pageId);
   }, []);
@@ -528,34 +626,43 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
   // Handle Zoom (zoom-to-cursor)
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
     const handleWheel = (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey) {
+      if (!(e.ctrlKey || e.metaKey)) return;
+
+      const container = containerRef.current;
+      if (!container) return;
+
+      const rect = container.getBoundingClientRect();
+      const isInsideCanvas =
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom;
+
+      if (!isInsideCanvas) return;
+
+      if (e.cancelable) {
         e.preventDefault();
-        e.stopPropagation();
-
-        const zoomSensitivity = 0.001;
-        const delta = -e.deltaY * zoomSensitivity;
-        const rect = container.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-
-        setScale((prevScale) => {
-          const newScale = Math.min(Math.max(prevScale + delta, 0.3), 3);
-          if (newScale !== prevScale) {
-            zoomAnchorRef.current = { x, y, prevScale, nextScale: newScale };
-          }
-          return newScale;
-        });
       }
+      e.stopPropagation();
+
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      setScale((prevScale) => {
+        const step = -e.deltaY * ZOOM_SENSITIVITY * Math.max(prevScale, MIN_SCALE);
+        const newScale = Math.min(MAX_SCALE, Math.max(prevScale + step, MIN_SCALE));
+        if (newScale !== prevScale) {
+          zoomAnchorRef.current = { x, y, prevScale, nextScale: newScale };
+        }
+        return newScale;
+      });
     };
 
-    container.addEventListener("wheel", handleWheel, { passive: false });
+    window.addEventListener("wheel", handleWheel, { passive: false, capture: true });
 
     return () => {
-      container.removeEventListener("wheel", handleWheel);
+      window.removeEventListener("wheel", handleWheel, { capture: true });
     };
   }, []);
 
@@ -611,7 +718,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     const scaleY = (containerHeight * 0.9) / contentHeight;
     const newScale = Math.min(scaleX, scaleY, 1);
 
-    setScale(Math.max(newScale, 0.3));
+    setScale(Math.max(newScale, MIN_SCALE));
 
     // Center the canvas
     setTimeout(() => {
@@ -745,53 +852,77 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
         let contentToLoad: string | null = null;
 
-        // 1. Check Database
-        if (result.success && result.data && result.data.content) {
+        const normalizeToCraftJson = (input: unknown): string | null => {
           try {
-            let content = result.data.content;
+            if (input == null) return null;
 
-            // If it's a BuilderDocument (clean format), we need to deserialize it
-            if (content.version !== undefined && content.pages && content.nodes) {
-              const nodesCount = Object.keys(content.nodes).length;
-              console.log(`✨ Data is CLEAN format (version: ${content.version}), ${nodesCount} nodes found. Deserializing...`);
-              content = deserializeCleanToCraft(content);
-            } else if (typeof content === 'object') {
-              console.log('ℹ️ Data is OBJECT format but not recognized as CLEAN. Stringifying...');
-              content = JSON.stringify(content);
-            }
+            let content: string;
 
-            const parsed = JSON.parse(content);
-            // Validate structure: must have ROOT and ROOT must have nodes property and type
-            if (parsed && parsed.ROOT && parsed.ROOT.nodes && Array.isArray(parsed.ROOT.nodes)) {
-              console.log(`✅ Loaded valid draft from DB (${Object.keys(parsed).length} internal nodes)`);
-              contentToLoad = content;
-              // Sync to sessionStorage (per-project)
-              safeSessionSet(storageKey, contentToLoad!);
+            if (typeof input === "string") {
+              content = input;
+            } else if (
+              typeof input === "object" &&
+              (input as { version?: unknown; pages?: unknown; nodes?: unknown }).version !== undefined &&
+              Array.isArray((input as { pages?: unknown[] }).pages) &&
+              typeof (input as { nodes?: unknown }).nodes === "object"
+            ) {
+              content = deserializeCleanToCraft(input as Parameters<typeof deserializeCleanToCraft>[0]);
             } else {
-              console.warn('⚠️ Invalid draft structure: missing ROOT or ROOT.nodes. Clearing from database...');
-              // Clear invalid data from database
-              await deleteDraft(projectId);
-              safeSessionRemove(storageKey);
+              content = JSON.stringify(input);
             }
-          } catch (e) {
-            console.error('Failed to parse draft content:', e);
+
+            const parsedMaybeClean = JSON.parse(content);
+            if (
+              parsedMaybeClean &&
+              parsedMaybeClean.version !== undefined &&
+              Array.isArray(parsedMaybeClean.pages) &&
+              parsedMaybeClean.nodes &&
+              typeof parsedMaybeClean.nodes === "object"
+            ) {
+              content = deserializeCleanToCraft(parsedMaybeClean);
+            }
+
+            const parsedCraft = JSON.parse(content);
+            if (parsedCraft && parsedCraft.ROOT && Array.isArray(parsedCraft.ROOT.nodes)) {
+              return content;
+            }
+
+            return null;
+          } catch {
+            return null;
+          }
+        };
+
+        // 1. Check sessionStorage first to preserve latest unsaved/preview snapshot
+        if (sessionSaved) {
+          const normalized = normalizeToCraftJson(sessionSaved);
+          if (normalized) {
+            console.log('✅ Loaded valid draft from session (this project)');
+            contentToLoad = normalized;
+            if (normalized !== sessionSaved) {
+              safeSessionSet(storageKey, normalized);
+            }
+          } else {
+            console.warn('⚠️ Invalid draft structure in session. Clearing session cache for this project.');
+            safeSessionRemove(storageKey);
           }
         }
 
-        // 2. Check sessionStorage (fallback for this project only)
-        if (!contentToLoad && sessionSaved) {
-          try {
-            const parsed = JSON.parse(sessionSaved);
-            if (parsed && parsed.ROOT && parsed.ROOT.nodes && Array.isArray(parsed.ROOT.nodes)) {
-              console.log('✅ Loaded valid draft from session (this project)');
-              contentToLoad = sessionSaved;
-            } else {
-              console.warn('⚠️ Invalid draft structure in session: missing ROOT or ROOT.nodes');
-              safeSessionRemove(storageKey);
+        // 2. Check Database (fallback)
+        if (!contentToLoad && result.success && result.data && result.data.content) {
+          const normalized = normalizeToCraftJson(result.data.content);
+          if (normalized) {
+            try {
+              const parsed = JSON.parse(normalized);
+              console.log(`✅ Loaded valid draft from DB (${Object.keys(parsed).length} internal nodes)`);
+            } catch {
+              console.log('✅ Loaded valid draft from DB');
             }
-          } catch (e) {
-            console.error('Failed to parse session draft:', e);
-            safeSessionRemove(storageKey);
+            contentToLoad = normalized;
+            safeSessionSet(storageKey, normalized);
+          } else {
+            console.warn('⚠️ Invalid draft structure in DB. Clearing invalid draft...');
+            await deleteDraft(projectId);
           }
         }
 
@@ -799,15 +930,13 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         if (!contentToLoad && storageKey !== STORAGE_KEY_PREFIX) {
           const legacySaved = safeSessionGet(STORAGE_KEY_PREFIX);
           if (legacySaved) {
-            try {
-              const parsed = JSON.parse(legacySaved);
-              if (parsed && parsed.ROOT && parsed.ROOT.nodes && Array.isArray(parsed.ROOT.nodes)) {
-                console.log('✅ Loaded valid draft from legacy session key, syncing to project key');
-                contentToLoad = legacySaved;
-                safeSessionSet(storageKey, legacySaved);
-                safeSessionRemove(STORAGE_KEY_PREFIX);
-              }
-            } catch {
+            const normalized = normalizeToCraftJson(legacySaved);
+            if (normalized) {
+              console.log('✅ Loaded valid draft from legacy session key, syncing to project key');
+              contentToLoad = normalized;
+              safeSessionSet(storageKey, normalized);
+              safeSessionRemove(STORAGE_KEY_PREFIX);
+            } else {
               safeSessionRemove(STORAGE_KEY_PREFIX);
             }
           }
@@ -843,6 +972,45 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     const id = requestAnimationFrame(() => setPanelsReady(true));
     return () => cancelAnimationFrame(id);
   }, [initialJson]);
+
+  // Hide Craft drop indicator only when dragging the special New Page source item
+  useEffect(() => {
+    const handleMouseDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      const isNewPageSource = !!target?.closest("[data-component-new-page='true']");
+      if (isNewPageSource) {
+        setSuppressDropIndicator(true);
+      }
+    };
+
+    const clearSuppression = () => {
+      setSuppressDropIndicator(false);
+    };
+
+    document.addEventListener("mousedown", handleMouseDown, true);
+    document.addEventListener("mouseup", clearSuppression, true);
+    document.addEventListener("dragend", clearSuppression, true);
+
+    return () => {
+      document.removeEventListener("mousedown", handleMouseDown, true);
+      document.removeEventListener("mouseup", clearSuppression, true);
+      document.removeEventListener("dragend", clearSuppression, true);
+    };
+  }, []);
+
+  // Animate green drop line while dragging (except when suppressed for New Page)
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      const isDragging = document.body.dataset.editorDragging === "true";
+      if (!isDragging || suppressDropIndicator) {
+        setDropIndicatorPulse(false);
+        return;
+      }
+      setDropIndicatorPulse((prev) => !prev);
+    }, 180);
+
+    return () => window.clearInterval(interval);
+  }, [suppressDropIndicator]);
 
   // Handle Delete Data
   const handleDeleteData = async () => {
@@ -895,14 +1063,41 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           const parsed = JSON.parse(next);
           if (!parsed?.ROOT) return;
 
-          console.log('🔄 Serializing to CLEAN format...');
-          const cleanCode = serializeCraftToClean(next);
+          let cleanCode;
+          try {
+            cleanCode = serializeCraftToClean(next);
+          } catch (serializeError) {
+            console.warn('Auto-save: serializeCraftToClean failed, saving raw to session for preview:', serializeError);
+            if (projectId && typeof window !== 'undefined' && window.sessionStorage) {
+              const key = `${STORAGE_KEY_PREFIX}_${projectId}`;
+              try {
+                window.sessionStorage.setItem(key, next);
+                window.sessionStorage.setItem(STORAGE_KEY_PREFIX, next);
+              } catch (e) {
+                // ignore quota
+              }
+            }
+            setSaveStatus('error');
+            setSaveError('Serialization failed');
+            return;
+          }
 
-          console.log('🔄 Auto-save executing (Clean Code)...');
+          const snapshot = JSON.stringify(cleanCode);
+
+          // Always write to sessionStorage so Preview shows latest (even before DB save)
+          if (projectId && typeof window !== 'undefined' && window.sessionStorage) {
+            try {
+              const key = `${STORAGE_KEY_PREFIX}_${projectId}`;
+              window.sessionStorage.setItem(key, snapshot);
+              window.sessionStorage.setItem(STORAGE_KEY_PREFIX, snapshot);
+            } catch (e) {
+              if (!isQuotaError(e)) console.warn('Auto-save: sessionStorage write failed', e);
+            }
+          }
 
           // Save CLEAN CODE to database (only when projectId is set)
           if (projectId) {
-            const result = await autoSavePage(JSON.stringify(cleanCode), projectId);
+            const result = await autoSavePage(snapshot, projectId);
 
             if (result.success) {
               setSaveStatus('saved');
@@ -919,7 +1114,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           setSaveStatus('error');
           setSaveError(error instanceof Error ? error.message : 'Network or serialization error');
         }
-      }, 2000); // Debounce 2s
+      }, 1500); // Debounce 1.5s
     },
     [projectId]
   );
@@ -931,18 +1126,19 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     };
   }, []);
 
-  // Frame must be in resolver or Craft throws "does not exist in the resolver". Use direct import first; never leave Frame undefined.
-  const FrameForResolver: React.ComponentType =
-    (typeof FrameComponentFromFile === "function" ? FrameComponentFromFile : null) ??
-    (typeof RenderBlocks?.Frame === "function" ? RenderBlocks.Frame : null) ??
-    Container;
-
   /** Only pass to Frame if data is valid Craft format and every node type exists in resolver */
   const resolverRef = useRef<Record<string, React.ComponentType>>({});
 
   const resolver: Record<string, React.ComponentType> = React.useMemo(() => {
+    const FrameForResolver: React.ComponentType =
+      (typeof FrameComponentFromFile === "function" ? FrameComponentFromFile : null) ??
+      (typeof RenderBlocks?.Frame === "function" ? RenderBlocks.Frame : null) ??
+      CRAFT_RESOLVER.Frame ??
+      Container;
+
     const base: Record<string, any> = {
       ...RenderBlocks,
+      ...CRAFT_RESOLVER,
       Text: Text || Container,
       text: Text || Container,
       Circle: Circle || Container,
@@ -955,8 +1151,13 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     // Force Frame to always exist; Craft looks up by "Frame" and sometimes "frame"
     base.Frame = FrameForResolver;
     base.frame = FrameForResolver;
+    // Ensure Page and Viewport always in resolver (serialized drafts reference these by type)
+    base.Page = CRAFT_RESOLVER.Page ?? Page;
+    base.page = CRAFT_RESOLVER.Page ?? Page;
+    base.Viewport = CRAFT_RESOLVER.Viewport ?? Viewport;
+    base.viewport = CRAFT_RESOLVER.Viewport ?? Viewport;
     return base;
-  }, [FrameForResolver]);
+  }, []);
 
   resolverRef.current = resolver;
   const validFrameData = React.useMemo(() => {
@@ -1051,6 +1252,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     <div className="h-screen bg-brand-black text-brand-lighter overflow-hidden font-sans relative">
       <Editor
         resolver={resolver}
+        indicator={{
+          success: suppressDropIndicator ? "transparent" : (dropIndicatorPulse ? "#4ade80" : "#22c55e"),
+          error: "#ef4444",
+          thickness: suppressDropIndicator ? 0 : (dropIndicatorPulse ? 4 : 2),
+          transition: "all 140ms ease-out",
+        }}
         onRender={RenderNode}
         onNodesChange={(query) => requestAnimationFrame(() => handleNodesChange(query))}
       >
@@ -1062,6 +1269,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           <CanvasSelectionHandler />
           <CanvasContextMenu />
           <FigmaStyleDragHandler />
+          <NewPageDropPlacementHandler />
           <BoxSelectionHandler />
           <DoubleClickTransformHandler />
           <PrototypeFlowLines />
@@ -1078,12 +1286,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
               onDevicePresetSelect={handleDevicePresetSelect}
               showDualView={showDualView}
               onDualViewToggle={() => setShowDualView((v) => !v)}
-              pages={pages}
-              currentPageId={currentPageId}
-              onSelectPage={handleSelectPage}
-              onAddPage={handleAddPage}
-              onDeletePage={handleDeletePage}
-              onRenamePage={handleRenamePage}
             />
           )}
           {/* Canvas Area (Background) — when dual view: leave room for phone preview on the right */}
@@ -1110,8 +1312,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         >
           {/* Inner Content - Infinite Canvas */}
           <div
-            className="min-w-[200vw] min-h-[200vh] flex items-center justify-center p-40 transition-transform duration-300"
-            style={{ 
+            className="flex items-center justify-center transition-transform duration-300"
+            style={{
+              minWidth: `${infiniteCanvasWidthVw}vw`,
+              minHeight: `${infiniteCanvasHeightVh}vh`,
+              padding: `${infiniteCanvasPaddingPx}px`,
               zoom: scale,
               transform: canvasRotation !== 0 ? `rotate(${canvasRotation}deg)` : 'none',
             }}
@@ -1120,7 +1325,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
               <SafeFrame
                 data={validFrameData ?? initialJson}
                 onError={handleFrameError}
-                onFrameMounted={() => setFrameReady(true)}
+                onFrameMounted={() => {
+                  setFrameReady((prev) => (prev ? prev : true));
+                }}
               />
             )}
           </div>
