@@ -157,9 +157,18 @@ class TemplateService {
     return found || null;
   }
 
-  // Load template into design editor
-  async loadTemplate(templateId: string): Promise<boolean> {
-    console.log('Loading template:', templateId);
+  /** Session key must match editorShell's getStorageKey(projectId) so the design editor finds the template. */
+  private getEditorStorageKey(projectId?: string): string {
+    return projectId ? `craftjs_preview_json_${projectId}` : 'craftjs_preview_json';
+  }
+
+  /**
+   * Load template into design editor.
+   * @param templateId - Template id to load
+   * @param projectId - When opening design for a specific project, pass this so the editor's per-project session key is used. Otherwise the editor won't find the content and the canvas opens empty.
+   */
+  async loadTemplate(templateId: string, projectId?: string): Promise<boolean> {
+    console.log('Loading template:', templateId, projectId ? `for project ${projectId}` : '');
 
     if (typeof window === 'undefined') {
       console.log('Window is undefined');
@@ -175,16 +184,12 @@ class TemplateService {
     }
 
     try {
-      // Dynamic import for browser compatibility
       const { deserializeCleanToCraft } = await import('@/app/design/_lib/serializer');
-      console.log('Serializer imported:', deserializeCleanToCraft);
-
       const craftJson = deserializeCleanToCraft(template.data);
-      console.log('Craft JSON generated:', craftJson);
 
-      // Store in sessionStorage for the editor to pick up
-      sessionStorage.setItem('craftjs_preview_json', craftJson);
-      console.log('Stored in sessionStorage');
+      const key = this.getEditorStorageKey(projectId);
+      sessionStorage.setItem(key, craftJson);
+      console.log('Stored in sessionStorage under key:', key);
 
       return true;
     } catch (error) {
