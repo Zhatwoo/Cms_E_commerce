@@ -80,7 +80,7 @@ export function DraftPreviewThumbnail({
   if (loading) {
     return (
       <div
-        className={`w-full aspect-[16/8] rounded-t-lg flex items-center justify-center ${className}`}
+        className={`w-full min-w-0 aspect-[16/8] rounded-t-lg flex items-center justify-center ${className}`}
         style={{ backgroundColor: bgColor, borderBottom: `1px solid ${borderColor}` }}
       >
         <div className="w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin opacity-50" />
@@ -91,7 +91,7 @@ export function DraftPreviewThumbnail({
   if (!doc?.nodes || !doc.pages?.length) {
     return (
       <div
-        className={`w-full aspect-[16/8] rounded-t-lg flex items-center justify-center ${className}`}
+        className={`w-full min-w-0 aspect-[16/8] rounded-t-lg flex items-center justify-center ${className}`}
         style={{ backgroundColor: bgColor, borderBottom: `1px solid ${borderColor}` }}
       >
         <span className="text-[10px] opacity-50">No preview</span>
@@ -105,7 +105,7 @@ export function DraftPreviewThumbnail({
 
   return (
     <div
-      className={`w-full aspect-[16/8] rounded-t-lg overflow-hidden flex flex-col ${className}`}
+      className={`w-full min-w-0 aspect-[16/8] rounded-t-lg overflow-hidden flex flex-col ${className}`}
       style={{ backgroundColor: '#1a1a1a', borderBottom: `1px solid ${borderColor}` }}
     >
       <div className="w-full h-full flex flex-col gap-0.5 p-1 overflow-hidden">

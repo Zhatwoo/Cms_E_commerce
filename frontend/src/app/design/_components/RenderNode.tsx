@@ -1,14 +1,14 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNode, useEditor } from "@craftjs/core";
 import ReactDOM from "react-dom";
 import { ResizeOverlay } from "./ResizeOverlay";
 import { useCanvasTool } from "./CanvasToolContext";
 
 export const RenderNode = ({ render }: { render: React.ReactElement }) => {
-  const { id } = useNode();
+  const { id: nodeId } = useNode();
   const activeTool = useCanvasTool();
   const { isActive } = useEditor((_, query) => ({
-    isActive: query.getEvent('selected').contains(id),
+    isActive: query.getEvent('selected').contains(nodeId),
   }));
 
   const {

@@ -4,7 +4,7 @@ Eto yung umiikot na mga cards na parang 3d.
 Sa ngayon colors pa lang yung pinaka thumbnail nya pero in the future maglalagay tayo ng mga actual na templates dito.
 */
 'use client';
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 
 // Define the content type
 interface Template {
@@ -95,94 +95,33 @@ const TemplateCard = ({ template, colors, onPreview, onUseTemplate }: { template
 
 // Main Dome Gallery component
 const DomeGallery = ({ templates, colors, onPreview, onUseTemplate }: { templates: Template[]; colors: any; onPreview: (t: Template) => void; onUseTemplate?: (t: Template) => void }) => {
-  const [currentSlide, setCurrentSlide] = useState(1);
-  const [isTransitionEnabled, setIsTransitionEnabled] = useState(true);
-  const isAnimatingRef = useRef(false);
+  const [loopDistance, setLoopDistance] = useState(0);
+  const [repeatCount, setRepeatCount] = useState(3);
+  const firstGroupRef = useRef<HTMLDivElement | null>(null);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
   const total = templates.length;
-
-  const loopedTemplates = useMemo(() => {
-    if (total <= 1) return templates;
-    const first = templates[0];
-    const last = templates[total - 1];
-    return [last, ...templates, first];
-  }, [templates, total]);
-
-  const activeIndex = total > 0 ? ((currentSlide - 1 + total) % total) : 0;
-
-  const goTo = useCallback((index: number) => {
-    if (total <= 0) return;
-    if (isAnimatingRef.current) return;
-    const normalized = ((index % total) + total) % total;
-    isAnimatingRef.current = true;
-    setIsTransitionEnabled(true);
-    setCurrentSlide(normalized + 1);
-  }, [total]);
-
-  const goNext = useCallback(() => {
-    if (total <= 1) return;
-    if (isAnimatingRef.current) return;
-    isAnimatingRef.current = true;
-    setIsTransitionEnabled(true);
-    setCurrentSlide((prev) => prev + 1);
-  }, [total]);
-
-  const goPrev = useCallback(() => {
-    if (total <= 1) return;
-    if (isAnimatingRef.current) return;
-    isAnimatingRef.current = true;
-    setIsTransitionEnabled(true);
-    setCurrentSlide((prev) => prev - 1);
-  }, [total]);
+  const shouldAnimate = total >= 7 && loopDistance > 0;
 
   useEffect(() => {
-    if (total <= 1) return;
-    const id = window.setInterval(() => {
-      if (!isAnimatingRef.current) {
-        goNext();
-      }
-    }, 2600);
-    return () => window.clearInterval(id);
-  }, [goNext, total]);
+    const measure = () => {
+      const groupEl = firstGroupRef.current;
+      const viewportEl = viewportRef.current;
+      if (!groupEl || !viewportEl) return;
 
-  useEffect(() => {
-    if (total <= 1) {
-      setCurrentSlide(0);
-      isAnimatingRef.current = false;
-      return;
-    }
+      const groupWidth = groupEl.scrollWidth;
+      const viewportWidth = viewportEl.clientWidth;
 
-    setCurrentSlide((prev) => {
-      if (prev < 1 || prev > total) return 1;
-      return prev;
-    });
-    isAnimatingRef.current = false;
-  }, [total]);
+      setLoopDistance(groupWidth);
+      const minCopies = Math.max(3, Math.ceil(viewportWidth / groupWidth) + 2);
+      setRepeatCount(minCopies);
+    };
 
-  const handleTransitionEnd = useCallback(() => {
-    if (total <= 1) return;
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [templates]);
 
-    if (currentSlide === total + 1) {
-      setIsTransitionEnabled(false);
-      setCurrentSlide(1);
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setIsTransitionEnabled(true);
-          isAnimatingRef.current = false;
-        });
-      });
-    } else if (currentSlide === 0) {
-      setIsTransitionEnabled(false);
-      setCurrentSlide(total);
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setIsTransitionEnabled(true);
-          isAnimatingRef.current = false;
-        });
-      });
-    } else {
-      isAnimatingRef.current = false;
-    }
-  }, [currentSlide, total]);
+  if (total === 0) return null;
 
   return (
     <div
@@ -192,65 +131,42 @@ const DomeGallery = ({ templates, colors, onPreview, onUseTemplate }: { template
         background: `linear-gradient(135deg, ${colors.bg.elevated}20 0%, ${colors.bg.card}20 100%)`,
       }}
     >
-      <div className="overflow-hidden px-3 py-6 sm:px-6">
+      <style jsx>{`
+        @keyframes domeMarquee {
+          from { transform: translateX(0); }
+          to { transform: translateX(calc(-1px * var(--loop-distance))); }
+        }
+      `}</style>
+      <div ref={viewportRef} className="overflow-hidden px-3 py-6 sm:px-6">
         <div
-          className="flex will-change-transform"
+          className="flex w-max will-change-transform"
           style={{
-            transform: `translateX(-${currentSlide * 100}%)`,
-            transition: isTransitionEnabled ? 'transform 700ms ease-in-out' : 'none',
+            ['--loop-distance' as string]: loopDistance,
+            animation: shouldAnimate ? 'domeMarquee 36s linear infinite' : 'none',
           }}
-          onTransitionEnd={handleTransitionEnd}
         >
-          {loopedTemplates.map((template, index) => (
-            <div key={`${template.id}-${index}`} className="w-full shrink-0 px-1 sm:px-4">
-              <div className="mx-auto w-full max-w-[940px]">
-                <TemplateCard template={template} colors={colors} onPreview={onPreview} onUseTemplate={onUseTemplate} />
+          <div ref={firstGroupRef} className="flex shrink-0 gap-4 pr-4">
+            {templates.map((template, index) => (
+              <div data-feature-card key={`group-a-${template.id}-${index}`} className="w-[min(86vw,340px)] shrink-0">
+                <div className="w-full">
+                  <TemplateCard template={template} colors={colors} onPreview={onPreview} onUseTemplate={onUseTemplate} />
+                </div>
               </div>
+            ))}
+          </div>
+          {shouldAnimate && Array.from({ length: Math.max(0, repeatCount - 1) }).map((_, groupIdx) => (
+            <div key={`clone-group-${groupIdx}`} className="flex shrink-0 gap-4 pr-4" aria-hidden="true">
+              {templates.map((template, index) => (
+                <div data-feature-card key={`group-${groupIdx}-${template.id}-${index}`} className="w-[min(86vw,340px)] shrink-0">
+                  <div className="w-full">
+                    <TemplateCard template={template} colors={colors} onPreview={onPreview} onUseTemplate={onUseTemplate} />
+                  </div>
+                </div>
+              ))}
             </div>
           ))}
         </div>
       </div>
-
-      {total > 1 && (
-        <>
-          <button
-            type="button"
-            aria-label="Previous template"
-            onClick={goPrev}
-            className="absolute left-3 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full border flex items-center justify-center backdrop-blur hover:opacity-90 transition-opacity"
-            style={{ borderColor: colors.border.faint, backgroundColor: `${colors.bg.card}CC`, color: colors.text.primary }}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-          </button>
-
-          <button
-            type="button"
-            aria-label="Next template"
-            onClick={goNext}
-            className="absolute right-3 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full border flex items-center justify-center backdrop-blur hover:opacity-90 transition-opacity"
-            style={{ borderColor: colors.border.faint, backgroundColor: `${colors.bg.card}CC`, color: colors.text.primary }}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-          </button>
-
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5">
-            {templates.map((template, index) => (
-              <button
-                key={template.id}
-                type="button"
-                aria-label={`Go to template ${index + 1}`}
-                onClick={() => goTo(index)}
-                className="h-1.5 rounded-full transition-all"
-                style={{
-                  width: index === activeIndex ? 20 : 8,
-                  backgroundColor: index === activeIndex ? colors.text.primary : colors.border.default,
-                  opacity: index === activeIndex ? 1 : 0.7,
-                }}
-              />
-            ))}
-          </div>
-        </>
-      )}
     </div>
   );
 };

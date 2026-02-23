@@ -1754,8 +1754,8 @@ function RenderNode({
   }
 }
 
-function getPageSlug(page: { slug?: string }, index: number): string {
-  return page.slug ?? `page-${index}`;
+function getPageSlug(page: { slug?: string } | null | undefined, index: number): string {
+  return page?.slug ?? `page-${index}`;
 }
 
 const PAGE_TRANSITION_STYLES: Record<TransitionType, React.CSSProperties> = {
@@ -1785,13 +1785,15 @@ export function WebPreview({
   simulatedWidth?: number;
   mobileBreakpoint?: number;
 }): React.ReactElement {
-  const firstSlug = doc.pages[0] ? getPageSlug(doc.pages[0], 0) : "page";
-  const [currentPageSlug, setCurrentPageSlug] = useState(initialPageSlug ?? getPageSlug(doc.pages[pageIndex] ?? doc.pages[0], pageIndex) ?? firstSlug);
+  const safePages = doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page));
+  const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
+  const initialPage = safePages[pageIndex] ?? safePages[0];
+  const [currentPageSlug, setCurrentPageSlug] = useState(initialPageSlug ?? getPageSlug(initialPage, pageIndex) ?? firstSlug);
   const [history, setHistory] = useState<string[]>([]);
   const [transitionStyle, setTransitionStyle] = useState<React.CSSProperties>({});
 
-  const currentPage = doc.pages.find((p, i) => getPageSlug(p, i) === currentPageSlug) ?? doc.pages[0];
-  const currentPageIndex = doc.pages.findIndex((p, i) => getPageSlug(p, i) === currentPageSlug);
+  const currentPage = safePages.find((p, i) => getPageSlug(p, i) === currentPageSlug) ?? safePages[0];
+  const currentPageIndex = safePages.findIndex((p, i) => getPageSlug(p, i) === currentPageSlug);
 
   const onPrototypeAction = useCallback(
     (interaction: Interaction) => {
@@ -1969,15 +1971,17 @@ export function LiveSite({
   /** Optional initial page slug from URL (e.g. ?page=page-1) for deep linking */
   initialPageSlug?: string;
 }): React.ReactElement {
-  const firstSlug = doc.pages[0] ? getPageSlug(doc.pages[0], 0) : "page";
+  const safePages = doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page));
+  const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
+  const initialPage = safePages[pageIndex] ?? safePages[0];
   const [currentPageSlug, setCurrentPageSlug] = React.useState(
-    initialPageSlug ?? getPageSlug(doc.pages[pageIndex] ?? doc.pages[0], pageIndex) ?? firstSlug
+    initialPageSlug ?? getPageSlug(initialPage, pageIndex) ?? firstSlug
   );
   const [history, setHistory] = React.useState<string[]>([]);
   const [transitionStyle, setTransitionStyle] = React.useState<React.CSSProperties>({});
 
-  const currentPage = doc.pages.find((p, i) => getPageSlug(p, i) === currentPageSlug) ?? doc.pages[0];
-  const currentPageIndex = doc.pages.findIndex((p, i) => getPageSlug(p, i) === currentPageSlug);
+  const currentPage = safePages.find((p, i) => getPageSlug(p, i) === currentPageSlug) ?? safePages[0];
+  const currentPageIndex = safePages.findIndex((p, i) => getPageSlug(p, i) === currentPageSlug);
 
   if (!currentPage) {
     return <div style={{ padding: 24, color: "#666" }}>No page to display.</div>;
@@ -2026,7 +2030,7 @@ export function LiveSite({
       document.getElementById(interaction.destination)?.scrollIntoView({ behavior: "smooth" });
     } else if (interaction.action === "navigateTo" && interaction.destination) {
       const dest = interaction.destination;
-      const isPageSlug = doc.pages.some((p, i) => getPageSlug(p, i) === dest);
+      const isPageSlug = safePages.some((p, i) => getPageSlug(p, i) === dest);
       if (isPageSlug) {
         setHistory((h) => [...h, currentPageSlug]);
         const duration = (interaction.duration ?? 300) / 1000;
