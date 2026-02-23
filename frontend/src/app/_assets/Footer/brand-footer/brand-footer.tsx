@@ -63,27 +63,27 @@ export const BrandFooter: TemplateEntry = {
             React.createElement(
               Element as any,
               { is: Container, background: "rgba(255,255,255,0.1)", padding: "10px", borderRadius: "50%", width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", canvas: true },
-              React.createElement(Text, { text: "📘", fontSize: 20 })
+              React.createElement(Text, { text: "FB", fontSize: 16, fontWeight: "600" })
             ),
             React.createElement(
               Element as any,
               { is: Container, background: "rgba(255,255,255,0.1)", padding: "10px", borderRadius: "50%", width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", canvas: true },
-              React.createElement(Text, { text: "🐦", fontSize: 20 })
+              React.createElement(Text, { text: "TW", fontSize: 16, fontWeight: "600" })
             ),
             React.createElement(
               Element as any,
               { is: Container, background: "rgba(255,255,255,0.1)", padding: "10px", borderRadius: "50%", width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", canvas: true },
-              React.createElement(Text, { text: "📷", fontSize: 20 })
+              React.createElement(Text, { text: "IG", fontSize: 16, fontWeight: "600" })
             ),
             React.createElement(
               Element as any,
               { is: Container, background: "rgba(255,255,255,0.1)", padding: "10px", borderRadius: "50%", width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", canvas: true },
-              React.createElement(Text, { text: "🎨", fontSize: 20 })
+              React.createElement(Text, { text: "LI", fontSize: 14, fontWeight: "600" })
             ),
             React.createElement(
               Element as any,
               { is: Container, background: "rgba(255,255,255,0.1)", padding: "10px", borderRadius: "50%", width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", canvas: true },
-              React.createElement(Text, { text: "📱", fontSize: 20 })
+              React.createElement(Text, { text: "TT", fontSize: 14, fontWeight: "600" })
             )
           )
         ),

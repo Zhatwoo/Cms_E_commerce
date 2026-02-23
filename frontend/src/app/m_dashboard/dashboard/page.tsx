@@ -45,7 +45,19 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const { theme, colors } = useTheme();
   const router = useRouter();
   const [activeHeroTab, setActiveHeroTab] = useState<HeroTab>('templates');
+  const [searchQuery, setSearchQuery] = useState('');
   const tabNavigateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const filteredQuickActions = quickActions.filter((item) =>
+    item.label.toLowerCase().includes(normalizedSearch)
+  );
+  const filteredTemplateCards = templateCards.filter((item) =>
+    `${item.title} ${item.subtitle}`.toLowerCase().includes(normalizedSearch)
+  );
+  const filteredInspiredCards = inspiredCards.filter((item) =>
+    `${item.title} ${item.cta}`.toLowerCase().includes(normalizedSearch)
+  );
 
   useEffect(() => {
     return () => {
@@ -70,17 +82,41 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
       {/* Hero */}
       <section
         className="relative overflow-hidden rounded-3xl border p-5 md:p-8"
-        style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+        style={{
+          backgroundColor: colors.bg.card,
+          borderColor: 'transparent',
+        }}
       >
+        <div
+          className="pointer-events-none absolute inset-0 rounded-3xl p-px"
+          style={{
+            backgroundImage:
+              theme === 'dark'
+                ? 'linear-gradient(110deg, rgba(255,255,255,0.30) 0%, rgba(209,213,219,0.22) 35%, rgba(156,163,175,0.16) 65%, rgba(107,114,128,0.24) 100%)'
+                : 'linear-gradient(110deg, rgba(148,163,184,0.50) 0%, rgba(148,163,184,0.30) 35%, rgba(100,116,139,0.24) 65%, rgba(71,85,105,0.34) 100%)',
+            WebkitMask: 'linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)',
+            WebkitMaskComposite: 'xor',
+            maskComposite: 'exclude',
+          }}
+        />
         <div className="relative z-10 flex flex-col items-center gap-4 md:gap-5 text-center">
           <motion.h1
-            className="text-3xl sm:text-4xl font-semibold leading-tight tracking-tight"
-            style={{ color: colors.text.primary }}
+            className="text-4xl sm:text-5xl font-semibold leading-tight tracking-tight bg-clip-text text-transparent"
+            style={{
+              backgroundImage:
+                theme === 'dark'
+                  ? 'linear-gradient(180deg, #ffffff 25%, #9ca3af 100%)'
+                  : 'linear-gradient(180deg, #111827 25%, #4b5563 100%)',
+              textShadow:
+                theme === 'dark'
+                  ? '0 6px 18px rgba(2,6,23,0.45)'
+                  : '0 6px 16px rgba(15,23,42,0.16)',
+            }}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35 }}
           >
-            What will you design today?
+            What website will you build?
           </motion.h1>
 
           <div
@@ -147,8 +183,9 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
             </svg>
             <input
               type="text"
-              readOnly
-              value="Search millions of templates"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search templates, designs, or actions"
               className="w-full bg-transparent text-sm focus:outline-none"
               style={{ color: colors.text.secondary }}
             />
@@ -156,7 +193,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
 
           <div className="w-full overflow-x-auto flex justify-center">
             <div className="inline-flex min-w-max items-start gap-5 px-1 py-1">
-              {quickActions.map((item, idx) => (
+              {filteredQuickActions.map((item, idx) => (
                 <button
                   key={item.label}
                   type="button"
@@ -186,7 +223,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
           Explore templates
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          {templateCards.map((item) => (
+          {filteredTemplateCards.map((item) => (
             <button
               key={item.title}
               type="button"
@@ -200,6 +237,11 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
             </button>
           ))}
         </div>
+        {normalizedSearch && filteredTemplateCards.length === 0 ? (
+          <p className="text-sm" style={{ color: colors.text.muted }}>
+            No template results found.
+          </p>
+        ) : null}
       </section>
 
       {/* Inspired by your designs */}
@@ -208,7 +250,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
           Inspired by your designs
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {inspiredCards.map((item, idx) => (
+          {filteredInspiredCards.map((item, idx) => (
             <button
               key={item.title}
               type="button"
@@ -230,12 +272,17 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
             </button>
           ))}
         </div>
+        {normalizedSearch && filteredInspiredCards.length === 0 ? (
+          <p className="text-sm" style={{ color: colors.text.muted }}>
+            No inspired design results found.
+          </p>
+        ) : null}
       </section>
 
       {/* Projects & Commerce Rows */}
       <RecentProjects />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 w-full">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 w-full overflow-x-hidden">
         <TopSellingProducts />
         
         {/* Usage summary */}
@@ -250,7 +297,6 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
           initial={{ opacity: 0, x: 18 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, delay: 0.15 }}
-          whileHover={{ scale: 1.01 }}
         >
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
             <div>

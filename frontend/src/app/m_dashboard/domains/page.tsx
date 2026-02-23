@@ -34,7 +34,10 @@ import {
   Check,
   AlertCircle,
   Clock,
-  TrendingUp
+  TrendingUp,
+  X,
+  Calendar,
+  FileText
 } from 'lucide-react';
 =======
 >>>>>>> Stashed changes
@@ -124,9 +127,9 @@ export default function DomainsPage() {
     .filter((d) => d.subdomain);
 
   const stats = {
-    total: domainsList.length,
-    active: domainsList.filter((d) => d.project.status === 'published').length,
-    draft: domainsList.filter((d) => (d.project.status ?? 'draft') !== 'published').length,
+    total: projects.length,
+    active: domainsList.length,
+    draft: projects.length - domainsList.length,
   };
 
   type DomainEntry = { project: Project; subdomain: string };

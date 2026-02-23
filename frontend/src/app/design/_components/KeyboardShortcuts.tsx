@@ -107,7 +107,7 @@ export const KeyboardShortcuts = () => {
         e.preventDefault();
         const state = query.getState();
         const ids = selectedToIds(state.events.selected);
-        if (ids.length > 0) duplicateNodes(actions, query, ids);
+        if (ids.length > 0) duplicateNodes(actions as any, query as any, ids);
         return;
       }
 
@@ -116,7 +116,7 @@ export const KeyboardShortcuts = () => {
         e.preventDefault();
         const state = query.getState();
         const ids = selectedToIds(state.events.selected);
-        copySelection(query, ids);
+        copySelection(query as any, ids);
         return;
       }
 
@@ -125,7 +125,7 @@ export const KeyboardShortcuts = () => {
         e.preventDefault();
         const state = query.getState();
         const ids = selectedToIds(state.events.selected);
-        cutSelection(actions, query, ids);
+        cutSelection(actions as any, query as any, ids);
         return;
       }
 
@@ -179,7 +179,7 @@ export const KeyboardShortcuts = () => {
         e.preventDefault();
         const state = query.getState();
         const ids = selectedToIds(state.events.selected);
-        groupSelection(actions, query, ids);
+          groupSelection(actions as any, query as any, ids);
         return;
       }
 
@@ -188,7 +188,7 @@ export const KeyboardShortcuts = () => {
         e.preventDefault();
         const state = query.getState();
         const ids = selectedToIds(state.events.selected);
-        ungroupSelection(actions, query, ids);
+          ungroupSelection(actions as any, query as any, ids);
         return;
       }
 

@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useTheme } from '../components/context/theme-context';
-import { PieChart } from '../components/analytics/PieChart';
 import { BarChart } from '../components/analytics/BarChart';
 
 interface Order {
@@ -206,6 +205,7 @@ export default function OrdersPage() {
 
     const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+    const hasOrders = orders.length > 0;
 
     const filteredOrders = orders.filter(order => {
         const matchesSearch = order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -236,22 +236,15 @@ export default function OrdersPage() {
 
     const stats = {
         total: orders.length,
-        pending: orders.filter(o => o.status === 'pending').length,
-        processing: orders.filter(o => o.status === 'processing').length,
-        shipped: orders.filter(o => o.status === 'shipped').length,
-        delivered: orders.filter(o => o.status === 'delivered').length,
-        cancelled: orders.filter(o => o.status === 'cancelled').length,
         totalRevenue: orders.filter(o => o.paymentStatus === 'paid').reduce((sum, o) => sum + o.total, 0)
     };
 
-    // Prepare chart data
-    const statusChartData = [
-        { label: 'Pending', value: stats.pending, color: '#f59e0b' },
-        { label: 'Processing', value: stats.processing, color: '#3b82f6' },
-        { label: 'Shipped', value: stats.shipped, color: '#8b5cf6' },
-        { label: 'Delivered', value: stats.delivered, color: '#10b981' },
-        { label: 'Cancelled', value: stats.cancelled, color: '#ef4444' }
-    ];
+    const ordersMap: Record<string, number> = {};
+    orders.forEach(o => {
+        const d = o.createdAt;
+        ordersMap[d] = (ordersMap[d] || 0) + 1;
+    });
+    const ordersByDate = Object.keys(ordersMap).sort().map(d => ({ label: d, value: ordersMap[d] }));
 
     // Aggregate revenue by date for a time-series like chart
     const revenueMap: Record<string, number> = {};
@@ -319,42 +312,38 @@ export default function OrdersPage() {
                 </div>
             </section>
 
-            {/* Charts Row: Pie for status, Bar for revenue per order */}
-            <div className="flex flex-col md:flex-row gap-6">
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border p-6 w-fit flex flex-col" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
-                    <h4 className="text-sm font-semibold mb-4" style={{ color: colors.text.primary }}>Orders by status</h4>
-                    <div className="flex flex-col items-center">
-                        <PieChart data={statusChartData} size={120} />
-                        <div className="mt-4 text-sm text-center" style={{ color: colors.text.muted }}>
-                            <div>
-                                <span className="font-semibold" style={{ color: colors.text.primary }}>Total orders:</span> <span style={{ color: colors.text.primary }}>{stats.total}</span>
-                            </div>
-                        </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border p-6 flex flex-col" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, boxShadow: theme === 'dark' ? '0 10px 40px rgba(2,6,23,0.3)' : '0 4px 16px rgba(0,0,0,0.08)' }}>
+                    <h4 className="text-base font-semibold mb-6" style={{ color: colors.text.primary }}>Orders (by date)</h4>
+                    <div className="flex-1 flex flex-col items-center justify-center">
+                        <BarChart data={ordersByDate} colors={{ bar: '#7c3aed' }} compact={true} />
+                        {!hasOrders && (
+                            <p className="mt-6 text-sm" style={{ color: colors.text.muted }}>No current orders</p>
+                        )}
                     </div>
                 </motion.div>
 
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border p-6 w-fit flex flex-col" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
-                    <h4 className="text-sm font-semibold mb-4" style={{ color: colors.text.primary }}>Revenue (by date)</h4>
-                    <div className="flex flex-col items-center mt-6">
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border p-6 flex flex-col" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, boxShadow: theme === 'dark' ? '0 10px 40px rgba(2,6,23,0.3)' : '0 4px 16px rgba(0,0,0,0.08)' }}>
+                    <h4 className="text-base font-semibold mb-6" style={{ color: colors.text.primary }}>Revenue (by date)</h4>
+                    <div className="flex-1 flex flex-col items-center justify-center">
                         <BarChart data={revenueByDate} colors={{ bar: '#7c3aed' }} compact={true} />
-                        <div className="mt-4 text-sm text-center" style={{ color: colors.text.muted }}>
-                            <div>
-                                <span className="font-semibold" style={{ color: colors.text.primary }}>Total revenue:</span> <span style={{ color: colors.text.primary }}>${stats.totalRevenue.toFixed(2)}</span>
-                            </div>
-                        </div>
+                        {!hasOrders && (
+                            <p className="mt-6 text-sm" style={{ color: colors.text.muted }}>No revenue available</p>
+                        )}
                     </div>
                 </motion.div>
             </div>
 
             {/* Filters + Table Controls */}
-            <div className="flex flex-col sm:flex-row gap-4 items-center rounded-2xl border p-4" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
-                <div className="w-full sm:w-1/2">
+            {hasOrders && (
+            <div className="flex flex-col gap-4 rounded-2xl border p-4 md:p-6" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+                <div className="w-full">
                     <input
                         type="text"
                         placeholder="Search orders by number, customer name, or email..."
                         value={searchTerm}
                         onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                        className="w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-2 rounded-lg border focus:outline-none"
                         style={{
                             backgroundColor: colors.bg.card,
                             borderColor: colors.border.faint,
@@ -363,9 +352,9 @@ export default function OrdersPage() {
                     />
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                     <div className="flex items-center gap-2">
-                        <label className="text-sm" style={{ color: colors.text.muted }}>Status:</label>
+                        <label className="text-sm whitespace-nowrap" style={{ color: colors.text.muted }}>Status:</label>
                         <select
                             value={selectedStatus}
                             onChange={(e) => { setSelectedStatus(e.target.value); setCurrentPage(1); }}
@@ -385,27 +374,29 @@ export default function OrdersPage() {
                         <div className="flex items-center rounded-lg overflow-hidden border" style={{ borderColor: colors.border.faint }}>
                             <button
                                 onClick={() => setViewMode('cards')}
-                                className={`px-3 py-1 text-sm ${viewMode === 'cards' ? 'bg-white/5' : 'bg-transparent'}`}
+                                className={`px-3 py-1 text-sm transition-colors ${viewMode === 'cards' ? 'bg-white/5' : 'bg-transparent'}`}
                                 style={{ color: colors.text.primary }}
+                                title="Card view"
                             >
-                                Modal view
+                                Cards
                             </button>
                             <button
                                 onClick={() => setViewMode('table')}
-                                className={`px-3 py-1 text-sm ${viewMode === 'table' ? 'bg-white/5' : 'bg-transparent'}`}
+                                className={`px-3 py-1 text-sm transition-colors ${viewMode === 'table' ? 'bg-white/5' : 'bg-transparent'}`}
                                 style={{ color: colors.text.primary }}
+                                title="Table view"
                             >
-                                Table view
+                                Table
                             </button>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        <label className="text-sm" style={{ color: colors.text.muted }}>Per page:</label>
+                    <div className="flex items-center gap-2 ml-auto">
+                        <label className="text-sm whitespace-nowrap" style={{ color: colors.text.muted }}>Per page:</label>
                         <select
                             value={perPage}
                             onChange={(e) => { setPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                            className="px-2 py-1 rounded-lg text-sm border"
+                            className="px-3 py-2 rounded-lg text-sm border"
                             style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, color: colors.text.primary }}
                         >
                             {[5, 10, 15, 20].map(n => (
@@ -415,8 +406,10 @@ export default function OrdersPage() {
                     </div>
                 </div>
             </div>
+            )}
 
-            {/* Responsive view: cards on small, table on md+ */}
+            {hasOrders ? (
+            <>
             <div className="mt-4">
                 {/* Mobile: behavior depends on viewMode */}
                 {viewMode === 'cards' ? (
@@ -551,7 +544,6 @@ export default function OrdersPage() {
                 )}
             </div>
 
-            {/* Pagination */}
             <div className="flex items-center justify-between gap-4 mt-4">
                 <div style={{ color: colors.text.muted }}>
                     Showing {(filteredOrders.length === 0) ? 0 : (startIndex + 1)} - {Math.min(endIndex, filteredOrders.length)} of {filteredOrders.length}
@@ -572,6 +564,22 @@ export default function OrdersPage() {
                     >Next</button>
                 </div>
             </div>
+            </>
+            ) : (
+                <section className="text-center py-20 rounded-2xl border" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+                    <div className="mx-auto w-16 h-16 rounded-2xl border flex items-center justify-center" style={{ borderColor: colors.border.default, backgroundColor: colors.bg.elevated }}>
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: colors.text.muted }}>
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 7h9m-9 5h9m-9 5h9M5 7h.01M5 12h.01M5 17h.01" />
+                        </svg>
+                    </div>
+                    <h3 className="text-2xl font-semibold mt-5 mb-2" style={{ color: colors.text.primary }}>
+                        No orders yet
+                    </h3>
+                    <p className="max-w-md mx-auto" style={{ color: colors.text.secondary }}>
+                        No order status yet. Orders will appear here once customers start checking out.
+                    </p>
+                </section>
+            )}
 
             {/* Order Details Modal */}
             {selectedOrder && (

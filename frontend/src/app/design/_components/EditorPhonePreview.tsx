@@ -137,7 +137,7 @@ export function EditorPhonePreview() {
       <div
         data-drag-handle
         onPointerDown={handleDragHandlePointerDown}
-        className="flex flex-col items-center rounded-[3rem] bg-neutral-800 shadow-2xl border-[10px] border-neutral-900 cursor-grab active:cursor-grabbing"
+        className="flex flex-col items-center rounded-[3rem] bg-neutral-800 shadow-2xl border-10 border-neutral-900 cursor-grab active:cursor-grabbing"
         style={{
           width: screenWidth + BEZEL,
           minHeight: screenHeight + DRAG_AREA_EXTRA,
@@ -156,7 +156,7 @@ export function EditorPhonePreview() {
               <button
                 type="button"
                 onClick={() => setDropdownOpen((o) => !o)}
-                className="flex items-center gap-1 rounded bg-neutral-700/80 hover:bg-neutral-600/80 px-2 py-1 text-[10px] text-neutral-200 border border-neutral-600 min-w-0 max-w-[120px] cursor-pointer"
+                className="flex items-center gap-1 rounded bg-neutral-700/80 hover:bg-neutral-600/80 px-2 py-1 text-[10px] text-neutral-200 border border-neutral-600 min-w-0 max-w-30 cursor-pointer"
                 title={selectedModel.name}
               >
                 <span className="truncate">{selectedModel.name}</span>
