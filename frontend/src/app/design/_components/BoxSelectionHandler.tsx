@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom";
 import { useEditor } from "@craftjs/core";
+import { useCanvasTool } from "./CanvasToolContext";
 
 const MARQUEE_THRESHOLD = 5;
 
@@ -19,6 +20,7 @@ function rectsIntersect(
  */
 export const BoxSelectionHandler = () => {
   const { actions, query } = useEditor();
+  const activeTool = useCanvasTool();
   const [marquee, setMarquee] = useState<{
     startX: number;
     startY: number;
@@ -37,6 +39,7 @@ export const BoxSelectionHandler = () => {
 
   useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
+      startedOnEmptyRef.current = false;
       if (e.button !== 0) return;
       const target = e.target as HTMLElement | null;
       if (!target) return;
@@ -44,11 +47,14 @@ export const BoxSelectionHandler = () => {
       if (target.closest("INPUT") || target.closest("TEXTAREA") || target.closest("SELECT") || target.closest("[contenteditable=true]")) return;
       if (target.closest("[data-panel]")) return;
       if (!target.closest("[data-canvas-container]")) return;
-      // Space = pan only; do not start marquee when Space is held
+      // Space = pan only; Hand tool = pan only; do not start marquee
       if (document.body.dataset.spacePan === "true") return;
+      if (activeTool === "hand") return;
 
       const onNode = target.closest("[data-node-id]");
       if (onNode) return;
+
+      startedOnEmptyRef.current = true;
 
       setMarquee({
         startX: e.clientX,
@@ -66,6 +72,9 @@ export const BoxSelectionHandler = () => {
     const handleMouseUp = () => {
       const m = marquee;
       setMarquee(null);
+
+      if (!startedOnEmptyRef.current) return;
+      startedOnEmptyRef.current = false;
 
       if (!m) return;
 
@@ -133,7 +142,7 @@ export const BoxSelectionHandler = () => {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [actions, query, marquee]);
+  }, [actions, query, marquee, activeTool]);
 
   // Draw marquee rectangle (viewport coordinates)
   const marqueeEl =

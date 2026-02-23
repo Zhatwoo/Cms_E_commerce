@@ -1,7 +1,7 @@
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, Suspense } from 'react';
 import { AdminSidebar } from '../../components/sidebar';
 import { AdminHeader } from '../../components/header';
 import { setClientDomainStatus } from '@/lib/api';
@@ -19,7 +19,7 @@ function getViewWebsiteUrl(domainName: string): string {
   return `https://${subdomain}.${BASE_DOMAIN}`;
 }
 
-export default function ManageWebsite(): React.ReactElement {
+function ManageWebsiteContent(): React.ReactElement {
   const router = useRouter();
   const searchParams = useSearchParams();
   const id = searchParams.get('id') ?? '';
@@ -218,5 +218,13 @@ export default function ManageWebsite(): React.ReactElement {
         </main>
       </div>
     </div>
+  );
+}
+
+export default function ManageWebsite(): React.ReactElement {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ManageWebsiteContent />
+    </Suspense>
   );
 }

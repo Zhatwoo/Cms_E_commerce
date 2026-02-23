@@ -16,7 +16,7 @@ export const AreaChart = ({ data, color, colors }: AreaChartProps) => {
 
     if (!data || data.length === 0) return null;
 
-    const maxRevenue = Math.max(...data.map(item => item.revenue));
+    const maxRevenue = Math.max(...data.map(item => item.revenue)) || 1; // Prevent division by zero
     const minRevenue = 0; // Or Math.min(...data.map(item => item.revenue)) * 0.8 for dynamic floor
 
     // Chart Dimensions (Internal Coordinate System for SVG)

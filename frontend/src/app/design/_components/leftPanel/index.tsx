@@ -28,19 +28,30 @@ interface LeftPanelProps {
   onToggle?: () => void;
   activePanel?: LeftPanelTabId;
   setActivePanel?: (tab: LeftPanelTabId) => void;
+  /** When false, FilesPanel is not mounted to avoid Craft.js setState-during-render. Set by EditorShell after Frame has committed. */
+  frameReady?: boolean;
 }
 
-export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePanel: setControlledPanel }: LeftPanelProps) => {
+export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePanel: setControlledPanel, frameReady = true }: LeftPanelProps) => {
   const [internalPanel, setInternalPanel] = useState<LeftPanelTabId>("files");
   const activePanel = controlledPanel ?? internalPanel;
   const setActivePanel = setControlledPanel ?? setInternalPanel;
   const [menuOpen, setMenuOpen] = useState(false);
   const [saveFlash, setSaveFlash] = useState(false);
+  // Delay mounting FilesPanel to avoid "setState during render" warnings
+  // caused by Craft.js internal synchronous updates while Frame is rendering.
+  const [filesPanelReady, setFilesPanelReady] = useState(false);
+  const canMountFilesPanel = frameReady && filesPanelReady;
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { websiteName } = useDesignProject();
 
   const { query } = useEditor();
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setFilesPanelReady(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   // Close dropdown on click outside or Escape
   useEffect(() => {
@@ -135,7 +146,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
 
           {/* Dropdown menu */}
           {menuOpen && (
-            <div className="absolute left-0 top-full mt-2 w-56 bg-brand-darker border border-white/10 rounded-xl shadow-2xl py-1 z-50">
+            <div className="absolute left-0 top-full mt-2 w-56 bg-brand-darker border border-white/10 rounded-xl shadow-2xl py-1 z-50 animate-slideDownItem">
               {/* Save */}
               <button
                 onClick={handleSave}
@@ -268,7 +279,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
 
       {/* Panel content: only this area scrolls */}
       <div className={`flex-1 min-h-0 overflow-y-auto mt-4 ${activePanel === "components" ? "no-scrollbar" : ""}`}>
-        {activePanel === "files" && <FilesPanel />}
+        {activePanel === "files" && (canMountFilesPanel ? <FilesPanel /> : null)}
         {activePanel === "assets" && <AssetsPanel />}
         {activePanel === "components" && <ComponentsPanel />}
         {activePanel === "templates" && <TemplatePanel />}

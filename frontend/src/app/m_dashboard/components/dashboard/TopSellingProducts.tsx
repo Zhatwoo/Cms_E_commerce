@@ -14,7 +14,7 @@ export function TopSellingProducts() {
   useEffect(() => {
     // Get top selling products from shared data
     setTimeout(() => {
-      setProducts(getTopSellingProducts(4));
+      setProducts(getTopSellingProducts(3));
       setLoading(false);
     }, 300);
   }, []);
@@ -60,15 +60,20 @@ export function TopSellingProducts() {
       transition={{ delay: 0.15 }}
     >
       <div className="flex items-center justify-between mb-4 md:mb-5">
-        <h3 className="text-base md:text-lg font-semibold tracking-tight" style={{ color: colors.text.primary }}>
-          Top selling products
-        </h3>
+        <div>
+          <h3 className="text-base md:text-lg font-semibold tracking-tight" style={{ color: colors.text.primary }}>
+            Products snapshot
+          </h3>
+          <p className="text-xs mt-0.5" style={{ color: colors.text.muted }}>
+            Quick view of top performers
+          </p>
+        </div>
         <button
-          onClick={() => router.push('/m_dashboard/products')}
+          onClick={() => router.push('/m_dashboard/products#inventory-section')}
           className="text-xs md:text-sm font-medium transition-opacity hover:opacity-70"
           style={{ color: colors.status.info }}
         >
-          View all →
+          Open Products →
         </button>
       </div>
 
@@ -96,7 +101,7 @@ export function TopSellingProducts() {
                 backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.4)' : colors.bg.elevated,
                 borderColor: colors.border.faint,
               }}
-              onClick={() => router.push('/m_dashboard/products')}
+              onClick={() => router.push('/m_dashboard/products#inventory-section')}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: idx * 0.1 }}

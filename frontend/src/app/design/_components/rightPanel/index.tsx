@@ -28,9 +28,16 @@ interface RightPanelProps {
   projectId: string;
   activeTab?: TabId;
   setActiveTab?: (tab: TabId) => void;
+  /** When false, RightPanelInner is not mounted to avoid Craft.js setState-during-render. Set by EditorShell after Frame has committed. */
+  frameReady?: boolean;
+  /** Called when the user clicks the X to close the Configs panel. */
+  onClose?: () => void;
 }
 
-export const RightPanel = ({ projectId, activeTab: controlledTab, setActiveTab: setControlledTab }: RightPanelProps) => {
+// Inner panel that subscribes to Craft editor.
+// Mounted lazily by RightPanel to avoid "setState during render" warnings
+// when Frame is rendering initial data.
+const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: setControlledTab, onClose }: RightPanelProps) => {
   const { showAlert } = useAlert();
   const [internalTab, setInternalTab] = useState<TabId>("design");
   const activeTab = controlledTab ?? internalTab;
@@ -166,14 +173,26 @@ export const RightPanel = ({ projectId, activeTab: controlledTab, setActiveTab: 
       >
       <div className="flex items-center justify-between mb-6 gap-2">
         <h3 className="text-brand-lighter font-bold text-lg">Configs</h3>
-        <button
-          onClick={handlePreview}
-          disabled={isPreviewing}
-          className={`p-1 rounded-lg transition-colors cursor-pointer ${isPreviewing ? 'opacity-50 cursor-wait' : 'hover:bg-brand-medium/40'}`}
-          title="Preview (Web / Clean / Raw)"
-        >
-          <Play strokeWidth={2} className={`w-5 h-5 transition-colors ${isPreviewing ? 'text-yellow-400 animate-pulse' : 'text-brand-light hover:text-brand-lighter'}`} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handlePreview}
+            disabled={isPreviewing}
+            className={`p-1 rounded-lg transition-colors cursor-pointer ${isPreviewing ? 'opacity-50 cursor-wait' : 'hover:bg-brand-medium/40'}`}
+            title="Preview (Web / Clean / Raw)"
+          >
+            <Play strokeWidth={2} className={`w-5 h-5 transition-colors ${isPreviewing ? 'text-yellow-400 animate-pulse' : 'text-brand-light hover:text-brand-lighter'}`} />
+          </button>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1 rounded-lg transition-colors hover:bg-brand-medium/40 text-brand-light hover:text-brand-lighter"
+              title="Close panel"
+            >
+              <X className="w-5 h-5" strokeWidth={2} />
+            </button>
+          )}
+        </div>
       </div>
 
       {selectedIds.length > 0 ? (
@@ -296,4 +315,31 @@ export const RightPanel = ({ projectId, activeTab: controlledTab, setActiveTab: 
       </div>
     </div>
   );
+};
+
+export const RightPanel = ({ frameReady = true, ...props }: RightPanelProps) => {
+  const [ready, setReady] = useState(false);
+
+  // Delay mounting the editor-subscribed content until after Frame has committed (frameReady)
+  // and one extra frame. Avoids "Cannot update RightPanelInner while rendering De".
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setReady(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  const canMountInner = frameReady && ready;
+
+  if (!canMountInner) {
+    return (
+      <div
+        data-panel="configs"
+        className="w-80 bg-brand-darker/75 backdrop-blur-lg rounded-3xl p-6 h-full shadow-2xl overflow-y-auto border border-white/10 transition-shadow duration-300 flex items-center justify-center text-xs text-brand-light/60"
+        style={{ boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)" }}
+      >
+        Loading inspector…
+      </div>
+    );
+  }
+
+  return <RightPanelInner {...props} />;
 };
