@@ -102,11 +102,11 @@ function DashboardLayoutContent({
             </div>
 
             {/* Main content area */}
-            <div ref={contentScrollRef} className="no-scrollbar flex min-w-0 flex-1 basis-0 flex-col h-screen overflow-y-auto">
+            <div ref={contentScrollRef} className="no-scrollbar flex min-w-0 flex-1 basis-0 flex-col h-screen overflow-y-auto overflow-x-hidden">
                 <div className="sticky top-0 z-50 shrink-0" style={{ backgroundColor: colors.bg.primary }}>
                     <DashboardHeader onMenuToggle={() => setSidebarOpen(true)} />
                 </div>
-                <main className="flex-1 min-w-0 max-w-full px-4 sm:px-6 pt-5 sm:pt-7 pb-4 sm:pb-6">
+                <main className="flex-1 min-w-0 max-w-full overflow-x-hidden px-4 sm:px-6 pt-5 sm:pt-7 pb-4 sm:pb-6">
                     {children}
                 </main>
                 <footer className="py-4 text-xs shrink-0 flex justify-center transition-colors duration-300" style={{ color: colors.text.muted }}>

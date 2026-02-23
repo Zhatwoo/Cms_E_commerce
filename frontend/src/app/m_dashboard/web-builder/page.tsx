@@ -33,6 +33,49 @@ const convertToGalleryTemplate = (template: FullTemplate): GalleryTemplate => ({
 
 const CATEGORIES = ['Type', 'E-commerce', 'Blog', 'Portfolio', 'Landing Page'];
 
+type SortOptionId = 'relevant' | 'newest' | 'oldest' | 'az' | 'za';
+
+const SORT_OPTIONS: Array<{ id: SortOptionId; label: string; icon: 'sparkles' | 'clock' | 'sort-asc' | 'sort-desc' }> = [
+  { id: 'relevant', label: 'Most relevant', icon: 'sparkles' },
+  { id: 'newest', label: 'Newest edited', icon: 'clock' },
+  { id: 'oldest', label: 'Oldest edited', icon: 'clock' },
+  { id: 'az', label: 'Alphabetical (A-Z)', icon: 'sort-asc' },
+  { id: 'za', label: 'Alphabetical (Z-A)', icon: 'sort-desc' },
+];
+
+function SortOptionIcon({ icon }: { icon: 'sparkles' | 'clock' | 'sort-asc' | 'sort-desc' }) {
+  if (icon === 'sparkles') {
+    return (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M10.5 4.5l1.2 3.2c.15.4.47.72.87.87l3.2 1.2-3.2 1.2a1.4 1.4 0 00-.87.87l-1.2 3.2-1.2-3.2a1.4 1.4 0 00-.87-.87l-3.2-1.2 3.2-1.2c.4-.15.72-.47.87-.87l1.2-3.2zm7 9.5l.6 1.6c.1.26.3.46.56.56l1.6.6-1.6.6a.9.9 0 00-.56.56l-.6 1.6-.6-1.6a.9.9 0 00-.56-.56l-1.6-.6 1.6-.6a.9.9 0 00.56-.56l.6-1.6z" />
+      </svg>
+    );
+  }
+
+  if (icon === 'clock') {
+    return (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="8" strokeWidth={1.8} />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8v4l2.5 1.5" />
+      </svg>
+    );
+  }
+
+  if (icon === 'sort-asc') {
+    return (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 17V7m0 0l-3 3m3-3l3 3M14 17h6M14 13h4M14 9h2" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 7v10m0 0l-3-3m3 3l3-3M14 17h2M14 13h4M14 9h6" />
+    </svg>
+  );
+}
+
 const TemplateCard = ({ template, colors, onPreview, onUseTemplate }: {
   template: GalleryTemplate;
   colors: any;
@@ -313,7 +356,7 @@ export default function WebBuilderPage() {
   const [projectMenuId, setProjectMenuId] = useState<string | null>(null);
   const [renamingProject, setRenamingProject] = useState<Project | null>(null);
   const [renameValue, setRenameValue] = useState('');
-  const [sortOption, setSortOption] = useState<'relevant' | 'newest' | 'oldest' | 'az' | 'za'>('relevant');
+  const [sortOption, setSortOption] = useState<SortOptionId>('relevant');
   const [showSortMenu, setShowSortMenu] = useState(false);
 
   // Load templates on mount
@@ -798,23 +841,19 @@ export default function WebBuilderPage() {
                     Sort by
                   </div>
                   <div className="py-1">
-                    {[
-                      { id: 'relevant', label: 'Most relevant', icon: '✨' },
-                      { id: 'newest', label: 'Newest edited', icon: '🕐' },
-                      { id: 'oldest', label: 'Oldest edited', icon: '🕐' },
-                      { id: 'az', label: 'Alphabetical (A-Z)', icon: '↑' },
-                      { id: 'za', label: 'Alphabetical (Z-A)', icon: '↓' }
-                    ].map((option) => (
+                    {SORT_OPTIONS.map((option) => (
                       <button
                         key={option.id}
                         onClick={() => {
-                          setSortOption(option.id as any);
+                          setSortOption(option.id);
                           setShowSortMenu(false);
                         }}
                         className="w-full px-4 py-2.5 text-left text-sm flex items-center gap-3 hover:bg-white/5 dark:hover:bg-white/5 transition-colors"
                         style={{ color: colors.text.primary }}
                       >
-                        <span className="text-base w-5">{option.icon}</span>
+                        <span className="w-5 inline-flex justify-center">
+                          <SortOptionIcon icon={option.icon} />
+                        </span>
                         <span className="flex-1">{option.label}</span>
                         {sortOption === option.id && (
                           <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
