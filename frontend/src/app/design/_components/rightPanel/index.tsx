@@ -1,15 +1,16 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useEditor } from "@craftjs/core";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Lock, LockOpen, Play, X } from "lucide-react";
+import { Eye, EyeOff, Lock, LockOpen, Play, Code2, GripVertical } from "lucide-react";
 import { serializeCraftToClean } from "../../_lib/serializer";
 import { autoSavePage } from "../../_lib/pageApi";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 import { AnimationGroup } from "./settings/AnimationGroup";
 import { BatchEditGroup } from "./settings/BatchEditGroup";
 import { PrototypeGroup } from "./settings/PrototypeGroup";
+import { CodeEditor } from "../CodeEditor";
 
-export type TabId = "design" | "prototype" | "animation";
+export type TabId = "design" | "prototype" | "animation" | "code";
 
 interface Tab {
   id: TabId;
@@ -20,6 +21,7 @@ const TABS: Tab[] = [
   { id: "design", label: "Design" },
   { id: "prototype", label: "Prototype" },
   { id: "animation", label: "Animation" },
+  { id: "code", label: "Code" },
 ];
 
 interface RightPanelProps {
@@ -41,8 +43,12 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
   const activeTab = controlledTab ?? internalTab;
   const setActiveTab = setControlledTab ?? setInternalTab;
   const [isPreviewing, setIsPreviewing] = useState(false);
+  const [isCodeEditorOpen, setIsCodeEditorOpen] = useState(false);
+  const [panelWidth, setPanelWidth] = useState(320); // w-80 = 320px
+  const [isResizing, setIsResizing] = useState(false);
   const router = useRouter();
   const panelRef = useRef<HTMLDivElement>(null);
+  const resizeRef = useRef<HTMLDivElement>(null);
 
   const { actions } = useEditor();
   const { selectedIds, primary, query } = useEditor((state) => {
@@ -119,12 +125,52 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
     return () => panel.removeEventListener("wheel", handleWheelCapture, { capture: true });
   }, []);
 
+  // Handle panel resizing
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+      const newWidth = window.innerWidth - e.clientX;
+      // Min width: 320px, Max width: 80% of screen
+      setPanelWidth(Math.max(320, Math.min(newWidth, window.innerWidth * 0.8)));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    if (isResizing) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      document.body.style.userSelect = "none";
+      document.body.style.cursor = "col-resize";
+      return () => {
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+        document.body.style.userSelect = "auto";
+        document.body.style.cursor = "auto";
+      };
+    }
+  }, [isResizing]);
+
   return (
-    <div
-      data-panel="configs"
-      className="w-80 bg-brand-darker/75 backdrop-blur-lg rounded-3xl p-6 h-full shadow-2xl overflow-y-auto border border-white/10 transition-shadow duration-300"
-      style={{ boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)" }}
-    >
+    <div className="flex h-full relative">
+      {/* Resize Handle */}
+      <div
+        ref={resizeRef}
+        onMouseDown={() => setIsResizing(true)}
+        className="w-1 bg-brand-medium/30 hover:bg-blue-500/50 cursor-col-resize transition-colors group hover:w-1.5"
+        title="Drag to resize panel"
+      />
+      
+      <div
+        ref={panelRef}
+        data-panel="configs"
+        className="bg-brand-darker/75 backdrop-blur-lg rounded-3xl p-6 h-full shadow-2xl overflow-y-auto border border-white/10 transition-shadow duration-300"
+        style={{
+          width: `${panelWidth}px`,
+          boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)",
+        }}
+      >
       <div className="flex items-center justify-between mb-6 gap-2">
         <h3 className="text-brand-lighter font-bold text-lg">Configs</h3>
         <div className="flex items-center gap-1">
@@ -196,15 +242,16 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
           </div>
 
           {/* Tab Bar */}
-          <div className="flex justify-between text-sm items-center py-1.5 px-2 border-y border-brand-medium mb-6">
+          <div className="flex gap-2 text-sm items-center py-2 px-2 border-y border-brand-medium mb-6 overflow-x-auto">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 transition-colors ${activeTab === tab.id
-                  ? "text-brand-lighter bg-brand-medium/50 rounded-lg py-1"
-                  : "text-brand-light hover:text-brand-lighter py-1"
-                  }`}
+                className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap font-medium ${
+                  activeTab === tab.id
+                    ? "text-brand-lighter bg-brand-medium/50 border border-brand-medium"
+                    : "text-brand-light hover:text-brand-lighter py-2 hover:bg-brand-medium/20"
+                }`}
               >
                 {tab.label}
               </button>
@@ -231,6 +278,26 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
             {activeTab === "animation" && (
               <AnimationGroup selectedIds={selectedIds} />
             )}
+
+            {activeTab === "code" && (
+              <div className="space-y-4">
+                <div className="bg-brand-medium/20 border border-brand-medium/30 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Code2 size={18} className="text-blue-400" />
+                    <h3 className="font-semibold text-brand-lighter">Code Editor</h3>
+                  </div>
+                  <p className="text-brand-light text-sm mb-4">
+                    Write, manage, and export Next.js components and assets. Choose between Component (reusable UI) or Asset (utilities & icons) mode.
+                  </p>
+                  <button
+                    onClick={() => setIsCodeEditorOpen(true)}
+                    className="w-full px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all font-medium text-sm"
+                  >
+                    🚀 Open Code Editor
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       ) : (
@@ -238,6 +305,14 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
           <p className="text-sm">Select an element to edit</p>
         </div>
       )}
+
+      {/* Code Editor Modal */}
+      <CodeEditor
+        isOpen={isCodeEditorOpen}
+        onClose={() => setIsCodeEditorOpen(false)}
+        projectId={projectId}
+      />
+      </div>
     </div>
   );
 };
