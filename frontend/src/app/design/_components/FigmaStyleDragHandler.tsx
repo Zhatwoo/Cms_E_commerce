@@ -205,9 +205,6 @@ export const FigmaStyleDragHandler = () => {
     fallbackNodeId: string | null;
     dirty: boolean;
   } | null>(null);
-  const dropTargetHighlightRef = useRef<HTMLElement | null>(null);
-  const insertIndicatorRef = useRef<HTMLElement | null>(null);
-  const activeTool = useCanvasTool();
 
   useEffect(() => {
     actionsRef.current = actions;
@@ -294,7 +291,8 @@ export const FigmaStyleDragHandler = () => {
       if (!d.committed) {
         const dx = d.lastX - d.startX;
         const dy = d.lastY - d.startY;
-        if (Math.sqrt(dx * dx + dy * dy) < DRAG_THRESHOLD) return;
+        const dragThreshold = 5;
+        if (Math.sqrt(dx * dx + dy * dy) < dragThreshold) return;
 
         const state = queryRef.current.getState();
         let ids = selectedToIds(state.events.selected).filter((id) => id && id !== "ROOT" && state.nodes[id]);
