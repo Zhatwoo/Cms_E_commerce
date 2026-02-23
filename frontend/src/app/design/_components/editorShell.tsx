@@ -120,6 +120,7 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 type EditorShellProps = {
   projectId: string;
+  pageId?: string | null;
 };
 
 /**
@@ -306,8 +307,8 @@ const SafeFrame = ({
     }
 
     // Use a small delay to ensure validation completes
-    const timer = setTimeout(() => setIsReady(true), 100);
-    return () => clearTimeout(timer);
+    const id = requestAnimationFrame(() => setIsReady(true));
+    return () => cancelAnimationFrame(id);
   }, [data, onError]);
 
   // Defer Frame render to next tick so Craft.js store updates don't run during this component's render
@@ -333,7 +334,7 @@ const SafeFrame = ({
   // and avoid "Cannot update FilesPanel while rendering De" from Craft.js synchronous store updates.
   useEffect(() => {
     if (!isReady || !onFrameMounted) return;
-    const id = requestAnimationFrame(() => onFrameMounted());
+    const id = requestAnimationFrame(() => requestAnimationFrame(() => onFrameMounted()));
     return () => cancelAnimationFrame(id);
   }, [isReady, onFrameMounted]);
 
@@ -379,8 +380,10 @@ const SafeFrame = ({
 };
 
 /** Editor Shell */
-export const EditorShell = ({ projectId }: EditorShellProps) => {
+export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellProps) => {
   const { showAlert, showConfirm } = useAlert();
+  const [currentPageId, setCurrentPageId] = useState<string | null>(initialPageId ?? null);
+  const [pages, setPages] = useState<Array<{ id: string; name: string }>>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const zoomAnchorRef = useRef<{
     x: number;
@@ -429,6 +432,92 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
     // Reset to empty canvas
     setInitialJson(null);
   }, [projectId]);
+
+  // Load pages from document
+  const loadPages = useCallback((content: string) => {
+    try {
+      const parsed = JSON.parse(content);
+      if (parsed.version !== undefined && parsed.pages && Array.isArray(parsed.pages)) {
+        const pageTabs = (parsed.pages as Array<{ id: string; name?: string }>).map((p) => ({
+          id: p.id,
+          name: p.name || `Page ${parsed.pages.indexOf(p) + 1}`,
+        }));
+        setPages(pageTabs);
+        if (pageTabs.length > 0 && !currentPageId) {
+          setCurrentPageId(pageTabs[0].id);
+        }
+      }
+    } catch {
+      // Silently fail for non-multipage documents
+    }
+  }, [currentPageId]);
+
+  const handleAddPage = useCallback(() => {
+    if (!initialJson) return;
+    try {
+      const id = `page-${Date.now()}`;
+      const newPage = {
+        id,
+        name: `Page ${pages.length + 1}`,
+        props: { width: "100%", height: "auto" },
+        children: [],
+      };
+      const parsed = JSON.parse(initialJson);
+      if (!Array.isArray(parsed.pages)) parsed.pages = [];
+      parsed.pages.push(newPage);
+      const updated = JSON.stringify(parsed);
+      const storageKey = getStorageKey(projectId);
+      localStorage.setItem(storageKey, updated);
+      loadPages(updated);
+      setCurrentPageId(id);
+      setInitialJson(updated);
+    } catch (error) {
+      console.error("Failed to add page:", error);
+      showAlert("Failed to add page", "error");
+    }
+  }, [initialJson, pages, projectId, loadPages, showAlert]);
+
+  const handleSelectPage = useCallback((pageId: string) => {
+    setCurrentPageId(pageId);
+  }, []);
+
+  const handleDeletePage = useCallback((pageId: string) => {
+    if (!initialJson || pages.length <= 1) return;
+    try {
+      const parsed = JSON.parse(initialJson);
+      parsed.pages = (parsed.pages || []).filter((p: any) => p.id !== pageId);
+      const updated = JSON.stringify(parsed);
+      const storageKey = getStorageKey(projectId);
+      localStorage.setItem(storageKey, updated);
+      loadPages(updated);
+      if (currentPageId === pageId && parsed.pages.length > 0) {
+        setCurrentPageId(parsed.pages[0].id);
+      }
+      setInitialJson(updated);
+    } catch (error) {
+      console.error("Failed to delete page:", error);
+      showAlert("Failed to delete page", "error");
+    }
+  }, [initialJson, currentPageId, pages, projectId, loadPages, showAlert]);
+
+  const handleRenamePage = useCallback((pageId: string, newName: string) => {
+    if (!initialJson) return;
+    try {
+      const parsed = JSON.parse(initialJson);
+      const page = (parsed.pages || []).find((p: any) => p.id === pageId);
+      if (page) {
+        page.name = newName;
+        const updated = JSON.stringify(parsed);
+        const storageKey = getStorageKey(projectId);
+        localStorage.setItem(storageKey, updated);
+        loadPages(updated);
+        setInitialJson(updated);
+      }
+    } catch (error) {
+      console.error("Failed to rename page:", error);
+      showAlert("Failed to rename page", "error");
+    }
+  }, [initialJson, projectId, loadPages, showAlert]);
 
   /** Returns true if the event target is an input, textarea, select, or contenteditable */
   const isEditableTarget = (target: EventTarget | null) => {
@@ -729,6 +818,9 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         }
 
         setInitialJson(contentToLoad);
+        if (contentToLoad) {
+          loadPages(contentToLoad);
+        }
 
         // IMPORTANT: Mark as ready immediately via Ref to avoid stale closures
         // passing "undefined" to handleNodesChange
@@ -743,7 +835,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
     }
 
     loadDraft();
-  }, [projectId]);
+  }, [projectId, loadPages]);
 
   // Defer panel rendering to avoid React setState-during-render warning
   useEffect(() => {
@@ -849,7 +941,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   const resolverRef = useRef<Record<string, React.ComponentType>>({});
 
   const resolver: Record<string, React.ComponentType> = React.useMemo(() => {
-    const base: Record<string, React.ComponentType> = {
+    const base: Record<string, any> = {
       ...RenderBlocks,
       Text: Text || Container,
       text: Text || Container,
@@ -984,6 +1076,14 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
               canvasWidth={canvasWidth}
               canvasHeight={canvasHeight}
               onDevicePresetSelect={handleDevicePresetSelect}
+              showDualView={showDualView}
+              onDualViewToggle={() => setShowDualView((v) => !v)}
+              pages={pages}
+              currentPageId={currentPageId}
+              onSelectPage={handleSelectPage}
+              onAddPage={handleAddPage}
+              onDeletePage={handleDeletePage}
+              onRenamePage={handleRenamePage}
             />
           )}
           {/* Canvas Area (Background) — when dual view: leave room for phone preview on the right */}

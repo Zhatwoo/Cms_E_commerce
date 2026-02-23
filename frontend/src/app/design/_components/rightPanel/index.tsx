@@ -322,7 +322,7 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
                   </p>
                   <button
                     onClick={() => setIsCodeEditorOpen(true)}
-                    className="w-full px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all font-medium text-sm flex items-center justify-center gap-2"
+                    className="w-full px-4 py-2 bg-linear-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all font-medium text-sm flex items-center justify-center gap-2"
                   >
                     <Terminal size={16} />
                     Open Code Editor

@@ -23,7 +23,7 @@ export const MinimalistSaleHeader: TemplateEntry = {
         Element as any,
         { is: Row, justifyContent: "center", alignItems: "center", canvas: true },
         React.createElement(Text, { 
-          text: "⚡ FLASH SALE: Up to 70% off • Use code: SAVE70", 
+          text: "FLASH SALE: Up to 70% off • Use code: SAVE70", 
           fontSize: 13, 
           color: "#ffffff", 
           fontWeight: "500",
