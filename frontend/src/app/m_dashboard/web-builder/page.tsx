@@ -9,6 +9,7 @@ import { createProject, listProjects, updateProject, deleteProject, getStoredUse
 import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
 import { useAlert } from '../components/context/alert-context';
 import { DraftPreviewThumbnail } from '../components/projects/DraftPreviewThumbnail';
+import { WebPreview } from '@/app/design/_lib/webRenderer';
 
 // Template interface for DomeGallery compatibility
 interface GalleryTemplate {
@@ -216,58 +217,84 @@ const PreviewModal = ({
   colors: any;
   onClose: () => void;
   onUseTemplate: (t: GalleryTemplate) => void;
-}) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      onClick={(e) => e.stopPropagation()}
-      className="relative w-full max-w-2xl rounded-2xl border shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
-      style={{ backgroundColor: colors.bg.card, borderColor: colors.border.default }}
-    >
-      {/* Header */}
-      <div className="p-6 border-b flex justify-between items-center" style={{ borderColor: colors.border.faint }}>
-        <div>
-          <h3 className="text-xl font-semibold" style={{ color: colors.text.primary }}>{template.title}</h3>
-          <p className="text-sm" style={{ color: colors.text.secondary }}>{template.category}</p>
-        </div>
-        <button onClick={onClose} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors" style={{ color: colors.text.muted }}>
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-        </button>
-      </div>
+}) => {
+  const fullTemplate = templateService.getTemplate(String(template.id));
+  const hasDesign = fullTemplate?.data?.pages?.length && fullTemplate?.data?.nodes && Object.keys(fullTemplate.data.nodes).length > 0;
 
-      {/* Body */}
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className={`w-full h-64 rounded-xl mb-6 bg-gradient-to-br ${template.imageColor} flex items-center justify-center`}>
-          <span className="text-white/50 font-medium text-lg">Template Preview Image</span>
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-2xl rounded-2xl border shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+        style={{ backgroundColor: colors.bg.card, borderColor: colors.border.default }}
+      >
+        {/* Header */}
+        <div className="p-6 border-b flex justify-between items-center shrink-0" style={{ borderColor: colors.border.faint }}>
+          <div>
+            <h3 className="text-xl font-semibold" style={{ color: colors.text.primary }}>{template.title}</h3>
+            <p className="text-sm" style={{ color: colors.text.secondary }}>{template.category}</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors" style={{ color: colors.text.muted }}>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
         </div>
-        <p className="text-base leading-relaxed" style={{ color: colors.text.secondary }}>
-          {template.desc}
-        </p>
-        <div className="mt-6 space-y-4">
-          <h4 className="font-medium" style={{ color: colors.text.primary }}>Features</h4>
-          <ul className="grid grid-cols-2 gap-2 text-sm" style={{ color: colors.text.muted }}>
-            <li>• Responsive Design</li>
-            <li>• SEO Optimized</li>
-            <li>• Dark Mode Support</li>
-            <li>• Fast Loading</li>
-          </ul>
-        </div>
-      </div>
 
-      {/* Footer */}
-      <div className="p-6 border-t flex justify-end gap-3" style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}>
-        <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:opacity-80" style={{ color: colors.text.primary }}>
-          Cancel
-        </button>
-        <button onClick={() => onUseTemplate(template)} className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20">
-          Use Template
-        </button>
-      </div>
-    </motion.div>
-  </div>
-);
+        {/* Body: thumbnail-style preview (same as project cards) */}
+        <div className="flex-1 overflow-y-auto p-6 min-h-0">
+          {hasDesign ? (
+            <div className="flex justify-center mb-6">
+              <div
+                className="rounded-xl overflow-hidden border shrink-0"
+                style={{
+                  width: 288,
+                  height: 180,
+                  borderColor: colors.border.faint,
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04)',
+                }}
+              >
+                <div
+                  style={{
+                    width: 1440,
+                    height: 900,
+                    transform: 'scale(0.2)',
+                    transformOrigin: 'top left',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <WebPreview
+                    doc={fullTemplate!.data}
+                    pageIndex={0}
+                    simulatedWidth={1440}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className={`w-full h-48 rounded-xl flex items-center justify-center bg-gradient-to-br ${template.imageColor} mb-6`}>
+              <span className="text-white/50 font-medium">No preview content</span>
+            </div>
+          )}
+          <p className="text-base leading-relaxed" style={{ color: colors.text.secondary }}>
+            {template.desc}
+          </p>
+        </div>
+
+        {/* Footer */}
+        <div className="p-6 border-t flex justify-end gap-3 shrink-0" style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}>
+          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:opacity-80" style={{ color: colors.text.primary }}>
+            Cancel
+          </button>
+          <button onClick={() => onUseTemplate(template)} className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20">
+            Use Template
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
 
 export default function WebBuilderPage() {
   const { colors, theme } = useTheme();
@@ -331,13 +358,15 @@ export default function WebBuilderPage() {
       const clientName = (user?.name || user?.username || 'client').trim() || 'client';
       ensureProjectStorageFolder(clientName, res.project.title || 'website').catch(() => {});
       setCreateModalOpen(false);
-      if (createModalTemplate) await templateService.loadTemplate(createModalTemplate.id.toString());
+      if (createModalTemplate) await templateService.loadTemplate(createModalTemplate.id.toString(), res.project.id);
       router.push(`/design?projectId=${res.project.id}`);
     } catch (error) {
       console.error('Error creating project:', error);
       const msg = error instanceof Error ? error.message : '';
       if (msg.includes('Route not found') || msg.includes('404')) {
         showAlert('Project API not found. Make sure the backend is running and restart it (e.g. in backend folder: npm start).');
+      } else if (msg.includes('Backend is unreachable') || msg.includes('Failed to fetch')) {
+        showAlert('Cannot reach backend API. Start backend server and check if it is running on port 5000 or 5001.');
       } else {
         showAlert('Failed to create project. Please try again.');
       }
@@ -450,7 +479,7 @@ export default function WebBuilderPage() {
     });
 
   return (
-    <section className="space-y-8 min-h-screen pb-20">
+    <section className="space-y-8 min-h-screen pb-20 max-w-full overflow-x-hidden">
       {/* Header Section */}
       <section
         className="rounded-2xl border p-5 md:p-6"
@@ -601,22 +630,24 @@ export default function WebBuilderPage() {
             No projects yet. Start from scratch or use a template above.
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          <div className="grid w-full max-w-full min-w-0 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
             {projects.map((p) => (
               <motion.div
                 key={p.id}
-                className="relative rounded-lg border overflow-hidden cursor-pointer hover:border-opacity-80 transition-colors"
+                className="relative min-w-0 rounded-lg border overflow-hidden cursor-pointer hover:border-opacity-80 transition-colors"
                 style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => router.push(`/design?projectId=${p.id}`)}
               >
-                {/* Figma-style draft preview */}
-                <DraftPreviewThumbnail
-                  projectId={p.id}
-                  borderColor={colors.border.faint}
-                  bgColor={colors.bg.elevated}
-                />
+                {/* Thumbnail: first-page draft preview */}
+                <div className="relative w-full min-h-[100px]" style={{ backgroundColor: colors.bg.elevated, borderBottom: `1px solid ${colors.border.faint}` }}>
+                  <DraftPreviewThumbnail
+                    projectId={p.id}
+                    borderColor={colors.border.faint}
+                    bgColor={colors.bg.elevated}
+                  />
+                </div>
                 <div className="p-2">
                 {/* 3-dots menu */}
                 <div className="absolute top-1.5 right-1.5 z-10" onClick={(e) => e.stopPropagation()}>
@@ -714,7 +745,7 @@ export default function WebBuilderPage() {
 
         {/* Filters and Sorting - Similar to Orders Page */}
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-          <div className="flex flex-wrap gap-3 w-full">
+          <div className="flex flex-wrap gap-3 flex-1 min-w-0">
             {/* Type Filter */}
             <select
               value={selectedCategory}
@@ -799,7 +830,7 @@ export default function WebBuilderPage() {
           </div>
 
           {/* Right side controls */}
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-2 sm:ml-auto shrink-0">
             {/* List view toggle */}
             <div className="flex items-center rounded-lg overflow-hidden border" style={{ borderColor: colors.border.faint }}>
               <button

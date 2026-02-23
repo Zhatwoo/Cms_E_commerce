@@ -20,7 +20,6 @@ const CANVAS_DISPLAY_NAMES = new Set([
 ]);
 const EDITOR_DRAGGING_FLAG = "editorDragging";
 const EDITOR_DROP_COMMIT_FLAG = "editorDropCommit";
-const DRAG_THRESHOLD = 5;
 
 type MoveMode = "margin" | "offset";
 
@@ -183,8 +182,10 @@ export const FigmaStyleDragHandler = () => {
   const queryRef = useRef(query);
   const rafRef = useRef<number>(0);
   const processDragRef = useRef<(() => void) | null>(null);
-
   const draggedDomsRef = useRef<HTMLElement[]>([]);
+  const dropTargetHighlightRef = useRef<HTMLElement | null>(null);
+  const insertIndicatorRef = useRef<HTMLElement | null>(null);
+  const activeTool = useCanvasTool();
 
   const dragRef = useRef<{
     startX: number;
@@ -204,9 +205,6 @@ export const FigmaStyleDragHandler = () => {
     fallbackNodeId: string | null;
     dirty: boolean;
   } | null>(null);
-  const dropTargetHighlightRef = useRef<HTMLElement | null>(null);
-  const insertIndicatorRef = useRef<HTMLElement | null>(null);
-  const activeTool = useCanvasTool();
 
   useEffect(() => {
     actionsRef.current = actions;
@@ -293,7 +291,8 @@ export const FigmaStyleDragHandler = () => {
       if (!d.committed) {
         const dx = d.lastX - d.startX;
         const dy = d.lastY - d.startY;
-        if (Math.sqrt(dx * dx + dy * dy) < DRAG_THRESHOLD) return;
+        const dragThreshold = 5;
+        if (Math.sqrt(dx * dx + dy * dy) < dragThreshold) return;
 
         const state = queryRef.current.getState();
         let ids = selectedToIds(state.events.selected).filter((id) => id && id !== "ROOT" && state.nodes[id]);

@@ -26,7 +26,6 @@ import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
 import { CanvasContextMenu } from "./CanvasContextMenu";
 import { PrototypeTabProvider } from "./PrototypeTabContext";
 import { PrototypeFlowLines } from "./PrototypeFlowLines";
-import { EditorPhonePreview } from "./EditorPhonePreview";
 import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
@@ -283,17 +282,18 @@ const SafeFrame = ({
 }) => {
   const [renderData, setRenderData] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [canRenderFrame, setCanRenderFrame] = useState(false);
   const [hasErrorBoundaryError, setHasErrorBoundaryError] = useState(false);
 
   useEffect(() => {
     // Reset error state when data changes
     setHasErrorBoundaryError(false);
-    
+
     // Validate and prepare data for rendering
     if (data) {
       console.log('🔍 SafeFrame: Validating data before render...');
       const validation = validateCraftData(data);
-      
+
       if (validation.valid && validation.data) {
         console.log('✅ SafeFrame: Data is valid, preparing to render');
         setRenderData(validation.data);
@@ -305,19 +305,31 @@ const SafeFrame = ({
     } else {
       setRenderData(null);
     }
-    
+
     // Use a small delay to ensure validation completes
     const id = requestAnimationFrame(() => setIsReady(true));
     return () => cancelAnimationFrame(id);
   }, [data, onError]);
 
+  // Defer Frame render to next tick so Craft.js store updates don't run during this component's render
+  // (avoids "Cannot update a component while rendering a different component").
+  useEffect(() => {
+    if (!isReady) return;
+    const id = requestAnimationFrame(() => setCanRenderFrame(true));
+    return () => cancelAnimationFrame(id);
+  }, [isReady]);
+
+  // Signal after Frame has committed so panels using useEditor() (e.g. FilesPanel) mount next tick
+  useEffect(() => {
+    if (!canRenderFrame || !onFrameMounted) return;
+    const id = requestAnimationFrame(() => onFrameMounted());
+    return () => cancelAnimationFrame(id);
+  }, [canRenderFrame, onFrameMounted]);
+
   const handleError = useCallback(() => {
     console.error('❌ SafeFrame: Error boundary triggered, falling back to empty canvas');
     setHasErrorBoundaryError(true);
     setRenderData(null);
-    onError?.();
-  }, [onError]);
-
   // Signal after Frame has committed so panels using useEditor() (e.g. FilesPanel) mount next tick
   // and avoid "Cannot update FilesPanel while rendering De" from Craft.js synchronous store updates.
   useEffect(() => {
@@ -326,7 +338,18 @@ const SafeFrame = ({
     return () => cancelAnimationFrame(id);
   }, [isReady, onFrameMounted]);
 
+    onError?.();
+  }, [onError]);
+
   if (!isReady) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-brand-light">Loading editor...</div>
+      </div>
+    );
+  }
+
+  if (!canRenderFrame) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="text-brand-light">Loading editor...</div>
@@ -385,8 +408,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [canvasRotation, setCanvasRotation] = useState(0);
   const [activeTool, setActiveTool] = useState<CanvasTool>("move");
   const [frameReady, setFrameReady] = useState(false);
-  const [showDualView, setShowDualView] = useState(false);
-
   // Cleanup corrupted data when error boundary triggers
   const handleFrameError = useCallback(async () => {
     if (errorCleanupDoneRef.current) return;
@@ -774,6 +795,24 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           }
         }
 
+        // 3. Legacy: check unprefixed key (e.g. template loaded before navigation)
+        if (!contentToLoad && storageKey !== STORAGE_KEY_PREFIX) {
+          const legacySaved = safeSessionGet(STORAGE_KEY_PREFIX);
+          if (legacySaved) {
+            try {
+              const parsed = JSON.parse(legacySaved);
+              if (parsed && parsed.ROOT && parsed.ROOT.nodes && Array.isArray(parsed.ROOT.nodes)) {
+                console.log('✅ Loaded valid draft from legacy session key, syncing to project key');
+                contentToLoad = legacySaved;
+                safeSessionSet(storageKey, legacySaved);
+                safeSessionRemove(STORAGE_KEY_PREFIX);
+              }
+            } catch {
+              safeSessionRemove(STORAGE_KEY_PREFIX);
+            }
+          }
+        }
+
         if (!contentToLoad) {
           console.log('⚠️ No saved data found, expecting default');
         }
@@ -1086,12 +1125,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
             )}
           </div>
         </div>
-        {/* Floating phone preview — device mockup on top of canvas */}
-        {showDualView && (
-          <div className="absolute inset-0 z-40 pointer-events-none">
-            <EditorPhonePreview />
-          </div>
-        )}
         {/* Floating Panels */}
         {/* Left Panel */}
         {panelsReady && (
@@ -1156,7 +1189,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
             </div>
           </div>
         )}
-        {/* Bottom Panel: Move & Hand tools */}
+        {/* Bottom Panel: Move, Hand, Zoom fit & 100% */}
         {panelsReady && (
           <BottomPanel
             activeTool={activeTool}
@@ -1165,6 +1198,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
             saveStatus={saveStatus}
             saveError={saveError}
             onResetData={handleDeleteData}
+            onZoomFit={handleFitToCanvas}
+            scale={scale}
+            onScaleChange={setScale}
           />
         )}
         {/* Canvas Controls Overlay: ito yung nasa baba :> */}
@@ -1202,3 +1238,4 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     </div>
   );
 };
+    

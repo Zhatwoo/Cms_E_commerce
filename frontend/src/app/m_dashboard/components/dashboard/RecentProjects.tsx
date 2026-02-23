@@ -6,6 +6,7 @@ import { useTheme } from '../context/theme-context';
 import { useAlert } from '../context/alert-context';
 import { listProjects, createProject, getStoredUser, type Project } from '@/lib/api';
 import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
+import { DraftPreviewThumbnail } from '../projects/DraftPreviewThumbnail';
 
 const ChevronLeftIcon = () => (
   <svg className="w-4 h-4 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -226,11 +227,11 @@ export function RecentProjects() {
             >
               {/* Preview Thumbnail */}
               <div
-                className="relative rounded-lg overflow-hidden mb-3 transition-all group-hover/card:shadow-2xl h-[180px]"
+                className="relative rounded-lg overflow-hidden mb-3 transition-all group-hover/card:shadow-2xl h-[180px] w-full flex items-center justify-center"
                 style={{
-                  background: project.thumbnail ? '#f5f5f5' : '#f8f8f8',
-                  boxShadow: theme === 'dark' 
-                    ? '0 2px 8px rgba(0,0,0,0.4)' 
+                  background: colors.bg.elevated,
+                  boxShadow: theme === 'dark'
+                    ? '0 2px 8px rgba(0,0,0,0.4)'
                     : '0 2px 8px rgba(0,0,0,0.12)',
                 }}
               >
@@ -242,15 +243,12 @@ export function RecentProjects() {
                     loading="lazy"
                   />
                 ) : (
-                  <>
-                    <div className="absolute inset-0 bg-white">
-                      <div className="h-4 sm:h-5 bg-white" />
-                      <div className="h-full bg-[#e5e7eb]" />
-                    </div>
-                    <div className="absolute top-2 left-2 text-[10px] font-medium text-zinc-400">
-                      Page Name
-                    </div>
-                  </>
+                  <DraftPreviewThumbnail
+                    projectId={project.id}
+                    borderColor={colors.border.faint}
+                    bgColor={colors.bg.elevated}
+                    className="w-full h-full rounded-lg"
+                  />
                 )}
               </div>
 
