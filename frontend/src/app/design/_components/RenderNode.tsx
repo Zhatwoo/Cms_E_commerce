@@ -6,7 +6,7 @@ import { useCanvasTool } from "./CanvasToolContext";
 
 export const RenderNode = ({ render }: { render: React.ReactElement }) => {
   const activeTool = useCanvasTool();
-  
+
   const {
     id,
     isSelectedEvent,

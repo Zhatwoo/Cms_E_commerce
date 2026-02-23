@@ -1018,10 +1018,10 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         )}
         {/* Right Panel */}
         {panelsReady && (
-          <div className="absolute top-14 right-4 z-50 h-[calc(100vh-3.5rem)] w-80 flex items-start pointer-events-none">
-            <div className="h-full w-80 flex items-start justify-end pointer-events-auto">
+          <div className="absolute top-14 right-4 z-50 h-[calc(100vh-3.5rem)] flex items-start pointer-events-none">
+            <div className="h-full flex items-start justify-end pointer-events-auto">
               <div
-                className={`h-full w-80 origin-right transition-[transform,opacity] duration-300 ease-out will-change-transform ${
+                className={`h-full origin-right transition-[transform,opacity] duration-300 ease-out will-change-transform ${
                   rightPanelOpen
                     ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
                     : 'translate-x-full scale-90 opacity-0 pointer-events-none'
