@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { ExternalLink, X, Globe, Calendar, FileText } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useTheme } from '../components/context/theme-context';
 import { useAuth } from '../components/context/auth-context';
 import { listProjects, getSchedule, getPublishHistory, type Project, type PublishHistoryEntry } from '@/lib/api';
@@ -17,7 +17,10 @@ import {
   Check,
   AlertCircle,
   Clock,
-  TrendingUp
+  TrendingUp,
+  X,
+  Calendar,
+  FileText
 } from 'lucide-react';
 
 const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'websitelink';
@@ -100,6 +103,12 @@ export default function DomainsPage() {
       subdomain: subdomainsByProject[p.id]?.subdomain ?? p.subdomain ?? null,
     }))
     .filter((d) => d.subdomain);
+
+  const stats = {
+    total: projects.length,
+    active: domainsList.length,
+    draft: projects.length - domainsList.length,
+  };
 
   type DomainEntry = { project: Project; subdomain: string };
   const [selectedDomain, setSelectedDomain] = useState<DomainEntry | null>(null);
@@ -495,6 +504,6 @@ export default function DomainsPage() {
           </>
         )}
       </div>
-    </section>
+    </div>
   );
 }

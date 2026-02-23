@@ -14,6 +14,7 @@ import {
   Monitor,
   ChevronDown,
 } from "lucide-react";
+import { PageNavigator, type PageTab } from "./PageNavigator";
 
 export type DevicePreset = {
   name: string;
@@ -80,6 +81,12 @@ interface TopPanelProps {
   onDevicePresetSelect?: (preset: DevicePreset) => void;
   showDualView?: boolean;
   onDualViewToggle?: () => void;
+  pages?: PageTab[];
+  currentPageId?: string | null;
+  onSelectPage?: (pageId: string) => void;
+  onAddPage?: () => void;
+  onDeletePage?: (pageId: string) => void;
+  onRenamePage?: (pageId: string, newName: string) => void;
 }
 
 export const TopPanel: React.FC<TopPanelProps> = ({
@@ -93,6 +100,12 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   onDevicePresetSelect,
   showDualView = false,
   onDualViewToggle,
+  pages = [],
+  currentPageId = null,
+  onSelectPage,
+  onAddPage,
+  onDeletePage,
+  onRenamePage,
 }) => {
   const { actions, query } = useEditor();
   const [showSizeDropdown, setShowSizeDropdown] = useState(false);
@@ -199,7 +212,21 @@ export const TopPanel: React.FC<TopPanelProps> = ({
     >
       <div className="flex items-center justify-between px-4 py-2 h-12">
         {/* Left Section - Canvas Controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {/* Page Navigator */}
+          {pages && pages.length > 0 && (
+            <PageNavigator
+              pages={pages}
+              currentPageId={currentPageId || null}
+              onSelectPage={onSelectPage || (() => {})}
+              onAddPage={onAddPage || (() => {})}
+              onDeletePage={onDeletePage || (() => {})}
+              onRenamePage={onRenamePage || (() => {})}
+            />
+          )}
+
+          <div className="w-px h-5 bg-white/10" />
+
           {/* Add Button */}
           <button
             onClick={onAddButton}

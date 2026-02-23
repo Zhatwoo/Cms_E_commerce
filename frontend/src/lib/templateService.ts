@@ -104,7 +104,7 @@ class TemplateService {
         category,
         description,
         desc: description,
-        thumbnail: '🎨',
+        thumbnail: '/api/placeholder/template',
         imageColor: 'from-blue-500 to-cyan-500',
         data: cleanData,
         createdAt: new Date(),

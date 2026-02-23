@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Copy, Download, X, Plus, Trash2, Code2, Settings } from "lucide-react";
+import { Copy, Download, X, Plus, Trash2, Code2, Settings, Package } from "lucide-react";
 
 type EditorMode = "component" | "asset";
 type FileType = "tsx" | "ts" | "jsx" | "js" | "css" | "json";
@@ -36,7 +36,7 @@ interface ComponentProps {
  */
 export const MyComponent: React.FC<ComponentProps> = ({ className = "" }) => {
   return (
-    <div className={'w-full p-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-lg ' + className}>
+    <div className={'w-full p-6 bg-linear-to-r from-blue-500 to-purple-600 rounded-lg shadow-lg ' + className}>
       <h2 className="text-2xl font-bold text-white mb-4">My Reusable Component</h2>
       <p className="text-white/80">Build amazing components with Next.js and Tailwind CSS</p>
     </div>
@@ -305,10 +305,10 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ isOpen, onClose, project
   if (!isOpen || !mounted) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-9999 flex items-center justify-center p-4">
       <div className="bg-brand-darker border border-white/10 rounded-2xl w-full h-full max-h-[95vh] max-w-[95vw] flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="border-b border-white/10 p-4 flex items-center justify-between flex-shrink-0">
+        <div className="border-b border-white/10 p-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4">
             <Code2 size={20} className="text-blue-400" />
             <h2 className="text-xl font-bold text-white">Code Editor</h2>
@@ -321,7 +321,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ isOpen, onClose, project
                     : "bg-white/5 text-white/60 hover:bg-white/10"
                 }`}
               >
-                📦 Component
+                 Component
               </button>
               <button
                 onClick={() => setMode("asset")}
@@ -331,13 +331,13 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ isOpen, onClose, project
                     : "bg-white/5 text-white/60 hover:bg-white/10"
                 }`}
               >
-                🎨 Asset
+                Asset
               </button>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors shrink-0"
           >
             <X size={20} className="text-white/60" />
           </button>
@@ -370,7 +370,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ isOpen, onClose, project
                       e.stopPropagation();
                       handleDeleteFile(file.id);
                     }}
-                    className="p-1 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 rounded transition-all flex-shrink-0"
+                    className="p-1 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 rounded transition-all shrink-0"
                   >
                     <Trash2 size={14} className="text-red-400" />
                   </button>
@@ -379,7 +379,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ isOpen, onClose, project
             </div>
 
             {/* Add File Button */}
-            <div className="border-t border-white/10 p-2 flex-shrink-0">
+            <div className="border-t border-white/10 p-2 shrink-0">
               <button
                 onClick={handleAddFile}
                 className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-colors text-sm font-medium"
@@ -394,7 +394,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ isOpen, onClose, project
             {activeFile ? (
               <>
                 {/* Editor Toolbar */}
-                <div className="border-b border-white/10 bg-brand-darker/50 p-3 flex items-center justify-between flex-shrink-0">
+                <div className="border-b border-white/10 bg-brand-darker/50 p-3 flex items-center justify-between shrink-0">
                   <div className="flex items-center gap-4">
                     <input
                       type="text"
@@ -460,7 +460,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ isOpen, onClose, project
         </div>
 
         {/* Footer */}
-        <div className="border-t border-white/10 bg-brand-darker/50 p-4 flex items-center justify-between flex-shrink-0">
+        <div className="border-t border-white/10 bg-brand-darker/50 p-4 flex items-center justify-between shrink-0">
           <div className="text-sm text-white/60">
             {files.length} file{files.length !== 1 ? "s" : ""} • Mode: <span className="text-blue-300 font-medium">{mode.toUpperCase()}</span>
           </div>
@@ -469,7 +469,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ isOpen, onClose, project
               onClick={handleExportProject}
               className="px-4 py-2 bg-purple-500/20 text-purple-300 rounded-lg hover:bg-purple-500/30 transition-colors text-sm font-medium border border-purple-500/30"
             >
-              📥 Export Project
+             Export Project
             </button>
             <button
               onClick={onClose}
