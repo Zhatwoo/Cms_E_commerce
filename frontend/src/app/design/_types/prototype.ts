@@ -23,8 +23,6 @@ export type TransitionType =
   | "push"
   | "moveIn";
 
-export type EasingType = "ease" | "easeIn" | "easeOut" | "easeInOut" | "linear";
-
 export interface Interaction {
   trigger: InteractionTrigger;
   action: InteractionAction;
@@ -32,7 +30,7 @@ export interface Interaction {
   destination?: string;
   transition?: TransitionType;
   duration?: number; // ms, default 300
-  easing?: EasingType;
+  easing?: string; // easing curve (from animation.ts EasingType)
 }
 
 export interface PrototypeConfig {

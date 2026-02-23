@@ -4,82 +4,7 @@ import { motion } from 'framer-motion';
 import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
 import { PieChart } from '../components/analytics/PieChart';
-
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  price: number;
-  stock: number;
-  status: 'active' | 'inactive' | 'draft';
-  image: string;
-  sku: string;
-  description: string;
-  createdAt: string;
-}
-
-const mockProducts: Product[] = [
-  {
-    id: '1',
-    name: 'Premium Wireless Headphones',
-    category: 'Electronics',
-    price: 299.99,
-    stock: 45,
-    status: 'active',
-    image: '🎧',
-    sku: 'WH-001',
-    description: 'High-quality wireless headphones with noise cancellation',
-    createdAt: '2024-01-15'
-  },
-  {
-    id: '2',
-    name: 'Organic Cotton T-Shirt',
-    category: 'Clothing',
-    price: 29.99,
-    stock: 120,
-    status: 'active',
-    image: '👕',
-    sku: 'CT-002',
-    description: 'Comfortable organic cotton t-shirt in various colors',
-    createdAt: '2024-01-20'
-  },
-  {
-    id: '3',
-    name: 'Smart Watch Pro',
-    category: 'Electronics',
-    price: 449.99,
-    stock: 0,
-    status: 'inactive',
-    image: '⌚',
-    sku: 'SW-003',
-    description: 'Advanced smartwatch with health tracking features',
-    createdAt: '2024-01-10'
-  },
-  {
-    id: '4',
-    name: 'Leather Backpack',
-    category: 'Accessories',
-    price: 89.99,
-    stock: 30,
-    status: 'active',
-    image: '🎒',
-    sku: 'LB-004',
-    description: 'Genuine leather backpack with laptop compartment',
-    createdAt: '2024-01-25'
-  },
-  {
-    id: '5',
-    name: 'Ceramic Coffee Mug Set',
-    category: 'Home',
-    price: 34.99,
-    stock: 15,
-    status: 'draft',
-    image: '☕',
-    sku: 'CM-005',
-    description: 'Set of 4 ceramic coffee mugs with modern design',
-    createdAt: '2024-01-28'
-  }
-];
+import { getAllProducts, type Product } from '../lib/productsData';
 
 const ProductCard = ({ product, colors, onEdit, onDelete, onToggleStatus }: {
   product: Product;
@@ -172,16 +97,16 @@ const ProductCard = ({ product, colors, onEdit, onDelete, onToggleStatus }: {
 );
 
 export default function ProductsPage() {
-  const { colors } = useTheme();
+  const { colors, theme } = useTheme();
   const { showConfirm } = useAlert();
-  const [products, setProducts] = useState<Product[]>(mockProducts);
+  const [products, setProducts] = useState<Product[]>(getAllProducts());
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showAddModal, setShowAddModal] = useState(false);
   const [perPage, setPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
-  const categories = ['All', 'Electronics', 'Clothing', 'Accessories', 'Home'];
+  const categories = ['All', 'Electronics', 'Clothing', 'Accessories', 'Home', 'Sports'];
 
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -236,27 +161,73 @@ export default function ProductsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight" style={{ color: colors.text.primary }}>
-            Products
-          </h1>
-          <p className="mt-2 text-base" style={{ color: colors.text.secondary }}>
-            Manage your product inventory and listings
-          </p>
+      <section
+        className="rounded-2xl border p-5 md:p-6"
+        style={{
+          backgroundColor: colors.bg.card,
+          borderColor: colors.border.faint,
+          boxShadow: theme === 'dark'
+            ? 'inset 0 1px 0 rgba(255,255,255,0.06), 0 20px 50px rgba(2,6,23,0.55)'
+            : 'inset 0 1px 0 rgba(255,255,255,0.8), 0 12px 30px rgba(15,23,42,0.12)',
+        }}
+      >
+        <div className="relative">
+          <div
+            className="absolute -inset-x-6 -inset-y-4 rounded-3xl opacity-70 blur-2xl"
+            style={{
+              background: theme === 'dark'
+                ? 'radial-gradient(60% 60% at 20% 20%, rgba(99,102,241,0.2), transparent 60%), radial-gradient(55% 55% at 80% 20%, rgba(14,165,233,0.16), transparent 60%), radial-gradient(50% 50% at 40% 80%, rgba(16,185,129,0.14), transparent 60%)'
+                : 'radial-gradient(60% 60% at 20% 20%, rgba(99,102,241,0.14), transparent 60%), radial-gradient(55% 55% at 80% 20%, rgba(14,165,233,0.12), transparent 60%), radial-gradient(50% 50% at 40% 80%, rgba(16,185,129,0.1), transparent 60%)'
+            }}
+          />
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+            <div>
+              <motion.p
+                className="text-xs uppercase tracking-[0.2em] mb-2"
+                style={{ color: colors.text.muted }}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+              >
+                Dashboard Insights
+              </motion.p>
+              <motion.h1
+                className="text-3xl font-bold tracking-tight bg-clip-text text-transparent"
+                style={{
+                  backgroundImage: theme === 'dark'
+                    ? 'linear-gradient(180deg, #ffffff 25%, #9ca3af 100%)'
+                    : 'linear-gradient(180deg, #111827 25%, #4b5563 100%)'
+                }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.45 }}
+              >
+                Products
+              </motion.h1>
+              <motion.p
+                className="mt-2 text-sm md:text-base"
+                style={{ color: colors.text.secondary }}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.45, delay: 0.08 }}
+              >
+                Manage your product inventory and listings
+              </motion.p>
+            </div>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="px-4 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-blue-600/20"
+              style={{ backgroundColor: '#3b82f6', color: 'white' }}
+            >
+              Add Product
+            </button>
+          </div>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="px-4 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-blue-600/20"
-          style={{ backgroundColor: '#3b82f6', color: 'white' }}
-        >
-          Add Product
-        </button>
-      </div>
+      </section>
 
       {/* Chart Row: Pie for categories */}
       <div className="flex flex-col md:flex-row gap-6">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border p-6 w-fit flex flex-col" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border p-6 w-fit flex flex-col" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
           <h4 className="text-sm font-semibold mb-4" style={{ color: colors.text.primary }}>Products by category</h4>
           <div className="flex flex-col items-center">
             <PieChart data={categoryChartData} size={120} />
@@ -270,7 +241,7 @@ export default function ProductsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 items-center">
+      <div id="inventory-section" className="flex flex-col sm:flex-row gap-4 items-center rounded-2xl border p-4" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
         <div className="w-full sm:w-1/2">
           <input
             type="text"
@@ -354,7 +325,7 @@ export default function ProductsPage() {
       </div>
 
       {filteredProducts.length === 0 && (
-        <div className="text-center py-20">
+        <div className="text-center py-20 rounded-2xl border" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
           <div className="text-6xl mb-4">📦</div>
           <h3 className="text-xl font-semibold mb-2" style={{ color: colors.text.primary }}>
             No products found

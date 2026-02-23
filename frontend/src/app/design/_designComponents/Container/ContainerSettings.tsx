@@ -1,6 +1,7 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
+import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
 import { AutoLayoutGroup } from "../../_components/rightPanel/settings/AutoLayoutGroup";
 import { GridLayoutGroup } from "../../_components/rightPanel/settings/GridLayoutGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
@@ -25,6 +26,7 @@ export const ContainerSettings = () => {
     gridTemplateColumns, gridTemplateRows, gridGap, gridColumnGap, gridRowGap, gridAutoRows, gridAutoFlow,
     position, display, zIndex, top, right, bottom, left, editorVisibility,
     boxShadow, opacity, overflow, cursor,
+    rotation, flipHorizontal, flipVertical,
     toggleTarget, triggerAction, collapsibleKey, defaultOpen, defaultOpenMobile, defaultOpenDesktop, showOn, mobileBreakpoint,
     actions: { setProp }
   } = useNode(node => ({
@@ -76,6 +78,9 @@ export const ContainerSettings = () => {
     opacity: node.data.props.opacity,
     overflow: node.data.props.overflow,
     cursor: node.data.props.cursor,
+    rotation: node.data.props.rotation,
+    flipHorizontal: node.data.props.flipHorizontal,
+    flipVertical: node.data.props.flipVertical,
     toggleTarget: node.data.props.toggleTarget,
     triggerAction: node.data.props.triggerAction,
     collapsibleKey: node.data.props.collapsibleKey,
@@ -90,6 +95,15 @@ export const ContainerSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
+      <DesignSection title="Position & Transform" defaultOpen={false}>
+        <TransformGroup
+          rotation={rotation}
+          flipHorizontal={flipHorizontal}
+          flipVertical={flipVertical}
+          setProp={typedSetProp}
+        />
+      </DesignSection>
+
       {display === "grid" ? (
         <DesignSection title="Grid Layout">
           <GridLayoutGroup

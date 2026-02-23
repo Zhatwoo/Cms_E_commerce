@@ -49,6 +49,7 @@ export function Pricing() {
                 <button
                   type="button"
                   className="mt-8 w-full rounded-lg bg-white py-3 text-sm font-semibold text-neutral-900 transition hover:bg-white/95"
+                  suppressHydrationWarning
                 >
                   Button
                 </button>

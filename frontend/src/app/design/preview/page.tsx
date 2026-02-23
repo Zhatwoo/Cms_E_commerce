@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, Suspense } from "react";
+import React, { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload, Monitor, Tablet, Smartphone } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
@@ -8,15 +8,17 @@ import { getDraft } from "../_lib/pageApi";
 import { WebPreview } from "../_lib/webRenderer";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
-import { publishProject, getProject, schedulePublish, getSchedule } from "@/lib/api";
+import { getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, type Project } from "@/lib/api";
+import { uploadClientFile } from "@/lib/firebaseStorage";
 import { createPortal } from "react-dom";
-
+import html2canvas from "html2canvas";
+//vdxvx
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 
 type ViewMode = "Web-Preview" | "clean" | "raw";
 type PreviewViewport = "desktop" | "tablet" | "mobile";
 
-function PreviewIframe({ children, width, height = "80vh" }: { children: React.ReactNode; width: string | number; height?: string | number }) {
+function PreviewIframe({ children, width, height = "80vh", isDesktop = false }: { children: React.ReactNode; width: string | number; height?: string | number; isDesktop?: boolean }) {
   const [mountNode, setMountNode] = useState<HTMLElement | null>(null);
   const iframeRef = React.useRef<HTMLIFrameElement>(null);
 
@@ -46,14 +48,23 @@ function PreviewIframe({ children, width, height = "80vh" }: { children: React.R
   if (width === "responsive") {
     // fallback: 100vw for desktop, 768px for tablet, 390px for mobile
     responsiveWidth = "100vw";
+  } else if (typeof width === "number") {
+    // Convert number to pixel value
+    responsiveWidth = `${width}px`;
   }
 
   return (
     <>
       <iframe
         ref={iframeRef}
-        style={{ width: responsiveWidth, height, transition: "width 0.3s ease" }}
-        className="rounded-xl border border-white/10 bg-white min-h-full"
+        style={{ 
+          width: responsiveWidth, 
+          height, 
+          transition: "width 0.3s ease",
+          borderRadius: isDesktop ? 0 : undefined,
+          border: isDesktop ? "none" : undefined,
+        }}
+        className={isDesktop ? "bg-white min-h-full" : "rounded-xl border border-white/10 bg-white min-h-full"}
         srcDoc={`<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1'/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/><style>*,*::before,*::after{box-sizing:border-box;}body{margin:0;font-family:'Inter',sans-serif;}</style></head><body><div id='preview-root'></div></body></html>`}
         sandbox="allow-scripts allow-same-origin"
         tabIndex={-1}
@@ -91,6 +102,9 @@ function PreviewContent() {
   const [scheduleInfo, setScheduleInfo] = useState<{ scheduledAt: string; subdomain: string | null } | null>(null);
   const [scheduling, setScheduling] = useState(false);
   const [mobileBreakpoint, setMobileBreakpoint] = useState(900);
+  const [project, setProject] = useState<Project | null>(null);
+  const previewRef = useRef<HTMLDivElement | null>(null);
+  const thumbnailCaptureRef = useRef(false);
 
   useEffect(() => {
     async function loadData() {
@@ -127,6 +141,22 @@ function PreviewContent() {
     }
 
     loadData();
+  }, [projectId]);
+
+  useEffect(() => {
+    let active = true;
+    async function loadProject() {
+      try {
+        const res = await getProject(projectId);
+        if (active && res.success && res.project) {
+          setProject(res.project);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    loadProject();
+    return () => { active = false; };
   }, [projectId]);
 
   // Compute clean document
@@ -175,6 +205,58 @@ function PreviewContent() {
       : previewViewport === "tablet"
         ? "w-[768px]"
         : "w-[390px]";
+
+  const capturePreviewThumbnail = async () => {
+    if (thumbnailCaptureRef.current || !previewRef.current || !projectId) return;
+    if (viewMode !== "Web-Preview" || loading || !cleanDoc) return;
+
+    thumbnailCaptureRef.current = true;
+    try {
+      const canvas = await html2canvas(previewRef.current, {
+        backgroundColor: "#ffffff",
+        scale: 0.7,
+        useCORS: true,
+      });
+
+      const blob: Blob | null = await new Promise((resolve) => {
+        canvas.toBlob((b: Blob | null) => resolve(b), "image/jpeg", 0.85);
+      });
+
+      if (!blob) throw new Error("Thumbnail capture failed");
+
+      const file = new File([blob], `preview-${projectId}.jpg`, { type: "image/jpeg" });
+      const user = getStoredUser();
+      const clientName = user?.name || user?.email || "client";
+      const websiteName = project?.title || "project";
+
+      const url = await uploadClientFile(file, {
+        clientName,
+        websiteName,
+        folder: "images",
+      });
+
+      const updated = await updateProject(projectId, { thumbnail: url });
+      if (updated.success) {
+        setProject(updated.project);
+      }
+    } catch (err) {
+      console.warn("Preview thumbnail capture failed:", err);
+    } finally {
+      thumbnailCaptureRef.current = false;
+    }
+  };
+
+  useEffect(() => {
+    thumbnailCaptureRef.current = false;
+  }, [projectId]);
+
+  useEffect(() => {
+    if (viewMode !== "Web-Preview" || loading || !cleanDoc) return;
+    const timeout = setTimeout(() => {
+      capturePreviewThumbnail();
+    }, 800);
+    return () => clearTimeout(timeout);
+  }, [viewMode, loading, cleanDoc]);
 
   // ── Stats ──────────────────────────────────────────
   const rawBytes = rawJson ? new Blob([rawJson]).size : 0;
@@ -252,7 +334,7 @@ function PreviewContent() {
       setSaving(false);
     }
   };
-
+//cjdhv
   const handlePublishClick = async () => {
     setPublishDomainError("");
     try {
@@ -530,6 +612,7 @@ function PreviewContent() {
                       : 390
                 }
                 height="calc(100vh - 200px)"
+                isDesktop={previewViewport === "desktop"}
               >
                 <WebPreview
                   doc={cleanDoc}

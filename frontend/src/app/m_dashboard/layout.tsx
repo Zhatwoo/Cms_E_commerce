@@ -71,7 +71,12 @@ function DashboardLayoutContent({
                 <div className="sticky top-0 z-50" style={{ backgroundColor: colors.bg.primary }}>
                     <DashboardHeader onMenuToggle={() => setSidebarOpen(true)} />
                 </div>
-                <main className="flex-1 px-6 py-6 overflow-x-hidden min-w-0">{children}</main>
+                <main className="flex-1 px-4 sm:px-6 py-4 sm:py-6 overflow-x-hidden min-w-0 w-full max-w-full">
+                    {children}
+                </main>
+                <footer className="py-4 text-xs shrink-0 flex justify-center transition-colors duration-300" style={{ color: colors.text.muted }}>
+                    Thanks for using our platform ✨
+                </footer>
             </div>
         </div>
     );

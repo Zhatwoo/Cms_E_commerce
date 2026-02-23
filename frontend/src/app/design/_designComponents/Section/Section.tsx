@@ -50,6 +50,7 @@ export const Section = ({
   children,
 }: ContainerProps) => {
   const { id, connectors: { connect, drag } } = useNode();
+  const isHeaderAsset = /header/i.test(id ?? "");
 
   const wPx = parsePx(width);
   const hPx = parsePx(height);
@@ -72,6 +73,8 @@ export const Section = ({
   return (
     <section
       data-node-id={id}
+      {...(isHeaderAsset ? { "data-header": "true" } : {})}
+      data-layout={flexDirection === "row" ? "row" : "column"}
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}

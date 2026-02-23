@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useEditor } from "@craftjs/core";
+import { useCanvasTool } from "./CanvasToolContext";
 
 /**
  * Handles multi-selection on the canvas via mousedown on capture phase.
@@ -13,9 +14,14 @@ import { useEditor } from "@craftjs/core";
  */
 export const CanvasSelectionHandler = () => {
   const { actions, query } = useEditor();
+  const activeTool = useCanvasTool();
+  const lastSelectedNodeIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
+      // Hand tool: do not select nodes, let panning handle it
+      if (activeTool === "hand") return;
+
       const target = e.target as HTMLElement | null;
       if (!target) return;
 
@@ -29,6 +35,7 @@ export const CanvasSelectionHandler = () => {
       const nodeEl = target.closest("[data-node-id]") as HTMLElement | null;
       const nodeId = nodeEl?.getAttribute("data-node-id") ?? null;
       const isMulti = e.ctrlKey || e.metaKey;
+      const isRange = e.shiftKey;
 
       // Read current state lazily (no reactive subscription)
       const state = query.getState();
@@ -56,7 +63,37 @@ export const CanvasSelectionHandler = () => {
         }
       };
 
+      const updateLastSelected = (id: string | null) => {
+        lastSelectedNodeIdRef.current = id;
+      };
+
       if (nodeId && exists(nodeId)) {
+        if (isRange) {
+          const lastId = lastSelectedNodeIdRef.current && exists(lastSelectedNodeIdRef.current) ? lastSelectedNodeIdRef.current : null;
+          if (lastId && lastId !== nodeId) {
+            const parentId = nodesMap[nodeId]?.data?.parent as string | undefined;
+            const lastParentId = nodesMap[lastId]?.data?.parent as string | undefined;
+            if (parentId && parentId === lastParentId) {
+              const siblings = (nodesMap[parentId]?.data?.nodes as string[]) ?? [];
+              const idxClick = siblings.indexOf(nodeId);
+              const idxLast = siblings.indexOf(lastId);
+              if (idxClick !== -1 && idxLast !== -1) {
+                const min = Math.min(idxClick, idxLast);
+                const max = Math.max(idxClick, idxLast);
+                const rangeIds = siblings.slice(min, max + 1).filter(exists);
+                if (rangeIds.length > 0) {
+                  safeSelect(rangeIds.length === 1 ? rangeIds[0] : rangeIds);
+                  updateLastSelected(nodeId);
+                  return;
+                }
+              }
+            }
+          }
+          // Different parent or no last: replace selection with clicked node
+          safeSelect(nodeId);
+          updateLastSelected(nodeId);
+          return;
+        }
         if (isMulti) {
           const next = new Set(currentIds.filter(exists));
           if (next.has(nodeId)) {
@@ -66,8 +103,11 @@ export const CanvasSelectionHandler = () => {
           }
           const validIds = Array.from(next).filter(exists);
           safeSelect(validIds.length === 0 ? null : validIds.length === 1 ? validIds[0] : validIds);
+          updateLastSelected(validIds.length > 0 ? (validIds.includes(nodeId) ? nodeId : validIds[validIds.length - 1]!) : null);
         } else {
           safeSelect(nodeId);
+          updateLastSelected(nodeId);
+          return;
         }
       }
       // Empty area: do not clear here — BoxSelectionHandler will clear on mouseup
@@ -77,7 +117,7 @@ export const CanvasSelectionHandler = () => {
     // Use capture on document so we intercept before Craft.js handlers
     document.addEventListener("mousedown", handleMouseDown, true);
     return () => document.removeEventListener("mousedown", handleMouseDown, true);
-  }, [actions, query]);
+  }, [actions, query, activeTool]);
 
   return null;
 };

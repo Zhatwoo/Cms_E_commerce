@@ -263,6 +263,7 @@ export type Project = {
   status: string;
   templateId?: string | null;
   subdomain?: string | null;
+  thumbnail?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -298,7 +299,7 @@ export async function getProjectBySubdomain(subdomain: string): Promise<{ succes
 
 export async function updateProject(
   id: string,
-  params: { title?: string; status?: string; subdomain?: string | null }
+  params: { title?: string; status?: string; subdomain?: string | null; thumbnail?: string | null }
 ): Promise<{ success: boolean; project: Project }> {
   return apiFetch<{ success: boolean; project: Project }>(`/api/projects/${id}`, {
     method: 'PATCH',
@@ -334,6 +335,14 @@ export async function schedulePublish(
 export async function getSchedule(projectId: string): Promise<{ success: boolean; data?: { scheduledAt: string; subdomain: string | null } | null }> {
   return apiFetch<{ success: boolean; data?: { scheduledAt: string; subdomain: string | null } | null }>(
     `/api/domains/schedule?projectId=${encodeURIComponent(projectId)}`
+  );
+}
+
+/** Get publish history for a project (stack of { at, type }), newest first. */
+export type PublishHistoryEntry = { at: string; type: string };
+export async function getPublishHistory(projectId: string): Promise<{ success: boolean; data?: { history: PublishHistoryEntry[] } }> {
+  return apiFetch<{ success: boolean; data?: { history: PublishHistoryEntry[] } }>(
+    `/api/domains/publish-history?projectId=${encodeURIComponent(projectId)}`
   );
 }
 

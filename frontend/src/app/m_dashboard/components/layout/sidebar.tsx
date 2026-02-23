@@ -72,23 +72,6 @@ const SettingsIcon = () => (
   </svg>
 );
 
-const ProjectsIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    aria-hidden="true"
-    className="h-5 w-5"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="3" y="7" width="18" height="13" rx="2" ry="2" />
-    <path d="M16 3v4" />
-    <path d="M8 3v4" />
-  </svg>
-);
-
 const ProductsIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
@@ -129,7 +112,6 @@ type SidebarItem = {
 const navItems: SidebarItem[] = [
   { id: 'home', label: 'Home', icon: <HomeIcon />, href: '/m_dashboard' },
   { id: 'web-builder', label: 'Web Builder', icon: <WebBuilderIcon />, href: '/m_dashboard/web-builder' },
-  { id: 'projects', label: 'Projects', icon: <ProjectsIcon />, href: '/m_dashboard/projects' },
   { id: 'products', label: 'Products', icon: <ProductsIcon />, href: '/m_dashboard/products' },
   { id: 'orders', label: 'Orders', icon: <OrdersIcon />, href: '/m_dashboard/orders' },
   { id: 'analytics', label: 'Analytics', icon: <AnalyticsIcon />, href: '/m_dashboard/analytics' },
@@ -152,7 +134,8 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
   const EXPANDED_WIDTH = 280;  // full labels
 
   const sidebarStyle = {
-    backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.8)' : colors.bg.card,
+    backgroundImage: undefined,
+    backgroundColor: theme === 'light' ? '#FFFFFF' : 'rgba(0,0,0,0.8)',
     borderColor: colors.border.faint,
     color: colors.text.primary,
   };
@@ -178,7 +161,6 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
         className="fixed inset-y-0 left-0 z-50 w-72 shadow-2xl h-full flex flex-col transition-colors duration-300"
         style={{
           ...sidebarStyle,
-          backgroundColor: colors.bg.card, // Ensure solid bg for mobile
           borderRightWidth: '1px',
         }}
       >
@@ -260,7 +242,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
     <motion.aside
       className="hidden lg:flex lg:flex-col lg:h-screen lg:sticky lg:top-0 overflow-hidden z-20 backdrop-blur-xl border-r transition-colors duration-300"
       style={{
-        backgroundColor: theme === 'dark' ? 'rgba(0, 0, 0, 0.5)' : 'rgba(255, 255, 255, 0.8)',
+        backgroundColor: theme === 'dark' ? 'rgba(0, 0, 0, 0.5)' : '#FFFFFF',
         borderColor: colors.border.faint,
         color: colors.text.primary
       }}

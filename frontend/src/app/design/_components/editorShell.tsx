@@ -1,10 +1,14 @@
 import * as React from "react";
 import { useRef, useState, useEffect, useLayoutEffect, useCallback } from "react";
-import { Editor, Frame, Element } from "@craftjs/core";
+import { Editor, Frame, Element, useEditor } from "@craftjs/core";
 import { PanelLeft, PanelRight } from "lucide-react";
 import { RenderBlocks } from "../_designComponents";
+import { Frame as FrameComponentFromFile } from "../_designComponents/Frame/Frame";
 import { LeftPanel } from "./leftPanel";
 import { RightPanel } from "./rightPanel";
+import { TopPanel, type DevicePreset } from "./TopPanel";
+import { BottomPanel, type CanvasTool } from "./BottomPanel";
+import { CanvasToolProvider } from "./CanvasToolContext";
 import { Container } from "../_designComponents/Container/Container";
 import { Text } from "../_designComponents/Text/Text";
 import { Page } from "../_designComponents/Page/Page";
@@ -17,9 +21,12 @@ import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
 import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
 import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import { TransformModeProvider } from "./TransformModeContext";
+import { InlineTextEditProvider } from "./InlineTextEditContext";
 import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
+import { CanvasContextMenu } from "./CanvasContextMenu";
 import { PrototypeTabProvider } from "./PrototypeTabContext";
 import { PrototypeFlowLines } from "./PrototypeFlowLines";
+import { EditorPhonePreview } from "./EditorPhonePreview";
 import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
@@ -70,6 +77,44 @@ class FrameErrorBoundary extends React.Component<
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 function getStorageKey(projectId: string) {
   return `${STORAGE_KEY_PREFIX}_${projectId}`;
+}
+
+function isQuotaError(error: unknown): boolean {
+  return (
+    error instanceof DOMException &&
+    (error.code === 22 || error.code === 1014 || error.name === "QuotaExceededError" || error.name === "NS_ERROR_DOM_QUOTA_REACHED")
+  );
+}
+
+function safeSessionGet(key: string): string | null {
+  try {
+    if (typeof window === "undefined" || !window.sessionStorage) return null;
+    return window.sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeSessionSet(key: string, value: string): void {
+  try {
+    if (typeof window === "undefined" || !window.sessionStorage) return;
+    window.sessionStorage.setItem(key, value);
+  } catch (error) {
+    if (isQuotaError(error)) {
+      console.warn("SessionStorage quota exceeded, skipping save:", key);
+    } else {
+      console.warn("Failed to save to sessionStorage:", error);
+    }
+  }
+}
+
+function safeSessionRemove(key: string): void {
+  try {
+    if (typeof window === "undefined" || !window.sessionStorage) return;
+    window.sessionStorage.removeItem(key);
+  } catch {
+    // Ignore errors when removing
+  }
 }
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -222,9 +267,19 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
 }
 
 /**
- * SafeFrame component that catches Frame rendering errors and falls back to empty canvas
+ * SafeFrame component that catches Frame rendering errors and falls back to empty canvas.
+ * Calls onFrameMounted after the Frame has committed, so panels that use useEditor()
+ * (e.g. FilesPanel) can mount in the next tick and avoid "setState during render" from Craft.js.
  */
-const SafeFrame = ({ data, onError }: { data: string | null; onError?: () => void }) => {
+const SafeFrame = ({
+  data,
+  onError,
+  onFrameMounted,
+}: {
+  data: string | null;
+  onError?: () => void;
+  onFrameMounted?: () => void;
+}) => {
   const [renderData, setRenderData] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [hasErrorBoundaryError, setHasErrorBoundaryError] = useState(false);
@@ -261,6 +316,14 @@ const SafeFrame = ({ data, onError }: { data: string | null; onError?: () => voi
     setRenderData(null);
     onError?.();
   }, [onError]);
+
+  // Signal after Frame has committed so panels using useEditor() (e.g. FilesPanel) mount next tick
+  // and avoid "Cannot update FilesPanel while rendering De" from Craft.js synchronous store updates.
+  useEffect(() => {
+    if (!isReady || !onFrameMounted) return;
+    const id = requestAnimationFrame(() => onFrameMounted());
+    return () => cancelAnimationFrame(id);
+  }, [isReady, onFrameMounted]);
 
   if (!isReady) {
     return (
@@ -312,8 +375,14 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
-  const [rightPanelOpen, setRightPanelOpen] = useState(false);
+  const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [rightPanelTab, setRightPanelTab] = useState<TabId>("design");
+  const [canvasWidth, setCanvasWidth] = useState(1440);
+  const [canvasHeight, setCanvasHeight] = useState(900);
+  const [canvasRotation, setCanvasRotation] = useState(0);
+  const [activeTool, setActiveTool] = useState<CanvasTool>("move");
+  const [frameReady, setFrameReady] = useState(false);
+  const [showDualView, setShowDualView] = useState(false);
 
   // Cleanup corrupted data when error boundary triggers
   const handleFrameError = useCallback(async () => {
@@ -412,6 +481,53 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
     return () => cancelAnimationFrame(id);
   }, []);
 
+  // Handle canvas rotation
+  const handleRotateCanvas = useCallback(() => {
+    setCanvasRotation((prev) => (prev + 90) % 360);
+  }, []);
+
+  // Handle fit to canvas
+  const handleFitToCanvas = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    // Reset zoom to fit content
+    const contentWidth = canvasWidth;
+    const contentHeight = canvasHeight;
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+
+    const scaleX = (containerWidth * 0.9) / contentWidth;
+    const scaleY = (containerHeight * 0.9) / contentHeight;
+    const newScale = Math.min(scaleX, scaleY, 1);
+
+    setScale(Math.max(newScale, 0.3));
+
+    // Center the canvas
+    setTimeout(() => {
+      if (container) {
+        const x = (container.scrollWidth - container.clientWidth) / 2;
+        const y = (container.scrollHeight - container.clientHeight) / 2;
+        container.scrollLeft = x;
+        container.scrollTop = y;
+      }
+    }, 100);
+  }, [canvasWidth, canvasHeight]);
+
+  // Handle device preset selection - only width changes; preserve page height so it doesn't reset
+  const handleDevicePresetSelect = useCallback((preset: DevicePreset) => {
+    setCanvasWidth(preset.width);
+    // Do not set canvasHeight so existing page height is preserved when switching device sizes
+    setTimeout(() => {
+      handleFitToCanvas();
+    }, 100);
+  }, [handleFitToCanvas]);
+
+  // Handle add button (open left panel)
+  const handleAddButton = useCallback(() => {
+    setLeftPanelOpen(true);
+  }, []);
+
   // Handle Panning Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -447,9 +563,11 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   }, [isSpacePressed]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (isSpacePressed || e.button === 1) { // Space or Middle Click
+    // Hand tool active, or Space held, or middle click → pan
+    if (activeTool === "hand" || isSpacePressed || e.button === 1) {
       setIsPanning(true);
       e.preventDefault();
+      e.stopPropagation(); // Prevent Craft.js from handling drag events
     }
   };
 
@@ -467,6 +585,33 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   // Track if editor is fully loaded to prevent stale closure issues
   const isReadyRef = useRef(false);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const storageProto = Object.getPrototypeOf(window.sessionStorage) as Storage;
+    const originalSetItem = storageProto.setItem;
+
+    storageProto.setItem = function (this: Storage, key: string, value: string) {
+      if (typeof key === "string" && key.startsWith(STORAGE_KEY_PREFIX)) {
+        try {
+          return originalSetItem.call(this, key, value);
+        } catch (error) {
+          if (isQuotaError(error)) {
+            console.warn("Skipped sessionStorage write for oversized craft preview payload:", key);
+            return;
+          }
+          throw error;
+        }
+      }
+
+      return originalSetItem.call(this, key, value);
+    };
+
+    return () => {
+      storageProto.setItem = originalSetItem;
+    };
+  }, []);
+
   // Restore saved editor state from database on mount
   useEffect(() => {
     if (!projectId) {
@@ -481,7 +626,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
         // Try sessionStorage per-project (no localStorage — auth/drafts in cookies or session only)
         const storageKey = getStorageKey(projectId);
-        const sessionSaved = sessionStorage.getItem(storageKey);
+        const sessionSaved = safeSessionGet(storageKey);
 
         // Try to load from database
         console.log('📡 Calling getDraft()...');
@@ -511,12 +656,12 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
               console.log(`✅ Loaded valid draft from DB (${Object.keys(parsed).length} internal nodes)`);
               contentToLoad = content;
               // Sync to sessionStorage (per-project)
-              sessionStorage.setItem(storageKey, contentToLoad!);
+              safeSessionSet(storageKey, contentToLoad!);
             } else {
               console.warn('⚠️ Invalid draft structure: missing ROOT or ROOT.nodes. Clearing from database...');
               // Clear invalid data from database
               await deleteDraft(projectId);
-              localStorage.removeItem(storageKey);
+              safeSessionRemove(storageKey);
             }
           } catch (e) {
             console.error('Failed to parse draft content:', e);
@@ -532,11 +677,11 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
               contentToLoad = sessionSaved;
             } else {
               console.warn('⚠️ Invalid draft structure in session: missing ROOT or ROOT.nodes');
-              sessionStorage.removeItem(storageKey);
+              safeSessionRemove(storageKey);
             }
           } catch (e) {
             console.error('Failed to parse session draft:', e);
-            sessionStorage.removeItem(storageKey);
+            safeSessionRemove(storageKey);
           }
         }
 
@@ -579,7 +724,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
 
     if (result.success) {
       console.log('✅ Draft deleted');
-      sessionStorage.removeItem(getStorageKey(projectId));
+      safeSessionRemove(getStorageKey(projectId));
       location.reload(); // Reload to reset editorstate
     } else {
       showAlert('Failed to delete draft: ' + (result.error || 'Unknown error'));
@@ -589,6 +734,17 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
   // Auto-save editor state to database (debounced)
   const handleNodesChange = useCallback(
     (query: { serialize: () => string }) => {
+      if (
+        document.body.dataset.editorDragging === "true" ||
+        document.body.dataset.editorDropCommit === "true"
+      ) {
+        if (saveTimerRef.current) {
+          clearTimeout(saveTimerRef.current);
+          saveTimerRef.current = null;
+        }
+        return;
+      }
+
       // Check Ref instead of State to avoid stale closure
       if (!isReadyRef.current) {
         // console.log('🛑 Aborting save: Editor not yet ready');
@@ -612,9 +768,6 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
           const cleanCode = serializeCraftToClean(next);
 
           console.log('🔄 Auto-save executing (Clean Code)...');
-
-          // Save to sessionStorage per-project (no localStorage)
-          sessionStorage.setItem(getStorageKey(projectId), next);
 
           // Save CLEAN CODE to database (only when projectId is set)
           if (projectId) {
@@ -647,20 +800,33 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
     };
   }, []);
 
-  const resolver = {
-    ...RenderBlocks,
-    Text: Text || Container,
-    text: Text || Container,
-    Circle: Circle || Container,
-    Square: Square || Container,
-    Triangle: Triangle || Container,
-    circle: Circle || Container,
-    square: Square || Container,
-    triangle: Triangle || Container,
-  } as any;
+  // Frame must be in resolver or Craft throws "does not exist in the resolver". Use direct import first; never leave Frame undefined.
+  const FrameForResolver: React.ComponentType =
+    (typeof FrameComponentFromFile === "function" ? FrameComponentFromFile : null) ??
+    (typeof RenderBlocks?.Frame === "function" ? RenderBlocks.Frame : null) ??
+    Container;
 
   /** Only pass to Frame if data is valid Craft format and every node type exists in resolver */
-  const resolverRef = useRef(resolver);
+  const resolverRef = useRef<Record<string, React.ComponentType>>({});
+
+  const resolver: Record<string, React.ComponentType> = React.useMemo(() => {
+    const base: Record<string, React.ComponentType> = {
+      ...RenderBlocks,
+      Text: Text || Container,
+      text: Text || Container,
+      Circle: Circle || Container,
+      Square: Square || Container,
+      Triangle: Triangle || Container,
+      circle: Circle || Container,
+      square: Square || Container,
+      triangle: Triangle || Container,
+    };
+    // Force Frame to always exist; Craft looks up by "Frame" and sometimes "frame"
+    base.Frame = FrameForResolver;
+    base.frame = FrameForResolver;
+    return base;
+  }, [FrameForResolver]);
+
   resolverRef.current = resolver;
   const validFrameData = React.useMemo(() => {
     if (initialJson === undefined || initialJson === null || initialJson === "") return null;
@@ -675,11 +841,14 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         canonicalByLower.set(key.toLowerCase(), key);
       }
 
+      const allIds = new Set(Object.keys(parsed));
+      const CANVAS_TYPES = new Set(["Frame", "Container", "Section", "Row", "Column", "Page", "Viewport", "Button"]);
+
       for (const id of Object.keys(parsed)) {
-        const node = parsed[id] as any;
+        const node = parsed[id] as Record<string, unknown> | null;
         if (!node || typeof node !== "object") continue;
         const t = node.type;
-        const rawName = ((typeof t === "string" ? t : t?.resolvedName) ?? "").toString().trim();
+        const rawName = ((typeof t === "string" ? t : (t as { resolvedName?: string })?.resolvedName) ?? "").toString().trim();
         if (!rawName) return null;
 
         if (!keys.has(rawName)) {
@@ -687,12 +856,22 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
           if (normalized) {
             node.type = { resolvedName: normalized };
             node.displayName = normalized;
-            continue;
+          } else {
+            node.type = { resolvedName: "Container" };
+            node.displayName = "Container";
           }
-
-          node.type = { resolvedName: "Container" };
-          node.displayName = "Container";
         }
+
+        if (CANVAS_TYPES.has(rawName)) {
+          node.isCanvas = true;
+          if (typeof node.data === "object" && node.data !== null) {
+            (node.data as Record<string, unknown>).isCanvas = true;
+          }
+        }
+
+        const childIds = Array.isArray(node.nodes) ? node.nodes : [];
+        const validChildIds = childIds.filter((cid: string) => allIds.has(cid));
+        node.nodes = validChildIds;
       }
       return JSON.stringify(parsed);
     } catch {
@@ -700,67 +879,93 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
     }
   }, [initialJson]);
 
-  // Debug: list resolver keys so we can confirm components are registered at runtime
-  if (typeof window !== "undefined") {
-    try {
-      // Delay slightly so logs are clearer in console
-      setTimeout(() => {
+  // Debug: list resolver keys after mount (must run in useEffect to avoid setState-during-render)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const t = setTimeout(() => {
+      try {
+        const res = resolverRef.current;
         // eslint-disable-next-line no-console
-        console.log("[EditorShell] resolver keys:", Object.keys(resolver));
-
-        // If there is saved initial JSON, attempt to parse and list component types used so we can identify missing resolver entries
-        try {
-          if (initialJson) {
-            const parsed = typeof initialJson === 'string' ? JSON.parse(initialJson) : initialJson;
-            const nodeTypes = new Set<string>();
-            if (parsed && parsed.nodes) {
-              Object.values(parsed.nodes as any).forEach((n: any) => {
-                try {
-                  const display = n?.data?.displayName || n?.data?.name || (n?.data?.type && (typeof n.data.type === 'string' ? n.data.type : n.data.type?.name));
-                  if (display) nodeTypes.add(display);
-                } catch (e) {
-                  // ignore
-                }
-              });
-            }
-            const resolverKeys = Object.keys(resolver);
-            const missing = [...nodeTypes].filter((t) => !resolverKeys.includes(t) && !resolverKeys.includes((t || '').replace(/\s+/g, '')));
-            // eslint-disable-next-line no-console
-            console.log('[EditorShell] Serialized node types:', [...nodeTypes]);
-            // eslint-disable-next-line no-console
-            console.log('[EditorShell] Missing resolver types:', missing);
+        console.log("[EditorShell] resolver keys:", Object.keys(res));
+        if (initialJson) {
+          const parsed = typeof initialJson === "string" ? JSON.parse(initialJson) : initialJson;
+          const nodeTypes = new Set<string>();
+          if (parsed && parsed.nodes) {
+            Object.values(parsed.nodes as Record<string, unknown>).forEach((n: unknown) => {
+              try {
+                const node = n as { data?: { displayName?: string; name?: string; type?: string | { name?: string } } };
+                const display = node?.data?.displayName ?? node?.data?.name ?? (typeof node?.data?.type === "string" ? node.data.type : node?.data?.type?.name);
+                if (display) nodeTypes.add(display);
+              } catch {
+                // ignore
+              }
+            });
           }
-        } catch (err) {
+          const resolverKeys = Object.keys(res);
+          const missing = [...nodeTypes].filter((typeName) => !resolverKeys.includes(typeName) && !resolverKeys.includes((typeName || "").replace(/\s+/g, "")));
           // eslint-disable-next-line no-console
-          console.warn('[EditorShell] failed to parse initialJson for debug', err);
+          console.log("[EditorShell] Serialized node types:", [...nodeTypes]);
+          // eslint-disable-next-line no-console
+          console.log("[EditorShell] Missing resolver types:", missing);
         }
-      }, 50);
-    } catch (e) {
-      // ignore
-    }
-  }
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn("[EditorShell] failed to parse initialJson for debug", err);
+      }
+    }, 50);
+    return () => clearTimeout(t);
+  }, [initialJson]);
 
   return (
     <div className="h-screen bg-brand-black text-brand-lighter overflow-hidden font-sans relative">
       <Editor
         resolver={resolver}
         onRender={RenderNode}
-        onNodesChange={handleNodesChange}
+        onNodesChange={(query) => requestAnimationFrame(() => handleNodesChange(query))}
       >
         <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
+        <CanvasToolProvider value={activeTool}>
         <TransformModeProvider>
+        <InlineTextEditProvider>
           <KeyboardShortcuts />
           <CanvasSelectionHandler />
+          <CanvasContextMenu />
           <FigmaStyleDragHandler />
           <BoxSelectionHandler />
           <DoubleClickTransformHandler />
           <PrototypeFlowLines />
-          {/* Canvas Area (Background) */}
+          {/* Top Panel */}
+          {panelsReady && (
+            <TopPanel
+              scale={scale}
+              onScaleChange={setScale}
+              onRotateCanvas={handleRotateCanvas}
+              onFitToCanvas={handleFitToCanvas}
+              onAddButton={handleAddButton}
+              canvasWidth={canvasWidth}
+              canvasHeight={canvasHeight}
+              onDevicePresetSelect={handleDevicePresetSelect}
+              showDualView={showDualView}
+              onDualViewToggle={() => setShowDualView((v) => !v)}
+            />
+          )}
+          {/* Canvas Area (Background) — when dual view: leave room for phone preview on the right */}
         <div
           ref={containerRef}
           data-canvas-container
-          className="absolute inset-0 overflow-auto bg-brand-darker"
-          style={{ cursor: isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : 'default' }}
+          className={`absolute inset-0 overflow-auto bg-brand-darker canvas-scroll-container ${activeTool === "hand" ? "canvas-hand-tool" : ""} ${activeTool === "hand" && isPanning ? "canvas-hand-panning" : ""}`}
+          style={{
+            cursor:
+              activeTool === "hand"
+                ? isPanning
+                  ? "grabbing"
+                  : "grab"
+                : isSpacePressed
+                  ? isPanning
+                    ? "grabbing"
+                    : "grab"
+                  : "default",
+          }}
           onMouseDown={handleMouseDown}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
@@ -768,30 +973,33 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         >
           {/* Inner Content - Infinite Canvas */}
           <div
-            className="min-w-[200vw] min-h-[200vh] flex items-center justify-center p-40"
-            style={{ zoom: scale }}
+            className="min-w-[200vw] min-h-[200vh] flex items-center justify-center p-40 transition-transform duration-300"
+            style={{ 
+              zoom: scale,
+              transform: canvasRotation !== 0 ? `rotate(${canvasRotation}deg)` : 'none',
+            }}
           >
-            {initialJson === undefined ? null : initialJson ? (
-              <Frame data={initialJson} />
-            ) : (
-              <Frame>
-                <Element is={Viewport} canvas>
-                  {/* Single empty page as starting point */}
-                  <Element is={Page} canvas>
-                    <Element is={Container} padding={40} background="#ffffff" canvas>
-                    </Element>
-                  </Element>
-                </Element>
-              </Frame>
+            {initialJson === undefined ? null : (
+              <SafeFrame
+                data={validFrameData ?? initialJson}
+                onError={handleFrameError}
+                onFrameMounted={() => setFrameReady(true)}
+              />
             )}
           </div>
         </div>
+        {/* Floating phone preview — device mockup on top of canvas */}
+        {showDualView && (
+          <div className="absolute inset-0 z-40 pointer-events-none">
+            <EditorPhonePreview />
+          </div>
+        )}
         {/* Floating Panels */}
         {/* Left Panel */}
         {panelsReady && (
           <div>
             {/* Left Panel */}
-            <div className="absolute top-4 left-4 z-50 h-[calc(100vh-2rem)] w-80 flex items-start pointer-events-none">
+            <div className="absolute top-14 left-4 z-50 h-[calc(100vh-3.5rem)] w-80 flex items-start pointer-events-none">
               <div
                 className="h-full w-80 flex items-start pointer-events-auto"
               >
@@ -803,7 +1011,7 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
                         : '-translate-x-full scale-90 opacity-0 pointer-events-none'
                     }`}
                   >
-                    <LeftPanel onToggle={() => setLeftPanelOpen(false)} />
+                    <LeftPanel onToggle={() => setLeftPanelOpen(false)} frameReady={frameReady} />
                   </div>
                 </div>
                 <button
@@ -821,15 +1029,45 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
         )}
         {/* Right Panel */}
         {panelsReady && (
-          <div className="absolute top-4 right-4 z-50 h-[calc(100vh-2rem)] pointer-events-none">
-            <div className="pointer-events-auto h-full">
-              <RightPanel
-                projectId={projectId}
-                activeTab={rightPanelTab}
-                setActiveTab={setRightPanelTab}
-              />
+          <div className="absolute top-14 right-4 z-50 h-[calc(100vh-3.5rem)] w-80 flex items-start pointer-events-none">
+            <div className="h-full w-80 flex items-start justify-end pointer-events-auto">
+              <div
+                className={`h-full w-80 origin-right transition-[transform,opacity] duration-300 ease-out will-change-transform ${
+                  rightPanelOpen
+                    ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
+                    : 'translate-x-full scale-90 opacity-0 pointer-events-none'
+                }`}
+              >
+                <RightPanel
+                  projectId={projectId}
+                  activeTab={rightPanelTab}
+                  setActiveTab={setRightPanelTab}
+                  frameReady={frameReady}
+                  onClose={() => setRightPanelOpen(false)}
+                />
+              </div>
+              <button
+                onClick={() => setRightPanelOpen((open) => !open)}
+                className={`absolute right-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${
+                  rightPanelOpen ? 'opacity-0 pointer-events-none scale-95' : 'opacity-100 pointer-events-auto scale-100'
+                }`}
+                title={rightPanelOpen ? "Hide right panel" : "Show Configs panel"}
+              >
+                <PanelRight className="w-5 h-5 text-brand-light" />
+              </button>
             </div>
           </div>
+        )}
+        {/* Bottom Panel: Move & Hand tools */}
+        {panelsReady && (
+          <BottomPanel
+            activeTool={activeTool}
+            onToolChange={setActiveTool}
+            showHints={true}
+            saveStatus={saveStatus}
+            saveError={saveError}
+            onResetData={handleDeleteData}
+          />
         )}
         {/* Canvas Controls Overlay: ito yung nasa baba :> */}
         <div data-panel="canvas-controls" className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">
@@ -858,7 +1096,9 @@ export const EditorShell = ({ projectId }: EditorShellProps) => {
             )}
           </div>
         </div>
+        </InlineTextEditProvider>
         </TransformModeProvider>
+        </CanvasToolProvider>
         </PrototypeTabProvider>
       </Editor>
     </div>

@@ -30,7 +30,7 @@ const convertToGalleryTemplate = (template: FullTemplate): GalleryTemplate => ({
   imageColor: template.imageColor || 'from-gray-500 to-gray-700'
 });
 
-const CATEGORIES = ['All', 'E-commerce', 'Blog', 'Portfolio', 'Landing Page'];
+const CATEGORIES = ['Type', 'E-commerce', 'Blog', 'Portfolio', 'Landing Page'];
 
 const TemplateCard = ({ template, colors, onPreview, onUseTemplate }: {
   template: GalleryTemplate;
@@ -273,7 +273,7 @@ export default function WebBuilderPage() {
   const { colors, theme } = useTheme();
   const { showAlert, showConfirm } = useAlert();
   const router = useRouter();
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedCategory, setSelectedCategory] = useState('Type');
   const [previewTemplate, setPreviewTemplate] = useState<GalleryTemplate | null>(null);
   const [templates, setTemplates] = useState<GalleryTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -286,6 +286,8 @@ export default function WebBuilderPage() {
   const [projectMenuId, setProjectMenuId] = useState<string | null>(null);
   const [renamingProject, setRenamingProject] = useState<Project | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [sortOption, setSortOption] = useState<'relevant' | 'newest' | 'oldest' | 'az' | 'za'>('relevant');
+  const [showSortMenu, setShowSortMenu] = useState(false);
 
   // Load templates on mount
   useEffect(() => {
@@ -361,6 +363,14 @@ export default function WebBuilderPage() {
     return () => document.removeEventListener('click', close);
   }, [projectMenuId]);
 
+  // Close sort menu when clicking outside
+  useEffect(() => {
+    if (!showSortMenu) return;
+    const close = () => setShowSortMenu(false);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [showSortMenu]);
+
   const handleProjectRename = (e: React.MouseEvent, p: Project) => {
     e.stopPropagation();
     setProjectMenuId(null);
@@ -422,23 +432,80 @@ export default function WebBuilderPage() {
     }
   };
 
-  const filteredTemplates = templates.filter(
-    (t: GalleryTemplate) => selectedCategory === 'All' || t.category === selectedCategory
-  );
+  const filteredTemplates = templates
+    .filter(
+      (t: GalleryTemplate) => selectedCategory === 'Type' || t.category === selectedCategory
+    )
+    .sort((a, b) => {
+      let comparison = 0;
+      if (sortOption === 'az') {
+        comparison = a.title.localeCompare(b.title);
+      } else if (sortOption === 'za') {
+        comparison = b.title.localeCompare(a.title);
+      } else if (sortOption === 'newest' || sortOption === 'oldest' || sortOption === 'relevant') {
+        // For these sorts, maintain original order as we don't have dates
+        comparison = 0;
+      }
+      return comparison;
+    });
 
   return (
     <section className="space-y-8 min-h-screen pb-20">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight" style={{ color: colors.text.primary }}>
-            Web Builder
-          </h1>
-          <p className="mt-2 text-base max-w-2xl" style={{ color: colors.text.secondary }}>
-            Choose how you want to start building your website. Start from scratch with a blank canvas or use one of our professionally designed templates.
-          </p>
+      <section
+        className="rounded-2xl border p-5 md:p-6"
+        style={{
+          backgroundColor: colors.bg.card,
+          borderColor: colors.border.faint,
+          boxShadow: theme === 'dark'
+            ? 'inset 0 1px 0 rgba(255,255,255,0.06), 0 20px 50px rgba(2,6,23,0.55)'
+            : 'inset 0 1px 0 rgba(255,255,255,0.8), 0 12px 30px rgba(15,23,42,0.12)',
+        }}
+      >
+        <div className="relative flex flex-col gap-3">
+          <div
+            className="absolute -inset-x-6 -inset-y-4 rounded-3xl opacity-70 blur-2xl"
+            style={{
+              background: theme === 'dark'
+                ? 'radial-gradient(60% 60% at 20% 20%, rgba(99,102,241,0.2), transparent 60%), radial-gradient(55% 55% at 80% 20%, rgba(14,165,233,0.16), transparent 60%), radial-gradient(50% 50% at 40% 80%, rgba(16,185,129,0.14), transparent 60%)'
+                : 'radial-gradient(60% 60% at 20% 20%, rgba(99,102,241,0.14), transparent 60%), radial-gradient(55% 55% at 80% 20%, rgba(14,165,233,0.12), transparent 60%), radial-gradient(50% 50% at 40% 80%, rgba(16,185,129,0.1), transparent 60%)'
+            }}
+          />
+          <div className="relative z-10">
+            <motion.p
+              className="text-xs uppercase tracking-[0.2em] mb-2"
+              style={{ color: colors.text.muted }}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+            >
+              Dashboard Insights
+            </motion.p>
+            <motion.h1
+              className="text-3xl font-bold tracking-tight bg-clip-text text-transparent"
+              style={{
+                backgroundImage: theme === 'dark'
+                  ? 'linear-gradient(180deg, #ffffff 25%, #9ca3af 100%)'
+                  : 'linear-gradient(180deg, #111827 25%, #4b5563 100%)'
+              }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45 }}
+            >
+              Web Builder
+            </motion.h1>
+            <motion.p
+              className="mt-2 text-sm md:text-base max-w-2xl"
+              style={{ color: colors.text.secondary }}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, delay: 0.08 }}
+            >
+              Choose how you want to start building your website. Start from scratch with a blank canvas or use one of our professionally designed templates.
+            </motion.p>
+          </div>
         </div>
-      </div>
+      </section>
 
       {/* Start Options */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -518,7 +585,7 @@ export default function WebBuilderPage() {
       </div>
 
       {/* Your projects */}
-      <div className="space-y-4">
+      <div id="projects-section" className="space-y-4">
         <h2 className="text-xl font-semibold tracking-tight" style={{ color: colors.text.primary }}>
           Your projects
         </h2>
@@ -645,23 +712,123 @@ export default function WebBuilderPage() {
           />
         </div>
 
-        {/* Filter Tabs */}
-        <div className="flex flex-wrap gap-2 pb-2 border-b" style={{ borderColor: colors.border.faint }}>
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedCategory === cat ? 'shadow-md' : 'hover:opacity-70'
-                }`}
+        {/* Filters and Sorting - Similar to Orders Page */}
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+          <div className="flex flex-wrap gap-3 w-full">
+            {/* Type Filter */}
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="px-4 py-2 rounded-lg text-sm border focus:outline-none focus:ring-2"
               style={{
-                backgroundColor: selectedCategory === cat ? colors.bg.elevated : 'transparent',
-                color: selectedCategory === cat ? colors.text.primary : colors.text.muted,
-                border: `1px solid ${selectedCategory === cat ? colors.border.default : 'transparent'}`
+                backgroundColor: colors.bg.card,
+                borderColor: colors.border.faint,
+                color: colors.text.primary,
+                focusRingColor: 'rgb(59, 130, 246)'
               }}
             >
-              {cat}
+              {CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+
+            {/* Sort By Dropdown Menu */}
+            <div className="relative">
+              <button
+                onClick={() => setShowSortMenu(!showSortMenu)}
+                className="px-4 py-2 rounded-lg text-sm border focus:outline-none focus:ring-2 flex items-center gap-2 transition-colors"
+                style={{
+                  backgroundColor: colors.bg.card,
+                  borderColor: colors.border.faint,
+                  color: colors.text.primary,
+                  focusRingColor: 'rgb(59, 130, 246)'
+                }}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+                Sort by
+                <svg className={`w-4 h-4 transition-transform ${showSortMenu ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7-7m0 0L5 14" />
+                </svg>
+              </button>
+
+              {/* Sort Menu Dropdown */}
+              {showSortMenu && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="absolute top-full left-0 mt-2 w-56 rounded-lg border shadow-xl overflow-hidden z-50"
+                  style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="px-4 py-3 border-b font-semibold text-sm" style={{ borderColor: colors.border.faint, color: colors.text.primary }}>
+                    Sort by
+                  </div>
+                  <div className="py-1">
+                    {[
+                      { id: 'relevant', label: 'Most relevant', icon: '✨' },
+                      { id: 'newest', label: 'Newest edited', icon: '🕐' },
+                      { id: 'oldest', label: 'Oldest edited', icon: '🕐' },
+                      { id: 'az', label: 'Alphabetical (A-Z)', icon: '↑' },
+                      { id: 'za', label: 'Alphabetical (Z-A)', icon: '↓' }
+                    ].map((option) => (
+                      <button
+                        key={option.id}
+                        onClick={() => {
+                          setSortOption(option.id as any);
+                          setShowSortMenu(false);
+                        }}
+                        className="w-full px-4 py-2.5 text-left text-sm flex items-center gap-3 hover:bg-white/5 dark:hover:bg-white/5 transition-colors"
+                        style={{ color: colors.text.primary }}
+                      >
+                        <span className="text-base w-5">{option.icon}</span>
+                        <span className="flex-1">{option.label}</span>
+                        {sortOption === option.id && (
+                          <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </div>
+          </div>
+
+          {/* Right side controls */}
+          <div className="flex items-center gap-2 ml-auto">
+            {/* List view toggle */}
+            <div className="flex items-center rounded-lg overflow-hidden border" style={{ borderColor: colors.border.faint }}>
+              <button
+                onClick={() => {}}
+                className="px-3 py-1.5 text-sm hover:bg-white/5 transition-colors"
+                style={{ color: colors.text.primary }}
+                title="List view"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Add new button */}
+            <button
+              onClick={handleStartBlank}
+              className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors hover:opacity-80 flex items-center justify-center"
+              style={{
+                backgroundColor: colors.text.primary,
+                color: colors.bg.primary
+              }}
+              title="Create new project"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
             </button>
-          ))}
+          </div>
         </div>
 
         {/* Grid */}
@@ -694,7 +861,7 @@ export default function WebBuilderPage() {
           <div className="text-center py-20">
             <p style={{ color: colors.text.muted }}>No templates found for this category.</p>
             <button
-              onClick={() => setSelectedCategory('All')}
+              onClick={() => setSelectedCategory('Type')}
               className="mt-4 text-sm hover:underline"
               style={{ color: colors.status.info }}
             >

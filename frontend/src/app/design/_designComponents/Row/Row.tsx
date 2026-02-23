@@ -1,13 +1,8 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
+import type { Node } from "@craftjs/core";
 import { RowSettings } from "./RowSettings";
 import type { ContainerProps } from "../../_types/components";
-
-function parsePx(value: string | undefined): number | null {
-  if (value == null) return null;
-  const m = String(value).match(/^(-?\d+(?:\.\d+)?)px$/);
-  return m ? parseFloat(m[1]) : null;
-}
 
 /**
  * Row — a horizontal flex container for creating multi-column layouts.
@@ -40,17 +35,14 @@ export const Row = ({
   opacity = 1,
   overflow = "visible",
   rotation = 0,
-  designWidth,
-  designHeight,
   children,
 }: ContainerProps) => {
-  const { id, connectors: { connect, drag } } = useNode();
+  const { id, connectors: { connect, drag }, childCount } = useNode((node) => ({
+    childCount: node.data.nodes.length,
+  }));
 
-  const wPx = parsePx(width);
-  const hPx = parsePx(height);
-  const canScale = typeof designWidth === "number" && typeof designHeight === "number" && wPx != null && hPx != null && designWidth > 0 && designHeight > 0;
-  const scaleX = canScale ? wPx / designWidth : 1;
-  const scaleY = canScale ? hPx / designHeight : 1;
+  const isHeaderAsset = /header/i.test(id ?? "");
+  const effectiveAlignItems = alignItems === "stretch" ? "flex-start" : alignItems;
 
   const p = typeof padding === "number" ? padding : 0;
   const pl = paddingLeft ?? p;
@@ -67,6 +59,8 @@ export const Row = ({
   return (
     <div
       data-node-id={id}
+      {...(isHeaderAsset ? { "data-header": "true" } : {})}
+      data-layout={flexDirection === "row" ? "row" : "column"}
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
@@ -90,7 +84,7 @@ export const Row = ({
         display: "flex",
         flexDirection,
         flexWrap,
-        alignItems,
+        alignItems: effectiveAlignItems,
         justifyContent,
         gap: `${gap}px`,
         boxShadow,
@@ -99,27 +93,14 @@ export const Row = ({
         transform: rotation ? `rotate(${rotation}deg)` : undefined,
       }}
     >
-      {canScale ? (
+      {children}
+      {childCount === 0 && (
         <div
-          style={{
-            width: designWidth,
-            height: designHeight,
-            transform: `scale(${scaleX}, ${scaleY})`,
-            transformOrigin: "0 0",
-            flexShrink: 0,
-            boxSizing: "border-box",
-            display: "flex",
-            flexDirection,
-            flexWrap,
-            alignItems,
-            justifyContent,
-            gap: `${gap}px`,
-          }}
+          className="w-full min-h-[52px] border border-dashed border-brand-medium/50 rounded-lg flex items-center justify-center text-xs text-brand-light/70"
+          data-row-drop-zone="true"
         >
-          {children}
+          Drop components here
         </div>
-      ) : (
-        children
       )}
     </div>
   );
@@ -145,7 +126,7 @@ export const RowDefaultProps: Partial<ContainerProps> = {
   borderStyle: "solid",
   flexDirection: "row",
   flexWrap: "wrap",
-  alignItems: "stretch",
+  alignItems: "flex-start",
   justifyContent: "flex-start",
   gap: 16,
   boxShadow: "none",
@@ -156,6 +137,13 @@ export const RowDefaultProps: Partial<ContainerProps> = {
 Row.craft = {
   displayName: "Row",
   props: RowDefaultProps,
+  rules: {
+    canMoveIn: (incomingNodes: Node[]) =>
+      incomingNodes.every((node) => {
+        const name = node.data.displayName;
+        return name !== "Page" && name !== "Viewport";
+      }),
+  },
   related: {
     settings: RowSettings,
   },
