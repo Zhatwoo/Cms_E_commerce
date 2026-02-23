@@ -135,14 +135,6 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
 
       {/* Subtle footer: hints + save + reset (optional) */}
       <div className="pointer-events-auto w-full flex items-center justify-between px-4 py-1.5 min-h-8 bg-brand-dark/60 backdrop-blur-sm border-t border-white/5">
-        {showHints ? (
-          <div className="flex items-center gap-3 text-[11px] text-brand-lighter/80">
-            <span>Ctrl + Scroll to zoom</span>
-            <span className="hidden md:inline">Ctrl / ⌘ + Click to multi-select</span>
-          </div>
-        ) : (
-          <div />
-        )}
         <div className="flex items-center gap-3">
           {saveStatus !== "idle" && (
             <span
@@ -163,16 +155,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
                     : "Save failed"}
             </span>
           )}
-          {onResetData && (
-            <button
-              type="button"
-              onClick={onResetData}
-              className="text-[11px] text-red-400/90 hover:text-red-300 transition-colors"
-              title="Reset data"
-            >
-              Reset data
-            </button>
-          )}
+        
         </div>
       </div>
     </div>
