@@ -85,10 +85,10 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
 
     return (
         <header
-            className="border-b sticky top-0 z-20 transition-colors duration-300"
+            className="border-b transition-colors duration-300"
             style={{ 
                 borderColor: colors.border.faint,
-                backgroundColor: theme === 'light' ? '#FFFFFF' : undefined
+                backgroundColor: colors.bg.primary
             }}
         >
             <div className="flex items-center justify-between px-4 sm:px-6" style={{ height: '84px' }}>

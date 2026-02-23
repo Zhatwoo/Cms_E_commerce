@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { ExternalLink, X, Globe, Calendar, FileText } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useTheme } from '../components/context/theme-context';
 import { useAuth } from '../components/context/auth-context';
 import { listProjects, getSchedule, getPublishHistory, type Project, type PublishHistoryEntry } from '@/lib/api';
@@ -11,6 +11,9 @@ import {
   Plus, 
   Search, 
   ExternalLink, 
+  X,
+  Calendar,
+  FileText,
   Copy, 
   Settings, 
   Trash2, 
@@ -100,6 +103,12 @@ export default function DomainsPage() {
       subdomain: subdomainsByProject[p.id]?.subdomain ?? p.subdomain ?? null,
     }))
     .filter((d) => d.subdomain);
+
+  const stats = {
+    total: domainsList.length,
+    active: domainsList.filter((d) => d.project.status === 'published').length,
+    draft: domainsList.filter((d) => (d.project.status ?? 'draft') !== 'published').length,
+  };
 
   type DomainEntry = { project: Project; subdomain: string };
   const [selectedDomain, setSelectedDomain] = useState<DomainEntry | null>(null);
@@ -299,198 +308,200 @@ export default function DomainsPage() {
             </button>
           </div>
         ) : (
-          <div className="space-y-3 flex-1 min-w-0">
-          {domainsList.map(({ project, subdomain }) => (
-            <div
-              key={project.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => setSelectedDomain({ project, subdomain: subdomain ?? '' })}
-              onKeyDown={(e) => e.key === 'Enter' && setSelectedDomain({ project, subdomain: subdomain ?? '' })}
-              className="rounded-2xl border p-4 shadow-sm flex items-center justify-between gap-3 transition-colors cursor-pointer hover:opacity-95"
-              style={{
-                backgroundColor: colors.bg.card,
-                borderColor: colors.border.faint,
-              }}
-            >
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium truncate" style={{ color: colors.text.primary }}>{project.title}</p>
-                <p className="text-xs mt-0.5 font-mono truncate" style={{ color: colors.text.secondary }}>
-                  {getSiteDisplayUrl(subdomain ?? '', origin)}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span
-                  className="text-xs px-2 py-1 rounded-full capitalize"
+          <>
+            <div className="space-y-3 flex-1 min-w-0">
+              {domainsList.map(({ project, subdomain }) => (
+                <div
+                  key={project.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedDomain({ project, subdomain: subdomain ?? '' })}
+                  onKeyDown={(e) => e.key === 'Enter' && setSelectedDomain({ project, subdomain: subdomain ?? '' })}
+                  className="rounded-2xl border p-4 shadow-sm flex items-center justify-between gap-3 transition-colors cursor-pointer hover:opacity-95"
                   style={{
                     backgroundColor: colors.bg.card,
                     borderColor: colors.border.faint,
                   }}
                 >
-                  {project.status || 'draft'}
-                </span>
-                <a
-                  href={getSubdomainSiteUrl(subdomain ?? '', origin)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors shrink-0"
-                  style={{
-                    backgroundColor: colors.text.primary,
-                    color: colors.bg.primary,
-                  }}
-                >
-                  <ExternalLink size={14} />
-                  Continue to website
-                </a>
-              </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate" style={{ color: colors.text.primary }}>{project.title}</p>
+                    <p className="text-xs mt-0.5 font-mono truncate" style={{ color: colors.text.secondary }}>
+                      {getSiteDisplayUrl(subdomain ?? '', origin)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span
+                      className="text-xs px-2 py-1 rounded-full capitalize"
+                      style={{
+                        backgroundColor: colors.bg.card,
+                        borderColor: colors.border.faint,
+                      }}
+                    >
+                      {project.status || 'draft'}
+                    </span>
+                    <a
+                      href={getSubdomainSiteUrl(subdomain ?? '', origin)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors shrink-0"
+                      style={{
+                        backgroundColor: colors.text.primary,
+                        color: colors.bg.primary,
+                      }}
+                    >
+                      <ExternalLink size={14} />
+                      Continue to website
+                    </a>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
 
-      {/* Right sidebar: website details + publish history */}
-      {selectedDomain && (
-        <aside
-          className="w-full md:w-96 shrink-0 rounded-2xl border overflow-hidden flex flex-col"
-          style={{
-            backgroundColor: colors.bg.card,
-            borderColor: colors.border.faint,
-          }}
-        >
-          <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: colors.border.faint }}>
-            <h2 className="text-lg font-semibold" style={{ color: colors.text.primary }}>Website details</h2>
-            <button
-              type="button"
-              onClick={() => setSelectedDomain(null)}
-              className="p-1.5 rounded-lg hover:opacity-80 transition-opacity"
-              style={{ color: colors.text.secondary }}
-              aria-label="Close sidebar"
-            >
-              <X size={20} />
-            </button>
-          </div>
-          <div className="p-4 flex-1 overflow-y-auto space-y-5">
-            <div>
-              <div className="flex items-center gap-2 text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>
-                <FileText size={16} />
-                Title
-              </div>
-              <p className="text-base font-medium" style={{ color: colors.text.primary }}>{selectedDomain.project.title}</p>
-            </div>
-            <div>
-              <div className="flex items-center gap-2 text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>
-                <Globe size={16} />
-                Subdomain
-              </div>
-              <p className="text-sm font-mono" style={{ color: colors.text.primary }}>
-                {getSiteDisplayUrl(selectedDomain.subdomain, origin)}
-              </p>
-            </div>
-            <div>
-              <div className="flex items-center gap-2 text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>
-                Link
-              </div>
-              <a
-                href={siteUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm font-medium break-all hover:underline"
-                style={{ color: colors.text.primary }}
-              >
-                {siteUrl}
-                <ExternalLink size={14} className="shrink-0" />
-              </a>
-            </div>
-            <div>
-              <div className="text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>Status</div>
-              <span
-                className="text-xs px-2 py-1 rounded-full capitalize"
+            {/* Right sidebar: website details + publish history */}
+            {selectedDomain && (
+              <aside
+                className="w-full md:w-96 shrink-0 rounded-2xl border overflow-hidden flex flex-col"
                 style={{
-                  backgroundColor: selectedDomain.project.status === 'published' ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)',
-                  color: selectedDomain.project.status === 'published' ? 'rgb(22,163,74)' : 'rgb(180,83,9)',
+                  backgroundColor: colors.bg.card,
+                  borderColor: colors.border.faint,
                 }}
               >
-                {selectedDomain.project.status || 'draft'}
-              </span>
-            </div>
-            {selectedDomain.project.createdAt && (
-              <div>
-                <div className="text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>Created</div>
-                <p className="text-sm" style={{ color: colors.text.primary }}>
-                  {new Date(selectedDomain.project.createdAt).toLocaleString()}
-                </p>
-              </div>
-            )}
-            {selectedDomain.project.updatedAt && (
-              <div>
-                <div className="text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>Last updated</div>
-                <p className="text-sm" style={{ color: colors.text.primary }}>
-                  {new Date(selectedDomain.project.updatedAt).toLocaleString()}
-                </p>
-              </div>
-            )}
-
-            <div className="pt-3 border-t space-y-3" style={{ borderColor: colors.border.faint }}>
-              <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: colors.text.primary }}>
-                <Calendar size={16} />
-                Publish history
-              </div>
-              <ul className="space-y-2 text-sm">
-                <li className="flex items-center justify-between gap-2">
-                  <span style={{ color: colors.text.secondary }}>Status</span>
-                  <span
-                    className="capitalize px-2 py-0.5 rounded text-xs font-medium"
-                    style={{
-                      backgroundColor: selectedDomain.project.status === 'published' ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)',
-                      color: selectedDomain.project.status === 'published' ? 'rgb(22,163,74)' : 'rgb(180,83,9)',
-                    }}
+                <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: colors.border.faint }}>
+                  <h2 className="text-lg font-semibold" style={{ color: colors.text.primary }}>Website details</h2>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDomain(null)}
+                    className="p-1.5 rounded-lg hover:opacity-80 transition-opacity"
+                    style={{ color: colors.text.secondary }}
+                    aria-label="Close sidebar"
                   >
-                    {selectedDomain.project.status === 'published' ? 'Published' : 'Draft'}
-                  </span>
-                </li>
-                {scheduleInfo?.scheduledAt && (
-                  <li className="flex items-center justify-between gap-2">
-                    <span style={{ color: colors.text.secondary }}>Next scheduled</span>
-                    <span style={{ color: colors.text.primary }}>
-                      {new Date(scheduleInfo.scheduledAt).toLocaleString()}
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="p-4 flex-1 overflow-y-auto space-y-5">
+                  <div>
+                    <div className="flex items-center gap-2 text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>
+                      <FileText size={16} />
+                      Title
+                    </div>
+                    <p className="text-base font-medium" style={{ color: colors.text.primary }}>{selectedDomain.project.title}</p>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>
+                      <Globe size={16} />
+                      Subdomain
+                    </div>
+                    <p className="text-sm font-mono" style={{ color: colors.text.primary }}>
+                      {getSiteDisplayUrl(selectedDomain.subdomain, origin)}
+                    </p>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>
+                      Link
+                    </div>
+                    <a
+                      href={siteUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-sm font-medium break-all hover:underline"
+                      style={{ color: colors.text.primary }}
+                    >
+                      {siteUrl}
+                      <ExternalLink size={14} className="shrink-0" />
+                    </a>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>Status</div>
+                    <span
+                      className="text-xs px-2 py-1 rounded-full capitalize"
+                      style={{
+                        backgroundColor: selectedDomain.project.status === 'published' ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)',
+                        color: selectedDomain.project.status === 'published' ? 'rgb(22,163,74)' : 'rgb(180,83,9)',
+                      }}
+                    >
+                      {selectedDomain.project.status || 'draft'}
                     </span>
-                  </li>
-                )}
-              </ul>
-              <div>
-                <div className="text-xs font-medium mb-2" style={{ color: colors.text.secondary }}>Last 10 changes (newest first)</div>
-                {publishHistory.length > 0 ? (
-                  <ul className="space-y-1.5 max-h-48 overflow-y-auto">
-                    {publishHistory.map((entry, i) => (
-                      <li
-                        key={`${entry.at}-${i}`}
-                        className="flex items-center justify-between gap-2 py-1.5 px-2 rounded text-xs"
-                        style={{
-                          backgroundColor: colors.bg.primary,
-                          color: colors.text.primary,
-                          borderLeft: '3px solid rgba(56, 189, 248, 0.6)',
-                        }}
-                      >
-                        <span className="capitalize" style={{ color: colors.text.secondary }}>{entry.type}</span>
-                        <span>{new Date(entry.at).toLocaleString()}</span>
+                  </div>
+                  {selectedDomain.project.createdAt && (
+                    <div>
+                      <div className="text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>Created</div>
+                      <p className="text-sm" style={{ color: colors.text.primary }}>
+                        {new Date(selectedDomain.project.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+                  {selectedDomain.project.updatedAt && (
+                    <div>
+                      <div className="text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>Last updated</div>
+                      <p className="text-sm" style={{ color: colors.text.primary }}>
+                        {new Date(selectedDomain.project.updatedAt).toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="pt-3 border-t space-y-3" style={{ borderColor: colors.border.faint }}>
+                    <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: colors.text.primary }}>
+                      <Calendar size={16} />
+                      Publish history
+                    </div>
+                    <ul className="space-y-2 text-sm">
+                      <li className="flex items-center justify-between gap-2">
+                        <span style={{ color: colors.text.secondary }}>Status</span>
+                        <span
+                          className="capitalize px-2 py-0.5 rounded text-xs font-medium"
+                          style={{
+                            backgroundColor: selectedDomain.project.status === 'published' ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)',
+                            color: selectedDomain.project.status === 'published' ? 'rgb(22,163,74)' : 'rgb(180,83,9)',
+                          }}
+                        >
+                          {selectedDomain.project.status === 'published' ? 'Published' : 'Draft'}
+                        </span>
                       </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-xs py-1" style={{ color: colors.text.muted }}>
-                    No publish history yet. History is recorded each time you publish.
-                  </p>
-                )}
-              </div>
-              {!scheduleInfo?.scheduledAt && selectedDomain.project.status === 'published' && (
-                <p className="text-xs" style={{ color: colors.text.muted }}>
-                  No upcoming scheduled publish.
-                </p>
-              )}
-            </div>
-          </div>
-        </aside>
+                      {scheduleInfo?.scheduledAt && (
+                        <li className="flex items-center justify-between gap-2">
+                          <span style={{ color: colors.text.secondary }}>Next scheduled</span>
+                          <span style={{ color: colors.text.primary }}>
+                            {new Date(scheduleInfo.scheduledAt).toLocaleString()}
+                          </span>
+                        </li>
+                      )}
+                    </ul>
+                    <div>
+                      <div className="text-xs font-medium mb-2" style={{ color: colors.text.secondary }}>Last 10 changes (newest first)</div>
+                      {publishHistory.length > 0 ? (
+                        <ul className="space-y-1.5 max-h-48 overflow-y-auto">
+                          {publishHistory.map((entry, i) => (
+                            <li
+                              key={`${entry.at}-${i}`}
+                              className="flex items-center justify-between gap-2 py-1.5 px-2 rounded text-xs"
+                              style={{
+                                backgroundColor: colors.bg.primary,
+                                color: colors.text.primary,
+                                borderLeft: '3px solid rgba(56, 189, 248, 0.6)',
+                              }}
+                            >
+                              <span className="capitalize" style={{ color: colors.text.secondary }}>{entry.type}</span>
+                              <span>{new Date(entry.at).toLocaleString()}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-xs py-1" style={{ color: colors.text.muted }}>
+                          No publish history yet. History is recorded each time you publish.
+                        </p>
+                      )}
+                    </div>
+                    {!scheduleInfo?.scheduledAt && selectedDomain.project.status === 'published' && (
+                      <p className="text-xs" style={{ color: colors.text.muted }}>
+                        No upcoming scheduled publish.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </aside>
+            )}
+          </>
         )}
       </div>
     </div>

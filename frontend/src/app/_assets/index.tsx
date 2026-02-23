@@ -10,16 +10,14 @@ import {
   MobileHeader,
   DarkModeHeader
 } from "./Header";
-import { CenteredHero, HeroWithImage } from "./Hero";
+import { CenteredHero, HeroWithImage, HeroBannerCTA, HeroBannerCTA_v2, HeroBannerCTA_v3 } from "./Hero";
 import { FeaturesGrid, Testimonial } from "./Content";
 import { ContactForm, NewsletterSignup, OrderForm, LoginForm, SignupForm, AddToCart, PaymentForm } from "./Forms";
-import { ProductCard, TeamMemberCard } from "./Cards";
+import { ProductCard, TeamMemberCard, GridViewCard, ProductDescription, FeaturedProduct } from "./Cards";
 import {
   SimpleFooter,
   MultiColumnFooter,
   NewsletterFooter,
-  TrustFooter,
-  CheckoutFooter,
   BrandFooter
 } from "./Footer";
 import {
@@ -49,6 +47,7 @@ import { Square as CraftSquare } from "./shapes/square/square";
 import { Triangle as CraftTriangle } from "./shapes/triangle/triangle";
 
 import { TemplateEntry } from "./_types";
+import { ProductDetailView } from "./Content/ProductDetailView";
 
 
 export const Circle = ({ width = 60, height = 60 }: { width?: number; height?: number }) => (
@@ -104,6 +103,9 @@ export const TEMPLATES: TemplateEntry[] = [
   DarkModeHeader,
   CenteredHero,
   HeroWithImage,
+  HeroBannerCTA,
+  HeroBannerCTA_v2,
+  HeroBannerCTA_v3,
   FeaturesGrid,
   Testimonial,
   ContactForm,
@@ -115,11 +117,10 @@ export const TEMPLATES: TemplateEntry[] = [
   PaymentForm,
   ProductCard,
   TeamMemberCard,
+  ProductDetailView,
   SimpleFooter,
   MultiColumnFooter,
   NewsletterFooter,
-  TrustFooter,
-  CheckoutFooter,
   BrandFooter,
   FacebookIcon,
   GoogleIcon,
@@ -148,17 +149,6 @@ export const TEMPLATES: TemplateEntry[] = [
 
 export const GROUPED_TEMPLATES = [
   {
-    folder: "Footer",
-    items: [
-      MultiColumnFooter,
-      SimpleFooter,
-      NewsletterFooter,
-      TrustFooter,
-      CheckoutFooter,
-      BrandFooter,
-    ],
-  },
-  {
     folder: "Header",
     items: [
       SimpleHeader,
@@ -173,19 +163,28 @@ export const GROUPED_TEMPLATES = [
   },
   {
     folder: "Hero",
-    items: [CenteredHero, HeroWithImage],
+    items: [CenteredHero, HeroWithImage, HeroBannerCTA, HeroBannerCTA_v2, HeroBannerCTA_v3],
   },
   {
     folder: "Content",
-    items: [FeaturesGrid, Testimonial],
+    items: [FeaturesGrid, Testimonial, ProductDetailView],
+  },
+  {
+    folder: "Cards",
+    items: [ProductCard, TeamMemberCard],
   },
   {
     folder: "Forms",
     items: [ContactForm, NewsletterSignup, OrderForm, LoginForm, SignupForm, AddToCart, PaymentForm],
   },
   {
-    folder: "Cards",
-    items: [ProductCard, TeamMemberCard],
+    folder: "Footer",
+    items: [
+      MultiColumnFooter,
+      SimpleFooter,
+      NewsletterFooter,
+      BrandFooter,
+    ],
   },
   {
     folder: "Icons",

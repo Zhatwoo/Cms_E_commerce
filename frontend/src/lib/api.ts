@@ -4,6 +4,7 @@
  */
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+let activeApiBase = API_URL.replace(/\/$/, '');
 
 /** In-memory user only; never persisted to localStorage or cookies. */
 let inMemoryUser: User | null = null;
@@ -71,7 +72,25 @@ export function setStoredUser(user: User | null): void {
 }
 
 export function getApiUrl(): string {
-  return API_URL.replace(/\/$/, '');
+  return activeApiBase;
+}
+
+function getApiCandidates(): string[] {
+  const envApi = (process.env.NEXT_PUBLIC_API_URL || '').trim().replace(/\/$/, '');
+  const candidates = new Set<string>();
+
+  if (envApi) candidates.add(envApi);
+  candidates.add(activeApiBase);
+
+  // Local DX fallback: backend may auto-switch to 5001 when 5000 is busy.
+  if (!envApi || /^https?:\/\/(localhost|127\.0\.0\.1):5000$/i.test(envApi)) {
+    candidates.add('http://localhost:5000');
+    candidates.add('http://127.0.0.1:5000');
+    candidates.add('http://localhost:5001');
+    candidates.add('http://127.0.0.1:5001');
+  }
+
+  return Array.from(candidates);
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
@@ -103,20 +122,35 @@ export async function apiFetch<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = `${getApiUrl()}${path.startsWith('/') ? path : `/${path}`}`;
-
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
   };
 
-  const res = await fetch(url, {
-    ...options,
-    headers,
-    credentials: 'include', // ✅ cookie only
-  });
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const candidates = getApiCandidates();
+  let lastError: unknown = null;
 
-  return handleResponse<T>(res);
+  for (const base of candidates) {
+    const url = `${base}${normalizedPath}`;
+    try {
+      const res = await fetch(url, {
+        ...options,
+        headers,
+        credentials: 'include', // ✅ cookie only
+      });
+      activeApiBase = base;
+      return await handleResponse<T>(res);
+    } catch (error) {
+      lastError = error;
+      // Only retry on network-level failures (e.g. backend down / wrong port).
+      if (!(error instanceof TypeError)) {
+        throw error;
+      }
+    }
+  }
+
+  throw new Error('Backend is unreachable. Start the backend server and ensure API URL/port is correct.');
 }
 
 // --- Auth API helpers (backend accepts idToken or email+password) ---

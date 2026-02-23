@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import ReactDOM from "react-dom";
 import { useEditor } from "@craftjs/core";
 import { useCanvasTool } from "./CanvasToolContext";
@@ -21,6 +21,7 @@ function rectsIntersect(
 export const BoxSelectionHandler = () => {
   const { actions, query } = useEditor();
   const activeTool = useCanvasTool();
+  const startedOnEmptyRef = useRef(false);
   const [marquee, setMarquee] = useState<{
     startX: number;
     startY: number;

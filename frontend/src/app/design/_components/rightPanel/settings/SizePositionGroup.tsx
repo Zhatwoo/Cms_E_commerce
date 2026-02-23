@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Maximize2, Square, Shrink, Move, Lock, LockOpen } from "lucide-react";
+import { Maximize2, Square, Shrink, Move, Lock, LockOpen, Scan } from "lucide-react";
 import { NumericInput } from "./inputs/NumericInput";
 import type { SpacingProps, SizeProps, SetProp } from "../../../_types/components";
 
@@ -112,27 +112,40 @@ export const SizePositionGroup = ({
             onClick={() => setExpanded(!expanded)}
             className={`p-0.5 rounded ${expanded ? "bg-brand-light text-brand-dark" : "text-brand-medium hover:text-brand-lighter"}`}
           >
-            <Move size={12} />
+            <Scan size={12} className={expanded ? "rotate-90" : "rotate-0"} />
           </button>
         </div>
 
         {expanded ? (
           <div className="grid grid-cols-2 gap-2">
-            {[
-              { label: "T", val: top, key: "top" },
-              { label: "R", val: right, key: "right" },
-              { label: "B", val: bottom, key: "bottom" },
-              { label: "L", val: left, key: "left" }
-            ].map((item) => (
-              <div key={item.key} className="flex items-center gap-1 bg-brand-medium-dark px-1.5 rounded-lg">
-                <span className="text-[10px] text-brand-light text-center px-1.5">{item.label}</span>
-                <NumericInput
-                  value={item.val}
-                  onChange={(val) => onChange(item.key, val)}
-                  className="w-full"
-                />
-              </div>
-            ))}
+            <div className="flex bg-brand-medium-dark rounded-lg px-2 items-center gap-2">
+              <NumericInput
+                value={top}
+                onChange={(val) => onChange("top", val)}
+                icon={<div className="w-3 h-1 border-t-2 border-brand-medium mr-2" />}
+              />
+            </div>
+            <div className="flex bg-brand-medium-dark rounded-lg px-2 items-center gap-2">
+              <NumericInput
+                value={right}
+                onChange={(val) => onChange("right", val)}
+                icon={<div className="w-1 h-3 border-r-2 border-brand-medium mr-2" />}
+              />
+            </div>
+            <div className="flex bg-brand-medium-dark rounded-lg px-2 items-center gap-2">
+              <NumericInput
+                value={bottom}
+                onChange={(val) => onChange("bottom", val)}
+                icon={<div className="w-3 h-1 border-b-2 border-brand-medium mr-2" />}
+              />
+            </div>
+            <div className="flex bg-brand-medium-dark rounded-lg px-2 items-center gap-2">
+              <NumericInput
+                value={left}
+                onChange={(val) => onChange("left", val)}
+                icon={<div className="w-1 h-3 border-l-2 border-brand-medium mr-2" />}
+              />
+            </div>
           </div>
         ) : (
           <div className="flex items-center gap-2 bg-brand-medium-dark px-3 rounded-lg border border-brand-medium/20">
@@ -200,29 +213,29 @@ export const SizePositionGroup = ({
           />
           <div className="flex rounded-lg border border-brand-medium/30 overflow-hidden">
             <button
-            type="button"
-            onClick={() => handleSizeChange(dim, "hug")}
-            className={`p-1.5 ${mode === "hug" ? "bg-brand-light text-brand-dark" : "bg-brand-medium-dark text-brand-light hover:text-brand-lighter"}`}
-            title="Hug contents"
-          >
-            <Shrink size={14} />
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSizeChange(dim, "fixed")}
-            className={`p-1.5 ${mode === "fixed" ? "bg-brand-light text-brand-dark" : "bg-brand-medium-dark text-brand-light hover:text-brand-lighter"}`}
-            title="Fixed"
-          >
-            <Square size={14} />
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSizeChange(dim, "fill")}
-            className={`p-1.5 ${mode === "fill" ? "bg-brand-light text-brand-dark" : "bg-brand-medium-dark text-brand-light hover:text-brand-lighter"}`}
-            title="Fill"
-          >
-            <Maximize2 size={14} />
-          </button>
+              type="button"
+              onClick={() => handleSizeChange(dim, "hug")}
+              className={`p-1.5 ${mode === "hug" ? "bg-brand-light text-brand-dark" : "bg-brand-medium-dark text-brand-light hover:text-brand-lighter"}`}
+              title="Hug contents"
+            >
+              <Shrink size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSizeChange(dim, "fixed")}
+              className={`p-1.5 ${mode === "fixed" ? "bg-brand-light text-brand-dark" : "bg-brand-medium-dark text-brand-light hover:text-brand-lighter"}`}
+              title="Fixed"
+            >
+              <Square size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSizeChange(dim, "fill")}
+              className={`p-1.5 ${mode === "fill" ? "bg-brand-light text-brand-dark" : "bg-brand-medium-dark text-brand-light hover:text-brand-lighter"}`}
+              title="Fill"
+            >
+              <Maximize2 size={14} />
+            </button>
           </div>
         </div>
       </div>
@@ -304,56 +317,56 @@ function SizePxInput({
 
   return (
     <div className="flex flex-1 items-center bg-brand-medium-dark rounded-lg px-1.5 border border-brand-medium/30">
-          <input
-            type="text"
-            value={displayVal}
-            disabled={disabled}
-            onChange={(e) => {
-              const v = e.target.value;
-              if (/^\d*$/.test(v)) {
-                setLocalStr(v);
-                const n = parseInt(v, 10);
-                if (!isNaN(n) && n >= 0) {
-                  onPxChange(n);
-                  setLast(`${n}px`);
-                }
-              }
-            }}
-            onFocus={(e) => {
-              setIsFocused(true);
-              setLocalStr(propNumStr);
-              e.target.select();
-            }}
-            onBlur={() => {
-              setIsFocused(false);
-              const n = localStr === "" ? 0 : parseInt(localStr, 10);
-              const valid = !isNaN(n) && n >= 0 ? n : 0;
-              onPxChange(valid);
-              setLast(`${valid}px`);
-              setLocalStr(String(valid));
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") e.currentTarget.blur();
-            }}
-            onWheel={(e) => {
-              if (disabled) return;
-              e.preventDefault();
-              e.stopPropagation();
-              if (e.nativeEvent && "stopImmediatePropagation" in e.nativeEvent) {
-                (e.nativeEvent as React.WheelEvent["nativeEvent"] & { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.();
-              }
-              const current = parseInt(localStr || "0", 10);
-              const safeCurrent = isNaN(current) || current < 0 ? 0 : current;
-              const step = e.shiftKey ? 10 : 1;
-              const delta = e.deltaY > 0 ? -step : step;
-              const next = Math.max(0, safeCurrent + delta);
-              onPxChange(next);
-              setLast(`${next}px`);
-              setLocalStr(String(next));
-            }}
-            className={`w-full bg-transparent text-xs p-1.5 focus:outline-none ${disabled ? "text-brand-light" : "text-brand-lighter"}`}
-          />
-          <span className="text-[10px] text-brand-medium pr-1">px</span>
+      <input
+        type="text"
+        value={displayVal}
+        disabled={disabled}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (/^\d*$/.test(v)) {
+            setLocalStr(v);
+            const n = parseInt(v, 10);
+            if (!isNaN(n) && n >= 0) {
+              onPxChange(n);
+              setLast(`${n}px`);
+            }
+          }
+        }}
+        onFocus={(e) => {
+          setIsFocused(true);
+          setLocalStr(propNumStr);
+          e.target.select();
+        }}
+        onBlur={() => {
+          setIsFocused(false);
+          const n = localStr === "" ? 0 : parseInt(localStr, 10);
+          const valid = !isNaN(n) && n >= 0 ? n : 0;
+          onPxChange(valid);
+          setLast(`${valid}px`);
+          setLocalStr(String(valid));
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+        }}
+        onWheel={(e) => {
+          if (disabled) return;
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.nativeEvent && "stopImmediatePropagation" in e.nativeEvent) {
+            (e.nativeEvent as React.WheelEvent["nativeEvent"] & { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.();
+          }
+          const current = parseInt(localStr || "0", 10);
+          const safeCurrent = isNaN(current) || current < 0 ? 0 : current;
+          const step = e.shiftKey ? 10 : 1;
+          const delta = e.deltaY > 0 ? -step : step;
+          const next = Math.max(0, safeCurrent + delta);
+          onPxChange(next);
+          setLast(`${next}px`);
+          setLocalStr(String(next));
+        }}
+        className={`w-full bg-transparent text-xs p-1.5 focus:outline-none ${disabled ? "text-brand-light" : "text-brand-lighter"}`}
+      />
+      <span className="text-[10px] text-brand-medium pr-1">px</span>
     </div>
   );
 }

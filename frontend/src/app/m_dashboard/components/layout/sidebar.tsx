@@ -3,7 +3,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../context/theme-context';
 const HomeIcon = () => (
@@ -127,7 +127,20 @@ type DashboardSidebarProps = {
 export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarProps) {
   const [isHovered, setIsHovered] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
   const { colors, theme } = useTheme();
+
+  const handleHomeClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (pathname === '/m_dashboard') {
+      event.preventDefault();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      onClose?.();
+      return;
+    }
+
+    router.push('/m_dashboard', { scroll: true });
+    onClose?.();
+  };
 
   // Widths — adjust to your taste
   const COLLAPSED_WIDTH = 72;   // icon-only
@@ -218,7 +231,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
                 key={item.id}
                 href={item.href}
                 className="block"
-                onClick={onClose}
+                onClick={item.id === 'home' ? handleHomeClick : onClose}
               >
                 {content}
               </Link>
@@ -286,6 +299,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
             <Link
               key={item.id}
               href={item.href ?? '#'}
+              onClick={item.id === 'home' ? handleHomeClick : undefined}
               className={`
                 group relative flex items-center rounded-lg transition-all duration-200
                 w-full px-4 py-3
