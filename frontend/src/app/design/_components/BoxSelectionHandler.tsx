@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import ReactDOM from "react-dom";
 import { useEditor } from "@craftjs/core";
 import { useCanvasTool } from "./CanvasToolContext";
@@ -28,6 +28,7 @@ export const BoxSelectionHandler = () => {
     currentX: number;
     currentY: number;
   } | null>(null);
+  const startedOnEmptyRef = useRef(false);
 
   // Cancel marquee when Space is pressed (user wants pan, not box select)
   useEffect(() => {

@@ -6,7 +6,7 @@ import { useCanvasTool } from "./CanvasToolContext";
 
 const DRAGGING_ATTR = "data-dragging";
 
-type NodesMap = Record<string, { data?: { parent?: string; isCanvas?: boolean; displayName?: string } }>;
+type NodesMap = Record<string, { data?: { parent?: string; isCanvas?: boolean; displayName?: string } }>
 
 const CANVAS_DISPLAY_NAMES = new Set([
   "Page",
