@@ -321,14 +321,13 @@ export default function AnalyticsPage() {
             </section>
 
             {/* Key Metrics */}
-            <section id="overview-section">
-                <div className="mb-3">
+            <section id="overview-section" className="space-y-4">
+                <div>
                     <h2 className="text-lg font-semibold" style={{ color: colors.text.primary }}>Overview</h2>
-                    <p className="text-sm" style={{ color: colors.text.muted }}>Core KPIs at a glance</p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                <div onClick={() => setOpenModal('revenue')} className="cursor-pointer">
-                    <MetricCard
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <motion.div onClick={() => setOpenModal('revenue')} className="cursor-pointer" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+                        <MetricCard
                         title="Total Revenue"
                         value={`$${data.revenue.total.toLocaleString()}`}
                         growth={data.revenue.growth}
@@ -336,9 +335,9 @@ export default function AnalyticsPage() {
                         color="#10b981"
                         colors={colors}
                     />
-                </div>
-                <div onClick={() => setOpenModal('orders')} className="cursor-pointer">
-                    <MetricCard
+                    </motion.div>
+                    <motion.div onClick={() => setOpenModal('orders')} className="cursor-pointer" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+                        <MetricCard
                         title="Total Orders"
                         value={data.orders.total.toLocaleString()}
                         growth={data.orders.growth}
@@ -346,9 +345,9 @@ export default function AnalyticsPage() {
                         color="#3b82f6"
                         colors={colors}
                     />
-                </div>
-                <div onClick={() => setOpenModal('customers')} className="cursor-pointer">
-                    <MetricCard
+                    </motion.div>
+                    <motion.div onClick={() => setOpenModal('customers')} className="cursor-pointer" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+                        <MetricCard
                         title="Total Customers"
                         value={data.customers.total.toLocaleString()}
                         growth={data.customers.growth}
@@ -356,16 +355,16 @@ export default function AnalyticsPage() {
                         color="#8b5cf6"
                         colors={colors}
                     />
-                </div>
-                <div onClick={() => setOpenModal('traffic')} className="cursor-pointer">
-                    <MetricCard
+                    </motion.div>
+                    <motion.div onClick={() => setOpenModal('traffic')} className="cursor-pointer" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+                        <MetricCard
                         title="Total Traffic"
                         value={data.traffic.total.toLocaleString()}
                         icon={trafficIcon}
                         color="#f59e0b"
                         colors={colors}
                     />
-                </div>
+                    </motion.div>
                 </div>
             </section>
 
@@ -376,11 +375,15 @@ export default function AnalyticsPage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="rounded-2xl border p-6 shadow-sm"
-                    style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+                    className="rounded-2xl border p-6"
+                    style={{
+                        backgroundColor: colors.bg.card,
+                        borderColor: colors.border.faint,
+                        boxShadow: theme === 'dark' ? '0 10px 40px rgba(2,6,23,0.3)' : '0 4px 16px rgba(0,0,0,0.08)'
+                    }}
                 >
                     <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-lg font-semibold" style={{ color: colors.text.primary }}>Revenue Trend</h3>
+                        <h3 className="text-base font-semibold" style={{ color: colors.text.primary }}>Revenue Trend</h3>
                         <span className="text-xs px-2 py-1 rounded-md" style={{ color: colors.text.muted, backgroundColor: colors.bg.elevated }}>{selectedPeriod}</span>
                     </div>
                     {hasRevenueData ? (
@@ -397,10 +400,14 @@ export default function AnalyticsPage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
-                    className="rounded-2xl border p-6 shadow-sm"
-                    style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+                    className="rounded-2xl border p-6"
+                    style={{
+                        backgroundColor: colors.bg.card,
+                        borderColor: colors.border.faint,
+                        boxShadow: theme === 'dark' ? '0 10px 40px rgba(2,6,23,0.3)' : '0 4px 16px rgba(0,0,0,0.08)'
+                    }}
                 >
-                    <h3 className="text-lg font-semibold mb-6" style={{ color: colors.text.primary }}>Order Status</h3>
+                    <h3 className="text-base font-semibold mb-6" style={{ color: colors.text.primary }}>Order Status</h3>
                     <RadialProgressChart data={orderStatusData} colors={statusColors} themeColors={colors} />
                 </motion.div>
 
@@ -409,10 +416,14 @@ export default function AnalyticsPage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 }}
-                    className="rounded-2xl border p-6 shadow-sm"
-                    style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+                    className="rounded-2xl border p-6"
+                    style={{
+                        backgroundColor: colors.bg.card,
+                        borderColor: colors.border.faint,
+                        boxShadow: theme === 'dark' ? '0 10px 40px rgba(2,6,23,0.3)' : '0 4px 16px rgba(0,0,0,0.08)'
+                    }}
                 >
-                    <h3 className="text-lg font-semibold mb-6" style={{ color: colors.text.primary }}>Customer Journey</h3>
+                    <h3 className="text-base font-semibold mb-6" style={{ color: colors.text.primary }}>Customer Journey</h3>
                     <FunnelChart colors={colors} />
                 </motion.div>
             </div>
@@ -423,11 +434,15 @@ export default function AnalyticsPage() {
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 }}
-                    className="rounded-2xl border p-6 shadow-sm"
-                    style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+                    transition={{ delay: 0.5 }}
+                    className="rounded-2xl border p-6"
+                    style={{
+                        backgroundColor: colors.bg.card,
+                        borderColor: colors.border.faint,
+                        boxShadow: theme === 'dark' ? '0 10px 40px rgba(2,6,23,0.3)' : '0 4px 16px rgba(0,0,0,0.08)'
+                    }}
                 >
-                    <h3 className="text-lg font-semibold mb-6" style={{ color: colors.text.primary }}>Top Selling Products</h3>
+                    <h3 className="text-base font-semibold mb-6" style={{ color: colors.text.primary }}>Top Selling Products</h3>
                     {hasProducts ? (
                         <div className="space-y-3">
                             {data.products.topSelling.map((product, index) => (
@@ -453,11 +468,15 @@ export default function AnalyticsPage() {
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
-                    className="rounded-2xl border p-6 shadow-sm"
-                    style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+                    transition={{ delay: 0.6 }}
+                    className="rounded-2xl border p-6"
+                    style={{
+                        backgroundColor: colors.bg.card,
+                        borderColor: colors.border.faint,
+                        boxShadow: theme === 'dark' ? '0 10px 40px rgba(2,6,23,0.3)' : '0 4px 16px rgba(0,0,0,0.08)'
+                    }}
                 >
-                    <h3 className="text-lg font-semibold mb-6" style={{ color: colors.text.primary }}>Traffic Sources</h3>
+                    <h3 className="text-base font-semibold mb-6" style={{ color: colors.text.primary }}>Traffic Sources</h3>
                     {hasTrafficSources ? (
                         <div className="space-y-3">
                             {data.traffic.sources.map((source, index) => (
@@ -489,57 +508,76 @@ export default function AnalyticsPage() {
                 </motion.div>
             </div>
 
-            {/* Additional Metrics */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div onClick={() => setOpenModal('newCustomers')} className="cursor-pointer">
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.6 }}
-                        className="rounded-xl border p-4 text-center hover:shadow-lg transition-all"
-                        style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
-                    >
-                        <p className="text-2xl font-bold" style={{ color: colors.text.primary }}>{data.customers.new}</p>
-                        <p className="text-sm" style={{ color: colors.text.secondary }}>New Customers</p>
-                    </motion.div>
+            {/* Additional Insights */}
+            <section className="space-y-4">
+                <h2 className="text-lg font-semibold" style={{ color: colors.text.primary }}>Additional Insights</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div onClick={() => setOpenModal('newCustomers')} className="cursor-pointer">
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.65 }}
+                            className="rounded-xl border p-4 text-center transition-all"
+                            style={{
+                                backgroundColor: colors.bg.card,
+                                borderColor: colors.border.faint,
+                                boxShadow: theme === 'dark' ? '0 10px 40px rgba(2,6,23,0.3)' : '0 4px 16px rgba(0,0,0,0.08)'
+                            }}
+                        >
+                            <p className="text-2xl font-bold" style={{ color: colors.text.primary }}>{data.customers.new}</p>
+                            <p className="text-xs mt-1" style={{ color: colors.text.muted }}>New Customers</p>
+                        </motion.div>
+                    </div>
+                    <div onClick={() => setOpenModal('returningCustomers')} className="cursor-pointer">
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.7 }}
+                            className="rounded-xl border p-4 text-center transition-all"
+                            style={{
+                                backgroundColor: colors.bg.card,
+                                borderColor: colors.border.faint,
+                                boxShadow: theme === 'dark' ? '0 10px 40px rgba(2,6,23,0.3)' : '0 4px 16px rgba(0,0,0,0.08)'
+                            }}
+                        >
+                            <p className="text-2xl font-bold" style={{ color: colors.text.primary }}>{data.customers.returning}</p>
+                            <p className="text-xs mt-1" style={{ color: colors.text.muted }}>Returning Customers</p>
+                        </motion.div>
+                    </div>
+                    <div onClick={() => setOpenModal('uniqueVisitors')} className="cursor-pointer">
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.75 }}
+                            className="rounded-xl border p-4 text-center transition-all"
+                            style={{
+                                backgroundColor: colors.bg.card,
+                                borderColor: colors.border.faint,
+                                boxShadow: theme === 'dark' ? '0 10px 40px rgba(2,6,23,0.3)' : '0 4px 16px rgba(0,0,0,0.08)'
+                            }}
+                        >
+                            <p className="text-2xl font-bold" style={{ color: colors.text.primary }}>{data.traffic.unique.toLocaleString()}</p>
+                            <p className="text-xs mt-1" style={{ color: colors.text.muted }}>Unique Visitors</p>
+                        </motion.div>
+                    </div>
+                    <div onClick={() => setOpenModal('bounceRate')} className="cursor-pointer">
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.8 }}
+                            className="rounded-xl border p-4 text-center transition-all"
+                            style={{
+                                backgroundColor: colors.bg.card,
+                                borderColor: colors.border.faint,
+                                boxShadow: theme === 'dark' ? '0 10px 40px rgba(2,6,23,0.3)' : '0 4px 16px rgba(0,0,0,0.08)'
+                            }}
+                        >
+                            <p className="text-2xl font-bold" style={{ color: colors.text.primary }}>{data.traffic.bounce}%</p>
+                            <p className="text-xs mt-1" style={{ color: colors.text.muted }}>Bounce Rate</p>
+                        </motion.div>
+                    </div>
                 </div>
-                <div onClick={() => setOpenModal('returningCustomers')} className="cursor-pointer">
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.7 }}
-                        className="rounded-xl border p-4 text-center hover:shadow-lg transition-all"
-                        style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
-                    >
-                        <p className="text-2xl font-bold" style={{ color: colors.text.primary }}>{data.customers.returning}</p>
-                        <p className="text-sm" style={{ color: colors.text.secondary }}>Returning Customers</p>
-                    </motion.div>
-                </div>
-                <div onClick={() => setOpenModal('uniqueVisitors')} className="cursor-pointer">
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.8 }}
-                        className="rounded-xl border p-4 text-center hover:shadow-lg transition-all"
-                        style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
-                    >
-                        <p className="text-2xl font-bold" style={{ color: colors.text.primary }}>{data.traffic.unique.toLocaleString()}</p>
-                        <p className="text-sm" style={{ color: colors.text.secondary }}>Unique Visitors</p>
-                    </motion.div>
-                </div>
-                <div onClick={() => setOpenModal('bounceRate')} className="cursor-pointer">
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.9 }}
-                        className="rounded-xl border p-4 text-center hover:shadow-lg transition-all"
-                        style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
-                    >
-                        <p className="text-2xl font-bold" style={{ color: colors.text.primary }}>{data.traffic.bounce}%</p>
-                        <p className="text-sm" style={{ color: colors.text.secondary }}>Bounce Rate</p>
-                    </motion.div>
-                </div>
-            </div>
+            </section>
 
             {/* Modal */}
             <AnimatePresence>
