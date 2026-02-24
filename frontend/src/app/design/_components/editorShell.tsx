@@ -330,14 +330,6 @@ const SafeFrame = ({
     console.error('❌ SafeFrame: Error boundary triggered, falling back to empty canvas');
     setHasErrorBoundaryError(true);
     setRenderData(null);
-  // Signal after Frame has committed so panels using useEditor() (e.g. FilesPanel) mount next tick
-  // and avoid "Cannot update FilesPanel while rendering De" from Craft.js synchronous store updates.
-  useEffect(() => {
-    if (!isReady || !onFrameMounted) return;
-    const id = requestAnimationFrame(() => requestAnimationFrame(() => onFrameMounted()));
-    return () => cancelAnimationFrame(id);
-  }, [isReady, onFrameMounted]);
-
     onError?.();
   }, [onError]);
 
