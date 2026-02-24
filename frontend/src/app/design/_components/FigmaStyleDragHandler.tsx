@@ -141,15 +141,15 @@ function getDropTargetAt(
  */
 function findDeepestNodeId(element: HTMLElement | null): string | null {
   if (!element) return null;
-  
+
   // Check if element itself has data-node-id
   const selfId = element.getAttribute("data-node-id");
   if (selfId) return selfId;
-  
+
   // Walk up the tree and collect all node-ids
   const nodeIds: Array<{ id: string; element: HTMLElement }> = [];
   let current: HTMLElement | null = element;
-  
+
   while (current && current !== document.body) {
     const id = current.getAttribute("data-node-id");
     if (id) {
@@ -157,7 +157,7 @@ function findDeepestNodeId(element: HTMLElement | null): string | null {
     }
     current = current.parentElement;
   }
-  
+
   // Return the first (deepest) node-id found
   return nodeIds.length > 0 ? nodeIds[0].id : null;
 }
@@ -300,13 +300,13 @@ export const FigmaStyleDragHandler = () => {
 
         const state = queryRef.current.getState();
         let ids = selectedToIds(state.events.selected).filter((id) => id && id !== "ROOT" && state.nodes[id]);
-        
+
         // If we clicked on a specific node and it's not in the selection, use the clicked node
         // This prevents dragging parent containers when clicking on child elements
         if (d.fallbackNodeId && state.nodes[d.fallbackNodeId]) {
           const clickedNodeId = d.fallbackNodeId;
           const clickedNodeInSelection = ids.includes(clickedNodeId);
-          
+
           // If clicked node is not in selection, prioritize the clicked node
           // This ensures we drag the actual clicked element, not a parent container
           if (!clickedNodeInSelection && ids.length > 0) {
@@ -321,7 +321,7 @@ export const FigmaStyleDragHandler = () => {
               }
               return false;
             });
-            
+
             // If clicked node is a descendant, use the clicked node instead
             if (isDescendant) {
               ids = [clickedNodeId];
@@ -331,7 +331,7 @@ export const FigmaStyleDragHandler = () => {
             ids = [clickedNodeId];
           }
         }
-        
+
         ids = ids.filter((id) => state.nodes[id]?.data?.props?.locked !== true);
         if (ids.length === 0) {
           dragRef.current = null;

@@ -149,22 +149,22 @@ export const BoxSelectionHandler = () => {
   const marqueeEl =
     marquee && typeof document !== "undefined"
       ? ReactDOM.createPortal(
-          <div
-            data-panel="marquee"
-            style={{
-              position: "fixed",
-              left: Math.min(marquee.startX, marquee.currentX),
-              top: Math.min(marquee.startY, marquee.currentY),
-              width: Math.abs(marquee.currentX - marquee.startX),
-              height: Math.abs(marquee.currentY - marquee.startY),
-              border: "2px solid #3b82f6",
-              backgroundColor: "rgba(59, 130, 246, 0.08)",
-              pointerEvents: "none",
-              zIndex: 10000,
-            }}
-          />,
-          document.body
-        )
+        <div
+          data-panel="marquee"
+          style={{
+            position: "fixed",
+            left: Math.min(marquee.startX, marquee.currentX),
+            top: Math.min(marquee.startY, marquee.currentY),
+            width: Math.abs(marquee.currentX - marquee.startX),
+            height: Math.abs(marquee.currentY - marquee.startY),
+            border: "2px solid #3b82f6",
+            backgroundColor: "rgba(59, 130, 246, 0.08)",
+            pointerEvents: "none",
+            zIndex: 10000,
+          }}
+        />,
+        document.body
+      )
       : null;
 
   return <>{marqueeEl}</>;
