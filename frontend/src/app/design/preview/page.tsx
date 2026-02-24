@@ -213,7 +213,7 @@ function PreviewContent() {
     thumbnailCaptureRef.current = true;
     try {
       const canvas = await html2canvas(previewRef.current, {
-        backgroundColor: "#ffffff",
+        background: "#ffffff",
         scale: 0.7,
         useCORS: true,
       });
@@ -309,12 +309,18 @@ function PreviewContent() {
       return;
     }
 
+    if (!rawJson) {
+      showAlert("No design to save. Edit your page in the design editor first, then open Preview and save as template.");
+      return;
+    }
+
     setSaving(true);
     try {
       const template = templateService.saveTemplate(
         templateName.trim(),
         templateCategory,
-        templateDescription.trim()
+        templateDescription.trim(),
+        rawJson
       );
 
       if (template) {
@@ -629,7 +635,7 @@ function PreviewContent() {
                 />
               </PreviewIframe>
             ) : (
-              <div className="flex flex-col items-center justify-center min-h-[400px] text-zinc-500 p-8 border border-white/10 rounded-xl">
+              <div className="flex flex-col items-center justify-center min-h-96 text-zinc-500 p-8 border border-white/10 rounded-xl">
                 <p className="text-base mb-1">No page data</p>
                 <p className="text-sm">Go back to the editor and press the play button to generate output.</p>
               </div>

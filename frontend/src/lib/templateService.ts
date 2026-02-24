@@ -84,18 +84,32 @@ class TemplateService {
     ];
   }
 
-  // Save template from design editor
-  saveTemplate(name: string, category: string, description: string): Template | null {
+  /**
+   * Save template from design editor.
+   * @param name - Template name
+   * @param category - Template category
+   * @param description - Template description
+   * @param content - Optional: current design JSON (Craft or clean format). If not provided, falls back to sessionStorage 'craftjs_preview_json'.
+   */
+  saveTemplate(name: string, category: string, description: string, content?: string | null): Template | null {
     if (typeof window === 'undefined') return null;
 
-    // Get current design from sessionStorage
-    const rawJson = sessionStorage.getItem('craftjs_preview_json');
-    if (!rawJson) return null;
+    // Use provided content (e.g. from preview page) or fall back to sessionStorage
+    const rawJson = content ?? sessionStorage.getItem('craftjs_preview_json');
+    if (!rawJson || !rawJson.trim()) return null;
 
     try {
-      // Import the serializer function
-      const { serializeCraftToClean } = require('@/app/design/_lib/serializer');
-      const cleanData = serializeCraftToClean(rawJson);
+      let cleanData: BuilderDocument;
+      const parsed = JSON.parse(rawJson) as Record<string, unknown>;
+
+      // Already clean format (from API/draft): has version + pages
+      if (typeof parsed?.version === 'number' && Array.isArray(parsed?.pages)) {
+        cleanData = parsed as BuilderDocument;
+      } else {
+        // Craft.js raw format: convert to clean
+        const { serializeCraftToClean } = require('@/app/design/_lib/serializer');
+        cleanData = serializeCraftToClean(rawJson);
+      }
 
       const template: Template = {
         id: `template-${Date.now()}`,
@@ -104,7 +118,7 @@ class TemplateService {
         category,
         description,
         desc: description,
-        thumbnail: '🎨',
+        thumbnail: '/api/placeholder/template',
         imageColor: 'from-blue-500 to-cyan-500',
         data: cleanData,
         createdAt: new Date(),
@@ -143,9 +157,18 @@ class TemplateService {
     return found || null;
   }
 
-  // Load template into design editor
-  async loadTemplate(templateId: string): Promise<boolean> {
-    console.log('Loading template:', templateId);
+  /** Session key must match editorShell's getStorageKey(projectId) so the design editor finds the template. */
+  private getEditorStorageKey(projectId?: string): string {
+    return projectId ? `craftjs_preview_json_${projectId}` : 'craftjs_preview_json';
+  }
+
+  /**
+   * Load template into design editor.
+   * @param templateId - Template id to load
+   * @param projectId - When opening design for a specific project, pass this so the editor's per-project session key is used. Otherwise the editor won't find the content and the canvas opens empty.
+   */
+  async loadTemplate(templateId: string, projectId?: string): Promise<boolean> {
+    console.log('Loading template:', templateId, projectId ? `for project ${projectId}` : '');
 
     if (typeof window === 'undefined') {
       console.log('Window is undefined');
@@ -161,16 +184,12 @@ class TemplateService {
     }
 
     try {
-      // Dynamic import for browser compatibility
       const { deserializeCleanToCraft } = await import('@/app/design/_lib/serializer');
-      console.log('Serializer imported:', deserializeCleanToCraft);
-
       const craftJson = deserializeCleanToCraft(template.data);
-      console.log('Craft JSON generated:', craftJson);
 
-      // Store in sessionStorage for the editor to pick up
-      sessionStorage.setItem('craftjs_preview_json', craftJson);
-      console.log('Stored in sessionStorage');
+      const key = this.getEditorStorageKey(projectId);
+      sessionStorage.setItem(key, craftJson);
+      console.log('Stored in sessionStorage under key:', key);
 
       return true;
     } catch (error) {

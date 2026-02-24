@@ -6,6 +6,8 @@ import { ensureFirebaseAuthForStorage } from "@/lib/firebase";
 
 type DesignProjectContextType = {
   projectId: string | null;
+  /** Current page ID being edited */
+  pageId: string | null;
   /** Client name for Storage path: {clientName}/... */
   clientName: string | null;
   /** Project name for Storage path: {clientName}/{websiteName}/... */
@@ -14,15 +16,18 @@ type DesignProjectContextType = {
 
 const DesignProjectContext = createContext<DesignProjectContextType>({
   projectId: null,
+  pageId: null,
   clientName: null,
   websiteName: null,
 });
 
 export function DesignProjectProvider({
   projectId,
+  pageId,
   children,
 }: {
   projectId: string;
+  pageId?: string | null;
   children: React.ReactNode;
 }) {
   const [clientName, setClientName] = useState<string | null>(null);
@@ -52,7 +57,7 @@ export function DesignProjectProvider({
   }, [projectId]);
 
   return (
-    <DesignProjectContext.Provider value={{ projectId, clientName, websiteName }}>
+    <DesignProjectContext.Provider value={{ projectId, pageId: pageId || null, clientName, websiteName }}>
       {children}
     </DesignProjectContext.Provider>
   );

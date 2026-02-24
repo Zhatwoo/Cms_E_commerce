@@ -196,7 +196,7 @@ export function CanvasContextMenu() {
   const canSendBackward = hasSelection && allSameParent && minSelectedIndex > 0 && actions.move;
 
   const handleCopy = () => {
-    copySelection(query, selectedIds);
+    copySelection(query as any, selectedIds);
     close();
   };
   const handlePasteHere = () => {
@@ -218,11 +218,11 @@ export function CanvasContextMenu() {
         atIndexOpt = lastIndex === -1 ? sibs.length : lastIndex + 1;
       }
     }
-    pasteClipboard(actions, query, { parentId: parentIdOpt, atIndex: atIndexOpt });
+    pasteClipboard(actions as any, query as any, { parentId: parentIdOpt, atIndex: atIndexOpt });
     close();
   };
   const handlePasteToReplace = () => {
-    if (singleSelected) pasteToReplaceSelection(actions, query, selectedIds);
+    if (singleSelected) pasteToReplaceSelection(actions as any, query as any, selectedIds);
     close();
   };
   const handleBringToFront = () => {
@@ -263,15 +263,15 @@ export function CanvasContextMenu() {
     close();
   };
   const handleGroup = () => {
-    groupSelection(actions, query, selectedIds);
+    groupSelection(actions as any, query as any, selectedIds);
     close();
   };
   const handleUngroup = () => {
-    ungroupSelection(actions, query, selectedIds);
+    ungroupSelection(actions as any, query as any, selectedIds);
     close();
   };
   const handleDuplicate = () => {
-    duplicateNodes(actions, query, selectedIds);
+      duplicateNodes(actions as any, query as any, selectedIds);
     close();
   };
   const handleShowHide = () => {
@@ -311,8 +311,8 @@ export function CanvasContextMenu() {
   const handleDelete = () => {
     if (!deletable) return;
     try {
-      actions.delete(selectedIds.length === 1 ? selectedIds[0]! : selectedIds);
-      actions.selectNode(null);
+      (actions as any).delete(selectedIds.length === 1 ? selectedIds[0]! : selectedIds);
+      (actions as any).selectNode(undefined);
     } catch { /* ignore */ }
     close();
   };

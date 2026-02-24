@@ -9,6 +9,7 @@ function DesignContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const projectId = searchParams.get("projectId");
+  const pageId = searchParams.get("pageId");
 
   useEffect(() => {
     if (!projectId) router.replace("/m_dashboard/web-builder");
@@ -23,8 +24,8 @@ function DesignContent() {
   }
 
   return (
-    <DesignProjectProvider projectId={projectId}>
-      <EditorShell projectId={projectId} />
+    <DesignProjectProvider projectId={projectId} pageId={pageId}>
+      <EditorShell projectId={projectId} pageId={pageId} />
     </DesignProjectProvider>
   );
 }

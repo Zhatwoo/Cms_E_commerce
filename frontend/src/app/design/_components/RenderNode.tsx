@@ -5,6 +5,8 @@ import { ResizeOverlay } from "./ResizeOverlay";
 import { useCanvasTool } from "./CanvasToolContext";
 
 export const RenderNode = ({ render }: { render: React.ReactElement }) => {
+  const activeTool = useCanvasTool();
+
   const {
     id,
     isSelectedEvent,
@@ -21,7 +23,6 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
     visibility: (node.data.props?.visibility as "visible" | "hidden" | undefined) ?? "visible",
   }));
 
-  const activeTool = useCanvasTool();
   const { isActive } = useEditor((_, query) => ({
     isActive: query.getEvent('selected').contains(id),
   }));

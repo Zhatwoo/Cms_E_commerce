@@ -8,12 +8,12 @@ import {
   RotateCw,
   Maximize2,
   Plus,
-  Smartphone,
   Tablet,
   Laptop,
   Monitor,
   ChevronDown,
 } from "lucide-react";
+import { PageNavigator, type PageTab } from "./PageNavigator";
 
 export type DevicePreset = {
   name: string;
@@ -22,27 +22,7 @@ export type DevicePreset = {
   icon: React.ReactNode;
 };
 
-const PHONE_PRESET: DevicePreset = {
-  name: "Mobile Portrait",
-  width: 375,
-  height: 667,
-  icon: <Smartphone className="w-4 h-4" />,
-};
-const DESKTOP_PRESET: DevicePreset = {
-  name: "Laptop",
-  width: 1440,
-  height: 900,
-  icon: <Laptop className="w-4 h-4" />,
-};
-
 const DEVICE_PRESETS: DevicePreset[] = [
-  PHONE_PRESET,
-  {
-    name: "Mobile Landscape",
-    width: 667,
-    height: 375,
-    icon: <Smartphone className="w-4 h-4 rotate-90" />,
-  },
   {
     name: "Tablet Portrait",
     width: 768,
@@ -80,6 +60,12 @@ interface TopPanelProps {
   onDevicePresetSelect?: (preset: DevicePreset) => void;
   showDualView?: boolean;
   onDualViewToggle?: () => void;
+  pages?: PageTab[];
+  currentPageId?: string | null;
+  onSelectPage?: (pageId: string) => void;
+  onAddPage?: () => void;
+  onDeletePage?: (pageId: string) => void;
+  onRenamePage?: (pageId: string, newName: string) => void;
 }
 
 export const TopPanel: React.FC<TopPanelProps> = ({
@@ -93,6 +79,12 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   onDevicePresetSelect,
   showDualView = false,
   onDualViewToggle,
+  pages = [],
+  currentPageId = null,
+  onSelectPage,
+  onAddPage,
+  onDeletePage,
+  onRenamePage,
 }) => {
   const { actions, query } = useEditor();
   const [showSizeDropdown, setShowSizeDropdown] = useState(false);
@@ -199,7 +191,21 @@ export const TopPanel: React.FC<TopPanelProps> = ({
     >
       <div className="flex items-center justify-between px-4 py-2 h-12">
         {/* Left Section - Canvas Controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {/* Page Navigator */}
+          {pages && pages.length > 0 && (
+            <PageNavigator
+              pages={pages}
+              currentPageId={currentPageId || null}
+              onSelectPage={onSelectPage || (() => {})}
+              onAddPage={onAddPage || (() => {})}
+              onDeletePage={onDeletePage || (() => {})}
+              onRenamePage={onRenamePage || (() => {})}
+            />
+          )}
+
+          <div className="w-px h-5 bg-white/10" />
+
           {/* Add Button */}
           <button
             onClick={onAddButton}
@@ -273,23 +279,8 @@ export const TopPanel: React.FC<TopPanelProps> = ({
           </div>
         </div>
 
-        {/* Right Section - Device Preview */}
+        {/* Right Section - Display size presets */}
         <div className="flex items-center gap-2">
-          {/* Phone preview toggle — show original + phone side by side */}
-          {onDualViewToggle && (
-            <button
-              onClick={onDualViewToggle}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors text-sm font-medium ${
-                showDualView
-                  ? "bg-brand-medium border-brand-light/30 text-brand-light"
-                  : "bg-brand-medium-dark border-white/10 text-brand-lighter hover:bg-brand-medium hover:text-brand-light"
-              }`}
-              title={showDualView ? "Hide phone preview" : "Show original + phone preview"}
-            >
-              <Smartphone className="w-4 h-4" />
-              <span>{showDualView ? "Phone + Desktop" : "Show phone"}</span>
-            </button>
-          )}
           {/* Device Preset Buttons */}
           <div className="flex items-center gap-1 bg-brand-medium-dark/50 rounded-lg p-1 border border-white/10">
             {DEVICE_PRESETS.map((preset, index) => (

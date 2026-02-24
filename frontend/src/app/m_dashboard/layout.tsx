@@ -1,6 +1,6 @@
 'use client';
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { DashboardSidebar } from './components/layout/sidebar';
 import { DashboardHeader } from './components/layout/header';
 import { ThemeProvider, useTheme } from './components/context/theme-context';
@@ -14,14 +14,49 @@ function DashboardLayoutContent({
 }) {
     const { user, loading } = useAuth();
     const router = useRouter();
+    const pathname = usePathname();
     const { colors } = useTheme();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const contentScrollRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
         if (!loading && !user) {
             router.replace('/auth/login');
         }
     }, [loading, user, router]);
+
+    useEffect(() => {
+        if (pathname === '/m_dashboard') {
+            contentScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+        }
+    }, [pathname]);
+
+    useLayoutEffect(() => {
+        const html = document.documentElement;
+        const body = document.body;
+
+        const prevHtmlOverflow = html.style.getPropertyValue('overflow');
+        const prevHtmlPriority = html.style.getPropertyPriority('overflow');
+        const prevBodyOverflow = body.style.getPropertyValue('overflow');
+        const prevBodyPriority = body.style.getPropertyPriority('overflow');
+
+        html.style.setProperty('overflow', 'hidden', 'important');
+        body.style.setProperty('overflow', 'hidden', 'important');
+
+        return () => {
+            if (prevHtmlOverflow) {
+                html.style.setProperty('overflow', prevHtmlOverflow, prevHtmlPriority || undefined);
+            } else {
+                html.style.removeProperty('overflow');
+            }
+
+            if (prevBodyOverflow) {
+                body.style.setProperty('overflow', prevBodyOverflow, prevBodyPriority || undefined);
+            } else {
+                body.style.removeProperty('overflow');
+            }
+        };
+    }, []);
 
     if (loading || !user) {
         return (
@@ -33,7 +68,7 @@ function DashboardLayoutContent({
 
     return (
         <div
-            className="min-h-screen flex transition-colors duration-300"
+            className="m-dashboard-shell h-screen w-full max-w-full flex overflow-hidden transition-colors duration-300"
             style={{ backgroundColor: colors.bg.primary, color: colors.text.primary }}
         >
             {/* Mobile sidebar drawer */}
@@ -62,16 +97,16 @@ function DashboardLayoutContent({
             </div>
 
             {/* Desktop sidebar */}
-            <div className="hidden lg:block">
+            <div className="hidden lg:flex lg:shrink-0">
                 <DashboardSidebar />
             </div>
 
             {/* Main content area */}
-            <div className="flex-1 flex flex-col min-h-screen">
-                <div className="sticky top-0 z-50" style={{ backgroundColor: colors.bg.primary }}>
+            <div ref={contentScrollRef} className="no-scrollbar flex min-w-0 flex-1 basis-0 flex-col h-screen overflow-y-auto overflow-x-hidden">
+                <div className="sticky top-0 z-50 shrink-0" style={{ backgroundColor: colors.bg.primary }}>
                     <DashboardHeader onMenuToggle={() => setSidebarOpen(true)} />
                 </div>
-                <main className="flex-1 px-4 sm:px-6 py-4 sm:py-6 overflow-x-hidden min-w-0 w-full max-w-full">
+                <main className="flex-1 min-w-0 max-w-full overflow-x-hidden px-4 sm:px-6 pt-5 sm:pt-7 pb-4 sm:pb-6">
                     {children}
                 </main>
                 <footer className="py-4 text-xs shrink-0 flex justify-center transition-colors duration-300" style={{ color: colors.text.muted }}>
