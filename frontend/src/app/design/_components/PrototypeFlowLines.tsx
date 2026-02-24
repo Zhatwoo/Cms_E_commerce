@@ -109,11 +109,30 @@ export const PrototypeFlowLines = () => {
           </marker>
         </defs>
         {lines.map((line, i) => {
-          const sx = line.sourceRect.left + line.sourceRect.width / 2;
-          const sy = line.sourceRect.bottom;
-          const tx = line.targetRect.left + line.targetRect.width / 2;
-          const ty = line.targetRect.top;
-          const path = `M ${sx} ${sy} C ${sx} ${sy + 40}, ${tx} ${ty - 40}, ${tx} ${ty}`;
+          const sourceCenterX = line.sourceRect.left + line.sourceRect.width / 2;
+          const sourceCenterY = line.sourceRect.top + line.sourceRect.height / 2;
+          const targetCenterX = line.targetRect.left + line.targetRect.width / 2;
+          const targetCenterY = line.targetRect.top + line.targetRect.height / 2;
+
+          const direction = targetCenterX >= sourceCenterX ? 1 : -1;
+
+          // Route from side edges (not center) to reduce overlap across page content.
+          const sx = direction > 0 ? line.sourceRect.right : line.sourceRect.left;
+          const sy = sourceCenterY;
+          const tx = direction > 0 ? line.targetRect.left : line.targetRect.right;
+          const ty = targetCenterY;
+
+          const dx = Math.abs(tx - sx);
+          const dy = Math.abs(ty - sy);
+          const horizontalCurve = Math.max(120, Math.min(340, dx * 0.45));
+          const verticalBend = Math.max(40, Math.min(180, dy * 0.25));
+
+          const c1x = sx + direction * horizontalCurve;
+          const c2x = tx - direction * horizontalCurve;
+          const c1y = sy - verticalBend;
+          const c2y = ty + verticalBend;
+
+          const path = `M ${sx} ${sy} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${tx} ${ty}`;
           return (
             <path
               key={i}

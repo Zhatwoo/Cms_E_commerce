@@ -26,6 +26,50 @@ interface CraftRawNode {
 
 type CraftRawDocument = Record<string, CraftRawNode>;
 
+function getResolvedType(node: CraftRawNode | null | undefined): string {
+  return (node?.type?.resolvedName ?? "").trim();
+}
+
+function isType(node: CraftRawNode | null | undefined, typeName: string): boolean {
+  return getResolvedType(node).toLowerCase() === typeName.toLowerCase();
+}
+
+function isPageOrViewport(node: CraftRawNode | null | undefined): boolean {
+  const t = getResolvedType(node).toLowerCase();
+  return t === "page" || t === "viewport";
+}
+
+/**
+ * Craft.js can serialize in two shapes:
+ * 1) Storage shape: { id: { type: { resolvedName }, nodes, props, ... } }
+ * 2) State shape:   { id: { type: ComponentRef, data: { nodes, props, displayName, ... } } }
+ * Normalize to shape 1 so findPageIdsFromRaw and the rest of the serializer work.
+ */
+function normalizeCraftRaw(parsed: Record<string, unknown>): CraftRawDocument {
+  const result: Record<string, CraftRawNode> = {};
+  for (const [id, value] of Object.entries(parsed)) {
+    if (!value || typeof value !== 'object') continue;
+    const v = value as Record<string, unknown>;
+    const data = v.data as Record<string, unknown> | undefined;
+    const typeObj = (v.type as { resolvedName?: string }) || (data?.type as { resolvedName?: string });
+    const resolvedName = typeObj?.resolvedName ?? (data?.displayName as string) ?? (v.displayName as string) ?? 'Unknown';
+    const nodes = (data?.nodes ?? v.nodes) as string[] | undefined;
+    const props = (data?.props ?? v.props) as Record<string, unknown> | undefined;
+    result[id] = {
+      type: { resolvedName },
+      isCanvas: (v.isCanvas as boolean) ?? false,
+      props: props ?? {},
+      displayName: (data?.displayName as string) ?? (v.displayName as string) ?? resolvedName,
+      custom: (v.custom as Record<string, unknown>) ?? {},
+      parent: (data?.parent ?? v.parent) as string | undefined,
+      hidden: (v.hidden as boolean) ?? false,
+      nodes: Array.isArray(nodes) ? nodes : [],
+      linkedNodes: (v.linkedNodes as Record<string, string>) ?? {},
+    };
+  }
+  return result as CraftRawDocument;
+}
+
 // ─── Default Props Registry ─────────────────────────────────────────────────
 // Maps component type → default props. Used to strip values that match defaults.
 // IMPORTANT: Keep in sync with each component's DefaultProps export.
@@ -369,6 +413,8 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
     width: "1920px",
     height: "1200px",
     background: "#ffffff",
+    canvasX: 0,
+    canvasY: 0,
     pageName: "Page Name",
     pageSlug: "page",
   },
@@ -426,31 +472,110 @@ function cleanProps(
 }
 
 /**
+ * Finds the Viewport node's child IDs (page IDs) from the raw Craft tree.
+ * Handles: ROOT -> Viewport -> Pages, ROOT (as Viewport) -> Pages, or ROOT -> X -> Viewport -> Pages.
+ * Fallback: if no Viewport found, collect all Page nodes reachable from ROOT (BFS order).
+ */
+function findPageIdsFromRaw(raw: CraftRawDocument): string[] {
+  const rootNode = raw["ROOT"];
+  if (!rootNode || !Array.isArray(rootNode.nodes)) return [];
+
+  if (isType(rootNode, "Viewport")) {
+    return rootNode.nodes;
+  }
+
+  const firstChildId = rootNode.nodes[0];
+  const firstChild = firstChildId ? raw[firstChildId] : null;
+  if (isType(firstChild, "Viewport")) {
+    return firstChild?.nodes ?? [];
+  }
+
+  // Walk tree from ROOT to find Viewport (e.g. ROOT -> Frame -> Viewport -> Pages)
+  const stack: string[] = [...rootNode.nodes];
+  while (stack.length > 0) {
+    const id = stack.pop()!;
+    const node = raw[id];
+    if (!node) continue;
+    if (isType(node, "Viewport")) {
+      return node.nodes ?? [];
+    }
+    if (Array.isArray(node.nodes) && node.nodes.length > 0) {
+      stack.push(...node.nodes);
+    }
+  }
+
+  // Fallback: collect all Page nodes reachable from ROOT (BFS order)
+  const pageIds: string[] = [];
+  const queue: string[] = [...rootNode.nodes];
+  const seen = new Set<string>(['ROOT']);
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const node = raw[id];
+    if (!node) continue;
+    if (isType(node, "Page")) {
+      pageIds.push(id);
+    }
+    if (Array.isArray(node.nodes)) {
+      queue.push(...node.nodes);
+    }
+  }
+  return pageIds;
+}
+
+/**
  * Transforms raw Craft.js serialized JSON into a clean BuilderDocument.
  *
  * @param rawJson - The JSON string from `query.serialize()`
  * @returns A clean, editor-agnostic BuilderDocument
  */
 export function serializeCraftToClean(rawJson: string): BuilderDocument {
-  const raw: CraftRawDocument = JSON.parse(rawJson);
+  const parsed = JSON.parse(rawJson) as Record<string, unknown>;
+  const raw = normalizeCraftRaw(parsed);
 
   const rootNode = raw["ROOT"];
   if (!rootNode) {
     throw new Error("Invalid Craft.js JSON: missing ROOT node");
   }
 
-  console.log('🔍 Serializer: ROOT nodes (Pages):', rootNode.nodes);
-
   const pages: PageNode[] = [];
   const nodes: Record<string, CleanNode> = {};
 
-  // ROOT's children are Pages (inside the Viewport)
-  const pageIds = rootNode.nodes;
+  const pageIds = findPageIdsFromRaw(raw);
+
+  // Backward compatibility: some drafts may have components directly under ROOT/Viewport
+  // without explicit Page nodes. Build a synthetic single page so preview/save won't be empty.
+  if (pageIds.length === 0) {
+    const rootChildren = Array.isArray(rootNode.nodes) ? rootNode.nodes : [];
+    const validChildren = rootChildren.filter((id) => {
+      const child = raw[id];
+      return !!child && !isPageOrViewport(child);
+    });
+
+    if (validChildren.length > 0) {
+      const syntheticPageId = "page-root";
+      pages.push({
+        id: syntheticPageId,
+        name: "Page 1",
+        slug: "page-0",
+        props: cleanProps("Page", {}),
+        children: validChildren,
+      });
+      processChildren(validChildren, raw, nodes);
+
+      return {
+        version: 2,
+        pages,
+        nodes,
+      };
+    }
+  }
 
   pageIds.forEach((pageId, index) => {
     const pageRaw = raw[pageId];
-    if (!pageRaw || pageRaw.type.resolvedName !== "Page") {
-      console.warn('⚠️ Serializer: Skipping node in ROOT that is not a Page:', pageId);
+    if (!pageRaw || !isType(pageRaw, "Page")) {
+      console.warn('⚠️ Serializer: Skipping node that is not a Page:', pageId);
       return;
     }
 
@@ -458,18 +583,21 @@ export function serializeCraftToClean(rawJson: string): BuilderDocument {
     const name = (pageProps.pageName as string) ?? `Page ${index + 1}`;
     const slug = (pageProps.pageSlug as string) ?? `page-${index}`;
 
+    const validChildren = (pageRaw.nodes ?? []).filter((childId) => {
+      const child = raw[childId];
+      return !!child && !isPageOrViewport(child);
+    });
+
     pages.push({
       id: pageId,
       name,
       slug,
       props: cleanProps("Page", pageRaw.props),
-      children: pageRaw.nodes,
+      children: validChildren,
     });
 
-    processChildren(pageRaw.nodes, raw, nodes);
+    processChildren(validChildren, raw, nodes);
   });
-
-  console.log(`✅ Serializer: Processed ${pages.length} pages and ${Object.keys(nodes).length} unique nodes.`);
 
   return {
     version: 2,
