@@ -163,6 +163,9 @@ type EditorShellProps = {
 const MIN_SCALE = 0.01;
 const MAX_SCALE = 3;
 const ZOOM_SENSITIVITY = 0.003;
+const infiniteCanvasWidthVw = 300;
+const infiniteCanvasHeightVh = 300;
+const infiniteCanvasPaddingPx = 400;
 
 /**
  * Deep validation function that walks through the entire Craft.js node tree

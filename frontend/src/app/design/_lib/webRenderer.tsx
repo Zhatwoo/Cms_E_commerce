@@ -1078,6 +1078,7 @@ function RenderNode({
   nodeId,
   onPrototypeAction,
   mobileBreakpoint,
+  enableFormInputs,
 }: {
   node: CleanNode;
   nodes: Record<string, CleanNode>;
@@ -1091,6 +1092,7 @@ function RenderNode({
   nodeId?: string;
   onPrototypeAction?: (interaction: Interaction) => void;
   mobileBreakpoint?: number;
+  enableFormInputs?: boolean;
 }): React.ReactElement {
   // Craft.js resolver uses lowercase keys (text, circle, etc.); normalize for switch/mergeProps
   const rawType = node.type as string;
@@ -1108,9 +1110,10 @@ function RenderNode({
   if (!isCollapsibleOpen(props, viewportWidth, interactionState, availableTriggerTargets)) {
     return <></>;
   }
+  const allowPreviewInput = Boolean(enableFormInputs && props.previewEditable === true);
   const toggleTarget = getToggleTarget(props);
   const triggerAction = getTriggerAction(props);
-  const interactiveClick = toggleTarget ? () => onToggle(toggleTarget, triggerAction) : undefined;
+  const interactiveClick = !allowPreviewInput && toggleTarget ? () => onToggle(toggleTarget, triggerAction) : undefined;
   const animation = props.animation as AnimationConfig | undefined;
   const prototype = props.prototype as PrototypeConfig | undefined;
   const childIds = node.children ?? [];
@@ -1132,6 +1135,7 @@ function RenderNode({
         nodeId={id}
         onPrototypeAction={onPrototypeAction}
         mobileBreakpoint={mobileBreakpoint}
+        enableFormInputs={enableFormInputs}
       />
     );
   });
@@ -1500,27 +1504,53 @@ function RenderNode({
       const flipH = props.flipHorizontal === true;
       const flipV = props.flipVertical === true;
       const textTransformStyle = [rot ? `rotate(${rot}deg)` : null, flipH ? "scaleX(-1)" : null, flipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
+      const textStyle: React.CSSProperties = {
+        fontSize: px(props.fontSize),
+        fontFamily: (props.fontFamily as string) || "Inter",
+        fontWeight: props.fontWeight as string,
+        lineHeight: props.lineHeight as number,
+        letterSpacing: px(props.letterSpacing),
+        textAlign: props.textAlign as React.CSSProperties["textAlign"],
+        textTransform: props.textTransform as React.CSSProperties["textTransform"],
+        color: (props.color as string) || "#000000",
+        margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
+        padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
+        opacity: props.opacity as number,
+        boxShadow: props.boxShadow as string,
+        cursor: allowPreviewInput ? "text" : (interactiveClick ? "pointer" : undefined),
+        transform: textTransformStyle,
+        transformOrigin: "center center",
+        whiteSpace: "pre-wrap",
+        wordBreak: "break-word",
+      };
+
+      if (allowPreviewInput) {
+        const previewInputStyle = {
+          ...textStyle,
+          color: "#111827",
+          background: "transparent",
+          border: "none",
+          outline: "none",
+          width: "100%",
+          minWidth: 0,
+          "--placeholder-color": (props.color as string) || "#94a3b8",
+        } as React.CSSProperties;
+
+        return wrapWithAnimation(
+          <input
+            type="text"
+            defaultValue=""
+            placeholder={textContent}
+            aria-label={textContent}
+            className="preview-input"
+            style={previewInputStyle}
+          />,
+          animation
+        );
+      }
+
       return wrap(
-        <div
-          style={{
-            fontSize: px(props.fontSize),
-            fontFamily: (props.fontFamily as string) || "Inter",
-            fontWeight: props.fontWeight as string,
-            lineHeight: props.lineHeight as number,
-            letterSpacing: px(props.letterSpacing),
-            textAlign: props.textAlign as React.CSSProperties["textAlign"],
-            textTransform: props.textTransform as React.CSSProperties["textTransform"],
-            color: (props.color as string) || "#000000",
-            margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
-            padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
-            opacity: props.opacity as number,
-            boxShadow: props.boxShadow as string,
-            cursor: interactiveClick ? "pointer" : undefined,
-            transform: textTransformStyle,
-            transformOrigin: "center center",
-          }}
-          onClick={interactiveClick}
-        >
+        <div style={textStyle} onClick={interactiveClick}>
           {textContent}
         </div>
       );
@@ -1841,6 +1871,7 @@ export function WebPreview({
   storeContext,
   simulatedWidth,
   mobileBreakpoint,
+  enableFormInputs = false,
 }: {
   doc: BuilderDocument;
   pageIndex?: number;
@@ -1849,6 +1880,7 @@ export function WebPreview({
   storeContext?: StoreContext | null;
   simulatedWidth?: number;
   mobileBreakpoint?: number;
+  enableFormInputs?: boolean;
 }): React.ReactElement {
   const safePages = doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page));
   const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
@@ -1981,6 +2013,7 @@ export function WebPreview({
             nodeId={id}
             onPrototypeAction={onPrototypeAction}
             mobileBreakpoint={mobileBreakpoint}
+            enableFormInputs={enableFormInputs}
           />
         );
       })}
@@ -1997,6 +2030,17 @@ export function WebPreview({
         @keyframes page-slide-down { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes page-push { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         @keyframes page-move-in { from { opacity: 0; } to { opacity: 1; } }
+        .preview-input {
+          background: transparent;
+          border: none;
+          outline: none;
+          width: 100%;
+          min-width: 0;
+        }
+        .preview-input::placeholder {
+          color: var(--placeholder-color, #94a3b8);
+          opacity: 1;
+        }
         /* Responsive preview styles */
         @media (max-width: 900px) {
           .responsive-preview {
