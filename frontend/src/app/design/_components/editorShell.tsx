@@ -307,6 +307,17 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
   }
 }
 
+// Suppress React 19 "element.ref" warning from @craftjs/core internals which haven't
+// been updated yet for React 19's new ref-as-prop API. Safe to remove once craftjs
+// releases a stable React 19 compatible version (0.3.x+).
+if (typeof window !== "undefined") {
+  const _origConsoleError = console.error.bind(console);
+  console.error = (...args: unknown[]) => {
+    if (typeof args[0] === "string" && args[0].includes("Accessing element.ref was removed")) return;
+    _origConsoleError(...args);
+  };
+}
+
 /**
  * Renders Frame only after the first commit (via useEffect), so Craft's store updates
  * happen in a separate commit and don't trigger "Cannot update Ee while rendering De".
