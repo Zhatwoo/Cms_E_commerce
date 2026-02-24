@@ -200,6 +200,10 @@ export interface PageProps extends AnimatableProps, InteractableProps {
   width?: string;
   height?: string;
   background?: string;
+  /** Whiteboard X position in px. */
+  canvasX?: number;
+  /** Whiteboard Y position in px. */
+  canvasY?: number;
   /** User-editable page name (e.g. "About Us"). */
   pageName?: string;
   /** URL slug for navigation (e.g. "about-us"). Auto-derived from pageName if not set. */

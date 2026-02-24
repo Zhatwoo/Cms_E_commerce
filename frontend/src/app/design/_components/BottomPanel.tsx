@@ -50,7 +50,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
     try {
       actions?.history?.redo?.();
     } catch {
-      // nothing to redo
+      
     }
   };
 

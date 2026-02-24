@@ -14,6 +14,7 @@ import { createPortal } from "react-dom";
 import html2canvas from "html2canvas";
 //vdxvx
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
+const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 
 type ViewMode = "Web-Preview" | "clean" | "raw";
 type PreviewViewport = "desktop" | "tablet" | "mobile";
@@ -106,11 +107,31 @@ function PreviewContent() {
   const previewRef = useRef<HTMLDivElement | null>(null);
   const thumbnailCaptureRef = useRef(false);
 
+  const readSessionSnapshot = (targetProjectId: string): string | null => {
+    if (typeof window === "undefined") return null;
+    try {
+      const perProject = window.sessionStorage.getItem(`${STORAGE_KEY_PREFIX}_${targetProjectId}`);
+      if (perProject) return perProject;
+      return window.sessionStorage.getItem(STORAGE_KEY_PREFIX);
+    } catch {
+      return null;
+    }
+  };
+
   useEffect(() => {
     async function loadData() {
       try {
+        const sessionSnapshot = readSessionSnapshot(projectId);
+        if (sessionSnapshot) {
+          console.log('✅ Preview: Loaded latest snapshot from sessionStorage');
+          setRawJson(sessionSnapshot);
+          setLoading(false);
+          return;
+        }
+
         console.log(`📡 Preview: Fetching draft for Project: ${projectId}...`);
         const result = await getDraft(projectId);
+        let loaded = false;
 
         if (result.success && result.data) {
           console.log('✅ Preview: API result success. Keys in data:', Object.keys(result.data));
@@ -126,6 +147,7 @@ function PreviewContent() {
             } else {
               setRawJson(content);
             }
+            loaded = true;
             console.log('✅ Preview: Data loaded');
           } else {
             console.warn('⚠️ Preview: No content found in result data');
@@ -133,8 +155,21 @@ function PreviewContent() {
         } else {
           console.warn('⚠️ Preview: API success=false or no data found');
         }
+
+        if (!loaded) {
+          const fallback = readSessionSnapshot(projectId);
+          if (fallback) {
+            console.log('✅ Preview: Loaded fallback snapshot from sessionStorage');
+            setRawJson(fallback);
+          }
+        }
       } catch (error) {
         console.error('❌ Preview: Load error:', error);
+        const fallback = readSessionSnapshot(projectId);
+        if (fallback) {
+          console.log('✅ Preview: Loaded fallback snapshot after API error');
+          setRawJson(fallback);
+        }
       } finally {
         setLoading(false);
       }

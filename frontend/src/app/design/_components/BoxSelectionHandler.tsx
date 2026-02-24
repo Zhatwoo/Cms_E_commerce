@@ -27,7 +27,6 @@ export const BoxSelectionHandler = () => {
     currentX: number;
     currentY: number;
   } | null>(null);
-  const startedOnEmptyRef = useRef(false);
 
   // Cancel marquee when Space is pressed (user wants pan, not box select)
   useEffect(() => {
