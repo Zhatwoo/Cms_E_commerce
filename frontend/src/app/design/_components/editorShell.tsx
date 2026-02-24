@@ -499,20 +499,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [showDualView, setShowDualView] = useState(false);
   const [suppressDropIndicator, setSuppressDropIndicator] = useState(false);
   const [dropIndicatorPulse, setDropIndicatorPulse] = useState(false);
-<<<<<<< HEAD
-
-  // Infinite canvas wrapper size (vw/vh) and padding so the pannable area has a minimum size
-  const infiniteCanvasWidthVw = 300;
-  const infiniteCanvasHeightVh = 300;
-  const infiniteCanvasPaddingPx = 200;
-
-=======
   const hasInitialCenteringRef = useRef(false);
   const zoomOutPanBoost = scale < 1 ? 1 / Math.max(scale, MIN_SCALE) : 1;
   const infiniteCanvasWidthVw = Math.round(INFINITE_CANVAS_WIDTH_VW * zoomOutPanBoost);
   const infiniteCanvasHeightVh = Math.round(INFINITE_CANVAS_HEIGHT_VH * zoomOutPanBoost);
   const infiniteCanvasPaddingPx = Math.round(INFINITE_CANVAS_PADDING_PX * zoomOutPanBoost);
->>>>>>> 146b0b9ba63d08cfd39211b2b75d0e6e7005aae9
   // Cleanup corrupted data when error boundary triggers
   const handleFrameError = useCallback(async () => {
     if (errorCleanupDoneRef.current) return;
