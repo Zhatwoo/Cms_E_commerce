@@ -163,6 +163,9 @@ type EditorShellProps = {
 const MIN_SCALE = 0.01;
 const MAX_SCALE = 3;
 const ZOOM_SENSITIVITY = 0.003;
+const infiniteCanvasWidthVw = 300;
+const infiniteCanvasHeightVh = 300;
+const infiniteCanvasPaddingPx = 400;
 
 /**
  * Deep validation function that walks through the entire Craft.js node tree
@@ -494,6 +497,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [activeTool, setActiveTool] = useState<CanvasTool>("move");
   const [frameReady, setFrameReady] = useState(false);
   const [showDualView, setShowDualView] = useState(false);
+  const [suppressDropIndicator, setSuppressDropIndicator] = useState(false);
+  const [dropIndicatorPulse, setDropIndicatorPulse] = useState(false);
   // Cleanup corrupted data when error boundary triggers
   const handleFrameError = useCallback(async () => {
     if (errorCleanupDoneRef.current) return;

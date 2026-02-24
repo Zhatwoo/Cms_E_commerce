@@ -162,6 +162,8 @@ export interface TextProps extends SpacingProps, TypographyProps, TransformProps
   text: string;
   opacity?: number;
   boxShadow?: string;
+  /** When true, allow typing into this text element in preview mode. */
+  previewEditable?: boolean;
 }
 
 /** Image component props — media display with sizing, corners, and effects. */
