@@ -47,6 +47,7 @@ export const Page = ({
   return (
     <div
       data-node-id={id}
+      data-page-node="true"
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
