@@ -155,9 +155,9 @@ const MIN_SCALE = 0.01;
 const MAX_SCALE = 3;
 const DEFAULT_SCALE = 0.5;
 const ZOOM_SENSITIVITY = 0.003;
-const INFINITE_CANVAS_WIDTH_VW = 500;
-const INFINITE_CANVAS_HEIGHT_VH = 500;
-const INFINITE_CANVAS_PADDING_PX = 600;
+const infiniteCanvasWidthVw = 300;
+const infiniteCanvasHeightVh = 300;
+const infiniteCanvasPaddingPx = 400;
 
 /**
  * Deep validation function that walks through the entire Craft.js node tree
@@ -300,6 +300,21 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
     console.error('❌ Validation error:', error);
     return { valid: false };
   }
+}
+
+// Suppress known @craftjs/core React 19 compatibility warnings.
+// Safe to remove once craftjs releases a stable React 19 compatible version (0.3.x+).
+if (typeof window !== "undefined") {
+  const _origConsoleError = console.error.bind(console);
+  console.error = (...args: unknown[]) => {
+    if (typeof args[0] === "string") {
+      // React 19 removed element.ref access — craftjs still uses old API internally
+      if (args[0].includes("Accessing element.ref was removed")) return;
+      // craftjs store updates trigger setState during Frame render in React 19 concurrent mode
+      if (args[0].includes("Cannot update a component") && args[0].includes("while rendering a different component")) return;
+    }
+    _origConsoleError(...args);
+  };
 }
 
 /**
@@ -491,41 +506,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [showDualView, setShowDualView] = useState(false);
   const [suppressDropIndicator, setSuppressDropIndicator] = useState(false);
   const [dropIndicatorPulse, setDropIndicatorPulse] = useState(false);
-  const hasUserMovedCanvasRef = useRef(false);
-  const zoomOutPanBoost = scale < 1 ? 1 / Math.max(scale, MIN_SCALE) : 1;
-  const infiniteCanvasWidthVw = Math.round(INFINITE_CANVAS_WIDTH_VW * zoomOutPanBoost);
-  const infiniteCanvasHeightVh = Math.round(INFINITE_CANVAS_HEIGHT_VH * zoomOutPanBoost);
-  const infiniteCanvasPaddingPx = Math.round(INFINITE_CANVAS_PADDING_PX * zoomOutPanBoost);
-  const centerCanvasInView = useCallback(() => {
-    const container = containerRef.current;
-    if (!container || hasUserMovedCanvasRef.current) return;
-    const desktopViewportRoot = container.querySelector<HTMLElement>("[data-viewport-desktop]");
-    const pageElement =
-      desktopViewportRoot?.querySelector<HTMLElement>("[data-page-node='true']") ?? null;
-    const mobilePreviewPanel = container.querySelector<HTMLElement>("[data-mobile-preview-panel='true']");
-
-    if (pageElement) {
-      const containerRect = container.getBoundingClientRect();
-      const pageRect = pageElement.getBoundingClientRect();
-      const targetLeft = mobilePreviewPanel ? Math.min(pageRect.left, mobilePreviewPanel.getBoundingClientRect().left) : pageRect.left;
-      const targetTop = mobilePreviewPanel ? Math.min(pageRect.top, mobilePreviewPanel.getBoundingClientRect().top) : pageRect.top;
-      const targetRight = mobilePreviewPanel ? Math.max(pageRect.right, mobilePreviewPanel.getBoundingClientRect().right) : pageRect.right;
-      const targetBottom = mobilePreviewPanel ? Math.max(pageRect.bottom, mobilePreviewPanel.getBoundingClientRect().bottom) : pageRect.bottom;
-      const pageCenterX = targetLeft + (targetRight - targetLeft) / 2;
-      const pageCenterY = targetTop + (targetBottom - targetTop) / 2;
-      const viewportCenterX = containerRect.left + container.clientWidth / 2;
-      const viewportCenterY = containerRect.top + container.clientHeight / 2;
-
-      container.scrollLeft += pageCenterX - viewportCenterX;
-      container.scrollTop += pageCenterY - viewportCenterY;
-      return;
-    }
-
-    const x = (container.scrollWidth - container.clientWidth) / 2;
-    const y = (container.scrollHeight - container.clientHeight) / 2;
-    container.scrollLeft = x;
-    container.scrollTop = y;
-  }, []);
+  const zoomFactor = Math.max(scale, 1);
+  const infiniteCanvasWidthVw = Math.max(220, Math.round(220 * zoomFactor));
+  const infiniteCanvasHeightVh = Math.max(220, Math.round(220 * zoomFactor));
+  const infiniteCanvasPaddingPx = Math.max(160, Math.round(160 * zoomFactor));
   // Cleanup corrupted data when error boundary triggers
   const handleFrameError = useCallback(async () => {
     if (errorCleanupDoneRef.current) return;
@@ -1505,4 +1489,3 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     </div>
   );
 };
-    
