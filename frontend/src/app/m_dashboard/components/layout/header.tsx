@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { logout, type User } from '@/lib/api';
 import { useTheme } from '../context/theme-context';
 import { useAuth } from '../context/auth-context';
+import { useProject } from '../context/project-context';
 
 const SunIcon = () => (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -72,6 +73,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     const { theme, toggleTheme, colors } = useTheme();
     const [showMenu, setShowMenu] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
+    const { selectedProject, setSelectedProjectId } = useProject();
     const userName = user?.name || user?.email || '';
     const unreadCount = NOTIFICATIONS.filter((n) => n.unread).length;
 
@@ -106,7 +108,29 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                     </button>
                 </div>
 
-                <div className="flex-1" />
+                <div className="flex-1 flex items-center justify-center">
+                    {selectedProject && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setSelectedProjectId(null);
+                                router.push('/m_dashboard');
+                            }}
+                            className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+                            style={{ borderColor: colors.border.faint, color: colors.text.secondary }}
+                        >
+                            <span className="truncate max-w-[160px]">
+                                {selectedProject.title || 'Untitled website'}
+                            </span>
+                            <span
+                                className="text-[10px] px-2 py-0.5 rounded-full"
+                                style={{ backgroundColor: colors.bg.elevated, color: colors.text.muted }}
+                            >
+                                Switch
+                            </span>
+                        </button>
+                    )}
+                </div>
 
                 <div className="flex items-center gap-4">
                     <button
