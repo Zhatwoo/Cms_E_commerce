@@ -1068,6 +1068,7 @@ function wrapWithPrototype(
 function RenderNode({
   node,
   nodes,
+  pages,
   pageIndex,
   viewportWidth,
   interactionState,
@@ -1080,6 +1081,7 @@ function RenderNode({
 }: {
   node: CleanNode;
   nodes: Record<string, CleanNode>;
+  pages: PreviewPageMeta[];
   pageIndex: number;
   viewportWidth: number;
   interactionState: Record<string, boolean>;
@@ -1120,6 +1122,7 @@ function RenderNode({
         key={id}
         node={n}
         nodes={nodes}
+        pages={pages}
         pageIndex={pageIndex}
         viewportWidth={viewportWidth}
         interactionState={interactionState}
@@ -1565,6 +1568,7 @@ function RenderNode({
       const link =
         explicitLink ||
         (storeContext ? getDefaultLinkForLabel(labelStr) : "");
+      const internalTargetSlug = link ? resolveInternalPageSlug(link, pages) : null;
       const btnRot = toNumber(props.rotation, 0);
       const btnFlipH = props.flipHorizontal === true;
       const btnFlipV = props.flipVertical === true;
@@ -1596,6 +1600,25 @@ function RenderNode({
       if (interactiveClick) {
         return wrapWithAnimation(content, animation);
       }
+      if (internalTargetSlug && onPrototypeAction) {
+        return wrap(
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onPrototypeAction({
+                trigger: "click",
+                action: "navigateTo",
+                destination: internalTargetSlug,
+              });
+            }}
+            style={{ all: "unset", display: "inline-block", cursor: "pointer" }}
+          >
+            {content}
+          </button>
+        );
+      }
       if (link) {
         return wrap(
           <a href={link} style={{ textDecoration: "none" }}>
@@ -1620,7 +1643,7 @@ function RenderNode({
       );
 
     case "Icon":
-      return wrapWithAnimation(
+      return wrap(
         <div onClick={interactiveClick}>
           <DesignIcon
             iconType={props.iconType as string}
@@ -1641,8 +1664,7 @@ function RenderNode({
             opacity={toNumber(props.opacity, 1)}
             link={props.link as string}
           />
-        </div>,
-        animation
+        </div>
       );
 
     case "Circle":
@@ -1665,7 +1687,7 @@ function RenderNode({
       const overlay = props.backgroundOverlay as string;
       const triangleStroke = `${toNumber(props.borderWidth, 0)}px ${props.borderStyle as string} ${props.borderColor as string}`;
 
-      return wrapWithAnimation(
+      return wrap(
         <div
           style={{
             width: w,
@@ -1744,8 +1766,7 @@ function RenderNode({
             </svg>
           ) : null}
           {children}
-        </div>,
-        animation
+        </div>
       );
     }
 
@@ -1756,6 +1777,50 @@ function RenderNode({
 
 function getPageSlug(page: { slug?: string } | null | undefined, index: number): string {
   return page?.slug ?? `page-${index}`;
+}
+
+type PreviewPageMeta = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
+function normalizeNavToken(value: string): string {
+  return value.trim().replace(/^\/+/, "").toLowerCase();
+}
+
+function resolveInternalPageSlug(destination: string | undefined, pages: PreviewPageMeta[]): string | null {
+  if (!destination) return null;
+
+  const raw = destination.trim();
+  if (!raw) return null;
+
+  const normalized = normalizeNavToken(raw);
+
+  const bySlug = pages.find((p) => normalizeNavToken(p.slug) === normalized);
+  if (bySlug) return bySlug.slug;
+
+  const byName = pages.find((p) => normalizeNavToken(p.name) === normalized);
+  if (byName) return byName.slug;
+
+  const byId = pages.find((p) => normalizeNavToken(p.id) === normalized);
+  if (byId) return byId.slug;
+
+  if (raw.startsWith("?")) {
+    try {
+      const q = new URLSearchParams(raw.replace(/^\?/, ""));
+      const pageParam = q.get("page") ?? "";
+      const resolved = resolveInternalPageSlug(pageParam, pages);
+      if (resolved) return resolved;
+    } catch {
+      return null;
+    }
+  }
+
+  if (raw.startsWith("#")) return null;
+  if (raw.startsWith("http://") || raw.startsWith("https://") || raw.startsWith("mailto:")) return null;
+
+  return null;
 }
 
 const PAGE_TRANSITION_STYLES: Record<TransitionType, React.CSSProperties> = {
@@ -1794,18 +1859,37 @@ export function WebPreview({
 
   const currentPage = safePages.find((p, i) => getPageSlug(p, i) === currentPageSlug) ?? safePages[0];
   const currentPageIndex = safePages.findIndex((p, i) => getPageSlug(p, i) === currentPageSlug);
+  const pageMeta = React.useMemo<PreviewPageMeta[]>(
+    () => safePages.map((p, i) => ({
+      id: p.id,
+      name: p.name || (p.props?.pageName as string) || `Page ${i + 1}`,
+      slug: getPageSlug(p, i),
+    })),
+    [safePages]
+  );
 
   const onPrototypeAction = useCallback(
     (interaction: Interaction) => {
       const duration = (interaction.duration ?? 300) / 1000;
       if (interaction.action === "navigateTo" && interaction.destination) {
-        setHistory((h) => [...h, currentPageSlug]);
-        const trans = interaction.transition ?? "dissolve";
-        setTransitionStyle({
-          ...PAGE_TRANSITION_STYLES[trans],
-          animationDuration: `${duration}s`,
-        });
-        setCurrentPageSlug(interaction.destination);
+        const internalSlug = resolveInternalPageSlug(interaction.destination, pageMeta);
+        if (internalSlug) {
+          setHistory((h) => [...h, currentPageSlug]);
+          const trans = interaction.transition ?? "dissolve";
+          setTransitionStyle({
+            ...PAGE_TRANSITION_STYLES[trans],
+            animationDuration: `${duration}s`,
+          });
+          setCurrentPageSlug(internalSlug);
+        } else if (interaction.destination.startsWith("#")) {
+          document.getElementById(interaction.destination.slice(1))?.scrollIntoView({ behavior: "smooth" });
+        } else if (
+          interaction.destination.startsWith("http://") ||
+          interaction.destination.startsWith("https://") ||
+          interaction.destination.startsWith("mailto:")
+        ) {
+          window.open(interaction.destination, "_blank", "noopener");
+        }
       } else if (interaction.action === "back") {
         if (history.length > 0) {
           const prev = history[history.length - 1];
@@ -1819,11 +1903,18 @@ export function WebPreview({
         document.getElementById(interaction.destination)?.scrollIntoView({ behavior: "smooth" });
       }
     },
-    [currentPageSlug, history]
+    [currentPageSlug, history, pageMeta]
   );
 
   if (!currentPage) {
-    return <div style={{ padding: 24, color: "#666" }}>No page to display.</div>;
+    const hasPages = safePages.length > 0;
+    return (
+      <div style={{ padding: 24, color: "#666", textAlign: "center", maxWidth: 360 }}>
+        {hasPages
+          ? "No page to display."
+          : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
+      </div>
+    );
   }
 
   const pageProps = mergeProps("Page", currentPage.props) as Record<string, unknown>;
@@ -1873,11 +1964,14 @@ export function WebPreview({
       {currentPage.children.map((id) => {
         const node = doc.nodes[id];
         if (!node) return null;
+        const childType = String(node.type || "").toLowerCase();
+        if (childType === "page") return null;
         return (
           <RenderNode
             key={id}
             node={node}
             nodes={doc.nodes}
+            pages={pageMeta}
             pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
             viewportWidth={viewportWidth}
             interactionState={interactionState}
@@ -1982,9 +2076,24 @@ export function LiveSite({
 
   const currentPage = safePages.find((p, i) => getPageSlug(p, i) === currentPageSlug) ?? safePages[0];
   const currentPageIndex = safePages.findIndex((p, i) => getPageSlug(p, i) === currentPageSlug);
+  const pageMeta = React.useMemo<PreviewPageMeta[]>(
+    () => safePages.map((p, i) => ({
+      id: p.id,
+      name: p.name || (p.props?.pageName as string) || `Page ${i + 1}`,
+      slug: getPageSlug(p, i),
+    })),
+    [safePages]
+  );
 
   if (!currentPage) {
-    return <div style={{ padding: 24, color: "#666" }}>No page to display.</div>;
+    const hasPages = safePages.length > 0;
+    return (
+      <div style={{ padding: 24, color: "#666", textAlign: "center", maxWidth: 360 }}>
+        {hasPages
+          ? "No page to display."
+          : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
+      </div>
+    );
   }
 
   const pageProps = mergeProps("Page", currentPage.props) as Record<string, unknown>;
@@ -2030,8 +2139,8 @@ export function LiveSite({
       document.getElementById(interaction.destination)?.scrollIntoView({ behavior: "smooth" });
     } else if (interaction.action === "navigateTo" && interaction.destination) {
       const dest = interaction.destination;
-      const isPageSlug = safePages.some((p, i) => getPageSlug(p, i) === dest);
-      if (isPageSlug) {
+      const internalSlug = resolveInternalPageSlug(dest, pageMeta);
+      if (internalSlug) {
         setHistory((h) => [...h, currentPageSlug]);
         const duration = (interaction.duration ?? 300) / 1000;
         const trans = (interaction.transition as keyof typeof PAGE_TRANSITION_STYLES) ?? "dissolve";
@@ -2039,9 +2148,9 @@ export function LiveSite({
           ...PAGE_TRANSITION_STYLES[trans],
           animationDuration: `${duration}s`,
         });
-        setCurrentPageSlug(dest);
+        setCurrentPageSlug(internalSlug);
       } else {
-        const el = document.getElementById(dest);
+        const el = document.getElementById(dest.startsWith("#") ? dest.slice(1) : dest);
         if (el) {
           el.scrollIntoView({ behavior: "smooth" });
         } else if (dest.startsWith("http://") || dest.startsWith("https://") || dest.startsWith("mailto:") || dest.startsWith("/")) {
@@ -2058,18 +2167,21 @@ export function LiveSite({
         window.history.back();
       }
     }
-  }, [currentPageSlug, doc.pages, history]);
+  }, [currentPageSlug, history, pageMeta]);
 
   const pageChildren = (
     <>
       {currentPage.children.map((id) => {
         const node = doc.nodes[id];
         if (!node) return null;
+        const childType = String(node.type || "").toLowerCase();
+        if (childType === "page") return null;
         return (
           <RenderNode
             key={id}
             node={node}
             nodes={doc.nodes}
+            pages={pageMeta}
             pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
             viewportWidth={viewportWidth}
             interactionState={interactionState}

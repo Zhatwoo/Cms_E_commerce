@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useTheme } from '../context/theme-context';
 import { useAlert } from '../context/alert-context';
+import { useProject } from '../context/project-context';
 import { listProjects, createProject, getStoredUser, type Project } from '@/lib/api';
 import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
 import { DraftPreviewThumbnail } from '../projects/DraftPreviewThumbnail';
@@ -30,6 +31,7 @@ export function RecentProjects() {
   const { theme, colors } = useTheme();
   const router = useRouter();
   const { showAlert } = useAlert();
+  const { selectedProject, setSelectedProjectId } = useProject();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
@@ -115,6 +117,10 @@ export function RecentProjects() {
       setCreateModalOpen(false);
       setCreateTitle('');
       setCreateSubdomain('');
+      // Only treat as a new website/instance if none is currently selected.
+      if (!selectedProject) {
+        setSelectedProjectId(res.project.id);
+      }
       router.push(`/design?projectId=${res.project.id}`);
     } catch (error) {
       const msg = error instanceof Error ? error.message : '';
@@ -127,6 +133,10 @@ export function RecentProjects() {
       setCreating(false);
     }
   };
+
+  const visibleProjects = selectedProject
+    ? projects.filter((p) => p.id === selectedProject.id)
+    : projects;
 
   return (
     <div className="mb-8 md:mb-12 w-full min-w-0 max-w-full overflow-x-hidden">
@@ -160,7 +170,7 @@ export function RecentProjects() {
             </div>
           ))}
         </div>
-      ) : projects.length === 0 ? (
+      ) : visibleProjects.length === 0 ? (
         <div className="text-center py-16">
           <div className="flex justify-center mb-4" style={{ color: colors.text.muted, opacity: 0.3 }}>
             <ImageIcon />
@@ -211,7 +221,7 @@ export function RecentProjects() {
             </div>
           </motion.button>
 
-          {projects.map((project, idx) => (
+          {visibleProjects.map((project, idx) => (
             <motion.div
               key={project.id}
               className="cursor-pointer group/card flex-shrink-0 w-[calc(50%-8px)] sm:w-[calc(33.333%-11px)] md:w-[240px] lg:w-[240px]"

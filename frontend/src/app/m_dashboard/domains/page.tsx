@@ -16,10 +16,7 @@ import {
   Check,
   AlertCircle,
   Clock,
-  TrendingUp,
-  X,
-  Calendar,
-  FileText
+  TrendingUp
 } from 'lucide-react';
 
 const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'websitelink';

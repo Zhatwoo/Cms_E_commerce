@@ -13,7 +13,6 @@ import {
   Monitor,
   ChevronDown,
 } from "lucide-react";
-import { PageNavigator, type PageTab } from "./PageNavigator";
 
 export type DevicePreset = {
   name: string;
@@ -49,6 +48,10 @@ const DEVICE_PRESETS: DevicePreset[] = [
   },
 ];
 
+const MIN_SCALE = 0.01;
+const MAX_SCALE = 3;
+const ZOOM_STEP = 0.15;
+
 interface TopPanelProps {
   scale: number;
   onScaleChange: (scale: number) => void;
@@ -60,12 +63,6 @@ interface TopPanelProps {
   onDevicePresetSelect?: (preset: DevicePreset) => void;
   showDualView?: boolean;
   onDualViewToggle?: () => void;
-  pages?: PageTab[];
-  currentPageId?: string | null;
-  onSelectPage?: (pageId: string) => void;
-  onAddPage?: () => void;
-  onDeletePage?: (pageId: string) => void;
-  onRenamePage?: (pageId: string, newName: string) => void;
 }
 
 export const TopPanel: React.FC<TopPanelProps> = ({
@@ -79,16 +76,11 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   onDevicePresetSelect,
   showDualView = false,
   onDualViewToggle,
-  pages = [],
-  currentPageId = null,
-  onSelectPage,
-  onAddPage,
-  onDeletePage,
-  onRenamePage,
 }) => {
   const { actions, query } = useEditor();
   const [showSizeDropdown, setShowSizeDropdown] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<DevicePreset | null>(null);
+
   const [canvasRotation, setCanvasRotation] = useState(0);
   const sizeDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -118,12 +110,12 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   }, [canvasWidth, canvasHeight]);
 
   const handleZoomIn = () => {
-    const newScale = Math.min(scale + 0.1, 3);
+    const newScale = Math.min(scale + ZOOM_STEP, MAX_SCALE);
     onScaleChange(newScale);
   };
 
   const handleZoomOut = () => {
-    const newScale = Math.max(scale - 0.1, 0.3);
+    const newScale = Math.max(scale - ZOOM_STEP, MIN_SCALE);
     onScaleChange(newScale);
   };
 
@@ -192,20 +184,6 @@ export const TopPanel: React.FC<TopPanelProps> = ({
       <div className="flex items-center justify-between px-4 py-2 h-12">
         {/* Left Section - Canvas Controls */}
         <div className="flex items-center gap-3">
-          {/* Page Navigator */}
-          {pages && pages.length > 0 && (
-            <PageNavigator
-              pages={pages}
-              currentPageId={currentPageId || null}
-              onSelectPage={onSelectPage || (() => {})}
-              onAddPage={onAddPage || (() => {})}
-              onDeletePage={onDeletePage || (() => {})}
-              onRenamePage={onRenamePage || (() => {})}
-            />
-          )}
-
-          <div className="w-px h-5 bg-white/10" />
-
           {/* Add Button */}
           <button
             onClick={onAddButton}
