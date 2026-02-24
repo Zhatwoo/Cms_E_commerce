@@ -307,13 +307,17 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
   }
 }
 
-// Suppress React 19 "element.ref" warning from @craftjs/core internals which haven't
-// been updated yet for React 19's new ref-as-prop API. Safe to remove once craftjs
-// releases a stable React 19 compatible version (0.3.x+).
+// Suppress known @craftjs/core React 19 compatibility warnings.
+// Safe to remove once craftjs releases a stable React 19 compatible version (0.3.x+).
 if (typeof window !== "undefined") {
   const _origConsoleError = console.error.bind(console);
   console.error = (...args: unknown[]) => {
-    if (typeof args[0] === "string" && args[0].includes("Accessing element.ref was removed")) return;
+    if (typeof args[0] === "string") {
+      // React 19 removed element.ref access — craftjs still uses old API internally
+      if (args[0].includes("Accessing element.ref was removed")) return;
+      // craftjs store updates trigger setState during Frame render in React 19 concurrent mode
+      if (args[0].includes("Cannot update a component") && args[0].includes("while rendering a different component")) return;
+    }
     _origConsoleError(...args);
   };
 }
