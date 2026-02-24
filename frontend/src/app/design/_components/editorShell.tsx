@@ -408,7 +408,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [canvasRotation, setCanvasRotation] = useState(0);
   const [activeTool, setActiveTool] = useState<CanvasTool>("move");
   const [frameReady, setFrameReady] = useState(false);
-  const [showDualView, setShowDualView] = useState(false);
   // Cleanup corrupted data when error boundary triggers
   const handleFrameError = useCallback(async () => {
     if (errorCleanupDoneRef.current) return;

@@ -1,15 +1,33 @@
 'use client';
 import { motion } from 'framer-motion';
 import React, { useEffect, useState } from 'react';
+<<<<<<< Updated upstream
+import { motion } from 'framer-motion';
+=======
+import { 
+  X, 
+  Calendar, 
+  FileText,
+  Globe, 
+  Plus, 
+  ExternalLink, 
+  Check,
+  Clock
+} from 'lucide-react';
+>>>>>>> Stashed changes
 import { useTheme } from '../components/context/theme-context';
 import { useAuth } from '../components/context/auth-context';
 import { listProjects, getSchedule, getPublishHistory, type Project, type PublishHistoryEntry } from '@/lib/api';
 import { subscribeUserProjectSubdomains, type ProjectSubdomainEntry } from '@/lib/firebase';
+<<<<<<< Updated upstream
 import { 
   Globe, 
   Plus, 
   Search, 
   ExternalLink, 
+  X,
+  Calendar,
+  FileText,
   Copy, 
   Settings, 
   Trash2, 
@@ -21,6 +39,8 @@ import {
   Calendar,
   FileText
 } from 'lucide-react';
+=======
+>>>>>>> Stashed changes
 
 const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'websitelink';
 /** Host for subdomain display (e.g. panes/localhost:3000 or panes.websitelink) */
@@ -61,6 +81,11 @@ export default function DomainsPage() {
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [subdomainsByProject, setSubdomainsByProject] = useState<Record<string, ProjectSubdomainEntry>>({});
   const [origin, setOrigin] = useState<string | null>(null);
+  const stats = {
+    total: projects.length,
+    active: projects.filter(p => p.status === 'published').length,
+    draft: projects.filter(p => p.status !== 'published').length,
+  };
 
   useEffect(() => {
     setOrigin(typeof window !== 'undefined' ? window.location.origin : null);
@@ -354,9 +379,19 @@ export default function DomainsPage() {
                 </div>
               ))}
             </div>
+<<<<<<< Updated upstream
 
             {/* Right sidebar: website details + publish history */}
             {selectedDomain && (
+              <aside
+                className="w-full md:w-96 shrink-0 rounded-2xl border overflow-hidden flex flex-col"
+=======
+          ))}
+        </div>
+        )}
+
+        {/* Right sidebar: website details + publish history */}
+        {selectedDomain && (
           <aside
             className="w-full md:w-96 shrink-0 rounded-2xl border overflow-hidden flex flex-col"
             style={{
@@ -412,15 +447,69 @@ export default function DomainsPage() {
               <div className="text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>Status</div>
               <span
                 className="text-xs px-2 py-1 rounded-full capitalize"
+>>>>>>> Stashed changes
                 style={{
-                  backgroundColor: selectedDomain.project.status === 'published' ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)',
-                  color: selectedDomain.project.status === 'published' ? 'rgb(22,163,74)' : 'rgb(180,83,9)',
+                  backgroundColor: colors.bg.card,
+                  borderColor: colors.border.faint,
                 }}
               >
-                {selectedDomain.project.status || 'draft'}
-              </span>
-            </div>
-            {selectedDomain.project.createdAt && (
+                <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: colors.border.faint }}>
+                  <h2 className="text-lg font-semibold" style={{ color: colors.text.primary }}>Website details</h2>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDomain(null)}
+                    className="p-1.5 rounded-lg hover:opacity-80 transition-opacity"
+                    style={{ color: colors.text.secondary }}
+                    aria-label="Close sidebar"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="p-4 flex-1 overflow-y-auto space-y-5">
+                  <div>
+                    <div className="flex items-center gap-2 text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>
+                      <FileText size={16} />
+                      Title
+                    </div>
+                    <p className="text-base font-medium" style={{ color: colors.text.primary }}>{selectedDomain.project.title}</p>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>
+                      <Globe size={16} />
+                      Subdomain
+                    </div>
+                    <p className="text-sm font-mono" style={{ color: colors.text.primary }}>
+                      {getSiteDisplayUrl(selectedDomain.subdomain, origin)}
+                    </p>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>
+                      Link
+                    </div>
+                    <a
+                      href={siteUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-sm font-medium break-all hover:underline"
+                      style={{ color: colors.text.primary }}
+                    >
+                      {siteUrl}
+                      <ExternalLink size={14} className="shrink-0" />
+                    </a>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>Status</div>
+                    <span
+                      className="text-xs px-2 py-1 rounded-full capitalize"
+                      style={{
+                        backgroundColor: selectedDomain.project.status === 'published' ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)',
+                        color: selectedDomain.project.status === 'published' ? 'rgb(22,163,74)' : 'rgb(180,83,9)',
+                      }}
+                    >
+                      {selectedDomain.project.status || 'draft'}
+                    </span>
+                  </div>
+                  {selectedDomain.project.createdAt && (
                     <div>
                       <div className="text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>Created</div>
                       <p className="text-sm" style={{ color: colors.text.primary }}>
