@@ -163,6 +163,9 @@ type EditorShellProps = {
 const MIN_SCALE = 0.01;
 const MAX_SCALE = 3;
 const ZOOM_SENSITIVITY = 0.003;
+const INFINITE_CANVAS_WIDTH_VW = 500;
+const INFINITE_CANVAS_HEIGHT_VH = 500;
+const INFINITE_CANVAS_PADDING_PX = 600;
 
 /**
  * Deep validation function that walks through the entire Craft.js node tree
@@ -419,10 +422,7 @@ const SafeFrame = ({
     console.error('❌ SafeFrame: Error boundary triggered, falling back to empty canvas');
     setHasErrorBoundaryError(true);
     setRenderData(null);
-<<<<<<< HEAD
-=======
     setFrameDataToShow(null);
->>>>>>> 0b0c41e253fa50805694481ceb97fc263d29baa6
     onError?.();
     // Defer so we don't trigger EditorShell setState during error boundary update
     if (onFrameMounted) {
@@ -497,6 +497,13 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [activeTool, setActiveTool] = useState<CanvasTool>("move");
   const [frameReady, setFrameReady] = useState(false);
   const [showDualView, setShowDualView] = useState(false);
+  const [suppressDropIndicator, setSuppressDropIndicator] = useState(false);
+  const [dropIndicatorPulse, setDropIndicatorPulse] = useState(false);
+  const hasInitialCenteringRef = useRef(false);
+  const zoomOutPanBoost = scale < 1 ? 1 / Math.max(scale, MIN_SCALE) : 1;
+  const infiniteCanvasWidthVw = Math.round(INFINITE_CANVAS_WIDTH_VW * zoomOutPanBoost);
+  const infiniteCanvasHeightVh = Math.round(INFINITE_CANVAS_HEIGHT_VH * zoomOutPanBoost);
+  const infiniteCanvasPaddingPx = Math.round(INFINITE_CANVAS_PADDING_PX * zoomOutPanBoost);
   // Cleanup corrupted data when error boundary triggers
   const handleFrameError = useCallback(async () => {
     if (errorCleanupDoneRef.current) return;
@@ -679,8 +686,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     zoomAnchorRef.current = null;
   }, [scale]);
 
-  // Center canvas on mount
+  // Center canvas after frame is ready so panning has room on both sides
   useEffect(() => {
+    if (!frameReady || hasInitialCenteringRef.current) return;
     const container = containerRef.current;
     if (!container) return;
 
@@ -689,11 +697,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       const y = (container.scrollHeight - container.clientHeight) / 2;
       container.scrollLeft = x;
       container.scrollTop = y;
+      hasInitialCenteringRef.current = true;
     };
 
     const id = requestAnimationFrame(centerCanvas);
     return () => cancelAnimationFrame(id);
-  }, []);
+  }, [frameReady]);
 
   // Handle canvas rotation
   const handleRotateCanvas = useCallback(() => {
@@ -764,6 +773,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         setIsSpacePressed(false);
         setIsPanning(false);
         document.body.removeAttribute("data-space-pan");
+        document.body.removeAttribute("data-canvas-pan");
       }
     };
 
@@ -777,9 +787,18 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   }, [isSpacePressed]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement | null;
+    const isCanvasBackground =
+      !!target?.closest("[data-canvas-container]") &&
+      !target?.closest("[data-page-node='true']") &&
+      !target?.closest("[data-panel]") &&
+      !target?.closest("[data-resize-handle]");
+    const backgroundDragPan = e.button === 0 && isCanvasBackground;
+
     // Hand tool active, or Space held, or middle click → pan
-    if (activeTool === "hand" || isSpacePressed || e.button === 1) {
+    if (activeTool === "hand" || isSpacePressed || e.button === 1 || backgroundDragPan) {
       setIsPanning(true);
+      document.body.dataset.canvasPan = "true";
       e.preventDefault();
       e.stopPropagation(); // Prevent Craft.js from handling drag events
     }
@@ -787,6 +806,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
   const handleMouseUp = () => {
     setIsPanning(false);
+    document.body.removeAttribute("data-canvas-pan");
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
