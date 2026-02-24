@@ -6,6 +6,7 @@ import { DashboardHeader } from './components/layout/header';
 import { ThemeProvider, useTheme } from './components/context/theme-context';
 import { AuthProvider, useAuth } from './components/context/auth-context';
 import { AlertProvider } from './components/context/alert-context';
+import { ProjectProvider, useProject } from './components/context/project-context';
 
 function DashboardLayoutContent({
     children,
@@ -13,6 +14,7 @@ function DashboardLayoutContent({
     children: React.ReactNode;
 }) {
     const { user, loading } = useAuth();
+    const { selectedProject } = useProject();
     const router = useRouter();
     const pathname = usePathname();
     const { colors } = useTheme();
@@ -24,6 +26,21 @@ function DashboardLayoutContent({
             router.replace('/auth/login');
         }
     }, [loading, user, router]);
+
+    // If user is authenticated but no website/instance is selected yet,
+    // send them to the main dashboard page to choose a website first,
+    // but allow access to builder/domains so they can create their first site.
+    useEffect(() => {
+        if (!loading && user && !selectedProject) {
+            const isDashboardRoot = pathname === '/m_dashboard';
+            const isBuilder = pathname.startsWith('/m_dashboard/web-builder');
+            const isDomains = pathname.startsWith('/m_dashboard/domains');
+            const isInDashboard = pathname.startsWith('/m_dashboard');
+            if (isInDashboard && !isDashboardRoot && !isBuilder && !isDomains) {
+                router.replace('/m_dashboard');
+            }
+        }
+    }, [loading, user, selectedProject, pathname, router]);
 
     useEffect(() => {
         if (pathname === '/m_dashboard') {
@@ -102,11 +119,11 @@ function DashboardLayoutContent({
             </div>
 
             {/* Main content area */}
-            <div ref={contentScrollRef} className="no-scrollbar flex min-w-0 flex-1 basis-0 flex-col h-screen overflow-y-auto">
+            <div ref={contentScrollRef} className="no-scrollbar flex min-w-0 flex-1 basis-0 flex-col h-screen overflow-y-auto overflow-x-hidden">
                 <div className="sticky top-0 z-50 shrink-0" style={{ backgroundColor: colors.bg.primary }}>
                     <DashboardHeader onMenuToggle={() => setSidebarOpen(true)} />
                 </div>
-                <main className="flex-1 min-w-0 max-w-full px-4 sm:px-6 pt-5 sm:pt-7 pb-4 sm:pb-6">
+                <main className="flex-1 min-w-0 max-w-full overflow-x-hidden px-4 sm:px-6 pt-5 sm:pt-7 pb-4 sm:pb-6">
                     {children}
                 </main>
                 <footer className="py-4 text-xs shrink-0 flex justify-center transition-colors duration-300" style={{ color: colors.text.muted }}>
@@ -126,7 +143,9 @@ export default function MDashboardLayout({
         <ThemeProvider>
             <AlertProvider>
                 <AuthProvider>
-                    <DashboardLayoutContent>{children}</DashboardLayoutContent>
+                    <ProjectProvider>
+                        <DashboardLayoutContent>{children}</DashboardLayoutContent>
+                    </ProjectProvider>
                 </AuthProvider>
             </AlertProvider>
         </ThemeProvider>

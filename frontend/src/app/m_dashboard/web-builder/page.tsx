@@ -1,13 +1,14 @@
-'use client';
+ 'use client';
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../components/context/theme-context';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import DomeGallery from '../components/templates/DomeGallery';
 import { templateService, Template as FullTemplate } from '@/lib/templateService';
 import { createProject, listProjects, updateProject, deleteProject, getStoredUser, type Project } from '@/lib/api';
 import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
 import { useAlert } from '../components/context/alert-context';
+import { useProject } from '../components/context/project-context';
 import { DraftPreviewThumbnail } from '../components/projects/DraftPreviewThumbnail';
 import { WebPreview } from '@/app/design/_lib/webRenderer';
 
@@ -32,6 +33,49 @@ const convertToGalleryTemplate = (template: FullTemplate): GalleryTemplate => ({
 });
 
 const CATEGORIES = ['Type', 'E-commerce', 'Blog', 'Portfolio', 'Landing Page'];
+
+type SortOptionId = 'relevant' | 'newest' | 'oldest' | 'az' | 'za';
+
+const SORT_OPTIONS: Array<{ id: SortOptionId; label: string; icon: 'sparkles' | 'clock' | 'sort-asc' | 'sort-desc' }> = [
+  { id: 'relevant', label: 'Most relevant', icon: 'sparkles' },
+  { id: 'newest', label: 'Newest edited', icon: 'clock' },
+  { id: 'oldest', label: 'Oldest edited', icon: 'clock' },
+  { id: 'az', label: 'Alphabetical (A-Z)', icon: 'sort-asc' },
+  { id: 'za', label: 'Alphabetical (Z-A)', icon: 'sort-desc' },
+];
+
+function SortOptionIcon({ icon }: { icon: 'sparkles' | 'clock' | 'sort-asc' | 'sort-desc' }) {
+  if (icon === 'sparkles') {
+    return (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M10.5 4.5l1.2 3.2c.15.4.47.72.87.87l3.2 1.2-3.2 1.2a1.4 1.4 0 00-.87.87l-1.2 3.2-1.2-3.2a1.4 1.4 0 00-.87-.87l-3.2-1.2 3.2-1.2c.4-.15.72-.47.87-.87l1.2-3.2zm7 9.5l.6 1.6c.1.26.3.46.56.56l1.6.6-1.6.6a.9.9 0 00-.56.56l-.6 1.6-.6-1.6a.9.9 0 00-.56-.56l-1.6-.6 1.6-.6a.9.9 0 00.56-.56l.6-1.6z" />
+      </svg>
+    );
+  }
+
+  if (icon === 'clock') {
+    return (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="8" strokeWidth={1.8} />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8v4l2.5 1.5" />
+      </svg>
+    );
+  }
+
+  if (icon === 'sort-asc') {
+    return (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 17V7m0 0l-3 3m3-3l3 3M14 17h6M14 13h4M14 9h2" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 7v10m0 0l-3-3m3 3l3-3M14 17h2M14 13h4M14 9h6" />
+    </svg>
+  );
+}
 
 const TemplateCard = ({ template, colors, onPreview, onUseTemplate }: {
   template: GalleryTemplate;
@@ -300,6 +344,8 @@ export default function WebBuilderPage() {
   const { colors, theme } = useTheme();
   const { showAlert, showConfirm } = useAlert();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { selectedProject, setSelectedProjectId, projects: contextProjects, loading: projectsLoadingFromContext } = useProject();
   const [selectedCategory, setSelectedCategory] = useState('Type');
   const [previewTemplate, setPreviewTemplate] = useState<GalleryTemplate | null>(null);
   const [templates, setTemplates] = useState<GalleryTemplate[]>([]);
@@ -313,8 +359,13 @@ export default function WebBuilderPage() {
   const [projectMenuId, setProjectMenuId] = useState<string | null>(null);
   const [renamingProject, setRenamingProject] = useState<Project | null>(null);
   const [renameValue, setRenameValue] = useState('');
-  const [sortOption, setSortOption] = useState<'relevant' | 'newest' | 'oldest' | 'az' | 'za'>('relevant');
+  const [sortOption, setSortOption] = useState<SortOptionId>('relevant');
   const [showSortMenu, setShowSortMenu] = useState(false);
+
+  const visibleProjects = React.useMemo(
+    () => (selectedProject ? projects.filter((p) => p.id === selectedProject.id) : projects),
+    [projects, selectedProject]
+  );
 
   // Load templates on mount
   useEffect(() => {
@@ -324,9 +375,14 @@ export default function WebBuilderPage() {
     setLoading(false);
   }, []);
 
-  // Load user projects
+  // Load user projects for this view (fallback to context projects if available)
   useEffect(() => {
     let cancelled = false;
+    if (contextProjects.length > 0) {
+      setProjects(contextProjects);
+      setProjectsLoading(false);
+      return;
+    }
     listProjects()
       .then((res) => {
         if (!cancelled && res.success && res.projects) setProjects(res.projects);
@@ -334,7 +390,19 @@ export default function WebBuilderPage() {
       .catch(() => {})
       .finally(() => { if (!cancelled) setProjectsLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [contextProjects]);
+
+  // If coming from the "Create a website" CTA (autoCreate=1),
+  // immediately open the create modal so the user can name the website,
+  // regardless of whether there are existing projects.
+  useEffect(() => {
+    const autoCreate = searchParams?.get('autoCreate');
+    if (autoCreate === '1' && !createModalOpen && !projectsLoading) {
+      openCreateModal({ title: '' });
+    }
+  }, [searchParams, projectsLoading, createModalOpen]);
+
+  const isAutoCreate = searchParams?.get('autoCreate') === '1';
 
   const openCreateModal = (options: { title: string; template?: GalleryTemplate }) => {
     setCreateModalTitle(options.title);
@@ -358,6 +426,11 @@ export default function WebBuilderPage() {
       const clientName = (user?.name || user?.username || 'client').trim() || 'client';
       ensureProjectStorageFolder(clientName, res.project.title || 'website').catch(() => {});
       setCreateModalOpen(false);
+      // Treat as a new website/instance only if we don't already have one selected
+      // or if we explicitly came from the "Create website" CTA.
+      if (!selectedProject || isAutoCreate) {
+        setSelectedProjectId(res.project.id);
+      }
       if (createModalTemplate) await templateService.loadTemplate(createModalTemplate.id.toString(), res.project.id);
       router.push(`/design?projectId=${res.project.id}`);
     } catch (error) {
@@ -477,6 +550,71 @@ export default function WebBuilderPage() {
       }
       return comparison;
     });
+
+  // If user opens Web Builder without selecting a website/instance,
+  // and they didn't come from the explicit "Create website" CTA,
+  // block the builder UI and ask them to pick a website first.
+  if (!selectedProject && !isAutoCreate) {
+    if (projectsLoading || projectsLoadingFromContext) {
+      return (
+        <div className="flex items-center justify-center min-h-[60vh]" style={{ color: colors.text.secondary }}>
+          <p className="text-sm">Loading your websites…</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div
+          className="w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden"
+          style={{ backgroundColor: colors.bg.card, borderColor: colors.border.default }}
+        >
+          <div className="p-5 border-b" style={{ borderColor: colors.border.faint }}>
+            <h3 className="text-lg font-semibold" style={{ color: colors.text.primary }}>
+              Choose a website to manage
+            </h3>
+            <p className="text-sm mt-1" style={{ color: colors.text.secondary }}>
+              Select which store / website instance you want to open in the Web Builder.
+            </p>
+          </div>
+          <div className="p-5 space-y-3 max-h-80 overflow-y-auto">
+            {projects.length === 0 ? (
+              <p className="text-sm" style={{ color: colors.text.muted }}>
+                You don&apos;t have any websites yet. Create one from the dashboard first.
+              </p>
+            ) : (
+              projects.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setSelectedProjectId(p.id)}
+                  className="w-full text-left rounded-xl border px-4 py-3 flex items-center justify-between gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                  style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.card }}
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: colors.text.primary }}>
+                      {p.title || 'Untitled website'}
+                    </p>
+                    {p.subdomain && (
+                      <p className="text-xs mt-0.5 font-mono truncate" style={{ color: colors.text.muted }}>
+                        {p.subdomain}
+                      </p>
+                    )}
+                  </div>
+                  <span
+                    className="text-[11px] px-2 py-1 rounded-full capitalize"
+                    style={{ backgroundColor: colors.bg.elevated, color: colors.text.muted }}
+                  >
+                    {p.status || 'draft'}
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <section className="space-y-8 min-h-screen pb-20 max-w-full overflow-x-hidden">
@@ -625,13 +763,13 @@ export default function WebBuilderPage() {
           <div className="rounded-xl border p-6 text-center" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
             Loading projects…
           </div>
-        ) : projects.length === 0 ? (
+        ) : visibleProjects.length === 0 ? (
           <div className="rounded-xl border p-6 text-center" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
             No projects yet. Start from scratch or use a template above.
           </div>
         ) : (
           <div className="grid w-full max-w-full min-w-0 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
-            {projects.map((p) => (
+            {visibleProjects.map((p) => (
               <motion.div
                 key={p.id}
                 className="relative min-w-0 rounded-lg border overflow-hidden cursor-pointer hover:border-opacity-80 transition-colors"
@@ -798,23 +936,19 @@ export default function WebBuilderPage() {
                     Sort by
                   </div>
                   <div className="py-1">
-                    {[
-                      { id: 'relevant', label: 'Most relevant', icon: '✨' },
-                      { id: 'newest', label: 'Newest edited', icon: '🕐' },
-                      { id: 'oldest', label: 'Oldest edited', icon: '🕐' },
-                      { id: 'az', label: 'Alphabetical (A-Z)', icon: '↑' },
-                      { id: 'za', label: 'Alphabetical (Z-A)', icon: '↓' }
-                    ].map((option) => (
+                    {SORT_OPTIONS.map((option) => (
                       <button
                         key={option.id}
                         onClick={() => {
-                          setSortOption(option.id as any);
+                          setSortOption(option.id);
                           setShowSortMenu(false);
                         }}
                         className="w-full px-4 py-2.5 text-left text-sm flex items-center gap-3 hover:bg-white/5 dark:hover:bg-white/5 transition-colors"
                         style={{ color: colors.text.primary }}
                       >
-                        <span className="text-base w-5">{option.icon}</span>
+                        <span className="w-5 inline-flex justify-center">
+                          <SortOptionIcon icon={option.icon} />
+                        </span>
                         <span className="flex-1">{option.label}</span>
                         {sortOption === option.id && (
                           <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">

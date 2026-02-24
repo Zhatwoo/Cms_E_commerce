@@ -3,8 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
-import { PieChart } from '../components/analytics/PieChart';
-import { getAllProducts, type Product } from '../lib/productsData';
+import { type Product } from '../lib/productsData';
 
 const ProductCard = ({ product, colors, onEdit, onDelete, onToggleStatus }: {
   product: Product;
@@ -99,14 +98,14 @@ const ProductCard = ({ product, colors, onEdit, onDelete, onToggleStatus }: {
 export default function ProductsPage() {
   const { colors, theme } = useTheme();
   const { showConfirm } = useAlert();
-  const [products, setProducts] = useState<Product[]>(getAllProducts());
+  const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showAddModal, setShowAddModal] = useState(false);
   const [perPage, setPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
-  const categories = ['All', 'Electronics', 'Clothing', 'Accessories', 'Home', 'Sports'];
+  const categories = ['All', ...Array.from(new Set(products.map((product) => product.category))).sort()];
 
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -150,13 +149,7 @@ export default function ProductsPage() {
     outOfStock: products.filter(p => p.stock === 0).length
   };
 
-  // Prepare chart data for categories
-  const categoryChartData = [
-    { label: 'Electronics', value: products.filter(p => p.category === 'Electronics').length, color: '#3b82f6' },
-    { label: 'Clothing', value: products.filter(p => p.category === 'Clothing').length, color: '#8b5cf6' },
-    { label: 'Accessories', value: products.filter(p => p.category === 'Accessories').length, color: '#f59e0b' },
-    { label: 'Home', value: products.filter(p => p.category === 'Home').length, color: '#10b981' }
-  ];
+  const hasProducts = products.length > 0;
 
   return (
     <div className="space-y-6">
@@ -217,7 +210,7 @@ export default function ProductsPage() {
             <button
               onClick={() => setShowAddModal(true)}
               className="px-4 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-blue-600/20"
-              style={{ backgroundColor: '#3b82f6', color: 'white' }}
+              style={{ backgroundColor: colors.status.info, color: colors.bg.primary }}
             >
               Add Product
             </button>
@@ -225,115 +218,165 @@ export default function ProductsPage() {
         </div>
       </section>
 
-      {/* Chart Row: Pie for categories */}
-      <div className="flex flex-col md:flex-row gap-6">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border p-6 w-fit flex flex-col" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
-          <h4 className="text-sm font-semibold mb-4" style={{ color: colors.text.primary }}>Products by category</h4>
-          <div className="flex flex-col items-center">
-            <PieChart data={categoryChartData} size={120} />
-            <div className="mt-4 text-sm text-center" style={{ color: colors.text.muted }}>
-              <div>
-                <span className="font-semibold" style={{ color: colors.text.primary }}>Total products:</span> <span style={{ color: colors.text.primary }}>{stats.total}</span>
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        {[
+          { label: 'Total products', value: stats.total },
+          { label: 'Active', value: stats.active },
+          { label: 'Low stock', value: stats.lowStock },
+          { label: 'Out of stock', value: stats.outOfStock },
+        ].map((item) => (
+          <motion.div
+            key={item.label}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-xl border p-4"
+            style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+          >
+            <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>
+              {item.label}
+            </p>
+            <p className="mt-1 text-2xl font-semibold" style={{ color: colors.text.primary }}>
+              {item.value}
+            </p>
+          </motion.div>
+        ))}
+      </section>
+
+      {hasProducts ? (
+        <>
+          <div id="inventory-section" className="flex flex-col sm:flex-row gap-4 items-center rounded-2xl border p-4" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+            <div className="w-full sm:w-1/2">
+              <input
+                type="text"
+                placeholder="Search products by name or SKU..."
+                value={searchTerm}
+                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                className="w-full px-4 py-2 rounded-lg border focus:outline-none"
+                style={{
+                  backgroundColor: colors.bg.card,
+                  borderColor: colors.border.faint,
+                  color: colors.text.primary
+                }}
+              />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <label className="text-sm" style={{ color: colors.text.muted }}>Category:</label>
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => { setSelectedCategory(e.target.value); setCurrentPage(1); }}
+                  className="px-3 py-2 rounded-lg text-sm border"
+                  style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, color: colors.text.primary }}
+                >
+                  {categories.map(category => (
+                    <option key={category} value={category}>{category}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label className="text-sm" style={{ color: colors.text.muted }}>Per page:</label>
+                <select
+                  value={perPage}
+                  onChange={(e) => { setPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                  className="px-2 py-1 rounded-lg text-sm border"
+                  style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, color: colors.text.primary }}
+                >
+                  {[5, 10, 15, 20].map(n => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
-        </motion.div>
-      </div>
 
-      {/* Filters */}
-      <div id="inventory-section" className="flex flex-col sm:flex-row gap-4 items-center rounded-2xl border p-4" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
-        <div className="w-full sm:w-1/2">
-          <input
-            type="text"
-            placeholder="Search products by name or SKU..."
-            value={searchTerm}
-            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-            className="w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500"
-            style={{
-              backgroundColor: colors.bg.card,
-              borderColor: colors.border.faint,
-              color: colors.text.primary
-            }}
-          />
-        </div>
+          {filteredProducts.length > 0 ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {paginatedProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    colors={colors}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onToggleStatus={handleToggleStatus}
+                  />
+                ))}
+              </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <label className="text-sm" style={{ color: colors.text.muted }}>Category:</label>
-            <select
-              value={selectedCategory}
-              onChange={(e) => { setSelectedCategory(e.target.value); setCurrentPage(1); }}
-              className="px-3 py-2 rounded-lg text-sm border"
-              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, color: colors.text.primary }}
-            >
-              {categories.map(category => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
+              <div className="flex items-center justify-between gap-4 mt-4">
+                <div style={{ color: colors.text.muted }}>
+                  Showing {(filteredProducts.length === 0) ? 0 : (startIndex + 1)} - {Math.min(endIndex, filteredProducts.length)} of {filteredProducts.length}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 rounded border"
+                    style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, color: colors.text.primary }}
+                  >Prev</button>
+                  <div className="px-3 py-1 rounded text-sm" style={{ color: colors.text.primary }}>{currentPage}</div>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 rounded border"
+                    style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, color: colors.text.primary }}
+                  >Next</button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <section className="text-center py-16 rounded-2xl border" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+              <div className="mx-auto w-14 h-14 rounded-2xl border flex items-center justify-center" style={{ borderColor: colors.border.default, backgroundColor: colors.bg.elevated }}>
+                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: colors.text.muted }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M20 7.5L12 3 4 7.5M20 7.5v9L12 21m8-13.5L12 12M4 7.5v9L12 21M4 7.5L12 12" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold mt-5 mb-2" style={{ color: colors.text.primary }}>
+                No matching products
+              </h3>
+              <p style={{ color: colors.text.secondary }}>
+                Try changing search or category filters.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm('');
+                  setSelectedCategory('All');
+                  setCurrentPage(1);
+                }}
+                className="mt-5 px-4 py-2 rounded-lg border text-sm"
+                style={{ borderColor: colors.border.faint, color: colors.text.primary, backgroundColor: colors.bg.elevated }}
+              >
+                Clear filters
+              </button>
+            </section>
+          )}
+        </>
+      ) : (
+        <section className="text-center py-20 rounded-2xl border" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+          <div className="mx-auto w-16 h-16 rounded-2xl border flex items-center justify-center" style={{ borderColor: colors.border.default, backgroundColor: colors.bg.elevated }}>
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: colors.text.muted }}>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M20 7.5L12 3 4 7.5M20 7.5v9L12 21m8-13.5L12 12M4 7.5v9L12 21M4 7.5L12 12" />
+            </svg>
           </div>
-
-          <div className="flex items-center gap-2">
-            <label className="text-sm" style={{ color: colors.text.muted }}>Per page:</label>
-            <select
-              value={perPage}
-              onChange={(e) => { setPerPage(Number(e.target.value)); setCurrentPage(1); }}
-              className="px-2 py-1 rounded-lg text-sm border"
-              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, color: colors.text.primary }}
-            >
-              {[5, 10, 15, 20].map(n => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Products Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {paginatedProducts.map((product) => (
-          <ProductCard
-            key={product.id}
-            product={product}
-            colors={colors}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onToggleStatus={handleToggleStatus}
-          />
-        ))}
-      </div>
-
-      {/* Pagination */}
-      <div className="flex items-center justify-between gap-4 mt-4">
-        <div style={{ color: colors.text.muted }}>
-          Showing {(filteredProducts.length === 0) ? 0 : (startIndex + 1)} - {Math.min(endIndex, filteredProducts.length)} of {filteredProducts.length}
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="px-3 py-1 rounded border"
-            style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, color: colors.text.primary }}
-          >Prev</button>
-          <div className="px-3 py-1 rounded text-sm" style={{ color: colors.text.primary }}>{currentPage}</div>
-          <button
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="px-3 py-1 rounded border"
-            style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, color: colors.text.primary }}
-          >Next</button>
-        </div>
-      </div>
-
-      {filteredProducts.length === 0 && (
-        <div className="text-center py-20 rounded-2xl border" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
-          <div className="text-6xl mb-4">📦</div>
-          <h3 className="text-xl font-semibold mb-2" style={{ color: colors.text.primary }}>
-            No products found
+          <h3 className="text-2xl font-semibold mt-5 mb-2" style={{ color: colors.text.primary }}>
+            No products yet
           </h3>
-          <p style={{ color: colors.text.secondary }}>
-            Try adjusting your search or filters
+          <p className="max-w-md mx-auto" style={{ color: colors.text.secondary }}>
+            Start by adding your first product to build your inventory.
           </p>
-        </div>
+          <button
+            type="button"
+            onClick={() => setShowAddModal(true)}
+            className="mt-6 px-5 py-2.5 rounded-lg font-medium transition-colors"
+            style={{ backgroundColor: colors.status.info, color: colors.bg.primary }}
+          >
+            Add your first product
+          </button>
+        </section>
       )}
     </div>
   );
