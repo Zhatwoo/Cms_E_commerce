@@ -11,9 +11,9 @@ const PAGE_BASE_HEIGHT = 1200;
 const PAGE_GAP_X = 220;
 const PAGE_GAP_Y = 220;
 const PAGE_COLUMNS = 3;
-const VIEWPORT_BASE_MIN_WIDTH = 7200;
-const VIEWPORT_BASE_MIN_HEIGHT = 5200;
-const VIEWPORT_EDGE_PADDING = 256;
+const VIEWPORT_BASE_MIN_WIDTH = 5000;
+const VIEWPORT_BASE_MIN_HEIGHT = 3600;
+const VIEWPORT_EDGE_PADDING = 1200;
 const MOBILE_PREVIEW_SAFE_WIDTH = 520;
 
 function clamp(value: number, min: number, max: number): number {
@@ -277,8 +277,13 @@ function adaptCloneForMobile(root: HTMLElement) {
 }
 
 export const Viewport = ({ children }: { children?: React.ReactNode }) => {
+  const viewportRootRef = useRef<HTMLDivElement | null>(null);
   const desktopCanvasRef = useRef<HTMLDivElement | null>(null);
   const mobileCanvasRef = useRef<HTMLDivElement | null>(null);
+  const [mobilePanelPos, setMobilePanelPos] = useState({ top: 16, left: 0 });
+  const [isDraggingMobilePanel, setIsDraggingMobilePanel] = useState(false);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
+  const mobilePositionInitializedRef = useRef(false);
   const [viewportSize, setViewportSize] = useState({
     minWidth: VIEWPORT_BASE_MIN_WIDTH,
     minHeight: VIEWPORT_BASE_MIN_HEIGHT,
@@ -333,13 +338,29 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       });
     });
 
+    const desktopRoot = desktopCanvasRef.current;
+    let domMaxRight = 0;
+    let domMaxBottom = 0;
+
+    if (desktopRoot) {
+      const rootRect = desktopRoot.getBoundingClientRect();
+      const nodeEls = Array.from(desktopRoot.querySelectorAll<HTMLElement>("[data-node-id]"));
+      for (const el of nodeEls) {
+        const rect = el.getBoundingClientRect();
+        const right = rect.right - rootRect.left;
+        const bottom = rect.bottom - rootRect.top;
+        if (Number.isFinite(right)) domMaxRight = Math.max(domMaxRight, right);
+        if (Number.isFinite(bottom)) domMaxBottom = Math.max(domMaxBottom, bottom);
+      }
+    }
+
     const dynamicMinWidth = Math.max(
       VIEWPORT_BASE_MIN_WIDTH,
-      Math.ceil(maxRight + VIEWPORT_EDGE_PADDING + MOBILE_PREVIEW_SAFE_WIDTH)
+      Math.ceil(Math.max(maxRight, domMaxRight) + VIEWPORT_EDGE_PADDING + MOBILE_PREVIEW_SAFE_WIDTH)
     );
     const dynamicMinHeight = Math.max(
       VIEWPORT_BASE_MIN_HEIGHT,
-      Math.ceil(maxBottom + VIEWPORT_EDGE_PADDING)
+      Math.ceil(Math.max(maxBottom, domMaxBottom) + VIEWPORT_EDGE_PADDING)
     );
 
     setViewportSize((prev) => {
@@ -349,6 +370,49 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       return { minWidth: dynamicMinWidth, minHeight: dynamicMinHeight };
     });
   }, [actions, query, viewportId, children]);
+
+  useEffect(() => {
+    const root = viewportRootRef.current;
+    if (!root || mobilePositionInitializedRef.current) return;
+
+    const left = Math.max(16, root.clientWidth - MOBILE_WIDTH - 16);
+    setMobilePanelPos({ top: 16, left });
+    mobilePositionInitializedRef.current = true;
+  }, [viewportSize.minWidth, viewportSize.minHeight]);
+
+  useEffect(() => {
+    if (!isDraggingMobilePanel) return;
+
+    const handleMove = (event: MouseEvent) => {
+      const root = viewportRootRef.current;
+      if (!root) return;
+      const rootRect = root.getBoundingClientRect();
+      const panelWidth = MOBILE_WIDTH;
+      const panelHeight = MOBILE_MIN_HEIGHT + 32;
+
+      const desiredLeft = event.clientX - rootRect.left - dragOffsetRef.current.x;
+      const desiredTop = event.clientY - rootRect.top - dragOffsetRef.current.y;
+      const maxLeft = Math.max(16, root.clientWidth - panelWidth - 16);
+      const maxTop = Math.max(16, root.clientHeight - panelHeight - 16);
+
+      setMobilePanelPos({
+        left: clamp(desiredLeft, 16, maxLeft),
+        top: clamp(desiredTop, 16, maxTop),
+      });
+    };
+
+    const handleUp = () => {
+      setIsDraggingMobilePanel(false);
+    };
+
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+    };
+  }, [isDraggingMobilePanel]);
 
   useEffect(() => {
     const desktopRoot = desktopCanvasRef.current;
@@ -375,6 +439,10 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       clone.dataset.mobilePreviewRoot = "true";
 
       adaptCloneForMobile(clone);
+      const interactiveNodes = [clone, ...Array.from(clone.querySelectorAll<HTMLElement>("*"))];
+      interactiveNodes.forEach((el) => {
+        el.style.pointerEvents = "auto";
+      });
 
       let selectedNodeId: string | null = null;
       try {
@@ -412,7 +480,7 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       frame = requestAnimationFrame(renderMobilePreview);
     };
 
-    const handleMobileClick = (event: MouseEvent) => {
+    const handleMobileMouseDown = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
       if (!target) return;
 
@@ -427,7 +495,28 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       event.preventDefault();
       event.stopPropagation();
       actions.selectNode(nodeId);
+
+      const desktopNodeEl = desktopRoot.querySelector<HTMLElement>(`[data-node-id="${nodeId}"]`);
+      const canvasContainer = desktopRoot.closest("[data-canvas-container]") as HTMLElement | null;
+      if (desktopNodeEl && canvasContainer) {
+        const containerRect = canvasContainer.getBoundingClientRect();
+        const nodeRect = desktopNodeEl.getBoundingClientRect();
+        const centerX = nodeRect.left + nodeRect.width / 2;
+        const centerY = nodeRect.top + nodeRect.height / 2;
+        const targetScrollLeft = canvasContainer.scrollLeft + (centerX - (containerRect.left + containerRect.width / 2));
+        const targetScrollTop = canvasContainer.scrollTop + (centerY - (containerRect.top + containerRect.height / 2));
+        canvasContainer.scrollTo({
+          left: Math.max(0, targetScrollLeft),
+          top: Math.max(0, targetScrollTop),
+          behavior: "smooth",
+        });
+      }
+
       queueRender();
+    };
+
+    const blockCanvasPanFromMobile = (event: Event) => {
+      event.stopPropagation();
     };
 
     const mutation = new MutationObserver(queueRender);
@@ -441,7 +530,11 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
     const resizeObserver = new ResizeObserver(queueRender);
     resizeObserver.observe(desktopRoot);
 
-    mobileRoot.addEventListener("click", handleMobileClick, true);
+    mobileRoot.addEventListener("mousedown", handleMobileMouseDown, true);
+    mobileRoot.addEventListener("mousedown", blockCanvasPanFromMobile, true);
+    mobileRoot.addEventListener("mousemove", blockCanvasPanFromMobile, true);
+    mobileRoot.addEventListener("mouseup", blockCanvasPanFromMobile, true);
+    mobileRoot.addEventListener("wheel", blockCanvasPanFromMobile, { capture: true });
 
     queueRender();
 
@@ -449,13 +542,18 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       cancelAnimationFrame(frame);
       mutation.disconnect();
       resizeObserver.disconnect();
-      mobileRoot.removeEventListener("click", handleMobileClick, true);
+      mobileRoot.removeEventListener("mousedown", handleMobileMouseDown, true);
+      mobileRoot.removeEventListener("mousedown", blockCanvasPanFromMobile, true);
+      mobileRoot.removeEventListener("mousemove", blockCanvasPanFromMobile, true);
+      mobileRoot.removeEventListener("mouseup", blockCanvasPanFromMobile, true);
+      mobileRoot.removeEventListener("wheel", blockCanvasPanFromMobile, true);
     };
   }, [children, actions, query, viewportId]);
 
   return (
     <div
       ref={(ref) => {
+        viewportRootRef.current = ref;
         if (ref) connect(drag(ref));
       }}
       className="relative p-32"
@@ -467,8 +565,31 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
         {children}
       </div>
 
-      <div className="absolute top-16 right-16 flex flex-col gap-2 select-none z-20">
-        <span className="text-xs uppercase tracking-wide text-brand-light/70">Mobile</span>
+      <div
+        className="absolute flex flex-col gap-2 select-none z-20 pointer-events-auto"
+        style={{ top: mobilePanelPos.top, left: mobilePanelPos.left }}
+        onMouseDown={(event) => event.stopPropagation()}
+        onMouseMove={(event) => event.stopPropagation()}
+        onMouseUp={(event) => event.stopPropagation()}
+        onWheel={(event) => event.stopPropagation()}
+      >
+        <span
+          className="text-xs uppercase tracking-wide text-brand-light/70 cursor-move"
+          onMouseDown={(event) => {
+            const root = viewportRootRef.current;
+            if (!root) return;
+            const rootRect = root.getBoundingClientRect();
+            dragOffsetRef.current = {
+              x: event.clientX - rootRect.left - mobilePanelPos.left,
+              y: event.clientY - rootRect.top - mobilePanelPos.top,
+            };
+            setIsDraggingMobilePanel(true);
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+        >
+          Mobile
+        </span>
         <div
           ref={mobileCanvasRef}
           className="w-[390px] min-h-[640px] rounded-lg border border-white/10 bg-brand-white/5 overflow-hidden pointer-events-auto"

@@ -21,6 +21,7 @@ function rectsIntersect(
 export const BoxSelectionHandler = () => {
   const { actions, query } = useEditor();
   const activeTool = useCanvasTool();
+  const startedOnEmptyRef = useRef(false);
   const [marquee, setMarquee] = useState<{
     startX: number;
     startY: number;
@@ -50,6 +51,7 @@ export const BoxSelectionHandler = () => {
       if (!target.closest("[data-canvas-container]")) return;
       // Space = pan only; Hand tool = pan only; do not start marquee
       if (document.body.dataset.spacePan === "true") return;
+      if (document.body.dataset.canvasPan === "true") return;
       if (activeTool === "hand") return;
 
       const onNode = target.closest("[data-node-id]");
