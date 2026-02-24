@@ -20,10 +20,7 @@ const CANVAS_DISPLAY_NAMES = new Set([
 ]);
 const EDITOR_DRAGGING_FLAG = "editorDragging";
 const EDITOR_DROP_COMMIT_FLAG = "editorDropCommit";
-<<<<<<< Updated upstream
-=======
 
->>>>>>> Stashed changes
 
 type MoveMode = "margin" | "offset";
 
@@ -184,16 +181,14 @@ export const FigmaStyleDragHandler = () => {
   const { actions, query } = useEditor();
   const actionsRef = useRef(actions);
   const queryRef = useRef(query);
-<<<<<<< Updated upstream
+
   const rafRef = useRef<number>(0);
   const processDragRef = useRef<(() => void) | null>(null);
   const draggedDomsRef = useRef<HTMLElement[]>([]);
   const dropTargetHighlightRef = useRef<HTMLElement | null>(null);
   const insertIndicatorRef = useRef<HTMLElement | null>(null);
   const activeTool = useCanvasTool();
-=======
 
->>>>>>> Stashed changes
 
   const dragRef = useRef<{
     startX: number;
@@ -201,6 +196,7 @@ export const FigmaStyleDragHandler = () => {
     lastX: number;
     lastY: number;
     zoom: number;
+    committed: boolean;
 
     nodeMargins: Array<{
       id: string;
