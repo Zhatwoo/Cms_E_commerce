@@ -496,6 +496,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [showDualView, setShowDualView] = useState(false);
   const [suppressDropIndicator, setSuppressDropIndicator] = useState(false);
   const [dropIndicatorPulse, setDropIndicatorPulse] = useState(false);
+  const zoomFactor = Math.max(scale, 1);
+  const infiniteCanvasWidthVw = Math.max(220, Math.round(220 * zoomFactor));
+  const infiniteCanvasHeightVh = Math.max(220, Math.round(220 * zoomFactor));
+  const infiniteCanvasPaddingPx = Math.max(160, Math.round(160 * zoomFactor));
   // Cleanup corrupted data when error boundary triggers
   const handleFrameError = useCallback(async () => {
     if (errorCleanupDoneRef.current) return;
@@ -1441,4 +1445,3 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     </div>
   );
 };
-    
