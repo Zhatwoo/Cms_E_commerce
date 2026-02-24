@@ -59,16 +59,7 @@ class FrameErrorBoundary extends React.Component<
 
   render() {
     if (this.state.hasError) {
-      return (
-        <Frame>
-          <Element is={Viewport} canvas>
-            <Element is={Page} canvas>
-              <Element is={Container} padding={40} background="#ffffff" canvas>
-              </Element>
-            </Element>
-          </Element>
-        </Frame>
-      );
+      return <DeferredFrame data={EMPTY_FRAME_DATA} />;
     }
 
     return this.props.children;
@@ -162,6 +153,7 @@ type EditorShellProps = {
 
 const MIN_SCALE = 0.01;
 const MAX_SCALE = 3;
+const DEFAULT_SCALE = 0.5;
 const ZOOM_SENSITIVITY = 0.003;
 const infiniteCanvasWidthVw = 300;
 const infiniteCanvasHeightVh = 300;
@@ -498,7 +490,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const errorCleanupDoneRef = useRef(false); // Track if we've already cleaned up
   const [isPanning, setIsPanning] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState(DEFAULT_SCALE);
   const [initialJson, setInitialJson] = useState<string | null | undefined>(undefined);
   const [panelsReady, setPanelsReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
@@ -700,21 +692,40 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     zoomAnchorRef.current = null;
   }, [scale]);
 
-  // Center canvas on mount
+  // Center canvas after refresh/load and keep centering while layout is still settling
   useEffect(() => {
+    if (!frameReady) return;
+
     const container = containerRef.current;
     if (!container) return;
 
-    const centerCanvas = () => {
-      const x = (container.scrollWidth - container.clientWidth) / 2;
-      const y = (container.scrollHeight - container.clientHeight) / 2;
-      container.scrollLeft = x;
-      container.scrollTop = y;
-    };
+    centerCanvasInView();
+    const rafId = requestAnimationFrame(centerCanvasInView);
+    const settleIntervalId = window.setInterval(centerCanvasInView, 120);
+    const t1 = window.setTimeout(centerCanvasInView, 300);
+    const t2 = window.setTimeout(centerCanvasInView, 700);
+    const t3 = window.setTimeout(centerCanvasInView, 1200);
 
-    const id = requestAnimationFrame(centerCanvas);
-    return () => cancelAnimationFrame(id);
-  }, []);
+    const resizeObserver = new ResizeObserver(() => {
+      centerCanvasInView();
+    });
+    resizeObserver.observe(container);
+
+    const stopSettlingId = window.setTimeout(() => {
+      window.clearInterval(settleIntervalId);
+      resizeObserver.disconnect();
+    }, 2000);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.clearInterval(settleIntervalId);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+      window.clearTimeout(stopSettlingId);
+      resizeObserver.disconnect();
+    };
+  }, [frameReady, initialJson, centerCanvasInView]);
 
   // Handle canvas rotation
   const handleRotateCanvas = useCallback(() => {
@@ -785,6 +796,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         setIsSpacePressed(false);
         setIsPanning(false);
         document.body.removeAttribute("data-space-pan");
+        document.body.removeAttribute("data-canvas-pan");
       }
     };
 
@@ -798,9 +810,19 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   }, [isSpacePressed]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement | null;
+    const isCanvasBackground =
+      !!target?.closest("[data-canvas-container]") &&
+      !target?.closest("[data-page-node='true']") &&
+      !target?.closest("[data-panel]") &&
+      !target?.closest("[data-resize-handle]");
+    const backgroundDragPan = e.button === 0 && isCanvasBackground;
+
     // Hand tool active, or Space held, or middle click → pan
-    if (activeTool === "hand" || isSpacePressed || e.button === 1) {
+    if (activeTool === "hand" || isSpacePressed || e.button === 1 || backgroundDragPan) {
+      hasUserMovedCanvasRef.current = true;
       setIsPanning(true);
+      document.body.dataset.canvasPan = "true";
       e.preventDefault();
       e.stopPropagation(); // Prevent Craft.js from handling drag events
     }
@@ -808,6 +830,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
   const handleMouseUp = () => {
     setIsPanning(false);
+    document.body.removeAttribute("data-canvas-pan");
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -984,12 +1007,15 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     loadDraft();
   }, [projectId, loadPages]);
 
-  // Defer panel rendering to avoid React setState-during-render warning
+  // Defer panel rendering until Frame has mounted to avoid setState-during-render warnings
   useEffect(() => {
-    if (initialJson === undefined) return;
+    if (!frameReady) {
+      setPanelsReady(false);
+      return;
+    }
     const id = requestAnimationFrame(() => setPanelsReady(true));
     return () => cancelAnimationFrame(id);
-  }, [initialJson]);
+  }, [frameReady]);
 
   // Hide Craft drop indicator only when dragging the special New Page source item
   useEffect(() => {
