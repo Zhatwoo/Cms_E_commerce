@@ -145,6 +145,7 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
     paddingLeft: 0,
     opacity: 1,
     boxShadow: "none",
+    previewEditable: false,
   },
   Image: {
     src: "https://placehold.co/600x400/27272a/a1a1aa?text=Image",

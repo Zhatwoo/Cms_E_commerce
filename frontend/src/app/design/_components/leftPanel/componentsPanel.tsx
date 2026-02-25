@@ -141,6 +141,7 @@ export const ComponentsPanel = () => {
                   data-component-new-page={comp.label === "New Page" ? "true" : undefined}
                   ref={(ref) => {
                     if (!ref) return;
+                    if (comp.label === "New Page") return;
                     const sourceElement = comp.dragElement ?? comp.element;
                     if (!sourceElement) return;
                     connectors.create(ref, sourceElement);

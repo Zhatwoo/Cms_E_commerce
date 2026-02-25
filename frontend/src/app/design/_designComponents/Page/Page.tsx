@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useCallback } from "react";
 import { useNode } from "@craftjs/core";
 import type { Node } from "@craftjs/core";

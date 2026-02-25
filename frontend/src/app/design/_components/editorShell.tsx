@@ -59,16 +59,7 @@ class FrameErrorBoundary extends React.Component<
 
   render() {
     if (this.state.hasError) {
-      return (
-        <Frame>
-          <Element is={Viewport} canvas>
-            <Element is={Page} canvas>
-              <Element is={Container} padding={40} background="#ffffff" canvas>
-              </Element>
-            </Element>
-          </Element>
-        </Frame>
-      );
+      return <DeferredFrame data={EMPTY_FRAME_DATA} />;
     }
 
     return this.props.children;
@@ -162,6 +153,7 @@ type EditorShellProps = {
 
 const MIN_SCALE = 0.01;
 const MAX_SCALE = 3;
+const DEFAULT_SCALE = 0.5;
 const ZOOM_SENSITIVITY = 0.003;
 const INFINITE_CANVAS_WIDTH_VW = 2000;
 const INFINITE_CANVAS_HEIGHT_VH = 2000;
@@ -308,6 +300,21 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
     console.error('❌ Validation error:', error);
     return { valid: false };
   }
+}
+
+// Suppress known @craftjs/core React 19 compatibility warnings.
+// Safe to remove once craftjs releases a stable React 19 compatible version (0.3.x+).
+if (typeof window !== "undefined") {
+  const _origConsoleError = console.error.bind(console);
+  console.error = (...args: unknown[]) => {
+    if (typeof args[0] === "string") {
+      // React 19 removed element.ref access — craftjs still uses old API internally
+      if (args[0].includes("Accessing element.ref was removed")) return;
+      // craftjs store updates trigger setState during Frame render in React 19 concurrent mode
+      if (args[0].includes("Cannot update a component") && args[0].includes("while rendering a different component")) return;
+    }
+    _origConsoleError(...args);
+  };
 }
 
 /**
@@ -481,6 +488,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   } | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorCleanupDoneRef = useRef(false); // Track if we've already cleaned up
+  const hasUserMovedCanvasRef = useRef(false);
   const [isPanning, setIsPanning] = useState(false);
   const [scale, setScale] = useState(1);
   const [initialJson, setInitialJson] = useState<string | null | undefined>(undefined);
@@ -677,23 +685,51 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     zoomAnchorRef.current = null;
   }, [scale]);
 
-  // Center canvas after frame is ready so panning has room on both sides
-  useEffect(() => {
-    if (!frameReady || hasInitialCenteringRef.current) return;
+  // Center the canvas in the view
+  const centerCanvasInView = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const centerCanvas = () => {
-      const x = (container.scrollWidth - container.clientWidth) / 2;
-      const y = (container.scrollHeight - container.clientHeight) / 2;
-      container.scrollLeft = x;
-      container.scrollTop = y;
-      hasInitialCenteringRef.current = true;
-    };
+    const x = (container.scrollWidth - container.clientWidth) / 2;
+    const y = (container.scrollHeight - container.clientHeight) / 2;
+    container.scrollLeft = x;
+    container.scrollTop = y;
+  }, []);
 
-    const id = requestAnimationFrame(centerCanvas);
-    return () => cancelAnimationFrame(id);
-  }, [frameReady]);
+  // Center canvas after refresh/load and keep centering while layout is still settling
+  useEffect(() => {
+    if (!frameReady) return;
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    centerCanvasInView();
+    const rafId = requestAnimationFrame(centerCanvasInView);
+    const settleIntervalId = window.setInterval(centerCanvasInView, 120);
+    const t1 = window.setTimeout(centerCanvasInView, 300);
+    const t2 = window.setTimeout(centerCanvasInView, 700);
+    const t3 = window.setTimeout(centerCanvasInView, 1200);
+
+    const resizeObserver = new ResizeObserver(() => {
+      centerCanvasInView();
+    });
+    resizeObserver.observe(container);
+
+    const stopSettlingId = window.setTimeout(() => {
+      window.clearInterval(settleIntervalId);
+      resizeObserver.disconnect();
+    }, 2000);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.clearInterval(settleIntervalId);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+      window.clearTimeout(stopSettlingId);
+      resizeObserver.disconnect();
+    };
+  }, [frameReady, initialJson, centerCanvasInView]);
 
   // Handle canvas rotation
   const handleRotateCanvas = useCallback(() => {
@@ -951,12 +987,15 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     loadDraft();
   }, [projectId, loadPages]);
 
-  // Defer panel rendering to avoid React setState-during-render warning
+  // Defer panel rendering until Frame has mounted to avoid setState-during-render warnings
   useEffect(() => {
-    if (initialJson === undefined) return;
+    if (!frameReady) {
+      setPanelsReady(false);
+      return;
+    }
     const id = requestAnimationFrame(() => setPanelsReady(true));
     return () => cancelAnimationFrame(id);
-  }, [initialJson]);
+  }, [frameReady]);
 
   // Hide Craft drop indicator only when dragging the special New Page source item
   useEffect(() => {
@@ -1429,4 +1468,3 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     </div>
   );
 };
-    
