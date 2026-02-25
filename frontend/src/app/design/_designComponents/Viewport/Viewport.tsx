@@ -380,47 +380,11 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       <div data-viewport-desktop className="relative w-full h-full" ref={desktopCanvasRef}>
         {children}
       </div>
-
-      <div
-        data-mobile-preview-panel="true"
-        className="absolute flex flex-col gap-2 select-none z-20 pointer-events-auto"
-        style={{ top: mobilePanelPos.top, left: mobilePanelPos.left }}
-        onMouseDown={(event) => event.stopPropagation()}
-        onMouseMove={(event) => event.stopPropagation()}
-        onMouseUp={(event) => event.stopPropagation()}
-        onWheel={(event) => event.stopPropagation()}
-      >
-        <span
-          className="text-xs uppercase tracking-wide text-brand-light/70 cursor-move"
-          onMouseDown={(event) => {
-            const root = viewportRootRef.current;
-            if (!root) return;
-            const rootRect = root.getBoundingClientRect();
-            dragOffsetRef.current = {
-              x: event.clientX - rootRect.left - mobilePanelPos.left,
-              y: event.clientY - rootRect.top - mobilePanelPos.top,
-            };
-            setIsDraggingMobilePanel(true);
-            event.preventDefault();
-            event.stopPropagation();
-          }}
-        >
-          Mobile
-        </span>
-        <div
-          ref={mobileCanvasRef}
-          className="w-[390px] min-h-[640px] rounded-lg border border-white/10 bg-brand-white/5 overflow-hidden pointer-events-auto"
-          aria-hidden
-        />
-      </div>
     </div>
   );
 };
 
+
 Viewport.craft = {
-  displayName: "Viewport",
-  rules: {
-    canMoveIn: (incomingNodes: Node[]) =>
-      incomingNodes.every((node) => node.data.displayName === "Page"),
-  }
+  displayName: "Viewport"
 };
