@@ -15,7 +15,7 @@ function parsePx(value: string | undefined): number | null {
  */
 export const Section = ({
   background = "transparent",
-  padding = 40,
+  padding = 0,
   paddingTop,
   paddingRight,
   paddingBottom,
@@ -143,11 +143,11 @@ export const Section = ({
 
 export const SectionDefaultProps: Partial<ContainerProps> = {
   background: "transparent",
-  padding: 40,
-  paddingTop: 40,
-  paddingRight: 40,
-  paddingBottom: 40,
-  paddingLeft: 40,
+  padding: 0,
+  paddingTop: 0,
+  paddingRight: 0,
+  paddingBottom: 0,
+  paddingLeft: 0,
   margin: 0,
   marginTop: 0,
   marginRight: 0,
