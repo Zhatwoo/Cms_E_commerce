@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
 import { type Product } from '../lib/productsData';
+import ProductAddModal from './components/productAddModal';
 
 const ProductCard = ({ product, colors, onEdit, onDelete, onToggleStatus }: {
   product: Product;
@@ -102,6 +103,7 @@ export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | undefined>();
   const [perPage, setPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
@@ -124,8 +126,8 @@ export default function ProductsPage() {
   const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
 
   const handleEdit = (product: Product) => {
-    console.log('Edit product:', product);
-    // TODO: Open edit modal
+    setEditingProduct(product);
+    setShowAddModal(true);
   };
 
   const handleDelete = async (product: Product) => {
@@ -140,6 +142,40 @@ export default function ProductsPage() {
     setProducts(products.map(p =>
       p.id === product.id ? { ...p, status: newStatus } : p
     ));
+  };
+
+  const handleSaveProduct = (productData: Partial<Product> & any) => {
+    if (editingProduct) {
+      // Update existing product
+      setProducts(products.map(p =>
+        p.id === editingProduct.id
+          ? {
+            ...p,
+            ...productData,
+            image: productData.image || productData.emoji || '📦',
+          }
+          : p
+      ));
+    } else {
+      // Add new product
+      const newProduct: Product = {
+        id: productData.id,
+        name: productData.name,
+        sku: productData.sku,
+        category: productData.category,
+        description: productData.description,
+        price: productData.price,
+        stock: productData.stock,
+        status: productData.status,
+        image: productData.image || productData.emoji || '📦',
+        createdAt: productData.createdAt,
+        sales: 0,
+        revenue: 0,
+      };
+      setProducts([...products, newProduct]);
+    }
+    setShowAddModal(false);
+    setEditingProduct(undefined);
   };
 
   const stats = {
@@ -378,6 +414,16 @@ export default function ProductsPage() {
           </button>
         </section>
       )}
+
+      <ProductAddModal
+        isOpen={showAddModal}
+        onClose={() => {
+          setShowAddModal(false);
+          setEditingProduct(undefined);
+        }}
+        onSave={handleSaveProduct}
+        editingProduct={editingProduct}
+      />
     </div>
   );
 }
