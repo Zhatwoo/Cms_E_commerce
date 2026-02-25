@@ -11,10 +11,12 @@ const PAGE_BASE_HEIGHT = 1200;
 const PAGE_GAP_X = 220;
 const PAGE_GAP_Y = 220;
 const PAGE_COLUMNS = 3;
-const VIEWPORT_BASE_MIN_WIDTH = 5000;
-const VIEWPORT_BASE_MIN_HEIGHT = 3600;
-const VIEWPORT_EDGE_PADDING = 1200;
+const VIEWPORT_BASE_MIN_WIDTH = 20000;
+const VIEWPORT_BASE_MIN_HEIGHT = 14000;
+const VIEWPORT_EDGE_PADDING = 6000;
 const MOBILE_PREVIEW_SAFE_WIDTH = 520;
+const PAGE_GRID_ORIGIN_X = Math.round(VIEWPORT_BASE_MIN_WIDTH / 2 - PAGE_BASE_WIDTH / 2);
+const PAGE_GRID_ORIGIN_Y = Math.round(VIEWPORT_BASE_MIN_HEIGHT / 2 - PAGE_BASE_HEIGHT / 2);
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -311,18 +313,12 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       const props = (pageNode.data?.props ?? {}) as Record<string, unknown>;
       const hasCanvasX = typeof props.canvasX === "number";
       const hasCanvasY = typeof props.canvasY === "number";
-      const isDefaultZeroOnNonFirstPage =
-        index > 0 && Number(props.canvasX ?? 0) === 0 && Number(props.canvasY ?? 0) === 0;
-      if (hasCanvasX && hasCanvasY && !isDefaultZeroOnNonFirstPage) return;
-      // Last page with (0,0): leave for NewPageDropPlacementHandler so drop position is preserved
-      const isLastPageWithZero =
-        index === pageIds.length - 1 && Number(props.canvasX ?? 0) === 0 && Number(props.canvasY ?? 0) === 0;
-      if (isLastPageWithZero) return;
+      const needsFallbackPosition = !hasCanvasX || !hasCanvasY;
 
       const col = index % PAGE_COLUMNS;
       const row = Math.floor(index / PAGE_COLUMNS);
-      const canvasX = col * (PAGE_BASE_WIDTH + PAGE_GAP_X);
-      const canvasY = row * (PAGE_BASE_HEIGHT + PAGE_GAP_Y);
+      const canvasX = PAGE_GRID_ORIGIN_X + col * (PAGE_BASE_WIDTH + PAGE_GAP_X);
+      const canvasY = PAGE_GRID_ORIGIN_Y + row * (PAGE_BASE_HEIGHT + PAGE_GAP_Y);
 
       const finalCanvasX = hasCanvasX ? Number(props.canvasX) : canvasX;
       const finalCanvasY = hasCanvasY ? Number(props.canvasY) : canvasY;
@@ -332,10 +328,12 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       maxRight = Math.max(maxRight, finalCanvasX + pageWidth);
       maxBottom = Math.max(maxBottom, finalCanvasY + pageHeight);
 
-      actions.setProp(pageId, (pageProps: Record<string, unknown>) => {
-        if (typeof pageProps.canvasX !== "number") pageProps.canvasX = canvasX;
-        if (typeof pageProps.canvasY !== "number") pageProps.canvasY = canvasY;
-      });
+      if (needsFallbackPosition) {
+        actions.setProp(pageId, (pageProps: Record<string, unknown>) => {
+          if (typeof pageProps.canvasX !== "number") pageProps.canvasX = canvasX;
+          if (typeof pageProps.canvasY !== "number") pageProps.canvasY = canvasY;
+        });
+      }
     });
 
     const desktopRoot = desktopCanvasRef.current;
@@ -559,8 +557,6 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       className="relative p-32"
       style={{ minWidth: `${viewportSize.minWidth}px`, minHeight: `${viewportSize.minHeight}px` }}
     >
-      <div className="absolute top-16 left-16 z-10 pointer-events-none text-xs uppercase tracking-wide text-brand-light/70">Desktop</div>
-
       <div data-viewport-desktop className="relative w-full h-full" ref={desktopCanvasRef}>
         {children}
       </div>

@@ -163,9 +163,9 @@ type EditorShellProps = {
 const MIN_SCALE = 0.01;
 const MAX_SCALE = 3;
 const ZOOM_SENSITIVITY = 0.003;
-const INFINITE_CANVAS_WIDTH_VW = 500;
-const INFINITE_CANVAS_HEIGHT_VH = 500;
-const INFINITE_CANVAS_PADDING_PX = 600;
+const INFINITE_CANVAS_WIDTH_VW = 2000;
+const INFINITE_CANVAS_HEIGHT_VH = 2000;
+const INFINITE_CANVAS_PADDING_PX = 6000;
 
 /**
  * Deep validation function that walks through the entire Craft.js node tree
@@ -482,7 +482,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorCleanupDoneRef = useRef(false); // Track if we've already cleaned up
   const [isPanning, setIsPanning] = useState(false);
-  const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [scale, setScale] = useState(1);
   const [initialJson, setInitialJson] = useState<string | null | undefined>(undefined);
   const [panelsReady, setPanelsReady] = useState(false);
@@ -500,10 +499,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [suppressDropIndicator, setSuppressDropIndicator] = useState(false);
   const [dropIndicatorPulse, setDropIndicatorPulse] = useState(false);
   const hasInitialCenteringRef = useRef(false);
-  const zoomOutPanBoost = scale < 1 ? 1 / Math.max(scale, MIN_SCALE) : 1;
-  const infiniteCanvasWidthVw = Math.round(INFINITE_CANVAS_WIDTH_VW * zoomOutPanBoost);
-  const infiniteCanvasHeightVh = Math.round(INFINITE_CANVAS_HEIGHT_VH * zoomOutPanBoost);
-  const infiniteCanvasPaddingPx = Math.round(INFINITE_CANVAS_PADDING_PX * zoomOutPanBoost);
+  const infiniteCanvasWidthVw = INFINITE_CANVAS_WIDTH_VW;
+  const infiniteCanvasHeightVh = INFINITE_CANVAS_HEIGHT_VH;
+  const infiniteCanvasPaddingPx = INFINITE_CANVAS_PADDING_PX;
   // Cleanup corrupted data when error boundary triggers
   const handleFrameError = useCallback(async () => {
     if (errorCleanupDoneRef.current) return;
@@ -621,13 +619,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     }
   }, [initialJson, projectId, loadPages, showAlert]);
 
-  /** Returns true if the event target is an input, textarea, select, or contenteditable */
-  const isEditableTarget = (target: EventTarget | null) => {
-    if (!target || !(target instanceof HTMLElement)) return false;
-    const tag = target.tagName;
-    return target.isContentEditable || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
-  };
-
   // Handle Zoom (zoom-to-cursor)
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
@@ -737,6 +728,26 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     }, 100);
   }, [canvasWidth, canvasHeight]);
 
+  const handleScaleChange = useCallback((nextScale: number) => {
+    const clampedScale = Math.min(MAX_SCALE, Math.max(nextScale, MIN_SCALE));
+
+    setScale((prevScale) => {
+      if (prevScale === clampedScale) return prevScale;
+
+      const container = containerRef.current;
+      if (container) {
+        zoomAnchorRef.current = {
+          x: container.clientWidth / 2,
+          y: container.clientHeight / 2,
+          prevScale,
+          nextScale: clampedScale,
+        };
+      }
+
+      return clampedScale;
+    });
+  }, []);
+
   // Handle device preset selection - only width changes; preserve page height so it doesn't reset
   const handleDevicePresetSelect = useCallback((preset: DevicePreset) => {
     setCanvasWidth(preset.width);
@@ -751,52 +762,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     setLeftPanelOpen(true);
   }, []);
 
-  // Handle Panning Shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === "Space") {
-        if (isEditableTarget(e.target)) return;
-        // Prevent default spacebar scrolling behavior
-        if (e.target === document.body) {
-          e.preventDefault();
-        }
-
-        if (!isSpacePressed) {
-          setIsSpacePressed(true);
-          document.body.dataset.spacePan = "true";
-        }
-      }
-    };
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.code === "Space") {
-        setIsSpacePressed(false);
-        setIsPanning(false);
-        document.body.removeAttribute("data-space-pan");
-        document.body.removeAttribute("data-canvas-pan");
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-    };
-  }, [isSpacePressed]);
-
   const handleMouseDown = (e: React.MouseEvent) => {
-    const target = e.target as HTMLElement | null;
-    const isCanvasBackground =
-      !!target?.closest("[data-canvas-container]") &&
-      !target?.closest("[data-page-node='true']") &&
-      !target?.closest("[data-panel]") &&
-      !target?.closest("[data-resize-handle]");
-    const backgroundDragPan = e.button === 0 && isCanvasBackground;
-
-    // Hand tool active, or Space held, or middle click → pan
-    if (activeTool === "hand" || isSpacePressed || e.button === 1 || backgroundDragPan) {
+    // Only Hand tool can pan canvas
+    if (activeTool === "hand") {
       setIsPanning(true);
       document.body.dataset.canvasPan = "true";
       e.preventDefault();
@@ -1294,7 +1262,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           {panelsReady && (
             <TopPanel
               scale={scale}
-              onScaleChange={setScale}
+              onScaleChange={handleScaleChange}
               onRotateCanvas={handleRotateCanvas}
               onFitToCanvas={handleFitToCanvas}
               onAddButton={handleAddButton}
@@ -1316,11 +1284,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 ? isPanning
                   ? "grabbing"
                   : "grab"
-                : isSpacePressed
-                  ? isPanning
-                    ? "grabbing"
-                    : "grab"
-                  : "default",
+                : "default",
           }}
           onMouseDown={handleMouseDown}
           onMouseUp={handleMouseUp}
@@ -1329,13 +1293,16 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         >
           {/* Inner Content - Infinite Canvas */}
           <div
-            className="flex items-center justify-center transition-transform duration-300"
+            className="flex items-center justify-center"
             style={{
               minWidth: `${infiniteCanvasWidthVw}vw`,
               minHeight: `${infiniteCanvasHeightVh}vh`,
               padding: `${infiniteCanvasPaddingPx}px`,
-              zoom: scale,
-              transform: canvasRotation !== 0 ? `rotate(${canvasRotation}deg)` : 'none',
+              transformOrigin: "top left",
+              transform:
+                canvasRotation !== 0
+                  ? `scale(${scale}) rotate(${canvasRotation}deg)`
+                  : `scale(${scale})`,
             }}
           >
             {initialJson === undefined ? null : (
@@ -1424,14 +1391,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
             onResetData={handleDeleteData}
             onZoomFit={handleFitToCanvas}
             scale={scale}
-            onScaleChange={setScale}
+            onScaleChange={handleScaleChange}
           />
         )}
         {/* Canvas Controls Overlay: ito yung nasa baba :> */}
         <div data-panel="canvas-controls" className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">
           <div className="flex gap-4 items-center">
             <span>{Math.round(scale * 100)}%</span>
-            <span>Space + Drag to Pan</span>
+            <span>Hand Tool + Drag to Pan</span>
             <span>Ctrl + Scroll to Zoom</span>
             <span>Ctrl (Win) / ⌘ Cmd (Mac) + Click to multi-select</span>
             {/* Delete Button */}

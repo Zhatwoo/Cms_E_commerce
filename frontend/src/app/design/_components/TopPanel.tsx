@@ -23,7 +23,7 @@ export type DevicePreset = {
 };
 
 const MOBILE_PRESET: DevicePreset = {
-  name: "Mobile",
+  name: "Phone",
   width: 390,
   height: 844,
   icon: <Smartphone className="w-4 h-4" />,
@@ -270,22 +270,6 @@ export const TopPanel: React.FC<TopPanelProps> = ({
 
         {/* Right Section - Mobile view toggle + Display size presets */}
         <div className="flex items-center gap-2">
-          {/* Mobile view toggle — one click = mobile, click again = back to laptop */}
-          <button
-            onClick={() => {
-              const isMobile = selectedPreset?.name === "Mobile";
-              handlePresetSelect(isMobile ? LAPTOP_PRESET : MOBILE_PRESET);
-            }}
-            className={`p-2 rounded-lg border transition-colors flex items-center gap-2 ${
-              selectedPreset?.name === "Mobile"
-                ? "bg-brand-medium border-brand-light/30 text-brand-light"
-                : "bg-brand-medium-dark border-white/10 hover:bg-brand-medium text-brand-lighter"
-            }`}
-            title={selectedPreset?.name === "Mobile" ? "Switch to desktop view (Laptop)" : "Switch to mobile view"}
-          >
-            <Smartphone className="w-4 h-4" />
-            <span className="text-sm hidden sm:inline">Mobile</span>
-          </button>
           {/* Device Preset Buttons */}
           <div className="flex items-center gap-1 bg-brand-medium-dark/50 rounded-lg p-1 border border-white/10">
             {DEVICE_PRESETS.map((preset, index) => (
