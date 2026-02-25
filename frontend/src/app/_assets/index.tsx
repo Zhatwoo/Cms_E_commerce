@@ -13,7 +13,7 @@ import {
 import { CenteredHero, HeroWithImage, HeroBannerCTA, HeroBannerCTA_v2, HeroBannerCTA_v3 } from "./Hero";
 import { FeaturesGrid, Testimonial } from "./Content";
 import { ContactForm, NewsletterSignup, OrderForm, LoginForm, SignupForm, AddToCart, PaymentForm } from "./Forms";
-import { ProductCard, TeamMemberCard, GridViewCard, ProductDescription, FeaturedProduct } from "./Cards";
+import { ProductCard, TeamMemberCard, GridViewCard, ProductDescription, FeaturedProduct, CategoriesCard, BrowseCategory, } from "./Cards";
 import {
   SimpleFooter,
   MultiColumnFooter,
@@ -171,7 +171,7 @@ export const GROUPED_TEMPLATES = [
   },
   {
     folder: "Cards",
-    items: [ProductCard, TeamMemberCard],
+    items: [ProductCard, TeamMemberCard, GridViewCard, ProductDescription, FeaturedProduct, CategoriesCard, BrowseCategory],
   },
   {
     folder: "Forms",
