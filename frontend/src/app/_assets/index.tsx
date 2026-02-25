@@ -47,7 +47,9 @@ import { Square as CraftSquare } from "./shapes/square/square";
 import { Triangle as CraftTriangle } from "./shapes/triangle/triangle";
 
 import { TemplateEntry } from "./_types";
-import { ProductDetailView } from "./Content/ProductDetailView";
+import { ProductDetailView } from "./Cards/productcard/ProductDetailView";
+import { ProductDetailViewV2 } from "./Cards/productcard/ProductDetailViewV2";
+import { ProductDetailViewV3 } from "./Cards/productcard/ProductDetailViewV3";
 
 
 export const Circle = ({ width = 60, height = 60 }: { width?: number; height?: number }) => (
@@ -118,6 +120,8 @@ export const TEMPLATES: TemplateEntry[] = [
   ProductCard,
   TeamMemberCard,
   ProductDetailView,
+  ProductDetailViewV2,
+  ProductDetailViewV3,
   SimpleFooter,
   MultiColumnFooter,
   NewsletterFooter,
@@ -167,11 +171,12 @@ export const GROUPED_TEMPLATES = [
   },
   {
     folder: "Content",
-    items: [FeaturesGrid, Testimonial, ProductDetailView],
+    items: [FeaturesGrid, Testimonial],
   },
   {
     folder: "Cards",
-    items: [ProductCard, TeamMemberCard],
+    items: [ProductCard, TeamMemberCard, GridViewCard, ProductDescription, FeaturedProduct, ProductDetailView, ProductDetailViewV2, ProductDetailViewV3],
+
   },
   {
     folder: "Forms",
