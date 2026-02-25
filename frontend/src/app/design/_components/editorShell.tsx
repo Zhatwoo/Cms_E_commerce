@@ -488,6 +488,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   } | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorCleanupDoneRef = useRef(false); // Track if we've already cleaned up
+  const hasUserMovedCanvasRef = useRef(false);
   const [isPanning, setIsPanning] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [scale, setScale] = useState(DEFAULT_SCALE);
@@ -691,6 +692,17 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
     zoomAnchorRef.current = null;
   }, [scale]);
+
+  // Center the canvas in the view
+  const centerCanvasInView = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const x = (container.scrollWidth - container.clientWidth) / 2;
+    const y = (container.scrollHeight - container.clientHeight) / 2;
+    container.scrollLeft = x;
+    container.scrollTop = y;
+  }, []);
 
   // Center canvas after refresh/load and keep centering while layout is still settling
   useEffect(() => {
