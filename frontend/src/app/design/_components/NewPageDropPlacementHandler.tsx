@@ -26,7 +26,7 @@ function resolveViewportId(nodes: Record<string, any>): string | null {
 
 function getEffectiveZoom(el: HTMLElement | null): number {
   if (!el) return 1;
-  let zoom = 1;
+  let cssZoom = 1;
   let current: HTMLElement | null = el;
   while (current) {
     const zoomText = window.getComputedStyle(current).zoom;
@@ -232,10 +232,12 @@ export const NewPageDropPlacementHandler = () => {
       const desktopRoot = document.querySelector("[data-viewport-desktop]") as HTMLElement | null;
       if (!desktopRoot) return;
 
+      const dropPoint = getDropCanvasPoint(drop, desktopRoot);
+
       if (newPageIds.length > 0) {
         newPageIds.forEach((pageId, index) => {
-          const canvasX = Math.round((drop.clientX - rect.left) / zoom + index * 36);
-          const canvasY = Math.round((drop.clientY - rect.top) / zoom + index * 36);
+          const canvasX = Math.round(dropPoint.x + index * 36);
+          const canvasY = Math.round(dropPoint.y + index * 36);
 
           actions.setProp(pageId, (props: Record<string, unknown>) => {
             props.canvasX = canvasX;
@@ -255,8 +257,8 @@ export const NewPageDropPlacementHandler = () => {
       const pageName = `Page ${pageNum}`;
       const PAGE_WIDTH = 1920;
       const PAGE_HEIGHT = 1200;
-      const canvasX = Math.round((drop.clientX - rect.left) / zoom);
-      const canvasY = Math.round((drop.clientY - rect.top) / zoom);
+      const canvasX = dropPoint.x;
+      const canvasY = dropPoint.y;
 
       const tree = {
         rootNodeId: pageId,
