@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useEditor } from "@craftjs/core";
 import { FileType, CodeFile } from "../_types/schema";
 import { autoSavePage } from "../_lib/pageApi";
+import { serializeCraftToClean } from "../_lib/serializer";
 import {
   Code2,
   Trash2,
@@ -496,6 +497,30 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
       lastAppliedContentRef.current = tailwindContent; // Mark as applied
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000);
+
+      // Persist to database and sessionStorage after Craft state has committed
+      const runSave = () => {
+        try {
+          const raw = query.serialize();
+          const parsed = JSON.parse(raw);
+          if (!parsed?.ROOT) return;
+          const cleanCode = serializeCraftToClean(raw, files);
+          const snapshot = JSON.stringify(cleanCode);
+          const STORAGE_KEY_PREFIX = "craftjs_preview_json";
+          if (projectId && typeof window !== "undefined" && window.sessionStorage) {
+            try {
+              window.sessionStorage.setItem(`${STORAGE_KEY_PREFIX}_${projectId}`, snapshot);
+              window.sessionStorage.setItem(STORAGE_KEY_PREFIX, snapshot);
+            } catch (_) {}
+          }
+          autoSavePage(snapshot, projectId).then((result) => {
+            if (!result.success) console.warn("Code sync: DB save failed", result.error);
+          });
+        } catch (e) {
+          console.warn("Code sync: serialize/save failed", e);
+        }
+      };
+      setTimeout(runSave, 0);
     } catch (err) {
       setInstanceError("Failed to apply: Invalid format");
     }
