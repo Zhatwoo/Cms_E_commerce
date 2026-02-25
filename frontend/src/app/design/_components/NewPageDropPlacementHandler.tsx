@@ -144,6 +144,26 @@ export const NewPageDropPlacementHandler = () => {
         },
       };
 
+      const appendWithAddNodeTree = () => {
+        try {
+          (actions as { addNodeTree?: (nextTree: typeof tree, parentId: string) => void }).addNodeTree?.(tree, viewportId);
+          requestAnimationFrame(() => {
+            try {
+              actions.setProp(pageId, (props: Record<string, unknown>) => {
+                props.canvasX = canvasX;
+                props.canvasY = canvasY;
+              });
+              actions.selectNode(pageId);
+            } catch {
+              // Ignore if node not available yet in this frame
+            }
+          });
+          preDropPageIdsRef.current = new Set([...currentPageIds, pageId]);
+        } catch (error) {
+          console.error("Failed to append dropped page via addNodeTree:", error);
+        }
+      };
+
       try {
         // Build a full serialized editor snapshot from current state, insert the new page node
         let snapshot: Record<string, any> | null = null;
@@ -158,7 +178,8 @@ export const NewPageDropPlacementHandler = () => {
           // Find viewport id in serialized snapshot
           const serializedViewportId = Object.keys(snapshot).find((id) => {
             const n = snapshot[id] as any;
-            return (n?.displayName === "Viewport") || (n?.data?.displayName === "Viewport");
+            const resolvedName = n?.type?.resolvedName ?? n?.data?.type?.resolvedName;
+            return (n?.displayName === "Viewport") || (n?.data?.displayName === "Viewport") || resolvedName === "Viewport";
           });
 
           if (serializedViewportId) {
@@ -184,8 +205,13 @@ export const NewPageDropPlacementHandler = () => {
 
             // Ensure viewport nodes array exists and append
             const vp = snapshot[serializedViewportId] as any;
-            if (!Array.isArray(vp.nodes)) vp.nodes = [];
-            vp.nodes = [...vp.nodes, pageId];
+            if (Array.isArray(vp?.nodes)) {
+              vp.nodes = [...vp.nodes, pageId];
+            } else if (Array.isArray(vp?.data?.nodes)) {
+              vp.data.nodes = [...vp.data.nodes, pageId];
+            } else {
+              vp.nodes = [pageId];
+            }
 
             actions.deserialize(JSON.stringify(snapshot));
             requestAnimationFrame(() => {
@@ -201,17 +227,16 @@ export const NewPageDropPlacementHandler = () => {
             });
             preDropPageIdsRef.current = new Set([...currentPageIds, pageId]);
           } else {
-            // Fallback to previous lightweight tree if we couldn't find serialized viewport
-            actions.deserialize(JSON.stringify(tree));
-            preDropPageIdsRef.current = new Set([...currentPageIds, pageId]);
+            // Safer fallback: append directly to current viewport instead of replacing whole state
+            appendWithAddNodeTree();
           }
         } else {
-          // No snapshot available — use direct deserialize of minimal tree
-          actions.deserialize(JSON.stringify(tree));
-          preDropPageIdsRef.current = new Set([...currentPageIds, pageId]);
+          // No snapshot available — append directly to current viewport
+          appendWithAddNodeTree();
         }
       } catch (error) {
         console.error("Failed to insert dropped page:", error);
+        appendWithAddNodeTree();
       }
 
       lastDropPointRef.current = null;

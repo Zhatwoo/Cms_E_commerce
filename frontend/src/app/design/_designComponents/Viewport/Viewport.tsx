@@ -284,10 +284,12 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
   const viewportRootRef = useRef<HTMLDivElement | null>(null);
   const desktopCanvasRef = useRef<HTMLDivElement | null>(null);
   const mobileCanvasRef = useRef<HTMLDivElement | null>(null);
+  const lockedMobilePageIdRef = useRef<string | null>(null);
   const [mobilePanelPos, setMobilePanelPos] = useState({ top: 16, left: 0 });
   const [isDraggingMobilePanel, setIsDraggingMobilePanel] = useState(false);
   const dragOffsetRef = useRef({ x: 0, y: 0 });
   const mobilePositionInitializedRef = useRef(false);
+  const mobilePanelDraggedRef = useRef(false);
   const [viewportSize, setViewportSize] = useState({
     minWidth: VIEWPORT_BASE_MIN_WIDTH,
     minHeight: VIEWPORT_BASE_MIN_HEIGHT,
@@ -373,7 +375,7 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
 
   useEffect(() => {
     const root = viewportRootRef.current;
-    if (!root || mobilePositionInitializedRef.current) return;
+    if (!root) return;
 
     const desktopRoot = desktopCanvasRef.current;
     const rootRect = root.getBoundingClientRect();
@@ -418,11 +420,22 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
     const panelHeight = MOBILE_MIN_HEIGHT + 32;
     const maxLeft = Math.max(16, root.clientWidth - MOBILE_WIDTH - 16);
     const maxTop = Math.max(16, root.clientHeight - panelHeight - 16);
-    const left = clamp(desiredLeft, 16, maxLeft);
-    const top = clamp(contentTop - MOBILE_PREVIEW_LABEL_OFFSET, 16, maxTop);
-    setMobilePanelPos({ top, left });
-    mobilePositionInitializedRef.current = true;
-  }, [viewportSize.minWidth, viewportSize.minHeight]);
+    const suggestedLeft = clamp(desiredLeft, 16, maxLeft);
+    const suggestedTop = clamp(contentTop - MOBILE_PREVIEW_LABEL_OFFSET, 16, maxTop);
+
+    // Auto-position only until the user manually drags the panel.
+    // After that, just keep the panel clamped so it never disappears off-screen.
+    if (!mobilePositionInitializedRef.current || !mobilePanelDraggedRef.current) {
+      setMobilePanelPos({ top: suggestedTop, left: suggestedLeft });
+      mobilePositionInitializedRef.current = true;
+      return;
+    }
+
+    setMobilePanelPos((prev) => ({
+      left: clamp(prev.left, 16, maxLeft),
+      top: clamp(prev.top, 16, maxTop),
+    }));
+  }, [viewportSize.minWidth, viewportSize.minHeight, children]);
 
   useEffect(() => {
     if (!isDraggingMobilePanel) return;
@@ -476,21 +489,21 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       const state = query.getState();
       const nodes = state?.nodes ?? {};
 
-      let selectedPageId: string | null = null;
-      if (selectedNodeId && nodes[selectedNodeId]) {
-        let cursorId: string | null = selectedNodeId;
-        while (cursorId && nodes[cursorId]) {
-          const cursorNode = nodes[cursorId] as { data?: { displayName?: string; parent?: string } } | undefined;
-          if (cursorNode?.data?.displayName === "Page") {
-            selectedPageId = cursorId;
-            break;
-          }
-          cursorId = cursorNode?.data?.parent ?? null;
-        }
+      const viewportNode = nodes[viewportId] as { data?: { nodes?: string[] } } | undefined;
+      const viewportChildren = Array.isArray(viewportNode?.data?.nodes) ? viewportNode.data.nodes : [];
+      const pageIds = viewportChildren.filter((id) => nodes[id]?.data?.displayName === "Page");
+      const firstPageId = pageIds[0] ?? null;
+
+      const lockedPageId = lockedMobilePageIdRef.current;
+      const hasLockedPage = !!(lockedPageId && nodes[lockedPageId]?.data?.displayName === "Page");
+      if (!hasLockedPage) {
+        lockedMobilePageIdRef.current = firstPageId;
       }
 
-      const source = selectedPageId
-        ? (desktopRoot.querySelector(`[data-node-id="${selectedPageId}"]`) as HTMLElement | null)
+      const sourcePageId = lockedMobilePageIdRef.current;
+
+      const source = sourcePageId
+        ? (desktopRoot.querySelector(`[data-node-id="${sourcePageId}"]`) as HTMLElement | null)
         : ((desktopRoot.querySelector("[data-page-node='true']") as HTMLElement | null) ??
             (desktopRoot.querySelector("[data-node-id]") as HTMLElement | null));
 
@@ -641,6 +654,7 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
           onMouseDown={(event) => {
             const root = viewportRootRef.current;
             if (!root) return;
+            mobilePanelDraggedRef.current = true;
             const rootRect = root.getBoundingClientRect();
             dragOffsetRef.current = {
               x: event.clientX - rootRect.left - mobilePanelPos.left,
