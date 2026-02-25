@@ -33,7 +33,7 @@ function getEffectiveZoom(el: HTMLElement | null): number {
     }
     current = current.parentElement;
   }
-  return fallback;
+  return zoom;
 }
 
 export const NewPageDropPlacementHandler = () => {
@@ -44,6 +44,7 @@ export const NewPageDropPlacementHandler = () => {
   const lastDropPointRef = useRef<DropPoint | null>(null);
   const lastPointerRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const previewElRef = useRef<HTMLElement | null>(null);
 
   const placeDroppedPage = () => {
     try {
@@ -273,6 +274,56 @@ export const NewPageDropPlacementHandler = () => {
         placeDroppedPage();
         schedulePlacementRetry();
       }
+      armedDragRef.current = false;
+      movedDuringDragRef.current = false;
+    };
+
+    const handleDragOver = (e: DragEvent) => {
+      if (!armedDragRef.current) return;
+      const x = e.clientX || lastPointerRef.current.x;
+      const y = e.clientY || lastPointerRef.current.y;
+      lastPointerRef.current = { x, y };
+      if (!movedDuringDragRef.current) {
+        const dx = x - dragStartRef.current.x;
+        const dy = y - dragStartRef.current.y;
+        if ((dx * dx + dy * dy) > 36) {
+          movedDuringDragRef.current = true;
+        }
+      }
+    };
+
+    const handleDrop = (e: DragEvent) => {
+      if (!armedDragRef.current || !movedDuringDragRef.current) {
+        armedDragRef.current = false;
+        movedDuringDragRef.current = false;
+        return;
+      }
+
+      const pointer = {
+        x: e.clientX || lastPointerRef.current.x,
+        y: e.clientY || lastPointerRef.current.y,
+      };
+
+      lastDropPointRef.current = {
+        clientX: pointer.x,
+        clientY: pointer.y,
+        ts: Date.now(),
+      };
+
+      placeDroppedPage();
+      schedulePlacementRetry();
+
+      armedDragRef.current = false;
+      movedDuringDragRef.current = false;
+    };
+
+    const handleWindowBlur = () => {
+      armedDragRef.current = false;
+      movedDuringDragRef.current = false;
+      lastDropPointRef.current = null;
+    };
+
+    const handleDragEnd = () => {
       armedDragRef.current = false;
       movedDuringDragRef.current = false;
     };
