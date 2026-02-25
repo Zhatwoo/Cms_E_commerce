@@ -159,6 +159,17 @@ const INFINITE_CANVAS_WIDTH_VW = 2000;
 const INFINITE_CANVAS_HEIGHT_VH = 2000;
 const INFINITE_CANVAS_PADDING_PX = 6000;
 
+const isEditableTarget = (target: EventTarget | null) => {
+  if (!target || !(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  return (
+    target.isContentEditable ||
+    tag === "INPUT" ||
+    tag === "TEXTAREA" ||
+    tag === "SELECT"
+  );
+};
+
 /**
  * Deep validation function that walks through the entire Craft.js node tree
  * and ensures all node references are valid.
@@ -819,6 +830,29 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       containerRef.current.scrollTop -= e.movementY;
     }
   };
+
+  useEffect(() => {
+    const handleToolShortcut = (event: KeyboardEvent) => {
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (isEditableTarget(event.target)) return;
+
+      const key = event.key.toLowerCase();
+
+      if (key === "h") {
+        event.preventDefault();
+        setActiveTool("hand");
+        return;
+      }
+
+      if (key === "g") {
+        event.preventDefault();
+        setActiveTool("move");
+      }
+    };
+
+    window.addEventListener("keydown", handleToolShortcut);
+    return () => window.removeEventListener("keydown", handleToolShortcut);
+  }, []);
 
   // Track if editor is fully loaded to prevent stale closure issues
   const isReadyRef = useRef(false);
