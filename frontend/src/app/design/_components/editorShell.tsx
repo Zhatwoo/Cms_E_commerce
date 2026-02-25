@@ -8,6 +8,7 @@ import { LeftPanel } from "./leftPanel";
 import { RightPanel } from "./rightPanel";
 import { TopPanel, type DevicePreset } from "./TopPanel";
 import { BottomPanel, type CanvasTool } from "./BottomPanel";
+import { FloatingMobilePreview } from "./FloatingMobilePreview";
 import { CanvasToolProvider } from "./CanvasToolContext";
 import { Container } from "../_designComponents/Container/Container";
 import { Text } from "../_designComponents/Text/Text";
@@ -68,6 +69,10 @@ class FrameErrorBoundary extends React.Component<
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 
+// These must match the Viewport constants for proper page positioning
+const PAGE_GRID_ORIGIN_X = 30000;
+const PAGE_GRID_ORIGIN_Y = 30000;
+
 const EMPTY_FRAME_DATA = JSON.stringify({
   ROOT: {
     type: { resolvedName: "Viewport" },
@@ -82,7 +87,15 @@ const EMPTY_FRAME_DATA = JSON.stringify({
   "page-1": {
     type: { resolvedName: "Page" },
     isCanvas: true,
-    props: { pageName: "Page 1", pageSlug: "page-0" },
+    props: { 
+      pageName: "Page 1", 
+      pageSlug: "page-0",
+      canvasX: PAGE_GRID_ORIGIN_X,
+      canvasY: PAGE_GRID_ORIGIN_Y,
+      width: "1920px",
+      height: "1200px",
+      background: "#ffffff"
+    },
     displayName: "Page",
     custom: {},
     parent: "ROOT",
@@ -760,11 +773,34 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     };
   }, [frameReady, scale, canvasRotation, initialJson]);
 
-  // Center the canvas in the view
+  // Center the canvas in the view - focus on first page element
   const centerCanvasInView = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
 
+    // Try to find the first Page element and center on it
+    const firstPage = container.querySelector("[data-page-node]") as HTMLElement | null;
+    
+    if (firstPage) {
+      const containerRect = container.getBoundingClientRect();
+      const pageRect = firstPage.getBoundingClientRect();
+
+      // Calculate where the page center is in scroll coordinates
+      const pageCenterX = container.scrollLeft + (pageRect.left - containerRect.left) + pageRect.width / 2;
+      const pageCenterY = container.scrollTop + (pageRect.top - containerRect.top) + pageRect.height / 2;
+
+      const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
+      const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+
+      const nextLeft = Math.min(maxScrollLeft, Math.max(0, pageCenterX - container.clientWidth / 2));
+      const nextTop = Math.min(maxScrollTop, Math.max(0, pageCenterY - container.clientHeight / 2));
+
+      container.scrollLeft = nextLeft;
+      container.scrollTop = nextTop;
+      return;
+    }
+
+    // Fallback: try viewport desktop
     const desktopViewport = container.querySelector("[data-viewport-desktop]") as HTMLElement | null;
 
     if (desktopViewport) {
@@ -785,6 +821,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       return;
     }
 
+    // Ultimate fallback: center of scroll area
     const fallbackLeft = (container.scrollWidth - container.clientWidth) / 2;
     const fallbackTop = (container.scrollHeight - container.clientHeight) / 2;
     container.scrollLeft = fallbackLeft;
@@ -863,16 +900,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
     setScale(Math.max(newScale, MIN_SCALE));
 
-    // Center the canvas
+    // Center on the first page
     setTimeout(() => {
-      if (container) {
-        const x = (container.scrollWidth - container.clientWidth) / 2;
-        const y = (container.scrollHeight - container.clientHeight) / 2;
-        container.scrollLeft = x;
-        container.scrollTop = y;
-      }
+      centerCanvasInView();
     }, 100);
-  }, [canvasWidth, canvasHeight]);
+  }, [canvasWidth, canvasHeight, centerCanvasInView]);
 
   const handleScaleChange = useCallback((nextScale: number) => {
     const clampedScale = Math.min(MAX_SCALE, Math.max(nextScale, MIN_SCALE));
@@ -1660,6 +1692,13 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
             onZoomFit={handleFitToCanvas}
             scale={scale}
             onScaleChange={handleScaleChange}
+          />
+        )}
+        {/* Floating Mobile Preview */}
+        {panelsReady && (
+          <FloatingMobilePreview
+            isOpen={showDualView}
+            onClose={() => setShowDualView(false)}
           />
         )}
         </InlineTextEditProvider>
