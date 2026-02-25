@@ -151,7 +151,7 @@ type EditorShellProps = {
   pageId?: string | null;
 };
 
-const MIN_SCALE = 0.01;
+const MIN_SCALE = 0.05;
 const MAX_SCALE = 3;
 const DEFAULT_SCALE = 0.5;
 const ZOOM_SENSITIVITY = 0.003;
@@ -491,12 +491,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [currentPageId, setCurrentPageId] = useState<string | null>(initialPageId ?? null);
   const [pages, setPages] = useState<Array<{ id: string; name: string }>>([]);
   const containerRef = useRef<HTMLDivElement>(null);
-  const zoomAnchorRef = useRef<{
-    x: number;
-    y: number;
-    prevScale: number;
-    nextScale: number;
-  } | null>(null);
+  const horizontalScrollbarRef = useRef<HTMLDivElement>(null);
+  const horizontalScrollbarInnerRef = useRef<HTMLDivElement>(null);
+  const syncScrollSourceRef = useRef<"canvas" | "bar" | null>(null);
+  const previousScaleRef = useRef(1);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorCleanupDoneRef = useRef(false); // Track if we've already cleaned up
   const hasUserMovedCanvasRef = useRef(false);
@@ -638,7 +636,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     }
   }, [initialJson, projectId, loadPages, showAlert]);
 
-  // Handle Zoom (zoom-to-cursor)
+  // Handle Zoom (always anchor to viewport center)
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
       if (!(e.ctrlKey || e.metaKey)) return;
@@ -660,16 +658,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       }
       e.stopPropagation();
 
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-
       setScale((prevScale) => {
         const step = -e.deltaY * ZOOM_SENSITIVITY * Math.max(prevScale, MIN_SCALE);
-        const newScale = Math.min(MAX_SCALE, Math.max(prevScale + step, MIN_SCALE));
-        if (newScale !== prevScale) {
-          zoomAnchorRef.current = { x, y, prevScale, nextScale: newScale };
-        }
-        return newScale;
+        return Math.min(MAX_SCALE, Math.max(prevScale + step, MIN_SCALE));
       });
     };
 
@@ -680,21 +671,93 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     };
   }, []);
 
-  // Adjust scroll position after zoom to keep cursor point stationary
+  // Keep center point stationary while zooming, including rapid wheel bursts
   useLayoutEffect(() => {
-    const anchor = zoomAnchorRef.current;
     const container = containerRef.current;
-    if (!anchor || !container) return;
+    if (!container) {
+      previousScaleRef.current = scale;
+      return;
+    }
 
-    const { x, y, prevScale, nextScale } = anchor;
-    const contentX = (container.scrollLeft + x) / prevScale;
-    const contentY = (container.scrollTop + y) / prevScale;
+    const prevScale = previousScaleRef.current;
+    const nextScale = scale;
+    if (prevScale === nextScale) return;
 
-    container.scrollLeft = contentX * nextScale - x;
-    container.scrollTop = contentY * nextScale - y;
+    const centerX = container.clientWidth / 2;
+    const centerY = container.clientHeight / 2;
+    const contentX = (container.scrollLeft + centerX) / prevScale;
+    const contentY = (container.scrollTop + centerY) / prevScale;
 
-    zoomAnchorRef.current = null;
+    const nextScrollLeft = contentX * nextScale - centerX;
+    const nextScrollTop = contentY * nextScale - centerY;
+    const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
+    const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+
+    container.scrollLeft = Math.min(maxScrollLeft, Math.max(0, nextScrollLeft));
+    container.scrollTop = Math.min(maxScrollTop, Math.max(0, nextScrollTop));
+    previousScaleRef.current = nextScale;
   }, [scale]);
+
+  // Keep bottom horizontal scrollbar synced with canvas scroll
+  useEffect(() => {
+    const container = containerRef.current;
+    const bar = horizontalScrollbarRef.current;
+    const inner = horizontalScrollbarInnerRef.current;
+    if (!container || !bar || !inner) return;
+
+    const syncMetrics = () => {
+      inner.style.width = `${container.scrollWidth}px`;
+      const canScrollHorizontally = container.scrollWidth - container.clientWidth > 1;
+      bar.style.opacity = canScrollHorizontally ? "1" : "0";
+      bar.style.pointerEvents = canScrollHorizontally ? "auto" : "none";
+      if (canScrollHorizontally) {
+        bar.scrollLeft = container.scrollLeft;
+      }
+    };
+
+    const syncFromCanvas = () => {
+      if (syncScrollSourceRef.current === "bar") {
+        syncScrollSourceRef.current = null;
+        return;
+      }
+      syncScrollSourceRef.current = "canvas";
+      bar.scrollLeft = container.scrollLeft;
+      syncScrollSourceRef.current = null;
+    };
+
+    const syncFromBar = () => {
+      if (syncScrollSourceRef.current === "canvas") {
+        syncScrollSourceRef.current = null;
+        return;
+      }
+      syncScrollSourceRef.current = "bar";
+      container.scrollLeft = bar.scrollLeft;
+      syncScrollSourceRef.current = null;
+    };
+
+    syncMetrics();
+
+    container.addEventListener("scroll", syncFromCanvas, { passive: true });
+    bar.addEventListener("scroll", syncFromBar, { passive: true });
+    window.addEventListener("resize", syncMetrics);
+
+    const resizeObserver = new ResizeObserver(syncMetrics);
+    resizeObserver.observe(container);
+    const contentEl = container.firstElementChild;
+    if (contentEl instanceof HTMLElement) {
+      resizeObserver.observe(contentEl);
+    }
+
+    const metricsInterval = window.setInterval(syncMetrics, 240);
+
+    return () => {
+      container.removeEventListener("scroll", syncFromCanvas);
+      bar.removeEventListener("scroll", syncFromBar);
+      window.removeEventListener("resize", syncMetrics);
+      window.clearInterval(metricsInterval);
+      resizeObserver.disconnect();
+    };
+  }, [frameReady, scale, canvasRotation, initialJson]);
 
   // Center the canvas in the view
   const centerCanvasInView = useCallback(() => {
@@ -778,21 +841,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const handleScaleChange = useCallback((nextScale: number) => {
     const clampedScale = Math.min(MAX_SCALE, Math.max(nextScale, MIN_SCALE));
 
-    setScale((prevScale) => {
-      if (prevScale === clampedScale) return prevScale;
-
-      const container = containerRef.current;
-      if (container) {
-        zoomAnchorRef.current = {
-          x: container.clientWidth / 2,
-          y: container.clientHeight / 2,
-          prevScale,
-          nextScale: clampedScale,
-        };
-      }
-
-      return clampedScale;
-    });
+    setScale((prevScale) => (prevScale === clampedScale ? prevScale : clampedScale));
   }, []);
 
   // Handle device preset selection - only width changes; preserve page height so it doesn't reset
@@ -1387,6 +1436,16 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 }}
               />
             )}
+          </div>
+        </div>
+        <div className="absolute bottom-12 left-4 right-4 z-[60] pointer-events-none">
+          <div
+            ref={horizontalScrollbarRef}
+            className="canvas-scroll-container canvas-bottom-scrollbar pointer-events-auto h-5 overflow-x-scroll overflow-y-hidden rounded-md border border-white/20 bg-brand-dark/85"
+            onMouseDown={(event) => event.stopPropagation()}
+            onWheel={(event) => event.stopPropagation()}
+          >
+            <div ref={horizontalScrollbarInnerRef} className="h-px" />
           </div>
         </div>
         {/* Floating Panels */}
