@@ -14,6 +14,28 @@ const PAGE_GRID_ORIGIN_X = VIEWPORT_EDGE_PADDING;
 const PAGE_GRID_ORIGIN_Y = VIEWPORT_EDGE_PADDING;
 // Extra space for mobile previews beside each page
 const MOBILE_PREVIEW_SAFE_WIDTH = 520;
+const MOBILE_WIDTH = 390;
+const MOBILE_MIN_HEIGHT = 640;
+const MOBILE_PREVIEW_GAP = 200;
+const MOBILE_PREVIEW_LABEL_OFFSET = 0;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function adaptCloneForMobile(root: HTMLElement) {
+  const all = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
+  all.forEach((el) => {
+    el.style.boxSizing = "border-box";
+    el.style.maxWidth = "100%";
+  });
+
+  root.style.width = "100%";
+  root.style.minWidth = "0px";
+  root.style.overflowX = "hidden";
+  root.style.paddingLeft = "14px";
+  root.style.paddingRight = "14px";
+}
 
 function parsePx(value: string | null | undefined): number | null {
   if (!value) return null;
