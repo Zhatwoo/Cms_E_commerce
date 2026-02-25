@@ -33,7 +33,7 @@ function getEffectiveZoom(el: HTMLElement | null): number {
     }
     current = current.parentElement;
   }
-  return zoom > 0.01 ? zoom : 1;
+  return fallback;
 }
 
 export const NewPageDropPlacementHandler = () => {
@@ -280,10 +280,21 @@ export const NewPageDropPlacementHandler = () => {
     document.addEventListener("mousedown", handleMouseDown, true);
     document.addEventListener("mousemove", handleMouseMove, true);
     document.addEventListener("mouseup", handleMouseUp, true);
+    document.addEventListener("dragover", handleDragOver, true);
+    document.addEventListener("drop", handleDrop, true);
+    window.addEventListener("blur", handleWindowBlur);
+    document.addEventListener("dragend", handleDragEnd, true);
     return () => {
       document.removeEventListener("mousedown", handleMouseDown, true);
       document.removeEventListener("mousemove", handleMouseMove, true);
       document.removeEventListener("mouseup", handleMouseUp, true);
+      document.removeEventListener("dragover", handleDragOver, true);
+      document.removeEventListener("drop", handleDrop, true);
+      window.removeEventListener("blur", handleWindowBlur);
+      document.removeEventListener("dragend", handleDragEnd, true);
+      const el = previewElRef.current;
+      if (el?.parentElement) el.parentElement.removeChild(el);
+      previewElRef.current = null;
     };
   }, [query]);
 

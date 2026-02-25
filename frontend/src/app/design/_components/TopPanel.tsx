@@ -11,6 +11,7 @@ import {
   Tablet,
   Laptop,
   Monitor,
+  Smartphone,
   ChevronDown,
 } from "lucide-react";
 
@@ -21,7 +22,22 @@ export type DevicePreset = {
   icon: React.ReactNode;
 };
 
+const MOBILE_PRESET: DevicePreset = {
+  name: "Phone",
+  width: 390,
+  height: 844,
+  icon: <Smartphone className="w-4 h-4" />,
+};
+
+const LAPTOP_PRESET: DevicePreset = {
+  name: "Laptop",
+  width: 1440,
+  height: 900,
+  icon: <Laptop className="w-4 h-4" />,
+};
+
 const DEVICE_PRESETS: DevicePreset[] = [
+  MOBILE_PRESET,
   {
     name: "Tablet Portrait",
     width: 768,
@@ -34,12 +50,7 @@ const DEVICE_PRESETS: DevicePreset[] = [
     height: 768,
     icon: <Tablet className="w-4 h-4 rotate-90" />,
   },
-  {
-    name: "Laptop",
-    width: 1440,
-    height: 900,
-    icon: <Laptop className="w-4 h-4" />,
-  },
+  LAPTOP_PRESET,
   {
     name: "Desktop",
     width: 1920,
@@ -257,7 +268,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
           </div>
         </div>
 
-        {/* Right Section - Display size presets */}
+        {/* Right Section - Mobile view toggle + Display size presets */}
         <div className="flex items-center gap-2">
           {/* Device Preset Buttons */}
           <div className="flex items-center gap-1 bg-brand-medium-dark/50 rounded-lg p-1 border border-white/10">

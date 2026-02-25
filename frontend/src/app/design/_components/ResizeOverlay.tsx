@@ -9,6 +9,7 @@ type Handle = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 const HANDLE_SIZE = 8;
 const ROTATION_HANDLE_OFFSET = 24;
 const EPSILON = 0.01;
+const MOVE_DRAG_START_THRESHOLD = 2;
 
 const HANDLE_CURSORS: Record<Handle, string> = {
   n: "ns-resize",
@@ -37,31 +38,28 @@ function rectChanged(prev: DOMRect | null, next: DOMRect): boolean {
 }
 
 function getEffectiveZoom(el: HTMLElement): number {
-  let zoom = 1;
+  let cssZoom = 1;
   let current: HTMLElement | null = el;
   while (current) {
     const zoomText = window.getComputedStyle(current).zoom;
     const parsed = parseFloat(zoomText);
     if (Number.isFinite(parsed) && parsed > 0) {
-      zoom *= parsed;
+      cssZoom *= parsed;
     }
     current = current.parentElement;
   }
-  return zoom > 0.01 ? zoom : 1;
+
+  const rect = el.getBoundingClientRect();
+  const sx = el.offsetWidth > 0 ? rect.width / el.offsetWidth : 1;
+  const sy = el.offsetHeight > 0 ? rect.height / el.offsetHeight : 1;
+  const transformScale = Number.isFinite(sx) && Number.isFinite(sy) ? (sx + sy) / 2 : 1;
+
+  const effective = cssZoom * transformScale;
+  return effective > 0.01 ? effective : 1;
 }
 
 function getOverlayRect(el: HTMLElement): DOMRect {
-  const bounds = el.getBoundingClientRect();
-  const zoom = getEffectiveZoom(el);
-  const rawWidth = el.offsetWidth;
-  const rawHeight = el.offsetHeight;
-  if (!rawWidth || !rawHeight) return bounds;
-
-  const width = rawWidth * zoom;
-  const height = rawHeight * zoom;
-  const left = bounds.left + (bounds.width - width) / 2;
-  const top = bounds.top + (bounds.height - height) / 2;
-  return new DOMRect(left, top, width, height);
+  return el.getBoundingClientRect();
 }
 
 const SNAP_THRESHOLD = 4;
@@ -78,7 +76,10 @@ type SiblingRect = {
 type DragState = {
   type: "move" | "resize" | "rotate";
   handle?: Handle;
-  moveMode?: "margin" | "offset";
+  moveMode?: "margin" | "offset" | "page-canvas";
+  originX: number;
+  originY: number;
+  moveStarted?: boolean;
   startX: number;
   startY: number;
   lastX: number;
@@ -275,6 +276,9 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         type,
         handle,
         moveMode: "margin",
+        originX: e.clientX,
+        originY: e.clientY,
+        moveStarted: type !== "move",
         startX: e.clientX,
         startY: e.clientY,
         lastX: e.clientX,
@@ -311,8 +315,12 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
           const state = query.getState();
           const displayName = state.nodes[nodeId]?.data?.displayName as string | undefined;
           const offsetMoveTypes = new Set(["Image", "Text", "Icon", "Button", "Circle", "Square", "Triangle"]);
-          if (dragRef.current && displayName && offsetMoveTypes.has(displayName)) {
-            dragRef.current.moveMode = "offset";
+          if (dragRef.current && displayName) {
+            if (displayName === "Page") {
+              dragRef.current.moveMode = "page-canvas";
+            } else if (offsetMoveTypes.has(displayName)) {
+              dragRef.current.moveMode = "offset";
+            }
           }
 
           const parentId = state.nodes[nodeId]?.data?.parent;
@@ -421,6 +429,21 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       }
 
       if (d.type === "move") {
+        if (!d.moveStarted) {
+          const totalDxPx = d.lastX - d.originX;
+          const totalDyPx = d.lastY - d.originY;
+          const distance = Math.hypot(totalDxPx, totalDyPx);
+          if (distance < MOVE_DRAG_START_THRESHOLD) {
+            rafRef.current = 0;
+            return;
+          }
+          d.moveStarted = true;
+          d.startX = d.lastX;
+          d.startY = d.lastY;
+          rafRef.current = 0;
+          return;
+        }
+
         let nextLeft = d.moveMode === "offset"
           ? parsePxOrAuto(p.left) + dx
           : parsePxOrAuto(p.marginLeft) + dx;
@@ -698,6 +721,17 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         };
 
         if (d.type === "move") {
+          if (!d.moveStarted) {
+            resetPreviewStyles();
+            dragRef.current = null;
+            setIsDragging(false);
+            setDragType(null);
+            setRotateAngle(null);
+            document.body.style.cursor = "";
+            document.body.style.userSelect = "";
+            return;
+          }
+
           const moved = tryMoveIntoDropTarget(e.clientX, e.clientY);
           if (moved) {
             resetPreviewStyles();
@@ -719,7 +753,17 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
 
         if (d.type === "move") {
           const startProps = d.startProps;
-          if (d.moveMode === "offset") {
+          if (d.moveMode === "page-canvas") {
+            const baseCanvasX = typeof p.canvasX === "number" ? p.canvasX : parsePxOrAuto(p.canvasX);
+            const baseCanvasY = typeof p.canvasY === "number" ? p.canvasY : parsePxOrAuto(p.canvasY);
+            const finalCanvasX = Math.round(baseCanvasX + totalDx);
+            const finalCanvasY = Math.round(baseCanvasY + totalDy);
+
+            actions.setProp(nodeId, (props: Record<string, unknown>) => {
+              props.canvasX = finalCanvasX;
+              props.canvasY = finalCanvasY;
+            });
+          } else if (d.moveMode === "offset") {
             const baseTop = parsePxOrAuto(p.top);
             const baseLeft = parsePxOrAuto(p.left);
             const finalTop = baseTop + totalDy;

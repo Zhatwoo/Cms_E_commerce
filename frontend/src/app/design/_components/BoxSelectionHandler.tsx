@@ -33,9 +33,40 @@ export const BoxSelectionHandler = () => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === "Space") setMarquee(null);
+      if (e.code === "Escape") {
+        startedOnEmptyRef.current = false;
+        setMarquee(null);
+      }
     };
+
+    const handleWindowBlur = () => {
+      startedOnEmptyRef.current = false;
+      setMarquee(null);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        startedOnEmptyRef.current = false;
+        setMarquee(null);
+      }
+    };
+
+    const handleGlobalMouseUp = () => {
+      startedOnEmptyRef.current = false;
+      setMarquee(null);
+    };
+
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("blur", handleWindowBlur);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("mouseup", handleGlobalMouseUp);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("blur", handleWindowBlur);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("mouseup", handleGlobalMouseUp);
+    };
   }, []);
 
   useEffect(() => {

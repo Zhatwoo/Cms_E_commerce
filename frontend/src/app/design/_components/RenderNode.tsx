@@ -37,13 +37,18 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
   // When Hand tool is active, don't show selection/hover outline or labels on assets
   useEffect(() => {
     if (dom) {
+      if (id === "ROOT" || name === "Viewport") {
+        dom.classList.remove("component-selected");
+        return;
+      }
+
       if (!isHandTool && (isActive || isHover)) {
         dom.classList.add("component-selected");
       } else {
         dom.classList.remove("component-selected");
       }
     }
-  }, [dom, isActive, isHover, isHandTool]);
+  }, [dom, id, name, isActive, isHover, isHandTool]);
 
   // Don't render overlays for ROOT/Viewport shells only
   if (id === "ROOT" || name === "Viewport") {
