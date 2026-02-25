@@ -4,6 +4,7 @@ import React, { useState, useCallback } from "react";
 import { useNode } from "@craftjs/core";
 import type { Node } from "@craftjs/core";
 import { PageSettings } from "./PageSettings";
+import { PageMobilePreview } from "./PageMobilePreview";
 import type { PageProps } from "../../_types";
 import { slugFromName } from "../../_lib/slug";
 
@@ -90,6 +91,8 @@ export const Page = ({
         )}
       </div>
       {children}
+      {/* Mobile preview - positioned relative to this page */}
+      <PageMobilePreview pageId={id} pageWidth={width} pageName={pageName} />
     </div>
   );
 };
