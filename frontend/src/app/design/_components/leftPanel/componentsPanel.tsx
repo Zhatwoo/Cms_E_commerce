@@ -9,7 +9,6 @@ import { Section } from "../../_designComponents/Section/Section";
 import { Row } from "../../_designComponents/Row/Row";
 import { Column } from "../../_designComponents/Column/Column";
 import { Frame } from "../../_designComponents/Frame/Frame";
-import { useAddPageToCanvas } from "../useAddPageToCanvas";
 import { CRAFT_RESOLVER } from "../craftResolver";
 
 // Dito naman ilalagay yung mga raw components na may default na properties
@@ -114,7 +113,6 @@ const CATEGORY_ORDER: ComponentEntry["category"][] = ["page", "layout", "basic"]
 
 export const ComponentsPanel = () => {
   const { connectors } = useEditor();
-  const addPageToCanvas = useAddPageToCanvas();
   const pageComponent = CRAFT_RESOLVER.Page ?? Container;
 
   const components: ComponentEntry[] = COMPONENTS.map((comp) => {
@@ -147,9 +145,6 @@ export const ComponentsPanel = () => {
                     const sourceElement = comp.dragElement ?? comp.element;
                     if (!sourceElement) return;
                     connectors.create(ref, sourceElement);
-                  }}
-                  onClick={() => {
-                    if (comp.label === "New Page") addPageToCanvas();
                   }}
                   className={`bg-brand-white/5 p-4 rounded-xl hover:bg-brand-white/10 transition border border-brand-medium/30 group ${
                     (comp.dragElement ?? comp.element) ? "cursor-move" : "cursor-pointer"

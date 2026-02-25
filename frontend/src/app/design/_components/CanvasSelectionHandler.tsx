@@ -68,6 +68,13 @@ export const CanvasSelectionHandler = () => {
       };
 
       if (nodeId && exists(nodeId)) {
+        const isAlreadySelected = currentIds.includes(nodeId);
+
+        if (!isMulti && !isRange && isAlreadySelected) {
+          updateLastSelected(nodeId);
+          return;
+        }
+
         if (isRange) {
           const lastId = lastSelectedNodeIdRef.current && exists(lastSelectedNodeIdRef.current) ? lastSelectedNodeIdRef.current : null;
           if (lastId && lastId !== nodeId) {
