@@ -65,7 +65,7 @@ export const Page = ({
         backgroundColor: background,
       }}
     >
-      <div className="absolute -top-8 left-0 text-brand-lighter font-bold text-2xl opacity-50 select-none min-w-[120px]">
+      <div data-page-name-label="true" className="absolute -top-8 left-0 text-brand-lighter font-bold text-2xl opacity-50 select-none min-w-[120px]">
         {editing ? (
           <input
             type="text"

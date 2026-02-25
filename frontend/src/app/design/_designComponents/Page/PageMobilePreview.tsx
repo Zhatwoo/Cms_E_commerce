@@ -226,6 +226,15 @@ export const PageMobilePreview: React.FC<PageMobilePreviewProps> = ({
       const clone = pageEl.cloneNode(true) as HTMLElement;
       clone.removeAttribute("data-node-id");
       clone.removeAttribute("data-page-node");
+      
+      // Remove any nested mobile preview panels from the clone to prevent infinite recursion
+      const nestedMobilePreviews = clone.querySelectorAll("[data-mobile-preview-panel]");
+      nestedMobilePreviews.forEach((el) => el.remove());
+      
+      // Remove the page name label
+      const pageNameLabel = clone.querySelector("[data-page-name-label]");
+      if (pageNameLabel) pageNameLabel.remove();
+      
       clone.style.pointerEvents = "auto";
       clone.style.margin = "0";
       clone.style.transformOrigin = "top left";
