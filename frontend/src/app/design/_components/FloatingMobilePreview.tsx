@@ -2,12 +2,50 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useEditor } from "@craftjs/core";
-import { X, Smartphone, Move, Minus, ChevronDown } from "lucide-react";
+import { X, Smartphone, Move, Minus, ChevronDown, Monitor } from "lucide-react";
 
-const MOBILE_WIDTH = 390;
-const MOBILE_MIN_HEIGHT = 640;
+// Phone device presets with realistic screen dimensions
+interface PhonePreset {
+  name: string;
+  brand: string;
+  width: number;
+  height: number;
+}
+
+const PHONE_PRESETS: PhonePreset[] = [
+  // Apple iPhones
+  { name: "iPhone 15 Pro Max", brand: "Apple", width: 430, height: 932 },
+  { name: "iPhone 15 Pro", brand: "Apple", width: 393, height: 852 },
+  { name: "iPhone 15", brand: "Apple", width: 393, height: 852 },
+  { name: "iPhone 14 Pro Max", brand: "Apple", width: 430, height: 932 },
+  { name: "iPhone 14 Pro", brand: "Apple", width: 393, height: 852 },
+  { name: "iPhone 14", brand: "Apple", width: 390, height: 844 },
+  { name: "iPhone SE", brand: "Apple", width: 375, height: 667 },
+  { name: "iPhone 12 Mini", brand: "Apple", width: 375, height: 812 },
+  
+  // Samsung Galaxy
+  { name: "Galaxy S24 Ultra", brand: "Samsung", width: 412, height: 915 },
+  { name: "Galaxy S24+", brand: "Samsung", width: 412, height: 915 },
+  { name: "Galaxy S24", brand: "Samsung", width: 360, height: 780 },
+  { name: "Galaxy S23 Ultra", brand: "Samsung", width: 412, height: 915 },
+  { name: "Galaxy Z Fold 5", brand: "Samsung", width: 373, height: 841 },
+  { name: "Galaxy Z Flip 5", brand: "Samsung", width: 412, height: 919 },
+  { name: "Galaxy A54", brand: "Samsung", width: 412, height: 915 },
+  
+  // Google Pixel
+  { name: "Pixel 8 Pro", brand: "Google", width: 412, height: 892 },
+  { name: "Pixel 8", brand: "Google", width: 412, height: 892 },
+  { name: "Pixel 7 Pro", brand: "Google", width: 412, height: 892 },
+  { name: "Pixel 7", brand: "Google", width: 412, height: 915 },
+  
+  // Other Popular
+  { name: "OnePlus 12", brand: "OnePlus", width: 412, height: 915 },
+  { name: "Xiaomi 14 Pro", brand: "Xiaomi", width: 412, height: 915 },
+];
+
+const DEFAULT_DEVICE = PHONE_PRESETS[2]; // iPhone 15
+
 const MOBILE_SIDE_GUTTER = 14;
-const MOBILE_INNER_WIDTH = MOBILE_WIDTH - MOBILE_SIDE_GUTTER * 2;
 
 function parsePx(value: string | null | undefined): number | null {
   if (!value) return null;
@@ -111,7 +149,7 @@ function applyHamburgerIfNeeded(root: HTMLElement): HTMLElement | null {
   return header;
 }
 
-function adaptCloneForMobile(root: HTMLElement) {
+function adaptCloneForMobile(root: HTMLElement, mobileInnerWidth: number) {
   const mobileNavHeader = applyHamburgerIfNeeded(root);
   const all = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
 
@@ -142,7 +180,7 @@ function adaptCloneForMobile(root: HTMLElement) {
     }
 
     const widthPx = parsePx(el.style.width);
-    if (widthPx !== null && widthPx > MOBILE_INNER_WIDTH) {
+    if (widthPx !== null && widthPx > mobileInnerWidth) {
       el.style.width = "100%";
     }
 
@@ -156,7 +194,7 @@ function adaptCloneForMobile(root: HTMLElement) {
     }
 
     const minWidthPx = parsePx(el.style.minWidth);
-    if (minWidthPx !== null && minWidthPx > MOBILE_INNER_WIDTH) {
+    if (minWidthPx !== null && minWidthPx > mobileInnerWidth) {
       el.style.minWidth = "0px";
     }
 
@@ -261,16 +299,18 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
   const [isMinimized, setIsMinimized] = useState(false);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [showPageDropdown, setShowPageDropdown] = useState(false);
+  const [selectedDevice, setSelectedDevice] = useState<PhonePreset>(DEFAULT_DEVICE);
+  const [showDeviceDropdown, setShowDeviceDropdown] = useState(false);
 
   // Initialize position to bottom-right corner
   useEffect(() => {
     if (isOpen && position.x === 0 && position.y === 0) {
       setPosition({
-        x: window.innerWidth - MOBILE_WIDTH - 80,
+        x: window.innerWidth - selectedDevice.width - 80,
         y: 80,
       });
     }
-  }, [isOpen, position.x, position.y]);
+  }, [isOpen, position.x, position.y, selectedDevice.width]);
 
   // Auto-sync with canvas selection - when user clicks on a page or element in a page
   useEffect(() => {
@@ -306,7 +346,7 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
       
-      const newX = Math.max(0, Math.min(e.clientX - dragStart.x, window.innerWidth - MOBILE_WIDTH - 40));
+      const newX = Math.max(0, Math.min(e.clientX - dragStart.x, window.innerWidth - selectedDevice.width - 40));
       const newY = Math.max(48, Math.min(e.clientY - dragStart.y, window.innerHeight - 100));
       
       setPosition({ x: newX, y: newY });
@@ -326,7 +366,7 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
         document.body.style.userSelect = "";
       };
     }
-  }, [isDragging, dragStart]);
+  }, [isDragging, dragStart, selectedDevice.width]);
 
   // Render mobile preview
   useEffect(() => {
@@ -386,14 +426,15 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
       clone.style.transformOrigin = "top left";
       clone.style.width = "100%";
       clone.style.height = "auto";
-      clone.style.minHeight = `${MOBILE_MIN_HEIGHT}px`;
+      clone.style.minHeight = `${selectedDevice.height}px`;
       clone.style.transform = "none";
       clone.style.position = "static";
       clone.style.left = "0";
       clone.style.top = "0";
       clone.dataset.mobilePreviewRoot = "true";
 
-      adaptCloneForMobile(clone);
+      const mobileInnerWidth = selectedDevice.width - MOBILE_SIDE_GUTTER * 2;
+      adaptCloneForMobile(clone, mobileInnerWidth);
       const interactiveNodes = [clone, ...Array.from(clone.querySelectorAll<HTMLElement>("*"))];
       interactiveNodes.forEach((el) => {
         el.style.pointerEvents = "auto";
@@ -416,8 +457,8 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
 
       mobileRoot.innerHTML = "";
       const wrapper = document.createElement("div");
-      wrapper.style.width = `${MOBILE_WIDTH}px`;
-      wrapper.style.minHeight = `${MOBILE_MIN_HEIGHT}px`;
+      wrapper.style.width = `${selectedDevice.width}px`;
+      wrapper.style.minHeight = `${selectedDevice.height}px`;
       wrapper.style.height = "auto";
       wrapper.style.overflow = "auto";
       wrapper.style.position = "relative";
@@ -541,11 +582,18 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
         mobileRoot.removeEventListener("wheel", blockCanvasPanFromMobile, true);
       }
     };
-  }, [isOpen, isMinimized, selectedPageId, actions, query, pages]);
+  }, [isOpen, isMinimized, selectedPageId, actions, query, pages, selectedDevice]);
 
   if (!isOpen) return null;
 
   const selectedPage = pages.find(p => p.id === selectedPageId);
+  
+  // Group devices by brand for the dropdown
+  const devicesByBrand = PHONE_PRESETS.reduce((acc, device) => {
+    if (!acc[device.brand]) acc[device.brand] = [];
+    acc[device.brand].push(device);
+    return acc;
+  }, {} as Record<string, PhonePreset[]>);
 
   return (
     <div
@@ -556,7 +604,7 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
       style={{
         left: position.x,
         top: position.y,
-        width: isMinimized ? "auto" : MOBILE_WIDTH + 24,
+        width: isMinimized ? "auto" : selectedDevice.width + 24,
       }}
       onMouseDown={handleMouseDown}
     >
@@ -590,7 +638,56 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
 
       {!isMinimized && (
         <>
-          {/* Page Selector - show even with 1 page for visibility */}
+          {/* Device Selector */}
+          <div className="px-3 py-2 border-b border-white/10">
+            <div className="relative">
+              <button
+                onClick={() => setShowDeviceDropdown((v) => !v)}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-brand-medium-dark/50 hover:bg-brand-medium/30 transition-colors text-sm text-brand-lighter cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Monitor className="w-4 h-4 text-blue-400" />
+                  <span className="truncate">{selectedDevice.name}</span>
+                  <span className="text-xs text-brand-light/50">
+                    {selectedDevice.width}×{selectedDevice.height}
+                  </span>
+                </div>
+                <ChevronDown className={`w-4 h-4 transition-transform ${showDeviceDropdown ? "rotate-180" : ""}`} />
+              </button>
+              {showDeviceDropdown && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-brand-dark border border-white/10 rounded-lg shadow-lg py-1 z-20 max-h-64 overflow-y-auto">
+                  {Object.entries(devicesByBrand).map(([brand, devices]) => (
+                    <div key={brand}>
+                      <div className="px-3 py-1.5 text-xs font-semibold text-brand-light/60 uppercase tracking-wider bg-brand-medium-dark/30">
+                        {brand}
+                      </div>
+                      {devices.map((device) => (
+                        <button
+                          key={device.name}
+                          onClick={() => {
+                            setSelectedDevice(device);
+                            setShowDeviceDropdown(false);
+                          }}
+                          className={`w-full px-3 py-2 text-left text-sm transition-colors flex items-center justify-between ${
+                            device.name === selectedDevice.name
+                              ? "bg-blue-500/20 text-blue-400"
+                              : "text-brand-lighter hover:bg-brand-medium/30"
+                          }`}
+                        >
+                          <span>{device.name}</span>
+                          <span className="text-xs text-brand-light/50">
+                            {device.width}×{device.height}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Page Selector */}
           <div className="px-3 py-2 border-b border-white/10">
             <div className="relative">
               <button
@@ -632,13 +729,21 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
           {/* Mobile Preview Content */}
           <div className="p-3">
             {!selectedPageId ? (
-              <div className="w-[390px] min-h-[640px] rounded-xl border border-white/10 bg-brand-white/5 flex items-center justify-center text-brand-light/50 text-sm">
+              <div 
+                className="rounded-xl border border-white/10 bg-brand-white/5 flex items-center justify-center text-brand-light/50 text-sm"
+                style={{ width: selectedDevice.width, minHeight: Math.min(selectedDevice.height, 640) }}
+              >
                 {pages.length === 0 ? "Loading pages..." : "Select a page to preview"}
               </div>
             ) : (
               <div
                 ref={mobileCanvasRef}
-                className="w-[390px] min-h-[640px] max-h-[70vh] rounded-xl border border-white/10 bg-brand-white/5 overflow-auto"
+                className="rounded-xl border border-white/10 bg-brand-white/5 overflow-auto"
+                style={{ 
+                  width: selectedDevice.width, 
+                  minHeight: Math.min(selectedDevice.height, 640),
+                  maxHeight: "70vh" 
+                }}
                 aria-hidden
               />
             )}
