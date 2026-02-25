@@ -1,14 +1,22 @@
+"use client";
+
 import React, { useState, useCallback } from "react";
 import { useNode } from "@craftjs/core";
+import type { Node } from "@craftjs/core";
 import { PageSettings } from "./PageSettings";
 import type { PageProps } from "../../_types";
 import { slugFromName } from "../../_lib/slug";
+
+/** Helper type: (nodeId) => { ancestors(), get() } - used by Craft.js in rules */
+type NodeHelper = (nodeId: string) => { ancestors: () => string[]; get: () => Node | null };
 
 export const Page = ({
   children,
   width = "1920px",
   height = "1200px",
   background = "#ffffff",
+  canvasX = 0,
+  canvasY = 0,
   pageName = "Page Name",
 }: PageProps) => {
   const { id, connectors: { connect, drag }, actions: { setProp } } = useNode();
@@ -41,11 +49,15 @@ export const Page = ({
   return (
     <div
       data-node-id={id}
+      data-page-node="true"
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
       className="rounded-lg shadow-xl relative min-h-[600px] transition-[outline] duration-150"
       style={{
+        position: "absolute",
+        left: `${canvasX}px`,
+        top: `${canvasY}px`,
         width,
         height: height === "auto" ? "auto" : height,
         minHeight: "800px",
@@ -86,6 +98,8 @@ export const PageDefaultProps: Partial<PageProps> = {
   width: "1920px",
   height: "1200px",
   background: "#E6E6E9",
+  canvasX: 0,
+  canvasY: 0,
   pageName: "Page Name",
 };
 
@@ -94,6 +108,21 @@ Page.craft = {
   props: PageDefaultProps,
   rules: {
     canDrag: () => true,
+    canMoveIn: (incomingNodes: Node[], currentNode: Node, helper: NodeHelper) => {
+      for (const node of incomingNodes) {
+        if (node.data.displayName === "Page" || node.data.displayName === "Viewport") return false;
+        try {
+          const ancestorIds = helper(node.id).ancestors();
+          for (const aid of ancestorIds) {
+            const an = helper(aid).get();
+            if (an?.data?.displayName === "Page" && aid !== currentNode.id) return false;
+          }
+        } catch {
+          // New node from panel may not be in tree yet — allow
+        }
+      }
+      return true;
+    },
   },
   related: {
     settings: PageSettings,

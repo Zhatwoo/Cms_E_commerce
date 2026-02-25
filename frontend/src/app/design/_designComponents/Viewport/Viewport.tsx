@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useEditor, useNode } from "@craftjs/core";
 import type { Node } from "@craftjs/core";
 
@@ -6,6 +6,17 @@ const MOBILE_WIDTH = 390;
 const MOBILE_MIN_HEIGHT = 640;
 const MOBILE_SIDE_GUTTER = 14;
 const MOBILE_INNER_WIDTH = MOBILE_WIDTH - MOBILE_SIDE_GUTTER * 2;
+const PAGE_BASE_WIDTH = 1920;
+const PAGE_BASE_HEIGHT = 1200;
+const PAGE_GAP_X = 220;
+const PAGE_GAP_Y = 220;
+const PAGE_COLUMNS = 3;
+const VIEWPORT_BASE_MIN_WIDTH = 5000;
+const VIEWPORT_BASE_MIN_HEIGHT = 3600;
+const VIEWPORT_EDGE_PADDING = 1200;
+const MOBILE_PREVIEW_SAFE_WIDTH = 520;
+const MOBILE_PREVIEW_GAP = 200;
+const MOBILE_PREVIEW_LABEL_OFFSET = 0;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -15,6 +26,17 @@ function parsePx(value: string | null | undefined): number | null {
   if (!value) return null;
   const parsed = parseFloat(value.replace("px", "").trim());
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function toDimensionPx(value: unknown, fallback: number): number {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = parsePx(value);
+    if (parsed !== null && parsed > 0) return parsed;
+  }
+  return fallback;
 }
 
 function asElements(collection: HTMLCollection): HTMLElement[] {
@@ -257,12 +279,186 @@ function adaptCloneForMobile(root: HTMLElement) {
 }
 
 export const Viewport = ({ children }: { children?: React.ReactNode }) => {
+  const viewportRootRef = useRef<HTMLDivElement | null>(null);
   const desktopCanvasRef = useRef<HTMLDivElement | null>(null);
   const mobileCanvasRef = useRef<HTMLDivElement | null>(null);
+  const [mobilePanelPos, setMobilePanelPos] = useState({ top: 16, left: 0 });
+  const [isDraggingMobilePanel, setIsDraggingMobilePanel] = useState(false);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
+  const mobilePositionInitializedRef = useRef(false);
+  const [viewportSize, setViewportSize] = useState({
+    minWidth: VIEWPORT_BASE_MIN_WIDTH,
+    minHeight: VIEWPORT_BASE_MIN_HEIGHT,
+  });
   const { id: viewportId, connectors: { connect, drag } } = useNode((node) => ({
     id: node.id,
   }));
   const { actions, query } = useEditor();
+
+  useEffect(() => {
+    const state = query.getState();
+    const nodes = state?.nodes ?? {};
+    const viewportNode = nodes[viewportId];
+    const pageIds: string[] = Array.isArray(viewportNode?.data?.nodes)
+      ? viewportNode.data.nodes
+      : [];
+
+    let maxRight = 0;
+    let maxBottom = 0;
+
+    pageIds.forEach((pageId, index) => {
+      const pageNode = nodes[pageId];
+      if (!pageNode || pageNode.data?.displayName !== "Page") return;
+
+      const props = (pageNode.data?.props ?? {}) as Record<string, unknown>;
+      const hasCanvasX = typeof props.canvasX === "number";
+      const hasCanvasY = typeof props.canvasY === "number";
+      const isDefaultZeroOnNonFirstPage =
+        index > 0 && Number(props.canvasX ?? 0) === 0 && Number(props.canvasY ?? 0) === 0;
+      if (hasCanvasX && hasCanvasY && !isDefaultZeroOnNonFirstPage) return;
+      // Last page with (0,0): leave for NewPageDropPlacementHandler so drop position is preserved
+      const isLastPageWithZero =
+        index === pageIds.length - 1 && Number(props.canvasX ?? 0) === 0 && Number(props.canvasY ?? 0) === 0;
+      if (isLastPageWithZero) return;
+
+      const col = index % PAGE_COLUMNS;
+      const row = Math.floor(index / PAGE_COLUMNS);
+      const canvasX = col * (PAGE_BASE_WIDTH + PAGE_GAP_X);
+      const canvasY = row * (PAGE_BASE_HEIGHT + PAGE_GAP_Y);
+
+      const finalCanvasX = hasCanvasX ? Number(props.canvasX) : canvasX;
+      const finalCanvasY = hasCanvasY ? Number(props.canvasY) : canvasY;
+      const pageWidth = toDimensionPx(props.width, PAGE_BASE_WIDTH);
+      const pageHeight = toDimensionPx(props.height, PAGE_BASE_HEIGHT);
+
+      maxRight = Math.max(maxRight, finalCanvasX + pageWidth);
+      maxBottom = Math.max(maxBottom, finalCanvasY + pageHeight);
+
+      actions.setProp(pageId, (pageProps: Record<string, unknown>) => {
+        if (typeof pageProps.canvasX !== "number") pageProps.canvasX = canvasX;
+        if (typeof pageProps.canvasY !== "number") pageProps.canvasY = canvasY;
+      });
+    });
+
+    const desktopRoot = desktopCanvasRef.current;
+    let domMaxRight = 0;
+    let domMaxBottom = 0;
+
+    if (desktopRoot) {
+      const rootRect = desktopRoot.getBoundingClientRect();
+      const nodeEls = Array.from(desktopRoot.querySelectorAll<HTMLElement>("[data-node-id]"));
+      for (const el of nodeEls) {
+        const rect = el.getBoundingClientRect();
+        const right = rect.right - rootRect.left;
+        const bottom = rect.bottom - rootRect.top;
+        if (Number.isFinite(right)) domMaxRight = Math.max(domMaxRight, right);
+        if (Number.isFinite(bottom)) domMaxBottom = Math.max(domMaxBottom, bottom);
+      }
+    }
+
+    const dynamicMinWidth = Math.max(
+      VIEWPORT_BASE_MIN_WIDTH,
+      Math.ceil(Math.max(maxRight, domMaxRight) + VIEWPORT_EDGE_PADDING + MOBILE_PREVIEW_SAFE_WIDTH)
+    );
+    const dynamicMinHeight = Math.max(
+      VIEWPORT_BASE_MIN_HEIGHT,
+      Math.ceil(Math.max(maxBottom, domMaxBottom) + VIEWPORT_EDGE_PADDING)
+    );
+
+    setViewportSize((prev) => {
+      if (prev.minWidth === dynamicMinWidth && prev.minHeight === dynamicMinHeight) {
+        return prev;
+      }
+      return { minWidth: dynamicMinWidth, minHeight: dynamicMinHeight };
+    });
+  }, [actions, query, viewportId, children]);
+
+  useEffect(() => {
+    const root = viewportRootRef.current;
+    if (!root || mobilePositionInitializedRef.current) return;
+
+    const desktopRoot = desktopCanvasRef.current;
+    const rootRect = root.getBoundingClientRect();
+    let contentRight = 16;
+    let contentTop = 16;
+    let desktopOffsetLeft = 0;
+    let desktopOffsetTop = 0;
+
+    if (desktopRoot) {
+      const desktopRect = desktopRoot.getBoundingClientRect();
+      desktopOffsetLeft = desktopRect.left - rootRect.left;
+      desktopOffsetTop = desktopRect.top - rootRect.top;
+      const pageNodes = Array.from(desktopRoot.querySelectorAll<HTMLElement>("[data-page-node='true']"));
+      if (pageNodes.length > 0) {
+        const rootCenterX = rootRect.left + rootRect.width / 2;
+        const rootCenterY = rootRect.top + rootRect.height / 2;
+
+        let closestNode: HTMLElement | null = null;
+        let closestDistance = Number.POSITIVE_INFINITY;
+
+        for (const node of pageNodes) {
+          const rect = node.getBoundingClientRect();
+          const centerX = rect.left + rect.width / 2;
+          const centerY = rect.top + rect.height / 2;
+          const distance = Math.hypot(centerX - rootCenterX, centerY - rootCenterY);
+          if (distance < closestDistance) {
+            closestDistance = distance;
+            closestNode = node;
+          }
+        }
+
+        if (closestNode) {
+          const nodeRight = desktopOffsetLeft + closestNode.offsetLeft + closestNode.offsetWidth;
+          const nodeTop = desktopOffsetTop + closestNode.offsetTop;
+          if (Number.isFinite(nodeRight)) contentRight = Math.max(contentRight, nodeRight);
+          if (Number.isFinite(nodeTop)) contentTop = Math.max(16, nodeTop);
+        }
+      }
+    }
+
+    const desiredLeft = contentRight + MOBILE_PREVIEW_GAP;
+    const panelHeight = MOBILE_MIN_HEIGHT + 32;
+    const maxLeft = Math.max(16, root.clientWidth - MOBILE_WIDTH - 16);
+    const maxTop = Math.max(16, root.clientHeight - panelHeight - 16);
+    const left = clamp(desiredLeft, 16, maxLeft);
+    const top = clamp(contentTop - MOBILE_PREVIEW_LABEL_OFFSET, 16, maxTop);
+    setMobilePanelPos({ top, left });
+    mobilePositionInitializedRef.current = true;
+  }, [viewportSize.minWidth, viewportSize.minHeight]);
+
+  useEffect(() => {
+    if (!isDraggingMobilePanel) return;
+
+    const handleMove = (event: MouseEvent) => {
+      const root = viewportRootRef.current;
+      if (!root) return;
+      const rootRect = root.getBoundingClientRect();
+      const panelWidth = MOBILE_WIDTH;
+      const panelHeight = MOBILE_MIN_HEIGHT + 32;
+
+      const desiredLeft = event.clientX - rootRect.left - dragOffsetRef.current.x;
+      const desiredTop = event.clientY - rootRect.top - dragOffsetRef.current.y;
+      const maxLeft = Math.max(16, root.clientWidth - panelWidth - 16);
+      const maxTop = Math.max(16, root.clientHeight - panelHeight - 16);
+
+      setMobilePanelPos({
+        left: clamp(desiredLeft, 16, maxLeft),
+        top: clamp(desiredTop, 16, maxTop),
+      });
+    };
+
+    const handleUp = () => {
+      setIsDraggingMobilePanel(false);
+    };
+
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+    };
+  }, [isDraggingMobilePanel]);
 
   useEffect(() => {
     const desktopRoot = desktopCanvasRef.current;
@@ -289,6 +485,10 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       clone.dataset.mobilePreviewRoot = "true";
 
       adaptCloneForMobile(clone);
+      const interactiveNodes = [clone, ...Array.from(clone.querySelectorAll<HTMLElement>("*"))];
+      interactiveNodes.forEach((el) => {
+        el.style.pointerEvents = "auto";
+      });
 
       let selectedNodeId: string | null = null;
       try {
@@ -326,7 +526,7 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       frame = requestAnimationFrame(renderMobilePreview);
     };
 
-    const handleMobileClick = (event: MouseEvent) => {
+    const handleMobileMouseDown = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
       if (!target) return;
 
@@ -341,7 +541,28 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       event.preventDefault();
       event.stopPropagation();
       actions.selectNode(nodeId);
+
+      const desktopNodeEl = desktopRoot.querySelector<HTMLElement>(`[data-node-id="${nodeId}"]`);
+      const canvasContainer = desktopRoot.closest("[data-canvas-container]") as HTMLElement | null;
+      if (desktopNodeEl && canvasContainer) {
+        const containerRect = canvasContainer.getBoundingClientRect();
+        const nodeRect = desktopNodeEl.getBoundingClientRect();
+        const centerX = nodeRect.left + nodeRect.width / 2;
+        const centerY = nodeRect.top + nodeRect.height / 2;
+        const targetScrollLeft = canvasContainer.scrollLeft + (centerX - (containerRect.left + containerRect.width / 2));
+        const targetScrollTop = canvasContainer.scrollTop + (centerY - (containerRect.top + containerRect.height / 2));
+        canvasContainer.scrollTo({
+          left: Math.max(0, targetScrollLeft),
+          top: Math.max(0, targetScrollTop),
+          behavior: "smooth",
+        });
+      }
+
       queueRender();
+    };
+
+    const blockCanvasPanFromMobile = (event: Event) => {
+      event.stopPropagation();
     };
 
     const mutation = new MutationObserver(queueRender);
@@ -355,7 +576,11 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
     const resizeObserver = new ResizeObserver(queueRender);
     resizeObserver.observe(desktopRoot);
 
-    mobileRoot.addEventListener("click", handleMobileClick, true);
+    mobileRoot.addEventListener("mousedown", handleMobileMouseDown, true);
+    mobileRoot.addEventListener("mousedown", blockCanvasPanFromMobile, true);
+    mobileRoot.addEventListener("mousemove", blockCanvasPanFromMobile, true);
+    mobileRoot.addEventListener("mouseup", blockCanvasPanFromMobile, true);
+    mobileRoot.addEventListener("wheel", blockCanvasPanFromMobile, { capture: true });
 
     queueRender();
 
@@ -363,24 +588,55 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       cancelAnimationFrame(frame);
       mutation.disconnect();
       resizeObserver.disconnect();
-      mobileRoot.removeEventListener("click", handleMobileClick, true);
+      mobileRoot.removeEventListener("mousedown", handleMobileMouseDown, true);
+      mobileRoot.removeEventListener("mousedown", blockCanvasPanFromMobile, true);
+      mobileRoot.removeEventListener("mousemove", blockCanvasPanFromMobile, true);
+      mobileRoot.removeEventListener("mouseup", blockCanvasPanFromMobile, true);
+      mobileRoot.removeEventListener("wheel", blockCanvasPanFromMobile, true);
     };
   }, [children, actions, query, viewportId]);
 
   return (
     <div
       ref={(ref) => {
+        viewportRootRef.current = ref;
         if (ref) connect(drag(ref));
       }}
-      className="flex gap-16 p-20 min-w-max min-h-max items-start"
+      className="relative p-32"
+      style={{ minWidth: `${viewportSize.minWidth}px`, minHeight: `${viewportSize.minHeight}px` }}
     >
-      <div className="flex flex-col gap-2" ref={desktopCanvasRef}>
-        <span className="text-xs uppercase tracking-wide text-brand-light/70">Desktop</span>
+      <div className="absolute top-16 left-16 z-10 pointer-events-none text-xs uppercase tracking-wide text-brand-light/70">Desktop</div>
+
+      <div data-viewport-desktop className="relative w-full h-full" ref={desktopCanvasRef}>
         {children}
       </div>
 
-      <div className="flex flex-col gap-2 select-none">
-        <span className="text-xs uppercase tracking-wide text-brand-light/70">Mobile</span>
+      <div
+        data-mobile-preview-panel="true"
+        className="absolute flex flex-col gap-2 select-none z-20 pointer-events-auto"
+        style={{ top: mobilePanelPos.top, left: mobilePanelPos.left }}
+        onMouseDown={(event) => event.stopPropagation()}
+        onMouseMove={(event) => event.stopPropagation()}
+        onMouseUp={(event) => event.stopPropagation()}
+        onWheel={(event) => event.stopPropagation()}
+      >
+        <span
+          className="text-xs uppercase tracking-wide text-brand-light/70 cursor-move"
+          onMouseDown={(event) => {
+            const root = viewportRootRef.current;
+            if (!root) return;
+            const rootRect = root.getBoundingClientRect();
+            dragOffsetRef.current = {
+              x: event.clientX - rootRect.left - mobilePanelPos.left,
+              y: event.clientY - rootRect.top - mobilePanelPos.top,
+            };
+            setIsDraggingMobilePanel(true);
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+        >
+          Mobile
+        </span>
         <div
           ref={mobileCanvasRef}
           className="w-[390px] min-h-[640px] rounded-lg border border-white/10 bg-brand-white/5 overflow-hidden pointer-events-auto"

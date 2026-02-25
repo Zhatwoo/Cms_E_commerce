@@ -162,6 +162,8 @@ export interface TextProps extends SpacingProps, TypographyProps, TransformProps
   text: string;
   opacity?: number;
   boxShadow?: string;
+  /** When true, allow typing into this text element in preview mode. */
+  previewEditable?: boolean;
 }
 
 /** Image component props — media display with sizing, corners, and effects. */
@@ -200,6 +202,10 @@ export interface PageProps extends AnimatableProps, InteractableProps {
   width?: string;
   height?: string;
   background?: string;
+  /** Whiteboard X position in px. */
+  canvasX?: number;
+  /** Whiteboard Y position in px. */
+  canvasY?: number;
   /** User-editable page name (e.g. "About Us"). */
   pageName?: string;
   /** URL slug for navigation (e.g. "about-us"). Auto-derived from pageName if not set. */
