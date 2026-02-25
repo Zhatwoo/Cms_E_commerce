@@ -592,7 +592,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       parsed.pages.push(newPage);
       const updated = JSON.stringify(parsed);
       const storageKey = getStorageKey(projectId);
-      localStorage.setItem(storageKey, updated);
+      // Save to sessionStorage for persistence across refreshes
+      safeSessionSet(storageKey, updated);
+      // Optionally, also save to localStorage for backup (uncomment if needed)
+      // localStorage.setItem(storageKey, updated);
       loadPages(updated);
       setCurrentPageId(id);
       setInitialJson(updated);
