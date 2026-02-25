@@ -35,6 +35,7 @@ export const Row = ({
   opacity = 1,
   overflow = "visible",
   rotation = 0,
+  customClassName = "",
   children,
 }: ContainerProps) => {
   const { id, connectors: { connect, drag }, childCount } = useNode((node) => ({
@@ -64,7 +65,7 @@ export const Row = ({
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className="min-h-[40px] transition-[outline] duration-150 hover:outline hover:outline-blue-500"
+      className={`min-h-[40px] transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
       style={{
         backgroundColor: background,
         paddingLeft: `${pl}px`,
