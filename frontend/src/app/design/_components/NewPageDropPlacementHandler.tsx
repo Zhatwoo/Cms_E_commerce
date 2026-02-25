@@ -22,6 +22,19 @@ function resolveViewportId(nodes: Record<string, any>): string | null {
 }
 
 function getEffectiveZoom(el: HTMLElement | null): number {
+  const container = document.querySelector("[data-canvas-container]") as HTMLElement | null;
+  const transformedRoot = container?.firstElementChild as HTMLElement | null;
+  if (transformedRoot) {
+    const transformText = transformedRoot.style.transform || window.getComputedStyle(transformedRoot).transform || "";
+    const scaleMatch = transformText.match(/scale\(([^)]+)\)/);
+    if (scaleMatch) {
+      const parsedScale = Number.parseFloat(scaleMatch[1] ?? "");
+      if (Number.isFinite(parsedScale) && parsedScale > 0) {
+        return parsedScale;
+      }
+    }
+  }
+
   if (!el) return 1;
   let zoom = 1;
   let current: HTMLElement | null = el;
@@ -82,9 +95,9 @@ export const NewPageDropPlacementHandler = () => {
       const zoom = getEffectiveZoom(desktopRoot);
 
       if (newPageIds.length > 0) {
-        newPageIds.forEach((pageId, index) => {
-          const canvasX = Math.round((drop.clientX - rect.left) / zoom + index * 36);
-          const canvasY = Math.round((drop.clientY - rect.top) / zoom + index * 36);
+        newPageIds.forEach((pageId) => {
+          const canvasX = Math.round((drop.clientX - rect.left) / zoom);
+          const canvasY = Math.round((drop.clientY - rect.top) / zoom);
 
           actions.setProp(pageId, (props: Record<string, unknown>) => {
             props.canvasX = canvasX;

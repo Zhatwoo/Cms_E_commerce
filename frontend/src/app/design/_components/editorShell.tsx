@@ -1312,6 +1312,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         const validChildIds = childIds.filter((cid: string) => allIds.has(cid));
         node.nodes = validChildIds;
       }
+
       return JSON.stringify(parsed);
     } catch {
       return null;

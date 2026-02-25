@@ -466,7 +466,34 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
     let frame = 0;
 
     const renderMobilePreview = () => {
-      const source = desktopRoot.querySelector("[data-node-id]") as HTMLElement | null;
+      let selectedNodeId: string | null = null;
+      try {
+        selectedNodeId = query.getEvent("selected").first() ?? null;
+      } catch {
+        selectedNodeId = null;
+      }
+
+      const state = query.getState();
+      const nodes = state?.nodes ?? {};
+
+      let selectedPageId: string | null = null;
+      if (selectedNodeId && nodes[selectedNodeId]) {
+        let cursorId: string | null = selectedNodeId;
+        while (cursorId && nodes[cursorId]) {
+          const cursorNode = nodes[cursorId] as { data?: { displayName?: string; parent?: string } } | undefined;
+          if (cursorNode?.data?.displayName === "Page") {
+            selectedPageId = cursorId;
+            break;
+          }
+          cursorId = cursorNode?.data?.parent ?? null;
+        }
+      }
+
+      const source = selectedPageId
+        ? (desktopRoot.querySelector(`[data-node-id="${selectedPageId}"]`) as HTMLElement | null)
+        : ((desktopRoot.querySelector("[data-page-node='true']") as HTMLElement | null) ??
+            (desktopRoot.querySelector("[data-node-id]") as HTMLElement | null));
+
       if (!source) {
         mobileRoot.innerHTML = "";
         return;
@@ -487,13 +514,6 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       interactiveNodes.forEach((el) => {
         el.style.pointerEvents = "auto";
       });
-
-      let selectedNodeId: string | null = null;
-      try {
-        selectedNodeId = query.getEvent("selected").first() ?? null;
-      } catch {
-        selectedNodeId = null;
-      }
 
       if (selectedNodeId) {
         const selectedEl = clone.querySelector<HTMLElement>(`[data-node-id="${selectedNodeId}"]`);
