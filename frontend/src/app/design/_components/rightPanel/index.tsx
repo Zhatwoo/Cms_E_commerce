@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useEditor } from "@craftjs/core";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Lock, LockOpen, Play, Code2, GripVertical, X, Terminal } from "lucide-react";
+import { Eye, EyeOff, Lock, LockOpen, Play, Code2, GripVertical, X, Terminal, Palette, MousePointer2, Sparkles } from "lucide-react";
 import { serializeCraftToClean } from "../../_lib/serializer";
 import { autoSavePage } from "../../_lib/pageApi";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
@@ -15,13 +15,14 @@ export type TabId = "design" | "prototype" | "animation" | "code";
 interface Tab {
   id: TabId;
   label: string;
+  icon: React.ReactNode;
 }
 
 const TABS: Tab[] = [
-  { id: "design", label: "Design" },
-  { id: "prototype", label: "Prototype" },
-  { id: "animation", label: "Animation" },
-  { id: "code", label: "Code" },
+  { id: "design", label: "Design", icon: <Palette className="w-4 h-4 shrink-0" /> },
+  { id: "prototype", label: "Prototype", icon: <MousePointer2 className="w-4 h-4 shrink-0" /> },
+  { id: "animation", label: "Animation", icon: <Sparkles className="w-4 h-4 shrink-0" /> },
+  { id: "code", label: "Code", icon: <Code2 className="w-4 h-4 shrink-0" /> },
 ];
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
@@ -46,10 +47,10 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
   const setActiveTab = setControlledTab ?? setInternalTab;
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isCodeEditorOpen, setIsCodeEditorOpen] = useState(false);
-  const [panelWidth, setPanelWidth] = useState(320); // Default width
+  const [panelWidth, setPanelWidth] = useState(280); // Default width
   const [isResizing, setIsResizing] = useState(false);
   const [startX, setStartX] = useState(0);
-  const [startWidth, setStartWidth] = useState(320);
+  const [startWidth, setStartWidth] = useState(280);
   const router = useRouter();
   const panelRef = useRef<HTMLDivElement>(null);
   const resizeRef = useRef<HTMLDivElement>(null);
@@ -194,67 +195,44 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
 
   return (
     <div className="flex h-full relative">
-      {/* Resize Handle */}
-      <div
-        ref={resizeRef}
-        onMouseDown={(e) => {
-          e.preventDefault();
-          setStartX(e.clientX);
-          setStartWidth(panelWidth);
-          setIsResizing(true);
-        }}
-        className={`${
-          isResizing ? 'w-2 bg-blue-500/70' : 'w-3 bg-brand-medium/20 hover:bg-blue-500/40'
-        } cursor-col-resize transition-all duration-200 group relative flex items-center justify-center select-none z-10`}
-        title="Drag to resize panel"
-      >
-        {/* Visual grip indicator */}
-        <div className={`flex flex-col gap-0.5 transition-opacity duration-200 ${
-          isResizing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-        }`}>
-          <div className="w-0.5 h-1 bg-brand-light/60 rounded-full"></div>
-          <div className="w-0.5 h-1 bg-brand-light/60 rounded-full"></div>
-          <div className="w-0.5 h-1 bg-brand-light/60 rounded-full"></div>
-        </div>
-      </div>
-      
       <div
         ref={panelRef}
         data-panel="configs"
-        className="bg-brand-darker/75 backdrop-blur-lg rounded-3xl h-full shadow-2xl border border-white/10 transition-all duration-300 overflow-hidden"
+        className="bg-brand-darker/75 backdrop-blur-lg rounded-3xl h-full shadow-2xl border border-white/10 transition-all duration-300 overflow-hidden flex flex-col"
         style={{
           width: `${panelWidth}px`,
           boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)",
         }}
       >
-        <div className="h-full overflow-y-auto p-6">
-      <div className="flex items-center justify-between mb-6 gap-2">
-        <h3 className="text-brand-lighter font-bold text-lg">Configs</h3>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={handlePreview}
-            disabled={isPreviewing}
-            className={`p-1 rounded-lg transition-colors cursor-pointer ${isPreviewing ? 'opacity-50 cursor-wait' : 'hover:bg-brand-medium/40'}`}
-            title="Preview (Web / Clean / Raw)"
-          >
-            <Play strokeWidth={2} className={`w-5 h-5 transition-colors ${isPreviewing ? 'text-yellow-400 animate-pulse' : 'text-brand-light hover:text-brand-lighter'}`} />
-          </button>
-          {onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1 rounded-lg transition-colors hover:bg-brand-medium/40 text-brand-light hover:text-brand-lighter"
-              title="Close panel"
-            >
-              <X className="w-5 h-5" strokeWidth={2} />
-            </button>
-          )}
-        </div>
-      </div>
+        {/* Fixed Header */}
+        <div className="shrink-0 p-6 pb-0">
+          <div className="flex items-center justify-between mb-6 gap-2">
+            <h3 className="text-brand-lighter font-bold text-lg">Configs</h3>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handlePreview}
+                disabled={isPreviewing}
+                className={`p-1 rounded-lg transition-colors cursor-pointer ${isPreviewing ? 'opacity-50 cursor-wait' : 'hover:bg-brand-medium/40'}`}
+                title="Preview (Web / Clean / Raw)"
+              >
+                <Play strokeWidth={2} className={`w-5 h-5 transition-colors ${isPreviewing ? 'text-yellow-400 animate-pulse' : 'text-brand-light hover:text-brand-lighter'}`} />
+              </button>
+              {onClose && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="p-1 rounded-lg transition-colors hover:bg-brand-medium/40 text-brand-light hover:text-brand-lighter"
+                  title="Close panel"
+                >
+                  <X className="w-5 h-5" strokeWidth={2} />
+                </button>
+              )}
+            </div>
+          </div>
 
       {selectedIds.length > 0 ? (
-        <div>
-          <div className="mb-6">
+        <>
+          <div className="mb-4">
             <div className="flex items-center gap-2 bg-brand-medium/20 p-2 rounded-lg border border-brand-medium/30">
               <span className="flex-1 text-brand-lighter font-medium text-sm text-center">
                 {selectedIds.length === 1 && primary
@@ -298,23 +276,34 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
             </div>
           </div>
 
-          {/* Tab Bar */}
-          <div className="flex gap-2 text-sm items-center py-2 px-2 border-y border-brand-medium mb-6 overflow-x-auto">
+          {/* Tab Bar - Fixed */}
+          <div className="flex text-xs items-stretch justify-center py-1.5 px-1 border-y border-brand-medium gap-1">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap font-medium ${
+                className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-colors cursor-pointer ${
                   activeTab === tab.id
-                    ? "text-brand-lighter bg-brand-medium/50 border border-brand-medium"
-                    : "text-brand-light hover:text-brand-lighter py-2 hover:bg-brand-medium/20"
+                    ? "text-brand-lighter bg-brand-medium/50"
+                    : "text-brand-light hover:text-brand-lighter hover:bg-brand-medium/20"
                 }`}
               >
-                {tab.label}
+                {tab.icon}
+                <span className="text-[10px] font-medium truncate w-full text-center">{tab.label}</span>
               </button>
             ))}
           </div>
+        </>
+      ) : (
+        <div className="flex flex-col items-center justify-center h-64 text-brand-lighter opacity-50">
+          <p className="text-sm">Select an element to edit</p>
+        </div>
+      )}
+        </div>
 
+        {/* Scrollable Content */}
+        {selectedIds.length > 0 && (
+        <div className="flex-1 overflow-y-auto p-6 pt-4">
           {/* Tab Content */}
           <div className="space-y-6">
             {activeTab === "design" &&
@@ -358,11 +347,7 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
             )}
           </div>
         </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center h-64 text-brand-lighter opacity-50">
-          <p className="text-sm">Select an element to edit</p>
-        </div>
-      )}
+        )}
 
       {/* Code Editor Modal */}
       <CodeEditor
@@ -370,7 +355,6 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
         onClose={() => setIsCodeEditorOpen(false)}
         projectId={projectId}
       />
-        </div>
       </div>
     </div>
   );
@@ -392,8 +376,8 @@ export const RightPanel = ({ frameReady = true, ...props }: RightPanelProps) => 
     return (
       <div
         data-panel="configs"
-        className="w-80 bg-brand-darker/75 backdrop-blur-lg rounded-3xl p-6 h-full shadow-2xl overflow-y-auto border border-white/10 transition-shadow duration-300 flex items-center justify-center text-xs text-brand-light/60"
-        style={{ boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)" }}
+        className="bg-brand-darker/75 backdrop-blur-lg rounded-3xl p-6 h-full shadow-2xl overflow-y-auto border border-white/10 transition-shadow duration-300 flex items-center justify-center text-xs text-brand-light/60"
+        style={{ width: "280px", boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)" }}
       >
         Loading inspector…
       </div>

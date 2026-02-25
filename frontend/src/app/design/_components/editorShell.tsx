@@ -8,6 +8,7 @@ import { LeftPanel } from "./leftPanel";
 import { RightPanel } from "./rightPanel";
 import { TopPanel, type DevicePreset } from "./TopPanel";
 import { BottomPanel, type CanvasTool } from "./BottomPanel";
+import { FloatingMobilePreview } from "./FloatingMobilePreview";
 import { CanvasToolProvider } from "./CanvasToolContext";
 import { Container } from "../_designComponents/Container/Container";
 import { Text } from "../_designComponents/Text/Text";
@@ -68,6 +69,10 @@ class FrameErrorBoundary extends React.Component<
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 
+// These must match the Viewport constants for proper page positioning
+const PAGE_GRID_ORIGIN_X = 30000;
+const PAGE_GRID_ORIGIN_Y = 30000;
+
 const EMPTY_FRAME_DATA = JSON.stringify({
   ROOT: {
     type: { resolvedName: "Viewport" },
@@ -82,7 +87,15 @@ const EMPTY_FRAME_DATA = JSON.stringify({
   "page-1": {
     type: { resolvedName: "Page" },
     isCanvas: true,
-    props: { pageName: "Page 1", pageSlug: "page-0" },
+    props: { 
+      pageName: "Page 1", 
+      pageSlug: "page-0",
+      canvasX: PAGE_GRID_ORIGIN_X,
+      canvasY: PAGE_GRID_ORIGIN_Y,
+      width: "1920px",
+      height: "1200px",
+      background: "#ffffff"
+    },
     displayName: "Page",
     custom: {},
     parent: "ROOT",
@@ -155,9 +168,9 @@ const MIN_SCALE = 0.05;
 const MAX_SCALE = 3;
 const DEFAULT_SCALE = 0.5;
 const ZOOM_SENSITIVITY = 0.003;
-const INFINITE_CANVAS_WIDTH_VW = 2000;
-const INFINITE_CANVAS_HEIGHT_VH = 2000;
-const INFINITE_CANVAS_PADDING_PX = 6000;
+const INFINITE_CANVAS_WIDTH_VW = 4000;
+const INFINITE_CANVAS_HEIGHT_VH = 4000;
+const INFINITE_CANVAS_PADDING_PX = 30000;
 
 const isEditableTarget = (target: EventTarget | null) => {
   if (!target || !(target instanceof HTMLElement)) return false;
@@ -499,6 +512,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const errorCleanupDoneRef = useRef(false); // Track if we've already cleaned up
   const hasUserMovedCanvasRef = useRef(false);
   const [isPanning, setIsPanning] = useState(false);
+  const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [scale, setScale] = useState(1);
   const [initialJson, setInitialJson] = useState<string | null | undefined>(undefined);
   const [panelsReady, setPanelsReady] = useState(false);
@@ -759,16 +773,75 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     };
   }, [frameReady, scale, canvasRotation, initialJson]);
 
-  // Center the canvas in the view
+  // Center the canvas in the view - focus on first page element
   const centerCanvasInView = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const x = (container.scrollWidth - container.clientWidth) / 2;
-    const y = (container.scrollHeight - container.clientHeight) / 2;
-    container.scrollLeft = x;
-    container.scrollTop = y;
+    // Try to find the first Page element and center on it
+    const firstPage = container.querySelector("[data-page-node]") as HTMLElement | null;
+    
+    if (firstPage) {
+      const containerRect = container.getBoundingClientRect();
+      const pageRect = firstPage.getBoundingClientRect();
+
+      // Calculate where the page center is in scroll coordinates
+      const pageCenterX = container.scrollLeft + (pageRect.left - containerRect.left) + pageRect.width / 2;
+      const pageCenterY = container.scrollTop + (pageRect.top - containerRect.top) + pageRect.height / 2;
+
+      const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
+      const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+
+      const nextLeft = Math.min(maxScrollLeft, Math.max(0, pageCenterX - container.clientWidth / 2));
+      const nextTop = Math.min(maxScrollTop, Math.max(0, pageCenterY - container.clientHeight / 2));
+
+      container.scrollLeft = nextLeft;
+      container.scrollTop = nextTop;
+      return;
+    }
+
+    // Fallback: try viewport desktop
+    const desktopViewport = container.querySelector("[data-viewport-desktop]") as HTMLElement | null;
+
+    if (desktopViewport) {
+      const containerRect = container.getBoundingClientRect();
+      const viewportRect = desktopViewport.getBoundingClientRect();
+
+      const viewportCenterX = container.scrollLeft + (viewportRect.left - containerRect.left) + viewportRect.width / 2;
+      const viewportCenterY = container.scrollTop + (viewportRect.top - containerRect.top) + viewportRect.height / 2;
+
+      const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
+      const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+
+      const nextLeft = Math.min(maxScrollLeft, Math.max(0, viewportCenterX - container.clientWidth / 2));
+      const nextTop = Math.min(maxScrollTop, Math.max(0, viewportCenterY - container.clientHeight / 2));
+
+      container.scrollLeft = nextLeft;
+      container.scrollTop = nextTop;
+      return;
+    }
+
+    // Ultimate fallback: center of scroll area
+    const fallbackLeft = (container.scrollWidth - container.clientWidth) / 2;
+    const fallbackTop = (container.scrollHeight - container.clientHeight) / 2;
+    container.scrollLeft = fallbackLeft;
+    container.scrollTop = fallbackTop;
   }, []);
+
+  // Center immediately on first mount so default view starts at middle even before frame settles
+  useLayoutEffect(() => {
+    if (hasInitialCenteringRef.current) return;
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    const rafId = requestAnimationFrame(() => {
+      centerCanvasInView();
+      hasInitialCenteringRef.current = true;
+    });
+
+    return () => cancelAnimationFrame(rafId);
+  }, [centerCanvasInView]);
 
   // Center canvas after refresh/load and keep centering while layout is still settling
   useEffect(() => {
@@ -827,16 +900,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
     setScale(Math.max(newScale, MIN_SCALE));
 
-    // Center the canvas
+    // Center on the first page
     setTimeout(() => {
-      if (container) {
-        const x = (container.scrollWidth - container.clientWidth) / 2;
-        const y = (container.scrollHeight - container.clientHeight) / 2;
-        container.scrollLeft = x;
-        container.scrollTop = y;
-      }
+      centerCanvasInView();
     }, 100);
-  }, [canvasWidth, canvasHeight]);
+  }, [canvasWidth, canvasHeight, centerCanvasInView]);
 
   const handleScaleChange = useCallback((nextScale: number) => {
     const clampedScale = Math.min(MAX_SCALE, Math.max(nextScale, MIN_SCALE));
@@ -858,9 +926,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     setLeftPanelOpen(true);
   }, []);
 
+  const isSpacePanActive = activeTool === "move" && isSpacePressed;
+  const canPanWithPointerDrag = activeTool === "hand" || isSpacePanActive;
+
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Only Hand tool can pan canvas
-    if (activeTool === "hand") {
+    if (canPanWithPointerDrag) {
       setIsPanning(true);
       document.body.dataset.canvasPan = "true";
       e.preventDefault();
@@ -879,6 +949,53 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       containerRef.current.scrollTop -= e.movementY;
     }
   };
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== "Space") return;
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (isEditableTarget(event.target)) return;
+
+      event.preventDefault();
+      if (activeTool === "move") {
+        setIsSpacePressed(true);
+      }
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.code !== "Space") return;
+      setIsSpacePressed(false);
+    };
+
+    const handleWindowBlur = () => {
+      setIsSpacePressed(false);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleWindowBlur);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleWindowBlur);
+    };
+  }, [activeTool]);
+
+  useEffect(() => {
+    if (isSpacePanActive) {
+      document.body.dataset.spacePan = "true";
+      return;
+    }
+    document.body.removeAttribute("data-space-pan");
+  }, [isSpacePanActive]);
+
+  useEffect(() => {
+    if (activeTool === "move" && !isSpacePanActive && isPanning) {
+      setIsPanning(false);
+      document.body.removeAttribute("data-canvas-pan");
+    }
+  }, [activeTool, isSpacePanActive, isPanning]);
 
   useEffect(() => {
     const handleToolShortcut = (event: KeyboardEvent) => {
@@ -1082,26 +1199,77 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
   // Hide Craft drop indicator only when dragging the special New Page source item
   useEffect(() => {
+    let clearTimer: number | null = null;
+
+    const activateSuppression = () => {
+      if (clearTimer !== null) {
+        window.clearTimeout(clearTimer);
+        clearTimer = null;
+      }
+      document.body.dataset.newPageDragActive = "true";
+      setSuppressDropIndicator(true);
+    };
+
+    const clearSuppression = (delayMs = 900) => {
+      if (clearTimer !== null) {
+        window.clearTimeout(clearTimer);
+      }
+      clearTimer = window.setTimeout(() => {
+        delete document.body.dataset.newPageDragActive;
+        setSuppressDropIndicator(false);
+        clearTimer = null;
+      }, delayMs);
+    };
+
     const handleMouseDown = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
       const isNewPageSource = !!target?.closest("[data-component-new-page='true']");
       if (isNewPageSource) {
-        setSuppressDropIndicator(true);
+        activateSuppression();
       }
     };
 
-    const clearSuppression = () => {
+    const handleDragStart = (event: DragEvent) => {
+      const target = event.target as HTMLElement | null;
+      const startedFromNewPage =
+        !!target?.closest("[data-component-new-page='true']") ||
+        document.body.dataset.newPageDragActive === "true";
+      if (startedFromNewPage) {
+        activateSuppression();
+      }
+    };
+
+    const handleDropOrDragEnd = () => {
+      if (document.body.dataset.newPageDragActive === "true") {
+        clearSuppression(1000);
+      }
+    };
+
+    const handleWindowBlur = () => {
+      if (clearTimer !== null) {
+        window.clearTimeout(clearTimer);
+      }
+      delete document.body.dataset.newPageDragActive;
       setSuppressDropIndicator(false);
+      clearTimer = null;
     };
 
     document.addEventListener("mousedown", handleMouseDown, true);
-    document.addEventListener("mouseup", clearSuppression, true);
-    document.addEventListener("dragend", clearSuppression, true);
+    document.addEventListener("dragstart", handleDragStart, true);
+    document.addEventListener("drop", handleDropOrDragEnd, true);
+    document.addEventListener("dragend", handleDropOrDragEnd, true);
+    window.addEventListener("blur", handleWindowBlur);
 
     return () => {
+      if (clearTimer !== null) {
+        window.clearTimeout(clearTimer);
+      }
+      delete document.body.dataset.newPageDragActive;
       document.removeEventListener("mousedown", handleMouseDown, true);
-      document.removeEventListener("mouseup", clearSuppression, true);
-      document.removeEventListener("dragend", clearSuppression, true);
+      document.removeEventListener("dragstart", handleDragStart, true);
+      document.removeEventListener("drop", handleDropOrDragEnd, true);
+      document.removeEventListener("dragend", handleDropOrDragEnd, true);
+      window.removeEventListener("blur", handleWindowBlur);
     };
   }, []);
 
@@ -1361,9 +1529,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         resolver={resolver}
         indicator={{
           success: suppressDropIndicator ? "transparent" : (dropIndicatorPulse ? "#4ade80" : "#22c55e"),
-          error: "#ef4444",
+          error: suppressDropIndicator ? "transparent" : "#ef4444",
           thickness: suppressDropIndicator ? 0 : (dropIndicatorPulse ? 4 : 2),
-          transition: "all 140ms ease-out",
+          transition: suppressDropIndicator ? "none" : "all 140ms ease-out",
         }}
         onRender={RenderNode}
         onNodesChange={(query) => requestAnimationFrame(() => handleNodesChange(query))}
@@ -1399,10 +1567,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         <div
           ref={containerRef}
           data-canvas-container
-          className={`absolute inset-0 overflow-auto bg-brand-darker canvas-scroll-container ${activeTool === "hand" ? "canvas-hand-tool" : ""} ${activeTool === "hand" && isPanning ? "canvas-hand-panning" : ""}`}
+          className={`absolute inset-0 overflow-auto bg-brand-darker canvas-scroll-container ${canPanWithPointerDrag ? "canvas-hand-tool" : ""} ${canPanWithPointerDrag && isPanning ? "canvas-hand-panning" : ""}`}
           style={{
             cursor:
-              activeTool === "hand"
+              canPanWithPointerDrag
                 ? isPanning
                   ? "grabbing"
                   : "grab"
@@ -1438,7 +1606,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
             )}
           </div>
         </div>
-        <div className="absolute bottom-12 left-4 right-4 z-[60] pointer-events-none">
+        <div className="absolute bottom-4 left-6 right-6 z-[60] pointer-events-none">
           <div
             ref={horizontalScrollbarRef}
             className="canvas-scroll-container canvas-bottom-scrollbar pointer-events-auto h-5 overflow-x-scroll overflow-y-hidden rounded-md border border-white/20 bg-brand-dark/85"
@@ -1526,33 +1694,13 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
             onScaleChange={handleScaleChange}
           />
         )}
-        {/* Canvas Controls Overlay: ito yung nasa baba :> */}
-        <div data-panel="canvas-controls" className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">
-          <div className="flex gap-4 items-center">
-            <span>{Math.round(scale * 100)}%</span>
-            <span>Hand Tool + Drag to Pan</span>
-            <span>Ctrl + Scroll to Zoom</span>
-            <span>Ctrl (Win) / ⌘ Cmd (Mac) + Click to multi-select</span>
-            {/* Delete Button */}
-            <button
-              onClick={handleDeleteData}
-              className="pointer-events-auto text-red-400 hover:text-red-300 transition-colors ml-2"
-              title="Delete stored data and reset"
-            >
-              🗑️ Reset Data
-            </button>
-            {saveStatus !== 'idle' && (
-              <span className={`${saveStatus === 'saving' ? 'text-yellow-400' :
-                saveStatus === 'saved' ? 'text-green-400' :
-                  'text-red-400'
-                }`}>
-                {saveStatus === 'saving' ? '💾 Saving...' :
-                  saveStatus === 'saved' ? '✓ Saved' :
-                    saveError ? `⚠ Save failed: ${saveError}` : '⚠ Save failed'}
-              </span>
-            )}
-          </div>
-        </div>
+        {/* Floating Mobile Preview */}
+        {panelsReady && (
+          <FloatingMobilePreview
+            isOpen={showDualView}
+            onClose={() => setShowDualView(false)}
+          />
+        )}
         </InlineTextEditProvider>
         </TransformModeProvider>
         </CanvasToolProvider>
