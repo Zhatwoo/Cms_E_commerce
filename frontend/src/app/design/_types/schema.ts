@@ -14,6 +14,17 @@
 
 // ─── Document Root ──────────────────────────────────────────────────────────
 
+// ─── Code / Assets ──────────────────────────────────────────────────────────
+
+export type FileType = "tsx" | "css" | "json";
+
+export interface CodeFile {
+  id: string;
+  name: string;
+  type: FileType;
+  content: string;
+}
+
 /** The top-level document that gets saved to the database. */
 export interface BuilderDocument {
   /** Schema version for future migration. */
@@ -22,6 +33,8 @@ export interface BuilderDocument {
   pages: PageNode[];
   /** Flat map of all nodes keyed by unique ID. */
   nodes: Record<string, CleanNode>;
+  /** Optional project-wide files (assets, custom components, global styles). */
+  files?: CodeFile[];
 }
 
 // ─── Page ───────────────────────────────────────────────────────────────────

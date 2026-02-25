@@ -1,22 +1,36 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Copy, Download, X, Plus, Trash2, Code2, Settings, Package } from "lucide-react";
-
-type EditorMode = "component" | "asset";
-type FileType = "tsx" | "ts" | "jsx" | "js" | "css" | "json";
-
-interface CodeFile {
-  id: string;
-  name: string;
-  type: FileType;
-  content: string;
-}
+import { useEditor } from "@craftjs/core";
+import { FileType, CodeFile } from "../_types/schema";
+import { autoSavePage } from "../_lib/pageApi";
+import {
+  Code2,
+  Trash2,
+  Plus,
+  Files,
+  Layout,
+  Search,
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  Download,
+  Terminal,
+  Package,
+  GripHorizontal,
+  X,
+  Check,
+  ClipboardCheck,
+  Settings,
+  AlertCircle
+} from "lucide-react";
 
 interface CodeEditorProps {
-  isOpen: boolean;
-  onClose: () => void;
+  mode: "design" | "component" | "page";
   projectId: string;
+  className?: string;
+  files?: CodeFile[];
+  onFilesChange?: (files: CodeFile[]) => void;
 }
 
 // Template generators for different modes
@@ -36,7 +50,7 @@ interface ComponentProps {
  */
 export const MyComponent: React.FC<ComponentProps> = ({ className = "" }) => {
   return (
-    <div className={'w-full p-6 bg-linear-to-r from-blue-500 to-purple-600 rounded-lg shadow-lg ' + className}>
+    <div className={'w-full p-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-lg ' + className}>
       <h2 className="text-2xl font-bold text-white mb-4">My Reusable Component</h2>
       <p className="text-white/80">Build amazing components with Next.js and Tailwind CSS</p>
     </div>
@@ -71,7 +85,7 @@ export const formatPrice = (price: number): string => {
   }).format(price);
 };
 
-export const debounce = <T extends (...args: unknown[]) => unknown>(
+export const debounce = <T extends (...args: any[]) => any>(
   func: T,
   delay: number
 ): ((...args: Parameters<T>) => void) => {
@@ -98,10 +112,10 @@ interface IconProps {
   className?: string;
 }
 
-export const MyIcon: React.FC<IconProps> = ({ 
-  size = 24, 
+export const MyIcon: React.FC<IconProps> = ({
+  size = 24,
   color = "currentColor",
-  className = "" 
+  className = ""
 }) => {
   return (
     <svg
@@ -186,41 +200,311 @@ export default MyIcon;
   },
 };
 
-export const CodeEditor: React.FC<CodeEditorProps> = ({ isOpen, onClose, projectId }) => {
-  const [mode, setMode] = useState<EditorMode>("component");
-  const [files, setFiles] = useState<CodeFile[]>([
-    {
-      id: "file-1",
-      name: "MyComponent",
-      type: "tsx",
-      content: TEMPLATES.component.tsx,
-    },
-  ]);
-  const [activeFileId, setActiveFileId] = useState("file-1");
+export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, onFilesChange }: CodeEditorProps) => {
+  const { actions, selectedId, selectedNode, nodes, query } = useEditor((state) => {
+    const sel = state.events.selected;
+    const id = Array.isArray(sel)
+      ? sel[0]
+      : sel instanceof Set
+        ? Array.from(sel)[0]
+        : null;
+    return {
+      selectedId: id,
+      selectedNode: id ? state.nodes[id] : null,
+      nodes: state.nodes
+    };
+  });
+
+  const [localFiles, setLocalFiles] = useState<CodeFile[]>(propFiles || []);
+  const files = propFiles || localFiles;
+  const setFiles = onFilesChange || setLocalFiles;
+
+  const [activeFileId, setActiveFileId] = useState("instance-props");
+  const [tailwindContent, setTailwindContent] = useState("");
+  const [instanceError, setInstanceError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
   const [mounted, setMounted] = useState(false);
   const editorRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const highlightRef = useRef<HTMLPreElement>(null);
+  const lastAppliedContentRef = useRef<string>("");
+
+  const syncScroll = () => {
+    if (editorRef.current && highlightRef.current) {
+      highlightRef.current.scrollTop = editorRef.current.scrollTop;
+      highlightRef.current.scrollLeft = editorRef.current.scrollLeft;
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const activeFile = files.find((f) => f.id === activeFileId);
+  // Initialize files from props if available
+  useEffect(() => {
+    if (propFiles && propFiles.length > 0) {
+      if (activeFileId === "instance-props" && propFiles.length > 0) {
+        // keep instance-props active if we just loaded
+      }
+      return;
+    }
 
-  // Update active file content
+    if (files.length === 0) {
+      const templates = TEMPLATES as any;
+      const defaultFileContent = templates[mode]?.tsx || templates.component.tsx;
+      const baseFiles: CodeFile[] = [
+        {
+          id: "MyComponent.tsx",
+          name: "MyComponent",
+          type: "tsx",
+          content: defaultFileContent,
+        },
+      ];
+      setFiles(baseFiles);
+    }
+  }, [mode, propFiles]);
+
+  // Update instance content when selection changes
+  useEffect(() => {
+    const isFocused = document.activeElement === editorRef.current;
+    if (isFocused && activeFileId === "instance-props") return;
+
+    if (selectedNode && (activeFileId === "instance-props" || !selectedId)) {
+      const generateJSX = (nodeId: string, depth = 0): string => {
+        const node = (nodes as any)[nodeId];
+        if (!node) return "";
+
+        const p = node.data.props;
+        let type = (node.data.type as any).resolvedName || node.data.displayName;
+        if (!type || type === "undefined") {
+          type = nodeId === 'ROOT' ? 'Page' : 'Component';
+        }
+        const indent = "  ".repeat(depth + 2);
+
+        let content = "";
+        let attributes = `data-node-id="${nodeId}"`;
+
+        if (p.customClassName) attributes += ` className="${p.customClassName}"`;
+
+        if (type === "Text") {
+          content = p.text || "";
+        } else if (type === "Button") {
+          if (p.label) attributes += ` label="${p.label}"`;
+          if (p.variant) attributes += ` variant="${p.variant}"`;
+          if (p.link) attributes += ` link="${p.link}"`;
+        } else if (type === "Image") {
+          if (p.src) attributes += ` src="${p.src}"`;
+          if (p.alt) attributes += ` alt="${p.alt}"`;
+        }
+
+        const styleProps: any = {};
+        const styleFields = [
+          "backgroundColor", "background", "backgroundImage", "color",
+          "padding", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
+          "margin", "marginTop", "marginRight", "marginBottom", "marginLeft",
+          "width", "height", "borderRadius", "opacity", "fontSize", "fontWeight", "textAlign"
+        ];
+
+        styleFields.forEach(field => {
+          const val = p[field];
+          if (val !== undefined && val !== null && val !== "" && val !== 0 && val !== "0px" && val !== "0") {
+            styleProps[field] = val;
+          }
+        });
+
+        if (Object.keys(styleProps).length > 0) {
+          const styleStr = JSON.stringify(styleProps)
+            .replace(/"([^"]+)":/g, "$1:") // Remove quotes from keys
+            .replace(/"/g, "'"); // Use single quotes for values
+          attributes += ` style={{${styleStr}}}`;
+        }
+
+        if (type === "Image") {
+          return `${indent}<${type} ${attributes} />\n`;
+        } else if (node.data.nodes && node.data.nodes.length > 0) {
+          content = "\n" + node.data.nodes
+            .map((childId: string) => generateJSX(childId, depth + 1))
+            .join("") + indent;
+        }
+
+        return `${indent}<${type} ${attributes}>${content}</${type}>\n`;
+      };
+
+      if (selectedId) {
+        const jsx = generateJSX(selectedId).trim();
+        const content = `export default function Page() {\n  return (\n    <div className="w-full h-full bg-white">\n      ${jsx}\n    </div>\n  );\n}`;
+        setTailwindContent(content);
+        lastAppliedContentRef.current = content; // Sync ref so we don't immediately save back
+      }
+      setInstanceError(null);
+    }
+  }, [selectedId, activeFileId, nodes]);
+
+  const activeFile = activeFileId === "instance-props"
+    ? {
+      id: "instance-props",
+      name: selectedNode?.data.displayName || "Component",
+      type: "tsx" as FileType,
+      content: tailwindContent
+    }
+    : files.find((f) => f.id === activeFileId);
+
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    if (!activeFile) return;
-    const updated = files.map((f) =>
-      f.id === activeFileId ? { ...f, content: e.target.value } : f
-    );
-    setFiles(updated);
+    const newContent = e.target.value;
+
+    if (activeFileId === "instance-props") {
+      setTailwindContent(newContent);
+      if (!newContent.includes('data-node-id="')) {
+        setInstanceError("Missing data-node-id attributes");
+      } else {
+        setInstanceError(null);
+      }
+    } else {
+      const updated = files.map((f) =>
+        f.id === activeFileId ? { ...f, content: newContent } : f
+      );
+      setFiles(updated);
+    }
   };
 
-  // Add new file
+  // Autosave effect
+  useEffect(() => {
+    if (activeFileId !== "instance-props" || !selectedId || !tailwindContent) return;
+
+    // Don't re-apply if it matches what we last applied
+    if (tailwindContent === lastAppliedContentRef.current) return;
+
+    setIsSaving(true);
+    const timer = setTimeout(() => {
+      handleApplyInstanceProps();
+      setIsSaving(false);
+    }, 500);
+
+    return () => {
+      clearTimeout(timer);
+      setIsSaving(false);
+    };
+  }, [tailwindContent, selectedId, activeFileId]);
+
+  const highlightCode = (code: string) => {
+    if (!code) return "";
+    const escaped = code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const regex = /(["'])(?:(?=(\\?))\2.)*?\1|\/\/.*$|\b(export|const|let|var|function|return|if|else|import|from|default|interface|type|await|async)\b|(&lt;[A-Z][a-zA-Z0-9]*|&lt;\/[A-Z][a-zA-Z0-9]*)|(&lt;[a-z][a-zA-Z0-9]*|&lt;\/[a-z][a-zA-Z0-9]*)|(\b[a-z][a-zA-Z0-9]*(?==))|({|})/gm;
+    return escaped.replace(regex, (match, p1, p2, p3, p4, p5, p6, p7) => {
+      if (p1) return `<span class="text-orange-300 font-medium">${match}</span>`;
+      if (match.startsWith('//')) return `<span class="text-white/20 italic">${match}</span>`;
+      if (p3) return `<span class="text-purple-400 font-bold">${match}</span>`;
+      if (p4) return `<span class="text-blue-400 font-bold">${match}</span>`;
+      if (p5) return `<span class="text-blue-300">${match}</span>`;
+      if (p6) return `<span class="text-blue-200/60">${match}</span>`;
+      if (p7) return `<span class="text-white/40">${match}</span>`;
+      return match;
+    });
+  };
+
+  const handleApplyInstanceProps = () => {
+    if (!selectedId || activeFileId !== "instance-props") return;
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(tailwindContent, "text/html");
+      const elements = doc.querySelectorAll("[data-node-id]");
+
+      if (elements.length === 0) throw new Error("No components with data-node-id found");
+
+      const presentIds = new Set<string>();
+      elements.forEach(el => {
+        const id = el.getAttribute("data-node-id");
+        if (id) presentIds.add(id);
+      });
+
+      const getSubtreeIds = (nodeId: string): string[] => {
+        const node = nodes[nodeId];
+        if (!node) return [];
+        const childIds = node.data.nodes || [];
+        return [nodeId, ...childIds.flatMap(id => getSubtreeIds(id))];
+      };
+
+      const originalSubtreeIds = getSubtreeIds(selectedId);
+      originalSubtreeIds.forEach(nodeId => {
+        if (nodeId !== selectedId && !presentIds.has(nodeId)) {
+          actions.delete(nodeId);
+        }
+      });
+
+      elements.forEach((el) => {
+        const nodeId = el.getAttribute("data-node-id");
+        if (!nodeId) return;
+
+        const className = el.getAttribute("className") || el.getAttribute("class") || "";
+        const src = el.getAttribute("src");
+        const alt = el.getAttribute("alt");
+        const label = el.getAttribute("label");
+        const variant = el.getAttribute("variant");
+        const link = el.getAttribute("link");
+
+        let innerText: string | null = null;
+        for (let i = 0; i < el.childNodes.length; i++) {
+          const child = el.childNodes[i];
+          if (child.nodeType === 3) {
+            const text = child.textContent?.trim();
+            if (text) { innerText = text; break; }
+          }
+        }
+
+        actions.setProp(nodeId, (props: any) => {
+          const latestNode = query.node(nodeId).get();
+          if (!latestNode) return;
+          let type = (latestNode.data.type as any).resolvedName || latestNode.data.displayName || "";
+          props.customClassName = className;
+          const isType = (t: string) => type.toLowerCase() === t.toLowerCase();
+
+          if (src !== null && isType("Image")) props.src = src;
+          if (alt !== null && isType("Image")) props.alt = alt;
+          if (label !== null && isType("Button")) props.label = label;
+          if (variant !== null && isType("Button")) props.variant = variant;
+          if (link !== null && isType("Button")) props.link = link;
+
+          if (innerText !== null) {
+            if (isType("Text")) props.text = innerText;
+            else if (isType("Button")) props.label = innerText;
+          }
+
+          const styleAttr = el.getAttribute("style");
+          if (styleAttr) {
+            try {
+              const cleanStyle = styleAttr.replace(/^\{\{+/, "").replace(/\}\}+$/, "").trim();
+              if (cleanStyle) {
+                const pairs = cleanStyle.split(/,(?![^(]*\))/);
+                pairs.forEach(pair => {
+                  const [key, ...valParts] = pair.split(":");
+                  if (key && valParts.length > 0) {
+                    const k = key.trim();
+                    let v: any = valParts.join(":").trim();
+                    if (v.startsWith("'") && v.endsWith("'")) v = v.substring(1, v.length - 1);
+                    else if (!isNaN(Number(v))) v = Number(v);
+                    else if (v === "true") v = true;
+                    else if (v === "false") v = false;
+                    props[k] = v;
+                  }
+                });
+              }
+            } catch (err) { }
+          }
+        });
+      });
+      lastAppliedContentRef.current = tailwindContent; // Mark as applied
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
+    } catch (err) {
+      setInstanceError("Failed to apply: Invalid format");
+    }
+  };
+
   const handleAddFile = () => {
-    const fileType: FileType = mode === "component" ? "tsx" : "css";
-    const templates = TEMPLATES as Record<string, Record<string, string>>;
-    const templateContent = templates[mode]?.[fileType] || "";
+    const fileType: FileType = "tsx";
+    const templates = TEMPLATES as any;
+    const templateContent = templates.component.tsx;
     const newFile: CodeFile = {
       id: `file-${Date.now()}`,
       name: `NewFile${files.length + 1}`,
@@ -231,43 +515,20 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ isOpen, onClose, project
     setActiveFileId(newFile.id);
   };
 
-  // Delete file
   const handleDeleteFile = (id: string) => {
-    if (files.length === 1) {
-      alert("Cannot delete the last file");
-      return;
-    }
+    if (files.length === 1) { alert("Cannot delete the last file"); return; }
     const filtered = files.filter((f) => f.id !== id);
     setFiles(filtered);
-    if (activeFileId === id) {
-      setActiveFileId(filtered[0]?.id || "");
-    }
+    if (activeFileId === id) setActiveFileId(filtered[0]?.id || "");
   };
 
-  // Rename file
-  const handleRenameFile = (id: string, newName: string) => {
-    const updated = files.map((f) =>
-      f.id === id ? { ...f, name: newName } : f
-    );
-    setFiles(updated);
-  };
-
-  // Change file type
-  const handleChangeFileType = (fileId: string, newType: FileType) => {
-    const updated = files.map((f) =>
-      f.id === fileId ? { ...f, type: newType } : f
-    );
-    setFiles(updated);
-  };
-
-  // Copy to clipboard
   const handleCopyToClipboard = () => {
     if (!activeFile) return;
     navigator.clipboard.writeText(activeFile.content);
-    alert("Code copied to clipboard!");
+    setCopySuccess(true);
+    setTimeout(() => setCopySuccess(false), 2000);
   };
 
-  // Download as file
   const handleDownload = () => {
     if (!activeFile) return;
     const element = document.createElement("a");
@@ -279,206 +540,119 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ isOpen, onClose, project
     document.body.removeChild(element);
   };
 
-  // Export all files as project
-  const handleExportProject = () => {
-    const project = {
-      projectId,
-      mode,
-      files: files.map((f) => ({
-        name: f.name,
-        type: f.type,
-        content: f.content,
-      })),
-      exportedAt: new Date().toISOString(),
-    };
-    const element = document.createElement("a");
-    const file = new Blob([JSON.stringify(project, null, 2)], {
-      type: "application/json",
-    });
-    element.href = URL.createObjectURL(file);
-    element.download = `project-${Date.now()}.json`;
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-  };
-
-  if (!isOpen || !mounted) return null;
+  if (!mounted) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-9999 flex items-center justify-center p-4">
-      <div className="bg-brand-darker border border-white/10 rounded-2xl w-full h-full max-h-[95vh] max-w-[95vw] flex flex-col shadow-2xl overflow-hidden">
-        {/* Header */}
-        <div className="border-b border-white/10 p-4 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-4">
-            <Code2 size={20} className="text-blue-400" />
-            <h2 className="text-xl font-bold text-white">Code Editor</h2>
-            <div className="flex gap-2 ml-6">
-              <button
-                onClick={() => setMode("component")}
-                className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                  mode === "component"
-                    ? "bg-blue-500/30 text-blue-300 border border-blue-500/50"
-                    : "bg-white/5 text-white/60 hover:bg-white/10"
-                }`}
-              >
-                 Component
-              </button>
-              <button
-                onClick={() => setMode("asset")}
-                className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                  mode === "asset"
-                    ? "bg-purple-500/30 text-purple-300 border border-purple-500/50"
-                    : "bg-white/5 text-white/60 hover:bg-white/10"
-                }`}
-              >
-                Asset
-              </button>
+    <div className={`flex flex-col h-full bg-[#0F1116] border border-white/10 rounded-2xl overflow-hidden shadow-xl ${className}`}>
+      <div className="flex-1 flex flex-col bg-[#0F1116] relative">
+        <div className="h-12 border-b border-white/5 flex items-center justify-between px-4 bg-black/20 backdrop-blur-md sticky top-0 z-20">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="p-1.5 bg-white/5 rounded-lg border border-white/10">
+              <Package size={14} className="text-blue-400" />
+            </div>
+            <div className="flex flex-col">
+              <div className="text-[10px] text-blue-400 font-bold uppercase tracking-widest leading-none mb-1 drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]">Editing Source</div>
+              <div className="text-xs text-white/90 font-bold truncate flex items-center gap-2">
+                <span className="w-1 h-1 rounded-full bg-blue-400 animate-pulse" />
+                {activeFile?.name}.<span className="text-blue-400">{activeFile?.type}</span>
+              </div>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors shrink-0"
-          >
-            <X size={20} className="text-white/60" />
-          </button>
-        </div>
 
-        {/* Main Content */}
-        <div className="flex-1 flex overflow-hidden min-h-0">
-          {/* File Tabs & Explorer */}
-          <div className="w-48 border-r border-white/10 bg-brand-darker/50 flex flex-col min-h-0">
-            {/* File Tabs */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1 min-h-0">
-              {files.map((file) => (
-                <div
-                  key={file.id}
-                  className={`group flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
-                    activeFileId === file.id
-                      ? "bg-white/10 border border-white/20"
-                      : "hover:bg-white/5"
-                  }`}
-                  onClick={() => setActiveFileId(file.id)}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center bg-black/40 p-1 rounded-xl border border-white/5 mr-2">
+              <button onClick={handleCopyToClipboard} className="p-2 hover:bg-white/10 rounded-lg transition-all text-white/40 hover:text-white group relative">
+                {copySuccess ? <ClipboardCheck size={16} className="text-green-400" /> : <Copy size={16} />}
+              </button>
+              <button onClick={handleDownload} className="p-2 hover:bg-white/10 rounded-lg transition-all text-white/40 hover:text-white">
+                <Download size={16} />
+              </button>
+            </div>
+
+            {activeFileId === "instance-props" && (
+              <div className="flex items-center gap-3">
+                {isSaving && (
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 animate-pulse">
+                    <div className="w-1 h-1 rounded-full bg-blue-400" />
+                    <span className="text-[10px] text-blue-400 font-bold uppercase tracking-wider">Saving...</span>
+                  </div>
+                )}
+                {!isSaving && saveSuccess && (
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-green-500/10 border border-green-500/20">
+                    <Check size={10} className="text-green-400" />
+                    <span className="text-[10px] text-green-400 font-bold uppercase tracking-wider">Synced</span>
+                  </div>
+                )}
+                <button
+                  onClick={handleApplyInstanceProps}
+                  disabled={!!instanceError || isSaving}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-blue-500/20 active:scale-95 ${saveSuccess ? "bg-green-500/20 text-green-400 border border-green-500/50" : instanceError ? "bg-red-500/20 text-red-400 border border-red-500/50 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-500 text-white"}`}
                 >
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm text-white/80 truncate font-medium">
-                      {file.name}
-                    </div>
-                    <div className="text-xs text-white/40">.{file.type}</div>
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteFile(file.id);
-                    }}
-                    className="p-1 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 rounded transition-all shrink-0"
-                  >
-                    <Trash2 size={14} className="text-red-400" />
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            {/* Add File Button */}
-            <div className="border-t border-white/10 p-2 shrink-0">
-              <button
-                onClick={handleAddFile}
-                className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-colors text-sm font-medium"
-              >
-                <Plus size={16} /> New File
-              </button>
-            </div>
-          </div>
-
-          {/* Editor */}
-          <div className="flex-1 flex flex-col min-h-0">
-            {activeFile ? (
-              <>
-                {/* Editor Toolbar */}
-                <div className="border-b border-white/10 bg-brand-darker/50 p-3 flex items-center justify-between shrink-0">
-                  <div className="flex items-center gap-4">
-                    <input
-                      type="text"
-                      value={activeFile.name}
-                      onChange={(e) =>
-                        handleRenameFile(activeFileId, e.target.value)
-                      }
-                      className="bg-white/5 text-white px-3 py-1 rounded-lg text-sm font-medium border border-white/10 focus:border-blue-500 focus:outline-none"
-                    />
-                    <select
-                      value={activeFile.type}
-                      onChange={(e) =>
-                        handleChangeFileType(activeFileId, e.target.value as FileType)
-                      }
-                      className="bg-white/5 text-white/80 px-2 py-1 rounded-lg text-sm border border-white/10 focus:border-blue-500 focus:outline-none"
-                    >
-                      <option value="tsx">TSX</option>
-                      <option value="ts">TS</option>
-                      <option value="jsx">JSX</option>
-                      <option value="js">JS</option>
-                      <option value="css">CSS</option>
-                      <option value="json">JSON</option>
-                    </select>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleCopyToClipboard}
-                      className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/60 hover:text-white"
-                      title="Copy to clipboard"
-                    >
-                      <Copy size={16} />
-                    </button>
-                    <button
-                      onClick={handleDownload}
-                      className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/60 hover:text-white"
-                      title="Download file"
-                    >
-                      <Download size={16} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Code Editor */}
-                <textarea
-                  ref={editorRef}
-                  value={activeFile.content}
-                  onChange={handleContentChange}
-                  className="flex-1 p-4 bg-brand-darker text-white font-mono text-sm resize-none focus:outline-none border-none custom-scrollbar min-h-0"
-                  style={{
-                    backgroundColor: "#0a0d14",
-                    color: "#e0e7ff",
-                    fontFamily: "'Fira Code', 'Courier New', monospace",
-                  }}
-                  spellCheck="false"
-                />
-              </>
-            ) : (
-              <div className="flex-1 flex items-center justify-center text-white/40 min-h-0">
-                <p>No file selected</p>
+                  {saveSuccess ? <Check size={14} /> : <Terminal size={14} />}
+                  {saveSuccess ? "Applied" : "Sync Now"}
+                </button>
               </div>
             )}
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="border-t border-white/10 bg-brand-darker/50 p-4 flex items-center justify-between shrink-0">
-          <div className="text-sm text-white/60">
-            {files.length} file{files.length !== 1 ? "s" : ""} • Mode: <span className="text-blue-300 font-medium">{mode.toUpperCase()}</span>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={handleExportProject}
-              className="px-4 py-2 bg-purple-500/20 text-purple-300 rounded-lg hover:bg-purple-500/30 transition-colors text-sm font-medium border border-purple-500/30"
-            >
-             Export Project
-            </button>
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors text-sm font-medium"
-            >
-              Close
-            </button>
-          </div>
+        <div className="flex-1 min-h-0 relative group overflow-hidden">
+          <pre
+            ref={highlightRef}
+            aria-hidden="true"
+            className="absolute inset-0 w-full h-full p-6 font-mono text-sm pointer-events-none whitespace-pre-wrap break-all select-none no-scrollbar overflow-y-scroll"
+            style={{ fontFamily: "'Fira Code', 'Courier New', monospace", backgroundColor: "#0a0d14", boxSizing: "border-box", lineHeight: "1.6", margin: 0, border: "1px solid transparent" }}
+            dangerouslySetInnerHTML={{ __html: highlightCode(activeFile?.content || "") }}
+          />
+          <textarea
+            ref={editorRef}
+            value={activeFile?.content || ""}
+            onChange={handleContentChange}
+            onScroll={syncScroll}
+            spellCheck={false}
+            className="absolute inset-0 w-full h-full bg-transparent text-transparent caret-white p-6 font-mono text-sm resize-none focus:outline-none z-10 whitespace-pre-wrap break-all no-scrollbar overflow-y-scroll"
+            style={{ fontFamily: "'Fira Code', 'Courier New', monospace", boxSizing: "border-box", lineHeight: "1.6", margin: 0, border: "1px solid transparent" }}
+          />
+
+          {instanceError && (
+            <div className="absolute bottom-4 right-4 max-w-sm bg-red-500/10 border border-red-500/20 backdrop-blur-md p-3 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-bottom-4">
+              <div className="p-1 bg-red-500/20 rounded-lg">
+                <AlertCircle size={14} className="text-red-400" />
+              </div>
+              <div className="flex-1 text-[10px] text-red-400 font-bold uppercase tracking-wider mb-0.5">Parse Error: {instanceError}</div>
+            </div>
+          )}
         </div>
+      </div>
+
+      {/* Sidebar for Files */}
+      <div className="w-16 border-l border-white/5 bg-black/40 flex flex-col items-center py-4 gap-4">
+        <button
+          onClick={() => setActiveFileId("instance-props")}
+          className={`p-2 rounded-xl transition-all ${activeFileId === "instance-props" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/20" : "text-white/40 hover:text-white hover:bg-white/5"}`}
+          title="Component Props"
+        >
+          <Layout size={20} />
+        </button>
+        <div className="w-8 h-px bg-white/5" />
+        {files.map(file => (
+          <button
+            key={file.id}
+            onClick={() => setActiveFileId(file.id)}
+            className={`p-2 rounded-xl transition-all group relative ${activeFileId === file.id ? "bg-white/10 text-white" : "text-white/40 hover:text-white hover:bg-white/5"}`}
+            title={file.name}
+          >
+            <Files size={20} />
+            {activeFileId === file.id && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-blue-500 rounded-r-full" />}
+          </button>
+        ))}
+        <button
+          onClick={handleAddFile}
+          className="p-2 rounded-xl text-white/20 hover:text-blue-400 hover:bg-blue-400/10 transition-all"
+          title="Add Asset"
+        >
+          <Plus size={20} />
+        </button>
       </div>
     </div>
   );

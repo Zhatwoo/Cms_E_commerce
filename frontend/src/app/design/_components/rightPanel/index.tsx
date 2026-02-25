@@ -34,18 +34,19 @@ interface RightPanelProps {
   frameReady?: boolean;
   /** Called when the user clicks the X to close the Configs panel. */
   onClose?: () => void;
+  files?: any[];
+  onFilesChange?: (files: any[]) => void;
 }
 
 // Inner panel that subscribes to Craft editor.
 // Mounted lazily by RightPanel to avoid "setState during render" warnings
 // when Frame is rendering initial data.
-const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: setControlledTab, onClose }: RightPanelProps) => {
+const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: setControlledTab, onClose, files, onFilesChange }: RightPanelProps) => {
   const { showAlert } = useAlert();
   const [internalTab, setInternalTab] = useState<TabId>("design");
   const activeTab = controlledTab ?? internalTab;
   const setActiveTab = setControlledTab ?? setInternalTab;
   const [isPreviewing, setIsPreviewing] = useState(false);
-  const [isCodeEditorOpen, setIsCodeEditorOpen] = useState(false);
   const [panelWidth, setPanelWidth] = useState(320); // Default width
   const [isResizing, setIsResizing] = useState(false);
   const [startX, setStartX] = useState(0);
@@ -69,12 +70,12 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
     const firstProps = firstNode?.data?.props as Record<string, unknown> | undefined;
     const primary = firstId && firstNode
       ? {
-          id: firstId,
-          name: firstNode.data.displayName,
-          settings: firstNode.related?.settings,
-          visibility: (firstProps?.visibility as "visible" | "hidden" | undefined) ?? "visible",
-          locked: (firstProps?.locked as boolean | undefined) ?? false,
-        }
+        id: firstId,
+        name: firstNode.data.displayName,
+        settings: firstNode.related?.settings,
+        visibility: (firstProps?.visibility as "visible" | "hidden" | undefined) ?? "visible",
+        locked: (firstProps?.locked as boolean | undefined) ?? false,
+      }
       : null;
     return { selectedIds: ids, primary };
   });
@@ -203,21 +204,19 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
           setStartWidth(panelWidth);
           setIsResizing(true);
         }}
-        className={`${
-          isResizing ? 'w-2 bg-blue-500/70' : 'w-3 bg-brand-medium/20 hover:bg-blue-500/40'
-        } cursor-col-resize transition-all duration-200 group relative flex items-center justify-center select-none z-10`}
+        className={`${isResizing ? 'w-2 bg-blue-500/70' : 'w-3 bg-brand-medium/20 hover:bg-blue-500/40'
+          } cursor-col-resize transition-all duration-200 group relative flex items-center justify-center select-none z-10`}
         title="Drag to resize panel"
       >
         {/* Visual grip indicator */}
-        <div className={`flex flex-col gap-0.5 transition-opacity duration-200 ${
-          isResizing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-        }`}>
+        <div className={`flex flex-col gap-0.5 transition-opacity duration-200 ${isResizing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+          }`}>
           <div className="w-0.5 h-1 bg-brand-light/60 rounded-full"></div>
           <div className="w-0.5 h-1 bg-brand-light/60 rounded-full"></div>
           <div className="w-0.5 h-1 bg-brand-light/60 rounded-full"></div>
         </div>
       </div>
-      
+
       <div
         ref={panelRef}
         data-panel="configs"
@@ -228,155 +227,144 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
         }}
       >
         <div className="h-full overflow-y-auto p-6">
-      <div className="flex items-center justify-between mb-6 gap-2">
-        <h3 className="text-brand-lighter font-bold text-lg">Configs</h3>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={handlePreview}
-            disabled={isPreviewing}
-            className={`p-1 rounded-lg transition-colors cursor-pointer ${isPreviewing ? 'opacity-50 cursor-wait' : 'hover:bg-brand-medium/40'}`}
-            title="Preview (Web / Clean / Raw)"
-          >
-            <Play strokeWidth={2} className={`w-5 h-5 transition-colors ${isPreviewing ? 'text-yellow-400 animate-pulse' : 'text-brand-light hover:text-brand-lighter'}`} />
-          </button>
-          {onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1 rounded-lg transition-colors hover:bg-brand-medium/40 text-brand-light hover:text-brand-lighter"
-              title="Close panel"
-            >
-              <X className="w-5 h-5" strokeWidth={2} />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {selectedIds.length > 0 ? (
-        <div>
-          <div className="mb-6">
-            <div className="flex items-center gap-2 bg-brand-medium/20 p-2 rounded-lg border border-brand-medium/30">
-              <span className="flex-1 text-brand-lighter font-medium text-sm text-center">
-                {selectedIds.length === 1 && primary
-                  ? primary.name
-                  : `${selectedIds.length} components selected`}
-              </span>
-              {primary && (
-                <div className="flex items-center gap-0.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = primary.visibility === "hidden" ? "visible" : "hidden";
-                      selectedIds.forEach((id) => {
-                        try {
-                          actions.setProp(id, (p: Record<string, unknown>) => { p.visibility = next; });
-                        } catch { /* skip */ }
-                      });
-                    }}
-                    className={`p-1.5 rounded transition-colors ${primary.visibility === "hidden" ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
-                    title={primary.visibility === "hidden" ? "Show" : "Hide"}
-                  >
-                    {primary.visibility === "hidden" ? <EyeOff size={14} /> : <Eye size={14} />}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = !primary.locked;
-                      selectedIds.forEach((id) => {
-                        try {
-                          actions.setProp(id, (p: Record<string, unknown>) => { p.locked = next; });
-                        } catch { /* skip */ }
-                      });
-                    }}
-                    className={`p-1.5 rounded transition-colors ${primary.locked ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
-                    title={primary.locked ? "Unlock" : "Lock"}
-                  >
-                    {primary.locked ? <Lock size={14} /> : <LockOpen size={14} />}
-                  </button>
-                </div>
+          <div className="flex items-center justify-between mb-6 gap-2">
+            <h3 className="text-brand-lighter font-bold text-lg">Configs</h3>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handlePreview}
+                disabled={isPreviewing}
+                className={`p-1 rounded-lg transition-colors cursor-pointer ${isPreviewing ? 'opacity-50 cursor-wait' : 'hover:bg-brand-medium/40'}`}
+                title="Preview (Web / Clean / Raw)"
+              >
+                <Play strokeWidth={2} className={`w-5 h-5 transition-colors ${isPreviewing ? 'text-yellow-400 animate-pulse' : 'text-brand-light hover:text-brand-lighter'}`} />
+              </button>
+              {onClose && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="p-1 rounded-lg transition-colors hover:bg-brand-medium/40 text-brand-light hover:text-brand-lighter"
+                  title="Close panel"
+                >
+                  <X className="w-5 h-5" strokeWidth={2} />
+                </button>
               )}
             </div>
           </div>
 
-          {/* Tab Bar */}
-          <div className="flex gap-2 text-sm items-center py-2 px-2 border-y border-brand-medium mb-6 overflow-x-auto">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap font-medium ${
-                  activeTab === tab.id
-                    ? "text-brand-lighter bg-brand-medium/50 border border-brand-medium"
-                    : "text-brand-light hover:text-brand-lighter py-2 hover:bg-brand-medium/20"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Tab Content */}
-          <div className="space-y-6">
-            {activeTab === "design" &&
-              (selectedIds.length > 1 ? (
-                <BatchEditGroup selectedIds={selectedIds} />
-              ) : primary?.settings ? (
-                React.createElement(primary.settings)
-              ) : (
-                <div className="flex flex-col items-center justify-center py-8 text-brand-lighter opacity-50">
-                  <p className="text-sm">No design settings available</p>
-                </div>
-              ))}
-
-            {activeTab === "prototype" && (
-              <PrototypeGroup selectedIds={selectedIds} />
-            )}
-
-            {activeTab === "animation" && (
-              <AnimationGroup selectedIds={selectedIds} />
-            )}
-
-            {activeTab === "code" && (
-              <div className="space-y-4">
-                <div className="bg-brand-medium/20 border border-brand-medium/30 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Code2 size={18} className="text-blue-400" />
-                    <h3 className="font-semibold text-brand-lighter">Code Editor</h3>
-                  </div>
-                  <p className="text-brand-light text-sm mb-4">
-                    Write, manage, and export Next.js components and assets. Choose between Component (reusable UI) or Asset (utilities & icons) mode.
-                  </p>
-                  <button
-                    onClick={() => setIsCodeEditorOpen(true)}
-                    className="w-full px-4 py-2 bg-linear-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all font-medium text-sm flex items-center justify-center gap-2"
-                  >
-                    <Terminal size={16} />
-                    Open Code Editor
-                  </button>
+          {selectedIds.length > 0 ? (
+            <div>
+              <div className="mb-6">
+                <div className="flex items-center gap-2 bg-brand-medium/20 p-2 rounded-lg border border-brand-medium/30">
+                  <span className="flex-1 text-brand-lighter font-medium text-sm text-center">
+                    {selectedIds.length === 1 && primary
+                      ? primary.name
+                      : `${selectedIds.length} components selected`}
+                  </span>
+                  {primary && (
+                    <div className="flex items-center gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = primary.visibility === "hidden" ? "visible" : "hidden";
+                          selectedIds.forEach((id) => {
+                            try {
+                              actions.setProp(id, (p: Record<string, unknown>) => { p.visibility = next; });
+                            } catch { /* skip */ }
+                          });
+                        }}
+                        className={`p-1.5 rounded transition-colors ${primary.visibility === "hidden" ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
+                        title={primary.visibility === "hidden" ? "Show" : "Hide"}
+                      >
+                        {primary.visibility === "hidden" ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = !primary.locked;
+                          selectedIds.forEach((id) => {
+                            try {
+                              actions.setProp(id, (p: Record<string, unknown>) => { p.locked = next; });
+                            } catch { /* skip */ }
+                          });
+                        }}
+                        className={`p-1.5 rounded transition-colors ${primary.locked ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
+                        title={primary.locked ? "Unlock" : "Lock"}
+                      >
+                        {primary.locked ? <Lock size={14} /> : <LockOpen size={14} />}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center h-64 text-brand-lighter opacity-50">
-          <p className="text-sm">Select an element to edit</p>
-        </div>
-      )}
 
-      {/* Code Editor Modal */}
-      <CodeEditor
-        isOpen={isCodeEditorOpen}
-        onClose={() => setIsCodeEditorOpen(false)}
-        projectId={projectId}
-      />
+              {/* Tab Bar - Modern Pill Style */}
+              <div className="w-full overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none mb-8">
+                <div className="inline-flex min-w-full p-1 bg-black/30 backdrop-blur-md rounded-2xl border border-white/5">
+                  {TABS.map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`relative z-10 flex-shrink-0 px-6 py-2.5 rounded-xl transition-all duration-300 text-xs font-bold uppercase tracking-wider whitespace-nowrap ${activeTab === tab.id
+                        ? "text-white"
+                        : "text-white/40 hover:text-white/60"
+                        }`}
+                    >
+                      {activeTab === tab.id && (
+                        <div className="absolute inset-0 bg-blue-600 rounded-xl shadow-lg shadow-blue-500/20 animate-in fade-in zoom-in-95 duration-200" style={{ zIndex: -1 }} />
+                      )}
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Tab Content */}
+              <div className="space-y-6">
+                {activeTab === "design" &&
+                  (selectedIds.length > 1 ? (
+                    <BatchEditGroup selectedIds={selectedIds} />
+                  ) : primary?.settings ? (
+                    React.createElement(primary.settings)
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-brand-lighter opacity-50">
+                      <p className="text-sm">No design settings available</p>
+                    </div>
+                  ))}
+
+                {activeTab === "prototype" && (
+                  <PrototypeGroup selectedIds={selectedIds} />
+                )}
+
+                {activeTab === "animation" && (
+                  <AnimationGroup selectedIds={selectedIds} />
+                )}
+
+                {activeTab === "code" && (
+                  <div className="h-[600px] animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <CodeEditor
+                      mode="design"
+                      projectId={projectId}
+                      files={files || []}
+                      onFilesChange={onFilesChange}
+                      className="border-none shadow-none rounded-none"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-64 text-brand-lighter opacity-50">
+              <p className="text-sm">Select an element to edit</p>
+            </div>
+          )}
+
         </div>
       </div>
     </div>
   );
 };
 
-export const RightPanel = ({ frameReady = true, ...props }: RightPanelProps) => {
+export const RightPanel: React.FC<RightPanelProps> = (props) => {
   const [ready, setReady] = useState(false);
 
   // Delay mounting the editor-subscribed content until after Frame has committed (frameReady)
@@ -386,7 +374,7 @@ export const RightPanel = ({ frameReady = true, ...props }: RightPanelProps) => 
     return () => cancelAnimationFrame(id);
   }, []);
 
-  const canMountInner = frameReady && ready;
+  const canMountInner = props.frameReady && ready;
 
   if (!canMountInner) {
     return (

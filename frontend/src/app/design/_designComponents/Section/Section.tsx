@@ -47,6 +47,7 @@ export const Section = ({
   rotation = 0,
   designWidth,
   designHeight,
+  customClassName = "",
   children,
 }: ContainerProps) => {
   const { id, connectors: { connect, drag } } = useNode();
@@ -78,7 +79,7 @@ export const Section = ({
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className="min-h-[80px] transition-[outline] duration-150 hover:outline hover:outline-blue-500"
+      className={`min-h-[80px] transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
       style={{
         backgroundColor: background,
         backgroundImage: backgroundImage

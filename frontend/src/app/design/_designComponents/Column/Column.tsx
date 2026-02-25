@@ -43,6 +43,7 @@ export const Column = ({
   rotation = 0,
   designWidth,
   designHeight,
+  customClassName = "",
   children,
 }: ContainerProps) => {
   const { id, connectors: { connect, drag }, childCount } = useNode((node) => ({
@@ -73,7 +74,7 @@ export const Column = ({
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className="min-h-[40px] transition-[outline] duration-150 hover:outline hover:outline-blue-500"
+      className={`min-h-[40px] transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
       style={{
         flex: width === "auto" ? 1 : undefined,
         backgroundColor: background,
