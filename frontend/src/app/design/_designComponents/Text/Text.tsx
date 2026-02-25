@@ -183,7 +183,8 @@ export const TextDefaultProps: Partial<TextProps> = {
   paddingBottom: 0,
   paddingLeft: 0,
   opacity: 1,
-  boxShadow: "none"
+  boxShadow: "none",
+  previewEditable: false,
 };
 
 Text.craft = {

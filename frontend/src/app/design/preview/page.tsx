@@ -660,6 +660,7 @@ function PreviewContent() {
                   pageIndex={0}
                   initialPageSlug={initialPageSlug}
                   mobileBreakpoint={mobileBreakpoint}
+                  enableFormInputs
                   simulatedWidth={
                     previewViewport === "desktop"
                       ? undefined

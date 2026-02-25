@@ -15,8 +15,8 @@ const VIEWPORT_BASE_MIN_WIDTH = 20000;
 const VIEWPORT_BASE_MIN_HEIGHT = 14000;
 const VIEWPORT_EDGE_PADDING = 6000;
 const MOBILE_PREVIEW_SAFE_WIDTH = 520;
-const PAGE_GRID_ORIGIN_X = Math.round(VIEWPORT_BASE_MIN_WIDTH / 2 - PAGE_BASE_WIDTH / 2);
-const PAGE_GRID_ORIGIN_Y = Math.round(VIEWPORT_BASE_MIN_HEIGHT / 2 - PAGE_BASE_HEIGHT / 2);
+const MOBILE_PREVIEW_GAP = 200;
+const MOBILE_PREVIEW_LABEL_OFFSET = 0;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -373,8 +373,52 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
     const root = viewportRootRef.current;
     if (!root || mobilePositionInitializedRef.current) return;
 
-    const left = Math.max(16, root.clientWidth - MOBILE_WIDTH - 16);
-    setMobilePanelPos({ top: 16, left });
+    const desktopRoot = desktopCanvasRef.current;
+    const rootRect = root.getBoundingClientRect();
+    let contentRight = 16;
+    let contentTop = 16;
+    let desktopOffsetLeft = 0;
+    let desktopOffsetTop = 0;
+
+    if (desktopRoot) {
+      const desktopRect = desktopRoot.getBoundingClientRect();
+      desktopOffsetLeft = desktopRect.left - rootRect.left;
+      desktopOffsetTop = desktopRect.top - rootRect.top;
+      const pageNodes = Array.from(desktopRoot.querySelectorAll<HTMLElement>("[data-page-node='true']"));
+      if (pageNodes.length > 0) {
+        const rootCenterX = rootRect.left + rootRect.width / 2;
+        const rootCenterY = rootRect.top + rootRect.height / 2;
+
+        let closestNode: HTMLElement | null = null;
+        let closestDistance = Number.POSITIVE_INFINITY;
+
+        for (const node of pageNodes) {
+          const rect = node.getBoundingClientRect();
+          const centerX = rect.left + rect.width / 2;
+          const centerY = rect.top + rect.height / 2;
+          const distance = Math.hypot(centerX - rootCenterX, centerY - rootCenterY);
+          if (distance < closestDistance) {
+            closestDistance = distance;
+            closestNode = node;
+          }
+        }
+
+        if (closestNode) {
+          const nodeRight = desktopOffsetLeft + closestNode.offsetLeft + closestNode.offsetWidth;
+          const nodeTop = desktopOffsetTop + closestNode.offsetTop;
+          if (Number.isFinite(nodeRight)) contentRight = Math.max(contentRight, nodeRight);
+          if (Number.isFinite(nodeTop)) contentTop = Math.max(16, nodeTop);
+        }
+      }
+    }
+
+    const desiredLeft = contentRight + MOBILE_PREVIEW_GAP;
+    const panelHeight = MOBILE_MIN_HEIGHT + 32;
+    const maxLeft = Math.max(16, root.clientWidth - MOBILE_WIDTH - 16);
+    const maxTop = Math.max(16, root.clientHeight - panelHeight - 16);
+    const left = clamp(desiredLeft, 16, maxLeft);
+    const top = clamp(contentTop - MOBILE_PREVIEW_LABEL_OFFSET, 16, maxTop);
+    setMobilePanelPos({ top, left });
     mobilePositionInitializedRef.current = true;
   }, [viewportSize.minWidth, viewportSize.minHeight]);
 
@@ -562,6 +606,7 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       </div>
 
       <div
+        data-mobile-preview-panel="true"
         className="absolute flex flex-col gap-2 select-none z-20 pointer-events-auto"
         style={{ top: mobilePanelPos.top, left: mobilePanelPos.left }}
         onMouseDown={(event) => event.stopPropagation()}

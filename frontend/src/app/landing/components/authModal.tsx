@@ -40,7 +40,12 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
       if (data.success) {
         setStoredUser(data.user ?? null);
         onClose();
-        router.push('/m_dashboard'); // Can Redirect to different page
+        const role = (data.user?.role || '').toLowerCase();
+        if (role === 'admin' || role === 'super_admin') {
+          router.push('/admindashboard');
+        } else {
+          router.push('/m_dashboard');
+        }
         router.refresh();
       } else {
         setError(data.message || 'Login failed.');

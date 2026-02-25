@@ -9,20 +9,29 @@ type DropPoint = {
   ts: number;
 };
 
-function getCanvasScale(desktopRoot: HTMLElement | null): number {
-  if (!desktopRoot) return 1;
-  const rect = desktopRoot.getBoundingClientRect();
-  const sx = desktopRoot.offsetWidth > 0 ? rect.width / desktopRoot.offsetWidth : 1;
-  const sy = desktopRoot.offsetHeight > 0 ? rect.height / desktopRoot.offsetHeight : 1;
-  const scale = Number.isFinite(sx) && Number.isFinite(sy) ? (sx + sy) / 2 : 1;
-  return scale > 0.01 ? scale : 1;
+function resolveViewportId(nodes: Record<string, any>): string | null {
+  const rootNode = nodes?.ROOT;
+  const frameRootId = rootNode?.data?.nodes?.[0] ?? null;
+  const frameRoot = frameRootId ? nodes?.[frameRootId] : null;
+  const viewportId = frameRoot?.data?.nodes?.[0] ?? null;
+  if (viewportId && nodes?.[viewportId]?.data?.displayName === "Viewport") {
+    return viewportId;
+  }
+  const fallback = Object.keys(nodes ?? {}).find((id) => nodes?.[id]?.data?.displayName === "Viewport");
+  return fallback ?? null;
 }
 
-function toPx(value: unknown, fallback: number): number {
-  if (typeof value === "number" && Number.isFinite(value) && value > 0) return value;
-  if (typeof value === "string") {
-    const parsed = parseFloat(value.replace("px", "").trim());
-    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+function getEffectiveZoom(el: HTMLElement | null): number {
+  if (!el) return 1;
+  let zoom = 1;
+  let current: HTMLElement | null = el;
+  while (current) {
+    const zoomText = window.getComputedStyle(current).getPropertyValue("zoom");
+    const parsed = parseFloat(zoomText);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      zoom *= parsed;
+    }
+    current = current.parentElement;
   }
   return fallback;
 }
@@ -30,123 +39,172 @@ function toPx(value: unknown, fallback: number): number {
 export const NewPageDropPlacementHandler = () => {
   const { actions, query } = useEditor();
   const armedDragRef = useRef(false);
+  const movedDuringDragRef = useRef(false);
   const preDropPageIdsRef = useRef<Set<string>>(new Set());
   const lastDropPointRef = useRef<DropPoint | null>(null);
   const lastPointerRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const previewElRef = useRef<HTMLDivElement | null>(null);
-
-  const hidePreview = () => {
-    const el = previewElRef.current;
-    if (!el) return;
-    el.style.display = "none";
-  };
-
-  const ensurePreview = () => {
-    if (previewElRef.current) return previewElRef.current;
-    const el = document.createElement("div");
-    el.dataset.panel = "new-page-preview";
-    el.style.position = "fixed";
-    el.style.left = "0px";
-    el.style.top = "0px";
-    el.style.width = "0px";
-    el.style.height = "0px";
-    el.style.border = "2px solid #3b82f6";
-    el.style.background = "rgba(59, 130, 246, 0.08)";
-    el.style.pointerEvents = "none";
-    el.style.zIndex = "10000";
-    el.style.display = "none";
-    document.body.appendChild(el);
-    previewElRef.current = el;
-    return el;
-  };
-
-  const getViewportAndPages = () => {
-    const state = query.getState();
-    const nodes = state.nodes ?? {};
-    const root = nodes.ROOT;
-    let viewportId = root?.data?.nodes?.[0] as string | undefined;
-    if (!viewportId || nodes[viewportId]?.data?.displayName !== "Viewport") {
-      viewportId = Object.keys(nodes).find((id) => nodes[id]?.data?.displayName === "Viewport");
-    }
-    if (!viewportId) return { nodes, viewportId: null as string | null, pageIds: [] as string[] };
-
-    const viewportChildren = Array.isArray(nodes[viewportId]?.data?.nodes)
-      ? (nodes[viewportId].data.nodes as string[])
-      : [];
-    const pageIds = viewportChildren.filter((id) => nodes[id]?.data?.displayName === "Page");
-    return { nodes, viewportId, pageIds };
-  };
-
-  const getNewPageSize = () => {
-    const { nodes, pageIds } = getViewportAndPages();
-    const templatePage = pageIds[0] ? nodes[pageIds[0]] : null;
-    const width = toPx(templatePage?.data?.props?.width, 1440);
-    const height = toPx(templatePage?.data?.props?.height, 900);
-    return { width, height };
-  };
-
-  const updatePreviewAt = (clientX: number, clientY: number) => {
-    const preview = ensurePreview();
-    const canvasContainer = document.querySelector("[data-canvas-container]") as HTMLElement | null;
-    const desktopRoot = document.querySelector("[data-viewport-desktop]") as HTMLElement | null;
-    if (!canvasContainer || !desktopRoot) {
-      hidePreview();
-      return;
-    }
-
-    const containerRect = canvasContainer.getBoundingClientRect();
-    const insideCanvas =
-      clientX >= containerRect.left &&
-      clientX <= containerRect.right &&
-      clientY >= containerRect.top &&
-      clientY <= containerRect.bottom;
-
-    if (!insideCanvas) {
-      hidePreview();
-      return;
-    }
-
-    const scale = getCanvasScale(desktopRoot);
-    const pageSize = getNewPageSize();
-
-    preview.style.display = "block";
-    preview.style.left = `${clientX}px`;
-    preview.style.top = `${clientY}px`;
-    preview.style.width = `${Math.max(8, Math.round(pageSize.width * scale))}px`;
-    preview.style.height = `${Math.max(8, Math.round(pageSize.height * scale))}px`;
-  };
+  const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const placeDroppedPage = () => {
-    const drop = lastDropPointRef.current;
-    if (!drop || Date.now() - drop.ts > 2000) {
+    try {
+      const drop = lastDropPointRef.current;
+      if (!drop || Date.now() - drop.ts > 2000) {
+        lastDropPointRef.current = null;
+        return;
+      }
+
+      const state = query.getState();
+      if (!state) {
+        console.error("placeDroppedPage: invalid editor state", state);
+        lastDropPointRef.current = null;
+        return;
+      }
+      const nodes = state.nodes ?? {};
+      const viewportId = resolveViewportId(nodes);
+      if (!viewportId) {
+        lastDropPointRef.current = null;
+        return;
+      }
+
+      const viewportChildren = Array.isArray(nodes[viewportId]?.data?.nodes)
+        ? (nodes[viewportId].data.nodes as string[])
+        : [];
+
+      const currentPageIds = viewportChildren.filter((id) => nodes[id]?.data?.displayName === "Page");
+      const preDrop = preDropPageIdsRef.current;
+      const newPageIds = currentPageIds.filter((id) => !preDrop.has(id));
+
+      const desktopRoot = document.querySelector("[data-viewport-desktop]") as HTMLElement | null;
+      if (!desktopRoot) return;
+
+      const rect = desktopRoot.getBoundingClientRect();
+      const zoom = getEffectiveZoom(desktopRoot);
+
+      if (newPageIds.length > 0) {
+        newPageIds.forEach((pageId, index) => {
+          const canvasX = Math.round((drop.clientX - rect.left) / zoom + index * 36);
+          const canvasY = Math.round((drop.clientY - rect.top) / zoom + index * 36);
+
+          actions.setProp(pageId, (props: Record<string, unknown>) => {
+            props.canvasX = canvasX;
+            props.canvasY = canvasY;
+          });
+        });
+
+        lastDropPointRef.current = null;
+        preDropPageIdsRef.current = new Set(currentPageIds);
+        return;
+      }
+
+      // Fallback: if Craft drag-create didn't create a page node, create one directly at drop point
+      const pageCount = currentPageIds.length;
+      const pageNum = pageCount + 1;
+      const pageId = `page-${Date.now()}`;
+      const pageName = `Page ${pageNum}`;
+      const PAGE_WIDTH = 1920;
+      const PAGE_HEIGHT = 1200;
+      const canvasX = Math.round((drop.clientX - rect.left) / zoom);
+      const canvasY = Math.round((drop.clientY - rect.top) / zoom);
+
+      const tree = {
+        rootNodeId: pageId,
+        nodes: {
+          [pageId]: {
+            id: pageId,
+            type: { resolvedName: "Page" },
+            isCanvas: true,
+            props: {
+              pageName,
+              width: `${PAGE_WIDTH}px`,
+              height: `${PAGE_HEIGHT}px`,
+              background: "#E6E6E9",
+              canvasX,
+              canvasY,
+            },
+            displayName: "Page",
+            nodes: [],
+            linkedNodes: {},
+            custom: {},
+            hidden: false,
+          },
+        },
+      };
+
+      try {
+        // Build a full serialized editor snapshot from current state, insert the new page node
+        let snapshot: Record<string, any> | null = null;
+        try {
+          const serialized = (query as any).serialize ? (query as any).serialize() : null;
+          snapshot = serialized ? JSON.parse(serialized) : null;
+        } catch (e) {
+          snapshot = null;
+        }
+
+        if (snapshot && typeof snapshot === "object") {
+          // Find viewport id in serialized snapshot
+          const serializedViewportId = Object.keys(snapshot).find((id) => {
+            const n = snapshot[id] as any;
+            return (n?.displayName === "Viewport") || (n?.data?.displayName === "Viewport");
+          });
+
+          if (serializedViewportId) {
+            // Insert node into snapshot and add to viewport children
+            snapshot[pageId] = {
+              type: { resolvedName: "Page" },
+              isCanvas: true,
+              props: {
+                pageName,
+                width: `${PAGE_WIDTH}px`,
+                height: `${PAGE_HEIGHT}px`,
+                background: "#E6E6E9",
+                canvasX,
+                canvasY,
+              },
+              displayName: "Page",
+              custom: {},
+              parent: serializedViewportId,
+              hidden: false,
+              nodes: [],
+              linkedNodes: {},
+            };
+
+            // Ensure viewport nodes array exists and append
+            const vp = snapshot[serializedViewportId] as any;
+            if (!Array.isArray(vp.nodes)) vp.nodes = [];
+            vp.nodes = [...vp.nodes, pageId];
+
+            actions.deserialize(JSON.stringify(snapshot));
+            requestAnimationFrame(() => {
+              try {
+                actions.setProp(pageId, (props: Record<string, unknown>) => {
+                  props.canvasX = canvasX;
+                  props.canvasY = canvasY;
+                });
+                actions.selectNode(pageId);
+              } catch {
+                // Ignore if node not available yet in this frame
+              }
+            });
+            preDropPageIdsRef.current = new Set([...currentPageIds, pageId]);
+          } else {
+            // Fallback to previous lightweight tree if we couldn't find serialized viewport
+            actions.deserialize(JSON.stringify(tree));
+            preDropPageIdsRef.current = new Set([...currentPageIds, pageId]);
+          }
+        } else {
+          // No snapshot available — use direct deserialize of minimal tree
+          actions.deserialize(JSON.stringify(tree));
+          preDropPageIdsRef.current = new Set([...currentPageIds, pageId]);
+        }
+      } catch (error) {
+        console.error("Failed to insert dropped page:", error);
+      }
+
       lastDropPointRef.current = null;
-      return;
+    } catch (err) {
+      console.error("placeDroppedPage unexpected error:", err, { drop: lastDropPointRef.current });
+      lastDropPointRef.current = null;
     }
-
-    const { nodes, viewportId, pageIds: currentPageIds } = getViewportAndPages();
-    if (!viewportId) return;
-    const preDrop = preDropPageIdsRef.current;
-    const newPageIds = currentPageIds.filter((id) => !preDrop.has(id));
-    if (newPageIds.length === 0) return;
-
-    const desktopRoot = document.querySelector("[data-viewport-desktop]") as HTMLElement | null;
-    if (!desktopRoot) return;
-
-    const rect = desktopRoot.getBoundingClientRect();
-    const scale = getCanvasScale(desktopRoot);
-
-    newPageIds.forEach((pageId) => {
-      const canvasX = Math.round((drop.clientX - rect.left) / scale);
-      const canvasY = Math.round((drop.clientY - rect.top) / scale);
-
-      actions.setProp(pageId, (props: Record<string, unknown>) => {
-        props.canvasX = canvasX;
-        props.canvasY = canvasY;
-      });
-    });
-
-    lastDropPointRef.current = null;
-    preDropPageIdsRef.current = new Set(currentPageIds);
   };
 
   const schedulePlacementRetry = () => {
@@ -173,88 +231,39 @@ export const NewPageDropPlacementHandler = () => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
       lastPointerRef.current = { x: e.clientX, y: e.clientY };
+      dragStartRef.current = { x: e.clientX, y: e.clientY };
       const isNewPageDragStart = !!target.closest("[data-component-new-page='true']");
       armedDragRef.current = isNewPageDragStart;
-      if (isNewPageDragStart) {
-        updatePreviewAt(e.clientX, e.clientY);
-      } else {
-        hidePreview();
-      }
+      movedDuringDragRef.current = false;
 
       if (!isNewPageDragStart) return;
 
-      const { pageIds } = getViewportAndPages();
+      const state = query.getState();
+      const nodes = state.nodes ?? {};
+      const viewportId = resolveViewportId(nodes);
+      const viewportChildren = (viewportId && Array.isArray(nodes[viewportId]?.data?.nodes))
+        ? (nodes[viewportId].data.nodes as string[])
+        : [];
+      const pageIds = viewportChildren.filter((id) => nodes[id]?.data?.displayName === "Page");
       preDropPageIdsRef.current = new Set(pageIds);
     };
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!armedDragRef.current) return;
       lastPointerRef.current = { x: e.clientX, y: e.clientY };
-      updatePreviewAt(e.clientX, e.clientY);
-    };
-
-    const handleDragOver = (e: DragEvent) => {
-      if (!armedDragRef.current) return;
-      const x = e.clientX || lastPointerRef.current.x;
-      const y = e.clientY || lastPointerRef.current.y;
-      lastPointerRef.current = { x, y };
-      updatePreviewAt(x, y);
-    };
-
-    const handleDrop = (e: DragEvent) => {
-      if (!armedDragRef.current) return;
-
-      const pointer = {
-        x: e.clientX || lastPointerRef.current.x,
-        y: e.clientY || lastPointerRef.current.y,
-      };
-
-      const canvasContainer = document.querySelector("[data-canvas-container]") as HTMLElement | null;
-      const canvasRect = canvasContainer?.getBoundingClientRect();
-      const droppedOnCanvas = !!canvasRect &&
-        pointer.x >= canvasRect.left &&
-        pointer.x <= canvasRect.right &&
-        pointer.y >= canvasRect.top &&
-        pointer.y <= canvasRect.bottom;
-
-      if (!droppedOnCanvas) {
-        armedDragRef.current = false;
-        hidePreview();
-        return;
+      const dx = e.clientX - dragStartRef.current.x;
+      const dy = e.clientY - dragStartRef.current.y;
+      if ((dx * dx + dy * dy) > 36) {
+        movedDuringDragRef.current = true;
       }
-
-      lastDropPointRef.current = {
-        clientX: pointer.x,
-        clientY: pointer.y,
-        ts: Date.now(),
-      };
-
-      placeDroppedPage();
-      schedulePlacementRetry();
-      armedDragRef.current = false;
-      hidePreview();
     };
 
     const handleMouseUp = (e: MouseEvent) => {
-      if (armedDragRef.current) {
+      if (armedDragRef.current && movedDuringDragRef.current) {
         const pointer = {
           x: e.clientX || lastPointerRef.current.x,
           y: e.clientY || lastPointerRef.current.y,
         };
-        const canvasContainer = document.querySelector("[data-canvas-container]") as HTMLElement | null;
-        const canvasRect = canvasContainer?.getBoundingClientRect();
-        const droppedOnCanvas = !!canvasRect &&
-          pointer.x >= canvasRect.left &&
-          pointer.x <= canvasRect.right &&
-          pointer.y >= canvasRect.top &&
-          pointer.y <= canvasRect.bottom;
-
-        if (!droppedOnCanvas) {
-          armedDragRef.current = false;
-          hidePreview();
-          return;
-        }
-
         lastDropPointRef.current = {
           clientX: pointer.x,
           clientY: pointer.y,
@@ -265,17 +274,7 @@ export const NewPageDropPlacementHandler = () => {
         schedulePlacementRetry();
       }
       armedDragRef.current = false;
-      hidePreview();
-    };
-
-    const handleWindowBlur = () => {
-      armedDragRef.current = false;
-      hidePreview();
-    };
-
-    const handleDragEnd = () => {
-      armedDragRef.current = false;
-      hidePreview();
+      movedDuringDragRef.current = false;
     };
 
     document.addEventListener("mousedown", handleMouseDown, true);
