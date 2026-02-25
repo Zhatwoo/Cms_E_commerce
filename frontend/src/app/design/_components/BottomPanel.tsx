@@ -58,7 +58,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
     <div data-panel="bottom-tools" className="absolute bottom-0 left-0 right-0 z-50 pointer-events-none flex flex-col items-center">
       {/* Floating bar: tools + optional zoom */}
       <div
-        className="pointer-events-auto flex items-center rounded-xl bg-[#2a2a2e]/95 backdrop-blur-md border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.4)] mb-3 px-1 py-1.5 gap-0.5"
+        className="pointer-events-auto flex items-center rounded-xl bg-[#2a2a2e]/95 backdrop-blur-md border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.4)] mb-12 px-1 py-1.5 gap-0.5"
         style={{ boxShadow: "0 4px 24px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06)" }}
       >
         <button
