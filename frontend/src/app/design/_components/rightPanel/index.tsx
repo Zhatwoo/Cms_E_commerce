@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useEditor } from "@craftjs/core";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Lock, LockOpen, Play, Code2, GripVertical, X, Terminal } from "lucide-react";
+import { Eye, EyeOff, Lock, LockOpen, Play, Code2, GripVertical, X, Terminal, Palette, MousePointer2, Sparkles } from "lucide-react";
 import { serializeCraftToClean } from "../../_lib/serializer";
 import { autoSavePage } from "../../_lib/pageApi";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
@@ -15,13 +15,14 @@ export type TabId = "design" | "prototype" | "animation" | "code";
 interface Tab {
   id: TabId;
   label: string;
+  icon: React.ReactNode;
 }
 
 const TABS: Tab[] = [
-  { id: "design", label: "Design" },
-  { id: "prototype", label: "Prototype" },
-  { id: "animation", label: "Animation" },
-  { id: "code", label: "Code" },
+  { id: "design", label: "Design", icon: <Palette className="w-4 h-4 shrink-0" /> },
+  { id: "prototype", label: "Prototype", icon: <MousePointer2 className="w-4 h-4 shrink-0" /> },
+  { id: "animation", label: "Animation", icon: <Sparkles className="w-4 h-4 shrink-0" /> },
+  { id: "code", label: "Code", icon: <Code2 className="w-4 h-4 shrink-0" /> },
 ];
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
@@ -50,7 +51,7 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
   const [panelWidth, setPanelWidth] = useState(320); // Default width
   const [isResizing, setIsResizing] = useState(false);
   const [startX, setStartX] = useState(0);
-  const [startWidth, setStartWidth] = useState(320);
+  const [startWidth, setStartWidth] = useState(280);
   const router = useRouter();
   const panelRef = useRef<HTMLDivElement>(null);
   const resizeRef = useRef<HTMLDivElement>(null);
@@ -220,7 +221,7 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
       <div
         ref={panelRef}
         data-panel="configs"
-        className="bg-brand-darker/75 backdrop-blur-lg rounded-3xl h-full shadow-2xl border border-white/10 transition-all duration-300 overflow-hidden"
+        className="bg-brand-darker/75 backdrop-blur-lg rounded-3xl h-full shadow-2xl border border-white/10 transition-all duration-300 overflow-hidden flex flex-col"
         style={{
           width: `${panelWidth}px`,
           boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)",
@@ -250,6 +251,13 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
               )}
             </div>
           </div>
+        </>
+      ) : (
+        <div className="flex flex-col items-center justify-center h-64 text-brand-lighter opacity-50">
+          <p className="text-sm">Select an element to edit</p>
+        </div>
+      )}
+        </div>
 
           {selectedIds.length > 0 ? (
             <div>
@@ -380,8 +388,8 @@ export const RightPanel: React.FC<RightPanelProps> = (props) => {
     return (
       <div
         data-panel="configs"
-        className="w-80 bg-brand-darker/75 backdrop-blur-lg rounded-3xl p-6 h-full shadow-2xl overflow-y-auto border border-white/10 transition-shadow duration-300 flex items-center justify-center text-xs text-brand-light/60"
-        style={{ boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)" }}
+        className="bg-brand-darker/75 backdrop-blur-lg rounded-3xl p-6 h-full shadow-2xl overflow-y-auto border border-white/10 transition-shadow duration-300 flex items-center justify-center text-xs text-brand-light/60"
+        style={{ width: "280px", boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)" }}
       >
         Loading inspector…
       </div>
