@@ -217,7 +217,7 @@ export const PageMobilePreview: React.FC<PageMobilePreviewProps> = ({
 
     const renderMobilePreview = () => {
       // Find the page element on the desktop canvas
-      const pageEl = document.querySelector(`[data-node-id="${pageId}"]`) as HTMLElement | null;
+      const pageEl = document.querySelector(`[data-viewport-desktop] [data-page-node='true'][data-node-id="${pageId}"]`) as HTMLElement | null;
       if (!pageEl) {
         mobileRoot.innerHTML = "";
         return;
@@ -330,7 +330,7 @@ export const PageMobilePreview: React.FC<PageMobilePreviewProps> = ({
     };
 
     // Observe the page element for changes
-    const pageEl = document.querySelector(`[data-node-id="${pageId}"]`) as HTMLElement | null;
+    const pageEl = document.querySelector(`[data-viewport-desktop] [data-page-node='true'][data-node-id="${pageId}"]`) as HTMLElement | null;
     const mutation = new MutationObserver(queueRender);
     if (pageEl) {
       mutation.observe(pageEl, {

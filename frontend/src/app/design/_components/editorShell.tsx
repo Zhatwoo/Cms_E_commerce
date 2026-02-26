@@ -184,6 +184,12 @@ const isEditableTarget = (target: EventTarget | null) => {
   );
 };
 
+const clampScale = (value: unknown, fallback: number = DEFAULT_SCALE): number => {
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric)) return Math.min(MAX_SCALE, Math.max(MIN_SCALE, fallback));
+  return Math.min(MAX_SCALE, Math.max(MIN_SCALE, numeric));
+};
+
 /**
  * Deep validation function that walks through the entire Craft.js node tree
  * and ensures all node references are valid.
@@ -349,8 +355,18 @@ if (typeof window !== "undefined") {
 const DeferredFrame = ({ data, onMounted }: { data: string; onMounted?: () => void }) => {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
-    const id = requestAnimationFrame(() => setMounted(true));
-    return () => cancelAnimationFrame(id);
+    let done = false;
+    const markMounted = () => {
+      if (done) return;
+      done = true;
+      setMounted(true);
+    };
+    const id = requestAnimationFrame(markMounted);
+    const fallback = window.setTimeout(markMounted, 220);
+    return () => {
+      cancelAnimationFrame(id);
+      window.clearTimeout(fallback);
+    };
   }, []);
 
   useEffect(() => {
@@ -419,17 +435,37 @@ const SafeFrame = ({
       setRenderData(null);
     }
 
-    // Use a small delay to ensure validation completes
-    const id = requestAnimationFrame(() => setIsReady(true));
-    return () => cancelAnimationFrame(id);
+    // Use RAF + timeout fallback so new projects never get stuck in loading gate
+    let done = false;
+    const markReady = () => {
+      if (done) return;
+      done = true;
+      setIsReady(true);
+    };
+    const id = requestAnimationFrame(markReady);
+    const fallback = window.setTimeout(markReady, 260);
+    return () => {
+      cancelAnimationFrame(id);
+      window.clearTimeout(fallback);
+    };
   }, [data, onError]);
 
   // Defer Frame render to next tick so Craft.js store updates don't run during this component's render
   // (avoids "Cannot update a component while rendering a different component").
   useEffect(() => {
     if (!isReady) return;
-    const id = requestAnimationFrame(() => setCanRenderFrame(true));
-    return () => cancelAnimationFrame(id);
+    let done = false;
+    const allowRender = () => {
+      if (done) return;
+      done = true;
+      setCanRenderFrame(true);
+    };
+    const id = requestAnimationFrame(allowRender);
+    const fallback = window.setTimeout(allowRender, 260);
+    return () => {
+      cancelAnimationFrame(id);
+      window.clearTimeout(fallback);
+    };
   }, [isReady]);
 
   // Defer actual Frame mount to a later macrotask + low-priority update so Craft deserialize
@@ -622,7 +658,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       };
 
       if (typeof parsed.scale === "number") {
-        setScale((prev) => (prev === parsed.scale ? prev : Math.min(MAX_SCALE, Math.max(MIN_SCALE, parsed.scale!))));
+        setScale((prev) => {
+          const next = clampScale(parsed.scale, prev);
+          return prev === next ? prev : next;
+        });
       }
       if (typeof parsed.leftPanelOpen === "boolean") setLeftPanelOpen(parsed.leftPanelOpen);
       if (typeof parsed.rightPanelOpen === "boolean") setRightPanelOpen(parsed.rightPanelOpen);
@@ -800,9 +839,13 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         if (Math.abs(frameDelta) < 0.01) return;
 
         setScale((prevScale) => {
+          const safePrev = clampScale(prevScale, previousScaleRef.current || 1);
           const zoomFactor = Math.exp(-frameDelta * ZOOM_SENSITIVITY);
-          const nextScale = prevScale * zoomFactor;
-          return Math.min(MAX_SCALE, Math.max(nextScale, MIN_SCALE));
+          if (!Number.isFinite(zoomFactor) || zoomFactor <= 0) {
+            return safePrev;
+          }
+          const nextScale = safePrev * zoomFactor;
+          return clampScale(nextScale, safePrev);
         });
       });
     };
@@ -823,18 +866,31 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) {
-      previousScaleRef.current = scale;
+      previousScaleRef.current = clampScale(scale, previousScaleRef.current || 1);
       return;
     }
 
-    const prevScale = previousScaleRef.current;
-    const nextScale = scale;
-    if (prevScale === nextScale) return;
+    const prevScale = clampScale(previousScaleRef.current, scale || 1);
+    const nextScale = clampScale(scale, prevScale);
+    if (prevScale === nextScale) {
+      previousScaleRef.current = nextScale;
+      return;
+    }
+
+    if (container.clientWidth <= 0 || container.clientHeight <= 0) {
+      previousScaleRef.current = nextScale;
+      return;
+    }
 
     const centerX = container.clientWidth / 2;
     const centerY = container.clientHeight / 2;
     const contentX = (container.scrollLeft + centerX) / prevScale;
     const contentY = (container.scrollTop + centerY) / prevScale;
+
+    if (!Number.isFinite(contentX) || !Number.isFinite(contentY)) {
+      previousScaleRef.current = nextScale;
+      return;
+    }
 
     const nextScrollLeft = contentX * nextScale - centerX;
     const nextScrollTop = contentY * nextScale - centerY;
@@ -967,11 +1023,23 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
 
+    if (
+      !Number.isFinite(contentWidth) ||
+      !Number.isFinite(contentHeight) ||
+      contentWidth <= 0 ||
+      contentHeight <= 0 ||
+      containerWidth <= 0 ||
+      containerHeight <= 0
+    ) {
+      setScale((prev) => clampScale(prev, 1));
+      return;
+    }
+
     const scaleX = (containerWidth * 0.9) / contentWidth;
     const scaleY = (containerHeight * 0.9) / contentHeight;
     const newScale = Math.min(scaleX, scaleY, 1);
 
-    setScale(Math.max(newScale, MIN_SCALE));
+    setScale(clampScale(newScale, 1));
 
     // Center on the first page
     setTimeout(() => {
@@ -980,9 +1048,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   }, [canvasWidth, canvasHeight, centerCanvasInView]);
 
   const handleScaleChange = useCallback((nextScale: number) => {
-    const clampedScale = Math.min(MAX_SCALE, Math.max(nextScale, MIN_SCALE));
-
-    setScale((prevScale) => (prevScale === clampedScale ? prevScale : clampedScale));
+    setScale((prevScale) => {
+      const clampedScale = clampScale(nextScale, prevScale);
+      return prevScale === clampedScale ? prevScale : clampedScale;
+    });
   }, []);
 
   // Handle device preset selection - only width changes; preserve page height so it doesn't reset

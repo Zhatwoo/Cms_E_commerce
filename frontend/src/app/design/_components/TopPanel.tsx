@@ -59,7 +59,7 @@ const DEVICE_PRESETS: DevicePreset[] = [
   },
 ];
 
-const MIN_SCALE = 0.01;
+const MIN_SCALE = 0.05;
 const MAX_SCALE = 3;
 const ZOOM_STEP = 0.15;
 
@@ -121,12 +121,14 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   }, [canvasWidth, canvasHeight]);
 
   const handleZoomIn = () => {
-    const newScale = Math.min(scale + ZOOM_STEP, MAX_SCALE);
+    const safeScale = Number.isFinite(scale) ? scale : 1;
+    const newScale = Math.min(safeScale + ZOOM_STEP, MAX_SCALE);
     onScaleChange(newScale);
   };
 
   const handleZoomOut = () => {
-    const newScale = Math.max(scale - ZOOM_STEP, MIN_SCALE);
+    const safeScale = Number.isFinite(scale) ? scale : 1;
+    const newScale = Math.max(safeScale - ZOOM_STEP, MIN_SCALE);
     onScaleChange(newScale);
   };
 
@@ -185,7 +187,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
 
   const displayWidth = Math.round(canvasWidth);
   const displayHeight = Math.round(canvasHeight);
-  const zoomPercentage = Math.round(scale * 100);
+  const zoomPercentage = Math.round((Number.isFinite(scale) ? scale : 1) * 100);
 
   return (
     <div

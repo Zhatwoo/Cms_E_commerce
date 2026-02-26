@@ -57,6 +57,7 @@ export const TextSettings = () => {
   }));
 
   const typedSetProp = setProp as SetProp<TextProps>;
+  const safeText = typeof text === "string" ? text : "";
 
   return (
     <div className="flex flex-col pb-4">
@@ -101,9 +102,19 @@ export const TextSettings = () => {
       </DesignSection>
 
       <DesignSection title="Content">
+        <div className="flex items-center justify-end mb-2">
+          <button
+            type="button"
+            onClick={() => typedSetProp((props) => { props.text = ""; })}
+            className="text-[11px] px-2 py-1 rounded bg-brand-medium-dark text-brand-lighter hover:bg-brand-medium transition-colors"
+          >
+            Clear
+          </button>
+        </div>
         <textarea
-          value={text}
+          value={safeText}
           onChange={(e) => typedSetProp((props) => { props.text = e.target.value; })}
+          placeholder="Type your text here..."
           className="w-full bg-brand-medium-dark p-2 rounded-lg text-brand-lighter focus:border-brand-light focus:outline-none resize-y min-h-[40px]"
         />
         <div className="mt-3 flex items-center gap-2">

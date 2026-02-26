@@ -152,13 +152,28 @@ export const BoxSelectionHandler = () => {
         }
       }
 
+      const intersectingSet = new Set(intersecting);
+      const isAncestorOfAnotherSelected = (candidateId: string): boolean => {
+        for (const selectedId of intersectingSet) {
+          if (selectedId === candidateId) continue;
+          let currentParent = (nodes[selectedId]?.data?.parent as string | undefined) ?? null;
+          while (currentParent && currentParent !== "ROOT") {
+            if (currentParent === candidateId) return true;
+            currentParent = (nodes[currentParent]?.data?.parent as string | undefined) ?? null;
+          }
+        }
+        return false;
+      };
+
+      const filteredIntersecting = intersecting.filter((id) => !isAncestorOfAnotherSelected(id));
+
       try {
-        if (intersecting.length === 0) {
+        if (filteredIntersecting.length === 0) {
           actions.selectNode(undefined);
-        } else if (intersecting.length === 1) {
-          actions.selectNode(intersecting[0]);
+        } else if (filteredIntersecting.length === 1) {
+          actions.selectNode(filteredIntersecting[0]);
         } else {
-          actions.selectNode(intersecting);
+          actions.selectNode(filteredIntersecting);
         }
       } catch {
         // ignore
