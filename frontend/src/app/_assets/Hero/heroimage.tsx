@@ -15,36 +15,103 @@ export const HeroWithImage: TemplateEntry = {
   label: "Hero with Image",
   description: "Hero with text and image placeholder",
   preview: "📷 Hero",
+  category: "hero",
   element: React.createElement(
     Element as any,
-    { is: Section as any, canvas: true },
+    {
+      is: Section as any,
+      canvas: true,
+      background: "#ffffff",
+      padding: 12,
+      width: "100%",
+      minHeight: "100vh",
+      flexDirection: "column",
+      justifyContent: "center",
+      alignItems: "center",
+    },
     React.createElement(
       Element as any,
-      { is: Container as any, background: "#ffffff", padding: 60, canvas: true },
+      {
+        is: Row as any,
+        canvas: true,
+        background: "#ffffff",
+        width: "min(100%, 1280px)",
+        paddingTop: 48,
+        paddingBottom: 48,
+        paddingLeft: 24,
+        paddingRight: 24,
+        gap: 48,
+        alignItems: "center",
+        justifyContent: "center",
+        flexWrap: "wrap",
+      },
+
+      // Left: text + CTA
       React.createElement(
         Element as any,
-        { is: Row as any, canvas: true },
-        React.createElement(
-          Element as any,
-          { is: Column as any, canvas: true },
-          React.createElement(Text as any, { text: "Create Beautiful Websites", fontSize: 40, fontWeight: "bold", color: "#1e293b" }),
-          React.createElement(Text as any, { text: "Our visual builder makes it easy to create stunning websites without writing a single line of code.", fontSize: 16, color: "#64748b" }),
-          React.createElement(Button as any, { label: "Start Building", backgroundColor: "#10b981", textColor: "#ffffff", fontSize: 16 })
-        ),
-        React.createElement(
-          Element as any,
-          { is: Column as any, canvas: true },
-          React.createElement(Image as any, {
-            src: "",
-            alt: "Hero Image",
-            width: "100%",
-            height: "400px",
-            objectFit: "cover",
-            borderRadius: 12
-          })
-        )
+        {
+          is: Column as any,
+          canvas: true,
+          background: "transparent",
+          width: "min(100%, 520px)",
+          flexShrink: 0,
+          alignItems: "flex-start",
+          justifyContent: "center",
+          padding: 0,
+          gap: 20,
+        },
+        React.createElement(Text as any, {
+          text: "Create Beautiful Websites",
+          fontSize: 40,
+          fontWeight: "700",
+          color: "#1e293b",
+          lineHeight: 1.15,
+        }),
+        React.createElement(Text as any, {
+          text: "Our visual builder makes it easy to create stunning websites without writing a single line of code.",
+          fontSize: 16,
+          fontWeight: "400",
+          color: "#64748b",
+          lineHeight: 1.6,
+        }),
+        React.createElement(Button as any, {
+          label: "Start Building",
+          backgroundColor: "#10b981",
+          textColor: "#ffffff",
+          fontSize: 14,
+          fontWeight: "600",
+          paddingTop: 13,
+          paddingBottom: 13,
+          paddingLeft: 32,
+          paddingRight: 32,
+          borderRadius: 6,
+          width: "min(100%, 200px)",
+        })
+      ),
+
+      // Right: image
+      React.createElement(
+        Element as any,
+        {
+          is: Column as any,
+          canvas: true,
+          background: "transparent",
+          width: "min(100%, 560px)",
+          flexShrink: 0,
+          alignItems: "stretch",
+          justifyContent: "center",
+          padding: 0,
+          gap: 0,
+        },
+        React.createElement(Image as any, {
+          src: "",
+          alt: "Hero Image",
+          width: "100%",
+          height: "400px",
+          objectFit: "cover",
+          borderRadius: 12,
+        })
       )
     )
   ),
-  category: "hero",
 };

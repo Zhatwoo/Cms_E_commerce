@@ -11,9 +11,20 @@ import {
   DarkModeHeader
 } from "./Header";
 import { CenteredHero, HeroWithImage, HeroBannerCTA, HeroBannerCTA_v2, HeroBannerCTA_v3 } from "./Hero";
-import { FeaturesGrid, Testimonial, DeliveryAddress, DeliveryAddressV1 } from "./Content";
-import { ContactForm, NewsletterSignup, OrderForm, OrderFormV1, LoginForm, SignupForm, AddToCart, PaymentForm, PaymentMethod, PaymentMethodV1 } from "./Forms";
-import { ProductCard, TeamMemberCard, GridViewCard, ProductDescription, FeaturedProduct, CategoriesCard, BrowseCategory, } from "./Cards";
+import { FeaturesGrid, Testimonial } from "./Content";
+import { ContactForm, NewsletterSignup, OrderForm, LoginForm, SignupForm, AddToCart, PaymentForm } from "./Forms";
+import {
+  ProductCard,
+  TeamMemberCard,
+  GridViewCard,
+  ProductDescription,
+  FeaturedProduct,
+  CategoriesCard,
+  BrowseCategory,
+  ProductDetailView,
+  ProductDetailViewV2,
+  ProductDetailViewV3,
+} from "./Cards";
 import {
   SimpleFooter,
   MultiColumnFooter,
@@ -47,10 +58,6 @@ import { Square as CraftSquare } from "./shapes/square/square";
 import { Triangle as CraftTriangle } from "./shapes/triangle/triangle";
 
 import { TemplateEntry } from "./_types";
-import { ProductDetailView } from "./Cards/productcard/ProductDetailView";
-import { ProductDetailViewV2 } from "./Cards/productcard/ProductDetailViewV2";
-import { ProductDetailViewV3 } from "./Cards/productcard/ProductDetailViewV3";
-
 
 export const Circle = ({ width = 60, height = 60 }: { width?: number; height?: number }) => (
   <svg width={width} height={height} viewBox="0 0 60 60">
@@ -180,18 +187,18 @@ export const GROUPED_TEMPLATES = [
   },
   {
     folder: "Cards",
-  items: [
-    ProductCard,
-    TeamMemberCard,
-    GridViewCard,
-    ProductDescription,
-    FeaturedProduct,
-    CategoriesCard,
-    BrowseCategory,
-    ProductDetailView,
-    ProductDetailViewV2,
-    ProductDetailViewV3
-  ],
+    items: [
+      ProductCard,
+      TeamMemberCard,
+      GridViewCard,
+      ProductDescription,
+      FeaturedProduct,
+      CategoriesCard,
+      BrowseCategory,
+      ProductDetailView,
+      ProductDetailViewV2,
+      ProductDetailViewV3,
+    ],
   },
   {
     folder: "Forms",

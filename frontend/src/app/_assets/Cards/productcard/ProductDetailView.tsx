@@ -12,7 +12,8 @@ import { Row } from "../../../design/_designComponents/Row/Row";
 import { Column } from "../../../design/_designComponents/Column/Column";
 import { TemplateEntry } from "../../_types";
 
-const THUMB_SIZE = "clamp(54px, 18vw, 68px)";
+const THUMB_SIZE = "92px";
+const MAIN_IMAGE_WIDTH = "min(100%, 520px)";
 
 export const ProductDetailView: TemplateEntry = {
   label: "Product Detail View",
@@ -25,30 +26,43 @@ export const ProductDetailView: TemplateEntry = {
       is: Section as any,
       canvas: true,
       background: "#F5F0EB",
-      padding: 8,
+      padding: 12,
       width: "100%",
       minHeight: "100vh",
-      flexDirection: "row",
-      flexWrap: "wrap",
+      flexDirection: "column",
       justifyContent: "center",
-      alignItems: "stretch",
+      alignItems: "center",
     },
 
     React.createElement(
       Element as any,
       {
-        is: Column as any,
+        is: Row as any,
         canvas: true,
         background: "#FFFFFF",
-        width: "min(100%, 620px)",
-        alignItems: "center",
+        width: "min(100%, 1320px)",
+        gap: 16,
+        paddingTop: 24,
+        paddingBottom: 24,
+        paddingLeft: 24,
+        paddingRight: 24,
+        alignItems: "stretch",
         justifyContent: "center",
-        paddingTop: 16,
-        paddingBottom: 16,
-        paddingLeft: 12,
-        paddingRight: 12,
-        gap: 14,
+        flexWrap: "wrap",
       },
+
+      React.createElement(
+        Element as any,
+        {
+          is: Column as any,
+          canvas: true,
+          background: "transparent",
+          width: "min(100%, 520px)",
+          alignItems: "center",
+          justifyContent: "flex-start",
+          padding: 0,
+          gap: 14,
+        },
 
       React.createElement(
         Element as any,
@@ -78,7 +92,7 @@ export const ProductDetailView: TemplateEntry = {
       React.createElement(Image as any, {
         src: "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=600&q=80",
         alt: "Product Main",
-        width: "min(100%, 440px)",
+        width: MAIN_IMAGE_WIDTH,
         height: "auto",
         objectFit: "cover",
         borderRadius: 4,
@@ -98,27 +112,6 @@ export const ProductDetailView: TemplateEntry = {
           width: "100%",
         },
 
-        React.createElement(
-          Element as any,
-          {
-            is: Container as any,
-            canvas: true,
-            background: "#1A1A1A",
-            borderRadius: 4,
-            padding: 2,
-            width: THUMB_SIZE,
-            height: THUMB_SIZE,
-            gap: 0,
-          },
-          React.createElement(Image as any, {
-            src: "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=200&q=80",
-            alt: "Thumb 1",
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            borderRadius: 2,
-          })
-        ),
         React.createElement(
           Element as any,
           {
@@ -199,14 +192,14 @@ export const ProductDetailView: TemplateEntry = {
       {
         is: Column as any,
         canvas: true,
-        background: "#FFFFFF",
-        width: "min(100%, 620px)",
+        background: "transparent",
+        width: "min(100%, 560px)",
         alignItems: "flex-start",
-        justifyContent: "center",
-        paddingLeft: 12,
-        paddingRight: 12,
-        paddingTop: 16,
-        paddingBottom: 16,
+        justifyContent: "flex-start",
+        paddingLeft: 0,
+        paddingRight: 0,
+        paddingTop: 24,
+        paddingBottom: 24,
         gap: 0,
       },
 
@@ -579,6 +572,7 @@ export const ProductDetailView: TemplateEntry = {
           width: "min(100%, 260px)",
         })
       )
+    )
     )
   ),
 };

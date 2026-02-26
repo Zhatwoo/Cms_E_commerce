@@ -6,141 +6,157 @@ import { Container } from "../../../design/_designComponents/Container/Container
 import { Text } from "../../../design/_designComponents/Text/Text";
 import { Image } from "../../../design/_designComponents/Image/Image";
 import { Button } from "../../../design/_designComponents/Button/Button";
+import { Section } from "../../../design/_designComponents/Section/Section";
+import { Row } from "../../../design/_designComponents/Row/Row";
 import { TemplateEntry } from "../../_types";
 
 const createGridProductItem = (name: string, price: string, imageText: string) =>
-	React.createElement(
-		Element as any,
-		{
-			is: Container as any,
-			background: "#ffffff",
-			borderWidth: 10,
-			borderColor: "#d1d5db",
-			borderStyle: "solid",
-			display: "flex",
-			flexDirection: "column",
-			alignItems: "center",
-			justifyContent: "flex-start",
-			gap: 10,
-			padding: 12,
-			borderRadius: 6,
-			canvas: true,
-		},
-		React.createElement(
-			Element as any,
-			{
-				is: Container as any,
-				background: "transparent",
-				position: "relative",
-				width: "100%",
-				height: "200px",
-				canvas: true,
-			},
-			React.createElement(Element as any, {
-				is: Image as any,
-				src: `https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80&text=${encodeURIComponent(imageText)}`,
-				alt: name,
-				width: "100%",
-				height: "100%",
-				objectFit: "cover",
-				borderRadius: 4,
-				allowUpload: true,
-			}),
-			React.createElement(
-				Element as any,
-				{
-					is: Container as any,
-					position: "absolute",
-					top: "8px",
-					left: "10px",
-					background: "#1e293b",
-					borderRadius: 3,
-					paddingTop: 5,
-					paddingRight: 10,
-					paddingBottom: 5,
-					paddingLeft: 10,
-					width: "auto",
-					display: "flex",
-					alignItems: "center",
-					justifyContent: "center",
-					canvas: true,
-				},
-				React.createElement(Text as any, {
-					text: "↩ 50% Off",
-					fontSize: 11,
-					fontWeight: "600",
-					color: "#ffffff",
-				})
-			)
-		),
-		React.createElement(Text as any, {
-			text: name,
-			fontSize: 14,
-			fontWeight: "700",
-			marginTop: 8,
-			textAlign: "center",
-			color: "#111827",
-		}),
-		React.createElement(Text as any, {
-			text: price,
-			fontSize: 13,
-			fontWeight: "500",
-			marginTop: 4,
-			textAlign: "center",
-			color: "#111827",
-		}),
-		React.createElement(Button as any, {
-			label: "Add to Cart",
-			backgroundColor: "#ffffff",
-			textColor: "#111827",
-			fontSize: 12,
-			fontWeight: "600",
-			borderWidth: 1,
-			borderColor: "#111827",
-			borderRadius: 3,
-			paddingTop: 8,
-			paddingRight: 20,
-			paddingBottom: 8,
-			paddingLeft: 20,
-			marginTop: 8,
-		})
-	);
+  React.createElement(
+    Element as any,
+    {
+      is: Container as any,
+      canvas: true,
+      background: "#ffffff",
+      width: "min(calc(50% - 8px), 260px)",
+      flexShrink: 0,
+      borderWidth: 1,
+      borderColor: "#e5e7eb",
+      borderStyle: "solid",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "flex-start",
+      gap: 10,
+      paddingTop: 12,
+      paddingBottom: 12,
+      paddingLeft: 12,
+      paddingRight: 12,
+      borderRadius: 8,
+    },
+
+    // Image + badge
+    React.createElement(
+      Element as any,
+      {
+        is: Container as any,
+        canvas: true,
+        background: "transparent",
+        position: "relative",
+        width: "100%",
+        height: "200px",
+        padding: 0,
+        gap: 0,
+      },
+      React.createElement(Image as any, {
+        src: `https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80&text=${encodeURIComponent(imageText)}`,
+        alt: name,
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+        borderRadius: 4,
+        allowUpload: true,
+      }),
+      React.createElement(
+        Element as any,
+        {
+          is: Container as any,
+          canvas: true,
+          position: "absolute",
+          top: "8px",
+          left: "8px",
+          background: "#1e293b",
+          borderRadius: 3,
+          paddingTop: 4,
+          paddingBottom: 4,
+          paddingLeft: 8,
+          paddingRight: 8,
+          width: "auto",
+          height: "auto",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 0,
+        },
+        React.createElement(Text as any, {
+          text: "↩ 50% Off",
+          fontSize: 11,
+          fontWeight: "600",
+          color: "#ffffff",
+        })
+      )
+    ),
+
+    // Name
+    React.createElement(Text as any, {
+      text: name,
+      fontSize: 14,
+      fontWeight: "700",
+      textAlign: "center",
+      color: "#111827",
+    }),
+
+    // Price
+    React.createElement(Text as any, {
+      text: price,
+      fontSize: 13,
+      fontWeight: "500",
+      textAlign: "center",
+      color: "#111827",
+    }),
+
+    // Button
+    React.createElement(Button as any, {
+      label: "Add to Cart",
+      backgroundColor: "#ffffff",
+      textColor: "#111827",
+      fontSize: 12,
+      fontWeight: "600",
+      borderWidth: 1,
+      borderColor: "#111827",
+      borderStyle: "solid",
+      borderRadius: 4,
+      paddingTop: 8,
+      paddingBottom: 8,
+      paddingLeft: 20,
+      paddingRight: 20,
+      width: "100%",
+    })
+  );
 
 export const GridViewCard: TemplateEntry = {
-	label: "Products Grid View",
-	description: "Rows and columns layout with product image, name, price, and rating",
-	preview: "🧩",
-	element: React.createElement(
-		Element as any,
-		{
-			is: Container as any,
-			background: "#d4d4d8",
-			padding: 16,
-			borderRadius: 0,
-			display: "flex",
-			flexDirection: "column",
-			alignItems: "stretch",
-			justifyContent: "flex-start",
-			gap: 12,
-			canvas: true,
-		},
-		React.createElement(
-			Element as any,
-			{
-				is: Container as any,
-				background: "transparent",
-				display: "grid",
-				gridTemplateColumns: "1fr 1fr 1fr 1fr",
-				gridGap: 10,
-				alignItems: "stretch",
-				justifyContent: "stretch",
-				canvas: true,
-			},
-			createGridProductItem("Product Name", "₱ 1,000", "Bottle"),
-			createGridProductItem("Product Name", "₱ 1,000", "Bottle"),
-			createGridProductItem("Product Name", "₱ 1,000", "Bottle"),
-			createGridProductItem("Product Name", "₱ 1,000", "Bottle")
-		)
-	),
-	category: "card",
+  label: "Products Grid View",
+  description: "Rows and columns layout with product image, name, price, and rating",
+  preview: "🧩",
+  category: "card",
+  element: React.createElement(
+    Element as any,
+    {
+      is: Section as any,
+      canvas: true,
+      background: "#d4d4d8",
+      width: "100%",
+      minHeight: "100vh",
+      padding: 16,
+      flexDirection: "column",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+
+    React.createElement(
+      Element as any,
+      {
+        is: Row as any,
+        canvas: true,
+        background: "transparent",
+        width: "min(100%, 1200px)",
+        padding: 0,
+        gap: 16,
+        alignItems: "stretch",
+        justifyContent: "center",
+        flexWrap: "wrap",
+      },
+      createGridProductItem("Product Name", "₱ 1,000", "Bottle"),
+      createGridProductItem("Product Name", "₱ 1,000", "Bottle"),
+      createGridProductItem("Product Name", "₱ 1,000", "Bottle"),
+      createGridProductItem("Product Name", "₱ 1,000", "Bottle")
+    )
+  ),
 };
