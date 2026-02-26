@@ -519,9 +519,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [projectFiles, setProjectFiles] = useState<any[]>([]);
   const lastQueryRef = useRef<{ serialize: () => string } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const horizontalScrollbarRef = useRef<HTMLDivElement>(null);
-  const horizontalScrollbarInnerRef = useRef<HTMLDivElement>(null);
-  const syncScrollSourceRef = useRef<"canvas" | "bar" | null>(null);
   const previousScaleRef = useRef(1);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSnapshotRef = useRef<string | null>(null);
@@ -548,6 +545,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [suppressDropIndicator, setSuppressDropIndicator] = useState(false);
   const [dropIndicatorPulse, setDropIndicatorPulse] = useState(false);
   const hasInitialCenteringRef = useRef(false);
+  const hasForcedRightPanelOpenRef = useRef(false);
   const saveStatusRef = useRef(saveStatus);
 
   // Sync saveStatus to ref for safe use in beforeunload effect
@@ -651,6 +649,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       // Ignore UI state persistence errors
     }
   }, [scale, leftPanelOpen, rightPanelOpen, rightPanelTab, currentPageId, showDualView, uiStateStorageKey]);
+
+  // Fail-safe: ensure right panel is visible at least once after panels mount.
+  // Prevents stale hidden state from making the panel appear missing.
+  useEffect(() => {
+    if (!panelsReady || hasForcedRightPanelOpenRef.current) return;
+    hasForcedRightPanelOpenRef.current = true;
+    setRightPanelOpen(true);
+  }, [panelsReady]);
 
   // Load pages from document
   const loadPages = useCallback((content: string) => {
@@ -808,67 +814,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     container.scrollTop = Math.min(maxScrollTop, Math.max(0, nextScrollTop));
     previousScaleRef.current = nextScale;
   }, [scale]);
-
-  // Keep bottom horizontal scrollbar synced with canvas scroll
-  useEffect(() => {
-    const container = containerRef.current;
-    const bar = horizontalScrollbarRef.current;
-    const inner = horizontalScrollbarInnerRef.current;
-    if (!container || !bar || !inner) return;
-
-    const syncMetrics = () => {
-      inner.style.width = `${container.scrollWidth}px`;
-      const canScrollHorizontally = container.scrollWidth - container.clientWidth > 1;
-      bar.style.opacity = canScrollHorizontally ? "1" : "0";
-      bar.style.pointerEvents = canScrollHorizontally ? "auto" : "none";
-      if (canScrollHorizontally) {
-        bar.scrollLeft = container.scrollLeft;
-      }
-    };
-
-    const syncFromCanvas = () => {
-      if (syncScrollSourceRef.current === "bar") {
-        syncScrollSourceRef.current = null;
-        return;
-      }
-      syncScrollSourceRef.current = "canvas";
-      bar.scrollLeft = container.scrollLeft;
-      syncScrollSourceRef.current = null;
-    };
-
-    const syncFromBar = () => {
-      if (syncScrollSourceRef.current === "canvas") {
-        syncScrollSourceRef.current = null;
-        return;
-      }
-      syncScrollSourceRef.current = "bar";
-      container.scrollLeft = bar.scrollLeft;
-      syncScrollSourceRef.current = null;
-    };
-
-    syncMetrics();
-
-    container.addEventListener("scroll", syncFromCanvas, { passive: true });
-    bar.addEventListener("scroll", syncFromBar, { passive: true });
-    window.addEventListener("resize", syncMetrics);
-
-    const resizeObserver = new ResizeObserver(syncMetrics);
-    resizeObserver.observe(container);
-    const contentEl = container.firstElementChild;
-    if (contentEl instanceof HTMLElement) {
-      resizeObserver.observe(contentEl);
-    }
-
-    const metricsInterval = window.setInterval(syncMetrics, 240);
-
-    return () => {
-      container.removeEventListener("scroll", syncFromCanvas);
-      bar.removeEventListener("scroll", syncFromBar);
-      window.removeEventListener("resize", syncMetrics);
-      window.clearInterval(metricsInterval);
-      resizeObserver.disconnect();
-    };
-  }, [frameReady, scale, canvasRotation, initialJson]);
 
   // Center the canvas in the view - focus on first page element
   const centerCanvasInView = useCallback(() => {
@@ -1548,6 +1493,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   }, [mirrorToSession]);
 
   // Clean up on unmount
+  // Define performSave to fix ReferenceError
+  const performSave = (query: { serialize: () => string }) => {
+    mirrorToSession(query);
+    flushToDb();
+  };
+
   useEffect(() => {
     if (projectFiles.length > 0 && lastQueryRef.current) {
       performSave(lastQueryRef.current);
@@ -1778,17 +1729,18 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
             )}
           </div>
         </div>
-        <div className="absolute bottom-4 left-6 right-6 z-[60] pointer-events-none">
-          <div
-            ref={horizontalScrollbarRef}
-            className="canvas-scroll-container canvas-bottom-scrollbar pointer-events-auto h-5 overflow-x-scroll overflow-y-hidden rounded-md border border-white/20 bg-brand-dark/85"
-            onMouseDown={(event) => event.stopPropagation()}
-            onWheel={(event) => event.stopPropagation()}
-          >
-            <div ref={horizontalScrollbarInnerRef} className="h-px" />
-          </div>
-        </div>
         {/* Floating Panels */}
+        {/* Right Panel Reopen Fallback */}
+        {panelsReady && !rightPanelOpen && (
+          <button
+            type="button"
+            onClick={() => setRightPanelOpen(true)}
+            className="absolute top-14 right-4 z-[60] p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110"
+            title="Show Configs panel"
+          >
+            <PanelRight className="w-5 h-5 text-brand-light" />
+          </button>
+        )}
         {/* Left Panel */}
         {panelsReady && (
           <div>
@@ -1854,15 +1806,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                   onClose={() => setRightPanelOpen(false)}
                 />
               </div>
-              <button
-                onClick={() => setRightPanelOpen((open) => !open)}
-                className={`absolute right-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${
-                  rightPanelOpen ? 'opacity-0 pointer-events-none scale-95' : 'opacity-100 pointer-events-auto scale-100'
-                }`}
-                title={rightPanelOpen ? "Hide right panel" : "Show Configs panel"}
-              >
-                <PanelRight className="w-5 h-5 text-brand-light" />
-              </button>
             </div>
           </div>
         )}
