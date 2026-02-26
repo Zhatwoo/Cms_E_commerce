@@ -519,10 +519,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [projectFiles, setProjectFiles] = useState<any[]>([]);
   const lastQueryRef = useRef<{ serialize: () => string } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const horizontalScrollbarRef = useRef<HTMLDivElement>(null);
-  const horizontalScrollbarInnerRef = useRef<HTMLDivElement>(null);
-  const syncScrollSourceRef = useRef<"canvas" | "bar" | null>(null);
   const previousScaleRef = useRef(1);
+  const wheelZoomDeltaRef = useRef(0);
+  const wheelZoomRafRef = useRef<number | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSnapshotRef = useRef<string | null>(null);
   const lastSavedRawRef = useRef<string | null>(null);
@@ -548,6 +547,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [suppressDropIndicator, setSuppressDropIndicator] = useState(false);
   const [dropIndicatorPulse, setDropIndicatorPulse] = useState(false);
   const hasInitialCenteringRef = useRef(false);
+  const hasForcedRightPanelOpenRef = useRef(false);
   const saveStatusRef = useRef(saveStatus);
 
   // Sync saveStatus to ref for safe use in beforeunload effect
@@ -652,6 +652,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     }
   }, [scale, leftPanelOpen, rightPanelOpen, rightPanelTab, currentPageId, showDualView, uiStateStorageKey]);
 
+  // Fail-safe: ensure right panel is visible at least once after panels mount.
+  // Prevents stale hidden state from making the panel appear missing.
+  useEffect(() => {
+    if (!panelsReady || hasForcedRightPanelOpenRef.current) return;
+    hasForcedRightPanelOpenRef.current = true;
+    setRightPanelOpen(true);
+  }, [panelsReady]);
+
   // Load pages from document
   const loadPages = useCallback((content: string) => {
     try {
@@ -686,7 +694,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       parsed.pages.push(newPage);
       const updated = JSON.stringify(parsed);
       const storageKey = getStorageKey(projectId);
-      localStorage.setItem(storageKey, updated);
+      // Save to sessionStorage for persistence across refreshes
+      safeSessionSet(storageKey, updated);
+      // Optionally, also save to localStorage for backup (uncomment if needed)
+      // localStorage.setItem(storageKey, updated);
       loadPages(updated);
       setCurrentPageId(id);
       setInitialJson(updated);
@@ -749,6 +760,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     const handleWheel = (e: WheelEvent) => {
       if (!(e.ctrlKey || e.metaKey)) return;
 
+      if (isEditableTarget(e.target)) return;
+      if (e.target instanceof HTMLElement && e.target.closest("[data-panel]")) return;
+
       const container = containerRef.current;
       if (!container) return;
 
@@ -766,15 +780,41 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       }
       e.stopPropagation();
 
-      setScale((prevScale) => {
-        const step = -e.deltaY * ZOOM_SENSITIVITY * Math.max(prevScale, MIN_SCALE);
-        return Math.min(MAX_SCALE, Math.max(prevScale + step, MIN_SCALE));
+      let deltaY = e.deltaY;
+      if (e.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+        deltaY *= 16;
+      } else if (e.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+        deltaY *= container.clientHeight;
+      }
+
+      const normalizedDelta = Math.max(-240, Math.min(240, deltaY));
+      wheelZoomDeltaRef.current += normalizedDelta;
+
+      if (wheelZoomRafRef.current !== null) return;
+
+      wheelZoomRafRef.current = requestAnimationFrame(() => {
+        wheelZoomRafRef.current = null;
+        const frameDelta = wheelZoomDeltaRef.current;
+        wheelZoomDeltaRef.current = 0;
+
+        if (Math.abs(frameDelta) < 0.01) return;
+
+        setScale((prevScale) => {
+          const zoomFactor = Math.exp(-frameDelta * ZOOM_SENSITIVITY);
+          const nextScale = prevScale * zoomFactor;
+          return Math.min(MAX_SCALE, Math.max(nextScale, MIN_SCALE));
+        });
       });
     };
 
     window.addEventListener("wheel", handleWheel, { passive: false, capture: true });
 
     return () => {
+      if (wheelZoomRafRef.current !== null) {
+        cancelAnimationFrame(wheelZoomRafRef.current);
+        wheelZoomRafRef.current = null;
+      }
+      wheelZoomDeltaRef.current = 0;
       window.removeEventListener("wheel", handleWheel, { capture: true });
     };
   }, []);
@@ -805,67 +845,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     container.scrollTop = Math.min(maxScrollTop, Math.max(0, nextScrollTop));
     previousScaleRef.current = nextScale;
   }, [scale]);
-
-  // Keep bottom horizontal scrollbar synced with canvas scroll
-  useEffect(() => {
-    const container = containerRef.current;
-    const bar = horizontalScrollbarRef.current;
-    const inner = horizontalScrollbarInnerRef.current;
-    if (!container || !bar || !inner) return;
-
-    const syncMetrics = () => {
-      inner.style.width = `${container.scrollWidth}px`;
-      const canScrollHorizontally = container.scrollWidth - container.clientWidth > 1;
-      bar.style.opacity = canScrollHorizontally ? "1" : "0";
-      bar.style.pointerEvents = canScrollHorizontally ? "auto" : "none";
-      if (canScrollHorizontally) {
-        bar.scrollLeft = container.scrollLeft;
-      }
-    };
-
-    const syncFromCanvas = () => {
-      if (syncScrollSourceRef.current === "bar") {
-        syncScrollSourceRef.current = null;
-        return;
-      }
-      syncScrollSourceRef.current = "canvas";
-      bar.scrollLeft = container.scrollLeft;
-      syncScrollSourceRef.current = null;
-    };
-
-    const syncFromBar = () => {
-      if (syncScrollSourceRef.current === "canvas") {
-        syncScrollSourceRef.current = null;
-        return;
-      }
-      syncScrollSourceRef.current = "bar";
-      container.scrollLeft = bar.scrollLeft;
-      syncScrollSourceRef.current = null;
-    };
-
-    syncMetrics();
-
-    container.addEventListener("scroll", syncFromCanvas, { passive: true });
-    bar.addEventListener("scroll", syncFromBar, { passive: true });
-    window.addEventListener("resize", syncMetrics);
-
-    const resizeObserver = new ResizeObserver(syncMetrics);
-    resizeObserver.observe(container);
-    const contentEl = container.firstElementChild;
-    if (contentEl instanceof HTMLElement) {
-      resizeObserver.observe(contentEl);
-    }
-
-    const metricsInterval = window.setInterval(syncMetrics, 240);
-
-    return () => {
-      container.removeEventListener("scroll", syncFromCanvas);
-      bar.removeEventListener("scroll", syncFromBar);
-      window.removeEventListener("resize", syncMetrics);
-      window.clearInterval(metricsInterval);
-      resizeObserver.disconnect();
-    };
-  }, [frameReady, scale, canvasRotation, initialJson]);
 
   // Center the canvas in the view - focus on first page element
   const centerCanvasInView = useCallback(() => {
@@ -1544,7 +1523,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [mirrorToSession]);
 
-  // Save when projectFiles changes (e.g. files updated) if we have editor state
+  // Clean up on unmount
   useEffect(() => {
     if (projectFiles.length > 0 && lastQueryRef.current) {
       handleNodesChange(lastQueryRef.current);
@@ -1775,17 +1754,18 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
             )}
           </div>
         </div>
-        <div className="absolute bottom-4 left-6 right-6 z-[60] pointer-events-none">
-          <div
-            ref={horizontalScrollbarRef}
-            className="canvas-scroll-container canvas-bottom-scrollbar pointer-events-auto h-5 overflow-x-scroll overflow-y-hidden rounded-md border border-white/20 bg-brand-dark/85"
-            onMouseDown={(event) => event.stopPropagation()}
-            onWheel={(event) => event.stopPropagation()}
-          >
-            <div ref={horizontalScrollbarInnerRef} className="h-px" />
-          </div>
-        </div>
         {/* Floating Panels */}
+        {/* Right Panel Reopen Fallback */}
+        {panelsReady && !rightPanelOpen && (
+          <button
+            type="button"
+            onClick={() => setRightPanelOpen(true)}
+            className="absolute top-14 right-4 z-[60] p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110"
+            title="Show Configs panel"
+          >
+            <PanelRight className="w-5 h-5 text-brand-light" />
+          </button>
+        )}
         {/* Left Panel */}
         {panelsReady && (
           <div className="absolute top-14 left-4 z-50 h-[calc(100vh-6.5rem)] flex items-start pointer-events-none">
@@ -1833,15 +1813,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                   onClose={() => setRightPanelOpen(false)}
                 />
               </div>
-              <button
-                onClick={() => setRightPanelOpen((open) => !open)}
-                className={`absolute right-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${
-                  rightPanelOpen ? 'opacity-0 pointer-events-none scale-95' : 'opacity-100 pointer-events-auto scale-100'
-                }`}
-                title={rightPanelOpen ? "Hide right panel" : "Show Configs panel"}
-              >
-                <PanelRight className="w-5 h-5 text-brand-light" />
-              </button>
             </div>
           </div>
         )}
