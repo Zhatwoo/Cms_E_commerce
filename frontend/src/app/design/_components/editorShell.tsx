@@ -1544,12 +1544,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [mirrorToSession]);
 
-  // Clean up on unmount
+  // Re-save when projectFiles change so the latest file list is persisted
   useEffect(() => {
     if (projectFiles.length > 0 && lastQueryRef.current) {
-      performSave(lastQueryRef.current);
+      handleNodesChange(lastQueryRef.current);
     }
-  }, [projectFiles, performSave]);
+  }, [projectFiles, handleNodesChange]);
 
   // Clean up debounce timer and add beforeunload warning
   useEffect(() => {
