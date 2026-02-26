@@ -11,8 +11,8 @@ import {
   DarkModeHeader
 } from "./Header";
 import { CenteredHero, HeroWithImage, HeroBannerCTA, HeroBannerCTA_v2, HeroBannerCTA_v3 } from "./Hero";
-import { FeaturesGrid, Testimonial } from "./Content";
-import { ContactForm, NewsletterSignup, OrderForm, LoginForm, SignupForm, AddToCart, PaymentForm } from "./Forms";
+import { FeaturesGrid, Testimonial, DeliveryAddress, DeliveryAddressV1 } from "./Content";
+import { ContactForm, NewsletterSignup, OrderForm, OrderFormV1, LoginForm, SignupForm, AddToCart, PaymentForm, PaymentMethod, PaymentMethodV1 } from "./Forms";
 import { ProductCard, TeamMemberCard, GridViewCard, ProductDescription, FeaturedProduct, CategoriesCard, BrowseCategory, } from "./Cards";
 import {
   SimpleFooter,
@@ -110,13 +110,18 @@ export const TEMPLATES: TemplateEntry[] = [
   HeroBannerCTA_v3,
   FeaturesGrid,
   Testimonial,
+  DeliveryAddress,
+  DeliveryAddressV1,
   ContactForm,
   NewsletterSignup,
   OrderForm,
+  OrderFormV1,
   LoginForm,
   SignupForm,
   AddToCart,
   PaymentForm,
+  PaymentMethod,
+  PaymentMethodV1,
   ProductCard,
   TeamMemberCard,
   ProductDetailView,
@@ -171,15 +176,26 @@ export const GROUPED_TEMPLATES = [
   },
   {
     folder: "Content",
-    items: [FeaturesGrid, Testimonial],
+    items: [FeaturesGrid, Testimonial, DeliveryAddress, DeliveryAddressV1],
   },
   {
     folder: "Cards",
-    items: [ProductCard, TeamMemberCard, GridViewCard, ProductDescription, FeaturedProduct, CategoriesCard, BrowseCategory],
+  items: [
+    ProductCard,
+    TeamMemberCard,
+    GridViewCard,
+    ProductDescription,
+    FeaturedProduct,
+    CategoriesCard,
+    BrowseCategory,
+    ProductDetailView,
+    ProductDetailViewV2,
+    ProductDetailViewV3
+  ],
   },
   {
     folder: "Forms",
-    items: [ContactForm, NewsletterSignup, OrderForm, LoginForm, SignupForm, AddToCart, PaymentForm],
+    items: [ContactForm, NewsletterSignup, OrderForm, OrderFormV1, LoginForm, SignupForm, AddToCart, PaymentForm, PaymentMethod, PaymentMethodV1],
   },
   {
     folder: "Footer",

@@ -16,16 +16,16 @@ export const SignupForm: TemplateEntry = {
 	preview: "🧾",
 	element: React.createElement(
 		Element as any,
-		{ is: Section as any, background: "#f1f5f9", padding: 24, canvas: true },
+		{ is: Section as any, background: "#f1f5f9", padding: 20, canvas: true },
 		React.createElement(
 			Element as any,
-			{ is: Container as any, background: "#ffffff", padding: 16, maxWidth: "980px", borderRadius: 16, canvas: true },
+			{ is: Container as any, background: "#ffffff", padding: 16, width: "100%", maxWidth: "980px", borderRadius: 16, canvas: true },
 			React.createElement(
 				Element as any,
-				{ is: Row as any, canvas: true, flexWrap: "wrap", alignItems: "stretch", gap: 16 },
+				{ is: Row as any, canvas: true, flexWrap: "wrap", alignItems: "stretch", justifyContent: "center", gap: 16 },
 				React.createElement(
 					Element as any,
-					{ is: Column as any, width: "38%", background: "#0f766e", borderRadius: 12, padding: 28, justifyContent: "space-between", canvas: true },
+					{ is: Column as any, width: "clamp(280px, 38%, 360px)", background: "#0f766e", borderRadius: 12, padding: 24, justifyContent: "space-between", canvas: true },
 					React.createElement(
 						Element as any,
 						{ is: Column as any, canvas: true },
@@ -39,40 +39,82 @@ export const SignupForm: TemplateEntry = {
 				),
 				React.createElement(
 					Element as any,
-					{ is: Column as any, width: "58%", padding: 28, canvas: true },
+					{ is: Column as any, width: "clamp(320px, 58%, 560px)", padding: 24, canvas: true, alignItems: "stretch" },
 					React.createElement(Text as any, { text: "Sign Up", fontSize: 28, fontWeight: "bold", color: "#1e293b", marginBottom: 6 }),
 					React.createElement(Text as any, { text: "Fill in your details to create a new account", fontSize: 14, color: "#64748b", marginBottom: 22 }),
 					React.createElement(
 						Element as any,
-						{ is: Column as any, canvas: true, marginBottom: 14 },
+						{ is: Column as any, canvas: true, marginBottom: 14, alignItems: "stretch" },
 						React.createElement(Text as any, { text: "Full Name", fontSize: 14, fontWeight: "500", color: "#334155", marginBottom: 6 }),
 						React.createElement(
 							Element as any,
-							{ is: Container as any, background: "#f8fafc", padding: 12, borderWidth: 1, borderColor: "#e2e8f0", borderStyle: "solid", borderRadius: 10, canvas: true },
+							{
+								is: Container as any,
+								background: "#f8fafc",
+								paddingTop: 12,
+								paddingBottom: 12,
+								paddingLeft: 14,
+								paddingRight: 14,
+								width: "100%",
+								borderWidth: 1,
+								borderColor: "#e2e8f0",
+								borderStyle: "solid",
+								borderRadius: 10,
+								canvas: true,
+								alignItems: "flex-start",
+							},
 							React.createElement(Text as any, { text: "Your full name", fontSize: 14, color: "#94a3b8" })
 						)
 					),
 					React.createElement(
 						Element as any,
-						{ is: Column as any, canvas: true, marginBottom: 14 },
+						{ is: Column as any, canvas: true, marginBottom: 14, alignItems: "stretch" },
 						React.createElement(Text as any, { text: "Email", fontSize: 14, fontWeight: "500", color: "#334155", marginBottom: 6 }),
 						React.createElement(
 							Element as any,
-							{ is: Container as any, background: "#f8fafc", padding: 12, borderWidth: 1, borderColor: "#e2e8f0", borderStyle: "solid", borderRadius: 10, canvas: true },
+							{
+								is: Container as any,
+								background: "#f8fafc",
+								paddingTop: 12,
+								paddingBottom: 12,
+								paddingLeft: 14,
+								paddingRight: 14,
+								width: "100%",
+								borderWidth: 1,
+								borderColor: "#e2e8f0",
+								borderStyle: "solid",
+								borderRadius: 10,
+								canvas: true,
+								alignItems: "flex-start",
+							},
 							React.createElement(Text as any, { text: "you@example.com", fontSize: 14, color: "#94a3b8" })
 						)
 					),
 					React.createElement(
 						Element as any,
-						{ is: Column as any, canvas: true, marginBottom: 18 },
+						{ is: Column as any, canvas: true, marginBottom: 18, alignItems: "stretch" },
 						React.createElement(Text as any, { text: "Password", fontSize: 14, fontWeight: "500", color: "#334155", marginBottom: 6 }),
 						React.createElement(
 							Element as any,
-							{ is: Container as any, background: "#f8fafc", padding: 12, borderWidth: 1, borderColor: "#e2e8f0", borderStyle: "solid", borderRadius: 10, canvas: true },
+							{
+								is: Container as any,
+								background: "#f8fafc",
+								paddingTop: 12,
+								paddingBottom: 12,
+								paddingLeft: 14,
+								paddingRight: 14,
+								width: "100%",
+								borderWidth: 1,
+								borderColor: "#e2e8f0",
+								borderStyle: "solid",
+								borderRadius: 10,
+								canvas: true,
+								alignItems: "flex-start",
+							},
 							React.createElement(Text as any, { text: "••••••••••", fontSize: 14, color: "#94a3b8" })
 						)
 					),
-					React.createElement(Button as any, { label: "Create Account", backgroundColor: "#0f766e", textColor: "#ffffff", fontSize: 16, borderRadius: 10 }),
+					React.createElement(Button as any, { label: "Create Account", width: "100%", backgroundColor: "#0f766e", textColor: "#ffffff", fontSize: 16, borderRadius: 10, paddingTop: 12, paddingBottom: 12 }),
 					React.createElement(
 						Element as any,
 						{ is: Row as any, canvas: true, justifyContent: "center", marginTop: 14, gap: 6 },
