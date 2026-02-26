@@ -251,13 +251,6 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
               )}
             </div>
           </div>
-        </>
-      ) : (
-        <div className="flex flex-col items-center justify-center h-64 text-brand-lighter opacity-50">
-          <p className="text-sm">Select an element to edit</p>
-        </div>
-      )}
-        </div>
 
           {selectedIds.length > 0 ? (
             <div>
