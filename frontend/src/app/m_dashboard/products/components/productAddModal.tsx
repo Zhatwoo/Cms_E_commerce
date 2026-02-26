@@ -552,6 +552,15 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                   </div>
                 </div>
 
+                {/* Description */}
+                <div>
+                  <label className={lCls} style={{ color: colors.text.muted }}>Description</label>
+                  <textarea value={fd.description} onChange={e => set('description', e.target.value)}
+                    placeholder="e.g. High quality white cotton t-shirt, comfortable and durable..."
+                    rows={3}
+                    className={iCls} style={iSt} />
+                </div>
+
                 <Divider label="Pricing" />
 
                 {/* Prices */}
