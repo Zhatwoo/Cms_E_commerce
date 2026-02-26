@@ -18,7 +18,7 @@ export const SimpleEcommerceHeader: TemplateEntry = {
     { is: Section, canvas: true, customStyle: { padding: "0" } },
     React.createElement(
       Element as any,
-      { is: Container, background: "#ffffff", padding: "16px 24px", canvas: true },
+      { is: Container, background: "#ffffff", padding: 0, canvas: true },
       React.createElement(
         Element as any,
         { is: Row, alignItems: "center", justifyContent: "space-between", canvas: true },
