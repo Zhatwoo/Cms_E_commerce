@@ -110,7 +110,6 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
 
       try {
         window.sessionStorage.setItem(`${STORAGE_KEY_PREFIX}_${projectId}`, previewSnapshot);
-        window.sessionStorage.setItem(STORAGE_KEY_PREFIX, previewSnapshot);
       } catch (storageError) {
         console.warn('⚠️ Preview: failed to cache snapshot in sessionStorage', storageError);
       }
@@ -195,7 +194,7 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
   }, [isResizing]);
 
   return (
-    <div className="flex h-full relative">
+    <div data-panel="right" className="flex h-full relative">
       {/* Resize Handle */}
       <div
         ref={resizeRef}

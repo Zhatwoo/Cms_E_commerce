@@ -62,7 +62,7 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
         ReactDOM.createPortal(
           <div
             data-panel="node-label"
-            className={`fixed px-2 py-1 bg-blue-500 text-brand-lighter text-[10px] rounded-t-md z-50 pointer-events-none transition-opacity duration-200 uppercase font-bold tracking-wider ${isActive || isHover ? "opacity-100" : "opacity-0"
+            className={`fixed px-2 py-1 bg-blue-500 text-brand-lighter text-[10px] rounded-t-md z-40 pointer-events-none transition-opacity duration-200 uppercase font-bold tracking-wider ${isActive || isHover ? "opacity-100" : "opacity-0"
               }`}
             style={{
               left: dom.getBoundingClientRect().left,

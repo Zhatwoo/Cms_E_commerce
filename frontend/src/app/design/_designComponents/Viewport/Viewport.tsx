@@ -112,29 +112,13 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       }
     });
 
-    const desktopRoot = desktopCanvasRef.current;
-    let domMaxRight = 0;
-    let domMaxBottom = 0;
-
-    if (desktopRoot) {
-      const rootRect = desktopRoot.getBoundingClientRect();
-      const nodeEls = Array.from(desktopRoot.querySelectorAll<HTMLElement>("[data-node-id]"));
-      for (const el of nodeEls) {
-        const rect = el.getBoundingClientRect();
-        const right = rect.right - rootRect.left;
-        const bottom = rect.bottom - rootRect.top;
-        if (Number.isFinite(right)) domMaxRight = Math.max(domMaxRight, right);
-        if (Number.isFinite(bottom)) domMaxBottom = Math.max(domMaxBottom, bottom);
-      }
-    }
-
     const dynamicMinWidth = Math.max(
       VIEWPORT_BASE_MIN_WIDTH,
-      Math.ceil(Math.max(maxRight, domMaxRight) + VIEWPORT_EDGE_PADDING + MOBILE_PREVIEW_SAFE_WIDTH)
+      Math.ceil(maxRight + VIEWPORT_EDGE_PADDING + MOBILE_PREVIEW_SAFE_WIDTH)
     );
     const dynamicMinHeight = Math.max(
       VIEWPORT_BASE_MIN_HEIGHT,
-      Math.ceil(Math.max(maxBottom, domMaxBottom) + VIEWPORT_EDGE_PADDING)
+      Math.ceil(maxBottom + VIEWPORT_EDGE_PADDING)
     );
 
     setViewportSize((prev) => {
