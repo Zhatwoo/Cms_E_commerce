@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { Plus } from 'lucide-react';
 import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
 import { type Product } from '../lib/productsData';
@@ -245,9 +246,9 @@ export default function ProductsPage() {
             </div>
             <button
               onClick={() => setShowAddModal(true)}
-              className="px-4 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-blue-600/20"
-              style={{ backgroundColor: colors.status.info, color: colors.bg.primary }}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors shadow-sm"
             >
+              <Plus className="w-4 h-4" />
               Add Product
             </button>
           </div>
@@ -407,8 +408,7 @@ export default function ProductsPage() {
           <button
             type="button"
             onClick={() => setShowAddModal(true)}
-            className="mt-6 px-5 py-2.5 rounded-lg font-medium transition-colors"
-            style={{ backgroundColor: colors.status.info, color: colors.bg.primary }}
+            className="mt-6 mx-auto px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors shadow-sm"
           >
             Add your first product
           </button>
