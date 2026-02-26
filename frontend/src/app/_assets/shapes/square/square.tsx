@@ -57,10 +57,10 @@ export const Square = (props: SquareProps) => {
   const pb = paddingBottom ?? p;
   const pl = paddingLeft ?? p;
   const effectiveOverflow = overflow === "visible" ? "hidden" : overflow;
-  const { connectors: { connect, drag }, id } = useNode();
   if (isPreview) {
     return <div style={{ width: w, height: h, backgroundColor: fillColor }} />;
   }
+  const { connectors: { connect, drag }, id } = useNode();
   return (
     <div
       ref={ref => { if (ref) connect(drag(ref)); }}
