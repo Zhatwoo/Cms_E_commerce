@@ -380,6 +380,140 @@ export async function getPublishHistory(projectId: string): Promise<{ success: b
   );
 }
 
+// --- Products (stored per published_subdomains/{subdomain}/products) ---
+
+export type ApiProduct = {
+  id: string;
+  name: string;
+  sku?: string;
+  category?: string;
+  slug?: string;
+  description?: string;
+  price: number;
+  basePrice?: number;
+  finalPrice?: number;
+  compareAtPrice?: number | null;
+  discount?: number;
+  discountType?: 'percentage' | 'fixed';
+  hasVariants?: boolean;
+  variants?: Array<{
+    id: string;
+    name: string;
+    pricingMode: 'modifier' | 'override';
+    options: Array<{
+      id: string;
+      name: string;
+      priceAdjustment: number;
+    }>;
+  }>;
+  priceRangeMin?: number | null;
+  priceRangeMax?: number | null;
+  images?: string[];
+  status?: string;
+  stock?: number | null;
+  subdomain?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export async function listProducts(params?: {
+  subdomain?: string;
+  status?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}): Promise<{ success: boolean; items: ApiProduct[]; total: number; page: number; totalPages: number }> {
+  const query = new URLSearchParams();
+  if (params?.subdomain) query.set('subdomain', params.subdomain);
+  if (params?.status) query.set('status', params.status);
+  if (params?.search) query.set('search', params.search);
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.limit) query.set('limit', String(params.limit));
+  const qs = query.toString();
+  const path = qs ? `/api/products?${qs}` : '/api/products';
+  return apiFetch<{ success: boolean; items: ApiProduct[]; total: number; page: number; totalPages: number }>(path);
+}
+
+export async function createProduct(params: {
+  subdomain: string;
+  name: string;
+  sku?: string;
+  category?: string;
+  slug?: string;
+  description?: string;
+  price?: number;
+  basePrice?: number;
+  finalPrice?: number;
+  compareAtPrice?: number | null;
+  discount?: number;
+  discountType?: 'percentage' | 'fixed';
+  hasVariants?: boolean;
+  variants?: Array<{
+    id: string;
+    name: string;
+    pricingMode: 'modifier' | 'override';
+    options: Array<{
+      id: string;
+      name: string;
+      priceAdjustment: number;
+    }>;
+  }>;
+  priceRangeMin?: number | null;
+  priceRangeMax?: number | null;
+  images?: string[];
+  status?: string;
+  stock?: number | null;
+}): Promise<{ success: boolean; message?: string; data?: ApiProduct }> {
+  return apiFetch<{ success: boolean; message?: string; data?: ApiProduct }>('/api/products', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export async function updateProduct(
+  id: string,
+  params: {
+    name?: string;
+    sku?: string;
+    category?: string;
+    slug?: string;
+    description?: string;
+    price?: number;
+    basePrice?: number;
+    finalPrice?: number;
+    compareAtPrice?: number | null;
+    discount?: number;
+    discountType?: 'percentage' | 'fixed';
+    hasVariants?: boolean;
+    variants?: Array<{
+      id: string;
+      name: string;
+      pricingMode: 'modifier' | 'override';
+      options: Array<{
+        id: string;
+        name: string;
+        priceAdjustment: number;
+      }>;
+    }>;
+    priceRangeMin?: number | null;
+    priceRangeMax?: number | null;
+    images?: string[];
+    status?: string;
+    stock?: number | null;
+  }
+): Promise<{ success: boolean; message?: string; data?: ApiProduct }> {
+  return apiFetch<{ success: boolean; message?: string; data?: ApiProduct }>(`/api/products/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(params),
+  });
+}
+
+export async function deleteProduct(id: string): Promise<{ success: boolean; message?: string }> {
+  return apiFetch<{ success: boolean; message?: string }>(`/api/products/${id}`, {
+    method: 'DELETE',
+  });
+}
+
 /** Admin: User and Website Management — list websites with owner and plan from user/roles/client (subscription_plan). */
 export type WebsiteManagementRow = {
   id: string;

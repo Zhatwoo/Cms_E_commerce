@@ -7,6 +7,16 @@ import { type Product } from '../../lib/productsData';
 
 const uid = () => Math.random().toString(36).substr(2, 9);
 
+function isImageSource(value: string): boolean {
+  const v = (value || '').trim();
+  if (!v) return false;
+  if (/^data:image\/[a-zA-Z0-9.+-]+;base64,/i.test(v)) return true;
+  if (/^https?:\/\//i.test(v)) return true;
+  if (v.startsWith('blob:')) return true;
+  if (v.startsWith('/')) return true;
+  return false;
+}
+
 function cartesian<T>(arrays: T[][]): T[][] {
   return arrays.reduce<T[][]>(
     (acc, curr) => acc.flatMap(a => curr.map(b => [...a, b])),
@@ -26,7 +36,7 @@ interface FormData {
 
 export default function ProductAddModal({ isOpen, onClose, onSave, editingProduct }: {
   isOpen: boolean; onClose: () => void;
-  onSave: (p: Partial<Product> & Partial<FormData>) => void;
+  onSave: (p: Partial<Product> & Partial<FormData>) => Promise<boolean> | boolean;
   editingProduct?: Product;
 }) {
   const { colors } = useTheme();
@@ -48,16 +58,48 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
   // Reset on open
   useEffect(() => {
     if (isOpen) {
-      setImages([]); setSlide(0);
+      const existingVariants = Array.isArray(editingProduct?.variants)
+        ? editingProduct.variants.map((variant, variantIndex) => ({
+          id: String(variant?.id || uid() || `var-${variantIndex + 1}`),
+          name: String(variant?.name || ''),
+          pricingMode: variant?.pricingMode === 'override' ? 'override' : 'modifier',
+          options: Array.isArray(variant?.options)
+            ? variant.options.map((option, optionIndex) => ({
+              id: String(option?.id || `opt-${variantIndex + 1}-${optionIndex + 1}`),
+              name: String(option?.name || ''),
+              priceAdjustment: Number(option?.priceAdjustment || 0),
+            }))
+            : [],
+        }))
+        : [];
+      const existingImages = Array.isArray(editingProduct?.images)
+        ? editingProduct.images.filter((img): img is string => typeof img === 'string' && img.trim().length > 0)
+        : [];
+      const imageList = existingImages.length > 0
+        ? existingImages
+        : (editingProduct?.image && isImageSource(editingProduct.image) ? [editingProduct.image] : []);
+      const basePrice = typeof editingProduct?.basePrice === 'number'
+        ? editingProduct.basePrice
+        : (typeof editingProduct?.compareAtPrice === 'number' && editingProduct.compareAtPrice > 0
+          ? editingProduct.compareAtPrice
+          : (editingProduct?.price ?? 0));
+      const discount = typeof editingProduct?.discount === 'number' ? editingProduct.discount : 0;
+      const discountType = editingProduct?.discountType === 'fixed' ? 'fixed' : 'percentage';
+      const hasVariants = typeof editingProduct?.hasVariants === 'boolean'
+        ? editingProduct.hasVariants
+        : existingVariants.length > 0;
+
+      setImages(imageList);
+      setSlide(0);
       setFd({
         name: editingProduct?.name || '', sku: editingProduct?.sku || '',
         category: editingProduct?.category || '', description: editingProduct?.description || '',
-        status: editingProduct?.status || 'active', price: editingProduct?.price || 0,
-        costPrice: 0, discount: 0, discountType: 'percentage', images: [],
-        stock: editingProduct?.stock || 100, lowStockThreshold: 20, hasVariants: false, variants: [],
+        status: editingProduct?.status || 'active', price: basePrice,
+        costPrice: 0, discount, discountType, images: imageList,
+        stock: editingProduct?.stock ?? 100, lowStockThreshold: 20, hasVariants, variants: existingVariants,
       });
     }
-  }, [isOpen]);
+  }, [isOpen, editingProduct]);
 
   // Lock body scroll when open
   useEffect(() => {
@@ -140,11 +182,51 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
   const remOpt = (vid: string, oid: string) => patch({ variants: fd.variants.map(v => v.id === vid ? { ...v, options: v.options.filter(o => o.id !== oid) } : v) });
   const updOpt = (vid: string, oid: string, f: keyof VariantOption, v: any) => patch({ variants: fd.variants.map(x => x.id === vid ? { ...x, options: x.options.map(o => o.id === oid ? { ...o, [f]: v } : o) } : x) });
 
-  const save = () => {
+  const save = async () => {
     if (!fd.name.trim()) { showAlert('Please enter a product name', 'error'); return; }
     if (!fd.sku.trim()) { showAlert('Please enter a SKU', 'error'); return; }
     if (fd.price <= 0) { showAlert('Please enter a valid price', 'error'); return; }
-    onSave({ ...fd, images, image: images[0] || '📦', id: editingProduct?.id || uid(), createdAt: editingProduct?.createdAt || new Date().toISOString() });
+    const variants = fd.variants
+      .map((variant) => ({
+        id: String(variant.id || uid()),
+        name: String(variant.name || '').trim(),
+        pricingMode: variant.pricingMode === 'override' ? 'override' : 'modifier',
+        options: (Array.isArray(variant.options) ? variant.options : [])
+          .map((option) => ({
+            id: String(option.id || uid()),
+            name: String(option.name || '').trim(),
+            priceAdjustment: Number(option.priceAdjustment || 0),
+          }))
+          .filter((option) => option.name || option.priceAdjustment !== 0),
+      }))
+      .filter((variant) => variant.name || variant.options.length > 0);
+
+    const hasVariants = fd.hasVariants && variants.length > 0;
+    const basePrice = Number(fd.price || 0);
+    const finalPrice = hasVariants
+      ? Number(range?.min ?? Math.max(0, discBase))
+      : Math.max(0, discBase);
+    const priceRangeMin = hasVariants ? Number(range?.min ?? finalPrice) : finalPrice;
+    const priceRangeMax = hasVariants ? Number(range?.max ?? finalPrice) : finalPrice;
+
+    const saved = await Promise.resolve(onSave({
+      ...fd,
+      price: finalPrice,
+      basePrice,
+      finalPrice,
+      compareAtPrice: fd.discount > 0 ? basePrice : null,
+      discount: Number(fd.discount || 0),
+      discountType: fd.discountType,
+      hasVariants,
+      variants: hasVariants ? variants : [],
+      priceRangeMin,
+      priceRangeMax,
+      images,
+      image: images[0] || '[product]',
+      id: editingProduct?.id || uid(),
+      createdAt: editingProduct?.createdAt || new Date().toISOString(),
+    }));
+    if (saved === false) return;
     showAlert(`Product ${editingProduct ? 'updated' : 'added'} successfully!`, 'success');
     onClose();
   };
@@ -250,7 +332,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
               </div>
 
               {/* Image zone */}
-              <div className="flex-1 px-8 flex flex-col gap-4 overflow-hidden min-h-0">
+              <div className="flex-1 px-8 flex flex-col mb-10 gap-4 overflow-hidden min-h-0">
                 {images.length === 0 ? (
                   /* Drop zone */
                   <div
@@ -414,19 +496,6 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                   </>
                 )}
               </div>
-
-              {/* Browse button pinned at bottom */}
-              {images.length === 0 && (
-                <div className="px-8 pb-8 flex-shrink-0">
-                  <button
-                    onClick={() => fileRef.current?.click()}
-                    className="w-full py-3 rounded-2xl border-2 text-sm font-semibold transition-all hover:border-blue-400 hover:text-blue-500"
-                    style={{ borderColor: colors.border.faint, color: colors.text.muted, borderStyle: 'dashed' }}
-                  >
-                    Browse files
-                  </button>
-                </div>
-              )}
 
               <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={e => addFiles(e.target.files)} />
             </div>
@@ -763,3 +832,4 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
     </AnimatePresence>
   );
 }
+
