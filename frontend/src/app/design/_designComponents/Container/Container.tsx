@@ -36,6 +36,7 @@ export const Container = ({
   borderColor = "transparent",
   borderWidth = 0,
   borderStyle = "solid",
+  strokePlacement = "mid",
   flexDirection = "column",
   flexWrap = "nowrap",
   alignItems = "center",
@@ -134,9 +135,9 @@ export const Container = ({
         borderTopRightRadius: `${rtr}px`,
         borderBottomRightRadius: `${rbr}px`,
         borderBottomLeftRadius: `${rbl}px`,
-        borderWidth: `${borderWidth}px`,
-        borderColor,
-        borderStyle,
+        ...(strokePlacement === "outside" && borderWidth > 0
+          ? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
+          : { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
         position,
         display: effectiveDisplay,
         zIndex: zIndex !== 0 ? zIndex : undefined,
@@ -232,6 +233,7 @@ export const ContainerDefaultProps: Partial<ContainerProps> = {
   borderColor: "transparent",
   borderWidth: 0,
   borderStyle: "solid",
+  strokePlacement: "mid",
   flexDirection: "column",
   flexWrap: "nowrap",
   alignItems: "center",

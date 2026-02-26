@@ -32,6 +32,7 @@ export const Column = ({
   borderColor = "transparent",
   borderWidth = 0,
   borderStyle = "solid",
+  strokePlacement = "mid",
   flexDirection = "column",
   flexWrap = "nowrap",
   alignItems = "flex-start",
@@ -89,9 +90,9 @@ export const Column = ({
         width: width !== "auto" ? width : undefined,
         height,
         borderRadius: `${borderRadius}px`,
-        borderWidth: `${borderWidth}px`,
-        borderColor,
-        borderStyle,
+        ...(strokePlacement === "outside" && borderWidth > 0
+          ? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
+          : { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
         display: "flex",
         flexDirection,
         flexWrap,
@@ -166,6 +167,7 @@ export const ColumnDefaultProps: Partial<ContainerProps> = {
   borderColor: "transparent",
   borderWidth: 0,
   borderStyle: "solid",
+  strokePlacement: "mid",
   flexDirection: "column",
   flexWrap: "nowrap",
   alignItems: "flex-start",

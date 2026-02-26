@@ -1271,6 +1271,8 @@ function RenderNode({
       const mb = (props.marginBottom ?? m) as number;
       const br = (props.borderRadius ?? 0) as number;
       const bw = (props.borderWidth ?? 0) as number;
+      const strokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
+      const borderDecl = bw > 0 ? `${bw}px ${props.borderStyle} ${props.borderColor}` : undefined;
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
       const displayVal = (props.display as React.CSSProperties["display"]) ?? "flex";
@@ -1292,7 +1294,11 @@ function RenderNode({
         height: (props.height as string) ?? "auto",
         minHeight: !hasRenderableChildren ? "50px" : undefined,
         borderRadius: `${br}px`,
-        border: `${bw}px ${props.borderStyle} ${props.borderColor}`,
+        ...(strokePlacement === "outside" && borderDecl
+          ? { border: "none", outline: borderDecl, outlineOffset: 0 }
+          : borderDecl
+            ? { border: borderDecl }
+            : {}),
         position: props.position as React.CSSProperties["position"],
         display: displayVal,
         flexDirection: displayVal === "flex" ? (props.flexDirection as React.CSSProperties["flexDirection"]) : undefined,
@@ -1334,6 +1340,9 @@ function RenderNode({
       const mr = (props.marginRight ?? m) as number;
       const mt = (props.marginTop ?? m) as number;
       const mb = (props.marginBottom ?? m) as number;
+      const sectionBw = (props.borderWidth ?? 0) as number;
+      const sectionBorderDecl = sectionBw > 0 ? `${sectionBw}px ${props.borderStyle} ${props.borderColor}` : undefined;
+      const sectionStrokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
       const isHeaderAsset = nodeId != null && /header/i.test(nodeId);
@@ -1355,7 +1364,11 @@ function RenderNode({
             width: props.width as string,
             height: props.height as string,
             borderRadius: px(props.borderRadius),
-            border: `${props.borderWidth}px ${props.borderStyle} ${props.borderColor}`,
+            ...(sectionStrokePlacement === "outside" && sectionBorderDecl
+              ? { border: "none", outline: sectionBorderDecl, outlineOffset: 0 }
+              : sectionBorderDecl
+                ? { border: sectionBorderDecl }
+                : {}),
             display: "flex",
             flexDirection: props.flexDirection as React.CSSProperties["flexDirection"],
             flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
@@ -1421,6 +1434,9 @@ function RenderNode({
       const mb = (props.marginBottom ?? m) as number;
       const flexDir = (props.flexDirection as React.CSSProperties["flexDirection"]) ?? "row";
       const isHeaderRow = nodeId != null && /header/i.test(nodeId);
+      const rowBw = (props.borderWidth ?? 0) as number;
+      const rowBorderDecl = rowBw > 0 ? `${rowBw}px ${props.borderStyle} ${props.borderColor}` : undefined;
+      const rowStrokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
       return wrap(
         <div
           data-layout="row"
@@ -1432,7 +1448,11 @@ function RenderNode({
             width: props.width as string,
             height: props.height as string,
             borderRadius: px(props.borderRadius),
-            border: `${props.borderWidth}px ${props.borderStyle} ${props.borderColor}`,
+            ...(rowStrokePlacement === "outside" && rowBorderDecl
+              ? { border: "none", outline: rowBorderDecl, outlineOffset: 0 }
+              : rowBorderDecl
+                ? { border: rowBorderDecl }
+                : {}),
             display: "flex",
             flexDirection: flexDir,
             flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
@@ -1463,6 +1483,9 @@ function RenderNode({
       const mt = (props.marginTop ?? m) as number;
       const mb = (props.marginBottom ?? m) as number;
       const w = props.width as string;
+      const colBw = (props.borderWidth ?? 0) as number;
+      const colBorderDecl = colBw > 0 ? `${colBw}px ${props.borderStyle} ${props.borderColor}` : undefined;
+      const colStrokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
       return wrap(
         <div
           style={{
@@ -1473,7 +1496,11 @@ function RenderNode({
             margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
             height: props.height as string,
             borderRadius: px(props.borderRadius),
-            border: `${props.borderWidth}px ${props.borderStyle} ${props.borderColor}`,
+            ...(colStrokePlacement === "outside" && colBorderDecl
+              ? { border: "none", outline: colBorderDecl, outlineOffset: 0 }
+              : colBorderDecl
+                ? { border: colBorderDecl }
+                : {}),
             display: "flex",
             flexDirection: props.flexDirection as React.CSSProperties["flexDirection"],
             flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],

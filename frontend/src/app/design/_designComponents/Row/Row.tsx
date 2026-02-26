@@ -26,6 +26,7 @@ export const Row = ({
   borderColor = "transparent",
   borderWidth = 0,
   borderStyle = "solid",
+  strokePlacement = "mid",
   flexDirection = "row",
   flexWrap = "wrap",
   alignItems = "stretch",
@@ -79,9 +80,9 @@ export const Row = ({
         width,
         height,
         borderRadius: `${borderRadius}px`,
-        borderWidth: `${borderWidth}px`,
-        borderColor,
-        borderStyle,
+        ...(strokePlacement === "outside" && borderWidth > 0
+          ? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
+          : { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
         display: "flex",
         flexDirection,
         flexWrap,
@@ -125,6 +126,7 @@ export const RowDefaultProps: Partial<ContainerProps> = {
   borderColor: "transparent",
   borderWidth: 0,
   borderStyle: "solid",
+  strokePlacement: "mid",
   flexDirection: "row",
   flexWrap: "wrap",
   alignItems: "flex-start",
