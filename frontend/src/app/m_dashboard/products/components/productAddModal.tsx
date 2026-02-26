@@ -149,9 +149,28 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
     onClose();
   };
 
+  const hasDraft = () => {
+    return (
+      fd.name.trim() !== '' ||
+      fd.sku.trim() !== '' ||
+      fd.category !== '' ||
+      fd.description !== '' ||
+      fd.price > 0 ||
+      fd.costPrice > 0 ||
+      fd.discount > 0 ||
+      fd.stock !== 100 ||
+      images.length > 0 ||
+      fd.variants.length > 0
+    );
+  };
+
   const handleClose = async () => {
-    const confirmed = await showConfirm('Are you sure you want to close? Any unsaved changes will be lost.');
-    if (confirmed) {
+    if (hasDraft()) {
+      const confirmed = await showConfirm('Are you sure you want to close? Any unsaved changes will be lost.');
+      if (confirmed) {
+        onClose();
+      }
+    } else {
       onClose();
     }
   };
