@@ -136,7 +136,6 @@ export const Container = ({
         marginBottom: `${mb}px`,
         width,
         height,
-        boxSizing: "border-box",
         borderTopLeftRadius: `${rtl}px`,
         borderTopRightRadius: `${rtr}px`,
         borderBottomRightRadius: `${rbr}px`,

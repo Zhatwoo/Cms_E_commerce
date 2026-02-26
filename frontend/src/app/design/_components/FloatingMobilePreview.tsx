@@ -230,6 +230,34 @@ function adaptCloneForMobile(root: HTMLElement, mobileInnerWidth: number) {
   });
 }
 
+function hasVisibleContentInViewport(wrapper: HTMLElement): boolean {
+  const viewportRect = wrapper.getBoundingClientRect();
+  const nodes = Array.from(wrapper.querySelectorAll<HTMLElement>("[data-node-id]"));
+  if (nodes.length === 0) {
+    const fallbackRenderable = wrapper.querySelector("img, svg, canvas, video, iframe, [data-layout], [class]");
+    const text = (wrapper.textContent || "").trim();
+    return !!fallbackRenderable || text.length > 0;
+  }
+
+  for (const node of nodes) {
+    const style = window.getComputedStyle(node);
+    if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) {
+      continue;
+    }
+    const rect = node.getBoundingClientRect();
+    const intersects =
+      rect.right > viewportRect.left &&
+      rect.left < viewportRect.right &&
+      rect.bottom > viewportRect.top &&
+      rect.top < viewportRect.bottom &&
+      rect.width > 1 &&
+      rect.height > 1;
+    if (intersects) return true;
+  }
+
+  return false;
+}
+
 interface FloatingMobilePreviewProps {
   isOpen: boolean;
   onClose: () => void;
@@ -494,6 +522,70 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
       wrapper.style.overflowX = "hidden";
       wrapper.appendChild(clone);
       mobileRoot.appendChild(wrapper);
+
+      if (!hasVisibleContentInViewport(wrapper)) {
+        const fallbackClone = pageEl.cloneNode(true) as HTMLElement;
+        fallbackClone.removeAttribute("data-node-id");
+        fallbackClone.removeAttribute("data-page-node");
+        fallbackClone.querySelectorAll("[data-mobile-preview-panel]").forEach((el) => el.remove());
+        const fallbackPageNameLabel = fallbackClone.querySelector("[data-page-name-label]");
+        if (fallbackPageNameLabel) fallbackPageNameLabel.remove();
+
+        const sourceWidth = Math.max(1, pageEl.offsetWidth || pageEl.scrollWidth || selectedDevice.width);
+        const sourceHeight = Math.max(1, pageEl.offsetHeight || pageEl.scrollHeight || selectedDevice.height);
+        const fitWidth = Math.max(1, selectedDevice.width - MOBILE_SIDE_GUTTER * 2);
+        const scale = Math.min(1, fitWidth / sourceWidth);
+
+        fallbackClone.style.pointerEvents = "auto";
+        fallbackClone.style.margin = "0";
+        fallbackClone.style.transformOrigin = "top left";
+        fallbackClone.style.width = `${sourceWidth}px`;
+        fallbackClone.style.height = `${sourceHeight}px`;
+        fallbackClone.style.minHeight = `${sourceHeight}px`;
+        fallbackClone.style.transform = "none";
+        fallbackClone.style.position = "static";
+        fallbackClone.style.left = "0";
+        fallbackClone.style.top = "0";
+
+        const fallbackAll = [fallbackClone, ...Array.from(fallbackClone.querySelectorAll<HTMLElement>("*"))];
+        fallbackAll.forEach((el) => {
+          const position = (el.style.position || "").toLowerCase();
+          if (position === "fixed") {
+            el.style.position = "absolute";
+          }
+          const minWidthPx = parsePx(el.style.minWidth);
+          if (minWidthPx !== null && minWidthPx > fitWidth) {
+            el.style.minWidth = "0px";
+          }
+          const widthPx = parsePx(el.style.width);
+          if (widthPx !== null && widthPx > sourceWidth) {
+            el.style.width = "100%";
+          }
+        });
+
+        mobileRoot.innerHTML = "";
+        const fallbackWrapper = document.createElement("div");
+        fallbackWrapper.style.width = `${selectedDevice.width}px`;
+        fallbackWrapper.style.minHeight = `${selectedDevice.height}px`;
+        fallbackWrapper.style.height = "auto";
+        fallbackWrapper.style.overflow = "auto";
+        fallbackWrapper.style.position = "relative";
+        fallbackWrapper.style.background = "#e5e7eb";
+        fallbackWrapper.style.borderRadius = "0";
+        fallbackWrapper.style.padding = "0";
+        fallbackWrapper.style.boxSizing = "border-box";
+        fallbackWrapper.style.overflowX = "hidden";
+
+        const scaledStage = document.createElement("div");
+        scaledStage.style.width = `${sourceWidth}px`;
+        scaledStage.style.height = `${sourceHeight}px`;
+        scaledStage.style.transform = `scale(${scale})`;
+        scaledStage.style.transformOrigin = "top left";
+        scaledStage.style.margin = `0 ${MOBILE_SIDE_GUTTER}px`;
+        scaledStage.appendChild(fallbackClone);
+        fallbackWrapper.appendChild(scaledStage);
+        mobileRoot.appendChild(fallbackWrapper);
+      }
     };
 
     const queueRender = () => {
@@ -542,7 +634,7 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
     };
 
     // Observe the page element for changes
-    const pageEl = document.querySelector(`[data-node-id="${selectedPageId}"]`) as HTMLElement | null;
+    const pageEl = document.querySelector(`[data-viewport-desktop] [data-page-node='true'][data-node-id="${selectedPageId}"]`) as HTMLElement | null;
     const mutation = new MutationObserver(queueRender);
     if (pageEl) {
       mutation.observe(pageEl, {
@@ -557,7 +649,7 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
     const canvasContainer = document.querySelector("[data-canvas-container]");
     const containerMutation = new MutationObserver(() => {
       // Check if the page appeared
-      const newPageEl = document.querySelector(`[data-node-id="${selectedPageId}"]`);
+      const newPageEl = document.querySelector(`[data-viewport-desktop] [data-page-node='true'][data-node-id="${selectedPageId}"]`);
       if (newPageEl) {
         queueRender();
       }

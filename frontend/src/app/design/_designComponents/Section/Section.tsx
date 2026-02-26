@@ -100,6 +100,8 @@ export const Section = ({
         marginBottom: `${mb}px`,
         width,
         height,
+        maxWidth: "100%",
+        minWidth: 0,
         borderRadius: `${borderRadius}px`,
         borderWidth: `${borderWidth}px`,
         borderColor,

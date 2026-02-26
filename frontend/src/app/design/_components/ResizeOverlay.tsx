@@ -10,6 +10,7 @@ const HANDLE_SIZE = 8;
 const ROTATION_HANDLE_OFFSET = 24;
 const EPSILON = 0.01;
 const MOVE_DRAG_START_THRESHOLD = 2;
+const CONTAINER_LIMIT_MARGIN_PX = 8;
 
 const HANDLE_CURSORS: Record<Handle, string> = {
   n: "ns-resize",
@@ -101,6 +102,21 @@ type DragState = {
   dirty: boolean;
   constrainRatio?: boolean;
   resizeFromCenter?: boolean;
+  lastAppliedResize?: {
+    width: number;
+    height: number;
+    marginTop: number;
+    marginLeft: number;
+  };
+  moveItems?: {
+    nodeId: string;
+    dom: HTMLElement;
+    startProps: Record<string, unknown>;
+    moveMode: "margin" | "offset" | "page-canvas";
+    previewX: number;
+    previewY: number;
+    previousTransition?: string;
+  }[];
 };
 
 function isNearlyEqual(a: number, b: number, epsilon = EPSILON): boolean {
@@ -137,6 +153,84 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [guides, setGuides] = useState<GuideState>(null);
   const [rotateAngle, setRotateAngle] = useState<number | null>(null);
+
+  const clampMoveDeltaToBounds = useCallback((dx: number, dy: number, d: DragState) => {
+    const bounds = d.guideBounds;
+    if (!bounds || !Number.isFinite(d.zoom) || d.zoom <= 0) {
+      return { dx, dy };
+    }
+
+    const minDx = (bounds.left + CONTAINER_LIMIT_MARGIN_PX - d.startRect.left) / d.zoom;
+    const maxDx = (bounds.right - CONTAINER_LIMIT_MARGIN_PX - d.startRect.right) / d.zoom;
+    const minDy = (bounds.top + CONTAINER_LIMIT_MARGIN_PX - d.startRect.top) / d.zoom;
+    const maxDy = (bounds.bottom - CONTAINER_LIMIT_MARGIN_PX - d.startRect.bottom) / d.zoom;
+
+    return {
+      dx: Math.min(maxDx, Math.max(minDx, dx)),
+      dy: Math.min(maxDy, Math.max(minDy, dy)),
+    };
+  }, []);
+
+  const clampResizeToBounds = useCallback(
+    (
+      handle: Handle,
+      d: DragState,
+      values: { newW: number; newH: number; extraMT: number; extraML: number }
+    ) => {
+      const bounds = d.guideBounds;
+      if (!bounds || !Number.isFinite(d.zoom) || d.zoom <= 0) return values;
+
+      const startW = d.startRect.width / d.zoom;
+      const startH = d.startRect.height / d.zoom;
+
+      let { newW, newH, extraMT, extraML } = values;
+
+      const maxWidthFromRight = (bounds.right - CONTAINER_LIMIT_MARGIN_PX - d.startRect.left) / d.zoom;
+      const maxHeightFromBottom = (bounds.bottom - CONTAINER_LIMIT_MARGIN_PX - d.startRect.top) / d.zoom;
+      const leftRoom = (d.startRect.left - (bounds.left + CONTAINER_LIMIT_MARGIN_PX)) / d.zoom;
+      const topRoom = (d.startRect.top - (bounds.top + CONTAINER_LIMIT_MARGIN_PX)) / d.zoom;
+
+      if (handle.includes("e")) {
+        newW = Math.min(newW, Math.max(20, maxWidthFromRight));
+      }
+      if (handle.includes("s")) {
+        newH = Math.min(newH, Math.max(20, maxHeightFromBottom));
+      }
+      if (handle.includes("w")) {
+        const maxWidthFromLeft = startW + Math.max(0, leftRoom);
+        newW = Math.min(newW, Math.max(20, maxWidthFromLeft));
+        extraML = startW - newW;
+      }
+      if (handle.includes("n")) {
+        const maxHeightFromTop = startH + Math.max(0, topRoom);
+        newH = Math.min(newH, Math.max(20, maxHeightFromTop));
+        extraMT = startH - newH;
+      }
+
+      return { newW, newH, extraMT, extraML };
+    },
+    []
+  );
+
+  const selectedToIds = useCallback((selected: unknown): string[] => {
+    if (Array.isArray(selected)) return selected.filter((id): id is string => typeof id === "string");
+    if (selected instanceof Set) return Array.from(selected).filter((id): id is string => typeof id === "string");
+    if (selected && typeof selected === "object") {
+      return Object.keys(selected as Record<string, unknown>);
+    }
+    return [];
+  }, []);
+
+  const getMoveModeForNode = useCallback(
+    (id: string, state: ReturnType<typeof query.getState>): "margin" | "offset" | "page-canvas" => {
+      const displayName = state.nodes[id]?.data?.displayName as string | undefined;
+      const offsetMoveTypes = new Set(["Image", "Text", "Icon", "Button", "Circle", "Square", "Triangle"]);
+      if (displayName === "Page") return "page-canvas";
+      if (displayName && offsetMoveTypes.has(displayName)) return "offset";
+      return "margin";
+    },
+    [query]
+  );
 
   const applyOverlayRect = useCallback((nextRect: DOMRect) => {
     const el = overlayRef.current;
@@ -300,6 +394,8 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         dirty: false,
         constrainRatio: e.shiftKey,
         resizeFromCenter: e.altKey,
+        lastAppliedResize: undefined,
+        moveItems: undefined,
       };
 
       if (type === "move") {
@@ -313,13 +409,37 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
 
         try {
           const state = query.getState();
-          const displayName = state.nodes[nodeId]?.data?.displayName as string | undefined;
-          const offsetMoveTypes = new Set(["Image", "Text", "Icon", "Button", "Circle", "Square", "Triangle"]);
-          if (dragRef.current && displayName) {
-            if (displayName === "Page") {
-              dragRef.current.moveMode = "page-canvas";
-            } else if (offsetMoveTypes.has(displayName)) {
-              dragRef.current.moveMode = "offset";
+          if (dragRef.current) {
+            dragRef.current.moveMode = getMoveModeForNode(nodeId, state);
+
+            const selectedIds = selectedToIds(state.events.selected).filter((id) => id !== "ROOT" && !!state.nodes[id]);
+            const idsToMove = selectedIds.includes(nodeId) ? selectedIds : [nodeId];
+            const moveItems = idsToMove
+              .map((id) => {
+                try {
+                  const itemDom = query.node(id).get()?.dom ?? null;
+                  if (!itemDom) return null;
+                  return {
+                    nodeId: id,
+                    dom: itemDom,
+                    startProps: { ...(state.nodes[id]?.data?.props ?? {}) } as Record<string, unknown>,
+                    moveMode: getMoveModeForNode(id, state),
+                    previewX: 0,
+                    previewY: 0,
+                    previousTransition: itemDom.style.transition,
+                  };
+                } catch {
+                  return null;
+                }
+              })
+              .filter((item): item is NonNullable<typeof item> => !!item);
+
+            dragRef.current.moveItems = moveItems.length > 0 ? moveItems : undefined;
+
+            for (const item of dragRef.current.moveItems ?? []) {
+              item.dom.style.transition = "none";
+              item.dom.style.setProperty("translate", "0px 0px");
+              item.dom.style.willChange = "translate";
             }
           }
 
@@ -361,6 +481,23 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         } catch {
           // ignore guide cache failures
         }
+      } else if (type === "resize") {
+        try {
+          const state = query.getState();
+          const parentId = state.nodes[nodeId]?.data?.parent;
+          const parentDom = parentId ? query.node(parentId).get()?.dom ?? null : null;
+          if (dragRef.current && parentDom) {
+            const parentRect = parentDom.getBoundingClientRect();
+            dragRef.current.guideBounds = {
+              left: parentRect.left,
+              right: parentRect.right,
+              top: parentRect.top,
+              bottom: parentRect.bottom,
+            };
+          }
+        } catch {
+          // ignore
+        }
       }
 
       setIsDragging(true);
@@ -378,7 +515,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
           type === "rotate" ? "grabbing" :
             handle ? HANDLE_CURSORS[handle] : "default";
     },
-    [dom, getProps, query, actions, nodeId]
+    [dom, getProps, query, actions, nodeId, getMoveModeForNode, selectedToIds]
   );
 
   const setGuidesIfChanged = useCallback((next: GuideState) => {
@@ -454,6 +591,11 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         d.previewX = (d.previewX ?? 0) + dx;
         d.previewY = (d.previewY ?? 0) + dy;
         dom.style.setProperty("translate", `${d.previewX}px ${d.previewY}px`);
+        for (const item of d.moveItems ?? []) {
+          item.previewX += dx;
+          item.previewY += dy;
+          item.dom.style.setProperty("translate", `${item.previewX}px ${item.previewY}px`);
+        }
 
         const deltaPx = d.lastX - d.startX;
         const deltaPy = d.lastY - d.startY;
@@ -499,6 +641,11 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
           d.previewX = (d.previewX ?? 0) + snapOffsetX / zoom;
           d.previewY = (d.previewY ?? 0) + snapOffsetY / zoom;
           dom.style.setProperty("translate", `${d.previewX}px ${d.previewY}px`);
+          for (const item of d.moveItems ?? []) {
+            item.previewX += snapOffsetX / zoom;
+            item.previewY += snapOffsetY / zoom;
+            item.dom.style.setProperty("translate", `${item.previewX}px ${item.previewY}px`);
+          }
           d.currentRect = new DOMRect(
             d.currentRect.left + snapOffsetX,
             d.currentRect.top + snapOffsetY,
@@ -608,6 +755,8 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
           if (h.includes("n") || h.includes("s")) extraMT = -dh / 2;
         }
 
+        ({ newW, newH, extraMT, extraML } = clampResizeToBounds(h, d, { newW, newH, extraMT, extraML }));
+
         if (
           isNearlyEqual(newW, startW) &&
           isNearlyEqual(newH, startH) &&
@@ -618,16 +767,39 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
           return;
         }
 
+        const bMT = typeof d.startProps.marginTop === "number" ? (d.startProps.marginTop as number) : 0;
+        const bML = typeof d.startProps.marginLeft === "number" ? (d.startProps.marginLeft as number) : 0;
+        const nextMarginTop = extraMT !== 0 ? bMT + extraMT : bMT;
+        const nextMarginLeft = extraML !== 0 ? bML + extraML : bML;
+
+        const lastResize = d.lastAppliedResize;
+        const unchangedFromLast =
+          !!lastResize &&
+          isNearlyEqual(lastResize.width, newW) &&
+          isNearlyEqual(lastResize.height, newH) &&
+          isNearlyEqual(lastResize.marginTop, nextMarginTop) &&
+          isNearlyEqual(lastResize.marginLeft, nextMarginLeft);
+
+        if (unchangedFromLast) {
+          rafRef.current = 0;
+          return;
+        }
+
+        d.lastAppliedResize = {
+          width: newW,
+          height: newH,
+          marginTop: nextMarginTop,
+          marginLeft: nextMarginLeft,
+        };
+
         actions.setProp(nodeId, (props: Record<string, unknown>) => {
           props.width = `${newW}px`;
           props.height = `${newH}px`;
           if (extraMT !== 0) {
-            const bMT = typeof d.startProps.marginTop === "number" ? d.startProps.marginTop as number : 0;
-            props.marginTop = bMT + extraMT;
+            props.marginTop = nextMarginTop;
           }
           if (extraML !== 0) {
-            const bML = typeof d.startProps.marginLeft === "number" ? d.startProps.marginLeft as number : 0;
-            props.marginLeft = bML + extraML;
+            props.marginLeft = nextMarginLeft;
           }
         });
       } else if (d.type === "rotate" && d.startAngle != null) {
@@ -672,7 +844,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       }
       processDragRef.current = null;
     };
-  }, [isDragging, actions, nodeId, setGuidesIfChanged]);
+  }, [isDragging, actions, nodeId, setGuidesIfChanged, clampResizeToBounds]);
 
   // Global move/up listeners
   useEffect(() => {
@@ -697,19 +869,37 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       if (d) {
         const totalDx = (d.previewX ?? 0) + (d.lastX - d.startX) / d.zoom;
         const totalDy = (d.previewY ?? 0) + (d.lastY - d.startY) / d.zoom;
+        const clampedMove = d.type === "move"
+          ? clampMoveDeltaToBounds(totalDx, totalDy, d)
+          : { dx: totalDx, dy: totalDy };
 
         const clearPreviewStyles = () => {
-          dom.style.removeProperty("translate");
-          dom.style.willChange = "";
+          for (const item of d.moveItems ?? []) {
+            item.dom.style.removeProperty("translate");
+            item.dom.style.willChange = "";
+          }
+          if (!d.moveItems || d.moveItems.length === 0) {
+            dom.style.removeProperty("translate");
+            dom.style.willChange = "";
+          }
         };
 
         const restoreTransitionLater = () => {
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
-              if (d.previousTransition !== undefined) {
-                dom.style.transition = d.previousTransition;
-              } else {
-                dom.style.transition = "";
+              for (const item of d.moveItems ?? []) {
+                if (item.previousTransition !== undefined) {
+                  item.dom.style.transition = item.previousTransition;
+                } else {
+                  item.dom.style.transition = "";
+                }
+              }
+              if (!d.moveItems || d.moveItems.length === 0) {
+                if (d.previousTransition !== undefined) {
+                  dom.style.transition = d.previousTransition;
+                } else {
+                  dom.style.transition = "";
+                }
               }
             });
           });
@@ -732,7 +922,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
             return;
           }
 
-          const moved = tryMoveIntoDropTarget(e.clientX, e.clientY);
+          const moved = (d.moveItems?.length ?? 0) <= 1 ? tryMoveIntoDropTarget(e.clientX, e.clientY) : false;
           if (moved) {
             resetPreviewStyles();
             dragRef.current = null;
@@ -752,47 +942,54 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         const p = d.startProps;
 
         if (d.type === "move") {
-          const startProps = d.startProps;
-          if (d.moveMode === "page-canvas") {
-            const baseCanvasX = typeof p.canvasX === "number" ? p.canvasX : parsePxOrAuto(p.canvasX);
-            const baseCanvasY = typeof p.canvasY === "number" ? p.canvasY : parsePxOrAuto(p.canvasY);
-            const finalCanvasX = Math.round(baseCanvasX + totalDx);
-            const finalCanvasY = Math.round(baseCanvasY + totalDy);
+          const moveItems = d.moveItems && d.moveItems.length > 0
+            ? d.moveItems
+            : [{ nodeId, dom, startProps: d.startProps, moveMode: d.moveMode ?? "margin", previewX: 0, previewY: 0, previousTransition: d.previousTransition }];
 
-            actions.setProp(nodeId, (props: Record<string, unknown>) => {
-              props.canvasX = finalCanvasX;
-              props.canvasY = finalCanvasY;
-            });
-          } else if (d.moveMode === "offset") {
-            const baseTop = parsePxOrAuto(p.top);
-            const baseLeft = parsePxOrAuto(p.left);
-            const finalTop = baseTop + totalDy;
-            const finalLeft = baseLeft + totalDx;
+          for (const item of moveItems) {
+            const itemProps = item.startProps;
 
-            if (!dom.style.position || dom.style.position === "static") {
-              dom.style.position = "relative";
+            if (item.moveMode === "page-canvas") {
+              const baseCanvasX = typeof itemProps.canvasX === "number" ? itemProps.canvasX : parsePxOrAuto(itemProps.canvasX);
+              const baseCanvasY = typeof itemProps.canvasY === "number" ? itemProps.canvasY : parsePxOrAuto(itemProps.canvasY);
+              const finalCanvasX = Math.round(baseCanvasX + clampedMove.dx);
+              const finalCanvasY = Math.round(baseCanvasY + clampedMove.dy);
+
+              actions.setProp(item.nodeId, (props: Record<string, unknown>) => {
+                props.canvasX = finalCanvasX;
+                props.canvasY = finalCanvasY;
+              });
+            } else if (item.moveMode === "offset") {
+              const baseTop = parsePxOrAuto(itemProps.top);
+              const baseLeft = parsePxOrAuto(itemProps.left);
+              const finalTop = baseTop + clampedMove.dy;
+              const finalLeft = baseLeft + clampedMove.dx;
+
+              if (!item.dom.style.position || item.dom.style.position === "static") {
+                item.dom.style.position = "relative";
+              }
+              item.dom.style.top = `${finalTop}px`;
+              item.dom.style.left = `${finalLeft}px`;
+
+              actions.setProp(item.nodeId, (props: Record<string, unknown>) => {
+                if (!props.position || props.position === "static") props.position = "relative";
+                props.top = `${finalTop}px`;
+                props.left = `${finalLeft}px`;
+              });
+            } else {
+              const baseMT = typeof itemProps.marginTop === "number" ? itemProps.marginTop : 0;
+              const baseML = typeof itemProps.marginLeft === "number" ? itemProps.marginLeft : 0;
+              const finalMT = baseMT + clampedMove.dy;
+              const finalML = baseML + clampedMove.dx;
+
+              item.dom.style.marginTop = `${finalMT}px`;
+              item.dom.style.marginLeft = `${finalML}px`;
+
+              actions.setProp(item.nodeId, (props: Record<string, unknown>) => {
+                props.marginTop = finalMT;
+                props.marginLeft = finalML;
+              });
             }
-            dom.style.top = `${finalTop}px`;
-            dom.style.left = `${finalLeft}px`;
-
-            actions.setProp(nodeId, (props: Record<string, unknown>) => {
-              if (!props.position || props.position === "static") props.position = "relative";
-              props.top = `${finalTop}px`;
-              props.left = `${finalLeft}px`;
-            });
-          } else {
-            const baseMT = typeof p.marginTop === "number" ? p.marginTop : 0;
-            const baseML = typeof p.marginLeft === "number" ? p.marginLeft : 0;
-            const finalMT = baseMT + totalDy;
-            const finalML = baseML + totalDx;
-
-            dom.style.marginTop = `${finalMT}px`;
-            dom.style.marginLeft = `${finalML}px`;
-
-            actions.setProp(nodeId, (props: Record<string, unknown>) => {
-              props.marginTop = finalMT;
-              props.marginLeft = finalML;
-            });
           }
 
           resetPreviewStyles();
@@ -823,6 +1020,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
             if (h.includes("e") || h.includes("w")) extraML = -dw / 2;
             if (h.includes("n") || h.includes("s")) extraMT = -dh / 2;
           }
+          ({ newW, newH, extraMT, extraML } = clampResizeToBounds(h, d, { newW, newH, extraMT, extraML }));
           actions.setProp(nodeId, (props: Record<string, unknown>) => {
             props.width = `${Math.round(newW)}px`;
             props.height = `${Math.round(newH)}px`;
@@ -866,7 +1064,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isDragging, actions, nodeId, applyOverlayRect, dom]);
+  }, [isDragging, actions, nodeId, applyOverlayRect, dom, clampMoveDeltaToBounds, clampResizeToBounds]);
 
   const locked = query.getState().nodes[nodeId]?.data?.props?.locked === true;
   if (locked) return null;
@@ -943,6 +1141,22 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
             )
           )}
         </>
+      )}
+
+      {isDragging && dragRef.current?.guideBounds && (
+        <div
+          style={{
+            position: "fixed",
+            left: dragRef.current.guideBounds.left + CONTAINER_LIMIT_MARGIN_PX,
+            top: dragRef.current.guideBounds.top + CONTAINER_LIMIT_MARGIN_PX,
+            width: Math.max(0, dragRef.current.guideBounds.right - dragRef.current.guideBounds.left - CONTAINER_LIMIT_MARGIN_PX * 2),
+            height: Math.max(0, dragRef.current.guideBounds.bottom - dragRef.current.guideBounds.top - CONTAINER_LIMIT_MARGIN_PX * 2),
+            border: "1px dashed rgba(59,130,246,0.72)",
+            background: "rgba(59,130,246,0.04)",
+            pointerEvents: "none",
+            zIndex: 9998,
+          }}
+        />
       )}
 
       {isDragging && dragType === "rotate" && (

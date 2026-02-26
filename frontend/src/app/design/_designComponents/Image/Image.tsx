@@ -67,6 +67,8 @@ export const Image = ({
       style={{
         width,
         height,
+        maxWidth: "100%",
+        minWidth: 0,
         objectFit,
         borderTopLeftRadius: `${rtl}px`,
         borderTopRightRadius: `${rtr}px`,

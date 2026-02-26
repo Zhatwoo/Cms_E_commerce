@@ -20,6 +20,7 @@ const CANVAS_DISPLAY_NAMES = new Set([
 ]);
 const EDITOR_DRAGGING_FLAG = "editorDragging";
 const EDITOR_DROP_COMMIT_FLAG = "editorDropCommit";
+const MULTI_DRAG_LOCK_FLAG = "multiDragLock";
 
 
 type MoveMode = "margin" | "offset";
@@ -207,6 +208,8 @@ export const FigmaStyleDragHandler = () => {
       left: number;
     }>;
     fallbackNodeId: string | null;
+    selectionSnapshotIds: string[];
+    clickedWasInSelection: boolean;
     dirty: boolean;
   } | null>(null);
 
@@ -247,12 +250,16 @@ export const FigmaStyleDragHandler = () => {
       if (target.closest("[data-panel]") && !target.closest("[data-panel='resize-overlay']")) return;
       if (target.closest("[data-resize-handle]")) return;
 
-      // Find the most specific (deepest) node-id in the element path
-      const nodeIdFromTarget = findDeepestNodeId(target);
-
       const state = queryRef.current.getState();
       const nodesMap = state.nodes as Record<string, { data?: { props?: { locked?: boolean } } }>;
       const exists = (id: string) => !!id && id !== "ROOT" && !!nodesMap[id];
+
+      const selectedIdsAtMouseDown = selectedToIds(state.events.selected).filter((id) => id && id !== "ROOT" && !!state.nodes[id]);
+      // Find the most specific (deepest) node-id in the element path
+      let nodeIdFromTarget = findDeepestNodeId(target);
+      if (!nodeIdFromTarget && target.closest("[data-panel='resize-overlay']") && selectedIdsAtMouseDown.length > 0) {
+        nodeIdFromTarget = selectedIdsAtMouseDown[0] ?? null;
+      }
 
       if (!nodeIdFromTarget || !exists(nodeIdFromTarget)) {
         return;
@@ -262,6 +269,17 @@ export const FigmaStyleDragHandler = () => {
       const locked = node?.data?.props?.locked === true;
       if (locked) return;
 
+      const clickedWasInSelection = selectedIdsAtMouseDown.includes(nodeIdFromTarget);
+
+      if (clickedWasInSelection && selectedIdsAtMouseDown.length > 1) {
+        if (e.cancelable) e.preventDefault();
+        e.stopPropagation();
+        if (typeof e.stopImmediatePropagation === "function") {
+          e.stopImmediatePropagation();
+        }
+        document.body.dataset[MULTI_DRAG_LOCK_FLAG] = "true";
+      }
+
       dragRef.current = {
         startX: e.clientX,
         startY: e.clientY,
@@ -270,6 +288,8 @@ export const FigmaStyleDragHandler = () => {
         zoom: 1,
         nodeMargins: [],
         fallbackNodeId: nodeIdFromTarget,
+        selectionSnapshotIds: selectedIdsAtMouseDown,
+        clickedWasInSelection,
         committed: false,
         dirty: false,
       };
@@ -312,6 +332,18 @@ export const FigmaStyleDragHandler = () => {
 
         const state = queryRef.current.getState();
         let ids = selectedToIds(state.events.selected).filter((id) => id && id !== "ROOT" && state.nodes[id]);
+
+        if (d.clickedWasInSelection && d.selectionSnapshotIds.length > 1) {
+          const snapshotValid = d.selectionSnapshotIds.filter((id) => id && id !== "ROOT" && state.nodes[id]);
+          if (snapshotValid.length > 1) {
+            ids = snapshotValid;
+            try {
+              actionsRef.current.selectNode(snapshotValid);
+            } catch {
+              // ignore
+            }
+          }
+        }
 
         // If we clicked on a specific node and it's not in the selection, use the clicked node
         // This prevents dragging parent containers when clicking on child elements
@@ -473,11 +505,21 @@ export const FigmaStyleDragHandler = () => {
             });
           });
         }
+
+        const validMovedIds = ids.filter((id) => !!queryRef.current?.getState()?.nodes?.[id]);
+        if (validMovedIds.length > 1) {
+          try {
+            actionsRef.current.selectNode(validMovedIds);
+          } catch {
+            // ignore
+          }
+        }
       }
 
       // Always reset cursor, selection, and drag styles on mouseup
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
+      delete document.body.dataset[MULTI_DRAG_LOCK_FLAG];
       clearDragPreview(draggedDomsRef.current);
       setDraggingStyle(draggedDomsRef.current, false);
       draggedDomsRef.current = [];
@@ -500,6 +542,7 @@ export const FigmaStyleDragHandler = () => {
       draggedDomsRef.current = [];
       delete document.body.dataset[EDITOR_DRAGGING_FLAG];
       delete document.body.dataset[EDITOR_DROP_COMMIT_FLAG];
+      delete document.body.dataset[MULTI_DRAG_LOCK_FLAG];
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
 

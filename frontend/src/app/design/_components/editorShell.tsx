@@ -184,6 +184,12 @@ const isEditableTarget = (target: EventTarget | null) => {
   );
 };
 
+const clampScale = (value: unknown, fallback: number = DEFAULT_SCALE): number => {
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric)) return Math.min(MAX_SCALE, Math.max(MIN_SCALE, fallback));
+  return Math.min(MAX_SCALE, Math.max(MIN_SCALE, numeric));
+};
+
 /**
  * Deep validation function that walks through the entire Craft.js node tree
  * and ensures all node references are valid.
@@ -349,8 +355,18 @@ if (typeof window !== "undefined") {
 const DeferredFrame = ({ data, onMounted }: { data: string; onMounted?: () => void }) => {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
-    const id = requestAnimationFrame(() => setMounted(true));
-    return () => cancelAnimationFrame(id);
+    let done = false;
+    const markMounted = () => {
+      if (done) return;
+      done = true;
+      setMounted(true);
+    };
+    const id = requestAnimationFrame(markMounted);
+    const fallback = window.setTimeout(markMounted, 220);
+    return () => {
+      cancelAnimationFrame(id);
+      window.clearTimeout(fallback);
+    };
   }, []);
 
   useEffect(() => {
@@ -419,17 +435,37 @@ const SafeFrame = ({
       setRenderData(null);
     }
 
-    // Use a small delay to ensure validation completes
-    const id = requestAnimationFrame(() => setIsReady(true));
-    return () => cancelAnimationFrame(id);
+    // Use RAF + timeout fallback so new projects never get stuck in loading gate
+    let done = false;
+    const markReady = () => {
+      if (done) return;
+      done = true;
+      setIsReady(true);
+    };
+    const id = requestAnimationFrame(markReady);
+    const fallback = window.setTimeout(markReady, 260);
+    return () => {
+      cancelAnimationFrame(id);
+      window.clearTimeout(fallback);
+    };
   }, [data, onError]);
 
   // Defer Frame render to next tick so Craft.js store updates don't run during this component's render
   // (avoids "Cannot update a component while rendering a different component").
   useEffect(() => {
     if (!isReady) return;
-    const id = requestAnimationFrame(() => setCanRenderFrame(true));
-    return () => cancelAnimationFrame(id);
+    let done = false;
+    const allowRender = () => {
+      if (done) return;
+      done = true;
+      setCanRenderFrame(true);
+    };
+    const id = requestAnimationFrame(allowRender);
+    const fallback = window.setTimeout(allowRender, 260);
+    return () => {
+      cancelAnimationFrame(id);
+      window.clearTimeout(fallback);
+    };
   }, [isReady]);
 
   // Defer actual Frame mount to a later macrotask + low-priority update so Craft deserialize
@@ -519,10 +555,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [projectFiles, setProjectFiles] = useState<any[]>([]);
   const lastQueryRef = useRef<{ serialize: () => string } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const horizontalScrollbarRef = useRef<HTMLDivElement>(null);
-  const horizontalScrollbarInnerRef = useRef<HTMLDivElement>(null);
-  const syncScrollSourceRef = useRef<"canvas" | "bar" | null>(null);
   const previousScaleRef = useRef(1);
+  const wheelZoomDeltaRef = useRef(0);
+  const wheelZoomRafRef = useRef<number | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSnapshotRef = useRef<string | null>(null);
   const lastSavedRawRef = useRef<string | null>(null);
@@ -548,6 +583,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [suppressDropIndicator, setSuppressDropIndicator] = useState(false);
   const [dropIndicatorPulse, setDropIndicatorPulse] = useState(false);
   const hasInitialCenteringRef = useRef(false);
+  const hasForcedRightPanelOpenRef = useRef(false);
   const saveStatusRef = useRef(saveStatus);
 
   // Sync saveStatus to ref for safe use in beforeunload effect
@@ -622,7 +658,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       };
 
       if (typeof parsed.scale === "number") {
-        setScale((prev) => (prev === parsed.scale ? prev : Math.min(MAX_SCALE, Math.max(MIN_SCALE, parsed.scale!))));
+        setScale((prev) => {
+          const next = clampScale(parsed.scale, prev);
+          return prev === next ? prev : next;
+        });
       }
       if (typeof parsed.leftPanelOpen === "boolean") setLeftPanelOpen(parsed.leftPanelOpen);
       if (typeof parsed.rightPanelOpen === "boolean") setRightPanelOpen(parsed.rightPanelOpen);
@@ -651,6 +690,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       // Ignore UI state persistence errors
     }
   }, [scale, leftPanelOpen, rightPanelOpen, rightPanelTab, currentPageId, showDualView, uiStateStorageKey]);
+
+  // Fail-safe: ensure right panel is visible at least once after panels mount.
+  // Prevents stale hidden state from making the panel appear missing.
+  useEffect(() => {
+    if (!panelsReady || hasForcedRightPanelOpenRef.current) return;
+    hasForcedRightPanelOpenRef.current = true;
+    setRightPanelOpen(true);
+  }, [panelsReady]);
 
   // Load pages from document
   const loadPages = useCallback((content: string) => {
@@ -686,7 +733,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       parsed.pages.push(newPage);
       const updated = JSON.stringify(parsed);
       const storageKey = getStorageKey(projectId);
-      localStorage.setItem(storageKey, updated);
+      // Save to sessionStorage for persistence across refreshes
+      safeSessionSet(storageKey, updated);
+      // Optionally, also save to localStorage for backup (uncomment if needed)
+      // localStorage.setItem(storageKey, updated);
       loadPages(updated);
       setCurrentPageId(id);
       setInitialJson(updated);
@@ -749,6 +799,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     const handleWheel = (e: WheelEvent) => {
       if (!(e.ctrlKey || e.metaKey)) return;
 
+      if (isEditableTarget(e.target)) return;
+      if (e.target instanceof HTMLElement && e.target.closest("[data-panel]")) return;
+
       const container = containerRef.current;
       if (!container) return;
 
@@ -766,15 +819,45 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       }
       e.stopPropagation();
 
-      setScale((prevScale) => {
-        const step = -e.deltaY * ZOOM_SENSITIVITY * Math.max(prevScale, MIN_SCALE);
-        return Math.min(MAX_SCALE, Math.max(prevScale + step, MIN_SCALE));
+      let deltaY = e.deltaY;
+      if (e.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+        deltaY *= 16;
+      } else if (e.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+        deltaY *= container.clientHeight;
+      }
+
+      const normalizedDelta = Math.max(-240, Math.min(240, deltaY));
+      wheelZoomDeltaRef.current += normalizedDelta;
+
+      if (wheelZoomRafRef.current !== null) return;
+
+      wheelZoomRafRef.current = requestAnimationFrame(() => {
+        wheelZoomRafRef.current = null;
+        const frameDelta = wheelZoomDeltaRef.current;
+        wheelZoomDeltaRef.current = 0;
+
+        if (Math.abs(frameDelta) < 0.01) return;
+
+        setScale((prevScale) => {
+          const safePrev = clampScale(prevScale, previousScaleRef.current || 1);
+          const zoomFactor = Math.exp(-frameDelta * ZOOM_SENSITIVITY);
+          if (!Number.isFinite(zoomFactor) || zoomFactor <= 0) {
+            return safePrev;
+          }
+          const nextScale = safePrev * zoomFactor;
+          return clampScale(nextScale, safePrev);
+        });
       });
     };
 
     window.addEventListener("wheel", handleWheel, { passive: false, capture: true });
 
     return () => {
+      if (wheelZoomRafRef.current !== null) {
+        cancelAnimationFrame(wheelZoomRafRef.current);
+        wheelZoomRafRef.current = null;
+      }
+      wheelZoomDeltaRef.current = 0;
       window.removeEventListener("wheel", handleWheel, { capture: true });
     };
   }, []);
@@ -783,18 +866,31 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) {
-      previousScaleRef.current = scale;
+      previousScaleRef.current = clampScale(scale, previousScaleRef.current || 1);
       return;
     }
 
-    const prevScale = previousScaleRef.current;
-    const nextScale = scale;
-    if (prevScale === nextScale) return;
+    const prevScale = clampScale(previousScaleRef.current, scale || 1);
+    const nextScale = clampScale(scale, prevScale);
+    if (prevScale === nextScale) {
+      previousScaleRef.current = nextScale;
+      return;
+    }
+
+    if (container.clientWidth <= 0 || container.clientHeight <= 0) {
+      previousScaleRef.current = nextScale;
+      return;
+    }
 
     const centerX = container.clientWidth / 2;
     const centerY = container.clientHeight / 2;
     const contentX = (container.scrollLeft + centerX) / prevScale;
     const contentY = (container.scrollTop + centerY) / prevScale;
+
+    if (!Number.isFinite(contentX) || !Number.isFinite(contentY)) {
+      previousScaleRef.current = nextScale;
+      return;
+    }
 
     const nextScrollLeft = contentX * nextScale - centerX;
     const nextScrollTop = contentY * nextScale - centerY;
@@ -805,67 +901,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     container.scrollTop = Math.min(maxScrollTop, Math.max(0, nextScrollTop));
     previousScaleRef.current = nextScale;
   }, [scale]);
-
-  // Keep bottom horizontal scrollbar synced with canvas scroll
-  useEffect(() => {
-    const container = containerRef.current;
-    const bar = horizontalScrollbarRef.current;
-    const inner = horizontalScrollbarInnerRef.current;
-    if (!container || !bar || !inner) return;
-
-    const syncMetrics = () => {
-      inner.style.width = `${container.scrollWidth}px`;
-      const canScrollHorizontally = container.scrollWidth - container.clientWidth > 1;
-      bar.style.opacity = canScrollHorizontally ? "1" : "0";
-      bar.style.pointerEvents = canScrollHorizontally ? "auto" : "none";
-      if (canScrollHorizontally) {
-        bar.scrollLeft = container.scrollLeft;
-      }
-    };
-
-    const syncFromCanvas = () => {
-      if (syncScrollSourceRef.current === "bar") {
-        syncScrollSourceRef.current = null;
-        return;
-      }
-      syncScrollSourceRef.current = "canvas";
-      bar.scrollLeft = container.scrollLeft;
-      syncScrollSourceRef.current = null;
-    };
-
-    const syncFromBar = () => {
-      if (syncScrollSourceRef.current === "canvas") {
-        syncScrollSourceRef.current = null;
-        return;
-      }
-      syncScrollSourceRef.current = "bar";
-      container.scrollLeft = bar.scrollLeft;
-      syncScrollSourceRef.current = null;
-    };
-
-    syncMetrics();
-
-    container.addEventListener("scroll", syncFromCanvas, { passive: true });
-    bar.addEventListener("scroll", syncFromBar, { passive: true });
-    window.addEventListener("resize", syncMetrics);
-
-    const resizeObserver = new ResizeObserver(syncMetrics);
-    resizeObserver.observe(container);
-    const contentEl = container.firstElementChild;
-    if (contentEl instanceof HTMLElement) {
-      resizeObserver.observe(contentEl);
-    }
-
-    const metricsInterval = window.setInterval(syncMetrics, 240);
-
-    return () => {
-      container.removeEventListener("scroll", syncFromCanvas);
-      bar.removeEventListener("scroll", syncFromBar);
-      window.removeEventListener("resize", syncMetrics);
-      window.clearInterval(metricsInterval);
-      resizeObserver.disconnect();
-    };
-  }, [frameReady, scale, canvasRotation, initialJson]);
 
   // Center the canvas in the view - focus on first page element
   const centerCanvasInView = useCallback(() => {
@@ -988,11 +1023,23 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
 
+    if (
+      !Number.isFinite(contentWidth) ||
+      !Number.isFinite(contentHeight) ||
+      contentWidth <= 0 ||
+      contentHeight <= 0 ||
+      containerWidth <= 0 ||
+      containerHeight <= 0
+    ) {
+      setScale((prev) => clampScale(prev, 1));
+      return;
+    }
+
     const scaleX = (containerWidth * 0.9) / contentWidth;
     const scaleY = (containerHeight * 0.9) / contentHeight;
     const newScale = Math.min(scaleX, scaleY, 1);
 
-    setScale(Math.max(newScale, MIN_SCALE));
+    setScale(clampScale(newScale, 1));
 
     // Center on the first page
     setTimeout(() => {
@@ -1001,9 +1048,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   }, [canvasWidth, canvasHeight, centerCanvasInView]);
 
   const handleScaleChange = useCallback((nextScale: number) => {
-    const clampedScale = Math.min(MAX_SCALE, Math.max(nextScale, MIN_SCALE));
-
-    setScale((prevScale) => (prevScale === clampedScale ? prevScale : clampedScale));
+    setScale((prevScale) => {
+      const clampedScale = clampScale(nextScale, prevScale);
+      return prevScale === clampedScale ? prevScale : clampedScale;
+    });
   }, []);
 
   // Handle device preset selection - only width changes; preserve page height so it doesn't reset
@@ -1544,7 +1592,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [mirrorToSession]);
 
-  // Save when projectFiles changes (e.g. files updated) if we have editor state
+  // Clean up on unmount
   useEffect(() => {
     if (projectFiles.length > 0 && lastQueryRef.current) {
       handleNodesChange(lastQueryRef.current);
