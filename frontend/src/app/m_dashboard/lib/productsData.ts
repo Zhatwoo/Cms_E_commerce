@@ -1,11 +1,34 @@
+export interface ProductVariantOption {
+  id: string;
+  name: string;
+  priceAdjustment: number;
+}
+
+export interface ProductVariant {
+  id: string;
+  name: string;
+  pricingMode: 'modifier' | 'override';
+  options: ProductVariantOption[];
+}
+
 export interface Product {
   id: string;
   name: string;
   category: string;
   price: number;
+  basePrice?: number;
+  finalPrice?: number;
+  compareAtPrice?: number | null;
+  discount?: number;
+  discountType?: 'percentage' | 'fixed';
+  hasVariants?: boolean;
+  variants?: ProductVariant[];
+  priceRangeMin?: number | null;
+  priceRangeMax?: number | null;
   stock: number;
   status: 'active' | 'inactive' | 'draft';
   image: string;
+  images?: string[];
   sku: string;
   description: string;
   createdAt: string;
