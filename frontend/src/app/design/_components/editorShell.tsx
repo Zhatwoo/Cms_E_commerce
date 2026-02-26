@@ -68,6 +68,7 @@ class FrameErrorBoundary extends React.Component<
 }
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
+const UI_STATE_KEY_PREFIX = "craftjs_editor_ui";
 
 // These must match the Viewport constants for proper page positioning
 const PAGE_GRID_ORIGIN_X = 30000;
@@ -509,6 +510,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const syncScrollSourceRef = useRef<"canvas" | "bar" | null>(null);
   const previousScaleRef = useRef(1);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSnapshotRef = useRef<string | null>(null);
+  const lastSavedRawRef = useRef<string | null>(null);
+  const editorQueryRef = useRef<{ serialize: () => string } | null>(null);
   const errorCleanupDoneRef = useRef(false); // Track if we've already cleaned up
   const hasUserMovedCanvasRef = useRef(false);
   const [isPanning, setIsPanning] = useState(false);
@@ -533,6 +537,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const infiniteCanvasWidthVw = INFINITE_CANVAS_WIDTH_VW;
   const infiniteCanvasHeightVh = INFINITE_CANVAS_HEIGHT_VH;
   const infiniteCanvasPaddingPx = INFINITE_CANVAS_PADDING_PX;
+
+  // Per-project UI state key so zoom, panels, and last page persist across reloads
+  const uiStateStorageKey = React.useMemo(
+    () => (projectId ? `${UI_STATE_KEY_PREFIX}_${projectId}` : UI_STATE_KEY_PREFIX),
+    [projectId]
+  );
   // Cleanup corrupted data when error boundary triggers
   const handleFrameError = useCallback(async () => {
     if (errorCleanupDoneRef.current) return;
@@ -540,9 +550,26 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
     console.error('❌ Frame rendering failed. Cleaning up corrupted data...');
     
-    // Clear from localStorage
+    // Clear per-project storage keys (both localStorage and sessionStorage)
     const storageKey = getStorageKey(projectId);
-    localStorage.removeItem(storageKey);
+    try {
+      if (typeof window !== "undefined") {
+        // Clear from localStorage (older code paths may have used this)
+        window.localStorage?.removeItem(storageKey);
+      } else {
+        // Fallback for environments where window is not defined
+        localStorage.removeItem(storageKey);
+      }
+    } catch {
+      // Ignore storage cleanup errors
+    }
+
+    // Also clear any cached snapshots from sessionStorage so we don't keep re-loading
+    safeSessionRemove(storageKey);
+    if (storageKey !== STORAGE_KEY_PREFIX) {
+      // Legacy/unscoped key used before per-project keys were introduced
+      safeSessionRemove(STORAGE_KEY_PREFIX);
+    }
     
     // Clear from database
     if (projectId) {
@@ -557,6 +584,52 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     // Reset to empty canvas
     setInitialJson(null);
   }, [projectId]);
+
+  // Restore basic UI state (zoom, panels, selected page) on mount for smoother reloads
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.sessionStorage.getItem(uiStateStorageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        scale?: number;
+        leftPanelOpen?: boolean;
+        rightPanelOpen?: boolean;
+        rightPanelTab?: TabId;
+        currentPageId?: string | null;
+        showDualView?: boolean;
+      };
+
+      if (typeof parsed.scale === "number") {
+        setScale((prev) => (prev === parsed.scale ? prev : Math.min(MAX_SCALE, Math.max(MIN_SCALE, parsed.scale!))));
+      }
+      if (typeof parsed.leftPanelOpen === "boolean") setLeftPanelOpen(parsed.leftPanelOpen);
+      if (typeof parsed.rightPanelOpen === "boolean") setRightPanelOpen(parsed.rightPanelOpen);
+      if (parsed.rightPanelTab) setRightPanelTab(parsed.rightPanelTab);
+      if (typeof parsed.showDualView === "boolean") setShowDualView(parsed.showDualView);
+      if (parsed.currentPageId) setCurrentPageId(parsed.currentPageId);
+    } catch {
+      // Ignore bad UI state and let defaults win
+    }
+  }, [uiStateStorageKey]);
+
+  // Persist basic UI state so it survives full page refreshes and dev reloads
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const payload = JSON.stringify({
+      scale,
+      leftPanelOpen,
+      rightPanelOpen,
+      rightPanelTab,
+      currentPageId,
+      showDualView,
+    });
+    try {
+      window.sessionStorage.setItem(uiStateStorageKey, payload);
+    } catch {
+      // Ignore UI state persistence errors
+    }
+  }, [scale, leftPanelOpen, rightPanelOpen, rightPanelTab, currentPageId, showDualView, uiStateStorageKey]);
 
   // Load pages from document
   const loadPages = useCallback((content: string) => {
@@ -1305,96 +1378,144 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     }
   };
 
-  // Auto-save editor state to database (debounced)
-  const handleNodesChange = useCallback(
-    (query: { serialize: () => string }) => {
-      if (
-        document.body.dataset.editorDragging === "true" ||
-        document.body.dataset.editorDropCommit === "true"
-      ) {
-        if (saveTimerRef.current) {
-          clearTimeout(saveTimerRef.current);
-          saveTimerRef.current = null;
-        }
-        return;
-      }
+  /**
+   * Immediately serialize the current editor state to sessionStorage.
+   * Returns the clean snapshot string, or null on failure.
+   */
+  const mirrorToSession = useCallback(
+    (query: { serialize: () => string }): string | null => {
+      try {
+        const next = query.serialize();
+        if (next === lastSavedRawRef.current) return lastSnapshotRef.current;
+        const parsed = JSON.parse(next);
+        if (!parsed?.ROOT) return null;
 
-      // Check Ref instead of State to avoid stale closure
-      if (!isReadyRef.current) {
-        // console.log('🛑 Aborting save: Editor not yet ready');
-        return;
-      }
+        lastSavedRawRef.current = next;
 
-      // console.log('🖱️ handleNodesChange triggered! Saving...');
-
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-
-      // Defer state update to avoid 'Cannot update a component while rendering a different component'
-      Promise.resolve().then(() => { setSaveStatus('saving'); setSaveError(null); });
-
-      saveTimerRef.current = setTimeout(async () => {
+        let snapshot: string | null = null;
         try {
-          const next = query.serialize();
-          const parsed = JSON.parse(next);
-          if (!parsed?.ROOT) return;
-
-          let cleanCode;
-          try {
-            cleanCode = serializeCraftToClean(next);
-          } catch (serializeError) {
-            console.warn('Auto-save: serializeCraftToClean failed, saving raw to session for preview:', serializeError);
-            if (projectId && typeof window !== 'undefined' && window.sessionStorage) {
-              const key = `${STORAGE_KEY_PREFIX}_${projectId}`;
-              try {
-                window.sessionStorage.setItem(key, next);
-                window.sessionStorage.setItem(STORAGE_KEY_PREFIX, next);
-              } catch (e) {
-                // ignore quota
-              }
-            }
-            setSaveStatus('error');
-            setSaveError('Serialization failed');
-            return;
-          }
-
-          const snapshot = JSON.stringify(cleanCode);
-
-          // Always write to sessionStorage so Preview shows latest (even before DB save)
-          if (projectId && typeof window !== 'undefined' && window.sessionStorage) {
-            try {
-              const key = `${STORAGE_KEY_PREFIX}_${projectId}`;
-              window.sessionStorage.setItem(key, snapshot);
-              window.sessionStorage.setItem(STORAGE_KEY_PREFIX, snapshot);
-            } catch (e) {
-              if (!isQuotaError(e)) console.warn('Auto-save: sessionStorage write failed', e);
-            }
-          }
-
-          // Save CLEAN CODE to database (only when projectId is set)
-          if (projectId) {
-            const result = await autoSavePage(snapshot, projectId);
-
-            if (result.success) {
-              setSaveStatus('saved');
-              setSaveError(null);
-              setTimeout(() => setSaveStatus('idle'), 2000);
-            } else {
-              console.warn('Auto-save warning:', result.error);
-              setSaveStatus('error');
-              setSaveError(result.error || 'Save failed');
-            }
-          }
-        } catch (error) {
-          console.error('Auto-save error:', error);
-          setSaveStatus('error');
-          setSaveError(error instanceof Error ? error.message : 'Network or serialization error');
+          snapshot = JSON.stringify(serializeCraftToClean(next));
+        } catch {
+          snapshot = null;
         }
-      }, 1500); // Debounce 1.5s
+
+        const toStore = snapshot ?? next;
+        if (typeof window !== "undefined" && window.sessionStorage && projectId) {
+          try {
+            const key = `${STORAGE_KEY_PREFIX}_${projectId}`;
+            window.sessionStorage.setItem(key, toStore);
+            window.sessionStorage.setItem(STORAGE_KEY_PREFIX, toStore);
+          } catch (e) {
+            if (!isQuotaError(e)) console.warn("Auto-save: sessionStorage write failed", e);
+          }
+        }
+
+        if (snapshot) lastSnapshotRef.current = snapshot;
+        return snapshot;
+      } catch {
+        return null;
+      }
     },
-    [projectId]
+    [projectId],
   );
 
-  // Clean up debounce timer on unmount
+  const dbSaveInFlightRef = useRef(false);
+  const dbSavePendingRef = useRef(false);
+
+  const flushToDb = useCallback(async () => {
+    const snapshot = lastSnapshotRef.current;
+    if (!snapshot || !projectId) {
+      setSaveStatus("idle");
+      return;
+    }
+    if (dbSaveInFlightRef.current) {
+      dbSavePendingRef.current = true;
+      return;
+    }
+    dbSaveInFlightRef.current = true;
+    try {
+      const result = await autoSavePage(snapshot, projectId);
+      if (result.success) {
+        setSaveStatus("saved");
+        setSaveError(null);
+        setTimeout(() => setSaveStatus("idle"), 1200);
+      } else {
+        console.warn("Auto-save warning:", result.error);
+        setSaveStatus("error");
+        setSaveError(result.error || "Save failed");
+      }
+    } catch (error) {
+      console.error("Auto-save error:", error);
+      setSaveStatus("error");
+      setSaveError(error instanceof Error ? error.message : "Network error");
+    } finally {
+      dbSaveInFlightRef.current = false;
+      if (dbSavePendingRef.current) {
+        dbSavePendingRef.current = false;
+        flushToDb();
+      }
+    }
+  }, [projectId]);
+
+  // Auto-save: mirror to sessionStorage on every change, save to DB right after
+  const handleNodesChange = useCallback(
+    (query: { serialize: () => string }) => {
+      editorQueryRef.current = query;
+
+      if (!isReadyRef.current) return;
+
+      const isDragging =
+        document.body.dataset.editorDragging === "true" ||
+        document.body.dataset.editorDropCommit === "true";
+
+      // Always mirror to sessionStorage so refresh never loses work
+      mirrorToSession(query);
+
+      // During drag: skip DB write to keep the canvas responsive (drag-end handler will flush)
+      if (isDragging) return;
+
+      if (projectId) {
+        Promise.resolve().then(() => {
+          setSaveStatus("saving");
+          setSaveError(null);
+        });
+      }
+
+      // Save to DB immediately (queued if a save is already in flight)
+      flushToDb();
+    },
+    [projectId, mirrorToSession, flushToDb],
+  );
+
+  // After a drag ends, do one final save (positions changed but no further onNodesChange fires)
+  useEffect(() => {
+    const observer = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        if (m.attributeName !== "data-editor-dragging" && m.attributeName !== "data-editor-drop-commit") continue;
+        const isDragging =
+          document.body.dataset.editorDragging === "true" ||
+          document.body.dataset.editorDropCommit === "true";
+        if (!isDragging && editorQueryRef.current && isReadyRef.current) {
+          handleNodesChange(editorQueryRef.current);
+        }
+      }
+    });
+    observer.observe(document.body, { attributes: true, attributeFilter: ["data-editor-dragging", "data-editor-drop-commit"] });
+    return () => observer.disconnect();
+  }, [handleNodesChange]);
+
+  // Save to sessionStorage right before the tab is closed / refreshed
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (editorQueryRef.current && isReadyRef.current) {
+        mirrorToSession(editorQueryRef.current);
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [mirrorToSession]);
+
+  // Clean up on unmount
   useEffect(() => {
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -1621,7 +1742,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         {panelsReady && (
           <div>
             {/* Left Panel */}
-            <div className="absolute top-14 left-4 z-50 h-[calc(100vh-3.5rem)] w-80 flex items-start pointer-events-none">
+            <div className="absolute top-14 left-4 z-50 h-[calc(100vh-6.5rem)] w-80 flex items-start pointer-events-none">
               <div
                 className="h-full w-80 flex items-start pointer-events-auto"
               >
@@ -1651,7 +1772,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         )}
         {/* Right Panel */}
         {panelsReady && (
-          <div className="absolute top-14 right-4 z-50 h-[calc(100vh-3.5rem)] flex items-start pointer-events-none">
+          <div className="absolute top-14 right-4 z-50 h-[calc(100vh-6.5rem)] flex items-start pointer-events-none">
             <div className="h-full flex items-start justify-end pointer-events-auto">
               <div
                 className={`h-full origin-right transition-[transform,opacity] duration-300 ease-out will-change-transform ${
