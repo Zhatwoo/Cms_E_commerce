@@ -225,6 +225,12 @@ function ProjectSelectionScreen() {
                             >
                                 Tip: you can manage domains and advanced settings later from the dashboard.
                             </p>
+                            <p
+                                className="text-[11px]"
+                                style={{ color: colors.text.muted }}
+                            >
+                                Note: products can only be added to published websites, not drafts.
+                            </p>
                         </div>
                     </div>
                 ) : (

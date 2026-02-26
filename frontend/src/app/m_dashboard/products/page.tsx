@@ -384,6 +384,14 @@ export default function ProductsPage() {
   const { showConfirm, showAlert } = useAlert();
   const { selectedProject } = useProject();
   const selectedSubdomain = normalizeSubdomain(selectedProject?.subdomain);
+  const selectedProjectStatus = String(selectedProject?.status || '').toLowerCase();
+  const isPublishedProject = selectedProjectStatus === 'published';
+  const blockedAddProductMessage = !isPublishedProject
+    ? 'You cannot add products while this website is in draft. Only published domains can add products.'
+    : !selectedSubdomain
+      ? 'Publish this website first so products can be saved under published_subdomains/{subdomain}/products.'
+      : null;
+  const canAddProducts = Boolean(selectedSubdomain && isPublishedProject);
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -396,9 +404,14 @@ export default function ProductsPage() {
 
   const loadProducts = useCallback(async () => {
     setLoadingProducts(true);
+    if (!canAddProducts) {
+      setProducts([]);
+      setLoadingProducts(false);
+      return;
+    }
     try {
       const res = await listProducts({
-        subdomain: selectedSubdomain || undefined,
+        subdomain: selectedSubdomain,
         page: 1,
         limit: 500,
       });
@@ -413,7 +426,7 @@ export default function ProductsPage() {
     } finally {
       setLoadingProducts(false);
     }
-  }, [selectedSubdomain, showAlert]);
+  }, [canAddProducts, selectedSubdomain, showAlert]);
 
   useEffect(() => {
     void loadProducts();
@@ -527,8 +540,12 @@ export default function ProductsPage() {
       if (editingProduct) {
         await updateProduct(editingProduct.id, payload);
       } else {
+        if (!isPublishedProject) {
+          showAlert('You cannot add products while this website is in draft. Only published domains can add products.', 'error');
+          return false;
+        }
         if (!selectedSubdomain) {
-          showAlert('Publish this project first so products can be saved in published_subdomains.', 'error');
+          showAlert('Publish this website first so products can be saved under published_subdomains/{subdomain}/products.', 'error');
           return false;
         }
         await createProduct({
@@ -612,16 +629,16 @@ export default function ProductsPage() {
               >
                 Manage your product inventory and listings
               </motion.p>
-              {!selectedSubdomain && (
+              {blockedAddProductMessage && (
                 <p className="mt-2 text-xs" style={{ color: colors.text.muted }}>
-                  Publish the selected project first to save products into `published_subdomains`.
+                  {blockedAddProductMessage}
                 </p>
               )}
             </div>
             <button
               onClick={() => setShowAddModal(true)}
-              disabled={!selectedSubdomain}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-white font-medium transition-colors shadow-sm ${selectedSubdomain ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-400 cursor-not-allowed'}`}
+              disabled={!canAddProducts}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-white font-medium transition-colors shadow-sm ${canAddProducts ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-400 cursor-not-allowed'}`}
             >
               <Plus className="w-4 h-4" />
               Add Product
@@ -783,17 +800,17 @@ export default function ProductsPage() {
             No products yet
           </h3>
           <p className="max-w-md mx-auto" style={{ color: colors.text.secondary }}>
-            {selectedSubdomain
+            {canAddProducts
               ? 'Start by adding your first product to build your inventory.'
-              : 'Publish this project first so products can be saved under published_subdomains/{subdomain}/products.'}
+              : blockedAddProductMessage}
           </p>
           <button
             type="button"
             onClick={() => setShowAddModal(true)}
-            disabled={!selectedSubdomain}
-            className={`mt-6 mx-auto px-4 py-2.5 rounded-lg text-white font-medium transition-colors shadow-sm ${selectedSubdomain ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-400 cursor-not-allowed'}`}
+            disabled={!canAddProducts}
+            className={`mt-6 mx-auto px-4 py-2.5 rounded-lg text-white font-medium transition-colors shadow-sm ${canAddProducts ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-400 cursor-not-allowed'}`}
           >
-            {selectedSubdomain ? 'Add your first product' : 'Publish project first'}
+            {canAddProducts ? 'Add your first product' : 'Publish website first'}
           </button>
         </section>
       )}
