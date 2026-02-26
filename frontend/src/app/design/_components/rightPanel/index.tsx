@@ -26,6 +26,8 @@ const TABS: Tab[] = [
 ];
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
+const RIGHT_PANEL_DEFAULT_WIDTH = 420;
+const RIGHT_PANEL_MIN_WIDTH = RIGHT_PANEL_DEFAULT_WIDTH;
 
 interface RightPanelProps {
   projectId: string;
@@ -48,10 +50,10 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
   const activeTab = controlledTab ?? internalTab;
   const setActiveTab = setControlledTab ?? setInternalTab;
   const [isPreviewing, setIsPreviewing] = useState(false);
-  const [panelWidth, setPanelWidth] = useState(320); // Default width
+  const [panelWidth, setPanelWidth] = useState(RIGHT_PANEL_DEFAULT_WIDTH); // Default width
   const [isResizing, setIsResizing] = useState(false);
   const [startX, setStartX] = useState(0);
-  const [startWidth, setStartWidth] = useState(280);
+  const [startWidth, setStartWidth] = useState(RIGHT_PANEL_DEFAULT_WIDTH);
   const router = useRouter();
   const panelRef = useRef<HTMLDivElement>(null);
   const resizeRef = useRef<HTMLDivElement>(null);
@@ -161,8 +163,8 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
       if (!isResizing) return;
       const deltaX = startX - e.clientX; // Positive when dragging left (increase width)
       const newWidth = startWidth + deltaX;
-      // Min width: 280px, Max width: 70% of screen for better UX
-      const constrainedWidth = Math.max(280, Math.min(newWidth, window.innerWidth * 0.7));
+      // Min width is locked to default so panel cannot be resized smaller
+      const constrainedWidth = Math.max(RIGHT_PANEL_MIN_WIDTH, Math.min(newWidth, window.innerWidth * 0.7));
       setPanelWidth(constrainedWidth);
     };
 
@@ -251,14 +253,8 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
               )}
             </div>
           </div>
-        </>
-      ) : (
-        <div className="flex flex-col items-center justify-center h-64 text-brand-lighter opacity-50">
-          <p className="text-sm">Select an element to edit</p>
-        </div>
-      )}
-        </div>
 
+          {/* Main conditional rendering */}
           {selectedIds.length > 0 ? (
             <div>
               <div className="mb-6">
@@ -306,13 +302,13 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
               </div>
 
               {/* Tab Bar - Modern Pill Style */}
-              <div className="w-full overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none mb-8">
-                <div className="inline-flex min-w-full p-1 bg-black/30 backdrop-blur-md rounded-2xl border border-white/5">
+              <div className="w-full mb-8">
+                <div className="grid grid-cols-4 w-full p-1 bg-black/30 backdrop-blur-md rounded-2xl border border-white/5">
                   {TABS.map((tab) => (
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`relative z-10 flex-shrink-0 px-6 py-2.5 rounded-xl transition-all duration-300 text-xs font-bold uppercase tracking-wider whitespace-nowrap ${activeTab === tab.id
+                      className={`relative z-10 w-full px-2 py-2.5 rounded-xl transition-all duration-300 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap ${activeTab === tab.id
                         ? "text-white"
                         : "text-white/40 hover:text-white/60"
                         }`}
@@ -389,7 +385,7 @@ export const RightPanel: React.FC<RightPanelProps> = (props) => {
       <div
         data-panel="configs"
         className="bg-brand-darker/75 backdrop-blur-lg rounded-3xl p-6 h-full shadow-2xl overflow-y-auto border border-white/10 transition-shadow duration-300 flex items-center justify-center text-xs text-brand-light/60"
-        style={{ width: "280px", boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)" }}
+        style={{ width: `${RIGHT_PANEL_MIN_WIDTH}px`, boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)" }}
       >
         Loading inspector…
       </div>

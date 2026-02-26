@@ -18,7 +18,7 @@ export const SimpleHeader: TemplateEntry = {
     { is: Section as any, canvas: true },
     React.createElement(
       Element as any,
-      { is: Container as any, background: "#ffffff", padding: 20, canvas: true },
+      { is: Container as any, background: "#ffffff", padding: 0, canvas: true },
       React.createElement(
         Element as any,
         { is: Row as any, canvas: true },

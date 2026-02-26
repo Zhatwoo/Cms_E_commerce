@@ -18,7 +18,7 @@ export const HeaderWithMegamenu: TemplateEntry = {
     { is: Section, canvas: true, customStyle: { padding: "0" } },
     React.createElement(
       Element as any,
-      { is: Container, background: "#0f172a", padding: "16px 24px", canvas: true },
+      { is: Container, background: "#0f172a", padding: 0, canvas: true },
       React.createElement(
         Element as any,
         { is: Row, alignItems: "center", justifyContent: "space-between", canvas: true },
@@ -46,7 +46,7 @@ export const HeaderWithMegamenu: TemplateEntry = {
     ),
     React.createElement(
       Element as any,
-      { is: Container, background: "#1e293b", padding: "12px 24px", canvas: true },
+      { is: Container, background: "#1e293b", padding: 0, canvas: true },
       React.createElement(
         Element as any,
         { is: Row, alignItems: "center", gap: 40, canvas: true },

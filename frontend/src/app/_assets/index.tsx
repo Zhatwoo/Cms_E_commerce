@@ -176,11 +176,15 @@ export const GROUPED_TEMPLATES = [
   {
     folder: "Cards",
 <<<<<<< HEAD
+<<<<<<< HEAD
     items: [ProductCard, TeamMemberCard, GridViewCard, ProductDescription, FeaturedProduct, CategoriesCard, BrowseCategory],
 =======
     items: [ProductCard, TeamMemberCard, GridViewCard, ProductDescription, FeaturedProduct, ProductDetailView, ProductDetailViewV2, ProductDetailViewV3],
 
 >>>>>>> 3d3f007950958881bbec405bbbdf0c797d7ba6a4
+=======
+    items: [ProductCard, TeamMemberCard, GridViewCard, ProductDescription, FeaturedProduct, CategoriesCard, BrowseCategory],
+>>>>>>> 4ae7803615d78b8d8f5eb9c176c2e07f63e62421
   },
   {
     folder: "Forms",

@@ -14,11 +14,11 @@ export const LuxuryHeader: TemplateEntry = {
   description: "Elegant header for premium brands",
   preview: "✨",
   element: React.createElement(
-    Element as any,
-    { is: Section, canvas: true, customStyle: { padding: "0" } },
-    React.createElement(
       Element as any,
-      { is: Container, background: "#0a0a0a", padding: "24px 48px", canvas: true },
+      { is: Section, canvas: true, customStyle: { padding: "0" } },
+      React.createElement(
+        Element as any,
+        { is: Container, background: "#0a0a0a", padding: 0, canvas: true },
       React.createElement(
         Element as any,
         { is: Row, alignItems: "center", justifyContent: "space-between", canvas: true },

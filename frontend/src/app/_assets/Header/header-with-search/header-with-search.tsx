@@ -18,7 +18,7 @@ export const HeaderWithSearch: TemplateEntry = {
     { is: Section, canvas: true, customStyle: { padding: "0" } },
     React.createElement(
       Element as any,
-      { is: Container, background: "#f8fafc", padding: "16px 24px", borderBottom: "1px solid #e2e8f0", canvas: true },
+      { is: Container, background: "#f8fafc", padding: 0, borderBottom: "1px solid #e2e8f0", canvas: true },
       React.createElement(
         Element as any,
         { is: Row, alignItems: "center", justifyContent: "space-between", canvas: true },
@@ -37,7 +37,7 @@ export const HeaderWithSearch: TemplateEntry = {
           { is: Column, width: "50%", canvas: true },
           React.createElement(
             Element as any,
-            { is: Container, background: "#ffffff", padding: "8px 16px", borderRadius: "9999px", border: "1px solid #cbd5e1", canvas: true },
+            { is: Container, background: "#ffffff", padding: 0, borderRadius: "9999px", border: "1px solid #cbd5e1", canvas: true },
             React.createElement(
               Element as any,
               { is: Row, alignItems: "center", canvas: true },
