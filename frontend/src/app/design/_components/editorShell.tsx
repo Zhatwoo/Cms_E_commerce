@@ -536,7 +536,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [panelsReady, setPanelsReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [leftPanelOpen, setLeftPanelOpen] = useState(false);
+  const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [rightPanelTab, setRightPanelTab] = useState<TabId>("design");
   const [canvasWidth, setCanvasWidth] = useState(1440);
@@ -1544,12 +1544,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [mirrorToSession]);
 
-  // Clean up on unmount
+  // Save when projectFiles changes (e.g. files updated) if we have editor state
   useEffect(() => {
     if (projectFiles.length > 0 && lastQueryRef.current) {
-      performSave(lastQueryRef.current);
+      handleNodesChange(lastQueryRef.current);
     }
-  }, [projectFiles, performSave]);
+  }, [projectFiles, handleNodesChange]);
 
   // Clean up debounce timer and add beforeunload warning
   useEffect(() => {
@@ -1788,47 +1788,29 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         {/* Floating Panels */}
         {/* Left Panel */}
         {panelsReady && (
-          <div>
-            {/* Left Panel */}
-            <div className="absolute top-14 left-4 z-50 h-[calc(100vh-6.5rem)] w-80 flex items-start pointer-events-none">
+          <div className="absolute top-14 left-4 z-50 h-[calc(100vh-6.5rem)] flex items-start pointer-events-none">
+            <div className="h-full flex items-start pointer-events-auto">
               <div
-                className="h-full w-80 flex items-start pointer-events-auto"
+                className={`h-full origin-left transition-[transform,opacity] duration-300 ease-out will-change-transform ${
+                  leftPanelOpen
+                    ? "translate-x-0 scale-100 opacity-100 pointer-events-auto"
+                    : "-translate-x-full scale-90 opacity-0 pointer-events-none"
+                }`}
               >
-                <div className="h-full w-80 overflow-hidden shrink-0 pointer-events-none">
-                  <div
-                    className="flex items-center justify-center"
-                    style={{
-                      minWidth: `${infiniteCanvasWidthVw}vw`,
-                      minHeight: `${infiniteCanvasHeightVh}vh`,
-                      padding: `${infiniteCanvasPaddingPx}px`,
-                      transformOrigin: "top left",
-                      transform:
-                        canvasRotation !== 0
-                          ? `scale(${scale}) rotate(${canvasRotation}deg)`
-                          : `scale(${scale})`,
-                    }}
-                  >
-                    {initialJson === undefined ? null : (
-                      <SafeFrame
-                        data={validFrameData ?? initialJson}
-                        onError={handleFrameError}
-                        onFrameMounted={() => {
-                          setFrameReady((prev) => (prev ? prev : true));
-                        }}
-                      />
-                    )}
-                  </div>
-                </div>
-                <button
-                  onClick={() => setLeftPanelOpen((open) => !open)}
-                  className={`absolute left-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${
-                    leftPanelOpen ? 'opacity-0 pointer-events-none scale-95' : 'opacity-100 pointer-events-auto scale-100'
-                  }`}
-                  title={leftPanelOpen ? "Hide left panel" : "Show left panel"}
-                >
-                  <PanelLeft className="w-5 h-5 text-brand-light" />
-                </button>
+                <LeftPanel
+                  frameReady={frameReady}
+                  onToggle={() => setLeftPanelOpen(false)}
+                />
               </div>
+              <button
+                onClick={() => setLeftPanelOpen((open) => !open)}
+                className={`absolute left-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${
+                  leftPanelOpen ? "opacity-0 pointer-events-none scale-95" : "opacity-100 pointer-events-auto scale-100"
+                }`}
+                title={leftPanelOpen ? "Hide left panel" : "Show left panel"}
+              >
+                <PanelLeft className="w-5 h-5 text-brand-light" />
+              </button>
             </div>
           </div>
         )}
