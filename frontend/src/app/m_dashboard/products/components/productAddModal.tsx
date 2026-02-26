@@ -30,7 +30,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
   editingProduct?: Product;
 }) {
   const { colors } = useTheme();
-  const { showAlert } = useAlert();
+  const { showAlert, showConfirm } = useAlert();
 
   const [images, setImages] = useState<string[]>([]);
   const [slide, setSlide] = useState(0);
@@ -149,6 +149,32 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
     onClose();
   };
 
+  const hasDraft = () => {
+    return (
+      fd.name.trim() !== '' ||
+      fd.sku.trim() !== '' ||
+      fd.category !== '' ||
+      fd.description !== '' ||
+      fd.price > 0 ||
+      fd.costPrice > 0 ||
+      fd.discount > 0 ||
+      fd.stock !== 100 ||
+      images.length > 0 ||
+      fd.variants.length > 0
+    );
+  };
+
+  const handleClose = async () => {
+    if (hasDraft()) {
+      const confirmed = await showConfirm('Are you sure you want to close? Any unsaved changes will be lost.');
+      if (confirmed) {
+        onClose();
+      }
+    } else {
+      onClose();
+    }
+  };
+
   if (!isOpen) return null;
 
   const iCls = 'w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40 transition-all';
@@ -178,7 +204,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
           backdropFilter: 'blur(10px)',
           WebkitBackdropFilter: 'blur(10px)',
         }}
-        onClick={onClose}
+        onClick={handleClose}
       >
         {/* Modal container */}
         <div className="absolute inset-0 flex items-center justify-center p-6">
@@ -419,7 +445,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                   </p>
                 </div>
                 <button
-                  onClick={onClose}
+                  onClick={handleClose}
                   className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-black/10 dark:hover:bg-white/10"
                   style={{ color: colors.text.muted }}
                 >
@@ -719,7 +745,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                 className="flex items-center justify-between px-8 py-5 border-t flex-shrink-0"
                 style={{ borderColor: colors.border.faint }}
               >
-                <button onClick={onClose} className="text-sm font-medium transition-colors hover:opacity-70" style={{ color: colors.text.muted }}>
+                <button onClick={handleClose} className="text-sm font-medium transition-colors hover:opacity-70" style={{ color: colors.text.muted }}>
                   Cancel
                 </button>
                 <button
