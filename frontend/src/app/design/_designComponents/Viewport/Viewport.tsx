@@ -138,12 +138,14 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
     );
 
     setViewportSize((prev) => {
-      if (prev.minWidth === dynamicMinWidth && prev.minHeight === dynamicMinHeight) {
+      const widthChanged = Math.abs(prev.minWidth - dynamicMinWidth) >= 1;
+      const heightChanged = Math.abs(prev.minHeight - dynamicMinHeight) >= 1;
+      if (!widthChanged && !heightChanged) {
         return prev;
       }
       return { minWidth: dynamicMinWidth, minHeight: dynamicMinHeight };
     });
-  }, [actions, query, viewportId, children]);
+  }, [actions, query, viewportId]);
 
   useEffect(() => {
     const root = viewportRootRef.current;
