@@ -230,6 +230,11 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLPreElement>(null);
   const lastAppliedContentRef = useRef<string>("");
+  const smoothScrollRafRef = useRef<number | null>(null);
+  const smoothTargetTopRef = useRef(0);
+  const smoothTargetLeftRef = useRef(0);
+  const smoothVelocityTopRef = useRef(0);
+  const smoothVelocityLeftRef = useRef(0);
 
   const syncScroll = () => {
     if (editorRef.current && highlightRef.current) {
@@ -238,8 +243,102 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
     }
   };
 
+  const handleEditorWheel = (e: React.WheelEvent<HTMLTextAreaElement>) => {
+    const editor = editorRef.current;
+    const highlighter = highlightRef.current;
+    if (!editor || !highlighter) return;
+    if (e.ctrlKey || e.metaKey) return;
+
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (prefersReducedMotion) return;
+
+    e.preventDefault();
+
+    const maxTop = Math.max(0, editor.scrollHeight - editor.clientHeight);
+    const maxLeft = Math.max(0, editor.scrollWidth - editor.clientWidth);
+
+    let deltaY = e.deltaY;
+    let deltaX = e.deltaX;
+    if (e.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+      deltaY *= 16;
+      deltaX *= 16;
+    } else if (e.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+      deltaY *= editor.clientHeight;
+      deltaX *= editor.clientWidth;
+    }
+
+    const clampedDeltaY = Math.max(-240, Math.min(240, deltaY));
+    const clampedDeltaX = Math.max(-240, Math.min(240, deltaX));
+
+    if (smoothScrollRafRef.current === null) {
+      smoothTargetTopRef.current = editor.scrollTop;
+      smoothTargetLeftRef.current = editor.scrollLeft;
+      smoothVelocityTopRef.current = 0;
+      smoothVelocityLeftRef.current = 0;
+    }
+
+    smoothVelocityTopRef.current += clampedDeltaY;
+    smoothVelocityLeftRef.current += clampedDeltaX;
+    smoothTargetTopRef.current = Math.min(maxTop, Math.max(0, smoothTargetTopRef.current + clampedDeltaY));
+    smoothTargetLeftRef.current = Math.min(maxLeft, Math.max(0, smoothTargetLeftRef.current + clampedDeltaX));
+
+    if (smoothScrollRafRef.current !== null) return;
+
+    const animate = () => {
+      smoothVelocityTopRef.current *= 0.78;
+      smoothVelocityLeftRef.current *= 0.78;
+
+      const currentTop = editor.scrollTop;
+      const currentLeft = editor.scrollLeft;
+      const nextTargetTop = Math.min(maxTop, Math.max(0, smoothTargetTopRef.current + smoothVelocityTopRef.current * 0.08));
+      const nextTargetLeft = Math.min(maxLeft, Math.max(0, smoothTargetLeftRef.current + smoothVelocityLeftRef.current * 0.08));
+
+      smoothTargetTopRef.current = nextTargetTop;
+      smoothTargetLeftRef.current = nextTargetLeft;
+
+      const nextTop = currentTop + (nextTargetTop - currentTop) * 0.16;
+      const nextLeft = currentLeft + (nextTargetLeft - currentLeft) * 0.16;
+
+      editor.scrollTop = nextTop;
+      editor.scrollLeft = nextLeft;
+      highlighter.scrollTop = nextTop;
+      highlighter.scrollLeft = nextLeft;
+
+      const doneTop = Math.abs(nextTargetTop - nextTop) < 0.45 && Math.abs(smoothVelocityTopRef.current) < 0.25;
+      const doneLeft = Math.abs(nextTargetLeft - nextLeft) < 0.45 && Math.abs(smoothVelocityLeftRef.current) < 0.25;
+
+      if (doneTop && doneLeft) {
+        editor.scrollTop = nextTargetTop;
+        editor.scrollLeft = nextTargetLeft;
+        highlighter.scrollTop = nextTargetTop;
+        highlighter.scrollLeft = nextTargetLeft;
+        smoothVelocityTopRef.current = 0;
+        smoothVelocityLeftRef.current = 0;
+        smoothScrollRafRef.current = null;
+        return;
+      }
+
+      smoothScrollRafRef.current = requestAnimationFrame(animate);
+    };
+
+    smoothScrollRafRef.current = requestAnimationFrame(animate);
+  };
+
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (smoothScrollRafRef.current !== null) {
+        cancelAnimationFrame(smoothScrollRafRef.current);
+        smoothScrollRafRef.current = null;
+      }
+    };
   }, []);
 
   // Initialize files from props if available
@@ -570,22 +669,21 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
   return (
     <div className={`flex flex-col h-full bg-[#0F1116] border border-white/10 rounded-2xl overflow-hidden shadow-xl ${className}`}>
       <div className="flex-1 flex flex-col bg-[#0F1116] relative">
-        <div className="h-12 border-b border-white/5 flex items-center justify-between px-4 bg-black/20 backdrop-blur-md sticky top-0 z-20">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <div className="p-1.5 bg-white/5 rounded-lg border border-white/10">
+        <div className="min-h-[64px] border-b border-white/5 flex items-center justify-between gap-3 px-4 py-2.5 bg-black/20 backdrop-blur-md sticky top-0 z-20">
+          <div className="flex items-center gap-3 overflow-hidden flex-1 min-w-0">
+            <div className="p-1.5 bg-white/5 rounded-lg border border-white/10 shrink-0">
               <Package size={14} className="text-blue-400" />
             </div>
-            <div className="flex flex-col">
-              <div className="text-[10px] text-blue-400 font-bold uppercase tracking-widest leading-none mb-1 drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]">Editing Source</div>
-              <div className="text-xs text-white/90 font-bold truncate flex items-center gap-2">
-                <span className="w-1 h-1 rounded-full bg-blue-400 animate-pulse" />
-                {activeFile?.name}.<span className="text-blue-400">{activeFile?.type}</span>
+            <div className="flex flex-col min-w-0 gap-0.5">
+              <div className="text-[10px] text-blue-400/90 font-semibold uppercase tracking-wider leading-none">Editing Source</div>
+              <div className="text-xs text-white/90 font-semibold min-w-0 truncate whitespace-nowrap">
+                {activeFile ? `${activeFile.name}.${activeFile.type}` : "Untitled.tsx"}
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="flex items-center bg-black/40 p-1 rounded-xl border border-white/5 mr-2">
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center bg-black/35 p-1 rounded-xl border border-white/10">
               <button onClick={handleCopyToClipboard} className="p-2 hover:bg-white/10 rounded-lg transition-all text-white/40 hover:text-white group relative">
                 {copySuccess ? <ClipboardCheck size={16} className="text-green-400" /> : <Copy size={16} />}
               </button>
@@ -595,7 +693,7 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
             </div>
 
             {activeFileId === "instance-props" && (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 {isSaving && (
                   <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 animate-pulse">
                     <div className="w-1 h-1 rounded-full bg-blue-400" />
@@ -611,7 +709,7 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
                 <button
                   onClick={handleApplyInstanceProps}
                   disabled={!!instanceError || isSaving}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-blue-500/20 active:scale-95 ${saveSuccess ? "bg-green-500/20 text-green-400 border border-green-500/50" : instanceError ? "bg-red-500/20 text-red-400 border border-red-500/50 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-500 text-white"}`}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 min-w-[112px] shadow-lg shadow-blue-500/20 active:scale-95 ${saveSuccess ? "bg-green-500/20 text-green-400 border border-green-500/50" : instanceError ? "bg-red-500/20 text-red-400 border border-red-500/50 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-500 text-white"}`}
                 >
                   {saveSuccess ? <Check size={14} /> : <Terminal size={14} />}
                   {saveSuccess ? "Applied" : "Sync Now"}
@@ -621,11 +719,12 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 relative group overflow-hidden">
+        <div data-code-editor-scroll="true" className="flex-1 min-h-0 relative group overflow-hidden">
           <pre
             ref={highlightRef}
             aria-hidden="true"
-            className="absolute inset-0 w-full h-full p-6 font-mono text-sm pointer-events-none whitespace-pre-wrap break-words select-none overflow-y-auto overflow-x-hidden"
+            data-code-editor-scroll="true"
+            className="custom-scrollbar absolute inset-0 w-full h-full p-6 font-mono text-sm pointer-events-none whitespace-pre-wrap break-words select-none overflow-y-auto overflow-x-hidden"
             style={{ fontFamily: "'Fira Code', 'Courier New', monospace", backgroundColor: "#0a0d14", boxSizing: "border-box", lineHeight: "1.6", margin: 0, border: "1px solid transparent" }}
             dangerouslySetInnerHTML={{ __html: highlightCode(activeFile?.content || "") }}
           />
@@ -634,9 +733,11 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
             value={activeFile?.content || ""}
             onChange={handleContentChange}
             onScroll={syncScroll}
+            onWheel={handleEditorWheel}
+            data-code-editor-scroll="true"
             spellCheck={false}
-            className="absolute inset-0 w-full h-full bg-transparent text-transparent caret-white p-6 font-mono text-sm resize-none focus:outline-none z-10 whitespace-pre-wrap break-words overflow-y-auto overflow-x-hidden"
-            style={{ fontFamily: "'Fira Code', 'Courier New', monospace", boxSizing: "border-box", lineHeight: "1.6", margin: 0, border: "1px solid transparent" }}
+            className="custom-scrollbar absolute inset-0 w-full h-full bg-transparent text-transparent caret-white p-6 font-mono text-sm resize-none focus:outline-none z-10 whitespace-pre-wrap break-words overflow-y-auto overflow-x-hidden"
+            style={{ fontFamily: "'Fira Code', 'Courier New', monospace", boxSizing: "border-box", lineHeight: "1.6", margin: 0, border: "1px solid transparent", scrollBehavior: "smooth" }}
           />
 
           {instanceError && (
@@ -650,35 +751,6 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
         </div>
       </div>
 
-      {/* Sidebar for Files */}
-      <div className="w-16 border-l border-white/5 bg-black/40 flex flex-col items-center py-4 gap-4">
-        <button
-          onClick={() => setActiveFileId("instance-props")}
-          className={`p-2 rounded-xl transition-all ${activeFileId === "instance-props" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/20" : "text-white/40 hover:text-white hover:bg-white/5"}`}
-          title="Component Props"
-        >
-          <Layout size={20} />
-        </button>
-        <div className="w-8 h-px bg-white/5" />
-        {files.map(file => (
-          <button
-            key={file.id}
-            onClick={() => setActiveFileId(file.id)}
-            className={`p-2 rounded-xl transition-all group relative ${activeFileId === file.id ? "bg-white/10 text-white" : "text-white/40 hover:text-white hover:bg-white/5"}`}
-            title={file.name}
-          >
-            <Files size={20} />
-            {activeFileId === file.id && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-blue-500 rounded-r-full" />}
-          </button>
-        ))}
-        <button
-          onClick={handleAddFile}
-          className="p-2 rounded-xl text-white/20 hover:text-blue-400 hover:bg-blue-400/10 transition-all"
-          title="Add Asset"
-        >
-          <Plus size={20} />
-        </button>
-      </div>
     </div>
   );
 };

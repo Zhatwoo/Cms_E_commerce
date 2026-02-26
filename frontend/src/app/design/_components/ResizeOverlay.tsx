@@ -101,6 +101,12 @@ type DragState = {
   dirty: boolean;
   constrainRatio?: boolean;
   resizeFromCenter?: boolean;
+  lastAppliedResize?: {
+    width: number;
+    height: number;
+    marginTop: number;
+    marginLeft: number;
+  };
 };
 
 function isNearlyEqual(a: number, b: number, epsilon = EPSILON): boolean {
@@ -300,6 +306,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         dirty: false,
         constrainRatio: e.shiftKey,
         resizeFromCenter: e.altKey,
+        lastAppliedResize: undefined,
       };
 
       if (type === "move") {
@@ -618,16 +625,39 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
           return;
         }
 
+        const bMT = typeof d.startProps.marginTop === "number" ? (d.startProps.marginTop as number) : 0;
+        const bML = typeof d.startProps.marginLeft === "number" ? (d.startProps.marginLeft as number) : 0;
+        const nextMarginTop = extraMT !== 0 ? bMT + extraMT : bMT;
+        const nextMarginLeft = extraML !== 0 ? bML + extraML : bML;
+
+        const lastResize = d.lastAppliedResize;
+        const unchangedFromLast =
+          !!lastResize &&
+          isNearlyEqual(lastResize.width, newW) &&
+          isNearlyEqual(lastResize.height, newH) &&
+          isNearlyEqual(lastResize.marginTop, nextMarginTop) &&
+          isNearlyEqual(lastResize.marginLeft, nextMarginLeft);
+
+        if (unchangedFromLast) {
+          rafRef.current = 0;
+          return;
+        }
+
+        d.lastAppliedResize = {
+          width: newW,
+          height: newH,
+          marginTop: nextMarginTop,
+          marginLeft: nextMarginLeft,
+        };
+
         actions.setProp(nodeId, (props: Record<string, unknown>) => {
           props.width = `${newW}px`;
           props.height = `${newH}px`;
           if (extraMT !== 0) {
-            const bMT = typeof d.startProps.marginTop === "number" ? d.startProps.marginTop as number : 0;
-            props.marginTop = bMT + extraMT;
+            props.marginTop = nextMarginTop;
           }
           if (extraML !== 0) {
-            const bML = typeof d.startProps.marginLeft === "number" ? d.startProps.marginLeft as number : 0;
-            props.marginLeft = bML + extraML;
+            props.marginLeft = nextMarginLeft;
           }
         });
       } else if (d.type === "rotate" && d.startAngle != null) {
