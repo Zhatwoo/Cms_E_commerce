@@ -81,6 +81,8 @@ export interface AppearanceProps {
   borderColor?: string;
   borderWidth?: number;
   borderStyle?: string;
+  /** Stroke/border placement: mid (center on edge), inside, or outside */
+  strokePlacement?: "mid" | "inside" | "outside";
   borderRadius?: number;
   radiusTopLeft?: number;
   radiusTopRight?: number;

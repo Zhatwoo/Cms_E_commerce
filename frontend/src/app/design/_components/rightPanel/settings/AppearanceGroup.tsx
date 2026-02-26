@@ -37,6 +37,7 @@ export const AppearanceGroup = ({
   borderColor = "transparent",
   borderWidth = 0,
   borderStyle = "solid",
+  strokePlacement = "mid",
   radiusTopLeft = 0,
   radiusTopRight = 0,
   radiusBottomRight = 0,
@@ -264,15 +265,27 @@ export const AppearanceGroup = ({
             />
           </div>
         </div>
-        <select
-          value={borderStyle}
-          onChange={(e) => setProp((props) => { props.borderStyle = e.target.value; })}
-          className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none appearance-none"
-        >
-          <option value="solid">Solid</option>
-          <option value="dashed">Dashed</option>
-          <option value="dotted">Dotted</option>
-        </select>
+        <div className="grid grid-cols-2 gap-2">
+          <select
+            value={borderStyle}
+            onChange={(e) => setProp((props) => { props.borderStyle = e.target.value; })}
+            className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none appearance-none"
+          >
+            <option value="solid">Solid</option>
+            <option value="dashed">Dashed</option>
+            <option value="dotted">Dotted</option>
+          </select>
+          <select
+            value={strokePlacement}
+            onChange={(e) => setProp((props) => { props.strokePlacement = e.target.value as "mid" | "inside" | "outside"; })}
+            className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none appearance-none"
+            title="Stroke placement"
+          >
+            <option value="mid">Mid</option>
+            <option value="inside">Inside</option>
+            <option value="outside">Outside</option>
+          </select>
+        </div>
       </div>
 
       {/* Corner Radius */}
