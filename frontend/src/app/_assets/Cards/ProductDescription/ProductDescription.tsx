@@ -50,15 +50,15 @@ const createProductDescriptionItem = () =>
 				canvas: true,
 			},
 			React.createElement(Text as any, {
-				text: "Lorum ipsum dolor sit amet, consectet cndkndkindkn dmksndmskindisknd jnjnjnj dsjdnjsudnsjbndjubkkj",
-				fontSize: 20,
+				text: "Lorum ipsum dolor sit amet, consectet",
+				fontSize: 30,
 				lineHeight: 1.25,
 				fontWeight: "500",
 				color: "#111827",
 			}),
 			React.createElement(Text as any, {
 				text: "₱ 2,000",
-				fontSize: 20,
+				fontSize: 30,
 				lineHeight: 1,
 				fontWeight: "700",
 				marginTop: 4,
