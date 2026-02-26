@@ -520,6 +520,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const lastQueryRef = useRef<{ serialize: () => string } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const previousScaleRef = useRef(1);
+  const wheelZoomDeltaRef = useRef(0);
+  const wheelZoomRafRef = useRef<number | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSnapshotRef = useRef<string | null>(null);
   const lastSavedRawRef = useRef<string | null>(null);
@@ -758,6 +760,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     const handleWheel = (e: WheelEvent) => {
       if (!(e.ctrlKey || e.metaKey)) return;
 
+      if (isEditableTarget(e.target)) return;
+      if (e.target instanceof HTMLElement && e.target.closest("[data-panel]")) return;
+
       const container = containerRef.current;
       if (!container) return;
 
@@ -775,15 +780,41 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       }
       e.stopPropagation();
 
-      setScale((prevScale) => {
-        const step = -e.deltaY * ZOOM_SENSITIVITY * Math.max(prevScale, MIN_SCALE);
-        return Math.min(MAX_SCALE, Math.max(prevScale + step, MIN_SCALE));
+      let deltaY = e.deltaY;
+      if (e.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+        deltaY *= 16;
+      } else if (e.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+        deltaY *= container.clientHeight;
+      }
+
+      const normalizedDelta = Math.max(-240, Math.min(240, deltaY));
+      wheelZoomDeltaRef.current += normalizedDelta;
+
+      if (wheelZoomRafRef.current !== null) return;
+
+      wheelZoomRafRef.current = requestAnimationFrame(() => {
+        wheelZoomRafRef.current = null;
+        const frameDelta = wheelZoomDeltaRef.current;
+        wheelZoomDeltaRef.current = 0;
+
+        if (Math.abs(frameDelta) < 0.01) return;
+
+        setScale((prevScale) => {
+          const zoomFactor = Math.exp(-frameDelta * ZOOM_SENSITIVITY);
+          const nextScale = prevScale * zoomFactor;
+          return Math.min(MAX_SCALE, Math.max(nextScale, MIN_SCALE));
+        });
       });
     };
 
     window.addEventListener("wheel", handleWheel, { passive: false, capture: true });
 
     return () => {
+      if (wheelZoomRafRef.current !== null) {
+        cancelAnimationFrame(wheelZoomRafRef.current);
+        wheelZoomRafRef.current = null;
+      }
+      wheelZoomDeltaRef.current = 0;
       window.removeEventListener("wheel", handleWheel, { capture: true });
     };
   }, []);
