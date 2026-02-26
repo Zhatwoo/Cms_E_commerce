@@ -625,7 +625,7 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
           <pre
             ref={highlightRef}
             aria-hidden="true"
-            className="absolute inset-0 w-full h-full p-6 font-mono text-sm pointer-events-none whitespace-pre-wrap break-all select-none no-scrollbar overflow-y-scroll"
+            className="absolute inset-0 w-full h-full p-6 font-mono text-sm pointer-events-none whitespace-pre-wrap break-words select-none overflow-y-auto overflow-x-hidden"
             style={{ fontFamily: "'Fira Code', 'Courier New', monospace", backgroundColor: "#0a0d14", boxSizing: "border-box", lineHeight: "1.6", margin: 0, border: "1px solid transparent" }}
             dangerouslySetInnerHTML={{ __html: highlightCode(activeFile?.content || "") }}
           />
@@ -635,7 +635,7 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
             onChange={handleContentChange}
             onScroll={syncScroll}
             spellCheck={false}
-            className="absolute inset-0 w-full h-full bg-transparent text-transparent caret-white p-6 font-mono text-sm resize-none focus:outline-none z-10 whitespace-pre-wrap break-all no-scrollbar overflow-y-scroll"
+            className="absolute inset-0 w-full h-full bg-transparent text-transparent caret-white p-6 font-mono text-sm resize-none focus:outline-none z-10 whitespace-pre-wrap break-words overflow-y-auto overflow-x-hidden"
             style={{ fontFamily: "'Fira Code', 'Courier New', monospace", boxSizing: "border-box", lineHeight: "1.6", margin: 0, border: "1px solid transparent" }}
           />
 
