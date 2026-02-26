@@ -54,6 +54,8 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
   const [isResizing, setIsResizing] = useState(false);
   const [startX, setStartX] = useState(0);
   const [startWidth, setStartWidth] = useState(RIGHT_PANEL_DEFAULT_WIDTH);
+  const resizeRafRef = useRef<number | null>(null);
+  const pendingWidthRef = useRef<number>(RIGHT_PANEL_DEFAULT_WIDTH);
   const router = useRouter();
   const panelRef = useRef<HTMLDivElement>(null);
   const resizeRef = useRef<HTMLDivElement>(null);
@@ -139,15 +141,12 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
     if (!panel) return;
 
     const handleWheelCapture = (e: WheelEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (!target) return;
-      const tag = target.tagName;
-      const isField =
-        tag === "INPUT" ||
-        tag === "TEXTAREA" ||
-        tag === "SELECT" ||
-        target.isContentEditable === true;
-      if (isField) {
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest("[data-code-editor-scroll='true']")) return;
+
+      const blockedField = target.closest("input, select, [contenteditable='true']");
+      if (blockedField) {
         e.preventDefault();
         e.stopPropagation();
       }
@@ -165,7 +164,14 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
       const newWidth = startWidth + deltaX;
       // Min width is locked to default so panel cannot be resized smaller
       const constrainedWidth = Math.max(RIGHT_PANEL_MIN_WIDTH, Math.min(newWidth, window.innerWidth * 0.7));
-      setPanelWidth(constrainedWidth);
+
+      pendingWidthRef.current = constrainedWidth;
+      if (resizeRafRef.current !== null) return;
+
+      resizeRafRef.current = requestAnimationFrame(() => {
+        resizeRafRef.current = null;
+        setPanelWidth((prev) => (Math.abs(prev - pendingWidthRef.current) < 0.2 ? prev : pendingWidthRef.current));
+      });
     };
 
     const handleMouseUp = () => {
@@ -179,22 +185,35 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
       document.body.style.cursor = "col-resize";
       // Add visual feedback to the panel during resize
       if (panelRef.current) {
-        panelRef.current.style.transition = 'none';
-        panelRef.current.style.opacity = '0.8';
+        panelRef.current.style.transition = 'opacity 120ms ease';
+        panelRef.current.style.opacity = '0.9';
       }
       return () => {
         document.removeEventListener("mousemove", handleMouseMove);
         document.removeEventListener("mouseup", handleMouseUp);
+        if (resizeRafRef.current !== null) {
+          cancelAnimationFrame(resizeRafRef.current);
+          resizeRafRef.current = null;
+        }
         document.body.style.userSelect = "auto";
         document.body.style.cursor = "auto";
         // Restore panel styling
         if (panelRef.current) {
-          panelRef.current.style.transition = '';
+          panelRef.current.style.transition = 'width 160ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease';
           panelRef.current.style.opacity = '';
         }
       };
     }
-  }, [isResizing]);
+  }, [isResizing, startX, startWidth]);
+
+  useEffect(() => {
+    return () => {
+      if (resizeRafRef.current !== null) {
+        cancelAnimationFrame(resizeRafRef.current);
+        resizeRafRef.current = null;
+      }
+    };
+  }, []);
 
   return (
     <div className="flex h-full relative">
@@ -205,6 +224,7 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
           e.preventDefault();
           setStartX(e.clientX);
           setStartWidth(panelWidth);
+          pendingWidthRef.current = panelWidth;
           setIsResizing(true);
         }}
         className={`${isResizing ? 'w-2 bg-blue-500/70' : 'w-3 bg-brand-medium/20 hover:bg-blue-500/40'
@@ -229,7 +249,7 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
           boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)",
         }}
       >
-        <div className="h-full overflow-y-auto p-6">
+        <div className="h-full p-6 flex flex-col min-h-0">
           <div className="flex items-center justify-between mb-6 gap-2">
             <h3 className="text-brand-lighter font-bold text-lg">Configs</h3>
             <div className="flex items-center gap-1">
@@ -254,9 +274,10 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
             </div>
           </div>
 
+          <div className="flex-1 min-h-0 overflow-y-auto">
           {/* Main conditional rendering */}
           {selectedIds.length > 0 ? (
-            <div>
+            <div className={activeTab === "code" ? "h-full min-h-0 flex flex-col" : undefined}>
               <div className="mb-6">
                 <div className="flex items-center gap-2 bg-brand-medium/20 p-2 rounded-lg border border-brand-medium/30">
                   <span className="flex-1 text-brand-lighter font-medium text-sm text-center">
@@ -323,7 +344,7 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
               </div>
 
               {/* Tab Content */}
-              <div className="space-y-6">
+              <div className={activeTab === "code" ? "flex-1 min-h-0" : "space-y-6"}>
                 {activeTab === "design" &&
                   (selectedIds.length > 1 ? (
                     <BatchEditGroup selectedIds={selectedIds} />
@@ -344,13 +365,13 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
                 )}
 
                 {activeTab === "code" && (
-                  <div className="h-[600px] animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="h-full min-h-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <CodeEditor
                       mode="design"
                       projectId={projectId}
                       files={files || []}
                       onFilesChange={onFilesChange}
-                      className="border-none shadow-none rounded-none"
+                      className="h-full border-none shadow-none rounded-none"
                     />
                   </div>
                 )}
@@ -361,6 +382,7 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
               <p className="text-sm">Select an element to edit</p>
             </div>
           )}
+          </div>
 
         </div>
       </div>
