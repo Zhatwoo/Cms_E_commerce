@@ -19,7 +19,7 @@ export const ContainerSettings = () => {
     width, height,
     backgroundImage, backgroundSize, backgroundPosition, backgroundRepeat, backgroundOverlay,
     borderRadius, radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft,
-    borderColor, borderWidth, borderStyle,
+    borderColor, borderWidth, borderStyle, strokePlacement,
     flexDirection, flexWrap,
     alignItems, justifyContent,
     gap,
@@ -54,6 +54,7 @@ export const ContainerSettings = () => {
     borderColor: node.data.props.borderColor,
     borderWidth: node.data.props.borderWidth,
     borderStyle: node.data.props.borderStyle,
+    strokePlacement: node.data.props.strokePlacement,
     flexDirection: node.data.props.flexDirection,
     flexWrap: node.data.props.flexWrap,
     alignItems: node.data.props.alignItems,
@@ -171,6 +172,7 @@ export const ContainerSettings = () => {
           borderColor={borderColor}
           borderWidth={borderWidth}
           borderStyle={borderStyle}
+          strokePlacement={strokePlacement}
           radiusTopLeft={radiusTopLeft}
           radiusTopRight={radiusTopRight}
           radiusBottomRight={radiusBottomRight}

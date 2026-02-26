@@ -117,13 +117,18 @@ export const TEMPLATES: TemplateEntry[] = [
   HeroBannerCTA_v3,
   FeaturesGrid,
   Testimonial,
+  DeliveryAddress,
+  DeliveryAddressV1,
   ContactForm,
   NewsletterSignup,
   OrderForm,
+  OrderFormV1,
   LoginForm,
   SignupForm,
   AddToCart,
   PaymentForm,
+  PaymentMethod,
+  PaymentMethodV1,
   ProductCard,
   TeamMemberCard,
   ProductDetailView,
@@ -178,7 +183,7 @@ export const GROUPED_TEMPLATES = [
   },
   {
     folder: "Content",
-    items: [FeaturesGrid, Testimonial],
+    items: [FeaturesGrid, Testimonial, DeliveryAddress, DeliveryAddressV1],
   },
   {
     folder: "Cards",
@@ -197,7 +202,7 @@ export const GROUPED_TEMPLATES = [
   },
   {
     folder: "Forms",
-    items: [ContactForm, NewsletterSignup, OrderForm, LoginForm, SignupForm, AddToCart, PaymentForm],
+    items: [ContactForm, NewsletterSignup, OrderForm, OrderFormV1, LoginForm, SignupForm, AddToCart, PaymentForm, PaymentMethod, PaymentMethodV1],
   },
   {
     folder: "Footer",
