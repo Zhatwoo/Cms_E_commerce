@@ -1,6 +1,6 @@
 'use client';
-import React, { useState } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTheme } from './components/context/theme-context';
 import { useAuth } from './components/context/auth-context';
 import { useProject } from './components/context/project-context';
@@ -329,13 +329,25 @@ function ProjectSelectionScreen() {
 }
 
 export default function MDashboardPage() {
+    const router = useRouter();
     const { user } = useAuth();
-    const { selectedProject } = useProject();
+    const { selectedProject, loading } = useProject();
 
     const userName = user?.name || user?.email || 'User';
 
+    // No "Create or select a website" screen: redirect to Web Builder when no project selected
+    useEffect(() => {
+        if (!loading && !selectedProject) {
+            router.replace('/m_dashboard/web-builder');
+        }
+    }, [loading, selectedProject, router]);
+
     if (!selectedProject) {
-        return <ProjectSelectionScreen />;
+        return (
+            <div className="flex items-center justify-center min-h-[40vh]">
+                <p className="text-sm opacity-70">Redirecting to Web Builder…</p>
+            </div>
+        );
     }
 
     return (
