@@ -32,9 +32,9 @@ export const AssetsPanel = () => {
               >
                 {group.items.map((item: any, idx: number) => (
                   <div
-                    key={item.label || idx}
+                    key={item?.label ?? idx}
                     ref={(ref) => {
-                      if (ref) connectors.create(ref, item.element ?? item.element);
+                      if (ref && item?.element) connectors.create(ref, item.element);
                     }}
                     className="bg-brand-white/5 p-3 rounded hover:bg-brand-white/10 transition cursor-move border border-brand-medium/30"
                   >
@@ -43,16 +43,16 @@ export const AssetsPanel = () => {
                     ) : (
                       <div className="flex items-center justify-between">
                         <div>
-                          <div className="text-sm font-medium text-brand-light">{item.label ?? item.label}</div>
-                          {item.description && (
-                            <div className="text-xs text-brand-medium mt-1">{item.description}</div>
+                          <div className="text-sm font-medium text-brand-light">{item?.label ?? ""}</div>
+                          {item?.description && (
+                            <div className="text-xs text-brand-medium mt-1">{item?.description}</div>
                           )}
                         </div>
-                        {item.preview && (
-                          <div className="h-8 w-8 bg-brand-medium/20 rounded-lg flex items-center justify-center text-xs">
-                            {item.preview}
-                          </div>
-                        )}
+                         {item?.preview && (
+                           <div className="h-8 w-8 bg-brand-medium/20 rounded-lg flex items-center justify-center text-xs">
+                             {item?.preview}
+                           </div>
+                         )}
                       </div>
                     )}
                   </div>

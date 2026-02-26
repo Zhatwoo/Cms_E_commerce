@@ -1,9 +1,11 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { Plus } from 'lucide-react';
 import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
 import { type Product } from '../lib/productsData';
+import ProductAddModal from './components/productAddModal';
 
 const ProductCard = ({ product, colors, onEdit, onDelete, onToggleStatus }: {
   product: Product;
@@ -102,6 +104,7 @@ export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | undefined>();
   const [perPage, setPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
@@ -124,8 +127,8 @@ export default function ProductsPage() {
   const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
 
   const handleEdit = (product: Product) => {
-    console.log('Edit product:', product);
-    // TODO: Open edit modal
+    setEditingProduct(product);
+    setShowAddModal(true);
   };
 
   const handleDelete = async (product: Product) => {
@@ -140,6 +143,40 @@ export default function ProductsPage() {
     setProducts(products.map(p =>
       p.id === product.id ? { ...p, status: newStatus } : p
     ));
+  };
+
+  const handleSaveProduct = (productData: Partial<Product> & any) => {
+    if (editingProduct) {
+      // Update existing product
+      setProducts(products.map(p =>
+        p.id === editingProduct.id
+          ? {
+            ...p,
+            ...productData,
+            image: productData.image || productData.emoji || '📦',
+          }
+          : p
+      ));
+    } else {
+      // Add new product
+      const newProduct: Product = {
+        id: productData.id,
+        name: productData.name,
+        sku: productData.sku,
+        category: productData.category,
+        description: productData.description,
+        price: productData.price,
+        stock: productData.stock,
+        status: productData.status,
+        image: productData.image || productData.emoji || '📦',
+        createdAt: productData.createdAt,
+        sales: 0,
+        revenue: 0,
+      };
+      setProducts([...products, newProduct]);
+    }
+    setShowAddModal(false);
+    setEditingProduct(undefined);
   };
 
   const stats = {
@@ -209,9 +246,9 @@ export default function ProductsPage() {
             </div>
             <button
               onClick={() => setShowAddModal(true)}
-              className="px-4 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-blue-600/20"
-              style={{ backgroundColor: colors.status.info, color: colors.bg.primary }}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors shadow-sm"
             >
+              <Plus className="w-4 h-4" />
               Add Product
             </button>
           </div>
@@ -371,13 +408,22 @@ export default function ProductsPage() {
           <button
             type="button"
             onClick={() => setShowAddModal(true)}
-            className="mt-6 px-5 py-2.5 rounded-lg font-medium transition-colors"
-            style={{ backgroundColor: colors.status.info, color: colors.bg.primary }}
+            className="mt-6 mx-auto px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors shadow-sm"
           >
             Add your first product
           </button>
         </section>
       )}
+
+      <ProductAddModal
+        isOpen={showAddModal}
+        onClose={() => {
+          setShowAddModal(false);
+          setEditingProduct(undefined);
+        }}
+        onSave={handleSaveProduct}
+        editingProduct={editingProduct}
+      />
     </div>
   );
 }
