@@ -1,12 +1,19 @@
 const Product = require('../models/Product');
 const Domain = require('../models/Domain');
+const Project = require('../models/Project');
 
 async function resolveOwnedDomain(userId, subdomainInput) {
   const subdomain = Product.normalizeSubdomain(subdomainInput);
   if (!subdomain) return { error: 'subdomain is required' };
 
+  const project = await Project.getBySubdomain(userId, subdomain);
+  const projectStatus = (project?.status || '').toString().trim().toLowerCase();
+  if (project && projectStatus !== 'published') {
+    return { error: 'You cannot add products while this website is in draft. Only published domains can add products.' };
+  }
+
   const domain = await Domain.findBySubdomain(subdomain);
-  if (!domain) return { error: 'Published domain not found' };
+  if (!domain) return { error: 'Published domain not found. Only published domains can add products.' };
   if (domain.userId !== userId) return { error: 'Access denied for this published domain' };
   return { subdomain, domain };
 }
