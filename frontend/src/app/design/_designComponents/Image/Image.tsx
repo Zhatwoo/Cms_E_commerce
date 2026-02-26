@@ -29,12 +29,13 @@ export const Image = ({
   rotation = 0,
   flipHorizontal = false,
   flipVertical = false,
+  customClassName = "",
 }: ImageProps) => {
   const { id, connectors: { connect, drag } } = useNode();
 
   // Handle empty or invalid src
-  const imageSrc = src && src.trim() !== "" 
-    ? src 
+  const imageSrc = src && src.trim() !== ""
+    ? src
     : "https://placehold.co/600x400/27272a/a1a1aa?text=Image";
 
   // Resolve spacing
@@ -84,7 +85,7 @@ export const Image = ({
         display: "block",
         transform: [rotation ? `rotate(${rotation}deg)` : null, flipHorizontal ? "scaleX(-1)" : null, flipVertical ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined,
       }}
-      className="hover:outline hover:outline-blue-500 cursor-pointer"
+      className={`hover:outline hover:outline-blue-500 cursor-pointer ${customClassName}`}
     />
   );
 };

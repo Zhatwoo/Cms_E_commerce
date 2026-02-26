@@ -35,19 +35,20 @@ interface RightPanelProps {
   frameReady?: boolean;
   /** Called when the user clicks the X to close the Configs panel. */
   onClose?: () => void;
+  files?: any[];
+  onFilesChange?: (files: any[]) => void;
 }
 
 // Inner panel that subscribes to Craft editor.
 // Mounted lazily by RightPanel to avoid "setState during render" warnings
 // when Frame is rendering initial data.
-const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: setControlledTab, onClose }: RightPanelProps) => {
+const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: setControlledTab, onClose, files, onFilesChange }: RightPanelProps) => {
   const { showAlert } = useAlert();
   const [internalTab, setInternalTab] = useState<TabId>("design");
   const activeTab = controlledTab ?? internalTab;
   const setActiveTab = setControlledTab ?? setInternalTab;
   const [isPreviewing, setIsPreviewing] = useState(false);
-  const [isCodeEditorOpen, setIsCodeEditorOpen] = useState(false);
-  const [panelWidth, setPanelWidth] = useState(280); // Default width
+  const [panelWidth, setPanelWidth] = useState(320); // Default width
   const [isResizing, setIsResizing] = useState(false);
   const [startX, setStartX] = useState(0);
   const [startWidth, setStartWidth] = useState(280);
@@ -70,12 +71,12 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
     const firstProps = firstNode?.data?.props as Record<string, unknown> | undefined;
     const primary = firstId && firstNode
       ? {
-          id: firstId,
-          name: firstNode.data.displayName,
-          settings: firstNode.related?.settings,
-          visibility: (firstProps?.visibility as "visible" | "hidden" | undefined) ?? "visible",
-          locked: (firstProps?.locked as boolean | undefined) ?? false,
-        }
+        id: firstId,
+        name: firstNode.data.displayName,
+        settings: firstNode.related?.settings,
+        visibility: (firstProps?.visibility as "visible" | "hidden" | undefined) ?? "visible",
+        locked: (firstProps?.locked as boolean | undefined) ?? false,
+      }
       : null;
     return { selectedIds: ids, primary };
   });
@@ -195,6 +196,28 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
 
   return (
     <div className="flex h-full relative">
+      {/* Resize Handle */}
+      <div
+        ref={resizeRef}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          setStartX(e.clientX);
+          setStartWidth(panelWidth);
+          setIsResizing(true);
+        }}
+        className={`${isResizing ? 'w-2 bg-blue-500/70' : 'w-3 bg-brand-medium/20 hover:bg-blue-500/40'
+          } cursor-col-resize transition-all duration-200 group relative flex items-center justify-center select-none z-10`}
+        title="Drag to resize panel"
+      >
+        {/* Visual grip indicator */}
+        <div className={`flex flex-col gap-0.5 transition-opacity duration-200 ${isResizing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+          }`}>
+          <div className="w-0.5 h-1 bg-brand-light/60 rounded-full"></div>
+          <div className="w-0.5 h-1 bg-brand-light/60 rounded-full"></div>
+          <div className="w-0.5 h-1 bg-brand-light/60 rounded-full"></div>
+        </div>
+      </div>
+
       <div
         ref={panelRef}
         data-panel="configs"
@@ -204,8 +227,7 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
           boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)",
         }}
       >
-        {/* Fixed Header */}
-        <div className="shrink-0 p-6 pb-0">
+        <div className="h-full overflow-y-auto p-6">
           <div className="flex items-center justify-between mb-6 gap-2">
             <h3 className="text-brand-lighter font-bold text-lg">Configs</h3>
             <div className="flex items-center gap-1">
@@ -229,70 +251,6 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
               )}
             </div>
           </div>
-
-      {selectedIds.length > 0 ? (
-        <>
-          <div className="mb-4">
-            <div className="flex items-center gap-2 bg-brand-medium/20 p-2 rounded-lg border border-brand-medium/30">
-              <span className="flex-1 text-brand-lighter font-medium text-sm text-center">
-                {selectedIds.length === 1 && primary
-                  ? primary.name
-                  : `${selectedIds.length} components selected`}
-              </span>
-              {primary && (
-                <div className="flex items-center gap-0.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = primary.visibility === "hidden" ? "visible" : "hidden";
-                      selectedIds.forEach((id) => {
-                        try {
-                          actions.setProp(id, (p: Record<string, unknown>) => { p.visibility = next; });
-                        } catch { /* skip */ }
-                      });
-                    }}
-                    className={`p-1.5 rounded transition-colors ${primary.visibility === "hidden" ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
-                    title={primary.visibility === "hidden" ? "Show" : "Hide"}
-                  >
-                    {primary.visibility === "hidden" ? <EyeOff size={14} /> : <Eye size={14} />}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = !primary.locked;
-                      selectedIds.forEach((id) => {
-                        try {
-                          actions.setProp(id, (p: Record<string, unknown>) => { p.locked = next; });
-                        } catch { /* skip */ }
-                      });
-                    }}
-                    className={`p-1.5 rounded transition-colors ${primary.locked ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
-                    title={primary.locked ? "Unlock" : "Lock"}
-                  >
-                    {primary.locked ? <Lock size={14} /> : <LockOpen size={14} />}
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Tab Bar - Fixed */}
-          <div className="flex text-xs items-stretch justify-center py-1.5 px-1 border-y border-brand-medium gap-1">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-colors cursor-pointer ${
-                  activeTab === tab.id
-                    ? "text-brand-lighter bg-brand-medium/50"
-                    : "text-brand-light hover:text-brand-lighter hover:bg-brand-medium/20"
-                }`}
-              >
-                {tab.icon}
-                <span className="text-[10px] font-medium truncate w-full text-center">{tab.label}</span>
-              </button>
-            ))}
-          </div>
         </>
       ) : (
         <div className="flex flex-col items-center justify-center h-64 text-brand-lighter opacity-50">
@@ -301,66 +259,120 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
       )}
         </div>
 
-        {/* Scrollable Content */}
-        {selectedIds.length > 0 && (
-        <div className="flex-1 overflow-y-auto p-6 pt-4">
-          {/* Tab Content */}
-          <div className="space-y-6">
-            {activeTab === "design" &&
-              (selectedIds.length > 1 ? (
-                <BatchEditGroup selectedIds={selectedIds} />
-              ) : primary?.settings ? (
-                React.createElement(primary.settings)
-              ) : (
-                <div className="flex flex-col items-center justify-center py-8 text-brand-lighter opacity-50">
-                  <p className="text-sm">No design settings available</p>
-                </div>
-              ))}
-
-            {activeTab === "prototype" && (
-              <PrototypeGroup selectedIds={selectedIds} />
-            )}
-
-            {activeTab === "animation" && (
-              <AnimationGroup selectedIds={selectedIds} />
-            )}
-
-            {activeTab === "code" && (
-              <div className="space-y-4">
-                <div className="bg-brand-medium/20 border border-brand-medium/30 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Code2 size={18} className="text-blue-400" />
-                    <h3 className="font-semibold text-brand-lighter">Code Editor</h3>
-                  </div>
-                  <p className="text-brand-light text-sm mb-4">
-                    Write, manage, and export Next.js components and assets. Choose between Component (reusable UI) or Asset (utilities & icons) mode.
-                  </p>
-                  <button
-                    onClick={() => setIsCodeEditorOpen(true)}
-                    className="w-full px-4 py-2 bg-linear-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all font-medium text-sm flex items-center justify-center gap-2"
-                  >
-                    <Terminal size={16} />
-                    Open Code Editor
-                  </button>
+          {selectedIds.length > 0 ? (
+            <div>
+              <div className="mb-6">
+                <div className="flex items-center gap-2 bg-brand-medium/20 p-2 rounded-lg border border-brand-medium/30">
+                  <span className="flex-1 text-brand-lighter font-medium text-sm text-center">
+                    {selectedIds.length === 1 && primary
+                      ? primary.name
+                      : `${selectedIds.length} components selected`}
+                  </span>
+                  {primary && (
+                    <div className="flex items-center gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = primary.visibility === "hidden" ? "visible" : "hidden";
+                          selectedIds.forEach((id) => {
+                            try {
+                              actions.setProp(id, (p: Record<string, unknown>) => { p.visibility = next; });
+                            } catch { /* skip */ }
+                          });
+                        }}
+                        className={`p-1.5 rounded transition-colors ${primary.visibility === "hidden" ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
+                        title={primary.visibility === "hidden" ? "Show" : "Hide"}
+                      >
+                        {primary.visibility === "hidden" ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = !primary.locked;
+                          selectedIds.forEach((id) => {
+                            try {
+                              actions.setProp(id, (p: Record<string, unknown>) => { p.locked = next; });
+                            } catch { /* skip */ }
+                          });
+                        }}
+                        className={`p-1.5 rounded transition-colors ${primary.locked ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
+                        title={primary.locked ? "Unlock" : "Lock"}
+                      >
+                        {primary.locked ? <Lock size={14} /> : <LockOpen size={14} />}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
-        </div>
-        )}
 
-      {/* Code Editor Modal */}
-      <CodeEditor
-        isOpen={isCodeEditorOpen}
-        onClose={() => setIsCodeEditorOpen(false)}
-        projectId={projectId}
-      />
+              {/* Tab Bar - Modern Pill Style */}
+              <div className="w-full overflow-x-auto no-scrollbar cursor-grab active:cursor-grabbing select-none mb-8">
+                <div className="inline-flex min-w-full p-1 bg-black/30 backdrop-blur-md rounded-2xl border border-white/5">
+                  {TABS.map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`relative z-10 flex-shrink-0 px-6 py-2.5 rounded-xl transition-all duration-300 text-xs font-bold uppercase tracking-wider whitespace-nowrap ${activeTab === tab.id
+                        ? "text-white"
+                        : "text-white/40 hover:text-white/60"
+                        }`}
+                    >
+                      {activeTab === tab.id && (
+                        <div className="absolute inset-0 bg-blue-600 rounded-xl shadow-lg shadow-blue-500/20 animate-in fade-in zoom-in-95 duration-200" style={{ zIndex: -1 }} />
+                      )}
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Tab Content */}
+              <div className="space-y-6">
+                {activeTab === "design" &&
+                  (selectedIds.length > 1 ? (
+                    <BatchEditGroup selectedIds={selectedIds} />
+                  ) : primary?.settings ? (
+                    React.createElement(primary.settings)
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-brand-lighter opacity-50">
+                      <p className="text-sm">No design settings available</p>
+                    </div>
+                  ))}
+
+                {activeTab === "prototype" && (
+                  <PrototypeGroup selectedIds={selectedIds} />
+                )}
+
+                {activeTab === "animation" && (
+                  <AnimationGroup selectedIds={selectedIds} />
+                )}
+
+                {activeTab === "code" && (
+                  <div className="h-[600px] animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <CodeEditor
+                      mode="design"
+                      projectId={projectId}
+                      files={files || []}
+                      onFilesChange={onFilesChange}
+                      className="border-none shadow-none rounded-none"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-64 text-brand-lighter opacity-50">
+              <p className="text-sm">Select an element to edit</p>
+            </div>
+          )}
+
+        </div>
       </div>
     </div>
   );
 };
 
-export const RightPanel = ({ frameReady = true, ...props }: RightPanelProps) => {
+export const RightPanel: React.FC<RightPanelProps> = (props) => {
   const [ready, setReady] = useState(false);
 
   // Delay mounting the editor-subscribed content until after Frame has committed (frameReady)
@@ -370,7 +382,7 @@ export const RightPanel = ({ frameReady = true, ...props }: RightPanelProps) => 
     return () => cancelAnimationFrame(id);
   }, []);
 
-  const canMountInner = frameReady && ready;
+  const canMountInner = props.frameReady && ready;
 
   if (!canMountInner) {
     return (

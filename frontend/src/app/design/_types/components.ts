@@ -105,6 +105,8 @@ export interface LayerProps {
   visibility?: "visible" | "hidden";
   /** When true, prevent move/resize/rotate on canvas */
   locked?: boolean;
+  /** Custom Tailwind CSS classes or custom classes */
+  customClassName?: string;
 }
 
 /** Position & display properties → PositionGroup */
@@ -158,7 +160,7 @@ export interface ContainerProps
 
 /** Text component props — combines typography, spacing, and basic effects. */
 // export interface TextProps extends SpacingProps, TypographyProps, TransformProps, AnimatableProps, InteractableProps {
-export interface TextProps extends SpacingProps, TypographyProps, TransformProps, LayerProps, AnimatableProps, InteractionProps {
+export interface TextProps extends SpacingProps, TypographyProps, TransformProps, LayerProps, PositionProps, AnimatableProps, InteractionProps {
   text: string;
   opacity?: number;
   boxShadow?: string;
@@ -246,8 +248,8 @@ export interface CircleProps
   isPreview?: boolean;
 }
 
-export interface SquareProps extends CircleProps {}
-export interface TriangleProps extends CircleProps {}
+export interface SquareProps extends CircleProps { }
+export interface TriangleProps extends CircleProps { }
 
 /** Frame component props — responsive wrapper so content scales for all devices (desktop, tablet, mobile). */
 export interface FrameProps extends SpacingProps, AnimatableProps, InteractionProps {

@@ -15,7 +15,7 @@ function parsePx(value: string | undefined): number | null {
  */
 export const Section = ({
   background = "transparent",
-  padding = 40,
+  padding = 0,
   paddingTop,
   paddingRight,
   paddingBottom,
@@ -47,6 +47,7 @@ export const Section = ({
   rotation = 0,
   designWidth,
   designHeight,
+  customClassName = "",
   children,
 }: ContainerProps) => {
   const { id, connectors: { connect, drag } } = useNode();
@@ -78,7 +79,7 @@ export const Section = ({
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className="min-h-[80px] transition-[outline] duration-150 hover:outline hover:outline-blue-500"
+      className={`min-h-[80px] transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
       style={{
         backgroundColor: background,
         backgroundImage: backgroundImage
@@ -143,11 +144,11 @@ export const Section = ({
 
 export const SectionDefaultProps: Partial<ContainerProps> = {
   background: "transparent",
-  padding: 40,
-  paddingTop: 40,
-  paddingRight: 40,
-  paddingBottom: 40,
-  paddingLeft: 40,
+  padding: 0,
+  paddingTop: 0,
+  paddingRight: 0,
+  paddingBottom: 0,
+  paddingLeft: 0,
   margin: 0,
   marginTop: 0,
   marginRight: 0,

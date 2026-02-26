@@ -6,7 +6,7 @@
  * editor, only this file and its counterpart (deserializer) need to change.
  */
 
-import type { BuilderDocument, CleanNode, ComponentType, PageNode } from "../_types/schema";
+import type { BuilderDocument, CleanNode, CodeFile, ComponentType, PageNode } from "../_types/schema";
 import { DEFAULT_ANIMATION } from "../_types/animation";
 import { DEFAULT_PROTOTYPE } from "../_types/prototype";
 
@@ -531,7 +531,7 @@ function findPageIdsFromRaw(raw: CraftRawDocument): string[] {
  * @param rawJson - The JSON string from `query.serialize()`
  * @returns A clean, editor-agnostic BuilderDocument
  */
-export function serializeCraftToClean(rawJson: string): BuilderDocument {
+export function serializeCraftToClean(rawJson: string, files?: CodeFile[]): BuilderDocument {
   const parsed = JSON.parse(rawJson) as Record<string, unknown>;
   const raw = normalizeCraftRaw(parsed);
 
@@ -569,6 +569,7 @@ export function serializeCraftToClean(rawJson: string): BuilderDocument {
         version: 2,
         pages,
         nodes,
+        files,
       };
     }
   }
@@ -604,6 +605,7 @@ export function serializeCraftToClean(rawJson: string): BuilderDocument {
     version: 2,
     pages,
     nodes,
+    files,
   };
 }
 

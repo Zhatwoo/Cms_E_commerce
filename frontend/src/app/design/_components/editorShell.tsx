@@ -191,9 +191,9 @@ const isEditableTarget = (target: EventTarget | null) => {
 function validateCraftData(jsonString: string): { valid: boolean; data?: string } {
   try {
     const parsed = JSON.parse(jsonString);
-    
+
     console.log('🔍 Validation: Starting with', Object.keys(parsed).length, 'nodes');
-    
+
     // Must have ROOT
     if (!parsed || !parsed.ROOT) {
       console.error('❌ Validation failed: Missing ROOT node');
@@ -216,21 +216,21 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
     const invalidNodes: string[] = [];
     const validNodeIds = new Set(allNodeIds.filter(id => {
       const node = parsed[id];
-      
+
       // Must be an object
       if (!node || typeof node !== 'object') {
         console.warn(`⚠️ Node ${id} is not an object:`, typeof node);
         invalidNodes.push(id);
         return false;
       }
-      
+
       // Must have type property
       if (!node.type) {
         console.warn(`⚠️ Node ${id} is missing 'type' property`);
         invalidNodes.push(id);
         return false;
       }
-      
+
       // type must have resolvedName
       if (!node.type.resolvedName) {
         console.warn(`⚠️ Node ${id} type is missing 'resolvedName' property`);
@@ -263,7 +263,7 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
     // Recursively validate and clean all node references
     let hasInvalidRefs = false;
     let removedRefsCount = 0;
-    
+
     function cleanNodeRefs(nodeId: string, visited = new Set<string>()): void {
       if (visited.has(nodeId)) return; // Prevent infinite loops
       visited.add(nodeId);
@@ -283,7 +283,7 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
           }
           return true;
         });
-        
+
         if (node.nodes.length !== originalLength) {
           console.log(`🔧 Cleaned ${nodeId}: ${originalLength} -> ${node.nodes.length} children`);
         }
@@ -319,7 +319,7 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
 
     const finalJson = JSON.stringify(parsed);
     console.log(`✅ Validation complete. Final data has ${Object.keys(parsed).length} nodes`);
-    
+
     return { valid: true, data: finalJson };
   } catch (error) {
     console.error('❌ Validation error:', error);
@@ -499,11 +499,25 @@ const SafeFrame = ({
   );
 };
 
+/**
+ * Internal component to capture the Craft query object reliably.
+ * Must be a child of <Editor />.
+ */
+const QueryStasher = ({ onQuery }: { onQuery: (query: any) => void }) => {
+  const { query } = useEditor();
+  useEffect(() => {
+    onQuery(query);
+  }, [query, onQuery]);
+  return null;
+};
+
 /** Editor Shell */
 export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellProps) => {
   const { showAlert, showConfirm } = useAlert();
   const [currentPageId, setCurrentPageId] = useState<string | null>(initialPageId ?? null);
   const [pages, setPages] = useState<Array<{ id: string; name: string }>>([]);
+  const [projectFiles, setProjectFiles] = useState<any[]>([]);
+  const lastQueryRef = useRef<{ serialize: () => string } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const horizontalScrollbarRef = useRef<HTMLDivElement>(null);
   const horizontalScrollbarInnerRef = useRef<HTMLDivElement>(null);
@@ -534,6 +548,13 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [suppressDropIndicator, setSuppressDropIndicator] = useState(false);
   const [dropIndicatorPulse, setDropIndicatorPulse] = useState(false);
   const hasInitialCenteringRef = useRef(false);
+  const saveStatusRef = useRef(saveStatus);
+
+  // Sync saveStatus to ref for safe use in beforeunload effect
+  useEffect(() => {
+    saveStatusRef.current = saveStatus;
+  }, [saveStatus]);
+
   const infiniteCanvasWidthVw = INFINITE_CANVAS_WIDTH_VW;
   const infiniteCanvasHeightVh = INFINITE_CANVAS_HEIGHT_VH;
   const infiniteCanvasPaddingPx = INFINITE_CANVAS_PADDING_PX;
@@ -1243,6 +1264,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         setInitialJson(contentToLoad);
         if (contentToLoad) {
           loadPages(contentToLoad);
+          try {
+            const parsed = JSON.parse(contentToLoad);
+            if (parsed.files) {
+              setProjectFiles(parsed.files);
+            }
+          } catch (e) {
+            console.warn('Failed to parse files from initialJson', e);
+          }
         }
 
         // IMPORTANT: Mark as ready immediately via Ref to avoid stale closures
@@ -1517,10 +1546,27 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
   // Clean up on unmount
   useEffect(() => {
+    if (projectFiles.length > 0 && lastQueryRef.current) {
+      performSave(lastQueryRef.current);
+    }
+  }, [projectFiles, performSave]);
+
+  // Clean up debounce timer and add beforeunload warning
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (saveStatusRef.current === 'saving') {
+        const message = "Your changes are still saving. Are you sure you want to leave?";
+        e.returnValue = message;
+        return message;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
-  }, []);
+  }, []); // Stable [] array to prevent mismatch
 
   /** Only pass to Frame if data is valid Craft format and every node type exists in resolver */
   const resolverRef = useRef<Record<string, React.ComponentType>>({});
@@ -1601,6 +1647,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         const validChildIds = childIds.filter((cid: string) => allIds.has(cid));
         node.nodes = validChildIds;
       }
+
       return JSON.stringify(parsed);
     } catch {
       return null;
@@ -1657,6 +1704,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         onRender={RenderNode}
         onNodesChange={(query) => requestAnimationFrame(() => handleNodesChange(query))}
       >
+        <QueryStasher onQuery={(q) => { lastQueryRef.current = q; }} />
         <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
         <CanvasToolProvider value={activeTool}>
         <TransformModeProvider>
@@ -1748,13 +1796,27 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
               >
                 <div className="h-full w-80 overflow-hidden shrink-0 pointer-events-none">
                   <div
-                    className={`h-full w-80 origin-left transition-[transform,opacity] duration-300 ease-out will-change-transform ${
-                      leftPanelOpen
-                        ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
-                        : '-translate-x-full scale-90 opacity-0 pointer-events-none'
-                    }`}
+                    className="flex items-center justify-center"
+                    style={{
+                      minWidth: `${infiniteCanvasWidthVw}vw`,
+                      minHeight: `${infiniteCanvasHeightVh}vh`,
+                      padding: `${infiniteCanvasPaddingPx}px`,
+                      transformOrigin: "top left",
+                      transform:
+                        canvasRotation !== 0
+                          ? `scale(${scale}) rotate(${canvasRotation}deg)`
+                          : `scale(${scale})`,
+                    }}
                   >
-                    <LeftPanel onToggle={() => setLeftPanelOpen(false)} frameReady={frameReady} />
+                    {initialJson === undefined ? null : (
+                      <SafeFrame
+                        data={validFrameData ?? initialJson}
+                        onError={handleFrameError}
+                        onFrameMounted={() => {
+                          setFrameReady((prev) => (prev ? prev : true));
+                        }}
+                      />
+                    )}
                   </div>
                 </div>
                 <button
