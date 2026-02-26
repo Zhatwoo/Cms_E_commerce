@@ -29,7 +29,7 @@ export default function LoginPage() {
         if (role === 'admin' || role === 'super_admin') {
           router.push('/admindashboard');
         } else {
-          router.push('/m_dashboard');
+          router.push('/m_dashboard/web-builder');
         }
         router.refresh();
       } else {

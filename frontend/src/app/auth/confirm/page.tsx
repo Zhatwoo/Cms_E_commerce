@@ -27,7 +27,7 @@ function ConfirmContent() {
           setMessage(res.message || 'Email confirmed! Redirecting...');
           // Redirect to dashboard after 1.5 seconds
           setTimeout(() => {
-            router.push('/m_dashboard');
+            router.push('/m_dashboard/web-builder');
             router.refresh();
           }, 1500);
         } else {
