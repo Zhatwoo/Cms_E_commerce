@@ -8,6 +8,7 @@ import { LeftPanel } from "./leftPanel";
 import { RightPanel } from "./rightPanel";
 import { TopPanel, type DevicePreset } from "./TopPanel";
 import { BottomPanel, type CanvasTool } from "./BottomPanel";
+import { FloatingMobilePreview } from "./FloatingMobilePreview";
 import { CanvasToolProvider } from "./CanvasToolContext";
 import { Container } from "../_designComponents/Container/Container";
 import { Text } from "../_designComponents/Text/Text";
@@ -68,6 +69,10 @@ class FrameErrorBoundary extends React.Component<
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 
+// These must match the Viewport constants for proper page positioning
+const PAGE_GRID_ORIGIN_X = 30000;
+const PAGE_GRID_ORIGIN_Y = 30000;
+
 const EMPTY_FRAME_DATA = JSON.stringify({
   ROOT: {
     type: { resolvedName: "Viewport" },
@@ -82,7 +87,15 @@ const EMPTY_FRAME_DATA = JSON.stringify({
   "page-1": {
     type: { resolvedName: "Page" },
     isCanvas: true,
-    props: { pageName: "Page 1", pageSlug: "page-0" },
+    props: { 
+      pageName: "Page 1", 
+      pageSlug: "page-0",
+      canvasX: PAGE_GRID_ORIGIN_X,
+      canvasY: PAGE_GRID_ORIGIN_Y,
+      width: "1920px",
+      height: "1200px",
+      background: "#ffffff"
+    },
     displayName: "Page",
     custom: {},
     parent: "ROOT",
@@ -155,9 +168,9 @@ const MIN_SCALE = 0.05;
 const MAX_SCALE = 3;
 const DEFAULT_SCALE = 0.5;
 const ZOOM_SENSITIVITY = 0.003;
-const INFINITE_CANVAS_WIDTH_VW = 2000;
-const INFINITE_CANVAS_HEIGHT_VH = 2000;
-const INFINITE_CANVAS_PADDING_PX = 6000;
+const INFINITE_CANVAS_WIDTH_VW = 4000;
+const INFINITE_CANVAS_HEIGHT_VH = 4000;
+const INFINITE_CANVAS_PADDING_PX = 30000;
 
 const isEditableTarget = (target: EventTarget | null) => {
   if (!target || !(target instanceof HTMLElement)) return false;
@@ -177,9 +190,9 @@ const isEditableTarget = (target: EventTarget | null) => {
 function validateCraftData(jsonString: string): { valid: boolean; data?: string } {
   try {
     const parsed = JSON.parse(jsonString);
-    
+
     console.log('🔍 Validation: Starting with', Object.keys(parsed).length, 'nodes');
-    
+
     // Must have ROOT
     if (!parsed || !parsed.ROOT) {
       console.error('❌ Validation failed: Missing ROOT node');
@@ -202,21 +215,21 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
     const invalidNodes: string[] = [];
     const validNodeIds = new Set(allNodeIds.filter(id => {
       const node = parsed[id];
-      
+
       // Must be an object
       if (!node || typeof node !== 'object') {
         console.warn(`⚠️ Node ${id} is not an object:`, typeof node);
         invalidNodes.push(id);
         return false;
       }
-      
+
       // Must have type property
       if (!node.type) {
         console.warn(`⚠️ Node ${id} is missing 'type' property`);
         invalidNodes.push(id);
         return false;
       }
-      
+
       // type must have resolvedName
       if (!node.type.resolvedName) {
         console.warn(`⚠️ Node ${id} type is missing 'resolvedName' property`);
@@ -249,7 +262,7 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
     // Recursively validate and clean all node references
     let hasInvalidRefs = false;
     let removedRefsCount = 0;
-    
+
     function cleanNodeRefs(nodeId: string, visited = new Set<string>()): void {
       if (visited.has(nodeId)) return; // Prevent infinite loops
       visited.add(nodeId);
@@ -269,7 +282,7 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
           }
           return true;
         });
-        
+
         if (node.nodes.length !== originalLength) {
           console.log(`🔧 Cleaned ${nodeId}: ${originalLength} -> ${node.nodes.length} children`);
         }
@@ -305,7 +318,7 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
 
     const finalJson = JSON.stringify(parsed);
     console.log(`✅ Validation complete. Final data has ${Object.keys(parsed).length} nodes`);
-    
+
     return { valid: true, data: finalJson };
   } catch (error) {
     console.error('❌ Validation error:', error);
@@ -485,11 +498,25 @@ const SafeFrame = ({
   );
 };
 
+/**
+ * Internal component to capture the Craft query object reliably.
+ * Must be a child of <Editor />.
+ */
+const QueryStasher = ({ onQuery }: { onQuery: (query: any) => void }) => {
+  const { query } = useEditor();
+  useEffect(() => {
+    onQuery(query);
+  }, [query, onQuery]);
+  return null;
+};
+
 /** Editor Shell */
 export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellProps) => {
   const { showAlert, showConfirm } = useAlert();
   const [currentPageId, setCurrentPageId] = useState<string | null>(initialPageId ?? null);
   const [pages, setPages] = useState<Array<{ id: string; name: string }>>([]);
+  const [projectFiles, setProjectFiles] = useState<any[]>([]);
+  const lastQueryRef = useRef<{ serialize: () => string } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const horizontalScrollbarRef = useRef<HTMLDivElement>(null);
   const horizontalScrollbarInnerRef = useRef<HTMLDivElement>(null);
@@ -499,6 +526,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const errorCleanupDoneRef = useRef(false); // Track if we've already cleaned up
   const hasUserMovedCanvasRef = useRef(false);
   const [isPanning, setIsPanning] = useState(false);
+  const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [scale, setScale] = useState(1);
   const [initialJson, setInitialJson] = useState<string | null | undefined>(undefined);
   const [panelsReady, setPanelsReady] = useState(false);
@@ -516,6 +544,13 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [suppressDropIndicator, setSuppressDropIndicator] = useState(false);
   const [dropIndicatorPulse, setDropIndicatorPulse] = useState(false);
   const hasInitialCenteringRef = useRef(false);
+  const saveStatusRef = useRef(saveStatus);
+
+  // Sync saveStatus to ref for safe use in beforeunload effect
+  useEffect(() => {
+    saveStatusRef.current = saveStatus;
+  }, [saveStatus]);
+
   const infiniteCanvasWidthVw = INFINITE_CANVAS_WIDTH_VW;
   const infiniteCanvasHeightVh = INFINITE_CANVAS_HEIGHT_VH;
   const infiniteCanvasPaddingPx = INFINITE_CANVAS_PADDING_PX;
@@ -525,11 +560,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     errorCleanupDoneRef.current = true;
 
     console.error('❌ Frame rendering failed. Cleaning up corrupted data...');
-    
+
     // Clear from localStorage
     const storageKey = getStorageKey(projectId);
     localStorage.removeItem(storageKey);
-    
+
     // Clear from database
     if (projectId) {
       try {
@@ -759,16 +794,75 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     };
   }, [frameReady, scale, canvasRotation, initialJson]);
 
-  // Center the canvas in the view
+  // Center the canvas in the view - focus on first page element
   const centerCanvasInView = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const x = (container.scrollWidth - container.clientWidth) / 2;
-    const y = (container.scrollHeight - container.clientHeight) / 2;
-    container.scrollLeft = x;
-    container.scrollTop = y;
+    // Try to find the first Page element and center on it
+    const firstPage = container.querySelector("[data-page-node]") as HTMLElement | null;
+    
+    if (firstPage) {
+      const containerRect = container.getBoundingClientRect();
+      const pageRect = firstPage.getBoundingClientRect();
+
+      // Calculate where the page center is in scroll coordinates
+      const pageCenterX = container.scrollLeft + (pageRect.left - containerRect.left) + pageRect.width / 2;
+      const pageCenterY = container.scrollTop + (pageRect.top - containerRect.top) + pageRect.height / 2;
+
+      const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
+      const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+
+      const nextLeft = Math.min(maxScrollLeft, Math.max(0, pageCenterX - container.clientWidth / 2));
+      const nextTop = Math.min(maxScrollTop, Math.max(0, pageCenterY - container.clientHeight / 2));
+
+      container.scrollLeft = nextLeft;
+      container.scrollTop = nextTop;
+      return;
+    }
+
+    // Fallback: try viewport desktop
+    const desktopViewport = container.querySelector("[data-viewport-desktop]") as HTMLElement | null;
+
+    if (desktopViewport) {
+      const containerRect = container.getBoundingClientRect();
+      const viewportRect = desktopViewport.getBoundingClientRect();
+
+      const viewportCenterX = container.scrollLeft + (viewportRect.left - containerRect.left) + viewportRect.width / 2;
+      const viewportCenterY = container.scrollTop + (viewportRect.top - containerRect.top) + viewportRect.height / 2;
+
+      const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
+      const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+
+      const nextLeft = Math.min(maxScrollLeft, Math.max(0, viewportCenterX - container.clientWidth / 2));
+      const nextTop = Math.min(maxScrollTop, Math.max(0, viewportCenterY - container.clientHeight / 2));
+
+      container.scrollLeft = nextLeft;
+      container.scrollTop = nextTop;
+      return;
+    }
+
+    // Ultimate fallback: center of scroll area
+    const fallbackLeft = (container.scrollWidth - container.clientWidth) / 2;
+    const fallbackTop = (container.scrollHeight - container.clientHeight) / 2;
+    container.scrollLeft = fallbackLeft;
+    container.scrollTop = fallbackTop;
   }, []);
+
+  // Center immediately on first mount so default view starts at middle even before frame settles
+  useLayoutEffect(() => {
+    if (hasInitialCenteringRef.current) return;
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    const rafId = requestAnimationFrame(() => {
+      centerCanvasInView();
+      hasInitialCenteringRef.current = true;
+    });
+
+    return () => cancelAnimationFrame(rafId);
+  }, [centerCanvasInView]);
 
   // Center canvas after refresh/load and keep centering while layout is still settling
   useEffect(() => {
@@ -827,16 +921,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
     setScale(Math.max(newScale, MIN_SCALE));
 
-    // Center the canvas
+    // Center on the first page
     setTimeout(() => {
-      if (container) {
-        const x = (container.scrollWidth - container.clientWidth) / 2;
-        const y = (container.scrollHeight - container.clientHeight) / 2;
-        container.scrollLeft = x;
-        container.scrollTop = y;
-      }
+      centerCanvasInView();
     }, 100);
-  }, [canvasWidth, canvasHeight]);
+  }, [canvasWidth, canvasHeight, centerCanvasInView]);
 
   const handleScaleChange = useCallback((nextScale: number) => {
     const clampedScale = Math.min(MAX_SCALE, Math.max(nextScale, MIN_SCALE));
@@ -858,9 +947,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     setLeftPanelOpen(true);
   }, []);
 
+  const isSpacePanActive = activeTool === "move" && isSpacePressed;
+  const canPanWithPointerDrag = activeTool === "hand" || isSpacePanActive;
+
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Only Hand tool can pan canvas
-    if (activeTool === "hand") {
+    if (canPanWithPointerDrag) {
       setIsPanning(true);
       document.body.dataset.canvasPan = "true";
       e.preventDefault();
@@ -879,6 +970,53 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       containerRef.current.scrollTop -= e.movementY;
     }
   };
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== "Space") return;
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (isEditableTarget(event.target)) return;
+
+      event.preventDefault();
+      if (activeTool === "move") {
+        setIsSpacePressed(true);
+      }
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.code !== "Space") return;
+      setIsSpacePressed(false);
+    };
+
+    const handleWindowBlur = () => {
+      setIsSpacePressed(false);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleWindowBlur);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleWindowBlur);
+    };
+  }, [activeTool]);
+
+  useEffect(() => {
+    if (isSpacePanActive) {
+      document.body.dataset.spacePan = "true";
+      return;
+    }
+    document.body.removeAttribute("data-space-pan");
+  }, [isSpacePanActive]);
+
+  useEffect(() => {
+    if (activeTool === "move" && !isSpacePanActive && isPanning) {
+      setIsPanning(false);
+      document.body.removeAttribute("data-canvas-pan");
+    }
+  }, [activeTool, isSpacePanActive, isPanning]);
 
   useEffect(() => {
     const handleToolShortcut = (event: KeyboardEvent) => {
@@ -1053,6 +1191,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         setInitialJson(contentToLoad);
         if (contentToLoad) {
           loadPages(contentToLoad);
+          try {
+            const parsed = JSON.parse(contentToLoad);
+            if (parsed.files) {
+              setProjectFiles(parsed.files);
+            }
+          } catch (e) {
+            console.warn('Failed to parse files from initialJson', e);
+          }
         }
 
         // IMPORTANT: Mark as ready immediately via Ref to avoid stale closures
@@ -1082,26 +1228,77 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
   // Hide Craft drop indicator only when dragging the special New Page source item
   useEffect(() => {
+    let clearTimer: number | null = null;
+
+    const activateSuppression = () => {
+      if (clearTimer !== null) {
+        window.clearTimeout(clearTimer);
+        clearTimer = null;
+      }
+      document.body.dataset.newPageDragActive = "true";
+      setSuppressDropIndicator(true);
+    };
+
+    const clearSuppression = (delayMs = 900) => {
+      if (clearTimer !== null) {
+        window.clearTimeout(clearTimer);
+      }
+      clearTimer = window.setTimeout(() => {
+        delete document.body.dataset.newPageDragActive;
+        setSuppressDropIndicator(false);
+        clearTimer = null;
+      }, delayMs);
+    };
+
     const handleMouseDown = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
       const isNewPageSource = !!target?.closest("[data-component-new-page='true']");
       if (isNewPageSource) {
-        setSuppressDropIndicator(true);
+        activateSuppression();
       }
     };
 
-    const clearSuppression = () => {
+    const handleDragStart = (event: DragEvent) => {
+      const target = event.target as HTMLElement | null;
+      const startedFromNewPage =
+        !!target?.closest("[data-component-new-page='true']") ||
+        document.body.dataset.newPageDragActive === "true";
+      if (startedFromNewPage) {
+        activateSuppression();
+      }
+    };
+
+    const handleDropOrDragEnd = () => {
+      if (document.body.dataset.newPageDragActive === "true") {
+        clearSuppression(1000);
+      }
+    };
+
+    const handleWindowBlur = () => {
+      if (clearTimer !== null) {
+        window.clearTimeout(clearTimer);
+      }
+      delete document.body.dataset.newPageDragActive;
       setSuppressDropIndicator(false);
+      clearTimer = null;
     };
 
     document.addEventListener("mousedown", handleMouseDown, true);
-    document.addEventListener("mouseup", clearSuppression, true);
-    document.addEventListener("dragend", clearSuppression, true);
+    document.addEventListener("dragstart", handleDragStart, true);
+    document.addEventListener("drop", handleDropOrDragEnd, true);
+    document.addEventListener("dragend", handleDropOrDragEnd, true);
+    window.addEventListener("blur", handleWindowBlur);
 
     return () => {
+      if (clearTimer !== null) {
+        window.clearTimeout(clearTimer);
+      }
+      delete document.body.dataset.newPageDragActive;
       document.removeEventListener("mousedown", handleMouseDown, true);
-      document.removeEventListener("mouseup", clearSuppression, true);
-      document.removeEventListener("dragend", clearSuppression, true);
+      document.removeEventListener("dragstart", handleDragStart, true);
+      document.removeEventListener("drop", handleDropOrDragEnd, true);
+      document.removeEventListener("dragend", handleDropOrDragEnd, true);
+      window.removeEventListener("blur", handleWindowBlur);
     };
   }, []);
 
@@ -1137,9 +1334,68 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     }
   };
 
-  // Auto-save editor state to database (debounced)
+  // Perform the actual save operation
+  const performSave = useCallback(async (queryToSerialize: { serialize: () => string }) => {
+    if (!isReadyRef.current) return;
+
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+
+    Promise.resolve().then(() => { setSaveStatus('saving'); setSaveError(null); });
+
+    saveTimerRef.current = setTimeout(async () => {
+      try {
+        const next = queryToSerialize.serialize();
+        const parsed = JSON.parse(next);
+        if (!parsed?.ROOT) return;
+
+        let cleanCode;
+        try {
+          cleanCode = serializeCraftToClean(next, projectFiles);
+        } catch (serializeError) {
+          console.warn('Auto-save: serializeCraftToClean failed, saving raw to session for preview:', serializeError);
+          // ... session fallback ...
+          setSaveStatus('error');
+          setSaveError('Serialization failed');
+          return;
+        }
+
+        const snapshot = JSON.stringify(cleanCode);
+
+        // Always write to sessionStorage so Preview shows latest (even before DB save)
+        if (projectId && typeof window !== 'undefined' && window.sessionStorage) {
+          try {
+            const key = `${STORAGE_KEY_PREFIX}_${projectId}`;
+            window.sessionStorage.setItem(key, snapshot);
+            window.sessionStorage.setItem(STORAGE_KEY_PREFIX, snapshot);
+          } catch (e) {
+            if (!isQuotaError(e)) console.warn('Auto-save: sessionStorage write failed', e);
+          }
+        }
+
+        // Save CLEAN CODE to database (only when projectId is set)
+        if (projectId) {
+          const result = await autoSavePage(snapshot, projectId);
+          if (result.success) {
+            setSaveStatus('saved');
+            setSaveError(null);
+            setTimeout(() => setSaveStatus('idle'), 2000);
+          } else {
+            setSaveStatus('error');
+            setSaveError(result.error || 'Save failed');
+          }
+        }
+      } catch (error) {
+        console.error('Auto-save error:', error);
+        setSaveStatus('error');
+        setSaveError(error instanceof Error ? error.message : 'Network or serialization error');
+      }
+    }, 800);
+  }, [projectId, projectFiles]);
+
+  // Auto-save editor state to database when nodes change
   const handleNodesChange = useCallback(
     (query: { serialize: () => string }) => {
+      lastQueryRef.current = query; // Stash query for other triggers
       if (
         document.body.dataset.editorDragging === "true" ||
         document.body.dataset.editorDropCommit === "true"
@@ -1150,88 +1406,34 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         }
         return;
       }
-
-      // Check Ref instead of State to avoid stale closure
-      if (!isReadyRef.current) {
-        // console.log('🛑 Aborting save: Editor not yet ready');
-        return;
-      }
-
-      // console.log('🖱️ handleNodesChange triggered! Saving...');
-
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-
-      // Defer state update to avoid 'Cannot update a component while rendering a different component'
-      Promise.resolve().then(() => { setSaveStatus('saving'); setSaveError(null); });
-
-      saveTimerRef.current = setTimeout(async () => {
-        try {
-          const next = query.serialize();
-          const parsed = JSON.parse(next);
-          if (!parsed?.ROOT) return;
-
-          let cleanCode;
-          try {
-            cleanCode = serializeCraftToClean(next);
-          } catch (serializeError) {
-            console.warn('Auto-save: serializeCraftToClean failed, saving raw to session for preview:', serializeError);
-            if (projectId && typeof window !== 'undefined' && window.sessionStorage) {
-              const key = `${STORAGE_KEY_PREFIX}_${projectId}`;
-              try {
-                window.sessionStorage.setItem(key, next);
-                window.sessionStorage.setItem(STORAGE_KEY_PREFIX, next);
-              } catch (e) {
-                // ignore quota
-              }
-            }
-            setSaveStatus('error');
-            setSaveError('Serialization failed');
-            return;
-          }
-
-          const snapshot = JSON.stringify(cleanCode);
-
-          // Always write to sessionStorage so Preview shows latest (even before DB save)
-          if (projectId && typeof window !== 'undefined' && window.sessionStorage) {
-            try {
-              const key = `${STORAGE_KEY_PREFIX}_${projectId}`;
-              window.sessionStorage.setItem(key, snapshot);
-              window.sessionStorage.setItem(STORAGE_KEY_PREFIX, snapshot);
-            } catch (e) {
-              if (!isQuotaError(e)) console.warn('Auto-save: sessionStorage write failed', e);
-            }
-          }
-
-          // Save CLEAN CODE to database (only when projectId is set)
-          if (projectId) {
-            const result = await autoSavePage(snapshot, projectId);
-
-            if (result.success) {
-              setSaveStatus('saved');
-              setSaveError(null);
-              setTimeout(() => setSaveStatus('idle'), 2000);
-            } else {
-              console.warn('Auto-save warning:', result.error);
-              setSaveStatus('error');
-              setSaveError(result.error || 'Save failed');
-            }
-          }
-        } catch (error) {
-          console.error('Auto-save error:', error);
-          setSaveStatus('error');
-          setSaveError(error instanceof Error ? error.message : 'Network or serialization error');
-        }
-      }, 1500); // Debounce 1.5s
+      performSave(query);
     },
-    [projectId]
+    [performSave]
   );
 
-  // Clean up debounce timer on unmount
+  // Trigger save when project files change
   useEffect(() => {
+    if (projectFiles.length > 0 && lastQueryRef.current) {
+      performSave(lastQueryRef.current);
+    }
+  }, [projectFiles, performSave]);
+
+  // Clean up debounce timer and add beforeunload warning
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (saveStatusRef.current === 'saving') {
+        const message = "Your changes are still saving. Are you sure you want to leave?";
+        e.returnValue = message;
+        return message;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
-  }, []);
+  }, []); // Stable [] array to prevent mismatch
 
   /** Only pass to Frame if data is valid Craft format and every node type exists in resolver */
   const resolverRef = useRef<Record<string, React.ComponentType>>({});
@@ -1361,201 +1563,200 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         resolver={resolver}
         indicator={{
           success: suppressDropIndicator ? "transparent" : (dropIndicatorPulse ? "#4ade80" : "#22c55e"),
-          error: "#ef4444",
+          error: suppressDropIndicator ? "transparent" : "#ef4444",
           thickness: suppressDropIndicator ? 0 : (dropIndicatorPulse ? 4 : 2),
-          transition: "all 140ms ease-out",
+          transition: suppressDropIndicator ? "none" : "all 140ms ease-out",
         }}
         onRender={RenderNode}
         onNodesChange={(query) => requestAnimationFrame(() => handleNodesChange(query))}
       >
+        <QueryStasher onQuery={(q) => { lastQueryRef.current = q; }} />
         <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
-        <CanvasToolProvider value={activeTool}>
-        <TransformModeProvider>
-        <InlineTextEditProvider>
-          <KeyboardShortcuts />
-          <CanvasSelectionHandler />
-          <CanvasContextMenu />
-          <FigmaStyleDragHandler />
-          <NewPageDropPlacementHandler />
-          <BoxSelectionHandler />
-          <DoubleClickTransformHandler />
-          <PrototypeFlowLines />
-          {/* Top Panel */}
-          {panelsReady && (
-            <TopPanel
-              scale={scale}
-              onScaleChange={handleScaleChange}
-              onRotateCanvas={handleRotateCanvas}
-              onFitToCanvas={handleFitToCanvas}
-              onAddButton={handleAddButton}
-              canvasWidth={canvasWidth}
-              canvasHeight={canvasHeight}
-              onDevicePresetSelect={handleDevicePresetSelect}
-              showDualView={showDualView}
-              onDualViewToggle={() => setShowDualView((v) => !v)}
-            />
-          )}
-          {/* Canvas Area (Background) — when dual view: leave room for phone preview on the right */}
-        <div
-          ref={containerRef}
-          data-canvas-container
-          className={`absolute inset-0 overflow-auto bg-brand-darker canvas-scroll-container ${activeTool === "hand" ? "canvas-hand-tool" : ""} ${activeTool === "hand" && isPanning ? "canvas-hand-panning" : ""}`}
-          style={{
-            cursor:
-              activeTool === "hand"
-                ? isPanning
-                  ? "grabbing"
-                  : "grab"
-                : "default",
-          }}
-          onMouseDown={handleMouseDown}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onMouseMove={handleMouseMove}
-        >
-          {/* Inner Content - Infinite Canvas */}
-          <div
-            className="flex items-center justify-center"
-            style={{
-              minWidth: `${infiniteCanvasWidthVw}vw`,
-              minHeight: `${infiniteCanvasHeightVh}vh`,
-              padding: `${infiniteCanvasPaddingPx}px`,
-              transformOrigin: "top left",
-              transform:
-                canvasRotation !== 0
-                  ? `scale(${scale}) rotate(${canvasRotation}deg)`
-                  : `scale(${scale})`,
-            }}
-          >
-            {initialJson === undefined ? null : (
-              <SafeFrame
-                data={validFrameData ?? initialJson}
-                onError={handleFrameError}
-                onFrameMounted={() => {
-                  setFrameReady((prev) => (prev ? prev : true));
-                }}
-              />
-            )}
-          </div>
-        </div>
-        <div className="absolute bottom-12 left-4 right-4 z-[60] pointer-events-none">
-          <div
-            ref={horizontalScrollbarRef}
-            className="canvas-scroll-container canvas-bottom-scrollbar pointer-events-auto h-5 overflow-x-scroll overflow-y-hidden rounded-md border border-white/20 bg-brand-dark/85"
-            onMouseDown={(event) => event.stopPropagation()}
-            onWheel={(event) => event.stopPropagation()}
-          >
-            <div ref={horizontalScrollbarInnerRef} className="h-px" />
-          </div>
-        </div>
-        {/* Floating Panels */}
-        {/* Left Panel */}
-        {panelsReady && (
-          <div>
-            {/* Left Panel */}
-            <div className="absolute top-14 left-4 z-50 h-[calc(100vh-3.5rem)] w-80 flex items-start pointer-events-none">
-              <div
-                className="h-full w-80 flex items-start pointer-events-auto"
-              >
-                <div className="h-full w-80 overflow-hidden shrink-0 pointer-events-none">
+          <CanvasToolProvider value={activeTool}>
+            <TransformModeProvider>
+              <InlineTextEditProvider>
+                <KeyboardShortcuts />
+                <CanvasSelectionHandler />
+                <CanvasContextMenu />
+                <FigmaStyleDragHandler />
+                <NewPageDropPlacementHandler />
+                <BoxSelectionHandler />
+                <DoubleClickTransformHandler />
+                <PrototypeFlowLines />
+                {/* Top Panel */}
+                {panelsReady && (
+                  <TopPanel
+                    scale={scale}
+                    onScaleChange={handleScaleChange}
+                    onRotateCanvas={handleRotateCanvas}
+                    onFitToCanvas={handleFitToCanvas}
+                    onAddButton={handleAddButton}
+                    canvasWidth={canvasWidth}
+                    canvasHeight={canvasHeight}
+                    onDevicePresetSelect={handleDevicePresetSelect}
+                    showDualView={showDualView}
+                    onDualViewToggle={() => setShowDualView((v) => !v)}
+                  />
+                )}
+                {/* Canvas Area (Background) — when dual view: leave room for phone preview on the right */}
+                <div
+                  ref={containerRef}
+                  data-canvas-container
+                  className={`absolute inset-0 overflow-auto bg-brand-darker canvas-scroll-container ${activeTool === "hand" ? "canvas-hand-tool" : ""} ${activeTool === "hand" && isPanning ? "canvas-hand-panning" : ""}`}
+                  style={{
+                    cursor:
+                      activeTool === "hand"
+                        ? isPanning
+                          ? "grabbing"
+                          : "grab"
+                        : "default",
+                  }}
+                  onMouseDown={handleMouseDown}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
+                  onMouseMove={handleMouseMove}
+                >
+                  {/* Inner Content - Infinite Canvas */}
                   <div
-                    className={`h-full w-80 origin-left transition-[transform,opacity] duration-300 ease-out will-change-transform ${
-                      leftPanelOpen
-                        ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
-                        : '-translate-x-full scale-90 opacity-0 pointer-events-none'
-                    }`}
+                    className="flex items-center justify-center"
+                    style={{
+                      minWidth: `${infiniteCanvasWidthVw}vw`,
+                      minHeight: `${infiniteCanvasHeightVh}vh`,
+                      padding: `${infiniteCanvasPaddingPx}px`,
+                      transformOrigin: "top left",
+                      transform:
+                        canvasRotation !== 0
+                          ? `scale(${scale}) rotate(${canvasRotation}deg)`
+                          : `scale(${scale})`,
+                    }}
                   >
-                    <LeftPanel onToggle={() => setLeftPanelOpen(false)} frameReady={frameReady} />
+                    {initialJson === undefined ? null : (
+                      <SafeFrame
+                        data={validFrameData ?? initialJson}
+                        onError={handleFrameError}
+                        onFrameMounted={() => {
+                          setFrameReady((prev) => (prev ? prev : true));
+                        }}
+                      />
+                    )}
                   </div>
                 </div>
-                <button
-                  onClick={() => setLeftPanelOpen((open) => !open)}
-                  className={`absolute left-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${
-                    leftPanelOpen ? 'opacity-0 pointer-events-none scale-95' : 'opacity-100 pointer-events-auto scale-100'
-                  }`}
-                  title={leftPanelOpen ? "Hide left panel" : "Show left panel"}
-                >
-                  <PanelLeft className="w-5 h-5 text-brand-light" />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        {/* Right Panel */}
-        {panelsReady && (
-          <div className="absolute top-14 right-4 z-50 h-[calc(100vh-3.5rem)] flex items-start pointer-events-none">
-            <div className="h-full flex items-start justify-end pointer-events-auto">
-              <div
-                className={`h-full origin-right transition-[transform,opacity] duration-300 ease-out will-change-transform ${
-                  rightPanelOpen
-                    ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
-                    : 'translate-x-full scale-90 opacity-0 pointer-events-none'
-                }`}
-              >
-                <RightPanel
-                  projectId={projectId}
-                  activeTab={rightPanelTab}
-                  setActiveTab={setRightPanelTab}
-                  frameReady={frameReady}
-                  onClose={() => setRightPanelOpen(false)}
-                />
-              </div>
-              <button
-                onClick={() => setRightPanelOpen((open) => !open)}
-                className={`absolute right-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${
-                  rightPanelOpen ? 'opacity-0 pointer-events-none scale-95' : 'opacity-100 pointer-events-auto scale-100'
-                }`}
-                title={rightPanelOpen ? "Hide right panel" : "Show Configs panel"}
-              >
-                <PanelRight className="w-5 h-5 text-brand-light" />
-              </button>
-            </div>
-          </div>
-        )}
-        {/* Bottom Panel: Move, Hand, Zoom fit & 100% */}
-        {panelsReady && (
-          <BottomPanel
-            activeTool={activeTool}
-            onToolChange={setActiveTool}
-            showHints={true}
-            saveStatus={saveStatus}
-            saveError={saveError}
-            onResetData={handleDeleteData}
-            onZoomFit={handleFitToCanvas}
-            scale={scale}
-            onScaleChange={handleScaleChange}
-          />
-        )}
-        {/* Canvas Controls Overlay: ito yung nasa baba :> */}
-        <div data-panel="canvas-controls" className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">
-          <div className="flex gap-4 items-center">
-            <span>{Math.round(scale * 100)}%</span>
-            <span>Hand Tool + Drag to Pan</span>
-            <span>Ctrl + Scroll to Zoom</span>
-            <span>Ctrl (Win) / ⌘ Cmd (Mac) + Click to multi-select</span>
-            {/* Delete Button */}
-            <button
-              onClick={handleDeleteData}
-              className="pointer-events-auto text-red-400 hover:text-red-300 transition-colors ml-2"
-              title="Delete stored data and reset"
-            >
-              🗑️ Reset Data
-            </button>
-            {saveStatus !== 'idle' && (
-              <span className={`${saveStatus === 'saving' ? 'text-yellow-400' :
-                saveStatus === 'saved' ? 'text-green-400' :
-                  'text-red-400'
-                }`}>
-                {saveStatus === 'saving' ? '💾 Saving...' :
-                  saveStatus === 'saved' ? '✓ Saved' :
-                    saveError ? `⚠ Save failed: ${saveError}` : '⚠ Save failed'}
-              </span>
-            )}
-          </div>
-        </div>
-        </InlineTextEditProvider>
-        </TransformModeProvider>
-        </CanvasToolProvider>
+                <div className="absolute bottom-12 left-4 right-4 z-[60] pointer-events-none">
+                  <div
+                    ref={horizontalScrollbarRef}
+                    className="canvas-scroll-container canvas-bottom-scrollbar pointer-events-auto h-5 overflow-x-scroll overflow-y-hidden rounded-md border border-white/20 bg-brand-dark/85"
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onWheel={(event) => event.stopPropagation()}
+                  >
+                    <div ref={horizontalScrollbarInnerRef} className="h-px" />
+                  </div>
+                </div>
+                {/* Floating Panels */}
+                {/* Left Panel */}
+                {panelsReady && (
+                  <div>
+                    {/* Left Panel */}
+                    <div className="absolute top-14 left-4 z-50 h-[calc(100vh-3.5rem)] w-80 flex items-start pointer-events-none">
+                      <div
+                        className="h-full w-80 flex items-start pointer-events-auto"
+                      >
+                        <div className="h-full w-80 overflow-hidden shrink-0 pointer-events-none">
+                          <div
+                            className={`h-full w-80 origin-left transition-[transform,opacity] duration-300 ease-out will-change-transform ${leftPanelOpen
+                              ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
+                              : '-translate-x-full scale-90 opacity-0 pointer-events-none'
+                              }`}
+                          >
+                            <LeftPanel onToggle={() => setLeftPanelOpen(false)} frameReady={frameReady} />
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setLeftPanelOpen((open) => !open)}
+                          className={`absolute left-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${leftPanelOpen ? 'opacity-0 pointer-events-none scale-95' : 'opacity-100 pointer-events-auto scale-100'
+                            }`}
+                          title={leftPanelOpen ? "Hide left panel" : "Show left panel"}
+                        >
+                          <PanelLeft className="w-5 h-5 text-brand-light" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {/* Right Panel */}
+                {panelsReady && (
+                  <div className="absolute top-14 right-4 z-50 h-[calc(100vh-3.5rem)] flex items-start pointer-events-none">
+                    <div className="h-full flex items-start justify-end pointer-events-auto">
+                      <div
+                        className={`h-full origin-right transition-[transform,opacity] duration-300 ease-out will-change-transform ${rightPanelOpen
+                          ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
+                          : 'translate-x-full scale-90 opacity-0 pointer-events-none'
+                          }`}
+                      >
+                        <RightPanel
+                          projectId={projectId}
+                          activeTab={rightPanelTab}
+                          setActiveTab={setRightPanelTab}
+                          frameReady={frameReady}
+                          onClose={() => setRightPanelOpen(false)}
+                          files={projectFiles}
+                          onFilesChange={setProjectFiles}
+                        />
+                      </div>
+                      <button
+                        onClick={() => setRightPanelOpen((open) => !open)}
+                        className={`absolute right-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${rightPanelOpen ? 'opacity-0 pointer-events-none scale-95' : 'opacity-100 pointer-events-auto scale-100'
+                          }`}
+                        title={rightPanelOpen ? "Hide right panel" : "Show Configs panel"}
+                      >
+                        <PanelRight className="w-5 h-5 text-brand-light" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {/* Bottom Panel: Move, Hand, Zoom fit & 100% */}
+                {panelsReady && (
+                  <BottomPanel
+                    activeTool={activeTool}
+                    onToolChange={setActiveTool}
+                    showHints={true}
+                    saveStatus={saveStatus}
+                    saveError={saveError}
+                    onResetData={handleDeleteData}
+                    onZoomFit={handleFitToCanvas}
+                    scale={scale}
+                    onScaleChange={handleScaleChange}
+                  />
+                )}
+                {/* Canvas Controls Overlay: ito yung nasa baba :> */}
+                <div data-panel="canvas-controls" className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">
+                  <div className="flex gap-4 items-center">
+                    <span>{Math.round(scale * 100)}%</span>
+                    <span>Hand Tool + Drag to Pan</span>
+                    <span>Ctrl + Scroll to Zoom</span>
+                    <span>Ctrl (Win) / ⌘ Cmd (Mac) + Click to multi-select</span>
+                    {/* Delete Button */}
+                    <button
+                      onClick={handleDeleteData}
+                      className="pointer-events-auto text-red-400 hover:text-red-300 transition-colors ml-2"
+                      title="Delete stored data and reset"
+                    >
+                      🗑️ Reset Data
+                    </button>
+                    {saveStatus !== 'idle' && (
+                      <span className={`${saveStatus === 'saving' ? 'text-yellow-400' :
+                        saveStatus === 'saved' ? 'text-green-400' :
+                          'text-red-400'
+                        }`}>
+                        {saveStatus === 'saving' ? '💾 Saving...' :
+                          saveStatus === 'saved' ? '✓ Saved' :
+                            saveError ? `⚠ Save failed: ${saveError}` : '⚠ Save failed'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </InlineTextEditProvider>
+            </TransformModeProvider>
+          </CanvasToolProvider>
         </PrototypeTabProvider>
       </Editor>
     </div>

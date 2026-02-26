@@ -65,6 +65,7 @@ export const Container = ({
   flipVertical = false,
   designWidth,
   designHeight,
+  customClassName = "",
   children
 }: ContainerProps) => {
   const { id, connectors: { connect, drag } } = useNode();
@@ -108,7 +109,7 @@ export const Container = ({
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className="min-h-[50px] transition-[outline] duration-150 hover:outline hover:outline-blue-500"
+      className={`min-h-[50px] transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
       style={{
         backgroundColor: background,
         backgroundImage: backgroundImage

@@ -39,8 +39,9 @@ export const Text = ({
   rotation = 0,
   flipHorizontal = false,
   flipVertical = false,
+  customClassName = "",
 }: TextProps & { width?: string; height?: string }) => {
-  const { id, connectors: { connect, drag }, actions } = useNode((node) => ({ actions: node.actions }));
+  const { id, connectors: { connect, drag }, actions } = useNode();
   const { editingTextNodeId, setEditingTextNodeId } = useInlineTextEdit();
   const isEditing = editingTextNodeId === id;
   const editRef = useRef<HTMLDivElement | null>(null);
@@ -127,8 +128,8 @@ export const Text = ({
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
+      className={`hover:outline hover:outline-blue-500 cursor-pointer ${customClassName}`}
       style={baseStyle}
-      className="hover:outline hover:outline-blue-500 cursor-pointer"
     >
       {isEditing ? (
         <div
