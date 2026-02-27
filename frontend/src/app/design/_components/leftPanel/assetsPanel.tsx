@@ -200,8 +200,28 @@ export const AssetsPanel = () => {
                       <div
                         key={assetKey}
                         data-drag-source="asset"
+                        data-asset-category={item.category}
+                        data-asset-label={item.label}
                         ref={(ref) => {
                           if (ref && item?.element) connectors.create(ref, item.element);
+                        }}
+                        onDragStart={() => {
+                          if (typeof document !== "undefined") {
+                            document.body.dataset.assetDragCategory = item.category;
+                            document.body.dataset.assetDragLabel = item.label;
+                          }
+                        }}
+                        onMouseDown={() => {
+                          if (typeof document !== "undefined") {
+                            document.body.dataset.assetDragCategory = item.category;
+                            document.body.dataset.assetDragLabel = item.label;
+                          }
+                        }}
+                        onDragEnd={() => {
+                          if (typeof document !== "undefined") {
+                            delete document.body.dataset.assetDragCategory;
+                            delete document.body.dataset.assetDragLabel;
+                          }
                         }}
                         onClick={() => {
                           setSelectedAsset({

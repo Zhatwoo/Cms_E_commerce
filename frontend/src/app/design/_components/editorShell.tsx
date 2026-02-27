@@ -29,6 +29,7 @@ import { CanvasDropGuide } from "./CanvasDropGuide";
 import { PrototypeTabProvider } from "./PrototypeTabContext";
 import { PrototypeFlowLines } from "./PrototypeFlowLines";
 import { NewPageDropPlacementHandler } from "./NewPageDropPlacementHandler";
+import { HeaderFooterDropPlacementHandler } from "./HeaderFooterDropPlacementHandler";
 import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
@@ -1817,6 +1818,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           <CanvasDropGuide />
           <FigmaStyleDragHandler />
           <NewPageDropPlacementHandler />
+          <HeaderFooterDropPlacementHandler />
           <BoxSelectionHandler />
           <DoubleClickTransformHandler />
           <PrototypeFlowLines />
