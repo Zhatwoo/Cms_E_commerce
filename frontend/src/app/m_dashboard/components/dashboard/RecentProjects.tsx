@@ -51,7 +51,7 @@ export function RecentProjects() {
             const dateB = new Date(b.updatedAt || b.createdAt || 0).getTime();
             return dateB - dateA;
           });
-          setProjects(sorted.slice(0, 3));
+          setProjects(sorted);
         }
       })
       .catch(() => {})
@@ -134,10 +134,6 @@ export function RecentProjects() {
     }
   };
 
-  const visibleProjects = selectedProject
-    ? projects.filter((p) => p.id === selectedProject.id)
-    : projects;
-
   return (
     <div className="mb-8 md:mb-12 w-full min-w-0 max-w-full overflow-x-hidden">
       <div className="flex items-center justify-between mb-5 md:mb-6">
@@ -170,7 +166,7 @@ export function RecentProjects() {
             </div>
           ))}
         </div>
-      ) : visibleProjects.length === 0 ? (
+      ) : projects.length === 0 ? (
         <div className="text-center py-16">
           <div className="flex justify-center mb-4" style={{ color: colors.text.muted, opacity: 0.3 }}>
             <ImageIcon />
@@ -221,7 +217,7 @@ export function RecentProjects() {
             </div>
           </motion.button>
 
-          {visibleProjects.map((project, idx) => (
+          {projects.map((project, idx) => (
             <motion.div
               key={project.id}
               className="cursor-pointer group/card flex-shrink-0 w-[calc(50%-8px)] sm:w-[calc(33.333%-11px)] md:w-[240px] lg:w-[240px]"
