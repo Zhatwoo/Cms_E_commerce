@@ -1,345 +1,130 @@
 'use client';
 
-import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
-import { useScrollGate } from './ScrollGate';
-
-const STAGGER_MS = 100;
-const IN_OFFSET_Y = 48;
-const IN_OFFSET_X_LEFT = -24;
-const IN_OFFSET_X_RIGHT = 24;
-
-/** Fade in/out + parallax for the hero text block based on scroll position and direction */
-function useTextScrollParallax(sectionRef: React.RefObject<HTMLElement | null>) {
-  const textRef = useRef<HTMLDivElement>(null);
-  const [style, setStyle] = useState<{ opacity: number; transform: string }>({
-    opacity: 0,
-    transform: 'translateY(0px)',
-  });
-  const lastScrollY = useRef(0);
-  const scrollDirection = useRef<'up' | 'down'>('down');
-
-  useEffect(() => {
-    const section = sectionRef.current;
-    const textEl = textRef.current;
-    if (!section || !textEl) return;
-
-    const PARALLAX_FACTOR = 0.08;
-    const FADE_RANGE = 0.4;
-
-    const update = () => {
-      const scrollY = window.scrollY;
-      const viewHeight = window.innerHeight;
-      const rect = section.getBoundingClientRect();
-      const sectionCenter = rect.top + rect.height / 2;
-      const viewportCenter = viewHeight / 2;
-
-      scrollDirection.current = scrollY >= lastScrollY.current ? 'down' : 'up';
-      lastScrollY.current = scrollY;
-
-      // Parallax: text moves slower than scroll (offset by distance from viewport center)
-      const parallaxY = (viewportCenter - sectionCenter) * PARALLAX_FACTOR;
-      const clampedParallax = Math.max(-40, Math.min(40, parallaxY));
-
-      // How much the section is “in view” (0 = just entering from bottom, 1 = centered, then fades as it exits top)
-      const entryProgress = rect.bottom <= viewHeight
-        ? 1
-        : Math.max(0, 1 - (rect.bottom - viewHeight) / (viewHeight * FADE_RANGE));
-      const exitProgress = rect.top >= 0
-        ? 0
-        : rect.bottom < viewHeight
-          ? 1
-          : Math.min(1, -rect.top / (viewHeight * FADE_RANGE));
-
-      let opacity: number;
-      if (scrollDirection.current === 'down') {
-        opacity = Math.min(1, entryProgress * (1 - exitProgress * 0.5));
-      } else {
-        opacity = Math.min(1, (1 - exitProgress) * 0.9 + 0.1);
-      }
-      // Clamp so we don’t go fully invisible too early
-      opacity = Math.max(0.15, opacity);
-
-      setStyle({
-        opacity,
-        transform: `translateY(${clampedParallax}px)`,
-      });
-    };
-
-    update();
-    window.addEventListener('scroll', update, { passive: true });
-    window.addEventListener('resize', update);
-    return () => {
-      window.removeEventListener('scroll', update);
-      window.removeEventListener('resize', update);
-    };
-  }, [sectionRef]);
-
-  return { textRef, textStyle: style };
+function Reveal({ children, className }: { children: React.ReactNode; className?: string; delay?: number; x?: number; y?: number; duration?: number }) {
+  return <div className={className}>{children}</div>;
 }
 
-function useScrollProgress() {
-  const sectionRef = useRef<HTMLElement>(null);
-  const [progressIn, setProgressIn] = useState(0);
-  const [progressOut, setProgressOut] = useState(0);
+export function CommercePlatform({ isDarkMode = false }: { isDarkMode?: boolean }) {
+  const sectionClass = isDarkMode
+    ? 'bg-[#0a0141] text-white'
+    : 'bg-[#f2f2f6] text-[#0b0b17]';
 
-  useEffect(() => {
-    const section = sectionRef.current;
-    if (!section) return;
+  const descriptionClass = isDarkMode ? 'text-white/55' : 'text-[#7a7699]';
 
-    const getScrollParent = (el: HTMLElement): HTMLElement | null => {
-      let parent = el.parentElement;
-      while (parent) {
-        const { overflowY } = getComputedStyle(parent);
-        if (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay' || overflowY === 'hidden') return parent;
-        parent = parent.parentElement;
-      }
-      return null;
-    };
-
-    const update = () => {
-      const scrollParent = getScrollParent(section);
-      const win = typeof window !== 'undefined' ? window : null;
-      if (!win) return;
-
-      const rect = section.getBoundingClientRect();
-      const viewHeight = win.innerHeight;
-      const viewTop = 0;
-      const viewBottom = viewHeight;
-
-      const sectionTop = rect.top;
-      const sectionBottom = rect.bottom;
-      const sectionHeight = rect.height;
-
-      let inVal = 0;
-      if (scrollParent) {
-        const parentRect = scrollParent.getBoundingClientRect();
-        const parentTop = parentRect.top;
-        const parentBottom = parentTop + scrollParent.clientHeight;
-        if (sectionBottom > parentTop && sectionTop < parentBottom) {
-          const visibleStart = parentBottom - sectionTop;
-          const inRange = Math.min(sectionHeight * 0.5, scrollParent.clientHeight * 0.4);
-          inVal = Math.min(1, Math.max(0, visibleStart / inRange));
-        }
-        setProgressIn((p) => Math.max(p, inVal));
-
-        let outVal = 0;
-        if (sectionBottom <= parentTop) outVal = 1;
-        else if (sectionTop < parentTop && sectionBottom > parentTop)
-          outVal = Math.min(1, (parentTop - sectionTop) / sectionHeight);
-        setProgressOut(outVal);
-      } else {
-        if (sectionBottom > viewTop && sectionTop < viewBottom) {
-          const visibleStart = viewBottom - sectionTop;
-          const inRange = Math.min(sectionHeight * 0.5, viewHeight * 0.4);
-          inVal = Math.min(1, Math.max(0, visibleStart / inRange));
-        }
-        setProgressIn((p) => Math.max(p, inVal));
-        if (sectionBottom <= viewTop) setProgressOut(1);
-        else if (sectionTop < viewTop && sectionBottom > viewTop)
-          setProgressOut(Math.min(1, (viewTop - sectionTop) / sectionHeight));
-        else setProgressOut(0);
-      }
-    };
-
-    const updateFromWindowScroll = () => {
-      const scrollY = window.scrollY;
-      const threshold = Math.max(200, window.innerHeight * 0.5 - 80);
-      const inVal = Math.min(1, scrollY / threshold);
-      setProgressIn((p) => Math.max(p, inVal));
-    };
-
-    update();
-    updateFromWindowScroll();
-
-    const scrollParent = getScrollParent(section);
-    scrollParent?.addEventListener('scroll', update, { passive: true });
-    window.addEventListener('scroll', updateFromWindowScroll, { passive: true });
-    window.addEventListener('resize', update);
-    return () => {
-      scrollParent?.removeEventListener('scroll', update);
-      window.removeEventListener('scroll', updateFromWindowScroll);
-      window.removeEventListener('resize', update);
-    };
-  }, []);
-
-  return { sectionRef, progressIn, progressOut };
-}
-
-export function CommercePlatform() {
-  const { sectionRef, progressIn, progressOut } = useScrollProgress();
-  const { progress: gateProgress } = useScrollGate();
-  const { textRef, textStyle } = useTextScrollParallax(sectionRef);
-
-  const dissolveOut = 1 - progressOut;
-  // When gate progress is 0 we're at top of gate — show CommercePlatform; otherwise use scroll-based opacity
-  const opacity = gateProgress <= 0.05 ? 1 : progressIn * dissolveOut;
-
-  const moveInOut = (delay: number, options?: { fromLeft?: boolean; fromRight?: boolean }) => {
-    const fromLeft = options?.fromLeft ?? false;
-    const fromRight = options?.fromRight ?? false;
-    const offsetX = fromLeft ? IN_OFFSET_X_LEFT : fromRight ? IN_OFFSET_X_RIGHT : 0;
-    const translateX = (1 - progressIn) * offsetX;
-    const translateY = (1 - progressIn) * IN_OFFSET_Y;
-    const scale = 1 - progressOut * 0.08;
-    return {
-      opacity,
-      transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
-      transition: 'opacity 0.25s ease-out, transform 0.35s ease-out',
-      transitionDelay: `${delay}ms`,
-    };
-  };
+  const cardBaseClass = isDarkMode
+    ? 'border border-[#2f2579] bg-[#111058] shadow-[0_14px_40px_rgba(5,2,38,0.52)]'
+    : 'border border-[#ececf2] bg-white shadow-[0_10px_30px_rgba(22,17,75,0.06)]';
 
   return (
-    <section
-      ref={sectionRef}
-      className="w-full bg-transparent pb-16 pt-0 md:pb-24 md:pt-0"
-    >
-      {/* Full-width teal block with rounded top edge (3xl) */}
-      <div
-        className="w-full overflow-hidden rounded-t-3xl px-6 py-12 md:px-10 md:py-16"
-        style={{
-          ...moveInOut(0),
-          backgroundColor: '#0A2727',
-          borderTopLeftRadius: '1.5rem',
-          borderTopRightRadius: '1.5rem',
-        }}
-      >
-        <div
-          ref={textRef}
-          className="mx-auto max-w-3xl text-center"
-          style={{
-            opacity: textStyle.opacity,
-            transform: textStyle.transform,
-            transition: 'opacity 0.35s ease-out, transform 0.2s ease-out',
-          }}
-        >
-          <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl lg:text-5xl">
-            The commerce platform behind everything we build
+    <section className={`px-4 pb-24 pt-16 md:px-8 md:pb-28 md:pt-24 ${sectionClass} ${isDarkMode ? '-mt-px' : ''}`}>
+      <div className="mx-auto max-w-[1100px]">
+        <Reveal className="mx-auto max-w-[760px] text-center">
+          <h2 className="text-[44px] font-black leading-[1.1] tracking-[-0.02em] md:text-[60px]">
+            The commerce platform
+            <br />
+            behind everything we build
           </h2>
-          <p className="mt-6 text-lg leading-relaxed text-white/90 md:text-xl">
+          <p className={`mx-auto mt-5 max-w-[620px] text-[15px] leading-[1.35] md:text-[15px] ${descriptionClass}`}>
             Build, customize, and scale e-commerce websites with total control.
             <br />
             A flexible, modern system for building powerful online stores.
             <br />
             Everything you need to create, manage, and grow your store.
           </p>
-        </div>
-      </div>
+        </Reveal>
 
-      <div className="mx-auto max-w-6xl px-6 md:px-10">
-        {/* Browser mockups - staggered parallax move in */}
-        <div className="mt-16 grid gap-6 md:mt-20 md:grid-cols-3 md:gap-8">
-          {/* Left: Stock / creative - in from left, out dissolve */}
-          <div style={moveInOut(STAGGER_MS, { fromLeft: true })}>
-            <div className="translate-y-8 overflow-hidden rounded-lg border border-neutral-700 bg-white shadow-xl md:translate-y-12">
-            <div className="flex items-center gap-2 border-b border-neutral-200 bg-neutral-100 px-3 py-2">
-              <span className="h-2 w-2 rounded-full bg-neutral-400" />
-              <span className="h-2 w-2 rounded-full bg-neutral-400" />
-              <span className="h-2 w-2 rounded-full bg-neutral-400" />
-            </div>
-            <div className="aspect-4/3 bg-neutral-50 p-4">
-              <p className="text-sm font-semibold text-neutral-800">
+        <div className={`mt-14 rounded-none p-4 md:mt-16 md:p-8 ${isDarkMode ? 'bg-[#0a0141]' : 'bg-[#f2f2f6]'}`}>
+          <div className="grid items-center gap-5 md:grid-cols-3 md:gap-6">
+            <Reveal delay={0.08} x={-22}>
+            <article className={`rounded-2xl p-5 md:mt-12 ${cardBaseClass}`}>
+              <div className="mb-4 flex items-center gap-2">
+                <span className={`h-2.5 w-2.5 rounded-full ${isDarkMode ? 'bg-white/35' : 'bg-[#ff6b6b]'}`} />
+                <span className={`h-2.5 w-2.5 rounded-full ${isDarkMode ? 'bg-white/30' : 'bg-[#ffd166]'}`} />
+                <span className={`h-2.5 w-2.5 rounded-full ${isDarkMode ? 'bg-white/25' : 'bg-[#6bcb77]'}`} />
+              </div>
+              <p className={`text-xl font-bold leading-snug md:text-2xl ${isDarkMode ? 'text-white' : 'text-[#262547]'}`}>
                 Generate stock photos with various genders for creative testing
               </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {['People', 'Clothing', 'Business', 'Technology'].map((cat) => (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {['People', 'Clothing', 'Business', 'Technology'].map((tag) => (
                   <span
-                    key={cat}
-                    className="rounded bg-neutral-200 px-2 py-0.5 text-xs text-neutral-700"
+                    key={tag}
+                    className={`rounded-full px-3 py-1 text-sm font-medium ${
+                      isDarkMode ? 'bg-[#1b2b68] text-[#95a2d6]' : 'bg-[#eef0f7] text-[#7f7ca1]'
+                    }`}
                   >
-                    {cat}
+                    {tag}
                   </span>
                 ))}
               </div>
-              <div className="mt-4 flex justify-end gap-2">
+              <div className="mt-8 flex justify-end gap-2">
                 {[1, 2, 3].map((i) => (
                   <span
                     key={i}
-                    className="h-8 w-8 rounded-full bg-neutral-300"
+                    className={`h-8 w-8 rounded-full ${isDarkMode ? 'bg-[#16306e]' : 'bg-[#eceef6]'}`}
                     aria-hidden
                   />
                 ))}
               </div>
-            </div>
-            </div>
-          </div>
+            </article>
+            </Reveal>
 
-          {/* Middle: Design tool - in from below, out dissolve */}
-          <div style={moveInOut(STAGGER_MS * 2)}>
-            <div className="-translate-y-8 overflow-hidden rounded-lg border border-neutral-700 bg-white shadow-xl md:-translate-y-12">
-            <div className="flex items-center gap-2 border-b border-neutral-200 bg-neutral-100 px-3 py-2">
-              <span className="h-2 w-2 rounded-full bg-neutral-400" />
-              <span className="h-2 w-2 rounded-full bg-neutral-400" />
-              <span className="h-2 w-2 rounded-full bg-neutral-400" />
-            </div>
-            <div className="aspect-4/3 bg-neutral-50 p-4">
-              <p className="text-sm font-semibold text-neutral-800">
-                What will you <span className="text-blue-600">design</span> today?
+            <Reveal delay={0.14}>
+            <article className={`rounded-2xl border-2 p-5 ${
+              isDarkMode
+                ? 'border-[#5c35b6] bg-[#111058] shadow-[0_14px_40px_rgba(5,2,38,0.52)]'
+                : 'border-[#d9b8ff] bg-white shadow-[0_10px_30px_rgba(22,17,75,0.06)]'
+            }`}>
+              <div className="mb-4 flex items-center gap-2">
+                <span className={`h-2.5 w-2.5 rounded-full ${isDarkMode ? 'bg-white/35' : 'bg-[#ff6b6b]'}`} />
+                <span className={`h-2.5 w-2.5 rounded-full ${isDarkMode ? 'bg-white/30' : 'bg-[#ffd166]'}`} />
+                <span className={`h-2.5 w-2.5 rounded-full ${isDarkMode ? 'bg-white/25' : 'bg-[#6bcb77]'}`} />
+              </div>
+              <p className={`text-xl font-bold leading-snug md:text-2xl ${isDarkMode ? 'text-white' : 'text-[#262547]'}`}>
+                What will you <span className="text-[#8b3dff]">design</span> today?
               </p>
-              <p className="mt-1 text-xs text-neutral-600">
+              <p className={`mt-2 text-base md:text-lg ${isDarkMode ? 'text-white/65' : 'text-[#8080a0]'}`}>
                 Design, generate, print, and work on anything.
               </p>
               <button
+                className={`mt-4 rounded-lg px-4 py-2 text-sm font-semibold text-white ${
+                  isDarkMode ? 'bg-[#9d3fff]' : 'bg-[#8b3dff]'
+                }`}
                 type="button"
-                className="mt-3 rounded-md bg-violet-500 px-3 py-1.5 text-xs font-medium text-white"
-                suppressHydrationWarning
               >
                 Start designing
               </button>
-              <div className="mt-4 flex gap-2">
-                {['Research Doc', 'Presentation', 'Websites'].map((label, i) => (
-                  <span
-                    key={label}
-                    className="h-12 flex-1 rounded bg-neutral-200 text-[10px] text-neutral-600"
-                    style={{
-                      backgroundColor:
-                        i === 0 ? '#dcfce7' : i === 1 ? '#ffedd5' : '#dbeafe',
-                    }}
-                  >
-                    {label}
-                  </span>
-                ))}
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                <span className={`rounded-lg px-2 py-3 text-xs font-semibold ${isDarkMode ? 'bg-[#172354] text-[#8da0e4]' : 'bg-[#e8f5ea] text-[#74858d]'}`}>Research Doc</span>
+                <span className={`rounded-lg px-2 py-3 text-xs font-semibold ${isDarkMode ? 'bg-[#2b2451] text-[#b3a2df]' : 'bg-[#f8f2e4] text-[#9c8f74]'}`}>Presentation</span>
+                <span className={`rounded-lg px-2 py-3 text-xs font-semibold ${isDarkMode ? 'bg-[#1c2a60] text-[#8ba3dc]' : 'bg-[#e7eefb] text-[#6f86ad]'}`}>Websites</span>
               </div>
-            </div>
-            </div>
-          </div>
+            </article>
+            </Reveal>
 
-          {/* Right: E-commerce / gallery - in from right, out dissolve */}
-          <div style={moveInOut(STAGGER_MS * 3, { fromRight: true })}>
-            <div className="translate-y-8 overflow-hidden rounded-lg border border-neutral-700 bg-white shadow-xl md:translate-y-12">
-            <div className="flex items-center gap-2 border-b border-neutral-200 bg-neutral-100 px-3 py-2">
-              <span className="h-2 w-2 rounded-full bg-neutral-400" />
-              <span className="h-2 w-2 rounded-full bg-neutral-400" />
-              <span className="h-2 w-2 rounded-full bg-neutral-400" />
-            </div>
-            <div className="aspect-4/3 bg-neutral-50 p-4">
-              <div className="grid grid-cols-3 gap-1">
+            <Reveal delay={0.2} x={22}>
+            <article className={`rounded-2xl p-5 md:-mt-8 ${cardBaseClass}`}>
+              <div className="mb-4 flex items-center gap-2">
+                <span className={`h-2.5 w-2.5 rounded-full ${isDarkMode ? 'bg-white/35' : 'bg-[#ff6b6b]'}`} />
+                <span className={`h-2.5 w-2.5 rounded-full ${isDarkMode ? 'bg-white/30' : 'bg-[#ffd166]'}`} />
+                <span className={`h-2.5 w-2.5 rounded-full ${isDarkMode ? 'bg-white/25' : 'bg-[#6bcb77]'}`} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
                   <div
                     key={i}
-                    className="aspect-square rounded bg-neutral-200"
+                    className={`aspect-square rounded-lg ${isDarkMode ? 'bg-[#162568]' : 'bg-[#eff1f7]'}`}
                     aria-hidden
                   />
                 ))}
               </div>
-              <p className="mt-3 text-[10px] text-neutral-500">
+              <p className={`mt-4 text-center text-xs ${isDarkMode ? 'text-white/45' : 'text-[#9ea1bc]'}`}>
                 Lorem ipsum dolor sit amet, consectetur adipiscing elit.
               </p>
-            </div>
-            </div>
+            </article>
+            </Reveal>
           </div>
         </div>
-
-        {/* Button - scroll-driven in last / out dissolve */}
-        <div className="mt-2 flex justify-center md:mt-4" style={moveInOut(STAGGER_MS * 4)}>
-          <Link
-            href="/templates"
-            className="inline-flex rounded-full border border-3 border-black bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-white hover:text-black"
-          >
-            Explore Web Templates
-          </Link>
-        </div> 
       </div>
     </section>
   );

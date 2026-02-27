@@ -299,3 +299,41 @@ body:has(.m-dashboard-shell) {
 [data-canvas-container].canvas-hand-panning * {
   cursor: grabbing !important;
 }
+
+@keyframes landingSnapIn {
+  0%,
+  20% {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.95);
+  }
+  30%,
+  80% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    border-color: #ffcc00;
+  }
+  90%,
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    border-color: rgba(90, 66, 191, 0.9);
+  }
+}
+
+@keyframes landingCursorPop {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) rotate(8deg) scale(1);
+  }
+  50% {
+    transform: translate(-50%, -50%) rotate(8deg) scale(1.08);
+  }
+}
+
+.landing-snap-in {
+  animation: landingSnapIn 4s infinite;
+}
+
+.landing-cursor-pop {
+  animation: landingCursorPop 1.8s ease-in-out infinite;
+}

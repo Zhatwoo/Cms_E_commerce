@@ -72,7 +72,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
       const data = await apiRegister({ name: name.trim() || email.split('@')[0], email, password });
       if (data.success) {
         if (typeof (data as { confirmUrl?: string }).confirmUrl === 'string') {
-          sessionStorage.setItem('mercato_confirm_url', (data as { confirmUrl: string }).confirmUrl);
+          sessionStorage.setItem('centric_confirm_url', (data as { confirmUrl: string }).confirmUrl);
         }
         onClose();
         router.push(`/auth/check-email?email=${encodeURIComponent(email)}`);
@@ -132,7 +132,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
                   className="inline-block text-2xl font-medium tracking-wide text-white"
                   style={{ fontFamily: "'Great Vibes', cursive" }}
                 >
-                  Mercato
+                  Centric
                 </Link>
                 <button
                   onClick={onClose}
@@ -243,7 +243,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
                 >
                   <h1 className="text-2xl font-bold text-white md:text-3xl">Create account</h1>
                   <p className="mt-2 text-sm text-white/70">
-                    Get started with Mercato. Fill in your details below.
+                    Get started with Centric. Fill in your details below.
                   </p>
                   <form className="mt-8 space-y-5" onSubmit={handleRegister}>
                     {error && (
