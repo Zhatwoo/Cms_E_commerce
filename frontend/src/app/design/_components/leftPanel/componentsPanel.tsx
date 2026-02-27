@@ -140,6 +140,7 @@ export const ComponentsPanel = () => {
                 return (
                   <div
                     key={comp.label}
+                    data-drag-source="component"
                     data-component-new-page={isNewPage ? "true" : undefined}
                     draggable={isNewPage ? true : undefined}
                     ref={(ref) => {

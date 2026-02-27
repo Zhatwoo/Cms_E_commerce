@@ -25,6 +25,7 @@ import { TransformModeProvider } from "./TransformModeContext";
 import { InlineTextEditProvider } from "./InlineTextEditContext";
 import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
 import { CanvasContextMenu } from "./CanvasContextMenu";
+import { CanvasDropGuide } from "./CanvasDropGuide";
 import { PrototypeTabProvider } from "./PrototypeTabContext";
 import { PrototypeFlowLines } from "./PrototypeFlowLines";
 import { NewPageDropPlacementHandler } from "./NewPageDropPlacementHandler";
@@ -1813,6 +1814,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           <KeyboardShortcuts />
           <CanvasSelectionHandler />
           <CanvasContextMenu />
+          <CanvasDropGuide />
           <FigmaStyleDragHandler />
           <NewPageDropPlacementHandler />
           <BoxSelectionHandler />

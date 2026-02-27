@@ -199,6 +199,7 @@ export const AssetsPanel = () => {
                     return (
                       <div
                         key={assetKey}
+                        data-drag-source="asset"
                         ref={(ref) => {
                           if (ref && item?.element) connectors.create(ref, item.element);
                         }}
