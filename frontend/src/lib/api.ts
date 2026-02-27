@@ -5,6 +5,7 @@
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 let activeApiBase = API_URL.replace(/\/$/, '');
+let activeProjectId: string | null = null;
 
 /** In-memory user only; never persisted to localStorage or cookies. */
 let inMemoryUser: User | null = null;
@@ -71,6 +72,15 @@ export function setStoredUser(user: User | null): void {
   inMemoryUser = user;
 }
 
+export function setActiveProjectId(projectId: string | null): void {
+  const normalized = (projectId || '').toString().trim();
+  activeProjectId = normalized || null;
+}
+
+export function getActiveProjectId(): string | null {
+  return activeProjectId;
+}
+
 export function getApiUrl(): string {
   return activeApiBase;
 }
@@ -88,6 +98,19 @@ function getApiCandidates(): string[] {
     candidates.add('http://127.0.0.1:5000');
     candidates.add('http://localhost:5001');
     candidates.add('http://127.0.0.1:5001');
+  }
+
+  if (typeof window !== 'undefined') {
+    const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
+    const host = (window.location.hostname || '').trim();
+    if (host && host !== 'localhost' && host !== '127.0.0.1') {
+      candidates.add(`${protocol}://${host}:5000`);
+      candidates.add(`${protocol}://${host}:5001`);
+      if (protocol === 'https') {
+        candidates.add(`http://${host}:5000`);
+        candidates.add(`http://${host}:5001`);
+      }
+    }
   }
 
   return Array.from(candidates);
@@ -122,10 +145,14 @@ export async function apiFetch<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string>),
+    ...((options.headers as Record<string, string>) || {}),
   };
+
+  if (activeProjectId && !headers['x-project-id']) {
+    headers['x-project-id'] = activeProjectId;
+  }
 
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   const candidates = getApiCandidates();

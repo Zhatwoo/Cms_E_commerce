@@ -21,9 +21,20 @@ async function resolveOwnedDomain(userId, subdomainInput) {
 exports.getAll = async (req, res) => {
   try {
     const { status, search, page, limit, subdomain } = req.query;
+    const headerProjectId = String(req.headers['x-project-id'] || '').trim();
     const filters = { userId: req.user.id };
     if (status) filters.status = status;
     if (search) filters.search = search;
+    if (!subdomain && headerProjectId) {
+      const selectedProject = await Project.get(req.user.id, headerProjectId);
+      const selectedProjectSubdomain = Product.normalizeSubdomain(selectedProject?.subdomain || '');
+      if (selectedProjectSubdomain) {
+        const owned = await resolveOwnedDomain(req.user.id, selectedProjectSubdomain);
+        if (!owned.error) {
+          filters.subdomain = owned.subdomain;
+        }
+      }
+    }
     if (subdomain) {
       const owned = await resolveOwnedDomain(req.user.id, subdomain);
       if (owned.error) {

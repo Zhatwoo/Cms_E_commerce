@@ -8,7 +8,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { listProjects, type Project } from '@/lib/api';
+import { listProjects, setActiveProjectId, type Project } from '@/lib/api';
 
 type ProjectContextType = {
   projects: Project[];
@@ -46,12 +46,14 @@ export function ProjectProvider({ children }: ProviderProps) {
       if (res?.success && Array.isArray(res.projects)) {
         setProjects(res.projects);
 
-        // If current selected project no longer exists, clear selection
-        if (
-          selectedProjectId &&
+        // Ensure we always have a valid selected project when projects exist
+        if (res.projects.length === 0) {
+          setSelectedProjectIdState(null);
+        } else if (
+          !selectedProjectId ||
           !res.projects.find((p) => p.id === selectedProjectId)
         ) {
-          setSelectedProjectIdState(null);
+          setSelectedProjectIdState(res.projects[0].id);
         }
       } else {
         setProjects([]);
@@ -68,6 +70,10 @@ export function ProjectProvider({ children }: ProviderProps) {
   useEffect(() => {
     void fetchProjects();
   }, [fetchProjects]);
+
+  useEffect(() => {
+    setActiveProjectId(selectedProjectId);
+  }, [selectedProjectId]);
 
   const selectedProject = useMemo(
     () => projects.find((p) => p.id === selectedProjectId) ?? null,

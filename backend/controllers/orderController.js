@@ -4,12 +4,15 @@ const Order = require('../models/Order');
 // Create order (protected - current user)
 exports.create = async (req, res) => {
   try {
-    const { items, total, shippingAddress } = req.body;
+    const { items, total, shippingAddress, projectId } = req.body;
+    const headerProjectId = String(req.headers['x-project-id'] || '').trim() || null;
+    const effectiveProjectId = String(projectId || '').trim() || headerProjectId;
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ success: false, message: 'Items array is required' });
     }
     const data = await Order.create({
       userId: req.user.id,
+      projectId: effectiveProjectId,
       items,
       total: total != null ? Number(total) : items.reduce((sum, i) => sum + (Number(i.price) || 0) * (i.quantity || 1), 0),
       status: 'Pending',
@@ -25,7 +28,13 @@ exports.create = async (req, res) => {
 exports.getMyOrders = async (req, res) => {
   try {
     const { page, limit } = req.query;
-    const result = await Order.findByUserId(req.user.id, { page, limit });
+    const queryProjectId = String(req.query.projectId || '').trim() || null;
+    const headerProjectId = String(req.headers['x-project-id'] || '').trim() || null;
+    const result = await Order.findByUserId(req.user.id, {
+      page,
+      limit,
+      projectId: queryProjectId || headerProjectId,
+    });
     res.status(200).json({ success: true, ...result });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
