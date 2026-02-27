@@ -114,7 +114,7 @@ export const RowSettings = () => {
         />
       </DesignSection>
 
-      <DesignSection title="Interactions" defaultOpen={false}>
+      <DesignSection title="Interactions" defaultOpen>
         <InteractionGroup
           toggleTarget={toggleTarget}
           triggerAction={triggerAction}
