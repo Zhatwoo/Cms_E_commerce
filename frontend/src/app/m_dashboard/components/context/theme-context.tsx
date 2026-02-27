@@ -5,6 +5,8 @@ Etong theme-context.tsx naman na to eh yung sa theme ng application.
 'use client';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
+const THEME_STORAGE_KEY = 'mercato_theme_preference';
+
 export const THEMES = {
   dark: {
     bg: {
@@ -68,12 +70,27 @@ type ThemeContextType = {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('dark');
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window === 'undefined') return 'dark';
+
+    const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+    if (storedTheme === 'dark' || storedTheme === 'light') {
+      return storedTheme;
+    }
+
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
 
   useEffect(() => {
     document.documentElement.classList.remove('dark', 'light');
     document.documentElement.classList.add(theme);
     (document.documentElement.style as any).colorScheme = theme;
+
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch {
+      // ignore localStorage errors
+    }
   }, [theme]);
 
   useEffect(() => {
