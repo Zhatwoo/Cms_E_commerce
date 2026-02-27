@@ -1,6 +1,8 @@
 const Project = require('../models/Project');
 const User = require('../models/User');
+const Domain = require('../models/Domain');
 const { deleteProjectStorageFolder } = require('../utils/storageHelpers');
+const { getLimits } = require('../utils/subscriptionLimits');
 
 // @desc    List current user's projects
 // @route   GET /api/projects
@@ -29,6 +31,30 @@ exports.create = async (req, res) => {
   try {
     const userId = req.user.id;
     const { title, templateId, subdomain } = req.body;
+
+    // Check subscription limits
+    const user = await User.findById(userId);
+    const limits = getLimits(user?.subscriptionPlan);
+    const currentProjects = await Project.list(userId);
+
+    if (currentProjects.length >= limits.projects) {
+      return res.status(403).json({
+        success: false,
+        message: `Limit reached: Your plan has reached its limit. Please upgrade your subscription to add more domains or projects. Your current ${user?.subscriptionPlan || 'free'} plan allows up to ${limits.projects} projects.`,
+      });
+    }
+
+    // If providing a subdomain during creation, check domain limits too
+    if (subdomain) {
+      const currentDomains = await Project.countWithSubdomain(userId);
+      if (currentDomains >= limits.domains) {
+        return res.status(403).json({
+          success: false,
+          message: `Limit reached: Your plan has reached its limit. Please upgrade your subscription to add more domains or projects. Your current ${user?.subscriptionPlan || 'free'} plan allows up to ${limits.domains} domains.`,
+        });
+      }
+    }
+
     const project = await Project.create(userId, {
       title: title || 'Untitled Project',
       templateId: templateId || null,
