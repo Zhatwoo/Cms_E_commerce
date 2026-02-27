@@ -189,9 +189,13 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
     id: node.id,
   }));
   const { actions, query } = useEditor();
+  const actionsRef = useRef(actions);
+  const queryRef = useRef(query);
+  actionsRef.current = actions;
+  queryRef.current = query;
 
   useEffect(() => {
-    const state = query.getState();
+    const state = queryRef.current.getState();
     const nodes = state?.nodes ?? {};
     const viewportNode = nodes[viewportId];
     const pageIds: string[] = Array.isArray(viewportNode?.data?.nodes)
@@ -224,7 +228,7 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       maxBottom = Math.max(maxBottom, finalCanvasY + pageHeight);
 
       if (needsFallbackPosition) {
-        actions.setProp(pageId, (pageProps: Record<string, unknown>) => {
+        actionsRef.current.setProp(pageId, (pageProps: Record<string, unknown>) => {
           if (typeof pageProps.canvasX !== "number") pageProps.canvasX = canvasX;
           if (typeof pageProps.canvasY !== "number") pageProps.canvasY = canvasY;
         });
@@ -264,7 +268,8 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       }
       return { minWidth: dynamicMinWidth, minHeight: dynamicMinHeight };
     });
-  }, [actions, query, viewportId]);
+    // Keep deps array constant size (React requirement); use refs to avoid loop from actions/query changing
+  }, [viewportId, actionsRef, queryRef]);
 
   useEffect(() => {
     const root = viewportRootRef.current;

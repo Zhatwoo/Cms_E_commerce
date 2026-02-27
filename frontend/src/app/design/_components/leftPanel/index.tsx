@@ -277,8 +277,8 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
       </div>
       </div>
 
-      {/* Panel content: only this area scrolls */}
-      <div className={`flex-1 min-h-0 overflow-y-auto mt-4 ${activePanel === "components" ? "no-scrollbar" : ""}`}>
+      {/* Panel content: scrollable; Files/Assets/Templates show scrollbar for full layer access */}
+      <div className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden mt-4 overscroll-contain ${activePanel === "components" ? "no-scrollbar" : ""}`}>
         {activePanel === "files" && (canMountFilesPanel ? <FilesPanel /> : null)}
         {activePanel === "assets" && <AssetsPanel />}
         {activePanel === "components" && <ComponentsPanel />}
