@@ -42,13 +42,9 @@ export const Text = ({
   customClassName = "",
 }: TextProps & { width?: string; height?: string }) => {
   const { id, connectors: { connect, drag }, actions } = useNode();
-  const { isSelected } = useEditor((_, query) => ({
-    isSelected: query.getEvent("selected").contains(id),
-  }));
   const { editingTextNodeId, setEditingTextNodeId } = useInlineTextEdit();
   const isEditing = editingTextNodeId === id;
   const editRef = useRef<HTMLDivElement | null>(null);
-  const wasSelectedOnMouseDownRef = useRef(false);
 
   useEffect(() => {
     if (isEditing && editRef.current) {
@@ -135,20 +131,25 @@ export const Text = ({
   return (
     <div
       data-node-id={id}
-      onMouseDownCapture={(e) => {
-        if (e.button !== 0) return;
-        wasSelectedOnMouseDownRef.current = isSelected;
+      onDoubleClick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.stopPropagation();
+        setEditingTextNodeId(id);
       }}
       onClick={(e) => {
         if (isEditing) return;
-        if (!wasSelectedOnMouseDownRef.current) return;
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
         setEditingTextNodeId(id);
       }}
       ref={(ref) => {
-        if (ref) connect(drag(ref));
+        if (!ref) return;
+        if (isEditing) {
+          connect(ref);
+          return;
+        }
+        connect(drag(ref));
       }}
-      className={`hover:outline hover:outline-blue-500 cursor-pointer ${customClassName}`}
+      className={`hover:outline hover:outline-blue-500 ${isEditing ? "cursor-text" : "cursor-pointer"} ${customClassName}`}
       style={baseStyle}
     >
       {isEditing ? (
@@ -157,6 +158,12 @@ export const Text = ({
           ref={editRef}
           contentEditable
           suppressContentEditableWarning
+          onMouseDown={(e) => {
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
           style={{

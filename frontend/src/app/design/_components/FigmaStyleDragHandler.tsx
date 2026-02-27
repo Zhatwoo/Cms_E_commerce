@@ -21,6 +21,7 @@ const CANVAS_DISPLAY_NAMES = new Set([
 const EDITOR_DRAGGING_FLAG = "editorDragging";
 const EDITOR_DROP_COMMIT_FLAG = "editorDropCommit";
 const MULTI_DRAG_LOCK_FLAG = "multiDragLock";
+const BOX_SELECTING_FLAG = "boxSelecting";
 
 
 type MoveMode = "margin" | "offset";
@@ -242,6 +243,8 @@ export const FigmaStyleDragHandler = () => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
 
+      if (document.body.dataset[BOX_SELECTING_FLAG] === "true") return;
+
       // Hand tool: do not start dragging elements, let panning handle it
       if (activeTool === "hand") return;
 
@@ -296,6 +299,16 @@ export const FigmaStyleDragHandler = () => {
     };
 
     const handleMouseMove = (e: MouseEvent) => {
+      if (document.body.dataset[BOX_SELECTING_FLAG] === "true") {
+        dragRef.current = null;
+        document.body.style.userSelect = "";
+        document.body.style.cursor = "";
+        clearDragPreview(draggedDomsRef.current);
+        setDraggingStyle(draggedDomsRef.current, false);
+        draggedDomsRef.current = [];
+        return;
+      }
+
       const d = dragRef.current;
       if (!d) return;
 
