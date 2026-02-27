@@ -1773,7 +1773,10 @@ function RenderNode({
       const h = (props.height as string) || "200px";
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
-      const triangleStroke = `${toNumber(props.borderWidth, 0)}px ${props.borderStyle as string} ${props.borderColor as string}`;
+      const bw = toNumber(props.borderWidth, 0);
+      const triangleStroke = `${bw}px ${props.borderStyle as string} ${props.borderColor as string}`;
+      const shapeStrokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
+      const useOutline = shapeStrokePlacement === "outside" && bw > 0 && type !== "Triangle";
 
       return wrap(
         <div
@@ -1808,9 +1811,13 @@ function RenderNode({
             backgroundPosition: type !== "Triangle" && bgImage ? (props.backgroundPosition as string) : undefined,
             backgroundRepeat: type !== "Triangle" && bgImage ? (props.backgroundRepeat as string) : undefined,
             borderRadius: type === "Circle" ? "50%" : undefined,
-            border: type === "Triangle"
-              ? undefined
-              : triangleStroke,
+            ...(type !== "Triangle" && bw > 0
+              ? useOutline
+                ? { border: "none", outline: triangleStroke, outlineOffset: 0 }
+                : { border: triangleStroke }
+              : type === "Triangle"
+                ? {}
+                : {}),
             alignItems: "center",
             justifyContent: "center",
             margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
