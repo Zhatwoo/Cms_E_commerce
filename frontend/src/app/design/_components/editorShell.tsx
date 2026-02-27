@@ -1120,6 +1120,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (canPanWithPointerDrag) {
+      const target = e.target as HTMLElement | null;
+      const nodeEl = target?.closest("[data-node-id]") as HTMLElement | null;
+      const nodeId = nodeEl?.getAttribute("data-node-id") ?? null;
+      if (nodeId && nodeId !== "ROOT" && nodeId !== "Viewport") {
+        return;
+      }
       setIsPanning(true);
       document.body.dataset.canvasPan = "true";
       e.preventDefault();

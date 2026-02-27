@@ -7,7 +7,7 @@ import { useCanvasTool } from "./CanvasToolContext";
 
 const MARQUEE_THRESHOLD = 5;
 const BOX_SELECTING_FLAG = "boxSelecting";
-const MARQUEE_START_CANVAS_TYPES = new Set(["Viewport", "Page", "Container", "Section", "Row", "Column", "Frame"]);
+const MARQUEE_START_CANVAS_TYPES = new Set(["Viewport", "Page"]);
 
 function rectsIntersect(
   a: { left: number; top: number; right: number; bottom: number },
@@ -102,8 +102,8 @@ export const BoxSelectionHandler = () => {
             const state = query.getState();
             const node = state.nodes[nodeId];
             const displayName = (node?.data?.displayName as string | undefined) ?? "";
-            const isCanvasNode = node?.data?.isCanvas === true || MARQUEE_START_CANVAS_TYPES.has(displayName);
-            if (!isCanvasNode) {
+            const canStartMarqueeHere = MARQUEE_START_CANVAS_TYPES.has(displayName);
+            if (!canStartMarqueeHere) {
               return;
             }
           } catch {

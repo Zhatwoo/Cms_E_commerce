@@ -288,6 +288,7 @@ body:has(.m-dashboard-shell) {
   outline: 2px solid #3b82f6 !important;
   /* Blue 500 */
   position: relative;
+  transition: none !important;
 }
 
 /* Hand tool: force hand cursor over entire canvas (including nodes) */
