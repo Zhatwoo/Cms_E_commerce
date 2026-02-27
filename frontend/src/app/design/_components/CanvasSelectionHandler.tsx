@@ -16,9 +16,12 @@ export const CanvasSelectionHandler = () => {
   const { actions, query } = useEditor();
   const activeTool = useCanvasTool();
   const lastSelectedNodeIdRef = useRef<string | null>(null);
+  const MULTI_DRAG_LOCK_FLAG = "multiDragLock";
 
   useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
+      if (document.body.dataset[MULTI_DRAG_LOCK_FLAG] === "true") return;
+
       // Hand tool: do not select nodes, let panning handle it
       if (activeTool === "hand") return;
 

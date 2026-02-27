@@ -89,6 +89,8 @@ export const Column = ({
         marginBottom: `${mb}px`,
         width: width !== "auto" ? width : undefined,
         height,
+        maxWidth: "100%",
+        minWidth: 0,
         borderRadius: `${borderRadius}px`,
         ...(strokePlacement === "outside" && borderWidth > 0
           ? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }

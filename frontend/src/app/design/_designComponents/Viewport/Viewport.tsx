@@ -24,10 +24,98 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function adaptCloneForMobile(root: HTMLElement) {
+  const contentMaxWidth = MOBILE_WIDTH - 28;
   const all = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
   all.forEach((el) => {
     el.style.boxSizing = "border-box";
     el.style.maxWidth = "100%";
+    el.style.minWidth = "0px";
+
+    const nodeId = el.getAttribute("data-node-id");
+    if (nodeId && nodeId !== "ROOT") {
+      const currentWidth = el.style.width;
+      const widthPx = parsePx(currentWidth);
+      if (widthPx !== null && widthPx > contentMaxWidth) {
+        el.style.width = "100%";
+      }
+      if (!currentWidth || currentWidth === "auto") {
+        el.style.width = "100%";
+      }
+
+      const heightPx = parsePx(el.style.height);
+      if (heightPx !== null && heightPx > 420) {
+        el.style.height = "auto";
+      }
+    }
+
+    const layout = el.getAttribute("data-layout");
+    if (layout === "row") {
+      el.style.display = "flex";
+      el.style.flexDirection = "column";
+      el.style.flexWrap = "nowrap";
+      el.style.alignItems = "stretch";
+      el.style.gap = "12px";
+      el.style.width = "100%";
+    }
+
+    if (layout === "column") {
+      el.style.width = "100%";
+      el.style.flex = "none";
+    }
+
+    const fontPx = parsePx(el.style.fontSize);
+    if (fontPx !== null && fontPx > 30) {
+      const scaled = Math.max(14, Math.round(fontPx * 0.62));
+      el.style.fontSize = `${scaled}px`;
+    }
+
+    const lineHeightRaw = Number.parseFloat(el.style.lineHeight || "");
+    if (Number.isFinite(lineHeightRaw) && lineHeightRaw > 2.2) {
+      el.style.lineHeight = "1.4";
+    }
+
+    const padL = parsePx(el.style.paddingLeft);
+    const padR = parsePx(el.style.paddingRight);
+    if (padL !== null && padL > 24) el.style.paddingLeft = "16px";
+    if (padR !== null && padR > 24) el.style.paddingRight = "16px";
+
+    const marginL = parsePx(el.style.marginLeft);
+    const marginR = parsePx(el.style.marginRight);
+    if (marginL !== null && marginL > 24) el.style.marginLeft = "12px";
+    if (marginR !== null && marginR > 24) el.style.marginRight = "12px";
+
+    if (el.tagName === "BUTTON") {
+      const buttonWidthPx = parsePx(el.style.width);
+      if (!el.style.width || el.style.width === "auto") {
+        el.style.width = "fit-content";
+      }
+      if (buttonWidthPx !== null && buttonWidthPx > contentMaxWidth) {
+        el.style.width = "100%";
+      }
+      el.style.maxWidth = "100%";
+      el.style.whiteSpace = "normal";
+      el.style.wordBreak = "break-word";
+    }
+
+    if (el.tagName === "IMG" || el.tagName === "VIDEO" || el.tagName === "IFRAME") {
+      const mediaWidthPx = parsePx(el.style.width);
+      if (mediaWidthPx !== null && mediaWidthPx > contentMaxWidth) {
+        el.style.width = "100%";
+      }
+      const mediaHeightPx = parsePx(el.style.height);
+      if (mediaHeightPx !== null && mediaHeightPx > 420) {
+        el.style.height = "auto";
+      }
+      el.style.maxWidth = "100%";
+      el.style.height = el.style.height || "auto";
+    }
+  });
+
+  const rowChildren = Array.from(root.querySelectorAll<HTMLElement>("[data-layout='row'] > [data-node-id]"));
+  rowChildren.forEach((child) => {
+    child.style.width = "100%";
+    child.style.maxWidth = "100%";
+    child.style.flex = "none";
   });
 
   root.style.width = "100%";
@@ -242,7 +330,7 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
     let frame = 0;
 
     const renderMobilePreview = () => {
-      const source = desktopRoot.querySelector("[data-node-id]") as HTMLElement | null;
+      const source = desktopRoot.querySelector("[data-page-node='true'][data-node-id]") as HTMLElement | null;
       if (!source) {
         mobileRoot.innerHTML = "";
         return;
@@ -368,7 +456,7 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       mobileRoot.removeEventListener("mouseup", blockCanvasPanFromMobile, true);
       mobileRoot.removeEventListener("wheel", blockCanvasPanFromMobile, true);
     };
-  }, [children, actions, query, viewportId]);
+  }, [actions, query, viewportId]);
 
   return (
     <div
