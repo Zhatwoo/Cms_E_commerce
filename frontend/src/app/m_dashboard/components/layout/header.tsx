@@ -110,9 +110,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                     </button>
                 </div>
 
-                <div className="flex-1" />
-
-                <div className="flex items-center gap-4">
+                <div className="flex-1 flex justify-center px-2">
                     {showProjectSwitch && selectedProject && (
                         <button
                             type="button"
@@ -122,7 +120,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                             className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors hover:bg-black/5 dark:hover:bg-white/10"
                             style={{ borderColor: colors.border.faint, color: colors.text.secondary }}
                         >
-                            <span className="truncate max-w-[160px]">
+                            <span className="truncate max-w-[220px]">
                                 {selectedProject.title || 'Untitled website'}
                             </span>
                             <span
@@ -133,6 +131,9 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                             </span>
                         </button>
                     )}
+                </div>
+
+                <div className="flex items-center gap-4">
                     <button
                         type="button"
                         onClick={toggleTheme}
