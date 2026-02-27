@@ -116,6 +116,34 @@ const EMPTY_FRAME_DATA = JSON.stringify({
     linkedNodes: {},
   },
 });
+
+const VALIDATOR_RESOLVER: Record<string, React.ComponentType<any>> = {
+  ...RenderBlocks,
+  ...CRAFT_RESOLVER,
+  Container,
+  container: Container,
+  Text: Text || Container,
+  text: Text || Container,
+  Page: Page || Container,
+  page: Page || Container,
+  Viewport: Viewport || Container,
+  viewport: Viewport || Container,
+};
+
+const VALIDATOR_CANONICAL_NAME_BY_LOWER = new Map<string, string>();
+for (const key of Object.keys(VALIDATOR_RESOLVER)) {
+  const lowered = key.toLowerCase();
+  if (!VALIDATOR_CANONICAL_NAME_BY_LOWER.has(lowered)) {
+    VALIDATOR_CANONICAL_NAME_BY_LOWER.set(lowered, key);
+  }
+}
+
+function normalizeResolvedName(rawName: unknown): string {
+  const name = typeof rawName === "string" ? rawName.trim() : "";
+  if (!name) return "Container";
+  return VALIDATOR_CANONICAL_NAME_BY_LOWER.get(name.toLowerCase()) ?? "Container";
+}
+
 function getStorageKey(projectId: string) {
   return `${STORAGE_KEY_PREFIX}_${projectId}`;
 }
@@ -237,11 +265,13 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
         return false;
       }
 
-      // type must have resolvedName
-      if (!node.type.resolvedName) {
-        console.warn(`⚠️ Node ${id} type is missing 'resolvedName' property`);
-        invalidNodes.push(id);
-        return false;
+      const resolvedName = normalizeResolvedName(
+        typeof node.type === "string" ? node.type : node.type?.resolvedName
+      );
+      if (typeof node.type === "string") {
+        node.type = { resolvedName };
+      } else {
+        node.type.resolvedName = resolvedName;
       }
 
       // Must have nodes array (even if empty)
@@ -321,6 +351,23 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
     // Remove invalid nodes from the parsed object
     invalidNodes.forEach(id => {
       delete parsed[id];
+    });
+
+    // Final pass: ensure every node type resolves to an existing canonical resolver key.
+    Object.keys(parsed).forEach((id) => {
+      const node = parsed[id];
+      if (!node || typeof node !== "object") return;
+      const canonical = normalizeResolvedName(
+        typeof node.type === "string" ? node.type : node.type?.resolvedName
+      );
+      if (typeof node.type === "string") {
+        node.type = { resolvedName: canonical };
+      } else if (node.type && typeof node.type === "object") {
+        node.type.resolvedName = canonical;
+      } else {
+        node.type = { resolvedName: canonical };
+      }
+      node.displayName = canonical;
     });
 
     const finalJson = JSON.stringify(parsed);

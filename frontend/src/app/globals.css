@@ -136,7 +136,7 @@
 }
 
 .layer-children-container.expanded {
-  max-height: 2000px;
+  max-height: 50000px; /* Allow deep layer trees; parent scroll area shows all content */
   opacity: 1;
 }
 

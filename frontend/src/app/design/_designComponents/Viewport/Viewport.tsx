@@ -25,11 +25,13 @@ function clamp(value: number, min: number, max: number): number {
 
 function adaptCloneForMobile(root: HTMLElement) {
   const contentMaxWidth = MOBILE_WIDTH - 28;
+  const contentInset = 14;
   const all = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
   all.forEach((el) => {
     el.style.boxSizing = "border-box";
     el.style.maxWidth = "100%";
     el.style.minWidth = "0px";
+    el.style.transition = "all 180ms ease";
 
     const nodeId = el.getAttribute("data-node-id");
     if (nodeId && nodeId !== "ROOT") {
@@ -45,6 +47,34 @@ function adaptCloneForMobile(root: HTMLElement) {
       const heightPx = parsePx(el.style.height);
       if (heightPx !== null && heightPx > 420) {
         el.style.height = "auto";
+      }
+
+      const position = (el.style.position || "").toLowerCase();
+      if (position === "absolute" || position === "fixed") {
+        const leftPx = parsePx(el.style.left);
+        const rightPx = parsePx(el.style.right);
+        const topPx = parsePx(el.style.top);
+        const bottomPx = parsePx(el.style.bottom);
+        const likelyOverflowingFlow =
+          (widthPx !== null && widthPx > contentMaxWidth) ||
+          (leftPx !== null && leftPx > contentInset) ||
+          (rightPx !== null && rightPx > contentInset) ||
+          (topPx !== null && topPx > 32) ||
+          (bottomPx !== null && bottomPx > 32);
+
+        if (likelyOverflowingFlow) {
+          el.style.position = "relative";
+          el.style.top = "auto";
+          el.style.right = "auto";
+          el.style.bottom = "auto";
+          el.style.left = "auto";
+          el.style.width = "100%";
+          el.style.maxWidth = "100%";
+          el.style.marginLeft = "0";
+          el.style.marginRight = "0";
+          el.style.transform = "none";
+          el.style.transformOrigin = "top left";
+        }
       }
     }
 
@@ -123,6 +153,7 @@ function adaptCloneForMobile(root: HTMLElement) {
   root.style.overflowX = "hidden";
   root.style.paddingLeft = "14px";
   root.style.paddingRight = "14px";
+  root.style.transition = "all 180ms ease";
 }
 
 function parsePx(value: string | null | undefined): number | null {
@@ -158,9 +189,13 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
     id: node.id,
   }));
   const { actions, query } = useEditor();
+  const actionsRef = useRef(actions);
+  const queryRef = useRef(query);
+  actionsRef.current = actions;
+  queryRef.current = query;
 
   useEffect(() => {
-    const state = query.getState();
+    const state = queryRef.current.getState();
     const nodes = state?.nodes ?? {};
     const viewportNode = nodes[viewportId];
     const pageIds: string[] = Array.isArray(viewportNode?.data?.nodes)
@@ -193,7 +228,7 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       maxBottom = Math.max(maxBottom, finalCanvasY + pageHeight);
 
       if (needsFallbackPosition) {
-        actions.setProp(pageId, (pageProps: Record<string, unknown>) => {
+        actionsRef.current.setProp(pageId, (pageProps: Record<string, unknown>) => {
           if (typeof pageProps.canvasX !== "number") pageProps.canvasX = canvasX;
           if (typeof pageProps.canvasY !== "number") pageProps.canvasY = canvasY;
         });
@@ -233,7 +268,8 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       }
       return { minWidth: dynamicMinWidth, minHeight: dynamicMinHeight };
     });
-  }, [actions, query, viewportId]);
+    // Keep deps array constant size (React requirement); use refs to avoid loop from actions/query changing
+  }, [viewportId, actionsRef, queryRef]);
 
   useEffect(() => {
     const root = viewportRootRef.current;

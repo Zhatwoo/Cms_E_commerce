@@ -384,6 +384,22 @@ const frameResponsiveStyles = (
       .frame-responsive-inner.frame-fluid [data-node-id] {
         max-width: 100% !important;
         min-width: 0;
+        transition:
+          width 180ms ease,
+          max-width 180ms ease,
+          min-width 180ms ease,
+          margin 180ms ease,
+          transform 180ms ease,
+          left 180ms ease,
+          right 180ms ease,
+          top 180ms ease,
+          bottom 180ms ease,
+          opacity 180ms ease;
+      }
+
+      @keyframes responsive-reflow-in {
+        from { opacity: 0.96; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
       }
       @container (max-width: 640px) {\r
         /* Only stack top-level layout rows, not inner UI rows nested inside columns */\r
@@ -397,6 +413,25 @@ const frameResponsiveStyles = (
           width: 100% !important;\r
           max-width: 100% !important;\r
           min-width: 0 !important;\r
+        }\r
+\r
+        /* Auto-reflow positioned elements (e.g. side labels/text) so they stack on mobile */\r
+        .frame-responsive-inner.frame-fluid [data-node-id][style*="position: absolute"],\r
+        .frame-responsive-inner.frame-fluid [data-node-id][style*="position:absolute"],\r
+        .frame-responsive-inner.frame-fluid [data-node-id][style*="position: fixed"],\r
+        .frame-responsive-inner.frame-fluid [data-node-id][style*="position:fixed"] {\r
+          position: relative !important;\r
+          left: auto !important;\r
+          right: auto !important;\r
+          top: auto !important;\r
+          bottom: auto !important;\r
+          width: 100% !important;\r
+          max-width: 100% !important;\r
+          min-width: 0 !important;\r
+          margin-left: 0 !important;\r
+          margin-right: 0 !important;\r
+          transform: none !important;\r
+          animation: responsive-reflow-in 180ms ease;\r
         }\r
       }\r
       @container (max-width: 400px) {\r
@@ -1773,7 +1808,10 @@ function RenderNode({
       const h = (props.height as string) || "200px";
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
-      const triangleStroke = `${toNumber(props.borderWidth, 0)}px ${props.borderStyle as string} ${props.borderColor as string}`;
+      const bw = toNumber(props.borderWidth, 0);
+      const triangleStroke = `${bw}px ${props.borderStyle as string} ${props.borderColor as string}`;
+      const shapeStrokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
+      const useOutline = shapeStrokePlacement === "outside" && bw > 0 && type !== "Triangle";
 
       return wrap(
         <div
@@ -1808,9 +1846,13 @@ function RenderNode({
             backgroundPosition: type !== "Triangle" && bgImage ? (props.backgroundPosition as string) : undefined,
             backgroundRepeat: type !== "Triangle" && bgImage ? (props.backgroundRepeat as string) : undefined,
             borderRadius: type === "Circle" ? "50%" : undefined,
-            border: type === "Triangle"
-              ? undefined
-              : triangleStroke,
+            ...(type !== "Triangle" && bw > 0
+              ? useOutline
+                ? { border: "none", outline: triangleStroke, outlineOffset: 0 }
+                : { border: triangleStroke }
+              : type === "Triangle"
+                ? {}
+                : {}),
             alignItems: "center",
             justifyContent: "center",
             margin: `${mt}px ${mr}px ${mb}px ${ml}px`,

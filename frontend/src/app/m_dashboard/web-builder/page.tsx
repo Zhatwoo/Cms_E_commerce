@@ -361,12 +361,6 @@ export default function WebBuilderPage() {
   const [renameValue, setRenameValue] = useState('');
   const [sortOption, setSortOption] = useState<SortOptionId>('relevant');
   const [showSortMenu, setShowSortMenu] = useState(false);
-
-  const visibleProjects = React.useMemo(
-    () => projects,
-    [projects]
-  );
-
   // Load templates on mount
   useEffect(() => {
     const loadedTemplates = templateService.getTemplates();
@@ -718,13 +712,13 @@ export default function WebBuilderPage() {
           <div className="rounded-xl border p-6 text-center" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
             Loading projects…
           </div>
-        ) : visibleProjects.length === 0 ? (
+        ) : projects.length === 0 ? (
           <div className="rounded-xl border p-6 text-center" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
             No projects yet. Start from scratch or use a template above.
           </div>
         ) : (
           <div className="grid w-full max-w-full min-w-0 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
-            {visibleProjects.map((p) => (
+            {projects.map((p) => (
               <motion.div
                 key={p.id}
                 className="relative min-w-0 rounded-lg border overflow-hidden cursor-pointer hover:border-opacity-80 transition-colors"

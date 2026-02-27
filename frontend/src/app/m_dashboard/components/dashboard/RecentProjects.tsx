@@ -1,11 +1,11 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useTheme } from '../context/theme-context';
 import { useAlert } from '../context/alert-context';
 import { useProject } from '../context/project-context';
-import { createProject, getStoredUser, type Project } from '@/lib/api';
+import { createProject, getStoredUser } from '@/lib/api';
 import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
 import { DraftPreviewThumbnail } from '../projects/DraftPreviewThumbnail';
 
@@ -120,7 +120,6 @@ export function RecentProjects() {
       return dateB - dateA;
     })
     .slice(0, 3);
-
   return (
     <div className="mb-8 md:mb-12 w-full min-w-0 max-w-full overflow-x-hidden">
       <div className="flex items-center justify-between mb-5 md:mb-6">
