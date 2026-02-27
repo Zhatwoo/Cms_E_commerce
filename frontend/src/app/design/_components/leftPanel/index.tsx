@@ -23,6 +23,51 @@ import { TemplatePanel } from "./templatePanel";
 import { deleteDraft } from "../../_lib/pageApi";
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
+const PAGE_GRID_ORIGIN_X = 30000;
+const PAGE_GRID_ORIGIN_Y = 30000;
+
+const EMPTY_CANVAS_DATA = JSON.stringify({
+  ROOT: {
+    type: { resolvedName: "Viewport" },
+    isCanvas: true,
+    props: {},
+    displayName: "Viewport",
+    custom: {},
+    hidden: false,
+    nodes: ["page-1"],
+    linkedNodes: {},
+  },
+  "page-1": {
+    type: { resolvedName: "Page" },
+    isCanvas: true,
+    props: {
+      pageName: "Page 1",
+      pageSlug: "page-0",
+      canvasX: PAGE_GRID_ORIGIN_X,
+      canvasY: PAGE_GRID_ORIGIN_Y,
+      width: "1920px",
+      height: "1200px",
+      background: "#ffffff",
+    },
+    displayName: "Page",
+    custom: {},
+    parent: "ROOT",
+    hidden: false,
+    nodes: ["container-1"],
+    linkedNodes: {},
+  },
+  "container-1": {
+    type: { resolvedName: "Container" },
+    isCanvas: true,
+    props: { padding: 40, background: "#ffffff" },
+    displayName: "Container",
+    custom: {},
+    parent: "page-1",
+    hidden: false,
+    nodes: [],
+    linkedNodes: {},
+  },
+});
 
 export type LeftPanelTabId = "files" | "components" | "assets" | "templates";
 
@@ -48,7 +93,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
   const router = useRouter();
   const { websiteName, projectId } = useDesignProject();
 
-  const { query } = useEditor();
+  const { query, actions } = useEditor();
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setFilesPanelReady(true));
@@ -123,7 +168,16 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
     } catch {
       // ignore
     }
-    window.location.reload();
+
+    try {
+      actions.deserialize(EMPTY_CANVAS_DATA);
+      if (projectId) {
+        sessionStorage.setItem(`${STORAGE_KEY_PREFIX}_${projectId}`, EMPTY_CANVAS_DATA);
+      }
+    } catch {
+      // If deserialize fails for any reason, fallback to reload behavior
+      window.location.reload();
+    }
   };
 
   const handleBackToDashboard = () => {
