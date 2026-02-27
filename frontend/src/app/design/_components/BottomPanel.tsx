@@ -69,18 +69,17 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
         : saveError || "Save failed";
 
   return (
-    <div data-panel="bottom-tools" className="absolute bottom-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col items-center gap-2">
+    <div data-panel="bottom-tools" className="absolute bottom-16 left-1/2 -translate-x-1/2 z-[9999] pointer-events-none flex flex-col items-center gap-2">
       <div
         className="pointer-events-auto flex items-center rounded-2xl bg-brand-dark/90 backdrop-blur-md border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.35)] px-1.5 py-1.5 gap-1"
       >
         <button
           type="button"
           onClick={() => onToolChange("move")}
-          className={`h-9 w-9 grid place-items-center rounded-lg transition-colors ${
-            activeTool === "move"
+          className={`h-9 w-9 grid place-items-center rounded-lg transition-colors ${activeTool === "move"
               ? "bg-blue-500/25 text-blue-300"
               : "text-white/70 hover:text-white hover:bg-white/[0.08]"
-          }`}
+            }`}
           title="Move – Select and move elements"
         >
           <MousePointer2 className="w-4 h-4" strokeWidth={1.8} />
@@ -88,11 +87,10 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
         <button
           type="button"
           onClick={() => onToolChange("hand")}
-          className={`h-9 w-9 grid place-items-center rounded-lg transition-colors ${
-            activeTool === "hand"
+          className={`h-9 w-9 grid place-items-center rounded-lg transition-colors ${activeTool === "hand"
               ? "bg-blue-500/25 text-blue-300"
               : "text-white/70 hover:text-white hover:bg-white/[0.08]"
-          }`}
+            }`}
           title="Hand – Pan the canvas"
         >
           <Hand className="w-4 h-4" strokeWidth={1.8} />
@@ -133,9 +131,8 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
               <button
                 type="button"
                 onClick={() => onScaleChange(1)}
-                className={`min-w-[2.75rem] px-2 h-9 rounded-lg transition-colors text-[11px] font-medium ${
-                  is100 ? "bg-blue-500/25 text-blue-300" : "text-white/70 hover:text-white hover:bg-white/[0.08]"
-                }`}
+                className={`min-w-[2.75rem] px-2 h-9 rounded-lg transition-colors text-[11px] font-medium ${is100 ? "bg-blue-500/25 text-blue-300" : "text-white/70 hover:text-white hover:bg-white/[0.08]"
+                  }`}
                 title="Zoom to 100%"
               >
                 100%

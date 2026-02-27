@@ -90,8 +90,8 @@ const EMPTY_FRAME_DATA = JSON.stringify({
   "page-1": {
     type: { resolvedName: "Page" },
     isCanvas: true,
-    props: { 
-      pageName: "Page 1", 
+    props: {
+      pageName: "Page 1",
       pageSlug: "page-0",
       canvasX: PAGE_GRID_ORIGIN_X,
       canvasY: PAGE_GRID_ORIGIN_Y,
@@ -604,6 +604,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [projectFiles, setProjectFiles] = useState<any[]>([]);
   const lastQueryRef = useRef<{ serialize: () => string } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const horizontalScrollbarRef = useRef<HTMLDivElement>(null);
+  const horizontalScrollbarInnerRef = useRef<HTMLDivElement>(null);
   const previousScaleRef = useRef(1);
   const wheelZoomDeltaRef = useRef(0);
   const wheelZoomRafRef = useRef<number | null>(null);
@@ -655,7 +657,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     errorCleanupDoneRef.current = true;
 
     console.error('❌ Frame rendering failed. Cleaning up corrupted data...');
-    
+
     // Clear per-project storage keys (both localStorage and sessionStorage)
     const storageKey = getStorageKey(projectId);
     try {
@@ -676,7 +678,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       // Legacy/unscoped key used before per-project keys were introduced
       safeSessionRemove(STORAGE_KEY_PREFIX);
     }
-    
+
     // Clear from database
     if (projectId) {
       try {
@@ -958,7 +960,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
     // Try to find the first Page element and center on it
     const firstPage = container.querySelector("[data-page-node]") as HTMLElement | null;
-    
+
     if (firstPage) {
       const containerRect = container.getBoundingClientRect();
       const pageRect = firstPage.getBoundingClientRect();
@@ -1696,6 +1698,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     // Force Frame to always exist; Craft looks up by "Frame" and sometimes "frame"
     base.Frame = FrameForResolver;
     base.frame = FrameForResolver;
+    // Ensure Container always exists in resolver (serialized nodes often use this)
+    // Prefer the locally imported Container component so we never end up with an undefined value
+    base.Container = Container;
+    base.container = Container;
     // Ensure Page and Viewport always in resolver (serialized drafts reference these by type)
     base.Page = CRAFT_RESOLVER.Page ?? Page;
     base.page = CRAFT_RESOLVER.Page ?? Page;
@@ -1815,10 +1821,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           <KeyboardShortcuts />
           <CanvasSelectionHandler />
           <CanvasContextMenu />
-          <CanvasDropGuide />
           <FigmaStyleDragHandler />
           <NewPageDropPlacementHandler />
-          <HeaderFooterDropPlacementHandler />
           <BoxSelectionHandler />
           <DoubleClickTransformHandler />
           <PrototypeFlowLines />
