@@ -128,7 +128,7 @@ export const FrameSettings = () => {
         />
       </DesignSection>
 
-      <DesignSection title="Interactions" defaultOpen={false}>
+      <DesignSection title="Interactions" defaultOpen>
         <InteractionGroup
           toggleTarget={toggleTarget}
           triggerAction={triggerAction}

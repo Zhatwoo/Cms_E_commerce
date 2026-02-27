@@ -5,14 +5,20 @@ import { Editor, Frame, useEditor } from "@craftjs/core";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { GROUPED_TEMPLATES } from "../../../_assets";
 import { CRAFT_RESOLVER } from "../craftResolver";
-import type { TemplateEntry } from "../../../_assets/_types";
+type AssetItem = {
+  label: string;
+  description?: string;
+  preview: React.ReactNode;
+  element: React.ReactElement;
+  category: string;
+};
 
 const DESKTOP_PREVIEW_WIDTH = 1440;
 const MAX_PREVIEW_HEIGHT = 180;
 
 interface AssetSelection {
   folder: string;
-  item: TemplateEntry;
+  item: AssetItem;
   key: string;
 }
 
@@ -26,7 +32,7 @@ const AssetLivePreview = ({
   previewMode,
   maxHeight = MAX_PREVIEW_HEIGHT,
 }: {
-  item: TemplateEntry;
+  item: AssetItem;
   previewMode: "icon" | "shape" | "full";
   maxHeight?: number;
 }) => {
@@ -128,7 +134,7 @@ export const AssetsPanel = () => {
 
     if (!selectedAsset) return;
     const existsInActive = activeGroup.items.some(
-      (item: TemplateEntry, idx: number) => buildAssetKey(activeGroup.folder, item.label, idx) === selectedAsset.key,
+      (item: AssetItem, idx: number) => buildAssetKey(activeGroup.folder, item.label, idx) === selectedAsset.key,
     );
 
     if (!existsInActive) {
@@ -191,7 +197,7 @@ export const AssetsPanel = () => {
                         : "grid-cols-1"
                   }`}
                 >
-                  {activeGroup.items.map((item: TemplateEntry, idx: number) => {
+                  {activeGroup.items.map((item: AssetItem, idx: number) => {
                     const assetKey = buildAssetKey(activeGroup.folder, item.label, idx);
                     const isSelected = selectedAsset?.key === assetKey;
                     const shapeFolder = isShapeFolder(activeGroup.folder);
@@ -199,8 +205,29 @@ export const AssetsPanel = () => {
                     return (
                       <div
                         key={assetKey}
+                        data-drag-source="asset"
+                        data-asset-category={item.category}
+                        data-asset-label={item.label}
                         ref={(ref) => {
                           if (ref && item?.element) connectors.create(ref, item.element);
+                        }}
+                        onDragStart={() => {
+                          if (typeof document !== "undefined") {
+                            document.body.dataset.assetDragCategory = item.category;
+                            document.body.dataset.assetDragLabel = item.label;
+                          }
+                        }}
+                        onMouseDown={() => {
+                          if (typeof document !== "undefined") {
+                            document.body.dataset.assetDragCategory = item.category;
+                            document.body.dataset.assetDragLabel = item.label;
+                          }
+                        }}
+                        onDragEnd={() => {
+                          if (typeof document !== "undefined") {
+                            delete document.body.dataset.assetDragCategory;
+                            delete document.body.dataset.assetDragLabel;
+                          }
                         }}
                         onClick={() => {
                           setSelectedAsset({

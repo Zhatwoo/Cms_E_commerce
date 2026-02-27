@@ -609,8 +609,7 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
           if (projectId && typeof window !== "undefined" && window.sessionStorage) {
             try {
               window.sessionStorage.setItem(`${STORAGE_KEY_PREFIX}_${projectId}`, snapshot);
-              window.sessionStorage.setItem(STORAGE_KEY_PREFIX, snapshot);
-            } catch (_) {}
+            } catch (_) { }
           }
           autoSavePage(snapshot, projectId).then((result) => {
             if (!result.success) console.warn("Code sync: DB save failed", result.error);

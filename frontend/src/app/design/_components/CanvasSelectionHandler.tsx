@@ -22,8 +22,8 @@ export const CanvasSelectionHandler = () => {
     const handleMouseDown = (e: MouseEvent) => {
       if (document.body.dataset[MULTI_DRAG_LOCK_FLAG] === "true") return;
 
-      // Hand tool: do not select nodes, let panning handle it
-      if (activeTool === "hand") return;
+      // When panning is active, do not process selection
+      if (document.body.dataset.canvasPan === "true") return;
 
       const target = e.target as HTMLElement | null;
       if (!target) return;
