@@ -1,71 +1,133 @@
 'use client';
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import React, { useCallback, useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Plus } from 'lucide-react';
 import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
+import { useProject } from '../components/context/project-context';
 import { type Product } from '../lib/productsData';
+import { createProduct, deleteProduct, listProducts, updateProduct, type ApiProduct } from '@/lib/api';
+import ProductAddModal from './components/productAddModal';
 
-const ProductCard = ({ product, colors, onEdit, onDelete, onToggleStatus }: {
+function isImageSource(value: string): boolean {
+  const v = (value || '').trim();
+  if (!v) return false;
+  if (/^data:image\/[a-zA-Z0-9.+-]+;base64,/i.test(v)) return true;
+  if (/^https?:\/\//i.test(v)) return true;
+  if (v.startsWith('blob:')) return true;
+  if (v.startsWith('/')) return true;
+  return false;
+}
+
+type ThemeColors = ReturnType<typeof useTheme>['colors'];
+
+const ProductCard = ({ product, colors, onView, onEdit, onDelete, onToggleStatus }: {
   product: Product;
-  colors: any;
+  colors: ThemeColors;
+  onView: (product: Product) => void;
   onEdit: (product: Product) => void;
   onDelete: (product: Product) => void;
   onToggleStatus: (product: Product) => void;
-}) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className="rounded-xl border overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300"
-    style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
-  >
-    <div className="p-6">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="text-3xl">{product.image}</div>
-          <div>
-            <h3 className="font-semibold text-lg" style={{ color: colors.text.primary }}>
+}) => {
+  const imageValue = String(product.image || '').trim();
+  const showImage = isImageSource(imageValue);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="border overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col h-full"
+      style={{
+        backgroundColor: colors.bg.card,
+        borderColor: colors.border.faint,
+        borderRadius: '20px',
+      }}
+    >
+      {/* Large Image Area */}
+      <div
+        className="w-full h-40 md:h-48 lg:h-44 overflow-hidden flex items-center justify-center border-b"
+        style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}
+      >
+        {showImage ? (
+          <img
+            src={imageValue}
+            alt={product.name}
+            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center text-center p-4">
+            <svg className="w-16 h-16 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: colors.border.faint }}>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span className="text-xs" style={{ color: colors.text.muted }}>No image</span>
+          </div>
+        )}
+      </div>
+
+      {/* Content Area */}
+      <div className="p-3 md:p-4 flex-1 flex flex-col">
+        {/* Header with status badge */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex-1">
+            <h3 className="font-semibold text-sm md:text-base line-clamp-1" style={{ color: colors.text.primary }}>
               {product.name}
             </h3>
-            <p className="text-sm" style={{ color: colors.text.muted }}>
+            <p className="text-xs mt-1" style={{ color: colors.text.muted }}>
               SKU: {product.sku}
             </p>
           </div>
+          <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${product.status === 'active' ? 'bg-green-100 text-green-800' :
+            product.status === 'inactive' ? 'bg-red-100 text-red-800' :
+              'bg-gray-100 text-gray-800'
+            }`}>
+            {product.status}
+          </span>
         </div>
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${product.status === 'active' ? 'bg-green-100 text-green-800' :
-          product.status === 'inactive' ? 'bg-red-100 text-red-800' :
-            'bg-gray-100 text-gray-800'
-          }`}>
-          {product.status}
-        </span>
-      </div>
 
-      <p className="text-sm mb-4 line-clamp-2" style={{ color: colors.text.secondary }}>
-        {product.description}
-      </p>
+        {/* Description */}
+        <p className="text-xs mb-4 line-clamp-2 flex-1" style={{ color: colors.text.secondary }}>
+          {product.description || 'No description'}
+        </p>
 
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <div>
-          <p className="text-xs" style={{ color: colors.text.muted }}>Price</p>
-          <p className="font-semibold" style={{ color: colors.text.primary }}>
-            ${product.price.toFixed(2)}
-          </p>
+        {/* Price & Stock Info */}
+        <div className="grid grid-cols-2 gap-3 mb-4 pb-4 border-b" style={{ borderColor: colors.border.faint }}>
+          <div>
+            <p className="text-xs mb-1" style={{ color: colors.text.muted }}>Price</p>
+            <p className="font-semibold text-sm" style={{ color: colors.text.primary }}>
+              ${product.price.toFixed(2)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs mb-1" style={{ color: colors.text.muted }}>Stock</p>
+            <p className={`font-semibold text-sm ${product.stock === 0 ? 'text-red-500' : product.stock < 20 ? 'text-yellow-500' : 'text-green-500'}`}>
+              {product.stock} units
+            </p>
+          </div>
         </div>
-        <div>
-          <p className="text-xs" style={{ color: colors.text.muted }}>Stock</p>
-          <p className={`font-semibold ${product.stock === 0 ? 'text-red-500' : product.stock < 20 ? 'text-yellow-500' : 'text-green-500'}`}>
-            {product.stock} units
-          </p>
-        </div>
-      </div>
 
-      <div className="flex items-center justify-between pt-4 border-t" style={{ borderColor: colors.border.faint }}>
-        <span className="text-xs px-2 py-1 rounded-md" style={{ backgroundColor: colors.bg.elevated, color: colors.text.muted }}>
-          {product.category}
-        </span>
-        <div className="flex gap-2">
+        {/* Category */}
+        <div className="mb-4">
+          <span className="text-xs px-2 py-1 rounded-md inline-block" style={{ backgroundColor: colors.bg.elevated, color: colors.text.muted }}>
+            {product.category}
+          </span>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-2 mt-auto justify-end">
+          <button
+            onClick={() => onView(product)}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center justify-center"
+            style={{ color: colors.text.muted }}
+            title="View details"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M1.5 12s3.5-7 10.5-7 10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12z" />
+              <circle cx="12" cy="12" r="3" strokeWidth={2} />
+            </svg>
+          </button>
           <button
             onClick={() => onEdit(product)}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center justify-center"
             style={{ color: colors.text.muted }}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -74,7 +136,7 @@ const ProductCard = ({ product, colors, onEdit, onDelete, onToggleStatus }: {
           </button>
           <button
             onClick={() => onToggleStatus(product)}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center justify-center"
             style={{ color: colors.text.muted }}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -83,7 +145,7 @@ const ProductCard = ({ product, colors, onEdit, onDelete, onToggleStatus }: {
           </button>
           <button
             onClick={() => onDelete(product)}
-            className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-red-500"
+            className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-red-500 flex items-center justify-center"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -91,19 +153,298 @@ const ProductCard = ({ product, colors, onEdit, onDelete, onToggleStatus }: {
           </button>
         </div>
       </div>
-    </div>
-  </motion.div>
-);
+    </motion.div>
+  );
+};
+
+const ProductDetailsModal = ({ product, onClose, colors }: {
+  product?: Product;
+  onClose: () => void;
+  colors: ThemeColors;
+}) => {
+  const [currentImage, setCurrentImage] = useState(0);
+
+  useEffect(() => {
+    if (!product) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [product]);
+
+  if (!product) return null;
+
+  const gallery = (Array.isArray(product.images) && product.images.length > 0
+    ? product.images
+    : [product.image]
+  ).filter((img) => isImageSource(String(img || '')));
+
+  const hasGallery = gallery.length > 0;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[1000]"
+      style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}
+      onClick={onClose}
+    >
+      <div className="absolute inset-0 flex items-center justify-center p-4 md:p-8">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96, y: 14 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.96, y: 14 }}
+          transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+          className="w-full max-w-4xl rounded-2xl border overflow-hidden"
+          style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: colors.border.faint }}>
+            <h2 className="text-lg font-semibold" style={{ color: colors.text.primary }}>Product Details</h2>
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-8 h-8 rounded-lg border flex items-center justify-center"
+              style={{ borderColor: colors.border.faint, color: colors.text.muted }}
+              title="Close"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
+            <div className="p-5 border-b lg:border-b-0 lg:border-r" style={{ borderColor: colors.border.faint }}>
+              <div className="rounded-xl overflow-hidden border relative" style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated, height: 320 }}>
+                {hasGallery ? (
+                  <img src={gallery[currentImage]} alt={product.name} className="w-full h-full object-contain" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-sm" style={{ color: colors.text.muted }}>
+                    No image
+                  </div>
+                )}
+
+                {hasGallery && gallery.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentImage((i) => (i - 1 + gallery.length) % gallery.length)}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full text-white"
+                      style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+                    >
+                      <svg className="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentImage((i) => (i + 1) % gallery.length)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full text-white"
+                      style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+                    >
+                      <svg className="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {hasGallery && gallery.length > 1 && (
+                <div className="flex gap-2 mt-3 overflow-x-auto">
+                  {gallery.map((img, idx) => (
+                    <button
+                      type="button"
+                      key={`${product.id}-thumb-${idx}`}
+                      onClick={() => setCurrentImage(idx)}
+                      className="w-14 h-14 rounded-lg overflow-hidden border flex-shrink-0"
+                      style={{
+                        borderColor: idx === currentImage ? '#3b82f6' : colors.border.faint,
+                        backgroundColor: colors.bg.elevated,
+                      }}
+                    >
+                      <img src={img} alt={`${product.name} ${idx + 1}`} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div>
+                <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Name</p>
+                <p className="text-lg font-semibold" style={{ color: colors.text.primary }}>{product.name}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>SKU</p>
+                  <p style={{ color: colors.text.primary }}>{product.sku || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Category</p>
+                  <p style={{ color: colors.text.primary }}>{product.category || '-'}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Price</p>
+                  <p className="font-semibold" style={{ color: colors.text.primary }}>${product.price.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Stock</p>
+                  <p className="font-semibold" style={{ color: colors.text.primary }}>{product.stock}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Status</p>
+                  <p className="font-semibold capitalize" style={{ color: colors.text.primary }}>{product.status}</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide mb-1" style={{ color: colors.text.muted }}>Description</p>
+                <p className="text-sm leading-6 whitespace-pre-wrap" style={{ color: colors.text.secondary }}>
+                  {product.description || 'No description.'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Created</p>
+                <p className="text-sm" style={{ color: colors.text.secondary }}>
+                  {new Date(product.createdAt).toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </motion.div>
+  );
+};
+
+function toDashboardStatus(status?: string): Product['status'] {
+  const normalized = (status || '').toString().toLowerCase();
+  if (normalized === 'active' || normalized === 'published') return 'active';
+  if (normalized === 'inactive' || normalized === 'suspended') return 'inactive';
+  return 'draft';
+}
+
+function toDashboardProduct(product: ApiProduct): Product {
+  const images = Array.isArray(product.images)
+    ? product.images.filter((img): img is string => typeof img === 'string' && img.trim().length > 0)
+    : [];
+  const variants = Array.isArray(product.variants)
+    ? product.variants
+      .map((variant) => ({
+        id: String(variant?.id || ''),
+        name: String(variant?.name || ''),
+        pricingMode: variant?.pricingMode === 'override' ? 'override' : 'modifier',
+        options: Array.isArray(variant?.options)
+          ? variant.options.map((option) => ({
+            id: String(option?.id || ''),
+            name: String(option?.name || ''),
+            priceAdjustment: Number(option?.priceAdjustment || 0),
+          }))
+          : [],
+      }))
+      .filter((variant) => variant.id || variant.name || variant.options.length > 0)
+    : [];
+  const basePrice = typeof product.basePrice === 'number'
+    ? product.basePrice
+    : (typeof product.compareAtPrice === 'number' && product.compareAtPrice > 0
+      ? product.compareAtPrice
+      : (typeof product.price === 'number' ? product.price : 0));
+  const finalPrice = typeof product.finalPrice === 'number'
+    ? product.finalPrice
+    : (typeof product.price === 'number' ? product.price : 0);
+  const priceRangeMin = typeof product.priceRangeMin === 'number' ? product.priceRangeMin : null;
+  const priceRangeMax = typeof product.priceRangeMax === 'number' ? product.priceRangeMax : null;
+  const discount = typeof product.discount === 'number' ? product.discount : 0;
+  const discountType = product.discountType === 'fixed' ? 'fixed' : 'percentage';
+  const hasVariants = typeof product.hasVariants === 'boolean' ? product.hasVariants : variants.length > 0;
+
+  return {
+    id: product.id,
+    name: product.name || 'Untitled Product',
+    sku: product.sku || '',
+    category: product.category || 'General',
+    description: product.description || '',
+    price: finalPrice,
+    basePrice,
+    finalPrice,
+    compareAtPrice: typeof product.compareAtPrice === 'number' ? product.compareAtPrice : null,
+    discount,
+    discountType,
+    hasVariants,
+    variants,
+    priceRangeMin,
+    priceRangeMax,
+    stock: typeof product.stock === 'number' ? product.stock : 0,
+    status: toDashboardStatus(product.status),
+    image: images[0] || '[product]',
+    images,
+    createdAt: product.createdAt || new Date().toISOString(),
+    sales: 0,
+    revenue: 0,
+  };
+}
+
+function normalizeSubdomain(value?: string | null): string {
+  return (value || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+}
 
 export default function ProductsPage() {
   const { colors, theme } = useTheme();
-  const { showConfirm } = useAlert();
+  const { showConfirm, showAlert } = useAlert();
+  const { selectedProject } = useProject();
+  const selectedSubdomain = normalizeSubdomain(selectedProject?.subdomain);
+  const selectedProjectStatus = String(selectedProject?.status || '').toLowerCase();
+  const isPublishedProject = selectedProjectStatus === 'published';
+  const blockedAddProductMessage = !isPublishedProject
+    ? 'You cannot add products while this website is in draft. Only published domains can add products.'
+    : !selectedSubdomain
+      ? 'Publish this website first so products can be saved under published_subdomains/{subdomain}/products.'
+      : null;
+  const canAddProducts = Boolean(selectedSubdomain && isPublishedProject);
   const [products, setProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | undefined>();
+  const [viewingProduct, setViewingProduct] = useState<Product | undefined>();
   const [perPage, setPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
+
+  const loadProducts = useCallback(async () => {
+    setLoadingProducts(true);
+    if (!canAddProducts) {
+      setProducts([]);
+      setLoadingProducts(false);
+      return;
+    }
+    try {
+      const res = await listProducts({
+        subdomain: selectedSubdomain,
+        page: 1,
+        limit: 500,
+      });
+      if (res?.success && Array.isArray(res.items)) {
+        setProducts(res.items.map(toDashboardProduct));
+      } else {
+        setProducts([]);
+      }
+    } catch (error) {
+      setProducts([]);
+      showAlert(error instanceof Error ? error.message : 'Failed to load products', 'error');
+    } finally {
+      setLoadingProducts(false);
+    }
+  }, [canAddProducts, selectedSubdomain, showAlert]);
+
+  useEffect(() => {
+    void loadProducts();
+  }, [loadProducts]);
 
   const categories = ['All', ...Array.from(new Set(products.map((product) => product.category))).sort()];
 
@@ -124,22 +465,118 @@ export default function ProductsPage() {
   const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
 
   const handleEdit = (product: Product) => {
-    console.log('Edit product:', product);
-    // TODO: Open edit modal
+    setEditingProduct(product);
+    setShowAddModal(true);
+  };
+
+  const handleView = (product: Product) => {
+    setViewingProduct(product);
   };
 
   const handleDelete = async (product: Product) => {
     const confirmed = await showConfirm(`Are you sure you want to delete ${product.name}?`);
-    if (confirmed) {
-      setProducts(products.filter(p => p.id !== product.id));
+    if (!confirmed) return;
+    try {
+      await deleteProduct(product.id);
+      await loadProducts();
+      showAlert('Product deleted successfully', 'success');
+    } catch (error) {
+      showAlert(error instanceof Error ? error.message : 'Failed to delete product', 'error');
     }
   };
 
-  const handleToggleStatus = (product: Product) => {
+  const handleToggleStatus = async (product: Product) => {
     const newStatus = product.status === 'active' ? 'inactive' : 'active';
-    setProducts(products.map(p =>
-      p.id === product.id ? { ...p, status: newStatus } : p
-    ));
+    try {
+      await updateProduct(product.id, { status: newStatus });
+      setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, status: newStatus } : p)));
+    } catch (error) {
+      showAlert(error instanceof Error ? error.message : 'Failed to update status', 'error');
+    }
+  };
+
+  const handleSaveProduct = async (productData: Partial<Product> & Record<string, unknown>): Promise<boolean> => {
+    try {
+      const rawVariants = Array.isArray(productData.variants) ? productData.variants : [];
+      const variants = rawVariants
+        .map((variant) => {
+          const optionsRaw = Array.isArray((variant as { options?: unknown[] })?.options)
+            ? (variant as { options: unknown[] }).options
+            : [];
+          const options = optionsRaw
+            .map((option) => ({
+              id: String((option as { id?: string })?.id || ''),
+              name: String((option as { name?: string })?.name || '').trim(),
+              priceAdjustment: Number((option as { priceAdjustment?: number })?.priceAdjustment || 0),
+            }))
+            .filter((option) => option.name || option.priceAdjustment !== 0);
+          return {
+            id: String((variant as { id?: string })?.id || ''),
+            name: String((variant as { name?: string })?.name || '').trim(),
+            pricingMode: (variant as { pricingMode?: string })?.pricingMode === 'override' ? 'override' : 'modifier',
+            options,
+          };
+        })
+        .filter((variant) => variant.name || variant.options.length > 0);
+
+      const basePrice = Number(productData.basePrice ?? productData.price ?? 0);
+      const finalPrice = Number(productData.finalPrice ?? productData.price ?? 0);
+      const discount = Number(productData.discount || 0);
+      const discountType = String(productData.discountType || 'percentage') === 'fixed' ? 'fixed' : 'percentage';
+      const hasVariants = Boolean(productData.hasVariants) && variants.length > 0;
+      const priceRangeMin = hasVariants
+        ? Number(productData.priceRangeMin ?? finalPrice)
+        : finalPrice;
+      const priceRangeMax = hasVariants
+        ? Number(productData.priceRangeMax ?? finalPrice)
+        : finalPrice;
+
+      const payload = {
+        name: String(productData.name || ''),
+        sku: String(productData.sku || ''),
+        category: String(productData.category || ''),
+        description: String(productData.description || ''),
+        price: finalPrice,
+        basePrice,
+        finalPrice,
+        compareAtPrice: discount > 0 ? basePrice : null,
+        discount,
+        discountType,
+        hasVariants,
+        variants: hasVariants ? variants : [],
+        priceRangeMin,
+        priceRangeMax,
+        stock: Number(productData.stock || 0),
+        status: toDashboardStatus(String(productData.status || 'draft')),
+        images: Array.isArray(productData.images) ? (productData.images as string[]) : [],
+      };
+
+      if (editingProduct) {
+        await updateProduct(editingProduct.id, payload);
+      } else {
+        if (!isPublishedProject) {
+          showAlert('You cannot add products while this website is in draft. Only published domains can add products.', 'error');
+          return false;
+        }
+        if (!selectedSubdomain) {
+          showAlert('Publish this website first so products can be saved under published_subdomains/{subdomain}/products.', 'error');
+          return false;
+        }
+        await createProduct({
+          subdomain: selectedSubdomain,
+          ...payload,
+          slug: payload.name.toLowerCase().replace(/\s+/g, '-'),
+        });
+      }
+
+      await loadProducts();
+      setShowAddModal(false);
+      setEditingProduct(undefined);
+      return true;
+    } catch (error) {
+      showAlert(error instanceof Error ? error.message : 'Failed to save product', 'error');
+      return false;
+    }
   };
 
   const stats = {
@@ -206,12 +643,18 @@ export default function ProductsPage() {
               >
                 Manage your product inventory and listings
               </motion.p>
+              {blockedAddProductMessage && (
+                <p className="mt-2 text-xs" style={{ color: colors.text.muted }}>
+                  {blockedAddProductMessage}
+                </p>
+              )}
             </div>
             <button
               onClick={() => setShowAddModal(true)}
-              className="px-4 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-blue-600/20"
-              style={{ backgroundColor: colors.status.info, color: colors.bg.primary }}
+              disabled={!canAddProducts}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-white font-medium transition-colors shadow-sm ${canAddProducts ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-400 cursor-not-allowed'}`}
             >
+              <Plus className="w-4 h-4" />
               Add Product
             </button>
           </div>
@@ -242,7 +685,11 @@ export default function ProductsPage() {
         ))}
       </section>
 
-      {hasProducts ? (
+      {loadingProducts ? (
+        <section className="text-center py-16 rounded-2xl border" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+          <p style={{ color: colors.text.secondary }}>Loading products...</p>
+        </section>
+      ) : hasProducts ? (
         <>
           <div id="inventory-section" className="flex flex-col sm:flex-row gap-4 items-center rounded-2xl border p-4" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
             <div className="w-full sm:w-1/2">
@@ -293,12 +740,13 @@ export default function ProductsPage() {
 
           {filteredProducts.length > 0 ? (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5 lg:gap-6">
                 {paginatedProducts.map((product) => (
                   <ProductCard
                     key={product.id}
                     product={product}
                     colors={colors}
+                    onView={handleView}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
                     onToggleStatus={handleToggleStatus}
@@ -366,20 +814,41 @@ export default function ProductsPage() {
             No products yet
           </h3>
           <p className="max-w-md mx-auto" style={{ color: colors.text.secondary }}>
-            Start by adding your first product to build your inventory.
+            {canAddProducts
+              ? 'Start by adding your first product to build your inventory.'
+              : blockedAddProductMessage}
           </p>
           <button
             type="button"
             onClick={() => setShowAddModal(true)}
-            className="mt-6 px-5 py-2.5 rounded-lg font-medium transition-colors"
-            style={{ backgroundColor: colors.status.info, color: colors.bg.primary }}
+            disabled={!canAddProducts}
+            className={`mt-6 mx-auto px-4 py-2.5 rounded-lg text-white font-medium transition-colors shadow-sm ${canAddProducts ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-400 cursor-not-allowed'}`}
           >
-            Add your first product
+            {canAddProducts ? 'Add your first product' : 'Publish website first'}
           </button>
         </section>
       )}
+
+      <ProductAddModal
+        isOpen={showAddModal}
+        onClose={() => {
+          setShowAddModal(false);
+          setEditingProduct(undefined);
+        }}
+        onSave={handleSaveProduct}
+        editingProduct={editingProduct}
+      />
+
+      <AnimatePresence>
+        {viewingProduct && (
+          <ProductDetailsModal
+            key={viewingProduct.id}
+            product={viewingProduct}
+            onClose={() => setViewingProduct(undefined)}
+            colors={colors}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
-
-

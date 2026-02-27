@@ -50,21 +50,33 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
     try {
       actions?.history?.redo?.();
     } catch {
-      
+      // nothing to redo
     }
   };
 
+  const statusTone =
+    saveStatus === "saving"
+      ? "text-yellow-300 border-yellow-400/30 bg-yellow-500/10"
+      : saveStatus === "saved"
+        ? "text-green-300 border-green-400/30 bg-green-500/10"
+        : "text-red-300 border-red-400/30 bg-red-500/10";
+
+  const statusLabel =
+    saveStatus === "saving"
+      ? "Saving..."
+      : saveStatus === "saved"
+        ? "Saved"
+        : saveError || "Save failed";
+
   return (
-    <div data-panel="bottom-tools" className="absolute bottom-0 left-0 right-0 z-50 pointer-events-none flex flex-col items-center">
-      {/* Floating bar: tools + optional zoom */}
+    <div data-panel="bottom-tools" className="absolute bottom-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col items-center gap-2">
       <div
-        className="pointer-events-auto flex items-center rounded-xl bg-[#2a2a2e]/95 backdrop-blur-md border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.4)] mb-3 px-1 py-1.5 gap-0.5"
-        style={{ boxShadow: "0 4px 24px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06)" }}
+        className="pointer-events-auto flex items-center rounded-2xl bg-brand-dark/90 backdrop-blur-md border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.35)] px-1.5 py-1.5 gap-1"
       >
         <button
           type="button"
           onClick={() => onToolChange("move")}
-          className={`p-2.5 rounded-lg transition-colors ${
+          className={`h-9 w-9 grid place-items-center rounded-lg transition-colors ${
             activeTool === "move"
               ? "bg-blue-500/25 text-blue-300"
               : "text-white/70 hover:text-white hover:bg-white/[0.08]"
@@ -76,7 +88,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
         <button
           type="button"
           onClick={() => onToolChange("hand")}
-          className={`p-2.5 rounded-lg transition-colors ${
+          className={`h-9 w-9 grid place-items-center rounded-lg transition-colors ${
             activeTool === "hand"
               ? "bg-blue-500/25 text-blue-300"
               : "text-white/70 hover:text-white hover:bg-white/[0.08]"
@@ -90,7 +102,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
           type="button"
           onClick={handleUndo}
           disabled={!canUndo}
-          className="p-2.5 rounded-lg transition-colors text-white/70 hover:text-white hover:bg-white/[0.08] disabled:opacity-40 disabled:pointer-events-none"
+          className="h-9 w-9 grid place-items-center rounded-lg transition-colors text-white/70 hover:text-white hover:bg-white/[0.08] disabled:opacity-40 disabled:pointer-events-none"
           title="Undo (Ctrl+Z)"
         >
           <Undo2 className="w-4 h-4" strokeWidth={1.8} />
@@ -99,7 +111,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
           type="button"
           onClick={handleRedo}
           disabled={!canRedo}
-          className="p-2.5 rounded-lg transition-colors text-white/70 hover:text-white hover:bg-white/[0.08] disabled:opacity-40 disabled:pointer-events-none"
+          className="h-9 w-9 grid place-items-center rounded-lg transition-colors text-white/70 hover:text-white hover:bg-white/[0.08] disabled:opacity-40 disabled:pointer-events-none"
           title="Redo (Ctrl+Shift+Z)"
         >
           <Redo2 className="w-4 h-4" strokeWidth={1.8} />
@@ -111,7 +123,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
               <button
                 type="button"
                 onClick={onZoomFit}
-                className="p-2.5 rounded-lg transition-colors text-white/70 hover:text-white hover:bg-white/[0.08]"
+                className="h-9 w-9 grid place-items-center rounded-lg transition-colors text-white/70 hover:text-white hover:bg-white/[0.08]"
                 title="Fit canvas in view"
               >
                 <Maximize2 className="w-4 h-4" strokeWidth={1.8} />
@@ -121,7 +133,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
               <button
                 type="button"
                 onClick={() => onScaleChange(1)}
-                className={`min-w-[2.5rem] px-2 py-2 rounded-lg transition-colors text-[11px] font-medium ${
+                className={`min-w-[2.75rem] px-2 h-9 rounded-lg transition-colors text-[11px] font-medium ${
                   is100 ? "bg-blue-500/25 text-blue-300" : "text-white/70 hover:text-white hover:bg-white/[0.08]"
                 }`}
                 title="Zoom to 100%"
@@ -133,30 +145,17 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
         )}
       </div>
 
-      {/* Subtle footer: hints + save + reset (optional) */}
-      <div className="pointer-events-auto w-full flex items-center justify-between px-4 py-1.5 min-h-8 bg-brand-dark/60 backdrop-blur-sm border-t border-white/5">
-        <div className="flex items-center gap-3">
-          {saveStatus !== "idle" && (
-            <span
-              className={`text-[11px] ${
-                saveStatus === "saving"
-                  ? "text-yellow-400"
-                  : saveStatus === "saved"
-                    ? "text-green-400"
-                    : "text-red-400"
-              }`}
-            >
-              {saveStatus === "saving"
-                ? "Saving..."
-                : saveStatus === "saved"
-                  ? "Saved"
-                  : saveError
-                    ? saveError
-                    : "Save failed"}
-            </span>
-          )}
-        
-        </div>
+      <div className="pointer-events-none flex items-center gap-2">
+        {showHints && (
+          <span className="pointer-events-auto rounded-full border border-white/10 bg-brand-dark/70 px-3 py-1 text-[10px] text-brand-light/85 backdrop-blur-sm">
+            G Move • H Hand • Hold Space to pan
+          </span>
+        )}
+        {saveStatus !== "idle" && (
+          <span className={`pointer-events-auto rounded-full border px-3 py-1 text-[10px] backdrop-blur-sm ${statusTone}`}>
+            {statusLabel}
+          </span>
+        )}
       </div>
     </div>
   );

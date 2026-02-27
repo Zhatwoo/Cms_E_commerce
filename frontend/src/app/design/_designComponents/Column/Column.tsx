@@ -32,6 +32,7 @@ export const Column = ({
   borderColor = "transparent",
   borderWidth = 0,
   borderStyle = "solid",
+  strokePlacement = "mid",
   flexDirection = "column",
   flexWrap = "nowrap",
   alignItems = "flex-start",
@@ -43,6 +44,7 @@ export const Column = ({
   rotation = 0,
   designWidth,
   designHeight,
+  customClassName = "",
   children,
 }: ContainerProps) => {
   const { id, connectors: { connect, drag }, childCount } = useNode((node) => ({
@@ -73,7 +75,7 @@ export const Column = ({
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className="min-h-[40px] transition-[outline] duration-150 hover:outline hover:outline-blue-500"
+      className={`min-h-[40px] transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
       style={{
         flex: width === "auto" ? 1 : undefined,
         backgroundColor: background,
@@ -87,10 +89,12 @@ export const Column = ({
         marginBottom: `${mb}px`,
         width: width !== "auto" ? width : undefined,
         height,
+        maxWidth: "100%",
+        minWidth: 0,
         borderRadius: `${borderRadius}px`,
-        borderWidth: `${borderWidth}px`,
-        borderColor,
-        borderStyle,
+        ...(strokePlacement === "outside" && borderWidth > 0
+          ? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
+          : { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
         display: "flex",
         flexDirection,
         flexWrap,
@@ -165,6 +169,7 @@ export const ColumnDefaultProps: Partial<ContainerProps> = {
   borderColor: "transparent",
   borderWidth: 0,
   borderStyle: "solid",
+  strokePlacement: "mid",
   flexDirection: "column",
   flexWrap: "nowrap",
   alignItems: "flex-start",

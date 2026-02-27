@@ -21,11 +21,11 @@ export const Page = ({
 }: PageProps) => {
   const { id, connectors: { connect, drag }, actions: { setProp } } = useNode();
   const [editing, setEditing] = useState(false);
-  const [editValue, setEditValue] = useState(pageName);
+  const [editValue, setEditValue] = useState(pageName || "");
 
   const handleBlur = useCallback(() => {
     setEditing(false);
-    const trimmed = editValue.trim() || "Page Name";
+    const trimmed = editValue.trim();
     const slug = slugFromName(trimmed);
     setProp((props: Record<string, unknown>) => {
       props.pageName = trimmed;
@@ -50,9 +50,7 @@ export const Page = ({
     <div
       data-node-id={id}
       data-page-node="true"
-      ref={(ref) => {
-        if (ref) connect(drag(ref));
-      }}
+      ref={ref => { if (ref) connect(drag(ref)); }}
       className="rounded-lg shadow-xl relative min-h-[600px] transition-[outline] duration-150"
       style={{
         position: "absolute",
@@ -64,11 +62,11 @@ export const Page = ({
         backgroundColor: background,
       }}
     >
-      <div className="absolute -top-8 left-0 text-brand-lighter font-bold text-2xl opacity-50 select-none min-w-[120px]">
+      <div data-page-name-label="true" className="absolute -top-8 left-0 text-brand-lighter font-bold text-2xl opacity-50 select-none min-w-[120px]">
         {editing ? (
           <input
-            type="text"
             value={editValue}
+            placeholder="Page Name"
             onChange={(e) => setEditValue(e.target.value)}
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
@@ -85,7 +83,7 @@ export const Page = ({
             }}
             className="cursor-text hover:opacity-80"
           >
-            {pageName}
+            {editValue.trim() === "" ? <span className="opacity-50">Page Name</span> : editValue}
           </span>
         )}
       </div>

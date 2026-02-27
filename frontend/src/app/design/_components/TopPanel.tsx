@@ -11,6 +11,7 @@ import {
   Tablet,
   Laptop,
   Monitor,
+  Smartphone,
   ChevronDown,
 } from "lucide-react";
 
@@ -21,7 +22,22 @@ export type DevicePreset = {
   icon: React.ReactNode;
 };
 
+const MOBILE_PRESET: DevicePreset = {
+  name: "Phone",
+  width: 390,
+  height: 844,
+  icon: <Smartphone className="w-4 h-4" />,
+};
+
+const LAPTOP_PRESET: DevicePreset = {
+  name: "Laptop",
+  width: 1440,
+  height: 900,
+  icon: <Laptop className="w-4 h-4" />,
+};
+
 const DEVICE_PRESETS: DevicePreset[] = [
+  MOBILE_PRESET,
   {
     name: "Tablet Portrait",
     width: 768,
@@ -34,12 +50,7 @@ const DEVICE_PRESETS: DevicePreset[] = [
     height: 768,
     icon: <Tablet className="w-4 h-4 rotate-90" />,
   },
-  {
-    name: "Laptop",
-    width: 1440,
-    height: 900,
-    icon: <Laptop className="w-4 h-4" />,
-  },
+  LAPTOP_PRESET,
   {
     name: "Desktop",
     width: 1920,
@@ -48,7 +59,7 @@ const DEVICE_PRESETS: DevicePreset[] = [
   },
 ];
 
-const MIN_SCALE = 0.01;
+const MIN_SCALE = 0.05;
 const MAX_SCALE = 3;
 const ZOOM_STEP = 0.15;
 
@@ -110,12 +121,14 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   }, [canvasWidth, canvasHeight]);
 
   const handleZoomIn = () => {
-    const newScale = Math.min(scale + ZOOM_STEP, MAX_SCALE);
+    const safeScale = Number.isFinite(scale) ? scale : 1;
+    const newScale = Math.min(safeScale + ZOOM_STEP, MAX_SCALE);
     onScaleChange(newScale);
   };
 
   const handleZoomOut = () => {
-    const newScale = Math.max(scale - ZOOM_STEP, MIN_SCALE);
+    const safeScale = Number.isFinite(scale) ? scale : 1;
+    const newScale = Math.max(safeScale - ZOOM_STEP, MIN_SCALE);
     onScaleChange(newScale);
   };
 
@@ -174,7 +187,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
 
   const displayWidth = Math.round(canvasWidth);
   const displayHeight = Math.round(canvasHeight);
-  const zoomPercentage = Math.round(scale * 100);
+  const zoomPercentage = Math.round((Number.isFinite(scale) ? scale : 1) * 100);
 
   return (
     <div
@@ -257,8 +270,22 @@ export const TopPanel: React.FC<TopPanelProps> = ({
           </div>
         </div>
 
-        {/* Right Section - Display size presets */}
+        {/* Right Section - Mobile view toggle + Display size presets */}
         <div className="flex items-center gap-2">
+          {/* Mobile Preview Toggle Button */}
+          <button
+            onClick={onDualViewToggle}
+            className={`p-2 rounded-lg transition-colors border border-white/10 flex items-center gap-2 ${
+              showDualView
+                ? "bg-blue-500/30 text-blue-400 border-blue-400/30"
+                : "bg-brand-medium-dark hover:bg-brand-medium text-brand-lighter"
+            }`}
+            title={showDualView ? "Hide Mobile Preview" : "Show Mobile Preview"}
+          >
+            <Smartphone className="w-4 h-4" />
+            <span className="text-xs font-medium">Mobile</span>
+          </button>
+
           {/* Device Preset Buttons */}
           <div className="flex items-center gap-1 bg-brand-medium-dark/50 rounded-lg p-1 border border-white/10">
             {DEVICE_PRESETS.map((preset, index) => (

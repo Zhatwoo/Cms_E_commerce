@@ -573,28 +573,22 @@ export const Frame = ({
       return false;
     };
 
-    // Function to enhance a navigation container: only UL (nav links) go in dropdown; logo stays visible
+    // Function to enhance a navigation container: keep first child (brand/logo) visible,
+    // move all remaining nav items (e.g., Home, links, buttons) into dropdown.
     const enhanceNavContainer = (container: HTMLElement): boolean => {
       if (container.hasAttribute("data-nav-enhanced")) return false;
 
       const existingChildren = Array.from(container.children).filter(
-        (c) => !(c as HTMLElement).classList.contains("nav-hamburger")
+        (c) => {
+          const el = c as HTMLElement;
+          return !el.classList.contains("nav-hamburger") && !el.classList.contains("nav-menu");
+        }
       );
 
-      // Only UL (or element that contains UL) goes in dropdown; logos and first child stay visible
-      const navChildren: Element[] = [];
-      for (const child of existingChildren) {
-        const el = child as HTMLElement;
-        const isUl = el.tagName.toLowerCase() === "ul";
-        const containsUl = el.querySelector("ul");
-        if (isUl || containsUl) navChildren.push(child);
-      }
-      // Fallback when no UL: first child = logo (stays visible), rest = nav (dropdown)
-      const toDropDown = navChildren.length > 0
-        ? navChildren
-        : existingChildren.length > 1
-          ? existingChildren.slice(1)
-          : [];
+      if (existingChildren.length <= 1) return false;
+
+      // Keep first element (usually brand/logo) outside; move the rest into dropdown.
+      const toDropDown = existingChildren.slice(1);
 
       const menuWrapper = document.createElement("div");
       menuWrapper.className = "nav-menu";

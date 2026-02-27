@@ -362,11 +362,6 @@ export default function WebBuilderPage() {
   const [sortOption, setSortOption] = useState<SortOptionId>('relevant');
   const [showSortMenu, setShowSortMenu] = useState(false);
 
-  const visibleProjects = React.useMemo(
-    () => (selectedProject ? projects.filter((p) => p.id === selectedProject.id) : projects),
-    [projects, selectedProject]
-  );
-
   // Load templates on mount
   useEffect(() => {
     const loadedTemplates = templateService.getTemplates();
@@ -409,6 +404,17 @@ export default function WebBuilderPage() {
     setCreateModalTemplate(options.template ?? null);
     setCreateModalOpen(true);
   };
+
+  // No "Choose a website to manage" modal: auto-select first project or open create modal
+  useEffect(() => {
+    if (projectsLoading || projectsLoadingFromContext || isAutoCreate) return;
+    if (selectedProject) return;
+    if (projects.length > 0) {
+      setSelectedProjectId(projects[0].id);
+    } else {
+      openCreateModal({ title: '' });
+    }
+  }, [projectsLoading, projectsLoadingFromContext, isAutoCreate, selectedProject, projects, setSelectedProjectId]);
 
   const handleCreateSubmit = async (title: string, subdomain: string) => {
     try {
@@ -551,67 +557,11 @@ export default function WebBuilderPage() {
       return comparison;
     });
 
-  // If user opens Web Builder without selecting a website/instance,
-  // and they didn't come from the explicit "Create website" CTA,
-  // block the builder UI and ask them to pick a website first.
-  if (!selectedProject && !isAutoCreate) {
-    if (projectsLoading || projectsLoadingFromContext) {
-      return (
-        <div className="flex items-center justify-center min-h-[60vh]" style={{ color: colors.text.secondary }}>
-          <p className="text-sm">Loading your websites…</p>
-        </div>
-      );
-    }
-
+  // While no project selected and not auto-create, show loading until we auto-select or open create modal
+  if (!selectedProject && !isAutoCreate && !createModalOpen) {
     return (
-      <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-        <div
-          className="w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden"
-          style={{ backgroundColor: colors.bg.card, borderColor: colors.border.default }}
-        >
-          <div className="p-5 border-b" style={{ borderColor: colors.border.faint }}>
-            <h3 className="text-lg font-semibold" style={{ color: colors.text.primary }}>
-              Choose a website to manage
-            </h3>
-            <p className="text-sm mt-1" style={{ color: colors.text.secondary }}>
-              Select which store / website instance you want to open in the Web Builder.
-            </p>
-          </div>
-          <div className="p-5 space-y-3 max-h-80 overflow-y-auto">
-            {projects.length === 0 ? (
-              <p className="text-sm" style={{ color: colors.text.muted }}>
-                You don&apos;t have any websites yet. Create one from the dashboard first.
-              </p>
-            ) : (
-              projects.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => setSelectedProjectId(p.id)}
-                  className="w-full text-left rounded-xl border px-4 py-3 flex items-center justify-between gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                  style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.card }}
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate" style={{ color: colors.text.primary }}>
-                      {p.title || 'Untitled website'}
-                    </p>
-                    {p.subdomain && (
-                      <p className="text-xs mt-0.5 font-mono truncate" style={{ color: colors.text.muted }}>
-                        {p.subdomain}
-                      </p>
-                    )}
-                  </div>
-                  <span
-                    className="text-[11px] px-2 py-1 rounded-full capitalize"
-                    style={{ backgroundColor: colors.bg.elevated, color: colors.text.muted }}
-                  >
-                    {p.status || 'draft'}
-                  </span>
-                </button>
-              ))
-            )}
-          </div>
-        </div>
+      <div className="flex items-center justify-center min-h-[60vh]" style={{ color: colors.text.secondary }}>
+        <p className="text-sm">{projectsLoading || projectsLoadingFromContext ? 'Loading your websites…' : 'Opening Web Builder…'}</p>
       </div>
     );
   }
@@ -763,13 +713,13 @@ export default function WebBuilderPage() {
           <div className="rounded-xl border p-6 text-center" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
             Loading projects…
           </div>
-        ) : visibleProjects.length === 0 ? (
+        ) : projects.length === 0 ? (
           <div className="rounded-xl border p-6 text-center" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
             No projects yet. Start from scratch or use a template above.
           </div>
         ) : (
           <div className="grid w-full max-w-full min-w-0 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
-            {visibleProjects.map((p) => (
+            {projects.map((p) => (
               <motion.div
                 key={p.id}
                 className="relative min-w-0 rounded-lg border overflow-hidden cursor-pointer hover:border-opacity-80 transition-colors"

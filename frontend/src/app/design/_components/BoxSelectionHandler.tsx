@@ -6,6 +6,8 @@ import { useEditor } from "@craftjs/core";
 import { useCanvasTool } from "./CanvasToolContext";
 
 const MARQUEE_THRESHOLD = 5;
+const BOX_SELECTING_FLAG = "boxSelecting";
+const MARQUEE_START_CANVAS_TYPES = new Set(["Viewport", "Page", "Container", "Section", "Row", "Column", "Frame"]);
 
 function rectsIntersect(
   a: { left: number; top: number; right: number; bottom: number },
@@ -32,15 +34,54 @@ export const BoxSelectionHandler = () => {
   // Cancel marquee when Space is pressed (user wants pan, not box select)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === "Space") setMarquee(null);
+      if (e.code === "Space") {
+        delete document.body.dataset[BOX_SELECTING_FLAG];
+        setMarquee(null);
+      }
+      if (e.code === "Escape") {
+        startedOnEmptyRef.current = false;
+        delete document.body.dataset[BOX_SELECTING_FLAG];
+        setMarquee(null);
+      }
     };
+
+    const handleWindowBlur = () => {
+      startedOnEmptyRef.current = false;
+      delete document.body.dataset[BOX_SELECTING_FLAG];
+      setMarquee(null);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        startedOnEmptyRef.current = false;
+        delete document.body.dataset[BOX_SELECTING_FLAG];
+        setMarquee(null);
+      }
+    };
+
+    const handleGlobalMouseUp = () => {
+      startedOnEmptyRef.current = false;
+      delete document.body.dataset[BOX_SELECTING_FLAG];
+      setMarquee(null);
+    };
+
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("blur", handleWindowBlur);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("mouseup", handleGlobalMouseUp);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("blur", handleWindowBlur);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("mouseup", handleGlobalMouseUp);
+    };
   }, []);
 
   useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
       startedOnEmptyRef.current = false;
+      delete document.body.dataset[BOX_SELECTING_FLAG];
       if (e.button !== 0) return;
       const target = e.target as HTMLElement | null;
       if (!target) return;
@@ -53,10 +94,26 @@ export const BoxSelectionHandler = () => {
       if (document.body.dataset.canvasPan === "true") return;
       if (activeTool === "hand") return;
 
-      const onNode = target.closest("[data-node-id]");
-      if (onNode) return;
+      const onNode = target.closest("[data-node-id]") as HTMLElement | null;
+      if (onNode) {
+        const nodeId = onNode.getAttribute("data-node-id");
+        if (nodeId && nodeId !== "ROOT") {
+          try {
+            const state = query.getState();
+            const node = state.nodes[nodeId];
+            const displayName = (node?.data?.displayName as string | undefined) ?? "";
+            const isCanvasNode = node?.data?.isCanvas === true || MARQUEE_START_CANVAS_TYPES.has(displayName);
+            if (!isCanvasNode) {
+              return;
+            }
+          } catch {
+            return;
+          }
+        }
+      }
 
       startedOnEmptyRef.current = true;
+      document.body.dataset[BOX_SELECTING_FLAG] = "true";
 
       setMarquee({
         startX: e.clientX,
@@ -73,6 +130,7 @@ export const BoxSelectionHandler = () => {
 
     const handleMouseUp = () => {
       const m = marquee;
+      delete document.body.dataset[BOX_SELECTING_FLAG];
       setMarquee(null);
 
       if (!startedOnEmptyRef.current) return;
@@ -121,13 +179,28 @@ export const BoxSelectionHandler = () => {
         }
       }
 
+      const intersectingSet = new Set(intersecting);
+      const isAncestorOfAnotherSelected = (candidateId: string): boolean => {
+        for (const selectedId of intersectingSet) {
+          if (selectedId === candidateId) continue;
+          let currentParent = (nodes[selectedId]?.data?.parent as string | undefined) ?? null;
+          while (currentParent && currentParent !== "ROOT") {
+            if (currentParent === candidateId) return true;
+            currentParent = (nodes[currentParent]?.data?.parent as string | undefined) ?? null;
+          }
+        }
+        return false;
+      };
+
+      const filteredIntersecting = intersecting.filter((id) => !isAncestorOfAnotherSelected(id));
+
       try {
-        if (intersecting.length === 0) {
+        if (filteredIntersecting.length === 0) {
           actions.selectNode(undefined);
-        } else if (intersecting.length === 1) {
-          actions.selectNode(intersecting[0]);
+        } else if (filteredIntersecting.length === 1) {
+          actions.selectNode(filteredIntersecting[0]);
         } else {
-          actions.selectNode(intersecting);
+          actions.selectNode(filteredIntersecting);
         }
       } catch {
         // ignore
@@ -140,6 +213,7 @@ export const BoxSelectionHandler = () => {
       document.addEventListener("mouseup", handleMouseUp);
     }
     return () => {
+      delete document.body.dataset[BOX_SELECTING_FLAG];
       document.removeEventListener("mousedown", handleMouseDown, true);
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);

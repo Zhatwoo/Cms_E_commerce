@@ -384,27 +384,66 @@ const frameResponsiveStyles = (
       .frame-responsive-inner.frame-fluid [data-node-id] {
         max-width: 100% !important;
         min-width: 0;
+        transition:
+          width 180ms ease,
+          max-width 180ms ease,
+          min-width 180ms ease,
+          margin 180ms ease,
+          transform 180ms ease,
+          left 180ms ease,
+          right 180ms ease,
+          top 180ms ease,
+          bottom 180ms ease,
+          opacity 180ms ease;
       }
-      @container (max-width: 640px) {
-        .frame-responsive-inner.frame-fluid [data-layout="row"] {
-          flex-direction: column !important;
-          align-items: stretch !important;
-        }
-        .frame-responsive-inner.frame-fluid [data-layout="row"] > * {
-          width: 100% !important;
-          max-width: 100% !important;
-          min-width: 0 !important;
-        }
+
+      @keyframes responsive-reflow-in {
+        from { opacity: 0.96; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
       }
-      @container (max-width: 400px) {
-        .frame-responsive-inner.frame-fluid [data-layout="row"] { gap: 12px !important; }
+      @container (max-width: 640px) {\r
+        /* Only stack top-level layout rows, not inner UI rows nested inside columns */\r
+        .frame-responsive-inner.frame-fluid > [data-layout="row"],\r
+        .frame-responsive-inner.frame-fluid > * > [data-layout="row"] {\r
+          flex-direction: column !important;\r
+          align-items: stretch !important;\r
+        }\r
+        .frame-responsive-inner.frame-fluid > [data-layout="row"] > *,\r
+        .frame-responsive-inner.frame-fluid > * > [data-layout="row"] > * {\r
+          width: 100% !important;\r
+          max-width: 100% !important;\r
+          min-width: 0 !important;\r
+        }\r
+\r
+        /* Auto-reflow positioned elements (e.g. side labels/text) so they stack on mobile */\r
+        .frame-responsive-inner.frame-fluid [data-node-id][style*="position: absolute"],\r
+        .frame-responsive-inner.frame-fluid [data-node-id][style*="position:absolute"],\r
+        .frame-responsive-inner.frame-fluid [data-node-id][style*="position: fixed"],\r
+        .frame-responsive-inner.frame-fluid [data-node-id][style*="position:fixed"] {\r
+          position: relative !important;\r
+          left: auto !important;\r
+          right: auto !important;\r
+          top: auto !important;\r
+          bottom: auto !important;\r
+          width: 100% !important;\r
+          max-width: 100% !important;\r
+          min-width: 0 !important;\r
+          margin-left: 0 !important;\r
+          margin-right: 0 !important;\r
+          transform: none !important;\r
+          animation: responsive-reflow-in 180ms ease;\r
+        }\r
+      }\r
+      @container (max-width: 400px) {\r
+        .frame-responsive-inner.frame-fluid > [data-layout="row"],\r
+        .frame-responsive-inner.frame-fluid > * > [data-layout="row"] { gap: 12px !important; }\r
       }
     `,
   }} />
 );
 
 /** Responsive Navigation Component - converts nav bars to hamburger menu on mobile */
-function ResponsiveNav({ children, containerStyle, onClick }: { 
+function ResponsiveNav({ children, containerStyle, onClick }: {
   children: React.ReactNode;
   containerStyle: React.CSSProperties;
   onClick?: () => void;
@@ -426,9 +465,9 @@ function ResponsiveNav({ children, containerStyle, onClick }: {
   }, [isOpen]);
 
   return (
-    <div 
-      ref={navRef} 
-      data-nav-container 
+    <div
+      ref={navRef}
+      data-nav-container
       style={{ ...containerStyle, position: "relative" }}
       onClick={onClick}
     >
@@ -443,7 +482,7 @@ function ResponsiveNav({ children, containerStyle, onClick }: {
         }}
         aria-label="Toggle menu"
         aria-expanded={isOpen}
-        style={{ 
+        style={{
           color: "inherit",
           display: "none",
           flexDirection: "column",
@@ -989,7 +1028,7 @@ function isNavContainer(
   const flexDirection = props.flexDirection as string;
   const isHorizontal = flexDirection === "row" || flexDirection === undefined;
   const childIds = node.children ?? [];
-  
+
   // Check if it has multiple buttons, links, or text elements (typical nav items)
   let navItemCount = 0;
   for (const childId of childIds) {
@@ -997,7 +1036,7 @@ function isNavContainer(
     if (!child) continue;
     const childType = child.type as string;
     const childProps = child.props ?? {};
-    
+
     // Count buttons, links, or text elements that could be nav items
     if (
       childType === "Button" ||
@@ -1008,7 +1047,7 @@ function isNavContainer(
       navItemCount++;
     }
   }
-  
+
   // Consider it a nav if horizontal layout with 2+ nav-like items
   return isHorizontal && navItemCount >= 2;
 }
@@ -1099,9 +1138,9 @@ function RenderNode({
   const type = (
     rawType === "text" ? "Text"
       : rawType === "circle" ? "Circle"
-      : rawType === "square" ? "Square"
-      : rawType === "triangle" ? "Triangle"
-      : rawType
+        : rawType === "square" ? "Square"
+          : rawType === "triangle" ? "Triangle"
+            : rawType
   ) as ComponentType;
   const props = mergeProps(type, node.props) as Record<string, unknown>;
   if (!shouldRenderNodeAtWidth(props, viewportWidth, mobileBreakpoint)) {
@@ -1267,11 +1306,13 @@ function RenderNode({
       const mb = (props.marginBottom ?? m) as number;
       const br = (props.borderRadius ?? 0) as number;
       const bw = (props.borderWidth ?? 0) as number;
+      const strokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
+      const borderDecl = bw > 0 ? `${bw}px ${props.borderStyle} ${props.borderColor}` : undefined;
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
       const displayVal = (props.display as React.CSSProperties["display"]) ?? "flex";
       const isNav = isNavContainer(node, nodes, props);
-      
+
       const containerStyle: React.CSSProperties = {
         backgroundColor: props.background as string,
         backgroundImage: bgImage
@@ -1288,7 +1329,11 @@ function RenderNode({
         height: (props.height as string) ?? "auto",
         minHeight: !hasRenderableChildren ? "50px" : undefined,
         borderRadius: `${br}px`,
-        border: `${bw}px ${props.borderStyle} ${props.borderColor}`,
+        ...(strokePlacement === "outside" && borderDecl
+          ? { border: "none", outline: borderDecl, outlineOffset: 0 }
+          : borderDecl
+            ? { border: borderDecl }
+            : {}),
         position: props.position as React.CSSProperties["position"],
         display: displayVal,
         flexDirection: displayVal === "flex" ? (props.flexDirection as React.CSSProperties["flexDirection"]) : undefined,
@@ -1305,7 +1350,7 @@ function RenderNode({
         overflow: props.overflow as string,
         cursor: interactiveClick ? "pointer" : (props.cursor as string),
       };
-      
+
       const containerContent = isNav ? (
         <ResponsiveNav containerStyle={containerStyle} onClick={interactiveClick}>
           {children}
@@ -1315,7 +1360,7 @@ function RenderNode({
           {children}
         </div>
       );
-      
+
       return wrap(containerContent);
     }
 
@@ -1330,6 +1375,9 @@ function RenderNode({
       const mr = (props.marginRight ?? m) as number;
       const mt = (props.marginTop ?? m) as number;
       const mb = (props.marginBottom ?? m) as number;
+      const sectionBw = (props.borderWidth ?? 0) as number;
+      const sectionBorderDecl = sectionBw > 0 ? `${sectionBw}px ${props.borderStyle} ${props.borderColor}` : undefined;
+      const sectionStrokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
       const isHeaderAsset = nodeId != null && /header/i.test(nodeId);
@@ -1351,7 +1399,11 @@ function RenderNode({
             width: props.width as string,
             height: props.height as string,
             borderRadius: px(props.borderRadius),
-            border: `${props.borderWidth}px ${props.borderStyle} ${props.borderColor}`,
+            ...(sectionStrokePlacement === "outside" && sectionBorderDecl
+              ? { border: "none", outline: sectionBorderDecl, outlineOffset: 0 }
+              : sectionBorderDecl
+                ? { border: sectionBorderDecl }
+                : {}),
             display: "flex",
             flexDirection: props.flexDirection as React.CSSProperties["flexDirection"],
             flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
@@ -1417,6 +1469,9 @@ function RenderNode({
       const mb = (props.marginBottom ?? m) as number;
       const flexDir = (props.flexDirection as React.CSSProperties["flexDirection"]) ?? "row";
       const isHeaderRow = nodeId != null && /header/i.test(nodeId);
+      const rowBw = (props.borderWidth ?? 0) as number;
+      const rowBorderDecl = rowBw > 0 ? `${rowBw}px ${props.borderStyle} ${props.borderColor}` : undefined;
+      const rowStrokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
       return wrap(
         <div
           data-layout="row"
@@ -1428,7 +1483,11 @@ function RenderNode({
             width: props.width as string,
             height: props.height as string,
             borderRadius: px(props.borderRadius),
-            border: `${props.borderWidth}px ${props.borderStyle} ${props.borderColor}`,
+            ...(rowStrokePlacement === "outside" && rowBorderDecl
+              ? { border: "none", outline: rowBorderDecl, outlineOffset: 0 }
+              : rowBorderDecl
+                ? { border: rowBorderDecl }
+                : {}),
             display: "flex",
             flexDirection: flexDir,
             flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
@@ -1459,6 +1518,9 @@ function RenderNode({
       const mt = (props.marginTop ?? m) as number;
       const mb = (props.marginBottom ?? m) as number;
       const w = props.width as string;
+      const colBw = (props.borderWidth ?? 0) as number;
+      const colBorderDecl = colBw > 0 ? `${colBw}px ${props.borderStyle} ${props.borderColor}` : undefined;
+      const colStrokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
       return wrap(
         <div
           style={{
@@ -1469,7 +1531,11 @@ function RenderNode({
             margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
             height: props.height as string,
             borderRadius: px(props.borderRadius),
-            border: `${props.borderWidth}px ${props.borderStyle} ${props.borderColor}`,
+            ...(colStrokePlacement === "outside" && colBorderDecl
+              ? { border: "none", outline: colBorderDecl, outlineOffset: 0 }
+              : colBorderDecl
+                ? { border: colBorderDecl }
+                : {}),
             display: "flex",
             flexDirection: props.flexDirection as React.CSSProperties["flexDirection"],
             flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
@@ -1588,6 +1654,16 @@ function RenderNode({
       const color = (props.textColor as string) ?? style.text;
       const borderColor = (props.borderColor as string) ?? style.border;
       const borderWidth = (props.borderWidth as number) ?? style.borderWidth;
+      const borderStyle = ((props.borderStyle as string) || "solid");
+      const resolvedBorderStyle = borderWidth > 0 ? borderStyle : "none";
+      const width = (props.width as string) || "auto";
+      const height = (props.height as string) || "auto";
+      const isPercentWidth = typeof width === "string" && width.includes("%");
+      const p = typeof props.padding === "number" ? props.padding : 0;
+      const pt = toNumber(props.paddingTop ?? p, 10);
+      const pr = toNumber(props.paddingRight ?? p, 24);
+      const pb = toNumber(props.paddingBottom ?? p, 10);
+      const pl = toNumber(props.paddingLeft ?? p, 24);
       const m = typeof props.margin === "number" ? props.margin : 0;
       const mt = (props.marginTop ?? m) as number;
       const mr = (props.marginRight ?? m) as number;
@@ -1612,12 +1688,17 @@ function RenderNode({
             fontWeight: props.fontWeight as string,
             fontFamily: (props.fontFamily as string) || "Inter",
             borderRadius: px(props.borderRadius),
-            border: `${borderWidth}px solid ${borderColor}`,
-            padding: `${props.paddingTop}px ${props.paddingRight}px ${props.paddingBottom}px ${props.paddingLeft}px`,
+            border: `${borderWidth}px ${resolvedBorderStyle} ${borderColor}`,
+            padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
             margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
+            width: isPercentWidth ? "100%" : width,
+            height: height,
+            boxSizing: "border-box",
             opacity: props.opacity as number,
             boxShadow: props.boxShadow as string,
-            display: "inline-block",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
             cursor: interactiveClick ? "pointer" : undefined,
             transform: btnTransform,
             transformOrigin: "center center",
@@ -1643,7 +1724,12 @@ function RenderNode({
                 destination: internalTargetSlug,
               });
             }}
-            style={{ all: "unset", display: "inline-block", cursor: "pointer" }}
+            style={{
+              all: "unset",
+              display: isPercentWidth ? "block" : "inline-block",
+              width: isPercentWidth ? width : undefined,
+              cursor: "pointer",
+            }}
           >
             {content}
           </button>
@@ -1651,7 +1737,14 @@ function RenderNode({
       }
       if (link) {
         return wrap(
-          <a href={link} style={{ textDecoration: "none" }}>
+          <a
+            href={link}
+            style={{
+              textDecoration: "none",
+              display: isPercentWidth ? "block" : "inline-block",
+              width: isPercentWidth ? width : undefined,
+            }}
+          >
             {content}
           </a>
         );
@@ -1715,7 +1808,10 @@ function RenderNode({
       const h = (props.height as string) || "200px";
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
-      const triangleStroke = `${toNumber(props.borderWidth, 0)}px ${props.borderStyle as string} ${props.borderColor as string}`;
+      const bw = toNumber(props.borderWidth, 0);
+      const triangleStroke = `${bw}px ${props.borderStyle as string} ${props.borderColor as string}`;
+      const shapeStrokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
+      const useOutline = shapeStrokePlacement === "outside" && bw > 0 && type !== "Triangle";
 
       return wrap(
         <div
@@ -1750,9 +1846,13 @@ function RenderNode({
             backgroundPosition: type !== "Triangle" && bgImage ? (props.backgroundPosition as string) : undefined,
             backgroundRepeat: type !== "Triangle" && bgImage ? (props.backgroundRepeat as string) : undefined,
             borderRadius: type === "Circle" ? "50%" : undefined,
-            border: type === "Triangle"
-              ? undefined
-              : triangleStroke,
+            ...(type !== "Triangle" && bw > 0
+              ? useOutline
+                ? { border: "none", outline: triangleStroke, outlineOffset: 0 }
+                : { border: triangleStroke }
+              : type === "Triangle"
+                ? {}
+                : {}),
             alignItems: "center",
             justifyContent: "center",
             margin: `${mt}px ${mr}px ${mb}px ${ml}px`,

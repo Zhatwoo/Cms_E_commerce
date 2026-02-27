@@ -41,7 +41,7 @@ function AlertModalBackdrop({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
       style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
@@ -90,10 +90,7 @@ function AlertModalBackdrop({
           <button
             type="button"
             onClick={state.variant === 'confirm' ? onConfirm : onClose}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors hover:opacity-90"
-            style={{
-              backgroundColor: state.variant === 'confirm' ? colors.status.error : colors.status.info,
-            }}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-500 transition-colors hover:opacity-90"
           >
             OK
           </button>

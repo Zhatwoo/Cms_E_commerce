@@ -9,7 +9,6 @@ import { Section } from "../../_designComponents/Section/Section";
 import { Row } from "../../_designComponents/Row/Row";
 import { Column } from "../../_designComponents/Column/Column";
 import { Frame } from "../../_designComponents/Frame/Frame";
-import { useAddPageToCanvas } from "../useAddPageToCanvas";
 import { CRAFT_RESOLVER } from "../craftResolver";
 
 // Dito naman ilalagay yung mga raw components na may default na properties
@@ -114,7 +113,6 @@ const CATEGORY_ORDER: ComponentEntry["category"][] = ["page", "layout", "basic"]
 
 export const ComponentsPanel = () => {
   const { connectors } = useEditor();
-  const addPageToCanvas = useAddPageToCanvas();
   const pageComponent = CRAFT_RESOLVER.Page ?? Container;
 
   const components: ComponentEntry[] = COMPONENTS.map((comp) => {
@@ -137,37 +135,43 @@ export const ComponentsPanel = () => {
               <span className="text-[10px] font-semibold text-brand-medium uppercase tracking-wider px-1">
                 {CATEGORY_LABELS[cat]}
               </span>
-              {items.map((comp) => (
-                <div
-                  key={comp.label}
-                  data-component-new-page={comp.label === "New Page" ? "true" : undefined}
-                  ref={(ref) => {
-                    if (!ref) return;
-                    if (comp.label === "New Page") return;
-                    const sourceElement = comp.dragElement ?? comp.element;
-                    if (!sourceElement) return;
-                    connectors.create(ref, sourceElement);
-                  }}
-                  onClick={() => {
-                    if (comp.label === "New Page") addPageToCanvas();
-                  }}
-                  className={`bg-brand-white/5 p-4 rounded-xl hover:bg-brand-white/10 transition border border-brand-medium/30 group ${
-                    (comp.dragElement ?? comp.element) ? "cursor-move" : "cursor-pointer"
-                  }`}
-                >
+              {items.map((comp) => {
+                const isNewPage = comp.label === "New Page";
+                return (
                   <div
-                    className={`h-20 ${comp.previewBg ?? "bg-brand-medium/20"} rounded-lg mb-2 border border-dashed border-brand-medium/50 flex items-center justify-center text-xs shadow-sm ${comp.previewBg === "bg-white"
-                      ? "text-brand-black"
-                      : "text-brand-lighter"
-                      }`}
+                    key={comp.label}
+                    data-component-new-page={isNewPage ? "true" : undefined}
+                    draggable={isNewPage ? true : undefined}
+                    ref={(ref) => {
+                      if (!ref) return;
+                      if (isNewPage) return;
+                      const sourceElement = comp.dragElement ?? comp.element;
+                      if (!sourceElement) return;
+                      connectors.create(ref, sourceElement);
+                    }}
+                    className={`bg-brand-white/5 p-4 rounded-xl hover:bg-brand-white/10 transition border border-brand-medium/30 group ${
+                      isNewPage
+                        ? "cursor-grab active:cursor-grabbing"
+                        : (comp.dragElement ?? comp.element)
+                          ? "cursor-move"
+                          : "cursor-pointer"
+                    }`}
                   >
-                    {comp.preview}
+                    <div
+                      className={`h-20 ${comp.previewBg ?? "bg-brand-medium/20"} rounded-lg mb-2 border border-dashed border-brand-medium/50 flex items-center justify-center text-xs shadow-sm ${
+                        comp.previewBg === "bg-white"
+                          ? "text-brand-black"
+                          : "text-brand-lighter"
+                      }`}
+                    >
+                      {comp.preview}
+                    </div>
+                    <span className="text-sm text-brand-white font-medium">
+                      {comp.label}
+                    </span>
                   </div>
-                  <span className="text-sm text-brand-white font-medium">
-                    {comp.label}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           );
         })}

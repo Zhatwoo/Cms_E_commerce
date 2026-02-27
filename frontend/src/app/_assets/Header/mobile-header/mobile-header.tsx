@@ -5,8 +5,8 @@ import { Element } from "@craftjs/core";
 import { Container } from "../../../design/_designComponents/Container/Container";
 import { Text } from "../../../design/_designComponents/Text/Text";
 import { Section } from "../../../design/_designComponents/Section/Section";
-import { Row } from "../../../design/_designComponents/Row/Row";
 import { Column } from "../../../design/_designComponents/Column/Column";
+import { Row } from "../../../design/_designComponents/Row/Row";
 import { TemplateEntry } from "../../_types";
 
 export const MobileHeader: TemplateEntry = {
@@ -58,7 +58,7 @@ export const MobileHeader: TemplateEntry = {
                   width: 18, 
                   height: 18, 
                   position: "absolute", 
-                  top: -8, 
+                  top: -8,
                   right: -8,
                   display: "flex",
                   alignItems: "center",
@@ -74,10 +74,10 @@ export const MobileHeader: TemplateEntry = {
     ),
     React.createElement(
       Element as any,
-      { is: Container, background: "#f1f5f9", padding: "12px 16px", borderTop: "1px solid #e2e8f0", canvas: true },
+      { is: Container, background: "#f1f5f9", padding: 0, borderTop: "1px solid #e2e8f0", canvas: true },
       React.createElement(
         Element as any,
-        { is: Container, background: "#ffffff", padding: "10px 16px", borderRadius: "8px", border: "1px solid #cbd5e1", canvas: true },
+        { is: Container, background: "#ffffff", padding: 0, borderRadius: "8px", border: "1px solid #cbd5e1", canvas: true },
         React.createElement(
           Element as any,
           { is: Row, alignItems: "center", gap: 8, canvas: true },

@@ -57,6 +57,7 @@ export const TextSettings = () => {
   }));
 
   const typedSetProp = setProp as SetProp<TextProps>;
+  const safeText = typeof text === "string" ? text : "";
 
   return (
     <div className="flex flex-col pb-4">
@@ -67,6 +68,27 @@ export const TextSettings = () => {
           flipVertical={flipVertical}
           setProp={typedSetProp}
         />
+      </DesignSection>
+
+      <DesignSection title="Content">
+        <textarea
+          value={safeText}
+          onChange={(e) => typedSetProp((props) => { props.text = e.target.value; })}
+          placeholder="Type your text here..."
+          className="w-full bg-brand-medium-dark p-2 rounded-lg text-brand-lighter focus:border-brand-light focus:outline-none resize-y min-h-[40px]"
+        />
+        <div className="mt-3 flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={Boolean(previewEditable)}
+            onChange={(e) => typedSetProp((props) => { props.previewEditable = e.target.checked; })}
+            className="accent-brand-light cursor-pointer"
+          />
+          <span className="text-[12px] text-brand-lighter">Allow input in Preview</span>
+        </div>
+        <p className="text-[10px] text-brand-light mt-1">
+          Lets users type into this text block on the Preview page only.
+        </p>
       </DesignSection>
 
       <DesignSection title="Size & Spacing">
@@ -98,26 +120,6 @@ export const TextSettings = () => {
           color={color}
           setProp={typedSetProp}
         />
-      </DesignSection>
-
-      <DesignSection title="Content">
-        <textarea
-          value={text}
-          onChange={(e) => typedSetProp((props) => { props.text = e.target.value; })}
-          className="w-full bg-brand-medium-dark p-2 rounded-lg text-brand-lighter focus:border-brand-light focus:outline-none resize-y min-h-[40px]"
-        />
-        <div className="mt-3 flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={Boolean(previewEditable)}
-            onChange={(e) => typedSetProp((props) => { props.previewEditable = e.target.checked; })}
-            className="accent-brand-light cursor-pointer"
-          />
-          <span className="text-[12px] text-brand-lighter">Allow input in Preview</span>
-        </div>
-        <p className="text-[10px] text-brand-light mt-1">
-          Lets users type into this text block on the Preview page only.
-        </p>
       </DesignSection>
 
       <DesignSection title="Effects" defaultOpen={false}>

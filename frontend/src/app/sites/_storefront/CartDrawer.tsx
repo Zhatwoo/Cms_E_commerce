@@ -63,7 +63,7 @@ export function CartDrawer() {
                       >
                         −
                       </button>
-                      <span className="text-sm w-6 text-center">{item.quantity}</span>
+                      <span className="text-sm w-6 text-black text-center">{item.quantity}</span>
                       <button
                         type="button"
                         onClick={() => updateQuantity(item.id, item.quantity + 1)}
@@ -87,7 +87,7 @@ export function CartDrawer() {
         </div>
         {cart.length > 0 && (
           <div className="p-4 border-t border-zinc-200">
-            <p className="text-sm text-zinc-600 mb-2">
+            <p className="text-xl text-black font-bold mb-2">
               Total: $
               {cart
                 .reduce((sum, i) => sum + i.price * i.quantity, 0)

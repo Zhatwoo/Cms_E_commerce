@@ -36,6 +36,7 @@ export const Container = ({
   borderColor = "transparent",
   borderWidth = 0,
   borderStyle = "solid",
+  strokePlacement = "mid",
   flexDirection = "column",
   flexWrap = "nowrap",
   alignItems = "center",
@@ -65,6 +66,7 @@ export const Container = ({
   flipVertical = false,
   designWidth,
   designHeight,
+  customClassName = "",
   children
 }: ContainerProps) => {
   const { id, connectors: { connect, drag } } = useNode();
@@ -108,7 +110,7 @@ export const Container = ({
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className="min-h-[50px] transition-[outline] duration-150 hover:outline hover:outline-blue-500"
+      className={`min-h-[50px] transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
       style={{
         backgroundColor: background,
         backgroundImage: backgroundImage
@@ -129,13 +131,15 @@ export const Container = ({
         marginBottom: `${mb}px`,
         width,
         height,
+        maxWidth: "100%",
+        minWidth: 0,
         borderTopLeftRadius: `${rtl}px`,
         borderTopRightRadius: `${rtr}px`,
         borderBottomRightRadius: `${rbr}px`,
         borderBottomLeftRadius: `${rbl}px`,
-        borderWidth: `${borderWidth}px`,
-        borderColor,
-        borderStyle,
+        ...(strokePlacement === "outside" && borderWidth > 0
+          ? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
+          : { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
         position,
         display: effectiveDisplay,
         zIndex: zIndex !== 0 ? zIndex : undefined,
@@ -231,6 +235,7 @@ export const ContainerDefaultProps: Partial<ContainerProps> = {
   borderColor: "transparent",
   borderWidth: 0,
   borderStyle: "solid",
+  strokePlacement: "mid",
   flexDirection: "column",
   flexWrap: "nowrap",
   alignItems: "center",

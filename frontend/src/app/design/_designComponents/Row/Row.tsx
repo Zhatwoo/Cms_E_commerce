@@ -26,6 +26,7 @@ export const Row = ({
   borderColor = "transparent",
   borderWidth = 0,
   borderStyle = "solid",
+  strokePlacement = "mid",
   flexDirection = "row",
   flexWrap = "wrap",
   alignItems = "stretch",
@@ -35,6 +36,7 @@ export const Row = ({
   opacity = 1,
   overflow = "visible",
   rotation = 0,
+  customClassName = "",
   children,
 }: ContainerProps) => {
   const { id, connectors: { connect, drag }, childCount } = useNode((node) => ({
@@ -64,7 +66,7 @@ export const Row = ({
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className="min-h-[40px] transition-[outline] duration-150 hover:outline hover:outline-blue-500"
+      className={`min-h-[40px] transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
       style={{
         backgroundColor: background,
         paddingLeft: `${pl}px`,
@@ -77,10 +79,12 @@ export const Row = ({
         marginBottom: `${mb}px`,
         width,
         height,
+        maxWidth: "100%",
+        minWidth: 0,
         borderRadius: `${borderRadius}px`,
-        borderWidth: `${borderWidth}px`,
-        borderColor,
-        borderStyle,
+        ...(strokePlacement === "outside" && borderWidth > 0
+          ? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
+          : { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
         display: "flex",
         flexDirection,
         flexWrap,
@@ -124,6 +128,7 @@ export const RowDefaultProps: Partial<ContainerProps> = {
   borderColor: "transparent",
   borderWidth: 0,
   borderStyle: "solid",
+  strokePlacement: "mid",
   flexDirection: "row",
   flexWrap: "wrap",
   alignItems: "flex-start",

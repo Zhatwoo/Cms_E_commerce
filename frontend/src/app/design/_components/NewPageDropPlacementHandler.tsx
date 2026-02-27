@@ -9,6 +9,9 @@ type DropPoint = {
   ts: number;
 };
 
+const NEW_PAGE_WIDTH = 1920;
+const NEW_PAGE_HEIGHT = 1200;
+
 function resolveViewportId(nodes: Record<string, any>): string | null {
   const rootNode = nodes?.ROOT;
   const frameRootId = rootNode?.data?.nodes?.[0] ?? null;
@@ -23,17 +26,90 @@ function resolveViewportId(nodes: Record<string, any>): string | null {
 
 function getEffectiveZoom(el: HTMLElement | null): number {
   if (!el) return 1;
-  let zoom = 1;
+  let cssZoom = 1;
   let current: HTMLElement | null = el;
   while (current) {
-    const zoomText = window.getComputedStyle(current).getPropertyValue("zoom");
+    const zoomText = window.getComputedStyle(current).zoom;
     const parsed = parseFloat(zoomText);
     if (Number.isFinite(parsed) && parsed > 0) {
-      zoom *= parsed;
+      cssZoom *= parsed;
     }
     current = current.parentElement;
   }
-  return zoom > 0.01 ? zoom : 1;
+
+  // 2. Detect transform scale by comparing bounding rect to offset dimensions
+  const rect = el.getBoundingClientRect();
+  const sx = el.offsetWidth > 0 ? rect.width / el.offsetWidth : 1;
+  const sy = el.offsetHeight > 0 ? rect.height / el.offsetHeight : 1;
+  // Average x and y scale to handle minor differences
+  const transformScale = Number.isFinite(sx) && Number.isFinite(sy) ? (sx + sy) / 2 : 1;
+
+  const effective = cssZoom * transformScale;
+  return effective > 0.01 ? effective : 1;
+}
+
+/**
+ * Try to get the scale value directly from the canvas container's transform style.
+ * Returns null if unable to parse.
+ */
+function getCanvasContainerScale(): number | null {
+  const container = document.querySelector("[data-canvas-container]") as HTMLElement | null;
+  if (!container) return null;
+
+  // The scaled content is the first child div with transform style
+  const innerContent = container.firstElementChild as HTMLElement | null;
+  if (!innerContent) return null;
+
+  const transform = innerContent.style.transform || window.getComputedStyle(innerContent).transform;
+  if (!transform || transform === "none") return null;
+
+  // Try to parse scale from transform string like "scale(0.5)" or "scale(0.5) rotate(0deg)"
+  const scaleMatch = transform.match(/scale\(([^)]+)\)/);
+  if (scaleMatch && scaleMatch[1]) {
+    const scale = parseFloat(scaleMatch[1]);
+    if (Number.isFinite(scale) && scale > 0) {
+      return scale;
+    }
+  }
+
+  // Try matrix parsing as fallback: matrix(a, b, c, d, e, f) where a is scaleX
+  const matrixMatch = transform.match(/matrix\(([^)]+)\)/);
+  if (matrixMatch && matrixMatch[1]) {
+    const values = matrixMatch[1].split(",").map((v) => parseFloat(v.trim()));
+    if (values.length >= 4) {
+      const scaleX = values[0];
+      const scaleY = values[3];
+      if (Number.isFinite(scaleX) && Number.isFinite(scaleY) && scaleX > 0 && scaleY > 0) {
+        return (scaleX + scaleY) / 2;
+      }
+    }
+  }
+
+  return null;
+}
+
+function getDropCanvasPoint(drop: DropPoint, desktopRoot: HTMLElement): { x: number; y: number } {
+  const rect = desktopRoot.getBoundingClientRect();
+  
+  // Try to get scale directly from canvas container first (most accurate)
+  let scale = getCanvasContainerScale();
+  
+  // Fallback to calculating from element dimensions if direct method fails
+  if (scale === null) {
+    scale = getEffectiveZoom(desktopRoot);
+  }
+
+  // Ensure scale is valid
+  const effectiveScale = scale > 0.01 ? scale : 1;
+
+  // Calculate position: screen offset from viewport top-left, converted to canvas coordinates
+  const x = (drop.clientX - rect.left) / effectiveScale;
+  const y = (drop.clientY - rect.top) / effectiveScale;
+
+  return {
+    x: Number.isFinite(x) ? Math.round(x) : 0,
+    y: Number.isFinite(y) ? Math.round(y) : 0,
+  };
 }
 
 export const NewPageDropPlacementHandler = () => {
@@ -44,6 +120,85 @@ export const NewPageDropPlacementHandler = () => {
   const lastDropPointRef = useRef<DropPoint | null>(null);
   const lastPointerRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const previewElRef = useRef<HTMLElement | null>(null);
+
+  const createPageAtDropPoint = (drop: DropPoint) => {
+    try {
+      const state = query.getState();
+      const nodes = state?.nodes ?? {};
+      const viewportId = resolveViewportId(nodes);
+      if (!viewportId) return false;
+
+      const viewportChildren = Array.isArray(nodes[viewportId]?.data?.nodes)
+        ? (nodes[viewportId].data.nodes as string[])
+        : [];
+      const currentPageIds = viewportChildren.filter((id) => nodes[id]?.data?.displayName === "Page");
+
+      const desktopRoot = document.querySelector("[data-viewport-desktop]") as HTMLElement | null;
+      if (!desktopRoot) return false;
+      const point = getDropCanvasPoint(drop, desktopRoot);
+      // Place the page's top-left corner exactly at the drop point
+      const canvasX = point.x;
+      const canvasY = point.y;
+
+      let snapshot: Record<string, any> | null = null;
+      try {
+        const serialized = (query as any).serialize ? (query as any).serialize() : null;
+        snapshot = serialized ? JSON.parse(serialized) : null;
+      } catch {
+        snapshot = null;
+      }
+
+      if (!snapshot || typeof snapshot !== "object" || !snapshot[viewportId]) {
+        return false;
+      }
+
+      const pageId = `page-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const pageName = `Page ${currentPageIds.length + 1}`;
+
+      snapshot[pageId] = {
+        type: { resolvedName: "Page" },
+        isCanvas: true,
+        props: {
+          pageName,
+          width: `${NEW_PAGE_WIDTH}px`,
+          height: `${NEW_PAGE_HEIGHT}px`,
+          background: "#E6E6E9",
+          canvasX,
+          canvasY,
+        },
+        displayName: "Page",
+        custom: {},
+        parent: viewportId,
+        hidden: false,
+        nodes: [],
+        linkedNodes: {},
+      };
+
+      const vp = snapshot[viewportId] as any;
+      if (!Array.isArray(vp.nodes)) vp.nodes = [];
+      vp.nodes = [...vp.nodes, pageId];
+
+      actions.deserialize(JSON.stringify(snapshot));
+      requestAnimationFrame(() => {
+        try {
+          actions.setProp(pageId, (props: Record<string, unknown>) => {
+            props.canvasX = canvasX;
+            props.canvasY = canvasY;
+          });
+          actions.selectNode(pageId);
+        } catch {
+          // Ignore if node is not yet available in this frame
+        }
+      });
+
+      preDropPageIdsRef.current = new Set([...currentPageIds, pageId]);
+      return true;
+    } catch (error) {
+      console.error("createPageAtDropPoint failed:", error);
+      return false;
+    }
+  };
 
   const placeDroppedPage = () => {
     try {
@@ -77,13 +232,12 @@ export const NewPageDropPlacementHandler = () => {
       const desktopRoot = document.querySelector("[data-viewport-desktop]") as HTMLElement | null;
       if (!desktopRoot) return;
 
-      const rect = desktopRoot.getBoundingClientRect();
-      const zoom = getEffectiveZoom(desktopRoot);
+      const dropPoint = getDropCanvasPoint(drop, desktopRoot);
 
       if (newPageIds.length > 0) {
         newPageIds.forEach((pageId, index) => {
-          const canvasX = Math.round((drop.clientX - rect.left) / zoom + index * 36);
-          const canvasY = Math.round((drop.clientY - rect.top) / zoom + index * 36);
+          const canvasX = Math.round(dropPoint.x + index * 36);
+          const canvasY = Math.round(dropPoint.y + index * 36);
 
           actions.setProp(pageId, (props: Record<string, unknown>) => {
             props.canvasX = canvasX;
@@ -103,8 +257,8 @@ export const NewPageDropPlacementHandler = () => {
       const pageName = `Page ${pageNum}`;
       const PAGE_WIDTH = 1920;
       const PAGE_HEIGHT = 1200;
-      const canvasX = Math.round((drop.clientX - rect.left) / zoom);
-      const canvasY = Math.round((drop.clientY - rect.top) / zoom);
+      const canvasX = dropPoint.x;
+      const canvasY = dropPoint.y;
 
       const tree = {
         rootNodeId: pageId,
@@ -218,7 +372,15 @@ export const NewPageDropPlacementHandler = () => {
       const after = lastDropPointRef.current;
 
       const done = before !== null && after === null;
-      if (done || attempts >= maxAttempts) return;
+      if (done) return;
+
+      if (attempts >= maxAttempts) {
+        if (before) {
+          createPageAtDropPoint(before);
+        }
+        lastDropPointRef.current = null;
+        return;
+      }
 
       requestAnimationFrame(tick);
     };
@@ -258,21 +420,70 @@ export const NewPageDropPlacementHandler = () => {
       }
     };
 
-    const handleMouseUp = (e: MouseEvent) => {
-      if (armedDragRef.current && movedDuringDragRef.current) {
-        const pointer = {
-          x: e.clientX || lastPointerRef.current.x,
-          y: e.clientY || lastPointerRef.current.y,
-        };
-        lastDropPointRef.current = {
-          clientX: pointer.x,
-          clientY: pointer.y,
-          ts: Date.now(),
-        };
-
-        placeDroppedPage();
-        schedulePlacementRetry();
+    const handleMouseUp = () => {
+      if (!armedDragRef.current) return;
+      if (!movedDuringDragRef.current) {
+        armedDragRef.current = false;
+        movedDuringDragRef.current = false;
+        lastDropPointRef.current = null;
       }
+    };
+
+    const handleDragOver = (e: DragEvent) => {
+      if (!armedDragRef.current) return;
+      // Allow dropping the native New Page drag anywhere on the canvas
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+      const x = e.clientX || lastPointerRef.current.x;
+      const y = e.clientY || lastPointerRef.current.y;
+      lastPointerRef.current = { x, y };
+      if (!movedDuringDragRef.current) {
+        const dx = x - dragStartRef.current.x;
+        const dy = y - dragStartRef.current.y;
+        if ((dx * dx + dy * dy) > 36) {
+          movedDuringDragRef.current = true;
+        }
+      }
+    };
+
+    const handleDrop = (e: DragEvent) => {
+      if (!armedDragRef.current || !movedDuringDragRef.current) {
+        armedDragRef.current = false;
+        movedDuringDragRef.current = false;
+        return;
+      }
+
+      // Ensure drop is accepted for the New Page native drag
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+
+      const pointer = {
+        x: e.clientX || lastPointerRef.current.x,
+        y: e.clientY || lastPointerRef.current.y,
+      };
+
+      lastDropPointRef.current = {
+        clientX: pointer.x,
+        clientY: pointer.y,
+        ts: Date.now(),
+      };
+
+      placeDroppedPage();
+      schedulePlacementRetry();
+
+      armedDragRef.current = false;
+      movedDuringDragRef.current = false;
+    };
+
+    const handleWindowBlur = () => {
+      armedDragRef.current = false;
+      movedDuringDragRef.current = false;
+      lastDropPointRef.current = null;
+    };
+
+    const handleDragEnd = () => {
       armedDragRef.current = false;
       movedDuringDragRef.current = false;
     };
@@ -280,10 +491,21 @@ export const NewPageDropPlacementHandler = () => {
     document.addEventListener("mousedown", handleMouseDown, true);
     document.addEventListener("mousemove", handleMouseMove, true);
     document.addEventListener("mouseup", handleMouseUp, true);
+    document.addEventListener("dragover", handleDragOver, true);
+    document.addEventListener("drop", handleDrop, true);
+    window.addEventListener("blur", handleWindowBlur);
+    document.addEventListener("dragend", handleDragEnd, true);
     return () => {
       document.removeEventListener("mousedown", handleMouseDown, true);
       document.removeEventListener("mousemove", handleMouseMove, true);
       document.removeEventListener("mouseup", handleMouseUp, true);
+      document.removeEventListener("dragover", handleDragOver, true);
+      document.removeEventListener("drop", handleDrop, true);
+      window.removeEventListener("blur", handleWindowBlur);
+      document.removeEventListener("dragend", handleDragEnd, true);
+      const el = previewElRef.current;
+      if (el?.parentElement) el.parentElement.removeChild(el);
+      previewElRef.current = null;
     };
   }, [query]);
 

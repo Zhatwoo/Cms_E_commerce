@@ -25,7 +25,12 @@ export default function LoginPage() {
       if (data.success) {
         // Sync current user to localStorage so Storage path and project folder use correct client name
         setStoredUser(data.user ?? null);
-        router.push('/m_dashboard'); // Redirect to dashboard after login
+        const role = (data.user?.role || '').toLowerCase();
+        if (role === 'admin' || role === 'super_admin') {
+          router.push('/admindashboard');
+        } else {
+          router.push('/m_dashboard/web-builder');
+        }
         router.refresh();
       } else {
         setError(data.message || 'Login failed.');

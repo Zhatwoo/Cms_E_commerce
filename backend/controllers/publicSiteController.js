@@ -49,10 +49,7 @@ exports.getProducts = async (req, res) => {
     if (!domain || !domain.userId || !domain.projectId) {
       return res.status(404).json({ success: false, message: 'Site not found' });
     }
-    const { items } = await Product.findAll({}, { limit: 100, page: 1 });
-    const published = items.filter(
-      (p) => p.status === 'Published' || p.status === 'active'
-    );
+    const published = await Product.findPublicBySubdomain(subdomain, { limit: 100 });
     res.status(200).json({ success: true, data: published });
   } catch (error) {
     console.error('getProducts error:', error);

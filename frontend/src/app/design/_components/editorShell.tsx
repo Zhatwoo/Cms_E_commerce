@@ -8,6 +8,7 @@ import { LeftPanel } from "./leftPanel";
 import { RightPanel } from "./rightPanel";
 import { TopPanel, type DevicePreset } from "./TopPanel";
 import { BottomPanel, type CanvasTool } from "./BottomPanel";
+import { FloatingMobilePreview } from "./FloatingMobilePreview";
 import { CanvasToolProvider } from "./CanvasToolContext";
 import { Container } from "../_designComponents/Container/Container";
 import { Text } from "../_designComponents/Text/Text";
@@ -67,6 +68,11 @@ class FrameErrorBoundary extends React.Component<
 }
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
+const UI_STATE_KEY_PREFIX = "craftjs_editor_ui";
+
+// These must match the Viewport constants for proper page positioning
+const PAGE_GRID_ORIGIN_X = 30000;
+const PAGE_GRID_ORIGIN_Y = 30000;
 
 const EMPTY_FRAME_DATA = JSON.stringify({
   ROOT: {
@@ -82,7 +88,15 @@ const EMPTY_FRAME_DATA = JSON.stringify({
   "page-1": {
     type: { resolvedName: "Page" },
     isCanvas: true,
-    props: { pageName: "Page 1", pageSlug: "page-0" },
+    props: { 
+      pageName: "Page 1", 
+      pageSlug: "page-0",
+      canvasX: PAGE_GRID_ORIGIN_X,
+      canvasY: PAGE_GRID_ORIGIN_Y,
+      width: "1920px",
+      height: "1200px",
+      background: "#ffffff"
+    },
     displayName: "Page",
     custom: {},
     parent: "ROOT",
@@ -102,6 +116,34 @@ const EMPTY_FRAME_DATA = JSON.stringify({
     linkedNodes: {},
   },
 });
+
+const VALIDATOR_RESOLVER: Record<string, React.ComponentType<any>> = {
+  ...RenderBlocks,
+  ...CRAFT_RESOLVER,
+  Container,
+  container: Container,
+  Text: Text || Container,
+  text: Text || Container,
+  Page: Page || Container,
+  page: Page || Container,
+  Viewport: Viewport || Container,
+  viewport: Viewport || Container,
+};
+
+const VALIDATOR_CANONICAL_NAME_BY_LOWER = new Map<string, string>();
+for (const key of Object.keys(VALIDATOR_RESOLVER)) {
+  const lowered = key.toLowerCase();
+  if (!VALIDATOR_CANONICAL_NAME_BY_LOWER.has(lowered)) {
+    VALIDATOR_CANONICAL_NAME_BY_LOWER.set(lowered, key);
+  }
+}
+
+function normalizeResolvedName(rawName: unknown): string {
+  const name = typeof rawName === "string" ? rawName.trim() : "";
+  if (!name) return "Container";
+  return VALIDATOR_CANONICAL_NAME_BY_LOWER.get(name.toLowerCase()) ?? "Container";
+}
+
 function getStorageKey(projectId: string) {
   return `${STORAGE_KEY_PREFIX}_${projectId}`;
 }
@@ -151,13 +193,30 @@ type EditorShellProps = {
   pageId?: string | null;
 };
 
-const MIN_SCALE = 0.01;
+const MIN_SCALE = 0.05;
 const MAX_SCALE = 3;
 const DEFAULT_SCALE = 0.5;
 const ZOOM_SENSITIVITY = 0.003;
-const infiniteCanvasWidthVw = 300;
-const infiniteCanvasHeightVh = 300;
-const infiniteCanvasPaddingPx = 400;
+const INFINITE_CANVAS_WIDTH_VW = 4000;
+const INFINITE_CANVAS_HEIGHT_VH = 4000;
+const INFINITE_CANVAS_PADDING_PX = 30000;
+
+const isEditableTarget = (target: EventTarget | null) => {
+  if (!target || !(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  return (
+    target.isContentEditable ||
+    tag === "INPUT" ||
+    tag === "TEXTAREA" ||
+    tag === "SELECT"
+  );
+};
+
+const clampScale = (value: unknown, fallback: number = DEFAULT_SCALE): number => {
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric)) return Math.min(MAX_SCALE, Math.max(MIN_SCALE, fallback));
+  return Math.min(MAX_SCALE, Math.max(MIN_SCALE, numeric));
+};
 
 /**
  * Deep validation function that walks through the entire Craft.js node tree
@@ -166,9 +225,9 @@ const infiniteCanvasPaddingPx = 400;
 function validateCraftData(jsonString: string): { valid: boolean; data?: string } {
   try {
     const parsed = JSON.parse(jsonString);
-    
+
     console.log('🔍 Validation: Starting with', Object.keys(parsed).length, 'nodes');
-    
+
     // Must have ROOT
     if (!parsed || !parsed.ROOT) {
       console.error('❌ Validation failed: Missing ROOT node');
@@ -191,26 +250,28 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
     const invalidNodes: string[] = [];
     const validNodeIds = new Set(allNodeIds.filter(id => {
       const node = parsed[id];
-      
+
       // Must be an object
       if (!node || typeof node !== 'object') {
         console.warn(`⚠️ Node ${id} is not an object:`, typeof node);
         invalidNodes.push(id);
         return false;
       }
-      
+
       // Must have type property
       if (!node.type) {
         console.warn(`⚠️ Node ${id} is missing 'type' property`);
         invalidNodes.push(id);
         return false;
       }
-      
-      // type must have resolvedName
-      if (!node.type.resolvedName) {
-        console.warn(`⚠️ Node ${id} type is missing 'resolvedName' property`);
-        invalidNodes.push(id);
-        return false;
+
+      const resolvedName = normalizeResolvedName(
+        typeof node.type === "string" ? node.type : node.type?.resolvedName
+      );
+      if (typeof node.type === "string") {
+        node.type = { resolvedName };
+      } else {
+        node.type.resolvedName = resolvedName;
       }
 
       // Must have nodes array (even if empty)
@@ -238,7 +299,7 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
     // Recursively validate and clean all node references
     let hasInvalidRefs = false;
     let removedRefsCount = 0;
-    
+
     function cleanNodeRefs(nodeId: string, visited = new Set<string>()): void {
       if (visited.has(nodeId)) return; // Prevent infinite loops
       visited.add(nodeId);
@@ -258,7 +319,7 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
           }
           return true;
         });
-        
+
         if (node.nodes.length !== originalLength) {
           console.log(`🔧 Cleaned ${nodeId}: ${originalLength} -> ${node.nodes.length} children`);
         }
@@ -292,9 +353,26 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
       delete parsed[id];
     });
 
+    // Final pass: ensure every node type resolves to an existing canonical resolver key.
+    Object.keys(parsed).forEach((id) => {
+      const node = parsed[id];
+      if (!node || typeof node !== "object") return;
+      const canonical = normalizeResolvedName(
+        typeof node.type === "string" ? node.type : node.type?.resolvedName
+      );
+      if (typeof node.type === "string") {
+        node.type = { resolvedName: canonical };
+      } else if (node.type && typeof node.type === "object") {
+        node.type.resolvedName = canonical;
+      } else {
+        node.type = { resolvedName: canonical };
+      }
+      node.displayName = canonical;
+    });
+
     const finalJson = JSON.stringify(parsed);
     console.log(`✅ Validation complete. Final data has ${Object.keys(parsed).length} nodes`);
-    
+
     return { valid: true, data: finalJson };
   } catch (error) {
     console.error('❌ Validation error:', error);
@@ -324,8 +402,18 @@ if (typeof window !== "undefined") {
 const DeferredFrame = ({ data, onMounted }: { data: string; onMounted?: () => void }) => {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
-    const id = requestAnimationFrame(() => setMounted(true));
-    return () => cancelAnimationFrame(id);
+    let done = false;
+    const markMounted = () => {
+      if (done) return;
+      done = true;
+      setMounted(true);
+    };
+    const id = requestAnimationFrame(markMounted);
+    const fallback = window.setTimeout(markMounted, 220);
+    return () => {
+      cancelAnimationFrame(id);
+      window.clearTimeout(fallback);
+    };
   }, []);
 
   useEffect(() => {
@@ -394,17 +482,37 @@ const SafeFrame = ({
       setRenderData(null);
     }
 
-    // Use a small delay to ensure validation completes
-    const id = requestAnimationFrame(() => setIsReady(true));
-    return () => cancelAnimationFrame(id);
+    // Use RAF + timeout fallback so new projects never get stuck in loading gate
+    let done = false;
+    const markReady = () => {
+      if (done) return;
+      done = true;
+      setIsReady(true);
+    };
+    const id = requestAnimationFrame(markReady);
+    const fallback = window.setTimeout(markReady, 260);
+    return () => {
+      cancelAnimationFrame(id);
+      window.clearTimeout(fallback);
+    };
   }, [data, onError]);
 
   // Defer Frame render to next tick so Craft.js store updates don't run during this component's render
   // (avoids "Cannot update a component while rendering a different component").
   useEffect(() => {
     if (!isReady) return;
-    const id = requestAnimationFrame(() => setCanRenderFrame(true));
-    return () => cancelAnimationFrame(id);
+    let done = false;
+    const allowRender = () => {
+      if (done) return;
+      done = true;
+      setCanRenderFrame(true);
+    };
+    const id = requestAnimationFrame(allowRender);
+    const fallback = window.setTimeout(allowRender, 260);
+    return () => {
+      cancelAnimationFrame(id);
+      window.clearTimeout(fallback);
+    };
   }, [isReady]);
 
   // Defer actual Frame mount to a later macrotask + low-priority update so Craft deserialize
@@ -474,29 +582,43 @@ const SafeFrame = ({
   );
 };
 
+/**
+ * Internal component to capture the Craft query object reliably.
+ * Must be a child of <Editor />.
+ */
+const QueryStasher = ({ onQuery }: { onQuery: (query: any) => void }) => {
+  const { query } = useEditor();
+  useEffect(() => {
+    onQuery(query);
+  }, [query, onQuery]);
+  return null;
+};
+
 /** Editor Shell */
 export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellProps) => {
   const { showAlert, showConfirm } = useAlert();
   const [currentPageId, setCurrentPageId] = useState<string | null>(initialPageId ?? null);
   const [pages, setPages] = useState<Array<{ id: string; name: string }>>([]);
+  const [projectFiles, setProjectFiles] = useState<any[]>([]);
+  const lastQueryRef = useRef<{ serialize: () => string } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const zoomAnchorRef = useRef<{
-    x: number;
-    y: number;
-    prevScale: number;
-    nextScale: number;
-  } | null>(null);
+  const previousScaleRef = useRef(1);
+  const wheelZoomDeltaRef = useRef(0);
+  const wheelZoomRafRef = useRef<number | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSnapshotRef = useRef<string | null>(null);
+  const lastSavedRawRef = useRef<string | null>(null);
+  const editorQueryRef = useRef<{ serialize: () => string } | null>(null);
   const errorCleanupDoneRef = useRef(false); // Track if we've already cleaned up
   const hasUserMovedCanvasRef = useRef(false);
   const [isPanning, setIsPanning] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
-  const [scale, setScale] = useState(DEFAULT_SCALE);
+  const [scale, setScale] = useState(1);
   const [initialJson, setInitialJson] = useState<string | null | undefined>(undefined);
   const [panelsReady, setPanelsReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [leftPanelOpen, setLeftPanelOpen] = useState(false);
+  const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [rightPanelTab, setRightPanelTab] = useState<TabId>("design");
   const [canvasWidth, setCanvasWidth] = useState(1440);
@@ -507,10 +629,24 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [showDualView, setShowDualView] = useState(false);
   const [suppressDropIndicator, setSuppressDropIndicator] = useState(false);
   const [dropIndicatorPulse, setDropIndicatorPulse] = useState(false);
-  const zoomFactor = Math.max(scale, 1);
-  const infiniteCanvasWidthVw = Math.max(220, Math.round(220 * zoomFactor));
-  const infiniteCanvasHeightVh = Math.max(220, Math.round(220 * zoomFactor));
-  const infiniteCanvasPaddingPx = Math.max(160, Math.round(160 * zoomFactor));
+  const hasInitialCenteringRef = useRef(false);
+  const hasForcedRightPanelOpenRef = useRef(false);
+  const saveStatusRef = useRef(saveStatus);
+
+  // Sync saveStatus to ref for safe use in beforeunload effect
+  useEffect(() => {
+    saveStatusRef.current = saveStatus;
+  }, [saveStatus]);
+
+  const infiniteCanvasWidthVw = INFINITE_CANVAS_WIDTH_VW;
+  const infiniteCanvasHeightVh = INFINITE_CANVAS_HEIGHT_VH;
+  const infiniteCanvasPaddingPx = INFINITE_CANVAS_PADDING_PX;
+
+  // Per-project UI state key so zoom, panels, and last page persist across reloads
+  const uiStateStorageKey = React.useMemo(
+    () => (projectId ? `${UI_STATE_KEY_PREFIX}_${projectId}` : UI_STATE_KEY_PREFIX),
+    [projectId]
+  );
   // Cleanup corrupted data when error boundary triggers
   const handleFrameError = useCallback(async () => {
     if (errorCleanupDoneRef.current) return;
@@ -518,9 +654,26 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
     console.error('❌ Frame rendering failed. Cleaning up corrupted data...');
     
-    // Clear from localStorage
+    // Clear per-project storage keys (both localStorage and sessionStorage)
     const storageKey = getStorageKey(projectId);
-    localStorage.removeItem(storageKey);
+    try {
+      if (typeof window !== "undefined") {
+        // Clear from localStorage (older code paths may have used this)
+        window.localStorage?.removeItem(storageKey);
+      } else {
+        // Fallback for environments where window is not defined
+        localStorage.removeItem(storageKey);
+      }
+    } catch {
+      // Ignore storage cleanup errors
+    }
+
+    // Also clear any cached snapshots from sessionStorage so we don't keep re-loading
+    safeSessionRemove(storageKey);
+    if (storageKey !== STORAGE_KEY_PREFIX) {
+      // Legacy/unscoped key used before per-project keys were introduced
+      safeSessionRemove(STORAGE_KEY_PREFIX);
+    }
     
     // Clear from database
     if (projectId) {
@@ -535,6 +688,63 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     // Reset to empty canvas
     setInitialJson(null);
   }, [projectId]);
+
+  // Restore basic UI state (zoom, panels, selected page) on mount for smoother reloads
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.sessionStorage.getItem(uiStateStorageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        scale?: number;
+        leftPanelOpen?: boolean;
+        rightPanelOpen?: boolean;
+        rightPanelTab?: TabId;
+        currentPageId?: string | null;
+        showDualView?: boolean;
+      };
+
+      if (typeof parsed.scale === "number") {
+        setScale((prev) => {
+          const next = clampScale(parsed.scale, prev);
+          return prev === next ? prev : next;
+        });
+      }
+      if (typeof parsed.leftPanelOpen === "boolean") setLeftPanelOpen(parsed.leftPanelOpen);
+      if (typeof parsed.rightPanelOpen === "boolean") setRightPanelOpen(parsed.rightPanelOpen);
+      if (parsed.rightPanelTab) setRightPanelTab(parsed.rightPanelTab);
+      if (typeof parsed.showDualView === "boolean") setShowDualView(parsed.showDualView);
+      if (parsed.currentPageId) setCurrentPageId(parsed.currentPageId);
+    } catch {
+      // Ignore bad UI state and let defaults win
+    }
+  }, [uiStateStorageKey]);
+
+  // Persist basic UI state so it survives full page refreshes and dev reloads
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const payload = JSON.stringify({
+      scale,
+      leftPanelOpen,
+      rightPanelOpen,
+      rightPanelTab,
+      currentPageId,
+      showDualView,
+    });
+    try {
+      window.sessionStorage.setItem(uiStateStorageKey, payload);
+    } catch {
+      // Ignore UI state persistence errors
+    }
+  }, [scale, leftPanelOpen, rightPanelOpen, rightPanelTab, currentPageId, showDualView, uiStateStorageKey]);
+
+  // Fail-safe: ensure right panel is visible at least once after panels mount.
+  // Prevents stale hidden state from making the panel appear missing.
+  useEffect(() => {
+    if (!panelsReady || hasForcedRightPanelOpenRef.current) return;
+    hasForcedRightPanelOpenRef.current = true;
+    setRightPanelOpen(true);
+  }, [panelsReady]);
 
   // Load pages from document
   const loadPages = useCallback((content: string) => {
@@ -570,7 +780,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       parsed.pages.push(newPage);
       const updated = JSON.stringify(parsed);
       const storageKey = getStorageKey(projectId);
-      localStorage.setItem(storageKey, updated);
+      // Save to sessionStorage for persistence across refreshes
+      safeSessionSet(storageKey, updated);
+      // Optionally, also save to localStorage for backup (uncomment if needed)
+      // localStorage.setItem(storageKey, updated);
       loadPages(updated);
       setCurrentPageId(id);
       setInitialJson(updated);
@@ -628,17 +841,13 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     }
   }, [initialJson, projectId, loadPages, showAlert]);
 
-  /** Returns true if the event target is an input, textarea, select, or contenteditable */
-  const isEditableTarget = (target: EventTarget | null) => {
-    if (!target || !(target instanceof HTMLElement)) return false;
-    const tag = target.tagName;
-    return target.isContentEditable || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
-  };
-
-  // Handle Zoom (zoom-to-cursor)
+  // Handle Zoom (always anchor to viewport center)
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
       if (!(e.ctrlKey || e.metaKey)) return;
+
+      if (isEditableTarget(e.target)) return;
+      if (e.target instanceof HTMLElement && e.target.closest("[data-panel]")) return;
 
       const container = containerRef.current;
       if (!container) return;
@@ -657,52 +866,158 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       }
       e.stopPropagation();
 
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+      let deltaY = e.deltaY;
+      if (e.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+        deltaY *= 16;
+      } else if (e.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+        deltaY *= container.clientHeight;
+      }
 
-      setScale((prevScale) => {
-        const step = -e.deltaY * ZOOM_SENSITIVITY * Math.max(prevScale, MIN_SCALE);
-        const newScale = Math.min(MAX_SCALE, Math.max(prevScale + step, MIN_SCALE));
-        if (newScale !== prevScale) {
-          zoomAnchorRef.current = { x, y, prevScale, nextScale: newScale };
-        }
-        return newScale;
+      const normalizedDelta = Math.max(-240, Math.min(240, deltaY));
+      wheelZoomDeltaRef.current += normalizedDelta;
+
+      if (wheelZoomRafRef.current !== null) return;
+
+      wheelZoomRafRef.current = requestAnimationFrame(() => {
+        wheelZoomRafRef.current = null;
+        const frameDelta = wheelZoomDeltaRef.current;
+        wheelZoomDeltaRef.current = 0;
+
+        if (Math.abs(frameDelta) < 0.01) return;
+
+        setScale((prevScale) => {
+          const safePrev = clampScale(prevScale, previousScaleRef.current || 1);
+          const zoomFactor = Math.exp(-frameDelta * ZOOM_SENSITIVITY);
+          if (!Number.isFinite(zoomFactor) || zoomFactor <= 0) {
+            return safePrev;
+          }
+          const nextScale = safePrev * zoomFactor;
+          return clampScale(nextScale, safePrev);
+        });
       });
     };
 
     window.addEventListener("wheel", handleWheel, { passive: false, capture: true });
 
     return () => {
+      if (wheelZoomRafRef.current !== null) {
+        cancelAnimationFrame(wheelZoomRafRef.current);
+        wheelZoomRafRef.current = null;
+      }
+      wheelZoomDeltaRef.current = 0;
       window.removeEventListener("wheel", handleWheel, { capture: true });
     };
   }, []);
 
-  // Adjust scroll position after zoom to keep cursor point stationary
+  // Keep center point stationary while zooming, including rapid wheel bursts
   useLayoutEffect(() => {
-    const anchor = zoomAnchorRef.current;
     const container = containerRef.current;
-    if (!anchor || !container) return;
+    if (!container) {
+      previousScaleRef.current = clampScale(scale, previousScaleRef.current || 1);
+      return;
+    }
 
-    const { x, y, prevScale, nextScale } = anchor;
-    const contentX = (container.scrollLeft + x) / prevScale;
-    const contentY = (container.scrollTop + y) / prevScale;
+    const prevScale = clampScale(previousScaleRef.current, scale || 1);
+    const nextScale = clampScale(scale, prevScale);
+    if (prevScale === nextScale) {
+      previousScaleRef.current = nextScale;
+      return;
+    }
 
-    container.scrollLeft = contentX * nextScale - x;
-    container.scrollTop = contentY * nextScale - y;
+    if (container.clientWidth <= 0 || container.clientHeight <= 0) {
+      previousScaleRef.current = nextScale;
+      return;
+    }
 
-    zoomAnchorRef.current = null;
+    const centerX = container.clientWidth / 2;
+    const centerY = container.clientHeight / 2;
+    const contentX = (container.scrollLeft + centerX) / prevScale;
+    const contentY = (container.scrollTop + centerY) / prevScale;
+
+    if (!Number.isFinite(contentX) || !Number.isFinite(contentY)) {
+      previousScaleRef.current = nextScale;
+      return;
+    }
+
+    const nextScrollLeft = contentX * nextScale - centerX;
+    const nextScrollTop = contentY * nextScale - centerY;
+    const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
+    const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+
+    container.scrollLeft = Math.min(maxScrollLeft, Math.max(0, nextScrollLeft));
+    container.scrollTop = Math.min(maxScrollTop, Math.max(0, nextScrollTop));
+    previousScaleRef.current = nextScale;
   }, [scale]);
 
-  // Center the canvas in the view
+  // Center the canvas in the view - focus on first page element
   const centerCanvasInView = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const x = (container.scrollWidth - container.clientWidth) / 2;
-    const y = (container.scrollHeight - container.clientHeight) / 2;
-    container.scrollLeft = x;
-    container.scrollTop = y;
+    // Try to find the first Page element and center on it
+    const firstPage = container.querySelector("[data-page-node]") as HTMLElement | null;
+    
+    if (firstPage) {
+      const containerRect = container.getBoundingClientRect();
+      const pageRect = firstPage.getBoundingClientRect();
+
+      // Calculate where the page center is in scroll coordinates
+      const pageCenterX = container.scrollLeft + (pageRect.left - containerRect.left) + pageRect.width / 2;
+      const pageCenterY = container.scrollTop + (pageRect.top - containerRect.top) + pageRect.height / 2;
+
+      const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
+      const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+
+      const nextLeft = Math.min(maxScrollLeft, Math.max(0, pageCenterX - container.clientWidth / 2));
+      const nextTop = Math.min(maxScrollTop, Math.max(0, pageCenterY - container.clientHeight / 2));
+
+      container.scrollLeft = nextLeft;
+      container.scrollTop = nextTop;
+      return;
+    }
+
+    // Fallback: try viewport desktop
+    const desktopViewport = container.querySelector("[data-viewport-desktop]") as HTMLElement | null;
+
+    if (desktopViewport) {
+      const containerRect = container.getBoundingClientRect();
+      const viewportRect = desktopViewport.getBoundingClientRect();
+
+      const viewportCenterX = container.scrollLeft + (viewportRect.left - containerRect.left) + viewportRect.width / 2;
+      const viewportCenterY = container.scrollTop + (viewportRect.top - containerRect.top) + viewportRect.height / 2;
+
+      const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
+      const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+
+      const nextLeft = Math.min(maxScrollLeft, Math.max(0, viewportCenterX - container.clientWidth / 2));
+      const nextTop = Math.min(maxScrollTop, Math.max(0, viewportCenterY - container.clientHeight / 2));
+
+      container.scrollLeft = nextLeft;
+      container.scrollTop = nextTop;
+      return;
+    }
+
+    // Ultimate fallback: center of scroll area
+    const fallbackLeft = (container.scrollWidth - container.clientWidth) / 2;
+    const fallbackTop = (container.scrollHeight - container.clientHeight) / 2;
+    container.scrollLeft = fallbackLeft;
+    container.scrollTop = fallbackTop;
   }, []);
+
+  // Center immediately on first mount so default view starts at middle even before frame settles
+  useLayoutEffect(() => {
+    if (hasInitialCenteringRef.current) return;
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    const rafId = requestAnimationFrame(() => {
+      centerCanvasInView();
+      hasInitialCenteringRef.current = true;
+    });
+
+    return () => cancelAnimationFrame(rafId);
+  }, [centerCanvasInView]);
 
   // Center canvas after refresh/load and keep centering while layout is still settling
   useEffect(() => {
@@ -755,22 +1070,36 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
 
+    if (
+      !Number.isFinite(contentWidth) ||
+      !Number.isFinite(contentHeight) ||
+      contentWidth <= 0 ||
+      contentHeight <= 0 ||
+      containerWidth <= 0 ||
+      containerHeight <= 0
+    ) {
+      setScale((prev) => clampScale(prev, 1));
+      return;
+    }
+
     const scaleX = (containerWidth * 0.9) / contentWidth;
     const scaleY = (containerHeight * 0.9) / contentHeight;
     const newScale = Math.min(scaleX, scaleY, 1);
 
-    setScale(Math.max(newScale, MIN_SCALE));
+    setScale(clampScale(newScale, 1));
 
-    // Center the canvas
+    // Center on the first page
     setTimeout(() => {
-      if (container) {
-        const x = (container.scrollWidth - container.clientWidth) / 2;
-        const y = (container.scrollHeight - container.clientHeight) / 2;
-        container.scrollLeft = x;
-        container.scrollTop = y;
-      }
+      centerCanvasInView();
     }, 100);
-  }, [canvasWidth, canvasHeight]);
+  }, [canvasWidth, canvasHeight, centerCanvasInView]);
+
+  const handleScaleChange = useCallback((nextScale: number) => {
+    setScale((prevScale) => {
+      const clampedScale = clampScale(nextScale, prevScale);
+      return prevScale === clampedScale ? prevScale : clampedScale;
+    });
+  }, []);
 
   // Handle device preset selection - only width changes; preserve page height so it doesn't reset
   const handleDevicePresetSelect = useCallback((preset: DevicePreset) => {
@@ -786,53 +1115,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     setLeftPanelOpen(true);
   }, []);
 
-  // Handle Panning Shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === "Space") {
-        if (isEditableTarget(e.target)) return;
-        // Prevent default spacebar scrolling behavior
-        if (e.target === document.body) {
-          e.preventDefault();
-        }
-
-        if (!isSpacePressed) {
-          setIsSpacePressed(true);
-          document.body.dataset.spacePan = "true";
-        }
-      }
-    };
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.code === "Space") {
-        setIsSpacePressed(false);
-        setIsPanning(false);
-        document.body.removeAttribute("data-space-pan");
-        document.body.removeAttribute("data-canvas-pan");
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-    };
-  }, [isSpacePressed]);
+  const isSpacePanActive = activeTool === "move" && isSpacePressed;
+  const canPanWithPointerDrag = activeTool === "hand" || isSpacePanActive;
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    const target = e.target as HTMLElement | null;
-    const isCanvasBackground =
-      !!target?.closest("[data-canvas-container]") &&
-      !target?.closest("[data-page-node='true']") &&
-      !target?.closest("[data-panel]") &&
-      !target?.closest("[data-resize-handle]");
-    const backgroundDragPan = e.button === 0 && isCanvasBackground;
-
-    // Hand tool active, or Space held, or middle click → pan
-    if (activeTool === "hand" || isSpacePressed || e.button === 1 || backgroundDragPan) {
-      hasUserMovedCanvasRef.current = true;
+    if (canPanWithPointerDrag) {
       setIsPanning(true);
       document.body.dataset.canvasPan = "true";
       e.preventDefault();
@@ -851,6 +1138,76 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       containerRef.current.scrollTop -= e.movementY;
     }
   };
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== "Space") return;
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (isEditableTarget(event.target)) return;
+
+      event.preventDefault();
+      if (activeTool === "move") {
+        setIsSpacePressed(true);
+      }
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.code !== "Space") return;
+      setIsSpacePressed(false);
+    };
+
+    const handleWindowBlur = () => {
+      setIsSpacePressed(false);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleWindowBlur);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleWindowBlur);
+    };
+  }, [activeTool]);
+
+  useEffect(() => {
+    if (isSpacePanActive) {
+      document.body.dataset.spacePan = "true";
+      return;
+    }
+    document.body.removeAttribute("data-space-pan");
+  }, [isSpacePanActive]);
+
+  useEffect(() => {
+    if (activeTool === "move" && !isSpacePanActive && isPanning) {
+      setIsPanning(false);
+      document.body.removeAttribute("data-canvas-pan");
+    }
+  }, [activeTool, isSpacePanActive, isPanning]);
+
+  useEffect(() => {
+    const handleToolShortcut = (event: KeyboardEvent) => {
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (isEditableTarget(event.target)) return;
+
+      const key = event.key.toLowerCase();
+
+      if (key === "h") {
+        event.preventDefault();
+        setActiveTool("hand");
+        return;
+      }
+
+      if (key === "g") {
+        event.preventDefault();
+        setActiveTool("move");
+      }
+    };
+
+    window.addEventListener("keydown", handleToolShortcut);
+    return () => window.removeEventListener("keydown", handleToolShortcut);
+  }, []);
 
   // Track if editor is fully loaded to prevent stale closure issues
   const isReadyRef = useRef(false);
@@ -1002,6 +1359,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         setInitialJson(contentToLoad);
         if (contentToLoad) {
           loadPages(contentToLoad);
+          try {
+            const parsed = JSON.parse(contentToLoad);
+            if (parsed.files) {
+              setProjectFiles(parsed.files);
+            }
+          } catch (e) {
+            console.warn('Failed to parse files from initialJson', e);
+          }
         }
 
         // IMPORTANT: Mark as ready immediately via Ref to avoid stale closures
@@ -1031,26 +1396,77 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
   // Hide Craft drop indicator only when dragging the special New Page source item
   useEffect(() => {
+    let clearTimer: number | null = null;
+
+    const activateSuppression = () => {
+      if (clearTimer !== null) {
+        window.clearTimeout(clearTimer);
+        clearTimer = null;
+      }
+      document.body.dataset.newPageDragActive = "true";
+      setSuppressDropIndicator(true);
+    };
+
+    const clearSuppression = (delayMs = 900) => {
+      if (clearTimer !== null) {
+        window.clearTimeout(clearTimer);
+      }
+      clearTimer = window.setTimeout(() => {
+        delete document.body.dataset.newPageDragActive;
+        setSuppressDropIndicator(false);
+        clearTimer = null;
+      }, delayMs);
+    };
+
     const handleMouseDown = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
       const isNewPageSource = !!target?.closest("[data-component-new-page='true']");
       if (isNewPageSource) {
-        setSuppressDropIndicator(true);
+        activateSuppression();
       }
     };
 
-    const clearSuppression = () => {
+    const handleDragStart = (event: DragEvent) => {
+      const target = event.target as HTMLElement | null;
+      const startedFromNewPage =
+        !!target?.closest("[data-component-new-page='true']") ||
+        document.body.dataset.newPageDragActive === "true";
+      if (startedFromNewPage) {
+        activateSuppression();
+      }
+    };
+
+    const handleDropOrDragEnd = () => {
+      if (document.body.dataset.newPageDragActive === "true") {
+        clearSuppression(1000);
+      }
+    };
+
+    const handleWindowBlur = () => {
+      if (clearTimer !== null) {
+        window.clearTimeout(clearTimer);
+      }
+      delete document.body.dataset.newPageDragActive;
       setSuppressDropIndicator(false);
+      clearTimer = null;
     };
 
     document.addEventListener("mousedown", handleMouseDown, true);
-    document.addEventListener("mouseup", clearSuppression, true);
-    document.addEventListener("dragend", clearSuppression, true);
+    document.addEventListener("dragstart", handleDragStart, true);
+    document.addEventListener("drop", handleDropOrDragEnd, true);
+    document.addEventListener("dragend", handleDropOrDragEnd, true);
+    window.addEventListener("blur", handleWindowBlur);
 
     return () => {
+      if (clearTimer !== null) {
+        window.clearTimeout(clearTimer);
+      }
+      delete document.body.dataset.newPageDragActive;
       document.removeEventListener("mousedown", handleMouseDown, true);
-      document.removeEventListener("mouseup", clearSuppression, true);
-      document.removeEventListener("dragend", clearSuppression, true);
+      document.removeEventListener("dragstart", handleDragStart, true);
+      document.removeEventListener("drop", handleDropOrDragEnd, true);
+      document.removeEventListener("dragend", handleDropOrDragEnd, true);
+      window.removeEventListener("blur", handleWindowBlur);
     };
   }, []);
 
@@ -1086,101 +1502,166 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     }
   };
 
-  // Auto-save editor state to database (debounced)
-  const handleNodesChange = useCallback(
-    (query: { serialize: () => string }) => {
-      if (
-        document.body.dataset.editorDragging === "true" ||
-        document.body.dataset.editorDropCommit === "true"
-      ) {
-        if (saveTimerRef.current) {
-          clearTimeout(saveTimerRef.current);
-          saveTimerRef.current = null;
-        }
-        return;
-      }
+  /**
+   * Immediately serialize the current editor state to sessionStorage.
+   * Returns the clean snapshot string, or null on failure.
+   */
+  const mirrorToSession = useCallback(
+    (query: { serialize: () => string }): string | null => {
+      try {
+        const next = query.serialize();
+        if (next === lastSavedRawRef.current) return lastSnapshotRef.current;
+        const parsed = JSON.parse(next);
+        if (!parsed?.ROOT) return null;
 
-      // Check Ref instead of State to avoid stale closure
-      if (!isReadyRef.current) {
-        // console.log('🛑 Aborting save: Editor not yet ready');
-        return;
-      }
+        lastSavedRawRef.current = next;
 
-      // console.log('🖱️ handleNodesChange triggered! Saving...');
-
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-
-      // Defer state update to avoid 'Cannot update a component while rendering a different component'
-      Promise.resolve().then(() => { setSaveStatus('saving'); setSaveError(null); });
-
-      saveTimerRef.current = setTimeout(async () => {
+        let snapshot: string | null = null;
         try {
-          const next = query.serialize();
-          const parsed = JSON.parse(next);
-          if (!parsed?.ROOT) return;
-
-          let cleanCode;
-          try {
-            cleanCode = serializeCraftToClean(next);
-          } catch (serializeError) {
-            console.warn('Auto-save: serializeCraftToClean failed, saving raw to session for preview:', serializeError);
-            if (projectId && typeof window !== 'undefined' && window.sessionStorage) {
-              const key = `${STORAGE_KEY_PREFIX}_${projectId}`;
-              try {
-                window.sessionStorage.setItem(key, next);
-                window.sessionStorage.setItem(STORAGE_KEY_PREFIX, next);
-              } catch (e) {
-                // ignore quota
-              }
-            }
-            setSaveStatus('error');
-            setSaveError('Serialization failed');
-            return;
-          }
-
-          const snapshot = JSON.stringify(cleanCode);
-
-          // Always write to sessionStorage so Preview shows latest (even before DB save)
-          if (projectId && typeof window !== 'undefined' && window.sessionStorage) {
-            try {
-              const key = `${STORAGE_KEY_PREFIX}_${projectId}`;
-              window.sessionStorage.setItem(key, snapshot);
-              window.sessionStorage.setItem(STORAGE_KEY_PREFIX, snapshot);
-            } catch (e) {
-              if (!isQuotaError(e)) console.warn('Auto-save: sessionStorage write failed', e);
-            }
-          }
-
-          // Save CLEAN CODE to database (only when projectId is set)
-          if (projectId) {
-            const result = await autoSavePage(snapshot, projectId);
-
-            if (result.success) {
-              setSaveStatus('saved');
-              setSaveError(null);
-              setTimeout(() => setSaveStatus('idle'), 2000);
-            } else {
-              console.warn('Auto-save warning:', result.error);
-              setSaveStatus('error');
-              setSaveError(result.error || 'Save failed');
-            }
-          }
-        } catch (error) {
-          console.error('Auto-save error:', error);
-          setSaveStatus('error');
-          setSaveError(error instanceof Error ? error.message : 'Network or serialization error');
+          snapshot = JSON.stringify(serializeCraftToClean(next));
+        } catch {
+          snapshot = null;
         }
-      }, 1500); // Debounce 1.5s
+
+        const toStore = snapshot ?? next;
+        if (typeof window !== "undefined" && window.sessionStorage && projectId) {
+          try {
+            const key = `${STORAGE_KEY_PREFIX}_${projectId}`;
+            window.sessionStorage.setItem(key, toStore);
+            window.sessionStorage.setItem(STORAGE_KEY_PREFIX, toStore);
+          } catch (e) {
+            if (!isQuotaError(e)) console.warn("Auto-save: sessionStorage write failed", e);
+          }
+        }
+
+        if (snapshot) lastSnapshotRef.current = snapshot;
+        return snapshot;
+      } catch {
+        return null;
+      }
     },
-    [projectId]
+    [projectId],
   );
 
-  // Clean up debounce timer on unmount
+  const dbSaveInFlightRef = useRef(false);
+  const dbSavePendingRef = useRef(false);
+
+  const flushToDb = useCallback(async () => {
+    const snapshot = lastSnapshotRef.current;
+    if (!snapshot || !projectId) {
+      setSaveStatus("idle");
+      return;
+    }
+    if (dbSaveInFlightRef.current) {
+      dbSavePendingRef.current = true;
+      return;
+    }
+    dbSaveInFlightRef.current = true;
+    try {
+      const result = await autoSavePage(snapshot, projectId);
+      if (result.success) {
+        setSaveStatus("saved");
+        setSaveError(null);
+        setTimeout(() => setSaveStatus("idle"), 1200);
+      } else {
+        console.warn("Auto-save warning:", result.error);
+        setSaveStatus("error");
+        setSaveError(result.error || "Save failed");
+      }
+    } catch (error) {
+      console.error("Auto-save error:", error);
+      setSaveStatus("error");
+      setSaveError(error instanceof Error ? error.message : "Network error");
+    } finally {
+      dbSaveInFlightRef.current = false;
+      if (dbSavePendingRef.current) {
+        dbSavePendingRef.current = false;
+        flushToDb();
+      }
+    }
+  }, [projectId]);
+
+  // Auto-save: mirror to sessionStorage on every change, save to DB right after
+  const handleNodesChange = useCallback(
+    (query: { serialize: () => string }) => {
+      editorQueryRef.current = query;
+
+      if (!isReadyRef.current) return;
+
+      const isDragging =
+        document.body.dataset.editorDragging === "true" ||
+        document.body.dataset.editorDropCommit === "true";
+
+      // Always mirror to sessionStorage so refresh never loses work
+      mirrorToSession(query);
+
+      // During drag: skip DB write to keep the canvas responsive (drag-end handler will flush)
+      if (isDragging) return;
+
+      if (projectId) {
+        Promise.resolve().then(() => {
+          setSaveStatus("saving");
+          setSaveError(null);
+        });
+      }
+
+      // Save to DB immediately (queued if a save is already in flight)
+      flushToDb();
+    },
+    [projectId, mirrorToSession, flushToDb],
+  );
+
+  // After a drag ends, do one final save (positions changed but no further onNodesChange fires)
   useEffect(() => {
+    const observer = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        if (m.attributeName !== "data-editor-dragging" && m.attributeName !== "data-editor-drop-commit") continue;
+        const isDragging =
+          document.body.dataset.editorDragging === "true" ||
+          document.body.dataset.editorDropCommit === "true";
+        if (!isDragging && editorQueryRef.current && isReadyRef.current) {
+          handleNodesChange(editorQueryRef.current);
+        }
+      }
+    });
+    observer.observe(document.body, { attributes: true, attributeFilter: ["data-editor-dragging", "data-editor-drop-commit"] });
+    return () => observer.disconnect();
+  }, [handleNodesChange]);
+
+  // Save to sessionStorage right before the tab is closed / refreshed
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (editorQueryRef.current && isReadyRef.current) {
+        mirrorToSession(editorQueryRef.current);
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [mirrorToSession]);
+
+  // Clean up on unmount
+  useEffect(() => {
+    if (projectFiles.length > 0 && lastQueryRef.current) {
+      handleNodesChange(lastQueryRef.current);
+    }
+  }, [projectFiles, handleNodesChange]);
+
+  // Clean up debounce timer and add beforeunload warning
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (saveStatusRef.current === 'saving') {
+        const message = "Your changes are still saving. Are you sure you want to leave?";
+        e.returnValue = message;
+        return message;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
-  }, []);
+  }, []); // Stable [] array to prevent mismatch
 
   /** Only pass to Frame if data is valid Craft format and every node type exists in resolver */
   const resolverRef = useRef<Record<string, React.ComponentType>>({});
@@ -1261,6 +1742,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         const validChildIds = childIds.filter((cid: string) => allIds.has(cid));
         node.nodes = validChildIds;
       }
+
       return JSON.stringify(parsed);
     } catch {
       return null;
@@ -1310,13 +1792,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         resolver={resolver}
         indicator={{
           success: suppressDropIndicator ? "transparent" : (dropIndicatorPulse ? "#4ade80" : "#22c55e"),
-          error: "#ef4444",
+          error: suppressDropIndicator ? "transparent" : "#ef4444",
           thickness: suppressDropIndicator ? 0 : (dropIndicatorPulse ? 4 : 2),
-          transition: "all 140ms ease-out",
+          transition: suppressDropIndicator ? "none" : "all 140ms ease-out",
         }}
         onRender={RenderNode}
         onNodesChange={(query) => requestAnimationFrame(() => handleNodesChange(query))}
       >
+        <QueryStasher onQuery={(q) => { lastQueryRef.current = q; }} />
         <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
         <CanvasToolProvider value={activeTool}>
         <TransformModeProvider>
@@ -1333,7 +1816,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           {panelsReady && (
             <TopPanel
               scale={scale}
-              onScaleChange={setScale}
+              onScaleChange={handleScaleChange}
               onRotateCanvas={handleRotateCanvas}
               onFitToCanvas={handleFitToCanvas}
               onAddButton={handleAddButton}
@@ -1348,18 +1831,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         <div
           ref={containerRef}
           data-canvas-container
-          className={`absolute inset-0 overflow-auto bg-brand-darker canvas-scroll-container ${activeTool === "hand" ? "canvas-hand-tool" : ""} ${activeTool === "hand" && isPanning ? "canvas-hand-panning" : ""}`}
+          className={`absolute inset-0 overflow-auto bg-brand-darker canvas-scroll-container ${canPanWithPointerDrag ? "canvas-hand-tool" : ""} ${canPanWithPointerDrag && isPanning ? "canvas-hand-panning" : ""}`}
           style={{
             cursor:
-              activeTool === "hand"
+              canPanWithPointerDrag
                 ? isPanning
                   ? "grabbing"
                   : "grab"
-                : isSpacePressed
-                  ? isPanning
-                    ? "grabbing"
-                    : "grab"
-                  : "default",
+                : "default",
           }}
           onMouseDown={handleMouseDown}
           onMouseUp={handleMouseUp}
@@ -1368,13 +1847,16 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         >
           {/* Inner Content - Infinite Canvas */}
           <div
-            className="flex items-center justify-center transition-transform duration-300"
+            className="flex items-center justify-center"
             style={{
               minWidth: `${infiniteCanvasWidthVw}vw`,
               minHeight: `${infiniteCanvasHeightVh}vh`,
               padding: `${infiniteCanvasPaddingPx}px`,
-              zoom: scale,
-              transform: canvasRotation !== 0 ? `rotate(${canvasRotation}deg)` : 'none',
+              transformOrigin: "top left",
+              transform:
+                canvasRotation !== 0
+                  ? `scale(${scale}) rotate(${canvasRotation}deg)`
+                  : `scale(${scale})`,
             }}
           >
             {initialJson === undefined ? null : (
@@ -1389,41 +1871,48 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           </div>
         </div>
         {/* Floating Panels */}
+        {/* Right Panel Reopen Fallback */}
+        {panelsReady && !rightPanelOpen && (
+          <button
+            type="button"
+            onClick={() => setRightPanelOpen(true)}
+            className="absolute top-14 right-4 z-[60] p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110"
+            title="Show Configs panel"
+          >
+            <PanelRight className="w-5 h-5 text-brand-light" />
+          </button>
+        )}
         {/* Left Panel */}
         {panelsReady && (
-          <div>
-            {/* Left Panel */}
-            <div className="absolute top-14 left-4 z-50 h-[calc(100vh-3.5rem)] w-80 flex items-start pointer-events-none">
+          <div className="absolute top-14 left-4 z-50 h-[calc(100vh-6.5rem)] flex items-start pointer-events-none">
+            <div className="h-full flex items-start pointer-events-auto">
               <div
-                className="h-full w-80 flex items-start pointer-events-auto"
+                className={`h-full origin-left transition-[transform,opacity] duration-300 ease-out will-change-transform ${
+                  leftPanelOpen
+                    ? "translate-x-0 scale-100 opacity-100 pointer-events-auto"
+                    : "-translate-x-full scale-90 opacity-0 pointer-events-none"
+                }`}
               >
-                <div className="h-full w-80 overflow-hidden shrink-0 pointer-events-none">
-                  <div
-                    className={`h-full w-80 origin-left transition-[transform,opacity] duration-300 ease-out will-change-transform ${
-                      leftPanelOpen
-                        ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
-                        : '-translate-x-full scale-90 opacity-0 pointer-events-none'
-                    }`}
-                  >
-                    <LeftPanel onToggle={() => setLeftPanelOpen(false)} frameReady={frameReady} />
-                  </div>
-                </div>
-                <button
-                  onClick={() => setLeftPanelOpen((open) => !open)}
-                  className={`absolute left-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${
-                    leftPanelOpen ? 'opacity-0 pointer-events-none scale-95' : 'opacity-100 pointer-events-auto scale-100'
-                  }`}
-                  title={leftPanelOpen ? "Hide left panel" : "Show left panel"}
-                >
-                  <PanelLeft className="w-5 h-5 text-brand-light" />
-                </button>
+                <LeftPanel
+                  frameReady={frameReady}
+                  onToggle={() => setLeftPanelOpen(false)}
+                />
               </div>
+              <button
+                onClick={() => setLeftPanelOpen((open) => !open)}
+                className={`absolute left-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${
+                  leftPanelOpen ? "opacity-0 pointer-events-none scale-95" : "opacity-100 pointer-events-auto scale-100"
+                }`}
+                title={leftPanelOpen ? "Hide left panel" : "Show left panel"}
+              >
+                <PanelLeft className="w-5 h-5 text-brand-light" />
+              </button>
             </div>
           </div>
         )}
         {/* Right Panel */}
         {panelsReady && (
-          <div className="absolute top-14 right-4 z-50 h-[calc(100vh-3.5rem)] flex items-start pointer-events-none">
+          <div className="absolute top-14 right-4 z-50 h-[calc(100vh-6.5rem)] flex items-start pointer-events-none">
             <div className="h-full flex items-start justify-end pointer-events-auto">
               <div
                 className={`h-full origin-right transition-[transform,opacity] duration-300 ease-out will-change-transform ${
@@ -1440,15 +1929,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                   onClose={() => setRightPanelOpen(false)}
                 />
               </div>
-              <button
-                onClick={() => setRightPanelOpen((open) => !open)}
-                className={`absolute right-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${
-                  rightPanelOpen ? 'opacity-0 pointer-events-none scale-95' : 'opacity-100 pointer-events-auto scale-100'
-                }`}
-                title={rightPanelOpen ? "Hide right panel" : "Show Configs panel"}
-              >
-                <PanelRight className="w-5 h-5 text-brand-light" />
-              </button>
             </div>
           </div>
         )}
@@ -1463,36 +1943,16 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
             onResetData={handleDeleteData}
             onZoomFit={handleFitToCanvas}
             scale={scale}
-            onScaleChange={setScale}
+            onScaleChange={handleScaleChange}
           />
         )}
-        {/* Canvas Controls Overlay: ito yung nasa baba :> */}
-        <div data-panel="canvas-controls" className="absolute bottom-4 right-100 bg-brand-dark/80 backdrop-blur p-1 rounded-lg text-xs text-brand-lighter pointer-events-none z-50 border border-white/10">
-          <div className="flex gap-4 items-center">
-            <span>{Math.round(scale * 100)}%</span>
-            <span>Space + Drag to Pan</span>
-            <span>Ctrl + Scroll to Zoom</span>
-            <span>Ctrl (Win) / ⌘ Cmd (Mac) + Click to multi-select</span>
-            {/* Delete Button */}
-            <button
-              onClick={handleDeleteData}
-              className="pointer-events-auto text-red-400 hover:text-red-300 transition-colors ml-2"
-              title="Delete stored data and reset"
-            >
-              🗑️ Reset Data
-            </button>
-            {saveStatus !== 'idle' && (
-              <span className={`${saveStatus === 'saving' ? 'text-yellow-400' :
-                saveStatus === 'saved' ? 'text-green-400' :
-                  'text-red-400'
-                }`}>
-                {saveStatus === 'saving' ? '💾 Saving...' :
-                  saveStatus === 'saved' ? '✓ Saved' :
-                    saveError ? `⚠ Save failed: ${saveError}` : '⚠ Save failed'}
-              </span>
-            )}
-          </div>
-        </div>
+        {/* Floating Mobile Preview */}
+        {panelsReady && (
+          <FloatingMobilePreview
+            isOpen={showDualView}
+            onClose={() => setShowDualView(false)}
+          />
+        )}
         </InlineTextEditProvider>
         </TransformModeProvider>
         </CanvasToolProvider>
