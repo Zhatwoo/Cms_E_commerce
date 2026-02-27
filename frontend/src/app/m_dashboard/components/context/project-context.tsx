@@ -46,12 +46,14 @@ export function ProjectProvider({ children }: ProviderProps) {
       if (res?.success && Array.isArray(res.projects)) {
         setProjects(res.projects);
 
-        // If current selected project no longer exists, clear selection
-        if (
-          selectedProjectId &&
+        // Ensure we always have a valid selected project when projects exist
+        if (res.projects.length === 0) {
+          setSelectedProjectIdState(null);
+        } else if (
+          !selectedProjectId ||
           !res.projects.find((p) => p.id === selectedProjectId)
         ) {
-          setSelectedProjectIdState(null);
+          setSelectedProjectIdState(res.projects[0].id);
         }
       } else {
         setProjects([]);
