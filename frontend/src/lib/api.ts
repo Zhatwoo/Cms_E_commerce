@@ -310,15 +310,15 @@ export async function createProject(params: {
   title?: string;
   templateId?: string | null;
   subdomain?: string | null;
-}): Promise<{ success: boolean; project: Project }> {
-  return apiFetch<{ success: boolean; project: Project }>('/api/projects', {
+}): Promise<{ success: boolean; project: Project; message?: string }> {
+  return apiFetch<{ success: boolean; project: Project; message?: string }>('/api/projects', {
     method: 'POST',
     body: JSON.stringify(params),
   });
 }
 
-export async function getProject(id: string): Promise<{ success: boolean; project: Project }> {
-  return apiFetch<{ success: boolean; project: Project }>(`/api/projects/${id}`);
+export async function getProject(id: string): Promise<{ success: boolean; project: Project; message?: string }> {
+  return apiFetch<{ success: boolean; project: Project; message?: string }>(`/api/projects/${id}`);
 }
 
 export async function getProjectBySubdomain(subdomain: string): Promise<{ success: boolean; project?: Project }> {
@@ -334,8 +334,8 @@ export async function getProjectBySubdomain(subdomain: string): Promise<{ succes
 export async function updateProject(
   id: string,
   params: { title?: string; status?: string; subdomain?: string | null; thumbnail?: string | null }
-): Promise<{ success: boolean; project: Project }> {
-  return apiFetch<{ success: boolean; project: Project }>(`/api/projects/${id}`, {
+): Promise<{ success: boolean; project: Project; message?: string }> {
+  return apiFetch<{ success: boolean; project: Project; message?: string }>(`/api/projects/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(params),
   });
@@ -515,6 +515,21 @@ export async function deleteProduct(id: string): Promise<{ success: boolean; mes
 }
 
 /** Admin: User and Website Management — list websites with owner and plan from user/roles/client (subscription_plan). */
+export type DomainRow = {
+  id: string;
+  userId: string;
+  domain: string;
+  status: string;
+  createdAt?: string;
+};
+
+export async function getMyDomains(): Promise<{
+  success: boolean;
+  data?: DomainRow[];
+}> {
+  return apiFetch<{ success: boolean; data?: DomainRow[] }>('/api/domains/my');
+}
+
 export type WebsiteManagementRow = {
   id: string;
   userId: string;
