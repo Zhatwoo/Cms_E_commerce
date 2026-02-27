@@ -555,6 +555,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [projectFiles, setProjectFiles] = useState<any[]>([]);
   const lastQueryRef = useRef<{ serialize: () => string } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const horizontalScrollbarRef = useRef<HTMLDivElement>(null);
+  const horizontalScrollbarInnerRef = useRef<HTMLDivElement>(null);
   const previousScaleRef = useRef(1);
   const wheelZoomDeltaRef = useRef(0);
   const wheelZoomRafRef = useRef<number | null>(null);
@@ -1844,8 +1846,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                     <div className="h-full flex items-start pointer-events-auto">
                       <div
                         className={`h-full origin-left transition-[transform,opacity] duration-300 ease-out will-change-transform ${leftPanelOpen
-                            ? "translate-x-0 scale-100 opacity-100 pointer-events-auto"
-                            : "-translate-x-full scale-90 opacity-0 pointer-events-none"
+                          ? "translate-x-0 scale-100 opacity-100 pointer-events-auto"
+                          : "-translate-x-full scale-90 opacity-0 pointer-events-none"
                           }`}
                       >
                         <LeftPanel
@@ -1870,8 +1872,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                     <div className="h-full flex items-start justify-end pointer-events-auto">
                       <div
                         className={`h-full origin-right transition-[transform,opacity] duration-300 ease-out will-change-transform ${rightPanelOpen
-                            ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
-                            : 'translate-x-full scale-90 opacity-0 pointer-events-none'
+                          ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
+                          : 'translate-x-full scale-90 opacity-0 pointer-events-none'
                           }`}
                       >
                         <RightPanel

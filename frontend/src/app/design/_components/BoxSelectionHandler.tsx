@@ -187,44 +187,47 @@ export const BoxSelectionHandler = () => {
 
         try {
           if (intersecting.length === 0) {
-            actions.selectNode(undefined);
+            actionsRef.current.selectNode(undefined);
           } else if (intersecting.length === 1) {
-            actions.selectNode(intersecting[0]);
+            actionsRef.current.selectNode(intersecting[0]);
           } else {
-            actions.selectNode(intersecting);
+            actionsRef.current.selectNode(intersecting);
           }
         } catch {
           // ignore
         }
-      };
+      } catch {
+        // ignore outer
+      }
+    };
 
-      const handleKeyOrBlur = (e: KeyboardEvent | FocusEvent | Event) => {
-        if (e instanceof KeyboardEvent && e.code !== "Space" && e.code !== "Escape") return;
-        dragRef.current = null;
-        setMarqueeRect(null);
-      };
+    const handleKeyOrBlur = (e: KeyboardEvent | FocusEvent | Event) => {
+      if (e instanceof KeyboardEvent && e.code !== "Space" && e.code !== "Escape") return;
+      dragRef.current = null;
+      setMarqueeRect(null);
+    };
 
-      // Always-active listeners – no conditional registration
-      document.addEventListener("mousedown", handleMouseDown, true);
-      document.addEventListener("mousemove", handleMouseMove, true);
-      document.addEventListener("mouseup", handleMouseUp, true);
-      window.addEventListener("mouseup", handleMouseUp, true);
-      window.addEventListener("blur", handleKeyOrBlur);
-      window.addEventListener("keydown", handleKeyOrBlur as EventListener);
-      document.addEventListener("visibilitychange", () => {
-        if (document.hidden) { dragRef.current = null; setMarqueeRect(null); }
-      });
+    // Always-active listeners – no conditional registration
+    document.addEventListener("mousedown", handleMouseDown, true);
+    document.addEventListener("mousemove", handleMouseMove, true);
+    document.addEventListener("mouseup", handleMouseUp, true);
+    window.addEventListener("mouseup", handleMouseUp, true);
+    window.addEventListener("blur", handleKeyOrBlur);
+    window.addEventListener("keydown", handleKeyOrBlur as EventListener);
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) { dragRef.current = null; setMarqueeRect(null); }
+    });
 
-      return () => {
-        dragRef.current = null;
-        document.removeEventListener("mousedown", handleMouseDown, true);
-        document.removeEventListener("mousemove", handleMouseMove, true);
-        document.removeEventListener("mouseup", handleMouseUp, true);
-        window.removeEventListener("mouseup", handleMouseUp, true);
-        window.removeEventListener("blur", handleKeyOrBlur);
-        window.removeEventListener("keydown", handleKeyOrBlur as EventListener);
-      };
-    }, []); // Empty deps — refs keep everything fresh
+    return () => {
+      dragRef.current = null;
+      document.removeEventListener("mousedown", handleMouseDown, true);
+      document.removeEventListener("mousemove", handleMouseMove, true);
+      document.removeEventListener("mouseup", handleMouseUp, true);
+      window.removeEventListener("mouseup", handleMouseUp, true);
+      window.removeEventListener("blur", handleKeyOrBlur);
+      window.removeEventListener("keydown", handleKeyOrBlur as EventListener);
+    };
+  }, []); // Empty deps — refs keep everything fresh
 
   if (!marqueeRect) return null;
 
