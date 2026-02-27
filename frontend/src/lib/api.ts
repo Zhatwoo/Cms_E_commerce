@@ -461,6 +461,41 @@ export async function listProducts(params?: {
   return apiFetch<{ success: boolean; items: ApiProduct[]; total: number; page: number; totalPages: number }>(path);
 }
 
+// For uploading prodcut images to Firebase Storage 
+export async function uploadProductImageApi(
+  file: File,
+  subdomain?: string
+): Promise<{ success: boolean; message?: string; url?: string }> {
+  const candidates = getApiCandidates();
+  let lastError: unknown = null;
+
+  for (const base of candidates) {
+    const formData = new FormData();
+    formData.append('image', file);
+    if (subdomain) formData.append('subdomain', subdomain);
+
+    try {
+      const res = await fetch(`${base}/api/products/upload-image`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      activeApiBase = base;
+      return handleResponse<{ success: boolean; message?: string; url?: string }>(res);
+    } catch (error) {
+      lastError = error;
+      if (!(error instanceof TypeError)) {
+        throw error;
+      }
+    }
+  }
+
+  if (lastError instanceof Error && lastError.message) {
+    throw lastError;
+  }
+  throw new Error('Backend is unreachable. Start the backend server and ensure API URL/port is correct.');
+}
+
 export async function createProduct(params: {
   subdomain: string;
   name: string;
