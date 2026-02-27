@@ -1,5 +1,6 @@
 // models/User.js — Firebase Auth + Firestore users collection
 const { auth, db } = require('../config/firebase');
+const { deleteRecursive } = require('../utils/firestoreHelper');
 
 // USERS_COLLECTION moved to explicit strings to be 100% clear about the 'user' (singular) path.
 
@@ -44,20 +45,6 @@ function toFirestore(data) {
   return out;
 }
 
-/**
- * Helper to recursively delete a document and ALL its sub-collections.
- * Firestore doesn't do this automatically.
- */
-async function deleteRecursive(docRef) {
-  const collections = await docRef.listCollections();
-  for (const collection of collections) {
-    const documents = await collection.get();
-    for (const doc of documents.docs) {
-      await deleteRecursive(doc.ref);
-    }
-  }
-  await docRef.delete();
-}
 
 class User {
   /** Public signup: create auth user + Firestore profile (role client) */

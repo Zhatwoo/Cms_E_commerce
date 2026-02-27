@@ -1815,161 +1815,158 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       >
         <QueryStasher onQuery={(q) => { lastQueryRef.current = q; }} />
         <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
-        <CanvasToolProvider value={activeTool}>
-        <TransformModeProvider>
-        <InlineTextEditProvider>
-          <KeyboardShortcuts />
-          <CanvasSelectionHandler />
-          <CanvasContextMenu />
-          <FigmaStyleDragHandler />
-          <NewPageDropPlacementHandler />
-          <MarqueeSelectionHandler />
-          <DoubleClickTransformHandler />
-          <PrototypeFlowLines />
-          {/* Top Panel */}
-          {panelsReady && (
-            <TopPanel
-              scale={scale}
-              onScaleChange={handleScaleChange}
-              onRotateCanvas={handleRotateCanvas}
-              onFitToCanvas={handleFitToCanvas}
-              onAddButton={handleAddButton}
-              canvasWidth={canvasWidth}
-              canvasHeight={canvasHeight}
-              onDevicePresetSelect={handleDevicePresetSelect}
-              showDualView={showDualView}
-              onDualViewToggle={() => setShowDualView((v) => !v)}
-            />
-          )}
-          {/* Canvas Area (Background) — when dual view: leave room for phone preview on the right */}
-        <div
-          ref={containerRef}
-          data-canvas-container
-          className={`absolute inset-0 overflow-auto bg-brand-darker canvas-scroll-container ${canPanWithPointerDrag ? "canvas-hand-tool" : ""} ${canPanWithPointerDrag && isPanning ? "canvas-hand-panning" : ""}`}
-          style={{
-            cursor:
-              canPanWithPointerDrag
-                ? isPanning
-                  ? "grabbing"
-                  : "grab"
-                : "default",
-          }}
-          onMouseDown={handleMouseDown}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onMouseMove={handleMouseMove}
-        >
-          {/* Inner Content - Infinite Canvas */}
-          <div
-            className="flex items-center justify-center"
-            style={{
-              minWidth: `${infiniteCanvasWidthVw}vw`,
-              minHeight: `${infiniteCanvasHeightVh}vh`,
-              padding: `${infiniteCanvasPaddingPx}px`,
-              transformOrigin: "top left",
-              transform:
-                canvasRotation !== 0
-                  ? `scale(${scale}) rotate(${canvasRotation}deg)`
-                  : `scale(${scale})`,
-            }}
-          >
-            {initialJson === undefined ? null : (
-              <SafeFrame
-                data={validFrameData ?? initialJson}
-                onError={handleFrameError}
-                onFrameMounted={() => {
-                  setFrameReady((prev) => (prev ? prev : true));
-                }}
-              />
-            )}
-          </div>
-        </div>
-        {/* Floating Panels */}
-        {/* Right Panel Reopen Fallback */}
-        {panelsReady && !rightPanelOpen && (
-          <button
-            type="button"
-            onClick={() => setRightPanelOpen(true)}
-            className="absolute top-14 right-4 z-[60] p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110"
-            title="Show Configs panel"
-          >
-            <PanelRight className="w-5 h-5 text-brand-light" />
-          </button>
-        )}
-        {/* Left Panel */}
-        {panelsReady && (
-          <div className="absolute top-14 left-4 z-50 h-[calc(100vh-6.5rem)] flex items-start pointer-events-none">
-            <div className="h-full flex items-start pointer-events-auto">
-              <div
-                className={`h-full origin-left transition-[transform,opacity] duration-300 ease-out will-change-transform ${
-                  leftPanelOpen
-                    ? "translate-x-0 scale-100 opacity-100 pointer-events-auto"
-                    : "-translate-x-full scale-90 opacity-0 pointer-events-none"
-                }`}
-              >
-                <LeftPanel
-                  frameReady={frameReady}
-                  onToggle={() => setLeftPanelOpen(false)}
-                />
-              </div>
-              <button
-                onClick={() => setLeftPanelOpen((open) => !open)}
-                className={`absolute left-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${
-                  leftPanelOpen ? "opacity-0 pointer-events-none scale-95" : "opacity-100 pointer-events-auto scale-100"
-                }`}
-                title={leftPanelOpen ? "Hide left panel" : "Show left panel"}
-              >
-                <PanelLeft className="w-5 h-5 text-brand-light" />
-              </button>
-            </div>
-          </div>
-        )}
-        {/* Right Panel */}
-        {panelsReady && (
-          <div className="absolute top-14 right-4 z-50 h-[calc(100vh-6.5rem)] flex items-start pointer-events-none">
-            <div className="h-full flex items-start justify-end pointer-events-auto">
-              <div
-                className={`h-full origin-right transition-[transform,opacity] duration-300 ease-out will-change-transform ${
-                  rightPanelOpen
-                    ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
-                    : 'translate-x-full scale-90 opacity-0 pointer-events-none'
-                }`}
-              >
-                <RightPanel
-                  projectId={projectId}
-                  activeTab={rightPanelTab}
-                  setActiveTab={setRightPanelTab}
-                  frameReady={frameReady}
-                  onClose={() => setRightPanelOpen(false)}
-                />
-              </div>
-            </div>
-          </div>
-        )}
-        {/* Bottom Panel: Move, Hand, Zoom fit & 100% */}
-        {panelsReady && (
-          <BottomPanel
-            activeTool={activeTool}
-            onToolChange={setActiveTool}
-            showHints={true}
-            saveStatus={saveStatus}
-            saveError={saveError}
-            onResetData={handleDeleteData}
-            onZoomFit={handleFitToCanvas}
-            scale={scale}
-            onScaleChange={handleScaleChange}
-          />
-        )}
-        {/* Floating Mobile Preview */}
-        {panelsReady && (
-          <FloatingMobilePreview
-            isOpen={showDualView}
-            onClose={() => setShowDualView(false)}
-          />
-        )}
-        </InlineTextEditProvider>
-        </TransformModeProvider>
-        </CanvasToolProvider>
+          <CanvasToolProvider value={activeTool}>
+            <TransformModeProvider>
+              <InlineTextEditProvider>
+                <KeyboardShortcuts />
+                <CanvasSelectionHandler />
+                <CanvasContextMenu />
+                <FigmaStyleDragHandler />
+                <NewPageDropPlacementHandler />
+                <BoxSelectionHandler />
+                <DoubleClickTransformHandler />
+                <PrototypeFlowLines />
+                {/* Top Panel */}
+                {panelsReady && (
+                  <TopPanel
+                    scale={scale}
+                    onScaleChange={handleScaleChange}
+                    onRotateCanvas={handleRotateCanvas}
+                    onFitToCanvas={handleFitToCanvas}
+                    onAddButton={handleAddButton}
+                    canvasWidth={canvasWidth}
+                    canvasHeight={canvasHeight}
+                    onDevicePresetSelect={handleDevicePresetSelect}
+                    showDualView={showDualView}
+                    onDualViewToggle={() => setShowDualView((v) => !v)}
+                  />
+                )}
+                {/* Canvas Area (Background) — when dual view: leave room for phone preview on the right */}
+                <div
+                  ref={containerRef}
+                  data-canvas-container
+                  className={`absolute inset-0 overflow-auto bg-brand-darker canvas-scroll-container ${canPanWithPointerDrag ? "canvas-hand-tool" : ""} ${canPanWithPointerDrag && isPanning ? "canvas-hand-panning" : ""}`}
+                  style={{
+                    cursor:
+                      canPanWithPointerDrag
+                        ? isPanning
+                          ? "grabbing"
+                          : "grab"
+                        : "default",
+                  }}
+                  onMouseDown={handleMouseDown}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
+                  onMouseMove={handleMouseMove}
+                >
+                  {/* Inner Content - Infinite Canvas */}
+                  <div
+                    className="flex items-center justify-center"
+                    style={{
+                      minWidth: `${infiniteCanvasWidthVw}vw`,
+                      minHeight: `${infiniteCanvasHeightVh}vh`,
+                      padding: `${infiniteCanvasPaddingPx}px`,
+                      transformOrigin: "top left",
+                      transform:
+                        canvasRotation !== 0
+                          ? `scale(${scale}) rotate(${canvasRotation}deg)`
+                          : `scale(${scale})`,
+                    }}
+                  >
+                    {initialJson === undefined ? null : (
+                      <SafeFrame
+                        data={validFrameData ?? initialJson}
+                        onError={handleFrameError}
+                        onFrameMounted={() => {
+                          setFrameReady((prev) => (prev ? prev : true));
+                        }}
+                      />
+                    )}
+                  </div>
+                </div>
+                {/* Floating Panels */}
+                {/* Right Panel Reopen Fallback */}
+                {panelsReady && !rightPanelOpen && (
+                  <button
+                    type="button"
+                    onClick={() => setRightPanelOpen(true)}
+                    className="absolute top-14 right-4 z-[60] p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110"
+                    title="Show Configs panel"
+                  >
+                    <PanelRight className="w-5 h-5 text-brand-light" />
+                  </button>
+                )}
+                {/* Left Panel */}
+                {panelsReady && (
+                  <div className="absolute top-14 left-4 z-50 h-[calc(100vh-6.5rem)] flex items-start pointer-events-none">
+                    <div className="h-full flex items-start pointer-events-auto">
+                      <div
+                        className={`h-full origin-left transition-[transform,opacity] duration-300 ease-out will-change-transform ${leftPanelOpen
+                            ? "translate-x-0 scale-100 opacity-100 pointer-events-auto"
+                            : "-translate-x-full scale-90 opacity-0 pointer-events-none"
+                          }`}
+                      >
+                        <LeftPanel
+                          frameReady={frameReady}
+                          onToggle={() => setLeftPanelOpen(false)}
+                        />
+                      </div>
+                      <button
+                        onClick={() => setLeftPanelOpen((open) => !open)}
+                        className={`absolute left-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${leftPanelOpen ? "opacity-0 pointer-events-none scale-95" : "opacity-100 pointer-events-auto scale-100"
+                          }`}
+                        title={leftPanelOpen ? "Hide left panel" : "Show left panel"}
+                      >
+                        <PanelLeft className="w-5 h-5 text-brand-light" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {/* Right Panel */}
+                {panelsReady && (
+                  <div className="absolute top-14 right-4 z-50 h-[calc(100vh-6.5rem)] flex items-start pointer-events-none">
+                    <div className="h-full flex items-start justify-end pointer-events-auto">
+                      <div
+                        className={`h-full origin-right transition-[transform,opacity] duration-300 ease-out will-change-transform ${rightPanelOpen
+                            ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
+                            : 'translate-x-full scale-90 opacity-0 pointer-events-none'
+                          }`}
+                      >
+                        <RightPanel
+                          projectId={projectId}
+                          activeTab={rightPanelTab}
+                          setActiveTab={setRightPanelTab}
+                          frameReady={frameReady}
+                          onClose={() => setRightPanelOpen(false)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {/* Bottom Panel: Move, Hand, Zoom fit & 100% */}
+                {panelsReady && (
+                  <BottomPanel
+                    activeTool={activeTool}
+                    onToolChange={setActiveTool}
+                    showHints={true}
+                    saveStatus={saveStatus}
+                    saveError={saveError}
+                    onResetData={handleDeleteData}
+                    onZoomFit={handleFitToCanvas}
+                    scale={scale}
+                    onScaleChange={handleScaleChange}
+                  />
+                )}
+                {/* Floating Mobile Preview */}
+                {panelsReady && (
+                  <FloatingMobilePreview
+                    isOpen={showDualView}
+                    onClose={() => setShowDualView(false)}
+                  />
+                )}
+              </InlineTextEditProvider>
+            </TransformModeProvider>
+          </CanvasToolProvider>
         </PrototypeTabProvider>
       </Editor>
     </div>
