@@ -95,7 +95,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                 backgroundColor: colors.bg.primary
             }}
         >
-            <div className="flex items-center justify-between px-4 sm:px-6" style={{ height: '84px' }}>
+            <div className="relative flex items-center justify-between px-4 sm:px-6" style={{ height: '84px' }}>
                 <div className="flex items-center">
                     <button
                         type="button"
@@ -110,14 +110,16 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                     </button>
                 </div>
 
-                <div className="flex-1 flex justify-center px-2">
+                <div className="flex-1" />
+
+                <div className="hidden sm:flex absolute left-1/2 -translate-x-1/2 items-center pointer-events-none">
                     {showProjectSwitch && selectedProject && (
                         <button
                             type="button"
                             onClick={() => {
                                 setShowSwitchModal(true);
                             }}
-                            className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors hover:bg-black/5 dark:hover:bg-white/10 pointer-events-auto"
                             style={{ borderColor: colors.border.faint, color: colors.text.secondary }}
                         >
                             <span className="truncate max-w-[220px]">
