@@ -36,38 +36,47 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, onToggleStatus
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-xl border overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300"
-      style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+      className="border overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col h-full"
+      style={{
+        backgroundColor: colors.bg.card,
+        borderColor: colors.border.faint,
+        borderRadius: '20px',
+      }}
     >
-      <div className="p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div
-              className="w-14 h-14 rounded-lg overflow-hidden border flex items-center justify-center"
-              style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}
-            >
-              {showImage ? (
-                <img
-                  src={imageValue}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span className="text-xs" style={{ color: colors.text.muted }}>
-                  [product]
-                </span>
-              )}
-            </div>
-            <div>
-              <h3 className="font-semibold text-lg" style={{ color: colors.text.primary }}>
-                {product.name}
-              </h3>
-              <p className="text-sm" style={{ color: colors.text.muted }}>
-                SKU: {product.sku}
-              </p>
-            </div>
+      {/* Large Image Area */}
+      <div
+        className="w-full h-40 md:h-48 lg:h-44 overflow-hidden flex items-center justify-center border-b"
+        style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}
+      >
+        {showImage ? (
+          <img
+            src={imageValue}
+            alt={product.name}
+            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center text-center p-4">
+            <svg className="w-16 h-16 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: colors.border.faint }}>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span className="text-xs" style={{ color: colors.text.muted }}>No image</span>
           </div>
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${product.status === 'active' ? 'bg-green-100 text-green-800' :
+        )}
+      </div>
+
+      {/* Content Area */}
+      <div className="p-3 md:p-4 flex-1 flex flex-col">
+        {/* Header with status badge */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex-1">
+            <h3 className="font-semibold text-sm md:text-base line-clamp-1" style={{ color: colors.text.primary }}>
+              {product.name}
+            </h3>
+            <p className="text-xs mt-1" style={{ color: colors.text.muted }}>
+              SKU: {product.sku}
+            </p>
+          </div>
+          <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${product.status === 'active' ? 'bg-green-100 text-green-800' :
             product.status === 'inactive' ? 'bg-red-100 text-red-800' :
               'bg-gray-100 text-gray-800'
             }`}>
@@ -75,68 +84,73 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, onToggleStatus
           </span>
         </div>
 
-        <p className="text-sm mb-4 line-clamp-2" style={{ color: colors.text.secondary }}>
-          {product.description}
+        {/* Description */}
+        <p className="text-xs mb-4 line-clamp-2 flex-1" style={{ color: colors.text.secondary }}>
+          {product.description || 'No description'}
         </p>
 
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        {/* Price & Stock Info */}
+        <div className="grid grid-cols-2 gap-3 mb-4 pb-4 border-b" style={{ borderColor: colors.border.faint }}>
           <div>
-            <p className="text-xs" style={{ color: colors.text.muted }}>Price</p>
-            <p className="font-semibold" style={{ color: colors.text.primary }}>
+            <p className="text-xs mb-1" style={{ color: colors.text.muted }}>Price</p>
+            <p className="font-semibold text-sm" style={{ color: colors.text.primary }}>
               ${product.price.toFixed(2)}
             </p>
           </div>
           <div>
-            <p className="text-xs" style={{ color: colors.text.muted }}>Stock</p>
-            <p className={`font-semibold ${product.stock === 0 ? 'text-red-500' : product.stock < 20 ? 'text-yellow-500' : 'text-green-500'}`}>
+            <p className="text-xs mb-1" style={{ color: colors.text.muted }}>Stock</p>
+            <p className={`font-semibold text-sm ${product.stock === 0 ? 'text-red-500' : product.stock < 20 ? 'text-yellow-500' : 'text-green-500'}`}>
               {product.stock} units
             </p>
           </div>
         </div>
 
-        <div className="flex items-center justify-between pt-4 border-t" style={{ borderColor: colors.border.faint }}>
-          <span className="text-xs px-2 py-1 rounded-md" style={{ backgroundColor: colors.bg.elevated, color: colors.text.muted }}>
+        {/* Category */}
+        <div className="mb-4">
+          <span className="text-xs px-2 py-1 rounded-md inline-block" style={{ backgroundColor: colors.bg.elevated, color: colors.text.muted }}>
             {product.category}
           </span>
-          <div className="flex gap-2">
-            <button
-              onClick={() => onView(product)}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              style={{ color: colors.text.muted }}
-              title="View details"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M1.5 12s3.5-7 10.5-7 10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12z" />
-                <circle cx="12" cy="12" r="3" strokeWidth={2} />
-              </svg>
-            </button>
-            <button
-              onClick={() => onEdit(product)}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              style={{ color: colors.text.muted }}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-            </button>
-            <button
-              onClick={() => onToggleStatus(product)}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              style={{ color: colors.text.muted }}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-              </svg>
-            </button>
-            <button
-              onClick={() => onDelete(product)}
-              className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-red-500"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
-          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-2 mt-auto justify-end">
+          <button
+            onClick={() => onView(product)}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center justify-center"
+            style={{ color: colors.text.muted }}
+            title="View details"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M1.5 12s3.5-7 10.5-7 10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12z" />
+              <circle cx="12" cy="12" r="3" strokeWidth={2} />
+            </svg>
+          </button>
+          <button
+            onClick={() => onEdit(product)}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center justify-center"
+            style={{ color: colors.text.muted }}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </button>
+          <button
+            onClick={() => onToggleStatus(product)}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center justify-center"
+            style={{ color: colors.text.muted }}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            </svg>
+          </button>
+          <button
+            onClick={() => onDelete(product)}
+            className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-red-500 flex items-center justify-center"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
         </div>
       </div>
     </motion.div>
@@ -726,7 +740,7 @@ export default function ProductsPage() {
 
           {filteredProducts.length > 0 ? (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5 lg:gap-6">
                 {paginatedProducts.map((product) => (
                   <ProductCard
                     key={product.id}
