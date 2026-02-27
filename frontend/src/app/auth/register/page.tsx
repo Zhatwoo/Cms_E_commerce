@@ -29,7 +29,7 @@ export default function RegisterPage() {
       const data = await apiRegister({ name: name.trim() || email.split('@')[0], email, password });
       if (data.success) {
         if (typeof (data as { confirmUrl?: string }).confirmUrl === 'string') {
-          sessionStorage.setItem('mercato_confirm_url', (data as { confirmUrl: string }).confirmUrl);
+          sessionStorage.setItem('centric_confirm_url', (data as { confirmUrl: string }).confirmUrl);
         }
         router.push(`/auth/check-email?email=${encodeURIComponent(email)}`);
         router.refresh();

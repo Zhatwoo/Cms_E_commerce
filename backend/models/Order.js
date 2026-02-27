@@ -6,6 +6,7 @@ const COLLECTION = 'orders';
 async function create(data) {
   const doc = {
     user_id: data.userId || null,
+    project_id: data.projectId || null,
     items: Array.isArray(data.items) ? data.items : [],
     total: typeof data.total === 'number' ? data.total : parseFloat(data.total) || 0,
     status: data.status || 'Pending',
@@ -28,7 +29,12 @@ async function findByUserId(userId, pagination = {}) {
   const page = Math.max(1, parseInt(pagination.page) || 1);
 
   const snap = await db.collection(COLLECTION).where('user_id', '==', userId).get();
-  const all = snap.docs.map(d => docToObject(d)).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  let all = snap.docs.map(d => docToObject(d));
+  if (pagination.projectId) {
+    const targetProjectId = String(pagination.projectId).trim();
+    all = all.filter((item) => String(item.projectId || '') === targetProjectId);
+  }
+  all = all.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
   const total = all.length;
   const start = (page - 1) * limit;
   const items = all.slice(start, start + limit);

@@ -54,6 +54,10 @@ function getSiteDisplayUrl(subdomain: string, origin: string | null): string {
   return `${slug}.${BASE_DOMAIN}`;
 }
 
+function isPublishedStatus(status?: string | null): boolean {
+  return (status || '').trim().toLowerCase() === 'published';
+}
+
 export default function DomainsPage() {
   const { colors, theme } = useTheme();
   const { user, loading: authLoading } = useAuth();
@@ -99,6 +103,9 @@ export default function DomainsPage() {
       project: p,
       subdomain: subdomainsByProject[p.id]?.subdomain ?? p.subdomain ?? null,
     }));
+
+  const publishedCount = projects.filter((project) => isPublishedStatus(project.status)).length;
+  const draftCount = projects.length - publishedCount;
 
   const stats = {
     total: domainsList.length,
@@ -240,7 +247,7 @@ export default function DomainsPage() {
                   {stats.active}
                 </p>
                 <p className="text-sm" style={{ color: colors.text.muted }}>
-                  Active Sites
+                  Published Sites
                 </p>
               </div>
             </div>
@@ -254,8 +261,8 @@ export default function DomainsPage() {
             style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
           >
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-orange-500/10">
-                <Clock className="w-5 h-5 text-orange-600" />
+              <div className="p-2 rounded-lg bg-red-500/10">
+                <Clock className="w-5 h-5 text-red-500" />
               </div>
               <div>
                 <p className="text-2xl font-bold" style={{ color: colors.text.primary }}>
@@ -307,6 +314,9 @@ export default function DomainsPage() {
           <>
             <div className="space-y-3 flex-1 min-w-0">
               {domainsList.map(({ project, subdomain }) => (
+                (() => {
+                  const isPublished = isPublishedStatus(project.status);
+                  return (
                 <div
                   key={project.id}
                   role="button"
@@ -329,11 +339,11 @@ export default function DomainsPage() {
                     <span
                       className="text-xs px-2 py-1 rounded-full capitalize"
                       style={{
-                        backgroundColor: colors.bg.card,
-                        borderColor: colors.border.faint,
+                        backgroundColor: isPublished ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)',
+                        color: isPublished ? 'rgb(22,163,74)' : 'rgb(220,38,38)',
                       }}
                     >
-                      {project.status || 'draft'}
+                      {isPublished ? 'Published' : 'Draft'}
                     </span>
                     <a
                       href={subdomain ? getSubdomainSiteUrl(subdomain, origin) : `/design?projectId=${project.id}`}
@@ -351,6 +361,8 @@ export default function DomainsPage() {
                     </a>
                   </div>
                 </div>
+                  );
+                })()
               ))}
             </div>
 
@@ -447,11 +459,11 @@ export default function DomainsPage() {
                         <span
                           className="capitalize px-2 py-0.5 rounded text-xs font-medium"
                           style={{
-                            backgroundColor: selectedDomain.project.status === 'published' ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)',
-                            color: selectedDomain.project.status === 'published' ? 'rgb(22,163,74)' : 'rgb(180,83,9)',
+                            backgroundColor: isPublishedStatus(selectedDomain.project.status) ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)',
+                            color: isPublishedStatus(selectedDomain.project.status) ? 'rgb(22,163,74)' : 'rgb(220,38,38)',
                           }}
                         >
-                          {selectedDomain.project.status === 'published' ? 'Published' : 'Draft'}
+                          {isPublishedStatus(selectedDomain.project.status) ? 'Published' : 'Draft'}
                         </span>
                       </li>
                       {scheduleInfo?.scheduledAt && (

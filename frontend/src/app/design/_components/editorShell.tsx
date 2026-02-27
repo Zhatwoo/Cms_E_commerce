@@ -20,14 +20,16 @@ import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
 import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
-import { BoxSelectionHandler } from "./BoxSelectionHandler";
+import { MarqueeSelectionHandler } from "./MarqueeSelectionHandler";
 import { TransformModeProvider } from "./TransformModeContext";
 import { InlineTextEditProvider } from "./InlineTextEditContext";
 import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
 import { CanvasContextMenu } from "./CanvasContextMenu";
+import { CanvasDropGuide } from "./CanvasDropGuide";
 import { PrototypeTabProvider } from "./PrototypeTabContext";
 import { PrototypeFlowLines } from "./PrototypeFlowLines";
 import { NewPageDropPlacementHandler } from "./NewPageDropPlacementHandler";
+import { HeaderFooterDropPlacementHandler } from "./HeaderFooterDropPlacementHandler";
 import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
@@ -602,6 +604,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [projectFiles, setProjectFiles] = useState<any[]>([]);
   const lastQueryRef = useRef<{ serialize: () => string } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const horizontalScrollbarRef = useRef<HTMLDivElement>(null);
+  const horizontalScrollbarInnerRef = useRef<HTMLDivElement>(null);
   const previousScaleRef = useRef(1);
   const wheelZoomDeltaRef = useRef(0);
   const wheelZoomRafRef = useRef<number | null>(null);
@@ -1120,6 +1124,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (canPanWithPointerDrag) {
+      const target = e.target as HTMLElement | null;
+      const nodeEl = target?.closest("[data-node-id]") as HTMLElement | null;
+      const nodeId = nodeEl?.getAttribute("data-node-id") ?? null;
+      if (nodeId && nodeId !== "ROOT" && nodeId !== "Viewport") {
+        return;
+      }
       setIsPanning(true);
       document.body.dataset.canvasPan = "true";
       e.preventDefault();
@@ -1688,6 +1698,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     // Force Frame to always exist; Craft looks up by "Frame" and sometimes "frame"
     base.Frame = FrameForResolver;
     base.frame = FrameForResolver;
+    // Ensure Container always exists in resolver (serialized nodes often use this)
+    // Prefer the locally imported Container component so we never end up with an undefined value
+    base.Container = Container;
+    base.container = Container;
     // Ensure Page and Viewport always in resolver (serialized drafts reference these by type)
     base.Page = CRAFT_RESOLVER.Page ?? Page;
     base.page = CRAFT_RESOLVER.Page ?? Page;

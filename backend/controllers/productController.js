@@ -1,6 +1,15 @@
 const Product = require('../models/Product');
 const Domain = require('../models/Domain');
 const Project = require('../models/Project');
+const { uploadProductImage, deleteStorageFilesByUrls } = require('../utils/storageHelpers');
+
+function getAllowedProductImagePrefixes(userId) {
+  // Keep previous path for backwards compatibility and cleanup of older uploads.
+  return [
+    `Products_img/${userId}/products/`,
+    `Clients/${userId}/products/`,
+  ];
+}
 
 async function resolveOwnedDomain(userId, subdomainInput) {
   const subdomain = Product.normalizeSubdomain(subdomainInput);
@@ -21,9 +30,20 @@ async function resolveOwnedDomain(userId, subdomainInput) {
 exports.getAll = async (req, res) => {
   try {
     const { status, search, page, limit, subdomain } = req.query;
+    const headerProjectId = String(req.headers['x-project-id'] || '').trim();
     const filters = { userId: req.user.id };
     if (status) filters.status = status;
     if (search) filters.search = search;
+    if (!subdomain && headerProjectId) {
+      const selectedProject = await Project.get(req.user.id, headerProjectId);
+      const selectedProjectSubdomain = Product.normalizeSubdomain(selectedProject?.subdomain || '');
+      if (selectedProjectSubdomain) {
+        const owned = await resolveOwnedDomain(req.user.id, selectedProjectSubdomain);
+        if (!owned.error) {
+          filters.subdomain = owned.subdomain;
+        }
+      }
+    }
     if (subdomain) {
       const owned = await resolveOwnedDomain(req.user.id, subdomain);
       if (owned.error) {
@@ -142,6 +162,11 @@ exports.update = async (req, res) => {
       status,
       stock,
     } = req.body;
+    const existing = await Product.findByIdForUser(req.params.id, req.user.id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+
     const updates = {};
     if (name !== undefined) updates.name = name;
     if (sku !== undefined) updates.sku = sku;
@@ -166,18 +191,92 @@ exports.update = async (req, res) => {
     if (!data) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
+
+    if (images !== undefined) {
+      const previousImages = Array.isArray(existing.images) ? existing.images.filter((img) => typeof img === 'string') : [];
+      const nextImages = Array.isArray(updates.images) ? updates.images : [];
+      const nextSet = new Set(nextImages);
+      const removedImages = previousImages.filter((img) => !nextSet.has(img));
+
+      if (removedImages.length > 0) {
+        try {
+          await deleteStorageFilesByUrls(removedImages, {
+            allowedPrefixes: getAllowedProductImagePrefixes(req.user.id),
+          });
+        } catch (err) {
+          console.warn('[productController.update] image cleanup failed:', err.message);
+        }
+      }
+    }
+
     res.status(200).json({ success: true, message: 'Product updated', data });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });
   }
 };
 
+exports.uploadImage = async (req, res) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ success: false, message: 'No image uploaded. Use field name "image".' });
+    }
+
+    const mimeType = req.file.mimetype || '';
+    if (!mimeType.startsWith('image/')) {
+      return res.status(400).json({ success: false, message: 'Only image files are allowed.' });
+    }
+
+    let normalizedSubdomain = '';
+    if (req.body?.subdomain !== undefined) {
+      const rawSubdomain = String(req.body.subdomain || '');
+      const owned = await resolveOwnedDomain(req.user.id, rawSubdomain);
+      if (owned.error) {
+        return res.status(400).json({ success: false, message: owned.error });
+      }
+      normalizedSubdomain = owned.subdomain;
+    }
+
+    const url = await uploadProductImage({
+      buffer: req.file.buffer,
+      userId: req.user.id,
+      mimeType,
+      originalName: req.file.originalname || 'product-image',
+      subdomain: normalizedSubdomain,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Image uploaded',
+      url,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message || 'Image upload failed', error: error.message });
+  }
+};
+
 exports.delete = async (req, res) => {
   try {
+    const existing = await Product.findByIdForUser(req.params.id, req.user.id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+
     const deleted = await Product.deleteByIdForUser(req.params.id, req.user.id);
     if (!deleted) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
+
+    const existingImages = Array.isArray(existing.images) ? existing.images.filter((img) => typeof img === 'string') : [];
+    if (existingImages.length > 0) {
+      try {
+        await deleteStorageFilesByUrls(existingImages, {
+          allowedPrefixes: getAllowedProductImagePrefixes(req.user.id),
+        });
+      } catch (err) {
+        console.warn('[productController.delete] image cleanup failed:', err.message);
+      }
+    }
+
     res.status(200).json({ success: true, message: 'Product deleted' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });

@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../context/theme-context';
-import { useProject } from '../context/project-context';
 const HomeIcon = () => (
   <svg
     viewBox="0 0 24 24"
@@ -138,8 +137,6 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
   const pathname = usePathname();
   const router = useRouter();
   const { colors, theme } = useTheme();
-  const { selectedProject } = useProject();
-  const hasSelectedWebsite = !!selectedProject;
 
   const handleHomeClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     if (pathname === '/m_dashboard') {

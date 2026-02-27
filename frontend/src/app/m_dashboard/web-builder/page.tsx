@@ -362,7 +362,6 @@ export default function WebBuilderPage() {
   const [renameValue, setRenameValue] = useState('');
   const [sortOption, setSortOption] = useState<SortOptionId>('relevant');
   const [showSortMenu, setShowSortMenu] = useState(false);
-
   // Load templates on mount
   useEffect(() => {
     const loadedTemplates = templateService.getTemplates();
