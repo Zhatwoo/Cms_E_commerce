@@ -20,7 +20,7 @@ import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
 import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
-import { BoxSelectionHandler } from "./BoxSelectionHandler";
+import { MarqueeSelectionHandler } from "./MarqueeSelectionHandler";
 import { TransformModeProvider } from "./TransformModeContext";
 import { InlineTextEditProvider } from "./InlineTextEditContext";
 import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
@@ -1823,7 +1823,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           <CanvasContextMenu />
           <FigmaStyleDragHandler />
           <NewPageDropPlacementHandler />
-          <BoxSelectionHandler />
+          <MarqueeSelectionHandler />
           <DoubleClickTransformHandler />
           <PrototypeFlowLines />
           {/* Top Panel */}
