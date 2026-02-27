@@ -384,6 +384,22 @@ const frameResponsiveStyles = (
       .frame-responsive-inner.frame-fluid [data-node-id] {
         max-width: 100% !important;
         min-width: 0;
+        transition:
+          width 180ms ease,
+          max-width 180ms ease,
+          min-width 180ms ease,
+          margin 180ms ease,
+          transform 180ms ease,
+          left 180ms ease,
+          right 180ms ease,
+          top 180ms ease,
+          bottom 180ms ease,
+          opacity 180ms ease;
+      }
+
+      @keyframes responsive-reflow-in {
+        from { opacity: 0.96; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
       }
       @container (max-width: 640px) {\r
         /* Only stack top-level layout rows, not inner UI rows nested inside columns */\r
@@ -397,6 +413,25 @@ const frameResponsiveStyles = (
           width: 100% !important;\r
           max-width: 100% !important;\r
           min-width: 0 !important;\r
+        }\r
+\r
+        /* Auto-reflow positioned elements (e.g. side labels/text) so they stack on mobile */\r
+        .frame-responsive-inner.frame-fluid [data-node-id][style*="position: absolute"],\r
+        .frame-responsive-inner.frame-fluid [data-node-id][style*="position:absolute"],\r
+        .frame-responsive-inner.frame-fluid [data-node-id][style*="position: fixed"],\r
+        .frame-responsive-inner.frame-fluid [data-node-id][style*="position:fixed"] {\r
+          position: relative !important;\r
+          left: auto !important;\r
+          right: auto !important;\r
+          top: auto !important;\r
+          bottom: auto !important;\r
+          width: 100% !important;\r
+          max-width: 100% !important;\r
+          min-width: 0 !important;\r
+          margin-left: 0 !important;\r
+          margin-right: 0 !important;\r
+          transform: none !important;\r
+          animation: responsive-reflow-in 180ms ease;\r
         }\r
       }\r
       @container (max-width: 400px) {\r

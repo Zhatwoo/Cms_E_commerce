@@ -70,6 +70,27 @@ export const TextSettings = () => {
         />
       </DesignSection>
 
+      <DesignSection title="Content">
+        <textarea
+          value={safeText}
+          onChange={(e) => typedSetProp((props) => { props.text = e.target.value; })}
+          placeholder="Type your text here..."
+          className="w-full bg-brand-medium-dark p-2 rounded-lg text-brand-lighter focus:border-brand-light focus:outline-none resize-y min-h-[40px]"
+        />
+        <div className="mt-3 flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={Boolean(previewEditable)}
+            onChange={(e) => typedSetProp((props) => { props.previewEditable = e.target.checked; })}
+            className="accent-brand-light cursor-pointer"
+          />
+          <span className="text-[12px] text-brand-lighter">Allow input in Preview</span>
+        </div>
+        <p className="text-[10px] text-brand-light mt-1">
+          Lets users type into this text block on the Preview page only.
+        </p>
+      </DesignSection>
+
       <DesignSection title="Size & Spacing">
         <SizePositionGroup
           width="auto"
@@ -99,36 +120,6 @@ export const TextSettings = () => {
           color={color}
           setProp={typedSetProp}
         />
-      </DesignSection>
-
-      <DesignSection title="Content">
-        <div className="flex items-center justify-end mb-2">
-          <button
-            type="button"
-            onClick={() => typedSetProp((props) => { props.text = ""; })}
-            className="text-[11px] px-2 py-1 rounded bg-brand-medium-dark text-brand-lighter hover:bg-brand-medium transition-colors"
-          >
-            Clear
-          </button>
-        </div>
-        <textarea
-          value={safeText}
-          onChange={(e) => typedSetProp((props) => { props.text = e.target.value; })}
-          placeholder="Type your text here..."
-          className="w-full bg-brand-medium-dark p-2 rounded-lg text-brand-lighter focus:border-brand-light focus:outline-none resize-y min-h-[40px]"
-        />
-        <div className="mt-3 flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={Boolean(previewEditable)}
-            onChange={(e) => typedSetProp((props) => { props.previewEditable = e.target.checked; })}
-            className="accent-brand-light cursor-pointer"
-          />
-          <span className="text-[12px] text-brand-lighter">Allow input in Preview</span>
-        </div>
-        <p className="text-[10px] text-brand-light mt-1">
-          Lets users type into this text block on the Preview page only.
-        </p>
       </DesignSection>
 
       <DesignSection title="Effects" defaultOpen={false}>
