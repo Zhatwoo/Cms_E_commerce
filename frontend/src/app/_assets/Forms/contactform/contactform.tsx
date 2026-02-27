@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React from "react";
 import { Element } from "@craftjs/core";
@@ -42,7 +42,7 @@ export const ContactForm: TemplateEntry = {
               React.createElement(
                 Element as any,
                 { is: Container as any, background: "#f8fafc", padding: 12, canvas: true },
-                React.createElement(Text as any, { text: "Your name", fontSize: 14, color: "#94a3b8" })
+                React.createElement(Text as any, { text: "Enter your full name", fontSize: 14, color: "#94a3b8" })
               )
             ),
             React.createElement(
@@ -52,7 +52,7 @@ export const ContactForm: TemplateEntry = {
               React.createElement(
                 Element as any,
                 { is: Container as any, background: "#f8fafc", padding: 12, canvas: true },
-                React.createElement(Text as any, { text: "your@email.com", fontSize: 14, color: "#94a3b8" })
+                React.createElement(Text as any, { text: "name@example.com", fontSize: 14, color: "#94a3b8" })
               )
             )
           ),
@@ -63,7 +63,7 @@ export const ContactForm: TemplateEntry = {
             React.createElement(
               Element as any,
               { is: Container as any, background: "#f8fafc", padding: 12, height: 120, canvas: true },
-              React.createElement(Text as any, { text: "Your message here...", fontSize: 14, color: "#94a3b8" })
+                React.createElement(Text as any, { text: "Write your message here...", fontSize: 14, color: "#94a3b8" })
             )
           ),
           React.createElement(Button as any, { label: "Send Message", backgroundColor: "#3b82f6", textColor: "#ffffff", fontSize: 16 })
