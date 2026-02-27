@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../context/theme-context';
-import { useProject } from '../context/project-context';
 const HomeIcon = () => (
   <svg
     viewBox="0 0 24 24"
@@ -130,8 +129,6 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
   const pathname = usePathname();
   const router = useRouter();
   const { colors, theme } = useTheme();
-  const { selectedProject } = useProject();
-  const hasSelectedWebsite = !!selectedProject;
 
   const handleHomeClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     if (pathname === '/m_dashboard') {
@@ -207,18 +204,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
 
         <nav className="flex-1 px-3 py-6 overflow-y-auto">
           {/* Full labels for mobile */}
-          {navItems
-            .filter((item) => {
-              // Before a website/instance is selected, hide builder & commerce-specific items
-              if (
-                !hasSelectedWebsite &&
-                ['web-builder', 'products', 'orders', 'analytics', 'domains', 'settings'].includes(item.id)
-              ) {
-                return false;
-              }
-              return true;
-            })
-            .map((item) => {
+          {navItems.map((item) => {
             const isActive =
               item.id === 'home'
                 ? pathname === '/m_dashboard'
@@ -299,17 +285,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
 
       {/* Navigation */}
       <nav className="flex-1 py-6 flex flex-col">
-        {navItems
-          .filter((item) => {
-            if (
-              !hasSelectedWebsite &&
-              ['web-builder', 'products', 'orders', 'analytics', 'domains', 'settings'].includes(item.id)
-            ) {
-              return false;
-            }
-            return true;
-          })
-          .map((item) => {
+        {navItems.map((item) => {
           const isActive =
             item.id === 'home'
               ? pathname === '/m_dashboard'

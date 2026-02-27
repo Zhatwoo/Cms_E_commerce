@@ -363,8 +363,8 @@ export default function WebBuilderPage() {
   const [showSortMenu, setShowSortMenu] = useState(false);
 
   const visibleProjects = React.useMemo(
-    () => (selectedProject ? projects.filter((p) => p.id === selectedProject.id) : projects),
-    [projects, selectedProject]
+    () => projects,
+    [projects]
   );
 
   // Load templates on mount

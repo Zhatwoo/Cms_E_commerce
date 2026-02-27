@@ -8,7 +8,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { listProjects, type Project } from '@/lib/api';
+import { listProjects, setActiveProjectId, type Project } from '@/lib/api';
 
 type ProjectContextType = {
   projects: Project[];
@@ -68,6 +68,10 @@ export function ProjectProvider({ children }: ProviderProps) {
   useEffect(() => {
     void fetchProjects();
   }, [fetchProjects]);
+
+  useEffect(() => {
+    setActiveProjectId(selectedProjectId);
+  }, [selectedProjectId]);
 
   const selectedProject = useMemo(
     () => projects.find((p) => p.id === selectedProjectId) ?? null,

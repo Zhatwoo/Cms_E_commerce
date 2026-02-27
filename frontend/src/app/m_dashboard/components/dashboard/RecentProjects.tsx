@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTheme } from '../context/theme-context';
 import { useAlert } from '../context/alert-context';
 import { useProject } from '../context/project-context';
-import { listProjects, createProject, getStoredUser, type Project } from '@/lib/api';
+import { createProject, getStoredUser, type Project } from '@/lib/api';
 import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
 import { DraftPreviewThumbnail } from '../projects/DraftPreviewThumbnail';
 
@@ -31,33 +31,12 @@ export function RecentProjects() {
   const { theme, colors } = useTheme();
   const router = useRouter();
   const { showAlert } = useAlert();
-  const { selectedProject, setSelectedProjectId } = useProject();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { selectedProject, setSelectedProjectId, projects: contextProjects, loading } = useProject();
   const [isMobile, setIsMobile] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createTitle, setCreateTitle] = useState('');
   const [createSubdomain, setCreateSubdomain] = useState('');
   const [creating, setCreating] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    listProjects()
-      .then((res) => {
-        if (!cancelled && res.success && res.projects) {
-          // Get top 3 recent projects sorted by update time
-          const sorted = [...res.projects].sort((a, b) => {
-            const dateA = new Date(a.updatedAt || a.createdAt || 0).getTime();
-            const dateB = new Date(b.updatedAt || b.createdAt || 0).getTime();
-            return dateB - dateA;
-          });
-          setProjects(sorted.slice(0, 3));
-        }
-      })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, []);
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 639px)');
@@ -134,9 +113,13 @@ export function RecentProjects() {
     }
   };
 
-  const visibleProjects = selectedProject
-    ? projects.filter((p) => p.id === selectedProject.id)
-    : projects;
+  const visibleProjects = [...contextProjects]
+    .sort((a, b) => {
+      const dateA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const dateB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return dateB - dateA;
+    })
+    .slice(0, 3);
 
   return (
     <div className="mb-8 md:mb-12 w-full min-w-0 max-w-full overflow-x-hidden">
