@@ -837,6 +837,7 @@ export default function ProductsPage() {
         }}
         onSave={handleSaveProduct}
         editingProduct={editingProduct}
+        uploadSubdomain={selectedSubdomain}
       />
 
       <AnimatePresence>

@@ -512,8 +512,8 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       document.body.style.userSelect = "none";
       document.body.style.cursor =
         type === "move" ? "grabbing" :
-        type === "rotate" ? "grabbing" :
-        handle ? HANDLE_CURSORS[handle] : "default";
+          type === "rotate" ? "grabbing" :
+            handle ? HANDLE_CURSORS[handle] : "default";
     },
     [dom, getProps, query, actions, nodeId, getMoveModeForNode, selectedToIds]
   );
@@ -823,7 +823,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         d.accumulatedAngleDeg = accumulated;
         d.lastPointerAngle = currentAngle;
         const nextRot = startRot + accumulated;
-        
+
         // Only update local state for visual feedback during drag
         // Final prop update happens in handleMouseUp
         setRotateAngle((prev) => (prev == null || Math.abs(prev - nextRot) > 0.1 ? nextRot : prev));
@@ -1100,7 +1100,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         top: rect.top,
         width: rect.width,
         height: rect.height,
-        zIndex: 9999,
+        zIndex: 40,
         pointerEvents: "none",
         willChange: isDragging ? "left, top, width, height" : undefined,
       }}

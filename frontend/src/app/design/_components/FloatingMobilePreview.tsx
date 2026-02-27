@@ -22,7 +22,7 @@ const PHONE_PRESETS: PhonePreset[] = [
   { name: "iPhone 14", brand: "Apple", width: 390, height: 844 },
   { name: "iPhone SE", brand: "Apple", width: 375, height: 667 },
   { name: "iPhone 12 Mini", brand: "Apple", width: 375, height: 812 },
-  
+
   // Samsung Galaxy
   { name: "Galaxy S24 Ultra", brand: "Samsung", width: 412, height: 915 },
   { name: "Galaxy S24+", brand: "Samsung", width: 412, height: 915 },
@@ -31,13 +31,13 @@ const PHONE_PRESETS: PhonePreset[] = [
   { name: "Galaxy Z Fold 5", brand: "Samsung", width: 373, height: 841 },
   { name: "Galaxy Z Flip 5", brand: "Samsung", width: 412, height: 919 },
   { name: "Galaxy A54", brand: "Samsung", width: 412, height: 915 },
-  
+
   // Google Pixel
   { name: "Pixel 8 Pro", brand: "Google", width: 412, height: 892 },
   { name: "Pixel 8", brand: "Google", width: 412, height: 892 },
   { name: "Pixel 7 Pro", brand: "Google", width: 412, height: 892 },
   { name: "Pixel 7", brand: "Google", width: 412, height: 915 },
-  
+
   // Other Popular
   { name: "OnePlus 12", brand: "OnePlus", width: 412, height: 915 },
   { name: "Xiaomi 14 Pro", brand: "Xiaomi", width: 412, height: 915 },
@@ -274,12 +274,12 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
 }) => {
   const mobileCanvasRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
-  
+
   // Subscribe to editor state to get pages list and detect selected page
   const { actions, query, pages, selectedPageFromCanvas } = useEditor((state) => {
     const nodes = state.nodes ?? {};
     const pageList: PageInfo[] = [];
-    
+
     Object.entries(nodes).forEach(([nodeId, node]) => {
       if (node?.data?.displayName === "Page") {
         pageList.push({
@@ -288,16 +288,16 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
         });
       }
     });
-    
+
     // Find which page is currently selected or contains the selected node
     let detectedPageId: string | null = null;
     const selectedIds = state.events.selected;
-    const selectedId = selectedIds instanceof Set 
-      ? selectedIds.values().next().value 
-      : Array.isArray(selectedIds) 
-        ? selectedIds[0] 
+    const selectedId = selectedIds instanceof Set
+      ? selectedIds.values().next().value
+      : Array.isArray(selectedIds)
+        ? selectedIds[0]
         : null;
-    
+
     if (selectedId && selectedId !== "ROOT") {
       // Check if selected node is a Page
       const selectedNode = nodes[selectedId];
@@ -316,14 +316,17 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
         }
       }
     }
-    
+
     return { pages: pageList, selectedPageFromCanvas: detectedPageId };
   });
-  
-  // Panel position state
+
+  // Panel position state — use refs during drag for zero-rerender movement
   const [position, setPosition] = useState({ x: 0, y: 0 });
+  const positionRef = useRef({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const dragRafRef = useRef<number>(0);
   const [isMinimized, setIsMinimized] = useState(false);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [showPageDropdown, setShowPageDropdown] = useState(false);
@@ -332,18 +335,20 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
 
   // Initialize position to bottom-right corner
   useEffect(() => {
-    if (isOpen && position.x === 0 && position.y === 0) {
-      setPosition({
+    if (isOpen && positionRef.current.x === 0 && positionRef.current.y === 0) {
+      const initial = {
         x: window.innerWidth - selectedDevice.width - 80,
         y: 80,
-      });
+      };
+      positionRef.current = initial;
+      setPosition(initial);
     }
-  }, [isOpen, position.x, position.y, selectedDevice.width]);
+  }, [isOpen, selectedDevice.width]);
 
   // Auto-sync with canvas selection - when user clicks on a page or element in a page
   useEffect(() => {
     if (!isOpen) return;
-    
+
     if (selectedPageFromCanvas && pages.find(p => p.id === selectedPageFromCanvas)) {
       setSelectedPageId(selectedPageFromCanvas);
     }
@@ -352,49 +357,69 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
   // Auto-select first page if none selected
   useEffect(() => {
     if (!isOpen) return;
-    
+
     // Select first page if none selected or if current selection is invalid
     if (pages.length > 0 && (!selectedPageId || !pages.find(p => p.id === selectedPageId))) {
       setSelectedPageId(pages[0].id);
     }
   }, [isOpen, pages, selectedPageId]);
 
-  // Handle dragging
+  // Handle dragging — uses refs + direct DOM transform for smooth 60fps drag
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest("[data-drag-handle]")) {
+      e.preventDefault();
+      isDraggingRef.current = true;
       setIsDragging(true);
-      setDragStart({
-        x: e.clientX - position.x,
-        y: e.clientY - position.y,
-      });
+      document.body.style.userSelect = "none";
+      dragStartRef.current = {
+        x: e.clientX - positionRef.current.x,
+        y: e.clientY - positionRef.current.y,
+      };
     }
-  }, [position]);
+  }, []);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
-      
-      const newX = Math.max(0, Math.min(e.clientX - dragStart.x, window.innerWidth - selectedDevice.width - 40));
-      const newY = Math.max(48, Math.min(e.clientY - dragStart.y, window.innerHeight - 100));
-      
-      setPosition({ x: newX, y: newY });
+      if (!isDraggingRef.current) return;
+
+      // Cancel any pending rAF to avoid queueing multiple frames
+      if (dragRafRef.current) cancelAnimationFrame(dragRafRef.current);
+
+      dragRafRef.current = requestAnimationFrame(() => {
+        const newX = Math.max(0, Math.min(e.clientX - dragStartRef.current.x, window.innerWidth - selectedDevice.width - 40));
+        const newY = Math.max(48, Math.min(e.clientY - dragStartRef.current.y, window.innerHeight - 100));
+
+        positionRef.current = { x: newX, y: newY };
+
+        // Apply directly to DOM — no React re-render
+        const el = panelRef.current;
+        if (el) {
+          el.style.left = `${newX}px`;
+          el.style.top = `${newY}px`;
+        }
+      });
     };
 
     const handleMouseUp = () => {
+      if (!isDraggingRef.current) return;
+      isDraggingRef.current = false;
+      if (dragRafRef.current) cancelAnimationFrame(dragRafRef.current);
+
+      // Sync final position back to React state (single re-render)
+      setPosition({ ...positionRef.current });
       setIsDragging(false);
+      document.body.style.userSelect = "";
     };
 
-    if (isDragging) {
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
-      document.body.style.userSelect = "none";
-      return () => {
-        document.removeEventListener("mousemove", handleMouseMove);
-        document.removeEventListener("mouseup", handleMouseUp);
-        document.body.style.userSelect = "";
-      };
-    }
-  }, [isDragging, dragStart, selectedDevice.width]);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      if (dragRafRef.current) cancelAnimationFrame(dragRafRef.current);
+    };
+  }, [selectedDevice.width]);
 
   // Render mobile preview
   useEffect(() => {
@@ -408,7 +433,7 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
 
     const renderMobilePreview = () => {
       const mobileRoot = mobileCanvasRef.current;
-      
+
       // Wait for ref to be available (happens after render cycle)
       if (!mobileRoot) {
         if (refCheckCount < MAX_REF_CHECKS) {
@@ -419,8 +444,8 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
         console.warn("[FloatingMobilePreview] mobileCanvasRef not available after retries");
         return;
       }
-      
-      const pageEl = document.querySelector(`[data-viewport-desktop] [data-page-node='true'][data-node-id="${selectedPageId}"]`) as HTMLElement | null;
+
+      const pageEl = document.querySelector(`[data-node-id="${selectedPageId}"]`) as HTMLElement | null;
       if (!pageEl) {
         // Retry a few times in case the page hasn't rendered yet
         if (retryCount < MAX_RETRIES) {
@@ -434,21 +459,21 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
         </div>`;
         return;
       }
-      
+
       retryCount = 0; // Reset retry count on success
 
       const clone = pageEl.cloneNode(true) as HTMLElement;
       clone.removeAttribute("data-node-id");
       clone.removeAttribute("data-page-node");
-      
+
       // Remove any nested mobile preview panels from the clone
       const nestedMobilePreviews = clone.querySelectorAll("[data-mobile-preview-panel]");
       nestedMobilePreviews.forEach((el) => el.remove());
-      
+
       // Remove the page name label
       const pageNameLabel = clone.querySelector("[data-page-name-label]");
       if (pageNameLabel) pageNameLabel.remove();
-      
+
       clone.style.pointerEvents = "auto";
       clone.style.margin = "0";
       clone.style.transformOrigin = "top left";
@@ -619,7 +644,7 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
         characterData: true,
       });
     }
-    
+
     // Also observe the canvas container for new page elements appearing
     const canvasContainer = document.querySelector("[data-canvas-container]");
     const containerMutation = new MutationObserver(() => {
@@ -679,7 +704,7 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
   if (!isOpen) return null;
 
   const selectedPage = pages.find(p => p.id === selectedPageId);
-  
+
   // Group devices by brand for the dropdown
   const devicesByBrand = PHONE_PRESETS.reduce((acc, device) => {
     if (!acc[device.brand]) acc[device.brand] = [];
@@ -690,13 +715,13 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
   return (
     <div
       ref={panelRef}
-      className={`fixed z-[100] bg-brand-darker/95 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl transition-all duration-200 ${
-        isDragging ? "cursor-grabbing" : ""
-      }`}
+      className={`fixed z-[100] bg-brand-darker/95 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl ${isDragging ? "cursor-grabbing" : "transition-[width] duration-200"
+        }`}
       style={{
         left: position.x,
         top: position.y,
         width: isMinimized ? "auto" : selectedDevice.width + 24,
+        willChange: isDragging ? "left, top" : "auto",
       }}
       onMouseDown={handleMouseDown}
     >
@@ -760,11 +785,10 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
                             setSelectedDevice(device);
                             setShowDeviceDropdown(false);
                           }}
-                          className={`w-full px-3 py-2 text-left text-sm transition-colors flex items-center justify-between ${
-                            device.name === selectedDevice.name
-                              ? "bg-blue-500/20 text-blue-400"
-                              : "text-brand-lighter hover:bg-brand-medium/30"
-                          }`}
+                          className={`w-full px-3 py-2 text-left text-sm transition-colors flex items-center justify-between ${device.name === selectedDevice.name
+                            ? "bg-blue-500/20 text-blue-400"
+                            : "text-brand-lighter hover:bg-brand-medium/30"
+                            }`}
                         >
                           <span>{device.name}</span>
                           <span className="text-xs text-brand-light/50">
@@ -784,9 +808,8 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
             <div className="relative">
               <button
                 onClick={() => pages.length > 1 && setShowPageDropdown((v) => !v)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg bg-brand-medium-dark/50 transition-colors text-sm text-brand-lighter ${
-                  pages.length > 1 ? "hover:bg-brand-medium/30 cursor-pointer" : "cursor-default"
-                }`}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg bg-brand-medium-dark/50 transition-colors text-sm text-brand-lighter ${pages.length > 1 ? "hover:bg-brand-medium/30 cursor-pointer" : "cursor-default"
+                  }`}
               >
                 <span className="truncate">
                   {pages.length === 0 ? "No pages found" : (selectedPage?.name || "Select Page")}
@@ -804,11 +827,10 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
                         setSelectedPageId(page.id);
                         setShowPageDropdown(false);
                       }}
-                      className={`w-full px-3 py-2 text-left text-sm transition-colors ${
-                        page.id === selectedPageId
-                          ? "bg-blue-500/20 text-blue-400"
-                          : "text-brand-lighter hover:bg-brand-medium/30"
-                      }`}
+                      className={`w-full px-3 py-2 text-left text-sm transition-colors ${page.id === selectedPageId
+                        ? "bg-blue-500/20 text-blue-400"
+                        : "text-brand-lighter hover:bg-brand-medium/30"
+                        }`}
                     >
                       {page.name}
                     </button>
@@ -821,7 +843,7 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
           {/* Mobile Preview Content */}
           <div className="p-3">
             {!selectedPageId ? (
-              <div 
+              <div
                 className="rounded-xl border border-white/10 bg-brand-white/5 flex items-center justify-center text-brand-light/50 text-sm"
                 style={{ width: selectedDevice.width, minHeight: Math.min(selectedDevice.height, 640) }}
               >
@@ -831,10 +853,10 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
               <div
                 ref={mobileCanvasRef}
                 className="rounded-xl border border-white/10 bg-brand-white/5 overflow-auto"
-                style={{ 
-                  width: selectedDevice.width, 
+                style={{
+                  width: selectedDevice.width,
                   minHeight: Math.min(selectedDevice.height, 640),
-                  maxHeight: "70vh" 
+                  maxHeight: "70vh"
                 }}
                 aria-hidden
               />

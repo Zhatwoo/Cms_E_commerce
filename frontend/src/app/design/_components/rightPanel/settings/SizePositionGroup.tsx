@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Maximize2, Square, Shrink, Move, Lock, LockOpen, Scan } from "lucide-react";
 import { NumericInput } from "./inputs/NumericInput";
 import type { SpacingProps, SizeProps, SetProp } from "../../../_types/components";
@@ -123,6 +123,7 @@ export const SizePositionGroup = ({
                 value={top}
                 onChange={(val) => onChange("top", val)}
                 icon={<div className="w-3 h-1 border-t-2 border-brand-medium mr-2" />}
+                presets={[0, 4, 8, 12, 16, 24, 32, 48, 64]}
               />
             </div>
             <div className="flex bg-brand-medium-dark rounded-lg px-2 items-center gap-2">
@@ -130,6 +131,7 @@ export const SizePositionGroup = ({
                 value={right}
                 onChange={(val) => onChange("right", val)}
                 icon={<div className="w-1 h-3 border-r-2 border-brand-medium mr-2" />}
+                presets={[0, 4, 8, 12, 16, 24, 32, 48, 64]}
               />
             </div>
             <div className="flex bg-brand-medium-dark rounded-lg px-2 items-center gap-2">
@@ -137,6 +139,7 @@ export const SizePositionGroup = ({
                 value={bottom}
                 onChange={(val) => onChange("bottom", val)}
                 icon={<div className="w-3 h-1 border-b-2 border-brand-medium mr-2" />}
+                presets={[0, 4, 8, 12, 16, 24, 32, 48, 64]}
               />
             </div>
             <div className="flex bg-brand-medium-dark rounded-lg px-2 items-center gap-2">
@@ -144,6 +147,7 @@ export const SizePositionGroup = ({
                 value={left}
                 onChange={(val) => onChange("left", val)}
                 icon={<div className="w-1 h-3 border-l-2 border-brand-medium mr-2" />}
+                presets={[0, 4, 8, 12, 16, 24, 32, 48, 64]}
               />
             </div>
           </div>
@@ -154,6 +158,7 @@ export const SizePositionGroup = ({
               value={top}
               onChange={handleAll}
               className="w-full px-2"
+              presets={[0, 4, 8, 12, 16, 24, 32, 48, 64]}
             />
           </div>
         )}
@@ -315,6 +320,36 @@ function SizePxInput({
 
   const displayVal = isFocused ? localStr : propNumStr;
 
+  const scrubStartRef = useRef<{ x: number, val: number } | null>(null);
+  const handleScrubStart = (e: React.PointerEvent) => {
+    if (disabled) return;
+    e.preventDefault();
+    scrubStartRef.current = { x: e.clientX, val: parseInt(localStr) || 0 };
+    document.body.style.cursor = "ew-resize";
+
+    const handleScrubMove = (me: PointerEvent) => {
+      if (!scrubStartRef.current) return;
+      const dx = me.clientX - scrubStartRef.current.x;
+      const stepValue = me.shiftKey ? 10 : 1;
+      const steps = Math.round(dx / 3);
+      if (steps === 0) return;
+      const next = Math.max(0, scrubStartRef.current.val + steps * stepValue);
+      setLocalStr(String(next));
+      onPxChange(next);
+      setLast(`${next}px`);
+    };
+
+    const handleScrubEnd = () => {
+      scrubStartRef.current = null;
+      document.body.style.cursor = "";
+      window.removeEventListener("pointermove", handleScrubMove);
+      window.removeEventListener("pointerup", handleScrubEnd);
+    };
+
+    window.addEventListener("pointermove", handleScrubMove);
+    window.addEventListener("pointerup", handleScrubEnd);
+  };
+
   return (
     <div className="flex flex-1 items-center bg-brand-medium-dark rounded-lg px-1.5 border border-brand-medium/30">
       <input
@@ -366,7 +401,12 @@ function SizePxInput({
         }}
         className={`w-full bg-transparent text-xs p-1.5 focus:outline-none ${disabled ? "text-brand-light" : "text-brand-lighter"}`}
       />
-      <span className="text-[10px] text-brand-medium pr-1">px</span>
+      <span
+        className={`text-[10px] text-brand-medium pr-1 ${!disabled ? "cursor-ew-resize select-none" : ""}`}
+        onPointerDown={!disabled ? handleScrubStart : undefined}
+      >
+        px
+      </span>
     </div>
   );
 }
