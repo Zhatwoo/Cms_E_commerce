@@ -197,13 +197,14 @@ type EditorShellProps = {
 
 const MIN_SCALE = 0.05;
 const MAX_SCALE = 3;
-const DEFAULT_SCALE = 0.5;
+const DEFAULT_SCALE = 0.75;
 const ZOOM_SENSITIVITY = 0.003;
 const INFINITE_CANVAS_WIDTH_VW = 8000;
 const INFINITE_CANVAS_HEIGHT_VH = 8000;
 const INFINITE_CANVAS_PADDING_PX = 100000;
 const LEFT_PANEL_DEFAULT_WIDTH = 320;
 const RIGHT_PANEL_DEFAULT_WIDTH = 420;
+const MIN_CANVAS_VIEWPORT_WIDTH = 760;
 
 const isEditableTarget = (target: EventTarget | null) => {
   if (!target || !(target instanceof HTMLElement)) return false;
@@ -220,15 +221,6 @@ const clampScale = (value: unknown, fallback: number = DEFAULT_SCALE): number =>
   const numeric = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(numeric)) return Math.min(MAX_SCALE, Math.max(MIN_SCALE, fallback));
   return Math.min(MAX_SCALE, Math.max(MIN_SCALE, numeric));
-};
-
-const clampPanelWidth = (side: "left" | "right", value: number): number => {
-  if (typeof window === "undefined") return value;
-  const maxWidth = Math.max(420, Math.min(820, Math.floor(window.innerWidth * 0.7)));
-  if (side === "left") {
-    return Math.min(maxWidth, Math.max(LEFT_PANEL_DEFAULT_WIDTH, value));
-  }
-  return Math.min(maxWidth, Math.max(360, value));
 };
 
 /**
@@ -617,7 +609,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const containerRef = useRef<HTMLDivElement>(null);
   const horizontalScrollbarRef = useRef<HTMLDivElement>(null);
   const horizontalScrollbarInnerRef = useRef<HTMLDivElement>(null);
-  const previousScaleRef = useRef(1);
+  const previousScaleRef = useRef(DEFAULT_SCALE);
   const wheelZoomDeltaRef = useRef(0);
   const wheelZoomRafRef = useRef<number | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -628,7 +620,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const hasUserMovedCanvasRef = useRef(false);
   const [isPanning, setIsPanning] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState(DEFAULT_SCALE);
   const [initialJson, setInitialJson] = useState<string | null | undefined>(undefined);
   const [panelsReady, setPanelsReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
@@ -663,6 +655,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const infiniteCanvasWidthVw = INFINITE_CANVAS_WIDTH_VW;
   const infiniteCanvasHeightVh = INFINITE_CANVAS_HEIGHT_VH;
   const infiniteCanvasPaddingPx = INFINITE_CANVAS_PADDING_PX;
+  const sidePanelCanvasGapPx = 24;
+  const leftCanvasInset = panelsReady && leftPanelOpen ? leftPanelWidth + sidePanelCanvasGapPx : 0;
+  const rightCanvasInset = panelsReady && rightPanelOpen ? rightPanelWidth + sidePanelCanvasGapPx : 0;
+  const canvasShiftX = Math.round((leftCanvasInset - rightCanvasInset) / 2);
 
   // Per-project UI state key so zoom, panels, and last page persist across reloads
   const uiStateStorageKey = React.useMemo(
@@ -1137,6 +1133,33 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     setLeftPanelOpen(true);
   }, []);
 
+  const clampPanelWidthWithCanvasRoom = useCallback(
+    (side: "left" | "right", value: number) => {
+      if (typeof window === "undefined") return value;
+
+      const sideMin = side === "left" ? LEFT_PANEL_DEFAULT_WIDTH : 360;
+      const sideBaseMax = Math.max(sideMin, Math.min(820, Math.floor(window.innerWidth * 0.7)));
+
+      const otherPanelOccupied =
+        side === "left"
+          ? rightPanelOpen
+            ? rightPanelWidth + sidePanelCanvasGapPx
+            : 0
+          : leftPanelOpen
+            ? leftPanelWidth + sidePanelCanvasGapPx
+            : 0;
+
+      const thisPanelGap = sidePanelCanvasGapPx;
+      const maxAllowedByCanvas = Math.floor(
+        window.innerWidth - MIN_CANVAS_VIEWPORT_WIDTH - otherPanelOccupied - thisPanelGap
+      );
+
+      const sideMax = Math.max(sideMin, Math.min(sideBaseMax, maxAllowedByCanvas));
+      return Math.min(sideMax, Math.max(sideMin, value));
+    },
+    [leftPanelOpen, leftPanelWidth, rightPanelOpen, rightPanelWidth, sidePanelCanvasGapPx]
+  );
+
   const startPanelDrag = useCallback(
     (side: "left" | "right", event: React.MouseEvent<HTMLDivElement>) => {
       if (event.button !== 0) return;
@@ -1163,8 +1186,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
       const deltaX = event.clientX - drag.startX;
       const nextWidth = drag.side === "left"
-        ? clampPanelWidth("left", drag.startWidth + deltaX)
-        : clampPanelWidth("right", drag.startWidth - deltaX);
+        ? clampPanelWidthWithCanvasRoom("left", drag.startWidth + deltaX)
+        : clampPanelWidthWithCanvasRoom("right", drag.startWidth - deltaX);
 
       if (drag.side === "left") {
         setLeftPanelWidth(nextWidth);
@@ -1189,7 +1212,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       document.body.style.userSelect = "";
       document.body.style.cursor = "";
     };
-  }, []);
+  }, [clampPanelWidthWithCanvasRoom]);
 
   const isSpacePanActive = activeTool === "move" && isSpacePressed;
   const canPanWithPointerDrag = activeTool === "hand" || isSpacePanActive;
@@ -1938,22 +1961,29 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                       minWidth: `${infiniteCanvasWidthVw}vw`,
                       minHeight: `${infiniteCanvasHeightVh}vh`,
                       padding: `${infiniteCanvasPaddingPx}px`,
-                      transformOrigin: "top left",
-                      transform:
-                        canvasRotation !== 0
-                          ? `scale(${scale}) rotate(${canvasRotation}deg)`
-                          : `scale(${scale})`,
+                      transform: `translateX(${canvasShiftX}px)`,
+                      transition: "transform 140ms ease",
                     }}
                   >
-                    {initialJson === undefined ? null : (
-                      <SafeFrame
-                        data={validFrameData ?? initialJson}
-                        onError={handleFrameError}
-                        onFrameMounted={() => {
-                          setFrameReady((prev) => (prev ? prev : true));
-                        }}
-                      />
-                    )}
+                    <div
+                      style={{
+                        transformOrigin: "top left",
+                        transform:
+                          canvasRotation !== 0
+                            ? `scale(${scale}) rotate(${canvasRotation}deg)`
+                            : `scale(${scale})`,
+                      }}
+                    >
+                      {initialJson === undefined ? null : (
+                        <SafeFrame
+                          data={validFrameData ?? initialJson}
+                          onError={handleFrameError}
+                          onFrameMounted={() => {
+                            setFrameReady((prev) => (prev ? prev : true));
+                          }}
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
                 {/* Floating Panels */}
