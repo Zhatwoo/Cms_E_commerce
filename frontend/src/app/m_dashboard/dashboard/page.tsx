@@ -408,19 +408,18 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                 <h3 className="text-xs sm:text-sm font-bold tracking-[0.18em] uppercase text-[#FFCE00]">Featured Templates</h3>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-4 h-auto lg:h-[620px]">
+              <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-4 h-auto lg:h-[560px]">
 
-                {/* Left — large featured card */}
-                <div className="relative rounded-[22px] overflow-hidden h-[420px] lg:h-full group cursor-pointer hover:-translate-y-0.5 transition-transform">
+                {/* Left — big Fashion Website card */}
+                <div className="group relative rounded-2xl overflow-hidden cursor-pointer hover:-translate-y-1 transition-transform duration-200 h-[380px] lg:h-full">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/images/template-portfolio.jpg" alt="PC Website" className="template-pan-img" loading="lazy" />
-                  {/* gradient overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0A0730]/95 via-[#0A0730]/40 to-transparent" />
-                  {/* floating text */}
+                  <img src="/images/template-fashion.jpg" alt="Fashion Website" className="template-pan-img" loading="lazy" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0A0730]/95 via-[#0A0730]/30 to-transparent" />
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-white/5 to-transparent" />
                   <div className="absolute bottom-0 left-0 p-6 flex flex-col gap-2">
                     <span className="text-[10px] font-bold tracking-[0.22em] uppercase text-[#FFCE00]">Template</span>
-                    <h4 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight">PC Website</h4>
-                    <button type="button" className="mt-1 flex items-center gap-2 text-xs font-bold tracking-widest uppercase text-[#FFCE00] hover:gap-3 transition-all">
+                    <h4 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight">Fashion Website</h4>
+                    <button type="button" className="mt-1 flex items-center gap-2 text-xs font-bold tracking-widest uppercase text-[#FFCE00] group-hover:gap-3 transition-all duration-200">
                       Explore Collection
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
@@ -429,28 +428,30 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                   </div>
                 </div>
 
-                {/* Right — 2 stacked cards */}
+                {/* Right — Simple Website (top) + PC Website (bottom) */}
                 <div className="flex flex-col gap-4 h-full">
 
-                  {/* Top right */}
-                  <div className="relative rounded-[22px] overflow-hidden flex-1 group cursor-pointer hover:-translate-y-0.5 transition-transform min-h-[240px]">
+                  {/* Simple Website */}
+                  <div className="group relative rounded-2xl overflow-hidden cursor-pointer hover:-translate-y-1 transition-transform duration-200 flex-1 min-h-[260px]">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/images/template-saas.jpg" alt="Simple Website" className="template-pan-img-slow" loading="lazy" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0A0730]/90 via-[#0A0730]/30 to-transparent" />
-                    <div className="absolute bottom-0 left-0 p-5 flex flex-col gap-1">
-                      <span className="text-[10px] font-bold tracking-[0.22em] uppercase text-[#FFCE00]">Template</span>
-                      <h4 className="text-xl font-extrabold text-white leading-tight">Simple Website</h4>
+                    <img src="/images/template-saas.jpg" alt="Simple Website" className="template-pan-img-sm template-pan-img-delay" loading="lazy" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0A0730]/90 via-[#0A0730]/25 to-transparent" />
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-white/5 to-transparent" />
+                    <div className="absolute bottom-0 left-0 p-4 flex flex-col gap-1">
+                      <span className="text-[9px] font-bold tracking-[0.2em] uppercase text-[#FFCE00]">Template</span>
+                      <h4 className="text-lg font-extrabold text-white leading-tight">Simple Website</h4>
                     </div>
                   </div>
 
-                  {/* Bottom right */}
-                  <div className="relative rounded-[22px] overflow-hidden flex-1 group cursor-pointer hover:-translate-y-0.5 transition-transform min-h-[240px]">
+                  {/* PC Website */}
+                  <div className="group relative rounded-2xl overflow-hidden cursor-pointer hover:-translate-y-1 transition-transform duration-200 flex-1 min-h-[260px]">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/images/template-fashion.jpg" alt="Fashion Website" className="template-pan-img" loading="lazy" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0A0730]/90 via-[#0A0730]/30 to-transparent" />
-                    <div className="absolute bottom-0 left-0 p-5 flex flex-col gap-1">
-                      <span className="text-[10px] font-bold tracking-[0.22em] uppercase text-[#FFCE00]">Template</span>
-                      <h4 className="text-xl font-extrabold text-white leading-tight">Fashion Website</h4>
+                    <img src="/images/template-portfolio.jpg" alt="PC Website" className="template-pan-img-sm template-pan-img-delay2" loading="lazy" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0A0730]/90 via-[#0A0730]/25 to-transparent" />
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-white/5 to-transparent" />
+                    <div className="absolute bottom-0 left-0 p-4 flex flex-col gap-1">
+                      <span className="text-[9px] font-bold tracking-[0.2em] uppercase text-[#FFCE00]">Template</span>
+                      <h4 className="text-lg font-extrabold text-white leading-tight">PC Website</h4>
                     </div>
                   </div>
 

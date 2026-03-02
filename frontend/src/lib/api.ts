@@ -331,8 +331,9 @@ export type Project = {
   daysLeft?: number;
 };
 
-export async function listProjects(): Promise<{ success: boolean; projects: Project[] }> {
-  return apiFetch<{ success: boolean; projects: Project[] }>('/api/projects');
+export async function listProjects(params?: { instanceId?: string }): Promise<{ success: boolean; projects: Project[] }> {
+  const qs = params?.instanceId ? `?instanceId=${encodeURIComponent(params.instanceId)}` : '';
+  return apiFetch<{ success: boolean; projects: Project[] }>(`/api/projects${qs}`);
 }
 
 export async function createProject(params: {
@@ -432,6 +433,47 @@ export async function getPublishHistory(projectId: string): Promise<{ success: b
   return apiFetch<{ success: boolean; data?: { history: PublishHistoryEntry[] } }>(
     `/api/domains/publish-history?projectId=${encodeURIComponent(projectId)}`
   );
+}
+
+// --- Instances (website instances owned by a client user) ---
+
+export type Instance = {
+  id: string;
+  title: string;
+  status: string;
+  subdomain?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export async function listInstances(): Promise<{ success: boolean; instances: Instance[] }> {
+  return apiFetch<{ success: boolean; instances: Instance[] }>('/api/instances');
+}
+
+export async function createInstance(params: {
+  title?: string;
+  subdomain?: string;
+}): Promise<{ success: boolean; message?: string; instance?: Instance }> {
+  return apiFetch<{ success: boolean; message?: string; instance?: Instance }>('/api/instances', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export async function updateInstance(
+  id: string,
+  params: { title?: string; subdomain?: string }
+): Promise<{ success: boolean; message?: string; instance?: Instance }> {
+  return apiFetch<{ success: boolean; message?: string; instance?: Instance }>(`/api/instances/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(params),
+  });
+}
+
+export async function deleteInstance(id: string): Promise<{ success: boolean; message?: string }> {
+  return apiFetch<{ success: boolean; message?: string }>(`/api/instances/${id}`, {
+    method: 'DELETE',
+  });
 }
 
 // --- Products (stored per published_subdomains/{subdomain}/products) ---

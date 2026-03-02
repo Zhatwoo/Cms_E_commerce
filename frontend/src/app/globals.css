@@ -75,6 +75,60 @@
   }
 }
 
+/* ── Template preview card: slow top-to-bottom pan ── */
+/* Uses natural image height (height: auto) so the FULL image is rendered and panned */
+/* Big card (~733px wide, 560px tall): portrait images render ~1466px → pan -62% */
+@keyframes templatePanLg {
+  0%, 8%   { transform: translateY(0%); }
+  42%, 58% { transform: translateY(-62%); }
+  92%, 100%{ transform: translateY(0%); }
+}
+
+/* Small cards (~523px wide, ~272px tall): images render ~1050-1170px → pan -75% */
+@keyframes templatePanSm {
+  0%, 8%   { transform: translateY(0%); }
+  42%, 58% { transform: translateY(-75%); }
+  92%, 100%{ transform: translateY(0%); }
+}
+
+.template-pan-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  display: block;
+  animation: templatePanLg 9s ease-in-out infinite;
+}
+
+.template-pan-img-sm {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  display: block;
+  animation: templatePanSm 9s ease-in-out infinite;
+}
+
+.template-pan-img-slow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  display: block;
+  animation: templatePanLg 13s ease-in-out infinite;
+}
+
+.template-pan-img-delay {
+  animation-delay: 3s;
+}
+
+.template-pan-img-delay2 {
+  animation-delay: 6s;
+}
+
 .template-category-content {
   overflow: hidden;
   transition: max-height var(--dur-slow) var(--ease-smooth),
