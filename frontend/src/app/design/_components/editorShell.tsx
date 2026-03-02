@@ -202,6 +202,8 @@ const ZOOM_SENSITIVITY = 0.003;
 const INFINITE_CANVAS_WIDTH_VW = 8000;
 const INFINITE_CANVAS_HEIGHT_VH = 8000;
 const INFINITE_CANVAS_PADDING_PX = 100000;
+const LEFT_PANEL_DEFAULT_WIDTH = 320;
+const RIGHT_PANEL_DEFAULT_WIDTH = 420;
 
 const isEditableTarget = (target: EventTarget | null) => {
   if (!target || !(target instanceof HTMLElement)) return false;
@@ -218,6 +220,15 @@ const clampScale = (value: unknown, fallback: number = DEFAULT_SCALE): number =>
   const numeric = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(numeric)) return Math.min(MAX_SCALE, Math.max(MIN_SCALE, fallback));
   return Math.min(MAX_SCALE, Math.max(MIN_SCALE, numeric));
+};
+
+const clampPanelWidth = (side: "left" | "right", value: number): number => {
+  if (typeof window === "undefined") return value;
+  const maxWidth = Math.max(420, Math.min(820, Math.floor(window.innerWidth * 0.7)));
+  if (side === "left") {
+    return Math.min(maxWidth, Math.max(LEFT_PANEL_DEFAULT_WIDTH, value));
+  }
+  return Math.min(maxWidth, Math.max(360, value));
 };
 
 /**
@@ -624,6 +635,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [saveError, setSaveError] = useState<string | null>(null);
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const [leftPanelWidth, setLeftPanelWidth] = useState(LEFT_PANEL_DEFAULT_WIDTH);
+  const [rightPanelWidth, setRightPanelWidth] = useState(RIGHT_PANEL_DEFAULT_WIDTH);
   const [rightPanelTab, setRightPanelTab] = useState<TabId>("design");
   const [canvasWidth, setCanvasWidth] = useState(1440);
   const [canvasHeight, setCanvasHeight] = useState(900);
@@ -636,6 +649,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const hasInitialCenteringRef = useRef(false);
   const hasForcedRightPanelOpenRef = useRef(false);
   const saveStatusRef = useRef(saveStatus);
+  const panelDragRef = useRef<{
+    side: "left" | "right";
+    startX: number;
+    startWidth: number;
+  } | null>(null);
 
   // Sync saveStatus to ref for safe use in beforeunload effect
   useEffect(() => {
@@ -1117,6 +1135,60 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   // Handle add button (open left panel)
   const handleAddButton = useCallback(() => {
     setLeftPanelOpen(true);
+  }, []);
+
+  const startPanelDrag = useCallback(
+    (side: "left" | "right", event: React.MouseEvent<HTMLDivElement>) => {
+      if (event.button !== 0) return;
+
+      panelDragRef.current = {
+        side,
+        startX: event.clientX,
+        startWidth: side === "left" ? leftPanelWidth : rightPanelWidth,
+      };
+
+      document.body.style.userSelect = "none";
+      document.body.style.cursor = "ew-resize";
+
+      event.preventDefault();
+      event.stopPropagation();
+    },
+    [leftPanelWidth, rightPanelWidth]
+  );
+
+  useEffect(() => {
+    const handleMouseMove = (event: MouseEvent) => {
+      const drag = panelDragRef.current;
+      if (!drag) return;
+
+      const deltaX = event.clientX - drag.startX;
+      const nextWidth = drag.side === "left"
+        ? clampPanelWidth("left", drag.startWidth + deltaX)
+        : clampPanelWidth("right", drag.startWidth - deltaX);
+
+      if (drag.side === "left") {
+        setLeftPanelWidth(nextWidth);
+      } else {
+        setRightPanelWidth(nextWidth);
+      }
+    };
+
+    const stopPanelDrag = () => {
+      if (!panelDragRef.current) return;
+      panelDragRef.current = null;
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", stopPanelDrag);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", stopPanelDrag);
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+    };
   }, []);
 
   const isSpacePanActive = activeTool === "move" && isSpacePressed;
@@ -1898,8 +1970,18 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 )}
                 {/* Left Panel */}
                 {panelsReady && (
-                  <div className="absolute top-14 left-4 z-50 h-[calc(100vh-6.5rem)] flex items-start pointer-events-none">
-                    <div className="h-full flex items-start pointer-events-auto">
+                  <div
+                    className="absolute top-14 left-4 z-50 h-[calc(100vh-6.5rem)] flex items-start pointer-events-none"
+                  >
+                    <div
+                      className="h-full flex items-start pointer-events-auto relative"
+                    >
+                      <div
+                        onMouseDown={(event) => startPanelDrag("left", event)}
+                        className={`absolute top-0 -right-2 h-full w-3 cursor-ew-resize ${leftPanelOpen ? "pointer-events-auto" : "pointer-events-none"}`}
+                        data-no-panel-drag="true"
+                        aria-hidden
+                      />
                       <div
                         className={`h-full origin-left transition-[transform,opacity] duration-300 ease-out will-change-transform ${leftPanelOpen
                           ? "translate-x-0 scale-100 opacity-100 pointer-events-auto"
@@ -1907,6 +1989,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                           }`}
                       >
                         <LeftPanel
+                          width={leftPanelWidth}
                           frameReady={frameReady}
                           onToggle={() => setLeftPanelOpen(false)}
                         />
@@ -1924,8 +2007,18 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 )}
                 {/* Right Panel */}
                 {panelsReady && (
-                  <div className="absolute top-14 right-4 z-50 h-[calc(100vh-6.5rem)] flex items-start pointer-events-none">
-                    <div className="h-full flex items-start justify-end pointer-events-auto">
+                  <div
+                    className="absolute top-14 right-4 z-50 h-[calc(100vh-6.5rem)] flex items-start pointer-events-none"
+                  >
+                    <div
+                      className="h-full flex items-start justify-end pointer-events-auto relative"
+                    >
+                      <div
+                        onMouseDown={(event) => startPanelDrag("right", event)}
+                        className={`absolute top-0 -left-2 h-full w-3 cursor-ew-resize ${rightPanelOpen ? "pointer-events-auto" : "pointer-events-none"}`}
+                        data-no-panel-drag="true"
+                        aria-hidden
+                      />
                       <div
                         className={`h-full origin-right transition-[transform,opacity] duration-300 ease-out will-change-transform ${rightPanelOpen
                           ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
@@ -1934,6 +2027,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                       >
                         <RightPanel
                           projectId={projectId}
+                          width={rightPanelWidth}
                           activeTab={rightPanelTab}
                           setActiveTab={setRightPanelTab}
                           frameReady={frameReady}
@@ -1965,7 +2059,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                   />
                 )}
               </InlineTextEditProvider>
-            </TransformModeProvider>
+             </TransformModeProvider>
           </CanvasToolProvider>
         </PrototypeTabProvider>
       </Editor>

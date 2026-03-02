@@ -99,6 +99,8 @@ function PreviewContent() {
   const [showPublishDialog, setShowPublishDialog] = useState(false);
   const [publishDomainName, setPublishDomainName] = useState("");
   const [publishDomainError, setPublishDomainError] = useState("");
+  const [showPublishedSuccessModal, setShowPublishedSuccessModal] = useState(false);
+  const [publishedSubdomain, setPublishedSubdomain] = useState<string | null>(null);
   const [publishMode, setPublishMode] = useState<"now" | "schedule">("now");
   const [scheduledAt, setScheduledAt] = useState("");
   const [scheduleInfo, setScheduleInfo] = useState<{ scheduledAt: string; subdomain: string | null } | null>(null);
@@ -429,6 +431,8 @@ function PreviewContent() {
         setShowPublishDialog(false);
         setPublishDomainName("");
         const sub = res.data?.subdomain ?? domain;
+        setPublishedSubdomain(sub);
+        setShowPublishedSuccessModal(true);
         showAlert(`Published! Your site is live. You can change the domain later in the dashboard.`);
       } else {
         if (res.message?.includes('Limit reached')) {
@@ -802,6 +806,41 @@ function PreviewContent() {
                   {scheduling ? "Scheduling…" : "Set schedule"}
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPublishedSuccessModal && publishedSubdomain && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md">
+            <h2 className="text-xl font-semibold text-white mb-2">Published successfully</h2>
+            <p className="text-sm text-zinc-400 mb-1">Do you want to open your website now?</p>
+            <p className="text-xs text-zinc-500 mb-5">/sites/{publishedSubdomain}</p>
+
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPublishedSuccessModal(false);
+                  setPublishedSubdomain(null);
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors"
+              >
+                Keep editing
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const target = publishedSubdomain;
+                  setShowPublishedSuccessModal(false);
+                  setPublishedSubdomain(null);
+                  router.push(`/sites/${encodeURIComponent(target)}`);
+                }}
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Open website
+              </button>
             </div>
           </div>
         </div>

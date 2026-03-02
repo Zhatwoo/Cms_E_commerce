@@ -10,7 +10,7 @@ const HANDLE_SIZE = 8;
 const ROTATION_HANDLE_OFFSET = 24;
 const EPSILON = 0.01;
 const MOVE_DRAG_START_THRESHOLD = 2;
-const CONTAINER_LIMIT_MARGIN_PX = 8;
+const CONTAINER_LIMIT_MARGIN_PX = 0;
 
 const HANDLE_CURSORS: Record<Handle, string> = {
   n: "ns-resize",

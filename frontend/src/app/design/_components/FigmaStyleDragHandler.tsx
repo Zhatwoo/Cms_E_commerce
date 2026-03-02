@@ -67,6 +67,10 @@ function parseNumberOrZero(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
 const OFFSET_MOVE_TYPES = new Set(["Image", "Text", "Icon", "Button", "Circle", "Square", "Triangle"]);
 
 function selectedToIds(raw: unknown): string[] {
@@ -239,6 +243,111 @@ export const FigmaStyleDragHandler = () => {
   }, []);
 
   useEffect(() => {
+    const MIN_VISIBLE_PX = 0;
+    const MARGIN_MIN = -1200;
+    const MARGIN_MAX = 2400;
+
+    const getOffsetBounds = (nodeId: string) => {
+      try {
+        const dom = queryRef.current.node(nodeId).get()?.dom ?? null;
+        if (!dom) return null;
+
+        const parent = (dom.offsetParent as HTMLElement | null) ?? dom.parentElement;
+        if (!parent) return null;
+
+        const nodeRect = dom.getBoundingClientRect();
+        const parentRect = parent.getBoundingClientRect();
+        if (!Number.isFinite(nodeRect.width) || !Number.isFinite(nodeRect.height)) return null;
+        if (!Number.isFinite(parentRect.width) || !Number.isFinite(parentRect.height)) return null;
+
+        const minLeft = 0;
+        const minTop = 0;
+        const maxLeftRaw = Math.round(parentRect.width - nodeRect.width - MIN_VISIBLE_PX);
+        const maxTopRaw = Math.round(parentRect.height - nodeRect.height - MIN_VISIBLE_PX);
+
+        const maxLeft = Math.max(minLeft, maxLeftRaw);
+        const maxTop = Math.max(minTop, maxTopRaw);
+
+        return { minLeft, maxLeft, minTop, maxTop };
+      } catch {
+        return null;
+      }
+    };
+
+    const getMarginBounds = (nodeId: string, baseMarginTop: number, baseMarginLeft: number) => {
+      try {
+        const dom = queryRef.current.node(nodeId).get()?.dom ?? null;
+        if (!dom) return null;
+
+        const parent = dom.parentElement;
+        if (!parent) return null;
+
+        const nodeRect = dom.getBoundingClientRect();
+        const parentRect = parent.getBoundingClientRect();
+
+        const minDeltaX = Math.round(parentRect.left + MIN_VISIBLE_PX - nodeRect.left);
+        const maxDeltaX = Math.round(parentRect.right - MIN_VISIBLE_PX - nodeRect.right);
+        const minDeltaY = Math.round(parentRect.top + MIN_VISIBLE_PX - nodeRect.top);
+        const maxDeltaY = Math.round(parentRect.bottom - MIN_VISIBLE_PX - nodeRect.bottom);
+
+        const minMarginLeft = baseMarginLeft + minDeltaX;
+        const maxMarginLeft = baseMarginLeft + maxDeltaX;
+        const minMarginTop = baseMarginTop + minDeltaY;
+        const maxMarginTop = baseMarginTop + maxDeltaY;
+
+        return {
+          minMarginLeft: Math.min(minMarginLeft, maxMarginLeft),
+          maxMarginLeft: Math.max(minMarginLeft, maxMarginLeft),
+          minMarginTop: Math.min(minMarginTop, maxMarginTop),
+          maxMarginTop: Math.max(minMarginTop, maxMarginTop),
+        };
+      } catch {
+        return null;
+      }
+    };
+
+    const applyBoundedMove = (
+      entry: DragNodeState,
+      dx: number,
+      dy: number,
+      props: Record<string, unknown>
+    ) => {
+      const { id, mode, marginTop, marginLeft, top, left } = entry;
+
+      if (mode === "offset") {
+        const rawTop = Math.round(top + dy);
+        const rawLeft = Math.round(left + dx);
+        const bounds = getOffsetBounds(id);
+
+        if (bounds) {
+          props.top = `${clamp(rawTop, bounds.minTop, bounds.maxTop)}px`;
+          props.left = `${clamp(rawLeft, bounds.minLeft, bounds.maxLeft)}px`;
+        } else {
+          props.top = `${rawTop}px`;
+          props.left = `${rawLeft}px`;
+        }
+        return;
+      }
+
+      const rawMarginTop = Math.round(marginTop + dy);
+      const rawMarginLeft = Math.round(marginLeft + dx);
+      const bounds = getMarginBounds(id, marginTop, marginLeft);
+
+      if (bounds) {
+        const topMin = Math.max(MARGIN_MIN, bounds.minMarginTop);
+        const topMax = Math.min(MARGIN_MAX, bounds.maxMarginTop);
+        const leftMin = Math.max(MARGIN_MIN, bounds.minMarginLeft);
+        const leftMax = Math.min(MARGIN_MAX, bounds.maxMarginLeft);
+
+        props.marginTop = clamp(rawMarginTop, topMin, Math.max(topMin, topMax));
+        props.marginLeft = clamp(rawMarginLeft, leftMin, Math.max(leftMin, leftMax));
+        return;
+      }
+
+      props.marginTop = clamp(rawMarginTop, MARGIN_MIN, MARGIN_MAX);
+      props.marginLeft = clamp(rawMarginLeft, MARGIN_MIN, MARGIN_MAX);
+    };
+
     const handleMouseDown = (e: MouseEvent) => {
       if (e.button !== 0) return;
       const target = e.target as HTMLElement | null;
@@ -500,15 +609,9 @@ export const FigmaStyleDragHandler = () => {
             const dy = (d.lastY - d.startY) / d.zoom;
 
             d.nodeMargins.filter((e) => e.id && nodes[e.id]).forEach((entry) => {
-              const { id, mode, marginTop, marginLeft, top, left } = entry;
+              const { id } = entry;
               actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
-                if (mode === "offset") {
-                  props.top = `${Math.round(top + dy)}px`;
-                  props.left = `${Math.round(left + dx)}px`;
-                } else {
-                  props.marginTop = Math.round(marginTop + dy);
-                  props.marginLeft = Math.round(marginLeft + dx);
-                }
+                applyBoundedMove(entry, dx, dy, props);
               });
             });
           }
@@ -518,15 +621,9 @@ export const FigmaStyleDragHandler = () => {
           const dy = (d.lastY - d.startY) / d.zoom;
 
           d.nodeMargins.filter((e) => e.id && nodes[e.id]).forEach((entry) => {
-            const { id, mode, marginTop, marginLeft, top, left } = entry;
+            const { id } = entry;
             actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
-              if (mode === "offset") {
-                props.top = `${Math.round(top + dy)}px`;
-                props.left = `${Math.round(left + dx)}px`;
-              } else {
-                props.marginTop = Math.round(marginTop + dy);
-                props.marginLeft = Math.round(marginLeft + dx);
-              }
+              applyBoundedMove(entry, dx, dy, props);
             });
           });
         }
