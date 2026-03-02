@@ -1,13 +1,13 @@
 // wala header lang, laman lang neto is yung user name, profile, notif, dito ren pala nilagay yung theme toggle
 
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { logout, type User } from '@/lib/api';
 import { useTheme } from '../context/theme-context';
 import { useAuth } from '../context/auth-context';
-import { useProject } from '../context/project-context';
+
 const SunIcon = () => (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="5" />
@@ -73,10 +73,14 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     const { theme, toggleTheme, colors } = useTheme();
     const [showMenu, setShowMenu] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
-    const [showSwitchModal, setShowSwitchModal] = useState(false);
-    const { selectedProject, selectedProjectId, setSelectedProjectId, projects, loading } = useProject();
-    const showProjectSwitch = pathname === '/m_dashboard/products' || pathname === '/m_dashboard/orders';
+    const [scrolled, setScrolled] = useState(false);
     const userName = user?.name || user?.email || '';
+
+    useEffect(() => {
+        const onScroll = () => setScrolled(window.scrollY > 10);
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
     const unreadCount = NOTIFICATIONS.filter((n) => n.unread).length;
 
     const handleLogout = async () => {
@@ -89,10 +93,12 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
 
     return (
         <header
-            className="border-b transition-colors duration-300"
-            style={{ 
-                borderColor: colors.border.faint,
-                backgroundColor: colors.bg.primary
+            className="sticky top-0 z-30 transition-all duration-300 border-0"
+            style={{
+                background: scrolled ? 'rgba(0, 0, 54, 0.88)' : 'transparent',
+                backdropFilter: scrolled ? 'blur(14px)' : 'none',
+                WebkitBackdropFilter: scrolled ? 'blur(14px)' : 'none',
+                borderBottom: scrolled ? '1px solid rgba(255,255,255,0.07)' : 'none',
             }}
         >
             <div className="relative flex items-center justify-between px-4 sm:px-6" style={{ height: '84px' }}>
@@ -111,29 +117,6 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                 </div>
 
                 <div className="flex-1" />
-
-                <div className="hidden sm:flex absolute left-1/2 -translate-x-1/2 items-center pointer-events-none">
-                    {showProjectSwitch && selectedProject && (
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setShowSwitchModal(true);
-                            }}
-                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors hover:bg-black/5 dark:hover:bg-white/10 pointer-events-auto"
-                            style={{ borderColor: colors.border.faint, color: colors.text.secondary }}
-                        >
-                            <span className="truncate max-w-[220px]">
-                                {selectedProject.title || 'Untitled website'}
-                            </span>
-                            <span
-                                className="text-[10px] px-2 py-0.5 rounded-full"
-                                style={{ backgroundColor: colors.bg.elevated, color: colors.text.muted }}
-                            >
-                                Switch
-                            </span>
-                        </button>
-                    )}
-                </div>
 
                 <div className="flex items-center gap-4">
                     <button
@@ -188,19 +171,19 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                     </div>
 
                     <div className="relative flex items-center gap-3">
-                        <div className="text-right hidden sm:block">
-                            <p className="text-sm font-medium" style={{ color: colors.text.primary }}>{userName || 'User'}</p>
+                        <div className="text-right hidden sm:block" style={{ fontFamily: 'var(--font-outfit), sans-serif' }}>
+                            <p className="text-sm font-medium" style={{ color: colors.text.primary }}>{userName || 'Finding Neo'}</p>
                             <p className="text-xs" style={{ color: colors.text.muted }}>Website Owner</p>
                         </div>
                         <div className="relative">
                             <button
                                 type="button"
                                 onClick={() => setShowMenu((v) => !v)}
-                                className="h-10 w-10 rounded-full border flex items-center justify-center shadow-sm hover:opacity-80 transition-opacity"
+                                className="h-10 w-10 rounded-full flex items-center justify-center shadow-sm hover:opacity-90 transition-opacity overflow-hidden"
                                 style={{
-                                    backgroundColor: colors.bg.elevated,
-                                    borderColor: colors.border.faint,
-                                    color: colors.text.secondary
+                                    background: 'linear-gradient(135deg, #FFCE00 0%, #A64CD9 50%, #5C1D8F 100%)',
+                                    border: 'none',
+                                    color: '#fff'
                                 }}
                                 aria-label="Profile menu"
                             >

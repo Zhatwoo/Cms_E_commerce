@@ -10,7 +10,8 @@ const { getLimits } = require('../utils/subscriptionLimits');
 exports.list = async (req, res) => {
   try {
     const userId = req.user.id;
-    const projects = await Project.list(userId);
+    const instanceId = (req.query.instanceId || '').toString().trim() || null;
+    const projects = await Project.list(userId, { instanceId });
     res.status(200).json({
       success: true,
       projects,
@@ -58,6 +59,7 @@ exports.create = async (req, res) => {
     const project = await Project.create(userId, {
       title: title || 'Untitled Project',
       templateId: templateId || null,
+      instanceId: instanceId || null,
       subdomain: subdomain || null,
     });
     res.status(201).json({
@@ -140,10 +142,11 @@ exports.update = async (req, res) => {
         message: 'Project not found',
       });
     }
-    const { title, status, thumbnail } = req.body;
+    const { title, status, thumbnail, instanceId } = req.body;
     const project = await Project.update(userId, req.params.id, {
       ...(title !== undefined && { title }),
       ...(status !== undefined && { status }),
+      ...(instanceId !== undefined && { instanceId }),
       ...(thumbnail !== undefined && { thumbnail }),
     });
     res.status(200).json({

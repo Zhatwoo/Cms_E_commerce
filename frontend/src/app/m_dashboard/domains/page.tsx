@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import React, { useEffect, useState } from 'react';
 import { useTheme } from '../components/context/theme-context';
 import { useAuth } from '../components/context/auth-context';
+import { useProject } from '../components/context/project-context';
 import { listProjects, getSchedule, getPublishHistory, type Project, type PublishHistoryEntry } from '@/lib/api';
 import { subscribeUserProjectSubdomains, type ProjectSubdomainEntry } from '@/lib/firebase';
 import {
@@ -61,6 +62,7 @@ function isPublishedStatus(status?: string | null): boolean {
 export default function DomainsPage() {
   const { colors, theme } = useTheme();
   const { user, loading: authLoading } = useAuth();
+  const { selectedProject } = useProject();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [subdomainsByProject, setSubdomainsByProject] = useState<Record<string, ProjectSubdomainEntry>>({});
@@ -75,7 +77,7 @@ export default function DomainsPage() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await listProjects();
+        const res = await listProjects({ instanceId: selectedProject?.id || undefined });
         if (!cancelled && res.success && res.projects) setProjects(res.projects);
       } catch {
         if (!cancelled) setProjects([]);
@@ -84,7 +86,7 @@ export default function DomainsPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [selectedProject?.id]);
 
   // Subscribe to Firebase subdomains at /user/roles/client/{uid}/projects
   useEffect(() => {
