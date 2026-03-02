@@ -123,7 +123,11 @@ function DashboardLayoutContent({
             </div>
 
             {/* Main content area - ref: deep indigo/purple gradient (Color Palette) */}
-            <div ref={contentScrollRef} className="no-scrollbar flex min-w-0 flex-1 basis-0 flex-col h-screen overflow-y-auto overflow-x-hidden" style={{ background: 'linear-gradient(180deg, #1A1A4C 0%, #191E2D 100%)' }}>
+            <div
+                ref={contentScrollRef}
+                className="no-scrollbar flex min-w-0 flex-1 basis-0 flex-col h-screen overflow-y-auto overflow-x-hidden"
+                style={{ background: `linear-gradient(180deg, ${colors.bg.primary} 0%, ${colors.bg.primaryEnd} 100%)` }}
+            >
                 <div className="sticky top-0 z-50 shrink-0 bg-transparent">
                     <DashboardHeader onMenuToggle={() => setSidebarOpen(true)} />
                 </div>

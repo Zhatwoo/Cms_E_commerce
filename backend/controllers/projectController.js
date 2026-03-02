@@ -31,7 +31,7 @@ exports.list = async (req, res) => {
 exports.create = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { title, templateId, subdomain } = req.body;
+    const { title, templateId, subdomain, instanceId } = req.body;
 
     // Check subscription limits
     const user = await User.findById(userId);

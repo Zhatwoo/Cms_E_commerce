@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { logout, type User } from '@/lib/api';
 import { useTheme } from '../context/theme-context';
 import { useAuth } from '../context/auth-context';
+import { useProject } from '../context/project-context';
 
 const SunIcon = () => (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -70,9 +71,11 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     const router = useRouter();
     const pathname = usePathname();
     const { user, setUser } = useAuth();
+    const { projects, loading, selectedProjectId, setSelectedProjectId } = useProject();
     const { theme, toggleTheme, colors } = useTheme();
     const [showMenu, setShowMenu] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
+    const [showSwitchModal, setShowSwitchModal] = useState(false);
     const [scrolled, setScrolled] = useState(false);
     const userName = user?.name || user?.email || '';
 
@@ -95,10 +98,18 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
         <header
             className="sticky top-0 z-30 transition-all duration-300 border-0"
             style={{
-                background: scrolled ? 'rgba(0, 0, 54, 0.88)' : 'transparent',
+                background: scrolled
+                    ? theme === 'dark'
+                        ? 'rgba(0, 0, 54, 0.88)'
+                        : 'rgba(240, 242, 245, 0.88)'
+                    : 'transparent',
                 backdropFilter: scrolled ? 'blur(14px)' : 'none',
                 WebkitBackdropFilter: scrolled ? 'blur(14px)' : 'none',
-                borderBottom: scrolled ? '1px solid rgba(255,255,255,0.07)' : 'none',
+                borderBottom: scrolled
+                    ? theme === 'dark'
+                        ? '1px solid rgba(255,255,255,0.07)'
+                        : '1px solid rgba(15,23,42,0.08)'
+                    : 'none',
             }}
         >
             <div className="relative flex items-center justify-between px-4 sm:px-6" style={{ height: '84px' }}>
@@ -239,20 +250,20 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                     >
                         <div>
                             <h2 className="text-lg font-semibold" style={{ color: colors.text.primary }}>
-                                Switch project
+                                Switch website instance
                             </h2>
                             <p className="text-sm" style={{ color: colors.text.muted }}>
-                                Choose a project to continue.
+                                Choose an instance to continue.
                             </p>
                         </div>
 
                         {loading ? (
                             <div className="rounded-lg border px-4 py-3 text-sm" style={{ borderColor: colors.border.faint, color: colors.text.secondary }}>
-                                Loading your projects…
+                                Loading your instances…
                             </div>
                         ) : projects.length === 0 ? (
                             <div className="rounded-lg border px-4 py-3 text-sm" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
-                                No projects available.
+                                No instances available.
                             </div>
                         ) : (
                             <div className="space-y-2 max-h-72 overflow-y-auto">

@@ -30,9 +30,11 @@ async function create(userId, data) {
   return docToObject(snap);
 }
 
-async function list(userId) {
+async function list(userId, options = {}) {
   const ref = getProjectsRef(userId);
-  const snap = await ref.get();
+  const instanceId = (options.instanceId || '').toString().trim();
+  const query = instanceId ? ref.where('instance_id', '==', instanceId) : ref;
+  const snap = await query.get();
   const items = snap.docs.map(d => docToObject(d)).filter(x => x);
   // Sort in JS instead of Firestore to avoid filtering out docs missing 'updated_at'
   return items.sort((a, b) => {
