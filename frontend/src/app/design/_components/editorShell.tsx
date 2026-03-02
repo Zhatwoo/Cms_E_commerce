@@ -1823,7 +1823,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 <CanvasContextMenu />
                 <FigmaStyleDragHandler />
                 <NewPageDropPlacementHandler />
-                <MarqueeSelectionHandler />
                 <DoubleClickTransformHandler />
                 <PrototypeFlowLines />
                 {/* Top Panel */}

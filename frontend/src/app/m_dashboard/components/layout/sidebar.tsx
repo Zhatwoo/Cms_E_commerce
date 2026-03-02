@@ -21,6 +21,12 @@ const CloseIcon = () => (
   </svg>
 );
 
+const InventoryIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+  </svg>
+);
+
 const SubscriptionIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="5" width="20" height="14" rx="2" />
@@ -39,6 +45,7 @@ const navItems: SidebarItem[] = [
   { id: 'home', label: 'Home', icon: <HomeIcon />, href: '/m_dashboard' },
   { id: 'web-builder', label: 'Web Builder', icon: <WebBuilderIcon />, href: '/m_dashboard/web-builder' },
   { id: 'products', label: 'Products', icon: <ProductsIcon />, href: '/m_dashboard/products' },
+  { id: 'inventory', label: 'Inventory', icon: <InventoryIcon />, href: '/m_dashboard/inventory' },
   { id: 'orders', label: 'Orders', icon: <OrdersIcon />, href: '/m_dashboard/orders' },
   { id: 'analytics', label: 'Analytics', icon: <AnalyticsIcon />, href: '/m_dashboard/analytics' },
   { id: 'domains', label: 'Domains', icon: <DomainsIcon />, href: '/m_dashboard/domains' },
@@ -133,7 +140,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
               // Before a website/instance is selected, hide builder & commerce-specific items
               if (
                 !hasSelectedWebsite &&
-                ['web-builder', 'products', 'orders', 'analytics', 'domains', 'subscription', 'settings'].includes(item.id)
+                ['web-builder', 'products', 'inventory', 'orders', 'analytics', 'domains', 'subscription', 'settings'].includes(item.id)
               ) {
                 return false;
               }
@@ -145,9 +152,11 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
                   ? pathname === '/m_dashboard'
                   : item.id === 'web-builder'
                     ? pathname.startsWith('/m_dashboard/web-builder')
-                    : item.href
-                      ? pathname === item.href
-                      : false;
+                    : item.id === 'inventory'
+                      ? pathname.startsWith('/m_dashboard/inventory')
+                      : item.href
+                        ? pathname === item.href
+                        : false;
 
             const content = (
               <div
@@ -241,7 +250,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
           .filter((item) => {
             if (
               !hasSelectedWebsite &&
-              ['web-builder', 'products', 'orders', 'analytics', 'domains', 'subscription', 'settings'].includes(item.id)
+              ['web-builder', 'products', 'inventory', 'orders', 'analytics', 'domains', 'subscription', 'settings'].includes(item.id)
             ) {
               return false;
             }
@@ -253,9 +262,11 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
                 ? pathname === '/m_dashboard'
                 : item.id === 'web-builder'
                   ? pathname.startsWith('/m_dashboard/web-builder')
-                  : item.href
-                    ? pathname === item.href
-                    : false;
+                  : item.id === 'inventory'
+                    ? pathname.startsWith('/m_dashboard/inventory')
+                    : item.href
+                      ? pathname === item.href
+                      : false;
 
             return (
               <Link
@@ -299,6 +310,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
                     {item.label}
                   </motion.span>
                 )}
+              </AnimatePresence>
 
               {/* Active indicator when collapsed */}
               {isActive && !isHovered && (

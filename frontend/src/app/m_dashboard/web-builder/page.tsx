@@ -362,8 +362,23 @@ export default function WebBuilderPage() {
   const [renameValue, setRenameValue] = useState('');
   const [sortOption, setSortOption] = useState<SortOptionId>('relevant');
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [activeTab, setActiveTab] = useState<'active' | 'trash'>('active');
+  const [trashedProjects, setTrashedProjects] = useState<Project[]>([]);
+  const [trashedProjectsLoading, setTrashedProjectsLoading] = useState(false);
 
   const visibleProjects = projects;
+
+  const refreshProjects = async () => {
+    setProjectsLoading(true);
+    try {
+      const res = await listProjects();
+      if (res.success && res.projects) {
+        setProjects(res.projects);
+      }
+    } finally {
+      setProjectsLoading(false);
+    }
+  };
 
   // Load templates on mount
   useEffect(() => {
@@ -382,7 +397,7 @@ export default function WebBuilderPage() {
       return;
     }
     setProjectsLoading(true);
-    listProjects({ instanceId: selectedProject.id })
+    listProjects()
       .then((res) => {
         if (!cancelled && res.success && res.projects) setProjects(res.projects);
       })
@@ -461,7 +476,6 @@ export default function WebBuilderPage() {
 
       const res = await createProject({
         title: title || 'Untitled Project',
-        instanceId: selectedProject?.id || undefined,
         subdomain: subdomain || undefined,
         templateId: createModalTemplate ? String(createModalTemplate.id) : null,
       });
@@ -549,7 +563,6 @@ export default function WebBuilderPage() {
       setCreating(true);
       const res = await createProject({
         title: `${p.title} (copy)`,
-        instanceId: selectedProject?.id || undefined,
         subdomain: p.subdomain ? `${p.subdomain}-copy` : undefined,
       });
       if (res.success && res.project) {
@@ -809,27 +822,12 @@ export default function WebBuilderPage() {
               Trash
             </button>
           </div>
-        ) : (
-          <div className="grid w-full max-w-full min-w-0 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
-            {visibleProjects.map((p) => (
-              <motion.div
-                key={p.id}
-                className="relative min-w-0 rounded-lg border overflow-hidden cursor-pointer hover:border-opacity-80 transition-colors"
-                style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => {
-                  router.push(`/design?projectId=${p.id}`);
-                }}
-              >
-                {/* Thumbnail: first-page draft preview */}
-                <div className="relative w-full min-h-[100px]" style={{ backgroundColor: colors.bg.elevated, borderBottom: `1px solid ${colors.border.faint}` }}>
-                  <DraftPreviewThumbnail
-                    projectId={p.id}
-                    borderColor={colors.border.faint}
-                    bgColor={colors.bg.elevated}
-                  />
-                </div>
+        </div>
+        {activeTab === 'active' ? (
+          <>
+            {projectsLoading ? (
+              <div className="rounded-xl border p-12 text-center" style={{ borderColor: colors.border.faint }}>
+                <p className="text-sm" style={{ color: colors.text.muted }}>Loading projects…</p>
               </div>
             ) : projects.length === 0 ? (
               <div className="rounded-xl border border-dashed p-12 text-center" style={{ borderColor: colors.border.faint }}>

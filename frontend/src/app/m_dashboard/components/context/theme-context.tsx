@@ -5,6 +5,8 @@ Etong theme-context.tsx naman na to eh yung sa theme ng application.
 'use client';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
+const THEME_STORAGE_KEY = 'm_dashboard_theme';
+
 /* Reference: Color Palette 1 & 2 – deep indigo/purple, yellow accent, Outfit font */
 export const THEMES = {
   dark: {
