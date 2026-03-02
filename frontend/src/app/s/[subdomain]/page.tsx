@@ -96,7 +96,7 @@ export default function SubdomainSitePage() {
 
   return (
     <div className="min-h-screen w-full bg-white">
-      <LiveSite doc={cleanDoc} pageIndex={0} />
+      <LiveSite doc={cleanDoc} pageIndex={0} mobileBreakpoint={480} />
     </div>
   );
 }
