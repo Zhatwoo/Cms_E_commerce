@@ -324,6 +324,13 @@ export const FigmaStyleDragHandler = () => {
       const d = dragRef.current;
       if (!d) return;
 
+      // Fail-safe: if left button is no longer pressed but mouseup was missed,
+      // force drag cleanup so element doesn't keep following the cursor.
+      if ((e.buttons & 1) === 0) {
+        handleMouseUp();
+        return;
+      }
+
       // Hand tool: cancel any ongoing drag
       if (activeTool === "hand") {
         dragRef.current = null;
@@ -544,6 +551,8 @@ export const FigmaStyleDragHandler = () => {
       // Always reset cursor, selection, and drag styles on mouseup
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
+      delete document.body.dataset[EDITOR_DRAGGING_FLAG];
+      delete document.body.dataset[EDITOR_DROP_COMMIT_FLAG];
       delete document.body.dataset[MULTI_DRAG_LOCK_FLAG];
       clearDragPreview(draggedDomsRef.current);
       setDraggingStyle(draggedDomsRef.current, false);
