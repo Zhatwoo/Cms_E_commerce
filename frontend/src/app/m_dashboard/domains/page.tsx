@@ -403,7 +403,9 @@ export default function DomainsPage() {
                       Subdomain
                     </div>
                     <p className="text-sm font-mono" style={{ color: colors.text.primary }}>
-                      {getSiteDisplayUrl(selectedDomain.subdomain, origin)}
+                      {selectedDomain.subdomain
+                        ? getSiteDisplayUrl(selectedDomain.subdomain, origin)
+                        : 'No subdomain'}
                     </p>
                   </div>
                   <div>

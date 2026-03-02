@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createProject, deleteProject, updateProject, type Project } from '@/lib/api';
 import { useProject } from '../components/context/project-context';
 import { useAlert } from '../components/context/alert-context';
@@ -9,7 +9,6 @@ import { DraftPreviewThumbnail } from '../components/projects/DraftPreviewThumbn
 
 export default function InstancesPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { showAlert, showConfirm } = useAlert();
   const { projects, loading, selectedProjectId, setSelectedProjectId, refreshProjects } = useProject();
 
@@ -21,24 +20,6 @@ export default function InstancesPage() {
   const [creating, setCreating] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [deletingInstanceId, setDeletingInstanceId] = useState<string | null>(null);
-  const hasShownPromptRef = useRef(false);
-
-  useEffect(() => {
-    const requireInstance = searchParams?.get('requireInstance');
-    if (requireInstance !== '1' || hasShownPromptRef.current) return;
-
-    hasShownPromptRef.current = true;
-    const from = searchParams?.get('from');
-    const source = from ? ` (${from})` : '';
-    void showAlert(`Please select a website instance first before opening this page${source}.`, 'Select Instance Required');
-
-    const nextParams = new URLSearchParams(searchParams?.toString() ?? '');
-    nextParams.delete('requireInstance');
-    nextParams.delete('from');
-    const query = nextParams.toString();
-    router.replace(query ? `/m_dashboard/instances?${query}` : '/m_dashboard/instances');
-  }, [searchParams, showAlert, router]);
-
   const handleChooseProject = (project: Project) => {
     setSelectedProjectId(project.id);
     router.push('/m_dashboard');
@@ -51,7 +32,7 @@ export default function InstancesPage() {
       const cleanTitle = title.trim() || 'Untitled Project';
       const cleanSubdomain = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
 
-      const res = await createInstance({
+      const res = await createProject({
         title: cleanTitle,
         subdomain: cleanSubdomain || undefined,
       });

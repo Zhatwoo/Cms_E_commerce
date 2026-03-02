@@ -5,9 +5,11 @@ import { Plus } from 'lucide-react';
 import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
 import { useProject } from '../components/context/project-context';
-import { type Product } from '../lib/productsData';
+import { type Product, type ProductVariant } from '../lib/productsData';
 import { createProduct, deleteProduct, listProducts, updateProduct, type ApiProduct } from '@/lib/api';
 import ProductAddModal from './components/productAddModal';
+
+type ProductUpsertPayload = Omit<Parameters<typeof createProduct>[0], 'subdomain'>;
 
 function isImageSource(value: string): boolean {
   const v = (value || '').trim();
@@ -333,9 +335,9 @@ function toDashboardProduct(product: ApiProduct): Product {
   const images = Array.isArray(product.images)
     ? product.images.filter((img): img is string => typeof img === 'string' && img.trim().length > 0)
     : [];
-  const variants = Array.isArray(product.variants)
+  const variants: ProductVariant[] = Array.isArray(product.variants)
     ? product.variants
-      .map((variant) => ({
+      .map((variant): ProductVariant => ({
         id: String(variant?.id || ''),
         name: String(variant?.name || ''),
         pricingMode: variant?.pricingMode === 'override' ? 'override' : 'modifier',
@@ -500,8 +502,8 @@ export default function ProductsPage() {
   const handleSaveProduct = async (productData: Partial<Product> & Record<string, unknown>): Promise<boolean> => {
     try {
       const rawVariants = Array.isArray(productData.variants) ? productData.variants : [];
-      const variants = rawVariants
-        .map((variant) => {
+      const variants: ProductVariant[] = rawVariants
+        .map((variant): ProductVariant => {
           const optionsRaw = Array.isArray((variant as { options?: unknown[] })?.options)
             ? (variant as { options: unknown[] }).options
             : [];
@@ -533,7 +535,7 @@ export default function ProductsPage() {
         ? Number(productData.priceRangeMax ?? finalPrice)
         : finalPrice;
 
-      const payload = {
+      const payload: ProductUpsertPayload = {
         name: String(productData.name || ''),
         sku: String(productData.sku || ''),
         category: String(productData.category || ''),

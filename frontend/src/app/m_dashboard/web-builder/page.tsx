@@ -346,7 +346,7 @@ export default function WebBuilderPage() {
   const { showAlert, showConfirm } = useAlert();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { selectedProject } = useProject();
+  const { selectedProject, setSelectedProjectId, loading: projectsLoadingFromContext } = useProject();
   const [selectedCategory, setSelectedCategory] = useState('Type');
   const [previewTemplate, setPreviewTemplate] = useState<GalleryTemplate | null>(null);
   const [templates, setTemplates] = useState<GalleryTemplate[]>([]);
@@ -446,7 +446,7 @@ export default function WebBuilderPage() {
     } else {
       openCreateModal({ title: '' });
     }
-  }, [projectsLoading, isAutoCreate, selectedProject?.id, projects]);
+  }, [projectsLoading, projectsLoadingFromContext, isAutoCreate, selectedProject?.id, projects, setSelectedProjectId]);
 
   const handleCreateSubmit = async (title: string, subdomain: string) => {
     try {

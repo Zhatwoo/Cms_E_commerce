@@ -62,8 +62,8 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
   // Reset on open
   useEffect(() => {
     if (isOpen) {
-      const existingVariants = Array.isArray(editingProduct?.variants)
-        ? editingProduct.variants.map((variant, variantIndex) => ({
+      const existingVariants: Variant[] = Array.isArray(editingProduct?.variants)
+        ? editingProduct.variants.map((variant, variantIndex): Variant => ({
           id: String(variant?.id || uid() || `var-${variantIndex + 1}`),
           name: String(variant?.name || ''),
           pricingMode: variant?.pricingMode === 'override' ? 'override' : 'modifier',
@@ -199,8 +199,8 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
     if (fd.price <= 0) { showAlert('Please enter a valid price', 'error'); return; }
     setSaving(true);
     try {
-      const variants = fd.variants
-        .map((variant) => ({
+      const variants: Variant[] = fd.variants
+        .map((variant): Variant => ({
           id: String(variant.id || uid()),
           name: String(variant.name || '').trim(),
           pricingMode: variant.pricingMode === 'override' ? 'override' : 'modifier',
