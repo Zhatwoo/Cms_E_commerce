@@ -346,10 +346,14 @@ export async function deleteProject(id: string): Promise<{ success: boolean }> {
 }
 
 /** Publish current project from Preview: creates/updates domain and public lookup so /sites/:subdomain works. */
-export async function publishProject(projectId: string, subdomain?: string | null): Promise<{ success: boolean; message?: string; data?: { id: string; subdomain?: string } }> {
+export async function publishProject(
+  projectId: string,
+  subdomain?: string | null,
+  content?: string | Record<string, unknown> | null
+): Promise<{ success: boolean; message?: string; data?: { id: string; subdomain?: string } }> {
   return apiFetch<{ success: boolean; message?: string; data?: { id: string; subdomain?: string } }>('/api/domains/publish', {
     method: 'POST',
-    body: JSON.stringify({ projectId, subdomain: subdomain || undefined }),
+    body: JSON.stringify({ projectId, subdomain: subdomain || undefined, content: content ?? undefined }),
   });
 }
 
@@ -357,11 +361,12 @@ export async function publishProject(projectId: string, subdomain?: string | nul
 export async function schedulePublish(
   projectId: string,
   scheduledAt: string,
-  subdomain?: string | null
+  subdomain?: string | null,
+  content?: string | Record<string, unknown> | null
 ): Promise<{ success: boolean; message?: string; data?: { subdomain?: string; scheduledAt?: string } }> {
   return apiFetch('/api/domains/schedule-publish', {
     method: 'POST',
-    body: JSON.stringify({ projectId, subdomain: subdomain || undefined, scheduledAt }),
+    body: JSON.stringify({ projectId, subdomain: subdomain || undefined, scheduledAt, content: content ?? undefined }),
   });
 }
 

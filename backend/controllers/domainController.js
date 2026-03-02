@@ -145,7 +145,7 @@ exports.delete = async (req, res) => {
 // Publish: create/update domain and save a snapshot of current draft so public site shows only published content
 exports.publish = async (req, res) => {
   try {
-    const { projectId, subdomain: subdomainOverride } = req.body;
+    const { projectId, subdomain: subdomainOverride, content: requestedContent } = req.body;
     if (!projectId || !String(projectId).trim()) {
       return res.status(400).json({ success: false, message: 'projectId is required' });
     }
@@ -159,12 +159,14 @@ exports.publish = async (req, res) => {
       : (project.subdomain || (project.title || 'site').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'site');
 
     // Snapshot current draft so published site shows only this until next Publish (not live draft)
-    let publishedContent = null;
-    try {
-      const draft = await Page.getPageData(userId, String(projectId).trim(), userId);
-      if (draft && draft.content) publishedContent = draft.content;
-    } catch (e) {
-      console.warn('publish: could not read draft for snapshot:', e.message);
+    let publishedContent = requestedContent ?? null;
+    if (publishedContent == null) {
+      try {
+        const draft = await Page.getPageData(userId, String(projectId).trim(), userId);
+        if (draft && draft.content) publishedContent = draft.content;
+      } catch (e) {
+        console.warn('publish: could not read draft for snapshot:', e.message);
+      }
     }
 
     // Save to BOTH paths with published_content snapshot
@@ -196,7 +198,7 @@ exports.publish = async (req, res) => {
 // Schedule publish: set a date when current draft will go live (must have published at least once)
 exports.schedulePublish = async (req, res) => {
   try {
-    const { projectId, subdomain: subdomainOverride, scheduledAt } = req.body;
+    const { projectId, subdomain: subdomainOverride, scheduledAt, content: requestedContent } = req.body;
     if (!projectId || !String(projectId).trim()) {
       return res.status(400).json({ success: false, message: 'projectId is required' });
     }
@@ -212,12 +214,14 @@ exports.schedulePublish = async (req, res) => {
       ? String(subdomainOverride).trim().toLowerCase().replace(/[^a-z0-9-]/g, '')
       : (project.subdomain || (project.title || 'site').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'site');
 
-    let scheduledContent = null;
-    try {
-      const draft = await Page.getPageData(userId, String(projectId).trim(), userId);
-      if (draft && draft.content) scheduledContent = draft.content;
-    } catch (e) {
-      console.warn('schedulePublish: could not read draft:', e.message);
+    let scheduledContent = requestedContent ?? null;
+    if (scheduledContent == null) {
+      try {
+        const draft = await Page.getPageData(userId, String(projectId).trim(), userId);
+        if (draft && draft.content) scheduledContent = draft.content;
+      } catch (e) {
+        console.warn('schedulePublish: could not read draft:', e.message);
+      }
     }
 
     const data = await Domain.schedulePublish(userId, {

@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload, Monitor, Tablet, Smartphone } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
-import { getDraft } from "../_lib/pageApi";
+import { autoSavePage, getDraft } from "../_lib/pageApi";
 import { WebPreview } from "../_lib/webRenderer";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
@@ -418,7 +418,11 @@ function PreviewContent() {
     setPublishDomainError("");
     setPublishing(true);
     try {
-      const res = await publishProject(projectId, domain);
+      const snapshot = cleanDoc ? JSON.stringify(cleanDoc) : null;
+      if (snapshot) {
+        await autoSavePage(snapshot, projectId);
+      }
+      const res = await publishProject(projectId, domain, snapshot);
       if (res.success) {
         setShowPublishDialog(false);
         setPublishDomainName("");
@@ -456,7 +460,11 @@ function PreviewContent() {
     setPublishDomainError("");
     setScheduling(true);
     try {
-      const res = await schedulePublish(projectId, new Date(scheduledAt).toISOString(), domain);
+      const snapshot = cleanDoc ? JSON.stringify(cleanDoc) : null;
+      if (snapshot) {
+        await autoSavePage(snapshot, projectId);
+      }
+      const res = await schedulePublish(projectId, new Date(scheduledAt).toISOString(), domain, snapshot);
       if (res.success) {
         setShowPublishDialog(false);
         setPublishDomainName("");
