@@ -59,7 +59,7 @@ const DEVICE_PRESETS: DevicePreset[] = [
   },
 ];
 
-const MIN_SCALE = 0.01;
+const MIN_SCALE = 0.05;
 const MAX_SCALE = 3;
 const ZOOM_STEP = 0.15;
 
@@ -121,12 +121,14 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   }, [canvasWidth, canvasHeight]);
 
   const handleZoomIn = () => {
-    const newScale = Math.min(scale + ZOOM_STEP, MAX_SCALE);
+    const safeScale = Number.isFinite(scale) ? scale : 1;
+    const newScale = Math.min(safeScale + ZOOM_STEP, MAX_SCALE);
     onScaleChange(newScale);
   };
 
   const handleZoomOut = () => {
-    const newScale = Math.max(scale - ZOOM_STEP, MIN_SCALE);
+    const safeScale = Number.isFinite(scale) ? scale : 1;
+    const newScale = Math.max(safeScale - ZOOM_STEP, MIN_SCALE);
     onScaleChange(newScale);
   };
 
@@ -138,18 +140,18 @@ export const TopPanel: React.FC<TopPanelProps> = ({
 
   const handlePresetSelect = useCallback((preset: DevicePreset) => {
     setSelectedPreset(preset);
-    
+
     // Update all Page nodes with the new width
     try {
       const state = query.getState();
       const nodes = state.nodes ?? {};
       const rootNode = nodes["ROOT"];
-      
+
       if (rootNode && Array.isArray(rootNode.data.nodes)) {
         // Find Viewport node first (ROOT -> Viewport -> Pages)
         const viewportId = rootNode.data.nodes[0];
         const viewportNode = nodes[viewportId];
-        
+
         if (viewportNode && viewportNode.data.displayName === "Viewport") {
           // Get Page nodes from Viewport
           const pageIds = viewportNode.data.nodes ?? [];
@@ -178,19 +180,19 @@ export const TopPanel: React.FC<TopPanelProps> = ({
     } catch (error) {
       console.error("Failed to update Page nodes:", error);
     }
-    
+
     // Call the parent handler to update canvas state
     onDevicePresetSelect?.(preset);
   }, [actions, query, onDevicePresetSelect]);
 
   const displayWidth = Math.round(canvasWidth);
   const displayHeight = Math.round(canvasHeight);
-  const zoomPercentage = Math.round(scale * 100);
+  const zoomPercentage = Math.round((Number.isFinite(scale) ? scale : 1) * 100);
 
   return (
     <div
       data-panel="top-controls"
-      className="absolute top-0 left-0 right-0 z-50 bg-brand-dark/90 backdrop-blur-lg border-b border-white/10 pointer-events-auto"
+      className="absolute top-0 left-0 right-0 z-[9999] bg-brand-dark/90 backdrop-blur-lg border-b border-white/10 pointer-events-auto"
     >
       <div className="flex items-center justify-between px-4 py-2 h-12">
         {/* Left Section - Canvas Controls */}
@@ -273,11 +275,10 @@ export const TopPanel: React.FC<TopPanelProps> = ({
           {/* Mobile Preview Toggle Button */}
           <button
             onClick={onDualViewToggle}
-            className={`p-2 rounded-lg transition-colors border border-white/10 flex items-center gap-2 ${
-              showDualView
+            className={`p-2 rounded-lg transition-colors border border-white/10 flex items-center gap-2 ${showDualView
                 ? "bg-blue-500/30 text-blue-400 border-blue-400/30"
                 : "bg-brand-medium-dark hover:bg-brand-medium text-brand-lighter"
-            }`}
+              }`}
             title={showDualView ? "Hide Mobile Preview" : "Show Mobile Preview"}
           >
             <Smartphone className="w-4 h-4" />
@@ -290,11 +291,10 @@ export const TopPanel: React.FC<TopPanelProps> = ({
               <button
                 key={index}
                 onClick={() => handlePresetSelect(preset)}
-                className={`p-2 rounded transition-colors ${
-                  selectedPreset?.name === preset.name
+                className={`p-2 rounded transition-colors ${selectedPreset?.name === preset.name
                     ? "bg-brand-medium text-brand-light"
                     : "hover:bg-brand-medium-dark text-brand-lighter"
-                }`}
+                  }`}
                 title={preset.name}
               >
                 {preset.icon}

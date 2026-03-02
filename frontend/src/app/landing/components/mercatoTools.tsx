@@ -1,305 +1,314 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { useScrollGate } from './ScrollGate';
+import { motion } from 'framer-motion';
 
-const ELEMENTS = [
-  'Text',
-  'Button',
-  'Add to bag',
-  'Image',
-  'Gallery',
-  'Video',
-  'Shape',
-  'Map',
-  'Instagram Feed',
-  'Contact form',
-  'Subscribe',
-  'Social icons',
-  'Embed code',
-];
-
-const INTEGRATIONS = [
-  { name: 'Gluel', desc: 'Open Source | Free Tier', icon: '○' },
-  { name: 'Baserow', desc: 'Open Source | Free Tier', icon: '⊞' },
-  { name: 'Strapi', desc: 'Open Source | Free Tier', icon: '▣' },
-  { name: 'Airtable', desc: 'Open Source | Free Tier', icon: '◇' },
-];
-
-const LAYOUT_OPTIONS = ['Fill', 'Contents', 'Layout', 'Flex', 'Grid', 'Rows'];
-
-const STAGGER_MS = 80;
-const IN_OFFSET_Y = 40;
-const IN_OFFSET_X = 32;
-
-function useScrollProgress() {
-  const sectionRef = useRef<HTMLElement>(null);
-  const [progressIn, setProgressIn] = useState(0);
-  const [progressOut, setProgressOut] = useState(0);
-
-  useEffect(() => {
-    const section = sectionRef.current;
-    if (!section) return;
-
-    const getScrollParent = (el: HTMLElement): HTMLElement | null => {
-      let parent = el.parentElement;
-      while (parent) {
-        const { overflowY } = getComputedStyle(parent);
-        if (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay' || overflowY === 'hidden') return parent;
-        parent = parent.parentElement;
-      }
-      return null;
-    };
-
-    const update = () => {
-      const scrollParent = getScrollParent(section);
-      const win = typeof window !== 'undefined' ? window : null;
-      if (!win) return;
-
-      const rect = section.getBoundingClientRect();
-      const viewHeight = win.innerHeight;
-      const viewTop = 0;
-      const viewBottom = viewHeight;
-
-      const sectionTop = rect.top;
-      const sectionBottom = rect.bottom;
-      const sectionHeight = rect.height;
-      const sectionCenter = sectionTop + sectionHeight / 2;
-
-      let inVal = 0;
-      if (scrollParent) {
-        const parentRect = scrollParent.getBoundingClientRect();
-        const parentTop = parentRect.top;
-        const parentHeight = scrollParent.clientHeight;
-        const parentBottom = parentTop + parentHeight;
-        const parentCenter = parentTop + parentHeight / 2;
-        if (sectionBottom > parentTop && sectionTop < parentBottom) {
-          // progressIn 0 → 1: section bottom at parent bottom → section center at parent center (50% of section)
-          const sectionTopStart = parentBottom - sectionHeight;
-          const sectionTopEnd = parentCenter - sectionHeight / 2;
-          const inRange = sectionTopStart - sectionTopEnd;
-          if (inRange > 0) {
-            inVal = (sectionTopStart - sectionTop) / inRange;
-          } else {
-            inVal = sectionCenter <= parentCenter ? 1 : 0;
-          }
-          inVal = Math.min(1, Math.max(0, inVal));
-        }
-        setProgressIn((p) => Math.max(p, inVal));
-
-        let outVal = 0;
-        if (sectionBottom <= parentTop) outVal = 1;
-        else if (sectionTop < parentTop && sectionBottom > parentTop)
-          outVal = Math.min(1, (parentTop - sectionTop) / sectionHeight);
-        setProgressOut(outVal);
-      } else {
-        if (sectionBottom > viewTop && sectionTop < viewBottom) {
-          // progressIn 0 → 1: section bottom at viewport bottom → section center at viewport center (50%)
-          const sectionTopStart = viewHeight - sectionHeight;
-          const sectionTopEnd = viewHeight / 2 - sectionHeight / 2;
-          let inRange = sectionTopStart - sectionTopEnd;
-          if (inRange <= 0) inRange = viewHeight * 0.5;
-          inVal = (sectionTopStart - sectionTop) / inRange;
-          inVal = Math.min(1, Math.max(0, inVal));
-        }
-        setProgressIn((p) => Math.max(p, inVal));
-        if (sectionBottom <= viewTop) setProgressOut(1);
-        else if (sectionTop < viewTop && sectionBottom > viewTop)
-          setProgressOut(Math.min(1, (viewTop - sectionTop) / sectionHeight));
-        else setProgressOut(0);
-      }
-    };
-
-    const updateFromWindowScroll = () => {
-      const scrollY = window.scrollY;
-      const threshold = Math.max(200, window.innerHeight * 0.5 - 80);
-      const inVal = Math.min(1, scrollY / threshold);
-      setProgressIn((p) => Math.max(p, inVal));
-    };
-
-    update();
-    updateFromWindowScroll();
-
-    const scrollParent = getScrollParent(section);
-    scrollParent?.addEventListener('scroll', update, { passive: true });
-    window.addEventListener('scroll', updateFromWindowScroll, { passive: true });
-    window.addEventListener('resize', update);
-    return () => {
-      scrollParent?.removeEventListener('scroll', update);
-      window.removeEventListener('scroll', updateFromWindowScroll);
-      window.removeEventListener('resize', update);
-    };
-  }, []);
-
-  return { sectionRef, progressIn, progressOut };
+function Reveal({
+  children,
+  className,
+  delay = 0,
+  x = 0,
+  y = 24,
+  duration = 0.72,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+  x?: number;
+  y?: number;
+  duration?: number;
+}) {
+  return (
+    <motion.div
+      className={className}
+      initial={{ opacity: 0, x, y }}
+      whileInView={{ opacity: 1, x: 0, y: 0 }}
+      viewport={{ once: false, amount: 0.14 }}
+      transition={{ duration, delay, ease: [0.22, 1, 0.36, 1] }}
+    >
+      {children}
+    </motion.div>
+  );
 }
 
-export function MercatoTools() {
-  const { sectionRef, progressIn, progressOut } = useScrollProgress();
+const DATA_SOURCES = [
+  { name: 'Gluel',    desc: 'Open Source',   icon: '○' },
+  { name: 'Baserow',  desc: 'Database API',  icon: '◫' },
+  { name: 'Strapi',   desc: 'Headless CMS',  icon: '▣' },
+  { name: 'Airtable', desc: 'Connected Ops', icon: '◇' },
+];
 
-  const { progress: stackProgressRaw, allowInnerScroll } = useScrollGate();
-  const stackProgress = allowInnerScroll ? stackProgressRaw : 0;
-  const stackStyle = {
-    transform: `translateY(${ -stackProgress * 36 }px) scale(${1 - stackProgress * 0.02})`,
-    opacity: 1 - stackProgress * 0.12,
-    transition: 'transform 300ms cubic-bezier(.2,.9,.2,1), opacity 300ms ease',
-    willChange: 'transform, opacity',
-  };
+const EDITOR_COMPONENTS = ['Text', 'Image', 'Button', 'Video'];
 
-  const dissolveOut = 1 - progressOut;
-  const opacity = progressIn * dissolveOut;
+export function CentricTools({ isDarkMode = false }: { isDarkMode?: boolean }) {
 
-  const moveInOut = (
-    delay: number,
-    options?: { fromLeft?: boolean; fromRight?: boolean; fromBottom?: boolean }
-  ) => {
-    const fromLeft = options?.fromLeft ?? false;
-    const fromRight = options?.fromRight ?? false;
-    const fromBottom = options?.fromBottom ?? true;
-    const translateX = fromLeft ? (1 - progressIn) * -IN_OFFSET_X : fromRight ? (1 - progressIn) * IN_OFFSET_X : 0;
-    const translateY = fromBottom ? (1 - progressIn) * IN_OFFSET_Y : 0;
-    const scale = 1 - progressOut * 0.06;
-    return {
-      opacity,
-      transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
-      transition: 'opacity 0.25s ease-out, transform 0.35s ease-out',
-      transitionDelay: `${delay}ms`,
-    };
-  };
+  /* ─── Section / wrapper tokens (respond to isDarkMode) ─── */
+  const section = isDarkMode
+    ? 'border-[#281b78] bg-[#0a0141] text-white'
+    : 'border-[#e5e6ee] bg-[#f2f2f6] text-[#0b0b17]';         // light: same as CommercePlatform
+
+  const outer = isDarkMode
+    ? 'bg-[#0b0646] shadow-[0_26px_80px_rgba(6,3,37,0.72)]'
+    : 'bg-[#f8f8fc] shadow-[0_20px_60px_rgba(28,25,70,0.08)]'; // light: same as CommercePlatform
+
+  /* ─── Section-level text (heading, description) ─── */
+  const desc     = isDarkMode ? 'text-white/55'  : 'text-[#7a7699]';
+  const headText = isDarkMode ? 'text-white'      : 'text-[#262547]';
+
+  const eyebrowClass = isDarkMode
+    ? 'border-[#3d2fa0]/60 bg-[#1a1572]/40 text-[#a78bfa]'
+    : 'border-[#d8d0f7] bg-[#f3f0ff] text-[#7c5cba]';
+
+  const eyebrowDot = isDarkMode ? 'bg-[#a78bfa]' : 'bg-[#8b3dff]';
+
+  /* ─── Frames — always dark (#0d1733), regardless of mode ─── */
+  //   The inner builder frames keep their dark navy bg in both modes.
+  const card    = 'bg-[#0d1733]';           // always dark
+  const cardTxt = 'text-white';             // always white text inside frames
+
+  // Tokens INSIDE the dark frames (always dark-mode values)
+  const frameDesc    = 'text-white/55';
+  const frameHead    = 'text-white';
+  const frameRow     = 'border-white/10 bg-white/5';
+  const frameIcon    = 'bg-white/5 text-white/80';
+  const framePill    = 'bg-[#1b2b68] text-[#95a2d6]';
+  const frameBtn     = 'border-white/10 bg-white/6 text-white/90 hover:bg-white/10 hover:border-white/20';
+  const frameSk      = 'bg-white/7';
+  const frameSkMd    = 'bg-white/10';
+  const frameHtml    = 'border-white/8 bg-white/8 text-[#8da0e4]';
+  const frameCode    = 'border-white/8 bg-[#0a0e2a]/50 text-white/35';
+  const frameDivLine = 'border-white/15';
+  const frameTabAct  = 'text-[#ffcc00]';
+  const frameTabBar  = 'bg-[#ffcc00]';
+  const frameHtmlBdg = 'border-[#2d3580]/50 bg-[#1b1f6e]/60 text-[#ffcc00]';
+  const frameAddSrc  = 'border-white/10 hover:border-white/20 hover:bg-white/5';
 
   return (
-    <section ref={sectionRef} className="w-full px-6 py-16 md:px-10 md:py-24" style={stackStyle}>
-      <div className="mx-auto max-w-6xl">
-        {/* Title and subtitle - in from bottom */}
-        <div className="mx-auto max-w-3xl text-center" style={moveInOut(0)}>
-          <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl lg:text-5xl">
-            Build Your Website With Mercato Exclusive Tools
+    <section className={`relative overflow-hidden border-t px-4 pb-24 pt-12 md:px-8 md:pb-28 md:pt-16 ${section}`}>
+
+      {/* Ambient glows — dark mode only */}
+      {isDarkMode && (
+        <>
+          <div className="pointer-events-none absolute right-[-6%] top-[8%] h-[400px] w-[400px] rounded-full bg-[#7c3aed]/10 blur-[130px]" />
+          <div className="pointer-events-none absolute bottom-[-4%] left-[-6%] h-[340px] w-[340px] rounded-full bg-[#d946ef]/7 blur-[110px]" />
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.015)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:56px_56px]" />
+        </>
+      )}
+
+      <div className="relative z-10 mx-auto max-w-6xl">
+
+        {/* ── Section header ── */}
+        <Reveal className="mx-auto max-w-[760px] text-center">
+          <span className={`inline-flex items-center gap-2 rounded-full border px-4 py-1 text-[11px] font-bold uppercase tracking-widest ${eyebrowClass}`}>
+            <span className={`h-1.5 w-1.5 animate-pulse rounded-full ${eyebrowDot}`} />
+            Exclusive Tools
+          </span>
+
+          <h2 className={`mt-5 text-[38px] font-black leading-[1.08] tracking-[-0.025em] sm:text-[48px] md:text-[60px] ${headText}`}>
+            Build Your Website
+            <br />
+            With Centric Exclusive Tools
           </h2>
-          <p className="mt-6 text-lg leading-relaxed text-white/90 md:text-xl">
-            With Mercato&apos;s exclusive tools, you can design, launch, and grow your online store faster and smarter than ever before.
+
+          <p className={`mx-auto mt-5 max-w-[580px] text-sm leading-relaxed sm:text-[15px] ${desc}`}>
+            With Centric&apos;s exclusive tools, you can design, launch, and grow your
+            online store faster and smarter than ever before.
           </p>
-        </div>
+        </Reveal>
 
-        {/* Top row: 4 integration cards (left, from left) + Custom frontend (right, from right) */}
-        <div className="mt-16 grid grid-cols-1 gap-4 md:grid-cols-12 md:gap-6">
-          <div className="grid grid-cols-2 gap-3 md:col-span-5 md:grid-cols-4">
-            {INTEGRATIONS.map((item, i) => (
-              <div
-                key={item.name}
-                className="rounded-xl border border-neutral-600 bg-neutral-800/90 p-4 text-white shadow-lg"
-                style={moveInOut(i * STAGGER_MS, { fromLeft: true, fromBottom: false })}
-              >
-                <span className="text-2xl text-neutral-400">{item.icon}</span>
-                <p className="mt-2 text-sm font-semibold">{item.name}</p>
-                <p className="mt-0.5 text-xs text-neutral-400">{item.desc}</p>
-              </div>
-            ))}
-          </div>
+        {/* ── Outer wrapper panel ── */}
+        <Reveal delay={0.1} className={`mt-12 rounded-2xl p-3 md:mt-16 md:p-5 ${outer}`}>
+          <div className="grid gap-4 md:grid-cols-[1.05fr_2.2fr_1.05fr]">
 
-          <div className="md:col-span-7" style={moveInOut(STAGGER_MS * 2, { fromRight: true, fromBottom: false })}>
-            <div className="rounded-xl border border-neutral-600 bg-neutral-800 shadow-xl overflow-hidden h-full min-h-[220px]">
-              <div className="bg-violet-600/90 px-4 py-3">
-                <p className="text-sm font-medium text-white">Custom frontend without custom code</p>
+            {/* ── LEFT: Data Sources (dark frame) ── */}
+            <Reveal delay={0.16} x={-20} className={`rounded-2xl p-4 md:p-5 ${card} ${cardTxt}`}>
+              <div className="flex items-center justify-between">
+                <h3 className={`text-base font-semibold sm:text-lg ${frameHead}`}>Data Sources</h3>
+                <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${framePill}`}>4 live</span>
               </div>
-              <div className="p-4 space-y-2">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="h-8 rounded bg-neutral-700/80" aria-hidden />
-                ))}
-                <div className="grid grid-cols-2 gap-2 mt-3">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="h-14 rounded bg-neutral-700/60" aria-hidden />
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Bottom row: Add elements (from left) + Website builder (from bottom) | Files/Layers (from right) */}
-        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-12 md:gap-6">
-          <div className="md:col-span-7 flex gap-4">
-            <div
-              className="shrink-0 w-full max-w-[240px] rounded-xl border border-neutral-600 bg-white p-4 shadow-xl"
-              style={moveInOut(0, { fromLeft: true, fromBottom: false })}
-            >
-              <div className="flex items-center justify-between border-b border-neutral-200 pb-3">
-                <h3 className="text-sm font-semibold text-neutral-800">Add elements</h3>
-                <span className="text-neutral-400" aria-hidden>×</span>
-              </div>
-              <p className="mt-2 text-xs text-neutral-600">Drag and drop elements anywhere on your page</p>
-              <ul className="mt-4 space-y-2">
-                {ELEMENTS.slice(0, 10).map((label) => (
-                  <li
-                    key={label}
-                    className="flex items-center gap-2 rounded-md bg-neutral-50 px-2 py-1.5 text-xs text-neutral-700"
+              <div className="mt-5 space-y-2.5">
+                {DATA_SOURCES.map((item, i) => (
+                  <motion.div
+                    key={item.name}
+                    initial={{ opacity: 0, x: -10 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: false }}
+                    transition={{ duration: 0.42, delay: 0.2 + i * 0.07, ease: [0.22, 1, 0.36, 1] }}
+                    className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors duration-150 ${frameRow}`}
                   >
-                    <span className="flex h-5 w-5 items-center justify-center rounded bg-neutral-200 text-[10px]">T</span>
-                    {label}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div
-              className="flex-1 rounded-xl border border-neutral-600 bg-neutral-800/80 p-4 shadow-xl min-h-[280px]"
-              style={moveInOut(STAGGER_MS, { fromBottom: true })}
-            >
-              <div className="rounded-lg bg-neutral-700/60 p-4 min-h-[180px]">
-                <div className="h-3 w-3/4 rounded bg-neutral-600 mb-2" />
-                <div className="h-3 w-1/2 rounded bg-neutral-600 mb-4" />
-                <div className="grid grid-cols-3 gap-2">
-                  {[1, 2, 3, 4, 5, 6].map((i) => (
-                    <div key={i} className="aspect-video rounded bg-neutral-600/80" aria-hidden />
-                  ))}
-                </div>
-              </div>
-              <div className="mt-4 flex items-center justify-between">
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-2xl" aria-hidden>🏗</span>
-                  <span className="text-xs font-medium text-white">HTML</span>
-                </div>
-                <span className="text-2xl" aria-hidden>💻</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="md:col-span-5" style={moveInOut(STAGGER_MS * 2, { fromRight: true, fromBottom: false })}>
-            <div className="rounded-xl border border-neutral-600 bg-neutral-800/90 overflow-hidden shadow-xl h-full">
-              <div className="flex border-b border-neutral-600">
-                <button type="button" className="px-4 py-2 text-xs font-medium text-white border-b-2 border-violet-500" suppressHydrationWarning>
-                  Files
-                </button>
-                <button type="button" className="px-4 py-2 text-xs text-neutral-400" suppressHydrationWarning>
-                  Layers
-                </button>
-              </div>
-              <div className="flex">
-                <div className="w-28 shrink-0 border-r border-neutral-600 p-2 space-y-1">
-                  {LAYOUT_OPTIONS.map((label) => (
-                    <div
-                      key={label}
-                      className="rounded py-1.5 text-center text-[10px] text-neutral-400"
-                    >
-                      {label}
+                    <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-md text-sm ${frameIcon}`}>
+                      {item.icon}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className={`truncate text-sm font-semibold ${frameHead}`}>{item.name}</p>
+                      <p className={`truncate text-[11px] ${frameDesc}`}>{item.desc}</p>
                     </div>
-                  ))}
-                  <div className="grid grid-cols-2 gap-0.5 pt-2">
-                    {[1, 2, 3, 4, 5, 6].map((i) => (
-                      <div key={i} className="h-6 rounded bg-neutral-700/80" aria-hidden />
+                    <span className="relative flex h-2 w-2 shrink-0">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#28c840] opacity-60" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-[#28c840]" />
+                    </span>
+                  </motion.div>
+                ))}
+              </div>
+
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                className={`mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed p-3 transition-colors ${frameAddSrc}`}
+              >
+                <span className={`text-base leading-none ${frameDesc}`}>+</span>
+                <span className={`text-[11px] font-semibold ${frameDesc}`}>Add source</span>
+              </motion.div>
+            </Reveal>
+
+            {/* ── CENTRE: Preview (dark frames) ── */}
+            <Reveal delay={0.2} className="space-y-4">
+
+              {/* Top: custom frontend result */}
+              <div className={`overflow-hidden rounded-2xl ${card}`}>
+                <div className="flex items-center justify-between bg-gradient-to-r from-[#bf4dff] to-[#8b3dff] px-5 py-2.5">
+                  <span className="text-xs font-bold tracking-wide text-white">Custom frontend result</span>
+                  <div className="flex gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-white/30" />
+                    <span className="h-2 w-2 rounded-full bg-white/22" />
+                    <span className="h-2 w-2 rounded-full bg-white/15" />
+                  </div>
+                </div>
+                <div className="space-y-3 p-4 md:p-5">
+                  <div className="flex items-center gap-3">
+                    <div className={`h-5 flex-1 rounded-md ${frameSkMd}`} />
+                    <div className={`h-5 w-14 rounded-md ${frameSk}`} />
+                  </div>
+                  <div className={`h-4 w-3/5 rounded-md ${frameSk}`} />
+                  <div className="grid grid-cols-3 gap-2.5 pt-1">
+                    {[0, 1, 2].map((i) => (
+                      <motion.div
+                        key={i}
+                        className={`relative h-16 overflow-hidden rounded-xl sm:h-20 ${frameSk}`}
+                        initial={{ opacity: 0, y: 8 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: false }}
+                        transition={{ delay: 0.26 + i * 0.08, duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+                      >
+                        <div className={`absolute inset-0 bg-gradient-to-br ${
+                          i === 0 ? 'from-[#7c3aed]/12' : i === 1 ? 'from-[#d946ef]/10' : 'from-[#ffcc00]/8'
+                        } to-transparent`} />
+                      </motion.div>
                     ))}
                   </div>
-                </div>
-                <div className="flex-1 p-4 flex flex-col items-center justify-center min-h-[200px]">
-                  <div className="rounded-lg border border-neutral-600 bg-neutral-700/50 p-6 w-full max-w-[160px] aspect-9/16 flex items-center justify-center">
-                    <span className="h-16 w-16 rounded-full bg-orange-500/90" aria-hidden />
+                  <div className="flex items-center gap-2 pt-1">
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+                      <motion.div
+                        className="h-full rounded-full bg-gradient-to-r from-[#7c3aed] to-[#d946ef]"
+                        initial={{ width: 0 }}
+                        whileInView={{ width: '68%' }}
+                        viewport={{ once: false }}
+                        transition={{ duration: 1.1, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-bold text-[#a78bfa]">68%</span>
                   </div>
-                  <div className="mt-3 h-2 w-full max-w-[120px] rounded bg-neutral-600" aria-hidden />
-                  <div className="mt-1 h-2 w-2/3 max-w-[80px] rounded bg-neutral-600" aria-hidden />
                 </div>
               </div>
-            </div>
+
+              {/* Bottom: HTML output */}
+              <div className={`rounded-2xl p-4 md:p-5 ${card}`}>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1.5">
+                    <div className={`h-4 w-2/5 rounded-md ${frameSkMd}`} />
+                    <div className={`h-3 w-1/3 rounded-md ${frameSk}`} />
+                  </div>
+                  <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${frameHtmlBdg}`}>
+                    HTML Output
+                  </span>
+                </div>
+
+                <div className="mt-4 grid grid-cols-4 gap-2.5">
+                  {['<h1>', '<p>', '<div>', '<a>'].map((tag, i) => (
+                    <motion.div
+                      key={tag}
+                      className={`flex h-10 items-center justify-center rounded-lg border text-[10px] font-bold sm:h-12 ${frameHtml}`}
+                      initial={{ opacity: 0, scale: 0.85 }}
+                      whileInView={{ opacity: 1, scale: 1 }}
+                      viewport={{ once: false }}
+                      transition={{ delay: 0.22 + i * 0.06, duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+                    >
+                      {tag}
+                    </motion.div>
+                  ))}
+                </div>
+
+                <div className={`mt-4 rounded-xl border p-3 font-mono text-[10px] leading-relaxed sm:text-[11px] ${frameCode}`}>
+                  <span className="text-[#d946ef]/80">&lt;section </span>
+                  <span className="text-[#ffcc00]/70">class</span>
+                  <span className="text-white/35">=</span>
+                  <span className="text-[#a78bfa]/90">&quot;hero&quot;</span>
+                  <span className="text-[#d946ef]/80">&gt;</span>
+                </div>
+
+                <p className={`mt-4 text-right text-xs font-semibold ${frameDesc}`}>HTML Output</p>
+              </div>
+            </Reveal>
+
+            {/* ── RIGHT: Editor Controls (dark frame) ── */}
+            <Reveal delay={0.24} x={20} className={`rounded-2xl p-4 md:p-5 ${card} ${cardTxt}`}>
+              <div className="flex items-start justify-between">
+                <h3 className={`text-base font-semibold sm:text-lg ${frameHead}`}>Editor Controls</h3>
+                <motion.span
+                  whileHover={{ rotate: 90, scale: 1.2 }}
+                  transition={{ type: 'spring', stiffness: 380, damping: 18 }}
+                  className={`cursor-default select-none text-xl leading-none ${frameDesc}`}
+                >×</motion.span>
+              </div>
+
+              <p className={`mt-5 text-sm ${frameDesc}`}>Drag &amp; drop components.</p>
+
+              <div className="mt-4 grid grid-cols-2 gap-2.5">
+                {EDITOR_COMPONENTS.map((item) => (
+                  <motion.button
+                    key={item}
+                    type="button"
+                    whileHover={{ scale: 1.04, y: -1 }}
+                    whileTap={{ scale: 0.96 }}
+                    className={`rounded-lg border px-3 py-2 text-left text-sm font-semibold transition-all ${frameBtn}`}
+                  >
+                    <span className="mb-0.5 block text-[10px] opacity-40">
+                      {item === 'Text' ? '¶' : item === 'Image' ? '⊞' : item === 'Button' ? '⊡' : '▷'}
+                    </span>
+                    {item}
+                  </motion.button>
+                ))}
+              </div>
+
+              <div className={`mt-7 border-b pb-2 ${frameDivLine}`}>
+                <div className="flex items-center gap-5 text-sm font-semibold">
+                  <span className={`relative pb-2 ${frameTabAct}`}>
+                    Design
+                    <span className={`absolute bottom-0 left-0 right-0 h-0.5 rounded-full ${frameTabBar}`} />
+                  </span>
+                  <span className={`pb-2 ${frameDesc}`}>Prototype</span>
+                </div>
+              </div>
+
+              <dl className="mt-4 space-y-3 text-sm">
+                {[
+                  { dt: 'Layout', dd: 'Flex',    ddCls: frameHead },
+                  { dt: 'Fill',   dd: '#FFCC00', ddCls: 'text-[#ffcc00]' },
+                  { dt: 'Stroke', dd: 'None',    ddCls: frameDesc },
+                  { dt: 'Radius', dd: '12px',    ddCls: frameHead },
+                ].map(({ dt, dd, ddCls }) => (
+                  <div key={dt} className={`flex items-center justify-between ${frameDesc}`}>
+                    <dt>{dt}</dt>
+                    <dd className={`font-semibold ${ddCls}`}>{dd}</dd>
+                  </div>
+                ))}
+              </dl>
+
+              <div className="mt-5 h-px w-full bg-gradient-to-r from-transparent via-[#7c3aed]/25 to-transparent" />
+              <p className={`mt-3 text-center text-[10px] ${frameDesc}`}>✦ Live preview enabled</p>
+            </Reveal>
+
           </div>
-        </div>
+        </Reveal>
       </div>
     </section>
   );

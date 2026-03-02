@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../../components/context/theme-context';
 import { useAlert } from '../../components/context/alert-context';
 import { type Product } from '../../lib/productsData';
+import { uploadProductImageApi } from '@/lib/api';
 
 const uid = () => Math.random().toString(36).substr(2, 9);
 
@@ -26,6 +27,7 @@ function cartesian<T>(arrays: T[][]): T[][] {
 
 interface VariantOption { id: string; name: string; priceAdjustment: number; }
 interface Variant { id: string; name: string; pricingMode: 'modifier' | 'override'; options: VariantOption[]; }
+interface ProductImage { id: string; src: string; file?: File; }
 interface FormData {
   name: string; sku: string; category: string; description: string;
   status: 'active' | 'inactive' | 'draft';
@@ -34,15 +36,17 @@ interface FormData {
   hasVariants: boolean; variants: Variant[];
 }
 
-export default function ProductAddModal({ isOpen, onClose, onSave, editingProduct }: {
+export default function ProductAddModal({ isOpen, onClose, onSave, editingProduct, uploadSubdomain }: {
   isOpen: boolean; onClose: () => void;
   onSave: (p: Partial<Product> & Partial<FormData>) => Promise<boolean> | boolean;
   editingProduct?: Product;
+  uploadSubdomain?: string | null;
 }) {
   const { colors } = useTheme();
   const { showAlert, showConfirm } = useAlert();
 
-  const [images, setImages] = useState<string[]>([]);
+  const [images, setImages] = useState<ProductImage[]>([]);
+  const [saving, setSaving] = useState(false);
   const [slide, setSlide] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [thumbDrag, setThumbDrag] = useState<number | null>(null);
@@ -89,13 +93,14 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
         ? editingProduct.hasVariants
         : existingVariants.length > 0;
 
-      setImages(imageList);
+      setImages(imageList.map((src) => ({ id: uid(), src })));
       setSlide(0);
       setFd({
         name: editingProduct?.name || '', sku: editingProduct?.sku || '',
         category: editingProduct?.category || '', description: editingProduct?.description || '',
         status: editingProduct?.status || 'active', price: basePrice,
-        costPrice: 0, discount, discountType, images: imageList,
+        costPrice: typeof editingProduct?.costPrice === 'number' ? editingProduct.costPrice : 0,
+        discount, discountType, images: imageList,
         stock: editingProduct?.stock ?? 100, lowStockThreshold: 20, hasVariants, variants: existingVariants,
       });
     }
@@ -131,7 +136,11 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
       if (!f.type.startsWith('image/')) { showAlert('Invalid file type', 'error'); return; }
       if (f.size > 8 * 1024 * 1024) { showAlert('Max 8MB per image', 'error'); return; }
       const r = new FileReader();
-      r.onload = e => setImages(prev => [...prev, e.target?.result as string]);
+      r.onload = e => {
+        const result = e.target?.result as string;
+        if (!result) return;
+        setImages(prev => [...prev, { id: uid(), src: result, file: f }]);
+      };
       r.readAsDataURL(f);
     });
   };
@@ -142,6 +151,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
     if (thumbDrag === null || thumbDrag === to) { setThumbDrag(null); setThumbOver(null); return; }
     const next = [...images];
     const [m] = next.splice(thumbDrag, 1);
+    if (!m) { setThumbDrag(null); setThumbOver(null); return; }
     next.splice(to, 0, m);
     setImages(next); setSlide(to); setThumbDrag(null); setThumbOver(null);
   };
@@ -183,52 +193,73 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
   const updOpt = (vid: string, oid: string, f: keyof VariantOption, v: any) => patch({ variants: fd.variants.map(x => x.id === vid ? { ...x, options: x.options.map(o => o.id === oid ? { ...o, [f]: v } : o) } : x) });
 
   const save = async () => {
+    if (saving) return;
     if (!fd.name.trim()) { showAlert('Please enter a product name', 'error'); return; }
     if (!fd.sku.trim()) { showAlert('Please enter a SKU', 'error'); return; }
     if (fd.price <= 0) { showAlert('Please enter a valid price', 'error'); return; }
-    const variants = fd.variants
-      .map((variant) => ({
-        id: String(variant.id || uid()),
-        name: String(variant.name || '').trim(),
-        pricingMode: variant.pricingMode === 'override' ? 'override' : 'modifier',
-        options: (Array.isArray(variant.options) ? variant.options : [])
-          .map((option) => ({
-            id: String(option.id || uid()),
-            name: String(option.name || '').trim(),
-            priceAdjustment: Number(option.priceAdjustment || 0),
-          }))
-          .filter((option) => option.name || option.priceAdjustment !== 0),
-      }))
-      .filter((variant) => variant.name || variant.options.length > 0);
+    setSaving(true);
+    try {
+      const variants = fd.variants
+        .map((variant) => ({
+          id: String(variant.id || uid()),
+          name: String(variant.name || '').trim(),
+          pricingMode: variant.pricingMode === 'override' ? 'override' : 'modifier',
+          options: (Array.isArray(variant.options) ? variant.options : [])
+            .map((option) => ({
+              id: String(option.id || uid()),
+              name: String(option.name || '').trim(),
+              priceAdjustment: Number(option.priceAdjustment || 0),
+            }))
+            .filter((option) => option.name || option.priceAdjustment !== 0),
+        }))
+        .filter((variant) => variant.name || variant.options.length > 0);
 
-    const hasVariants = fd.hasVariants && variants.length > 0;
-    const basePrice = Number(fd.price || 0);
-    const finalPrice = hasVariants
-      ? Number(range?.min ?? Math.max(0, discBase))
-      : Math.max(0, discBase);
-    const priceRangeMin = hasVariants ? Number(range?.min ?? finalPrice) : finalPrice;
-    const priceRangeMax = hasVariants ? Number(range?.max ?? finalPrice) : finalPrice;
+      const hasVariants = fd.hasVariants && variants.length > 0;
+      const basePrice = Number(fd.price || 0);
+      const finalPrice = hasVariants
+        ? Number(range?.min ?? Math.max(0, discBase))
+        : Math.max(0, discBase);
+      const priceRangeMin = hasVariants ? Number(range?.min ?? finalPrice) : finalPrice;
+      const priceRangeMax = hasVariants ? Number(range?.max ?? finalPrice) : finalPrice;
 
-    const saved = await Promise.resolve(onSave({
-      ...fd,
-      price: finalPrice,
-      basePrice,
-      finalPrice,
-      compareAtPrice: fd.discount > 0 ? basePrice : null,
-      discount: Number(fd.discount || 0),
-      discountType: fd.discountType,
-      hasVariants,
-      variants: hasVariants ? variants : [],
-      priceRangeMin,
-      priceRangeMax,
-      images,
-      image: images[0] || '[product]',
-      id: editingProduct?.id || uid(),
-      createdAt: editingProduct?.createdAt || new Date().toISOString(),
-    }));
-    if (saved === false) return;
-    showAlert(`Product ${editingProduct ? 'updated' : 'added'} successfully!`, 'success');
-    onClose();
+      const uploadedImages: string[] = [];
+      for (const image of images) {
+        if (image.file) {
+          const response = await uploadProductImageApi(image.file, uploadSubdomain || undefined);
+          if (!response?.url) {
+            throw new Error(response?.message || 'Failed to upload product image');
+          }
+          uploadedImages.push(response.url);
+        } else if (isImageSource(image.src)) {
+          uploadedImages.push(image.src);
+        }
+      }
+
+      const saved = await Promise.resolve(onSave({
+        ...fd,
+        price: finalPrice,
+        basePrice,
+        finalPrice,
+        compareAtPrice: fd.discount > 0 ? basePrice : null,
+        discount: Number(fd.discount || 0),
+        discountType: fd.discountType,
+        hasVariants,
+        variants: hasVariants ? variants : [],
+        priceRangeMin,
+        priceRangeMax,
+        images: uploadedImages,
+        image: uploadedImages[0] || '[product]',
+        id: editingProduct?.id || uid(),
+        createdAt: editingProduct?.createdAt || new Date().toISOString(),
+      }));
+      if (saved === false) return;
+      showAlert(`Product ${editingProduct ? 'updated' : 'added'} successfully!`, 'success');
+      onClose();
+    } catch (error) {
+      showAlert(error instanceof Error ? error.message : 'Failed to save product', 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const hasDraft = () => {
@@ -374,7 +405,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                       <AnimatePresence mode="wait">
                         <motion.img
                           key={slide}
-                          src={images[slide]}
+                          src={images[slide]?.src}
                           alt=""
                           className="absolute inset-0 w-full h-full object-contain"
                           initial={{ opacity: 0, scale: 1.04 }}
@@ -454,7 +485,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                     <div className="flex gap-3 overflow-x-auto pb-1 flex-shrink-0" style={{ scrollbarWidth: 'none' }}>
                       {images.map((img, idx) => (
                         <div
-                          key={idx}
+                          key={img.id}
                           draggable
                           onDragStart={() => setThumbDrag(idx)}
                           onDragOver={e => { e.preventDefault(); setThumbOver(idx); }}
@@ -470,7 +501,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                             transition: 'all 0.2s ease',
                           }}
                         >
-                          <img src={img} alt="" className="w-full h-full object-cover" />
+                          <img src={img.src} alt="" className="w-full h-full object-cover" />
                           {idx === slide && <div className="absolute inset-0" style={{ backgroundColor: 'rgba(59,130,246,0.18)' }} />}
                           <div className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-blue-500 text-white flex items-center justify-center"
                             style={{ fontSize: 9, fontWeight: 700 }}>{idx + 1}</div>
@@ -828,10 +859,11 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                 </button>
                 <button
                   onClick={save}
-                  className="flex items-center gap-2 px-8 py-3 rounded-2xl font-bold text-sm text-white hover:opacity-90 active:scale-95 transition-all"
+                  disabled={saving}
+                  className={`flex items-center gap-2 px-8 py-3 rounded-2xl font-bold text-sm text-white transition-all ${saving ? 'opacity-70 cursor-not-allowed' : 'hover:opacity-90 active:scale-95'}`}
                   style={{ backgroundColor: '#3b82f6', boxShadow: '0 4px 20px rgba(59,130,246,0.4)' }}
                 >
-                  {editingProduct ? 'Update Product' : 'Add Product'}
+                  {saving ? (editingProduct ? 'Updating...' : 'Saving...') : (editingProduct ? 'Update Product' : 'Add Product')}
                 </button>
               </div>
             </div>

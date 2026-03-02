@@ -81,6 +81,7 @@ async function createForSubdomain({ subdomain, userId, projectId, domainId, data
     description: data.description || '',
     price: toNumber(data.price, 0),
     base_price: toNullableNumber(data.basePrice),
+    cost_price: toNullableNumber(data.costPrice),
     final_price: toNullableNumber(data.finalPrice),
     compare_at_price: data.compareAtPrice != null ? parseFloat(data.compareAtPrice) : null,
     discount: toNumber(data.discount, 0),
@@ -190,6 +191,7 @@ async function updateForUser(id, userId, data) {
   if (data.description !== undefined) updates.description = data.description;
   if (data.price !== undefined) updates.price = toNumber(data.price, 0);
   if (data.basePrice !== undefined) updates.base_price = toNullableNumber(data.basePrice);
+  if (data.costPrice !== undefined) updates.cost_price = toNullableNumber(data.costPrice);
   if (data.finalPrice !== undefined) updates.final_price = toNullableNumber(data.finalPrice);
   if (data.compareAtPrice !== undefined) {
     updates.compare_at_price = data.compareAtPrice != null ? parseFloat(data.compareAtPrice) : null;

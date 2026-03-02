@@ -6,14 +6,14 @@ import { useAuth } from '../components/context/auth-context';
 import { useProject } from '../components/context/project-context';
 import { listProjects, getSchedule, getPublishHistory, type Project, type PublishHistoryEntry } from '@/lib/api';
 import { subscribeUserProjectSubdomains, type ProjectSubdomainEntry } from '@/lib/firebase';
-import { 
-  Globe, 
-  Plus, 
-  Search, 
-  ExternalLink, 
-  Copy, 
-  Settings, 
-  Trash2, 
+import {
+  Globe,
+  Plus,
+  Search,
+  ExternalLink,
+  Copy,
+  Settings,
+  Trash2,
   Check,
   AlertCircle,
   Clock,
@@ -53,6 +53,10 @@ function getSiteDisplayUrl(subdomain: string, origin: string | null): string {
     return `${slug}/${SITE_HOST}`;
   }
   return `${slug}.${BASE_DOMAIN}`;
+}
+
+function isPublishedStatus(status?: string | null): boolean {
+  return (status || '').trim().toLowerCase() === 'published';
 }
 
 export default function DomainsPage() {
@@ -100,16 +104,18 @@ export default function DomainsPage() {
     .map((p) => ({
       project: p,
       subdomain: subdomainsByProject[p.id]?.subdomain ?? p.subdomain ?? null,
-    }))
-    .filter((d) => d.subdomain);
+    }));
+
+  const publishedCount = projects.filter((project) => isPublishedStatus(project.status)).length;
+  const draftCount = projects.length - publishedCount;
 
   const stats = {
-    total: projects.length,
-    active: domainsList.length,
-    draft: projects.length - domainsList.length,
+    total: domainsList.length,
+    active: domainsList.filter(d => (d.project.status || '').trim().toLowerCase() === 'published').length,
+    draft: domainsList.filter(d => (d.project.status || '').trim().toLowerCase() !== 'published').length,
   };
 
-  type DomainEntry = { project: Project; subdomain: string };
+  type DomainEntry = { project: Project; subdomain: string | null };
   const [selectedDomain, setSelectedDomain] = useState<DomainEntry | null>(null);
   const [scheduleInfo, setScheduleInfo] = useState<{ scheduledAt: string; subdomain: string | null } | null>(null);
   const [publishHistory, setPublishHistory] = useState<PublishHistoryEntry[]>([]);
@@ -243,7 +249,7 @@ export default function DomainsPage() {
                   {stats.active}
                 </p>
                 <p className="text-sm" style={{ color: colors.text.muted }}>
-                  Active Sites
+                  Published Sites
                 </p>
               </div>
             </div>
@@ -257,8 +263,8 @@ export default function DomainsPage() {
             style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
           >
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-orange-500/10">
-                <Clock className="w-5 h-5 text-orange-600" />
+              <div className="p-2 rounded-lg bg-red-500/10">
+                <Clock className="w-5 h-5 text-red-500" />
               </div>
               <div>
                 <p className="text-2xl font-bold" style={{ color: colors.text.primary }}>
@@ -310,12 +316,15 @@ export default function DomainsPage() {
           <>
             <div className="space-y-3 flex-1 min-w-0">
               {domainsList.map(({ project, subdomain }) => (
+                (() => {
+                  const isPublished = isPublishedStatus(project.status);
+                  return (
                 <div
                   key={project.id}
                   role="button"
                   tabIndex={0}
-                  onClick={() => setSelectedDomain({ project, subdomain: subdomain ?? '' })}
-                  onKeyDown={(e) => e.key === 'Enter' && setSelectedDomain({ project, subdomain: subdomain ?? '' })}
+                  onClick={() => setSelectedDomain({ project, subdomain })}
+                  onKeyDown={(e) => e.key === 'Enter' && setSelectedDomain({ project, subdomain })}
                   className="rounded-2xl border p-4 shadow-sm flex items-center justify-between gap-3 transition-colors cursor-pointer hover:opacity-95"
                   style={{
                     backgroundColor: colors.bg.card,
@@ -325,22 +334,22 @@ export default function DomainsPage() {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate" style={{ color: colors.text.primary }}>{project.title}</p>
                     <p className="text-xs mt-0.5 font-mono truncate" style={{ color: colors.text.secondary }}>
-                      {getSiteDisplayUrl(subdomain ?? '', origin)}
+                      {subdomain ? getSiteDisplayUrl(subdomain, origin) : 'Empty'}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span
                       className="text-xs px-2 py-1 rounded-full capitalize"
                       style={{
-                        backgroundColor: colors.bg.card,
-                        borderColor: colors.border.faint,
+                        backgroundColor: isPublished ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)',
+                        color: isPublished ? 'rgb(22,163,74)' : 'rgb(220,38,38)',
                       }}
                     >
-                      {project.status || 'draft'}
+                      {isPublished ? 'Published' : 'Draft'}
                     </span>
                     <a
-                      href={getSubdomainSiteUrl(subdomain ?? '', origin)}
-                      target="_blank"
+                      href={subdomain ? getSubdomainSiteUrl(subdomain, origin) : `/design?projectId=${project.id}`}
+                      target={subdomain ? "_blank" : "_self"}
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors shrink-0"
@@ -350,79 +359,81 @@ export default function DomainsPage() {
                       }}
                     >
                       <ExternalLink size={14} />
-                      Continue to website
+                      {subdomain ? 'Continue to website' : 'Publish to go live'}
                     </a>
                   </div>
                 </div>
+                  );
+                })()
               ))}
             </div>
 
             {/* Right sidebar: website details + publish history */}
             {selectedDomain && (
-          <aside
-            className="w-full md:w-96 shrink-0 rounded-2xl border overflow-hidden flex flex-col"
-            style={{
-              backgroundColor: colors.bg.card,
-              borderColor: colors.border.faint,
-            }}
-          >
-          <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: colors.border.faint }}>
-            <h2 className="text-lg font-semibold" style={{ color: colors.text.primary }}>Website details</h2>
-            <button
-              type="button"
-              onClick={() => setSelectedDomain(null)}
-              className="p-1.5 rounded-lg hover:opacity-80 transition-opacity"
-              style={{ color: colors.text.secondary }}
-              aria-label="Close sidebar"
-            >
-              <X size={20} />
-            </button>
-          </div>
-          <div className="p-4 flex-1 overflow-y-auto space-y-5">
-            <div>
-              <div className="flex items-center gap-2 text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>
-                <FileText size={16} />
-                Title
-              </div>
-              <p className="text-base font-medium" style={{ color: colors.text.primary }}>{selectedDomain.project.title}</p>
-            </div>
-            <div>
-              <div className="flex items-center gap-2 text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>
-                <Globe size={16} />
-                Subdomain
-              </div>
-              <p className="text-sm font-mono" style={{ color: colors.text.primary }}>
-                {getSiteDisplayUrl(selectedDomain.subdomain, origin)}
-              </p>
-            </div>
-            <div>
-              <div className="flex items-center gap-2 text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>
-                Link
-              </div>
-              <a
-                href={siteUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm font-medium break-all hover:underline"
-                style={{ color: colors.text.primary }}
-              >
-                {siteUrl}
-                <ExternalLink size={14} className="shrink-0" />
-              </a>
-            </div>
-            <div>
-              <div className="text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>Status</div>
-              <span
-                className="text-xs px-2 py-1 rounded-full capitalize"
+              <aside
+                className="w-full md:w-96 shrink-0 rounded-2xl border overflow-hidden flex flex-col"
                 style={{
-                  backgroundColor: selectedDomain.project.status === 'published' ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)',
-                  color: selectedDomain.project.status === 'published' ? 'rgb(22,163,74)' : 'rgb(180,83,9)',
+                  backgroundColor: colors.bg.card,
+                  borderColor: colors.border.faint,
                 }}
               >
-                {selectedDomain.project.status || 'draft'}
-              </span>
-            </div>
-            {selectedDomain.project.createdAt && (
+                <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: colors.border.faint }}>
+                  <h2 className="text-lg font-semibold" style={{ color: colors.text.primary }}>Website details</h2>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDomain(null)}
+                    className="p-1.5 rounded-lg hover:opacity-80 transition-opacity"
+                    style={{ color: colors.text.secondary }}
+                    aria-label="Close sidebar"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="p-4 flex-1 overflow-y-auto space-y-5">
+                  <div>
+                    <div className="flex items-center gap-2 text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>
+                      <FileText size={16} />
+                      Title
+                    </div>
+                    <p className="text-base font-medium" style={{ color: colors.text.primary }}>{selectedDomain.project.title}</p>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>
+                      <Globe size={16} />
+                      Subdomain
+                    </div>
+                    <p className="text-sm font-mono" style={{ color: colors.text.primary }}>
+                      {getSiteDisplayUrl(selectedDomain.subdomain, origin)}
+                    </p>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>
+                      Link
+                    </div>
+                    <a
+                      href={siteUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-sm font-medium break-all hover:underline"
+                      style={{ color: colors.text.primary }}
+                    >
+                      {siteUrl}
+                      <ExternalLink size={14} className="shrink-0" />
+                    </a>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>Status</div>
+                    <span
+                      className="text-xs px-2 py-1 rounded-full capitalize"
+                      style={{
+                        backgroundColor: selectedDomain.project.status === 'published' ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)',
+                        color: selectedDomain.project.status === 'published' ? 'rgb(22,163,74)' : 'rgb(180,83,9)',
+                      }}
+                    >
+                      {selectedDomain.project.status || 'draft'}
+                    </span>
+                  </div>
+                  {selectedDomain.project.createdAt && (
                     <div>
                       <div className="text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>Created</div>
                       <p className="text-sm" style={{ color: colors.text.primary }}>
@@ -450,11 +461,11 @@ export default function DomainsPage() {
                         <span
                           className="capitalize px-2 py-0.5 rounded text-xs font-medium"
                           style={{
-                            backgroundColor: selectedDomain.project.status === 'published' ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)',
-                            color: selectedDomain.project.status === 'published' ? 'rgb(22,163,74)' : 'rgb(180,83,9)',
+                            backgroundColor: isPublishedStatus(selectedDomain.project.status) ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)',
+                            color: isPublishedStatus(selectedDomain.project.status) ? 'rgb(22,163,74)' : 'rgb(220,38,38)',
                           }}
                         >
-                          {selectedDomain.project.status === 'published' ? 'Published' : 'Draft'}
+                          {isPublishedStatus(selectedDomain.project.status) ? 'Published' : 'Draft'}
                         </span>
                       </li>
                       {scheduleInfo?.scheduledAt && (

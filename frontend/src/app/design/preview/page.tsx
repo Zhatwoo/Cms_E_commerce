@@ -4,11 +4,12 @@ import React, { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload, Monitor, Tablet, Smartphone } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
-import { getDraft } from "../_lib/pageApi";
+import { autoSavePage, getDraft } from "../_lib/pageApi";
 import { WebPreview } from "../_lib/webRenderer";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
-import { getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, type Project } from "@/lib/api";
+import { getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, getMyDomains, type Project } from "@/lib/api";
+import { getLimits } from "@/lib/subscriptionLimits";
 import { uploadClientFile } from "@/lib/firebaseStorage";
 import { createPortal } from "react-dom";
 import html2canvas from "html2canvas";
@@ -58,15 +59,15 @@ function PreviewIframe({ children, width, height = "80vh", isDesktop = false }: 
     <>
       <iframe
         ref={iframeRef}
-        style={{ 
-          width: responsiveWidth, 
-          height, 
+        style={{
+          width: responsiveWidth,
+          height,
           transition: "width 0.3s ease",
           borderRadius: isDesktop ? 0 : undefined,
           border: isDesktop ? "none" : undefined,
         }}
         className={isDesktop ? "bg-white min-h-full" : "rounded-xl border border-white/10 bg-white min-h-full"}
-        srcDoc={`<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1'/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/><style>*,*::before,*::after{box-sizing:border-box;}body{margin:0;font-family:'Inter',sans-serif;}</style></head><body><div id='preview-root'></div></body></html>`}
+        srcDoc={`<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1'/><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet"/><style>*,*::before,*::after{box-sizing:border-box;}body{margin:0;font-family:'Outfit',sans-serif;}</style></head><body><div id='preview-root'></div></body></html>`}
         sandbox="allow-scripts allow-same-origin"
         tabIndex={-1}
         aria-hidden
@@ -251,7 +252,7 @@ function PreviewContent() {
         background: "#ffffff",
         scale: 0.7,
         useCORS: true,
-      });
+      } as any);
 
       const blob: Blob | null = await new Promise((resolve) => {
         canvas.toBlob((b: Blob | null) => resolve(b), "image/jpeg", 0.85);
@@ -375,7 +376,7 @@ function PreviewContent() {
       setSaving(false);
     }
   };
-//cjdhv
+  //cjdhv
   const handlePublishClick = async () => {
     setPublishDomainError("");
     try {
@@ -425,7 +426,11 @@ function PreviewContent() {
         const sub = res.data?.subdomain ?? domain;
         showAlert(`Published! Your site is live. You can change the domain later in the dashboard.`);
       } else {
-        showAlert(res.message || "Publish failed.");
+        if (res.message?.includes('Limit reached')) {
+          showAlert(res.message);
+        } else {
+          showAlert(res.message || "Publish failed.");
+        }
       }
     } catch (error) {
       console.error("Publish error:", error);
@@ -456,7 +461,11 @@ function PreviewContent() {
     setPublishDomainError("");
     setScheduling(true);
     try {
-      const res = await schedulePublish(projectId, new Date(scheduledAt).toISOString(), domain);
+      const snapshot = cleanDoc ? JSON.stringify(cleanDoc) : null;
+      if (snapshot) {
+        await autoSavePage(snapshot, projectId);
+      }
+      const res = await schedulePublish(projectId, new Date(scheduledAt).toISOString(), domain, snapshot);
       if (res.success) {
         setShowPublishDialog(false);
         setPublishDomainName("");

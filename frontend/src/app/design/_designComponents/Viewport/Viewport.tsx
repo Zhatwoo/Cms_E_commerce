@@ -24,10 +24,128 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function adaptCloneForMobile(root: HTMLElement) {
+  const contentMaxWidth = MOBILE_WIDTH - 28;
+  const contentInset = 14;
   const all = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
   all.forEach((el) => {
     el.style.boxSizing = "border-box";
     el.style.maxWidth = "100%";
+    el.style.minWidth = "0px";
+    el.style.transition = "all 180ms ease";
+
+    const nodeId = el.getAttribute("data-node-id");
+    if (nodeId && nodeId !== "ROOT") {
+      const currentWidth = el.style.width;
+      const widthPx = parsePx(currentWidth);
+      if (widthPx !== null && widthPx > contentMaxWidth) {
+        el.style.width = "100%";
+      }
+      if (!currentWidth || currentWidth === "auto") {
+        el.style.width = "100%";
+      }
+
+      const heightPx = parsePx(el.style.height);
+      if (heightPx !== null && heightPx > 420) {
+        el.style.height = "auto";
+      }
+
+      const position = (el.style.position || "").toLowerCase();
+      if (position === "absolute" || position === "fixed") {
+        const leftPx = parsePx(el.style.left);
+        const rightPx = parsePx(el.style.right);
+        const topPx = parsePx(el.style.top);
+        const bottomPx = parsePx(el.style.bottom);
+        const likelyOverflowingFlow =
+          (widthPx !== null && widthPx > contentMaxWidth) ||
+          (leftPx !== null && leftPx > contentInset) ||
+          (rightPx !== null && rightPx > contentInset) ||
+          (topPx !== null && topPx > 32) ||
+          (bottomPx !== null && bottomPx > 32);
+
+        if (likelyOverflowingFlow) {
+          el.style.position = "relative";
+          el.style.top = "auto";
+          el.style.right = "auto";
+          el.style.bottom = "auto";
+          el.style.left = "auto";
+          el.style.width = "100%";
+          el.style.maxWidth = "100%";
+          el.style.marginLeft = "0";
+          el.style.marginRight = "0";
+          el.style.transform = "none";
+          el.style.transformOrigin = "top left";
+        }
+      }
+    }
+
+    const layout = el.getAttribute("data-layout");
+    if (layout === "row") {
+      el.style.display = "flex";
+      el.style.flexDirection = "column";
+      el.style.flexWrap = "nowrap";
+      el.style.alignItems = "stretch";
+      el.style.gap = "12px";
+      el.style.width = "100%";
+    }
+
+    if (layout === "column") {
+      el.style.width = "100%";
+      el.style.flex = "none";
+    }
+
+    const fontPx = parsePx(el.style.fontSize);
+    if (fontPx !== null && fontPx > 30) {
+      const scaled = Math.max(14, Math.round(fontPx * 0.62));
+      el.style.fontSize = `${scaled}px`;
+    }
+
+    const lineHeightRaw = Number.parseFloat(el.style.lineHeight || "");
+    if (Number.isFinite(lineHeightRaw) && lineHeightRaw > 2.2) {
+      el.style.lineHeight = "1.4";
+    }
+
+    const padL = parsePx(el.style.paddingLeft);
+    const padR = parsePx(el.style.paddingRight);
+    if (padL !== null && padL > 24) el.style.paddingLeft = "16px";
+    if (padR !== null && padR > 24) el.style.paddingRight = "16px";
+
+    const marginL = parsePx(el.style.marginLeft);
+    const marginR = parsePx(el.style.marginRight);
+    if (marginL !== null && marginL > 24) el.style.marginLeft = "12px";
+    if (marginR !== null && marginR > 24) el.style.marginRight = "12px";
+
+    if (el.tagName === "BUTTON") {
+      const buttonWidthPx = parsePx(el.style.width);
+      if (!el.style.width || el.style.width === "auto") {
+        el.style.width = "fit-content";
+      }
+      if (buttonWidthPx !== null && buttonWidthPx > contentMaxWidth) {
+        el.style.width = "100%";
+      }
+      el.style.maxWidth = "100%";
+      el.style.whiteSpace = "normal";
+      el.style.wordBreak = "break-word";
+    }
+
+    if (el.tagName === "IMG" || el.tagName === "VIDEO" || el.tagName === "IFRAME") {
+      const mediaWidthPx = parsePx(el.style.width);
+      if (mediaWidthPx !== null && mediaWidthPx > contentMaxWidth) {
+        el.style.width = "100%";
+      }
+      const mediaHeightPx = parsePx(el.style.height);
+      if (mediaHeightPx !== null && mediaHeightPx > 420) {
+        el.style.height = "auto";
+      }
+      el.style.maxWidth = "100%";
+      el.style.height = el.style.height || "auto";
+    }
+  });
+
+  const rowChildren = Array.from(root.querySelectorAll<HTMLElement>("[data-layout='row'] > [data-node-id]"));
+  rowChildren.forEach((child) => {
+    child.style.width = "100%";
+    child.style.maxWidth = "100%";
+    child.style.flex = "none";
   });
 
   root.style.width = "100%";
@@ -35,6 +153,7 @@ function adaptCloneForMobile(root: HTMLElement) {
   root.style.overflowX = "hidden";
   root.style.paddingLeft = "14px";
   root.style.paddingRight = "14px";
+  root.style.transition = "all 180ms ease";
 }
 
 function parsePx(value: string | null | undefined): number | null {
@@ -70,9 +189,13 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
     id: node.id,
   }));
   const { actions, query } = useEditor();
+  const actionsRef = useRef(actions);
+  const queryRef = useRef(query);
+  actionsRef.current = actions;
+  queryRef.current = query;
 
   useEffect(() => {
-    const state = query.getState();
+    const state = queryRef.current.getState();
     const nodes = state?.nodes ?? {};
     const viewportNode = nodes[viewportId];
     const pageIds: string[] = Array.isArray(viewportNode?.data?.nodes)
@@ -105,36 +228,20 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       maxBottom = Math.max(maxBottom, finalCanvasY + pageHeight);
 
       if (needsFallbackPosition) {
-        actions.setProp(pageId, (pageProps: Record<string, unknown>) => {
+        actionsRef.current.setProp(pageId, (pageProps: Record<string, unknown>) => {
           if (typeof pageProps.canvasX !== "number") pageProps.canvasX = canvasX;
           if (typeof pageProps.canvasY !== "number") pageProps.canvasY = canvasY;
         });
       }
     });
 
-    const desktopRoot = desktopCanvasRef.current;
-    let domMaxRight = 0;
-    let domMaxBottom = 0;
-
-    if (desktopRoot) {
-      const rootRect = desktopRoot.getBoundingClientRect();
-      const nodeEls = Array.from(desktopRoot.querySelectorAll<HTMLElement>("[data-node-id]"));
-      for (const el of nodeEls) {
-        const rect = el.getBoundingClientRect();
-        const right = rect.right - rootRect.left;
-        const bottom = rect.bottom - rootRect.top;
-        if (Number.isFinite(right)) domMaxRight = Math.max(domMaxRight, right);
-        if (Number.isFinite(bottom)) domMaxBottom = Math.max(domMaxBottom, bottom);
-      }
-    }
-
     const dynamicMinWidth = Math.max(
       VIEWPORT_BASE_MIN_WIDTH,
-      Math.ceil(Math.max(maxRight, domMaxRight) + VIEWPORT_EDGE_PADDING + MOBILE_PREVIEW_SAFE_WIDTH)
+      Math.ceil(maxRight + VIEWPORT_EDGE_PADDING + MOBILE_PREVIEW_SAFE_WIDTH)
     );
     const dynamicMinHeight = Math.max(
       VIEWPORT_BASE_MIN_HEIGHT,
-      Math.ceil(Math.max(maxBottom, domMaxBottom) + VIEWPORT_EDGE_PADDING)
+      Math.ceil(maxBottom + VIEWPORT_EDGE_PADDING)
     );
 
     setViewportSize((prev) => {
@@ -145,7 +252,8 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       }
       return { minWidth: dynamicMinWidth, minHeight: dynamicMinHeight };
     });
-  }, [actions, query, viewportId]);
+    // Keep deps array constant size (React requirement); use refs to avoid loop from actions/query changing
+  }, [viewportId, actionsRef, queryRef]);
 
   useEffect(() => {
     const root = viewportRootRef.current;
@@ -242,7 +350,7 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
     let frame = 0;
 
     const renderMobilePreview = () => {
-      const source = desktopRoot.querySelector("[data-node-id]") as HTMLElement | null;
+      const source = desktopRoot.querySelector("[data-page-node='true'][data-node-id]") as HTMLElement | null;
       if (!source) {
         mobileRoot.innerHTML = "";
         return;
@@ -368,7 +476,7 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       mobileRoot.removeEventListener("mouseup", blockCanvasPanFromMobile, true);
       mobileRoot.removeEventListener("wheel", blockCanvasPanFromMobile, true);
     };
-  }, [children, actions, query, viewportId]);
+  }, [actions, query, viewportId]);
 
   return (
     <div

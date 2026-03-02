@@ -6,198 +6,237 @@ import { useEditor } from "@craftjs/core";
 import { useCanvasTool } from "./CanvasToolContext";
 
 const MARQUEE_THRESHOLD = 5;
+const BOX_SELECTING_FLAG = "boxSelecting";
+const MARQUEE_START_CANVAS_TYPES = new Set(["Page", "Viewport"]);
 
-function rectsIntersect(
-  a: { left: number; top: number; right: number; bottom: number },
-  b: { left: number; top: number; right: number; bottom: number }
-): boolean {
+type Rect = { left: number; top: number; right: number; bottom: number };
+
+type MarqueeRect = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+type DragState = {
+  active: boolean;
+  startedOnNode: boolean;
+  startX: number;
+  startY: number;
+  currentX: number;
+  currentY: number;
+};
+
+function rectsIntersect(a: Rect, b: Rect): boolean {
   return !(a.left > b.right || a.right < b.left || a.top > b.bottom || a.bottom < b.top);
 }
 
-/**
- * Figma-style marquee (box) selection: drag on empty canvas to draw a selection rectangle
- * and select all nodes that intersect it. Click (no drag) on empty clears selection.
- */
 export const BoxSelectionHandler = () => {
   const { actions, query } = useEditor();
   const activeTool = useCanvasTool();
+
+  const [marqueeRect, setMarqueeRect] = useState<MarqueeRect | null>(null);
+
+  const dragRef = useRef<DragState | null>(null);
   const startedOnEmptyRef = useRef(false);
-  const [marquee, setMarquee] = useState<{
-    startX: number;
-    startY: number;
-    currentX: number;
-    currentY: number;
-  } | null>(null);
-
-  // Cancel marquee when Space is pressed (user wants pan, not box select)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === "Space") setMarquee(null);
-      if (e.code === "Escape") {
-        startedOnEmptyRef.current = false;
-        setMarquee(null);
-      }
-    };
-
-    const handleWindowBlur = () => {
-      startedOnEmptyRef.current = false;
-      setMarquee(null);
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        startedOnEmptyRef.current = false;
-        setMarquee(null);
-      }
-    };
-
-    const handleGlobalMouseUp = () => {
-      startedOnEmptyRef.current = false;
-      setMarquee(null);
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("blur", handleWindowBlur);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("mouseup", handleGlobalMouseUp);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("blur", handleWindowBlur);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("mouseup", handleGlobalMouseUp);
-    };
-  }, []);
+  const actionsRef = useRef(actions);
+  const queryRef = useRef(query);
+  const activeToolRef = useRef(activeTool);
 
   useEffect(() => {
+    actionsRef.current = actions;
+    queryRef.current = query;
+  }, [actions, query]);
+
+  useEffect(() => {
+    activeToolRef.current = activeTool;
+  }, [activeTool]);
+
+  useEffect(() => {
+    const clearMarqueeState = () => {
+      dragRef.current = null;
+      startedOnEmptyRef.current = false;
+      setMarqueeRect(null);
+      delete document.body.dataset[BOX_SELECTING_FLAG];
+    };
+
     const handleMouseDown = (e: MouseEvent) => {
-      startedOnEmptyRef.current = false;
+      clearMarqueeState();
       if (e.button !== 0) return;
+
       const target = e.target as HTMLElement | null;
       if (!target) return;
 
-      if (target.closest("INPUT") || target.closest("TEXTAREA") || target.closest("SELECT") || target.closest("[contenteditable=true]")) return;
+      if (
+        target.closest("INPUT") ||
+        target.closest("TEXTAREA") ||
+        target.closest("SELECT") ||
+        target.closest("[contenteditable=true]")
+      ) return;
       if (target.closest("[data-panel]")) return;
       if (!target.closest("[data-canvas-container]")) return;
-      // Space = pan only; Hand tool = pan only; do not start marquee
       if (document.body.dataset.spacePan === "true") return;
       if (document.body.dataset.canvasPan === "true") return;
-      if (activeTool === "hand") return;
+      if (activeToolRef.current === "hand") return;
 
-      const onNode = target.closest("[data-node-id]");
-      if (onNode) return;
+      const nodeEl = target.closest("[data-node-id]") as HTMLElement | null;
+      if (nodeEl) {
+        const nodeId = nodeEl.getAttribute("data-node-id");
+        if (nodeId && nodeId !== "ROOT") {
+          try {
+            const state = queryRef.current.getState();
+            const node = state.nodes[nodeId];
+            const displayName = (node?.data?.displayName as string | undefined) ?? "";
+            const canStartMarqueeHere = MARQUEE_START_CANVAS_TYPES.has(displayName);
+            if (!canStartMarqueeHere) return;
+          } catch {
+            return;
+          }
+        } else {
+          return;
+        }
+      }
 
       startedOnEmptyRef.current = true;
-
-      setMarquee({
+      dragRef.current = {
+        active: true,
+        startedOnNode: !!nodeEl,
         startX: e.clientX,
         startY: e.clientY,
         currentX: e.clientX,
         currentY: e.clientY,
-      });
+      };
     };
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (!marquee) return;
-      setMarquee((prev) => (prev ? { ...prev, currentX: e.clientX, currentY: e.clientY } : null));
+      const dragState = dragRef.current;
+      if (!dragState || !dragState.active) return;
+
+      dragState.currentX = e.clientX;
+      dragState.currentY = e.clientY;
+
+      const distance = Math.hypot(dragState.currentX - dragState.startX, dragState.currentY - dragState.startY);
+      if (distance < MARQUEE_THRESHOLD) return;
+
+      document.body.dataset[BOX_SELECTING_FLAG] = "true";
+
+      setMarqueeRect({
+        left: Math.min(dragState.startX, dragState.currentX),
+        top: Math.min(dragState.startY, dragState.currentY),
+        width: Math.abs(dragState.currentX - dragState.startX),
+        height: Math.abs(dragState.currentY - dragState.startY),
+      });
     };
 
     const handleMouseUp = () => {
-      const m = marquee;
-      setMarquee(null);
+      const dragState = dragRef.current;
+      const startedOnEmpty = startedOnEmptyRef.current;
+      clearMarqueeState();
 
-      if (!startedOnEmptyRef.current) return;
-      startedOnEmptyRef.current = false;
+      if (!startedOnEmpty) return;
+      if (!dragState || !dragState.active) return;
 
-      if (!m) return;
-
-      const left = Math.min(m.startX, m.currentX);
-      const right = Math.max(m.startX, m.currentX);
-      const top = Math.min(m.startY, m.currentY);
-      const bottom = Math.max(m.startY, m.currentY);
+      const left = Math.min(dragState.startX, dragState.currentX);
+      const right = Math.max(dragState.startX, dragState.currentX);
+      const top = Math.min(dragState.startY, dragState.currentY);
+      const bottom = Math.max(dragState.startY, dragState.currentY);
       const width = right - left;
       const height = bottom - top;
-      const distance = Math.sqrt((m.currentX - m.startX) ** 2 + (m.currentY - m.startY) ** 2);
+      const distance = Math.hypot(dragState.currentX - dragState.startX, dragState.currentY - dragState.startY);
 
       if (distance < MARQUEE_THRESHOLD || width < 3 || height < 3) {
-        try {
-          actions.selectNode(undefined);
-        } catch {
-          // ignore
+        if (!dragState.startedOnNode) {
+          try {
+            actionsRef.current.selectNode(undefined);
+          } catch {
+            // ignore
+          }
         }
         return;
       }
 
-      const selRect = { left, top, right, bottom };
-      const state = query.getState();
-      const nodes = state.nodes;
-      const ids = Object.keys(nodes).filter((id) => id !== "ROOT" && nodes[id]);
-      const intersecting: string[] = [];
-
-      for (const id of ids) {
-        try {
-          let dom: HTMLElement | null = null;
-          try {
-            dom = query.node(id).get()?.dom ?? null;
-          } catch {
-            // skip
-          }
-          if (!dom) continue;
-          const r = dom.getBoundingClientRect();
-          if (rectsIntersect(selRect, { left: r.left, top: r.top, right: r.right, bottom: r.bottom })) {
-            intersecting.push(id);
-          }
-        } catch {
-          // skip
-        }
-      }
+      const selectionRect: Rect = { left, top, right, bottom };
 
       try {
+        const state = queryRef.current.getState();
+        const nodes = state.nodes;
+        const nodeIds = Object.keys(nodes).filter((id) => id !== "ROOT" && nodes[id]);
+        const intersecting: string[] = [];
+
+        for (const nodeId of nodeIds) {
+          try {
+            const dom = queryRef.current.node(nodeId).get()?.dom ?? null;
+            if (!dom) continue;
+            const rect = dom.getBoundingClientRect();
+            if (rectsIntersect(selectionRect, { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom })) {
+              intersecting.push(nodeId);
+            }
+          } catch {
+            // ignore bad node refs
+          }
+        }
+
         if (intersecting.length === 0) {
-          actions.selectNode(undefined);
+          actionsRef.current.selectNode(undefined);
         } else if (intersecting.length === 1) {
-          actions.selectNode(intersecting[0]);
+          actionsRef.current.selectNode(intersecting[0]);
         } else {
-          actions.selectNode(intersecting);
+          actionsRef.current.selectNode(intersecting);
         }
       } catch {
         // ignore
       }
     };
 
+    const handleKeyOrBlur = (e: KeyboardEvent | FocusEvent | Event) => {
+      if (e instanceof KeyboardEvent && e.code !== "Space" && e.code !== "Escape") return;
+      clearMarqueeState();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) clearMarqueeState();
+    };
+
     document.addEventListener("mousedown", handleMouseDown, true);
-    if (marquee) {
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
-    }
+    document.addEventListener("mousemove", handleMouseMove, true);
+    document.addEventListener("mouseup", handleMouseUp, true);
+    window.addEventListener("mouseup", handleMouseUp, true);
+    window.addEventListener("blur", handleKeyOrBlur);
+    window.addEventListener("keydown", handleKeyOrBlur as EventListener);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       document.removeEventListener("mousedown", handleMouseDown, true);
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
+      document.removeEventListener("mousemove", handleMouseMove, true);
+      document.removeEventListener("mouseup", handleMouseUp, true);
+      window.removeEventListener("mouseup", handleMouseUp, true);
+      window.removeEventListener("blur", handleKeyOrBlur);
+      window.removeEventListener("keydown", handleKeyOrBlur as EventListener);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      clearMarqueeState();
     };
-  }, [actions, query, marquee, activeTool]);
+  }, []);
 
-  // Draw marquee rectangle (viewport coordinates)
-  const marqueeEl =
-    marquee && typeof document !== "undefined"
-      ? ReactDOM.createPortal(
+  if (!marqueeRect) return null;
+
+  return typeof document !== "undefined"
+    ? ReactDOM.createPortal(
         <div
           data-panel="marquee"
           style={{
             position: "fixed",
-            left: Math.min(marquee.startX, marquee.currentX),
-            top: Math.min(marquee.startY, marquee.currentY),
-            width: Math.abs(marquee.currentX - marquee.startX),
-            height: Math.abs(marquee.currentY - marquee.startY),
+            left: marqueeRect.left,
+            top: marqueeRect.top,
+            width: marqueeRect.width,
+            height: marqueeRect.height,
             border: "2px solid #3b82f6",
             backgroundColor: "rgba(59, 130, 246, 0.08)",
             pointerEvents: "none",
             zIndex: 10000,
+            borderRadius: 2,
           }}
         />,
         document.body
       )
-      : null;
-
-  return <>{marqueeEl}</>;
+    : null;
 };

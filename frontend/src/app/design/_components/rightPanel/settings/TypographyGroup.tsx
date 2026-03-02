@@ -9,7 +9,7 @@ interface TypographyGroupProps extends TypographyProps {
 }
 
 const FONT_OPTIONS = [
-  "Inter",
+  "Outfit",
   "Roboto",
   "Open Sans",
   "Poppins",
@@ -28,7 +28,7 @@ const FONT_OPTIONS = [
 ];
 
 export const TypographyGroup = ({
-  fontFamily = "Inter",
+  fontFamily = "Outfit",
   fontWeight = "400",
   fontStyle = "normal",
   fontSize = 16,
@@ -54,16 +54,16 @@ export const TypographyGroup = ({
   const handleItalicToggle = () => {
     const newIsItalic = !isItalic;
     setIsItalic(newIsItalic);
-    setProp((props) => { 
-      props.fontStyle = newIsItalic ? "italic" : "normal"; 
+    setProp((props) => {
+      props.fontStyle = newIsItalic ? "italic" : "normal";
     });
   };
 
   const handleBoldToggle = () => {
     const newIsBold = !isBold;
     setIsBold(newIsBold);
-    setProp((props) => { 
-      props.fontWeight = newIsBold ? "700" : "400"; 
+    setProp((props) => {
+      props.fontWeight = newIsBold ? "700" : "400";
     });
   };
 
@@ -119,6 +119,7 @@ export const TypographyGroup = ({
               value={fontSize}
               onChange={(val) => setProp((props) => { props.fontSize = val; })}
               unit="px"
+              presets={[10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 64, 96]}
             />
           </div>
         </div>
@@ -149,6 +150,8 @@ export const TypographyGroup = ({
                   value={Number(lineHeight)}
                   step={0.1}
                   onChange={(val) => setProp((props) => { props.lineHeight = val; })}
+                  unit="x"
+                  presets={[1, 1.2, 1.5, 2, 2.5]}
                 />
               </div>
             )}
@@ -163,6 +166,8 @@ export const TypographyGroup = ({
               value={Number(letterSpacing)}
               step={0.1}
               onChange={(val) => setProp((props) => { props.letterSpacing = val; })}
+              unit="px"
+              presets={[-1, 0, 1, 2, 4, 8]}
             />
           </div>
         </div>

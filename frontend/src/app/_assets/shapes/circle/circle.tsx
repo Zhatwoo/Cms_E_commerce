@@ -11,6 +11,7 @@ export interface CircleResizableProps {
   borderColor?: string;
   borderWidth?: number;
   borderStyle?: string;
+  strokePlacement?: "mid" | "inside" | "outside";
   boxShadow?: string;
   opacity?: number;
   overflow?: string;
@@ -43,6 +44,7 @@ export const Circle = (props: CircleProps) => {
     borderColor = "transparent",
     borderWidth = 0,
     borderStyle = "solid",
+    strokePlacement = "mid",
     position = "relative",
     display = "flex",
     zIndex = 0,
@@ -112,9 +114,9 @@ export const Circle = (props: CircleProps) => {
         backgroundPosition: backgroundImage ? backgroundPosition : undefined,
         backgroundRepeat: backgroundImage ? backgroundRepeat : undefined,
         borderRadius: "50%",
-        borderWidth: `${borderWidth}px`,
-        borderColor,
-        borderStyle,
+        ...(strokePlacement === "outside" && borderWidth > 0
+          ? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
+          : { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
         position,
         display,
         zIndex: zIndex !== 0 ? zIndex : undefined,
@@ -147,6 +149,7 @@ export const CircleDefaultProps: Partial<CircleResizableProps> = {
   borderColor: "transparent",
   borderWidth: 0,
   borderStyle: "solid",
+  strokePlacement: "mid",
   boxShadow: "none",
   opacity: 1,
   overflow: "hidden",

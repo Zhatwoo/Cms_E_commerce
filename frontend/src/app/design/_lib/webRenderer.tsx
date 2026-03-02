@@ -384,6 +384,22 @@ const frameResponsiveStyles = (
       .frame-responsive-inner.frame-fluid [data-node-id] {
         max-width: 100% !important;
         min-width: 0;
+        transition:
+          width 180ms ease,
+          max-width 180ms ease,
+          min-width 180ms ease,
+          margin 180ms ease,
+          transform 180ms ease,
+          left 180ms ease,
+          right 180ms ease,
+          top 180ms ease,
+          bottom 180ms ease,
+          opacity 180ms ease;
+      }
+
+      @keyframes responsive-reflow-in {
+        from { opacity: 0.96; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
       }
       @container (max-width: 640px) {\r
         /* Only stack top-level layout rows, not inner UI rows nested inside columns */\r
@@ -397,6 +413,25 @@ const frameResponsiveStyles = (
           width: 100% !important;\r
           max-width: 100% !important;\r
           min-width: 0 !important;\r
+        }\r
+\r
+        /* Auto-reflow positioned elements (e.g. side labels/text) so they stack on mobile */\r
+        .frame-responsive-inner.frame-fluid [data-node-id][style*="position: absolute"],\r
+        .frame-responsive-inner.frame-fluid [data-node-id][style*="position:absolute"],\r
+        .frame-responsive-inner.frame-fluid [data-node-id][style*="position: fixed"],\r
+        .frame-responsive-inner.frame-fluid [data-node-id][style*="position:fixed"] {\r
+          position: relative !important;\r
+          left: auto !important;\r
+          right: auto !important;\r
+          top: auto !important;\r
+          bottom: auto !important;\r
+          width: 100% !important;\r
+          max-width: 100% !important;\r
+          min-width: 0 !important;\r
+          margin-left: 0 !important;\r
+          margin-right: 0 !important;\r
+          transform: none !important;\r
+          animation: responsive-reflow-in 180ms ease;\r
         }\r
       }\r
       @container (max-width: 400px) {\r
@@ -687,7 +722,7 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
   Text: {
     text: "Edit me!",
     fontSize: 16,
-    fontFamily: "Inter",
+    fontFamily: "Outfit",
     fontWeight: "400",
     lineHeight: 1.5,
     letterSpacing: 0,
@@ -725,7 +760,7 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
     variant: "primary",
     fontSize: 14,
     fontWeight: "500",
-    fontFamily: "Inter",
+    fontFamily: "Outfit",
     borderRadius: 8,
     width: "auto",
     height: "auto",
@@ -1271,6 +1306,8 @@ function RenderNode({
       const mb = (props.marginBottom ?? m) as number;
       const br = (props.borderRadius ?? 0) as number;
       const bw = (props.borderWidth ?? 0) as number;
+      const strokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
+      const borderDecl = bw > 0 ? `${bw}px ${props.borderStyle} ${props.borderColor}` : undefined;
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
       const displayVal = (props.display as React.CSSProperties["display"]) ?? "flex";
@@ -1292,7 +1329,11 @@ function RenderNode({
         height: (props.height as string) ?? "auto",
         minHeight: !hasRenderableChildren ? "50px" : undefined,
         borderRadius: `${br}px`,
-        border: `${bw}px ${props.borderStyle} ${props.borderColor}`,
+        ...(strokePlacement === "outside" && borderDecl
+          ? { border: "none", outline: borderDecl, outlineOffset: 0 }
+          : borderDecl
+            ? { border: borderDecl }
+            : {}),
         position: props.position as React.CSSProperties["position"],
         display: displayVal,
         flexDirection: displayVal === "flex" ? (props.flexDirection as React.CSSProperties["flexDirection"]) : undefined,
@@ -1334,6 +1375,9 @@ function RenderNode({
       const mr = (props.marginRight ?? m) as number;
       const mt = (props.marginTop ?? m) as number;
       const mb = (props.marginBottom ?? m) as number;
+      const sectionBw = (props.borderWidth ?? 0) as number;
+      const sectionBorderDecl = sectionBw > 0 ? `${sectionBw}px ${props.borderStyle} ${props.borderColor}` : undefined;
+      const sectionStrokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
       const isHeaderAsset = nodeId != null && /header/i.test(nodeId);
@@ -1355,7 +1399,11 @@ function RenderNode({
             width: props.width as string,
             height: props.height as string,
             borderRadius: px(props.borderRadius),
-            border: `${props.borderWidth}px ${props.borderStyle} ${props.borderColor}`,
+            ...(sectionStrokePlacement === "outside" && sectionBorderDecl
+              ? { border: "none", outline: sectionBorderDecl, outlineOffset: 0 }
+              : sectionBorderDecl
+                ? { border: sectionBorderDecl }
+                : {}),
             display: "flex",
             flexDirection: props.flexDirection as React.CSSProperties["flexDirection"],
             flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
@@ -1421,6 +1469,9 @@ function RenderNode({
       const mb = (props.marginBottom ?? m) as number;
       const flexDir = (props.flexDirection as React.CSSProperties["flexDirection"]) ?? "row";
       const isHeaderRow = nodeId != null && /header/i.test(nodeId);
+      const rowBw = (props.borderWidth ?? 0) as number;
+      const rowBorderDecl = rowBw > 0 ? `${rowBw}px ${props.borderStyle} ${props.borderColor}` : undefined;
+      const rowStrokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
       return wrap(
         <div
           data-layout="row"
@@ -1432,7 +1483,11 @@ function RenderNode({
             width: props.width as string,
             height: props.height as string,
             borderRadius: px(props.borderRadius),
-            border: `${props.borderWidth}px ${props.borderStyle} ${props.borderColor}`,
+            ...(rowStrokePlacement === "outside" && rowBorderDecl
+              ? { border: "none", outline: rowBorderDecl, outlineOffset: 0 }
+              : rowBorderDecl
+                ? { border: rowBorderDecl }
+                : {}),
             display: "flex",
             flexDirection: flexDir,
             flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
@@ -1463,6 +1518,9 @@ function RenderNode({
       const mt = (props.marginTop ?? m) as number;
       const mb = (props.marginBottom ?? m) as number;
       const w = props.width as string;
+      const colBw = (props.borderWidth ?? 0) as number;
+      const colBorderDecl = colBw > 0 ? `${colBw}px ${props.borderStyle} ${props.borderColor}` : undefined;
+      const colStrokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
       return wrap(
         <div
           style={{
@@ -1473,7 +1531,11 @@ function RenderNode({
             margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
             height: props.height as string,
             borderRadius: px(props.borderRadius),
-            border: `${props.borderWidth}px ${props.borderStyle} ${props.borderColor}`,
+            ...(colStrokePlacement === "outside" && colBorderDecl
+              ? { border: "none", outline: colBorderDecl, outlineOffset: 0 }
+              : colBorderDecl
+                ? { border: colBorderDecl }
+                : {}),
             display: "flex",
             flexDirection: props.flexDirection as React.CSSProperties["flexDirection"],
             flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
@@ -1525,7 +1587,8 @@ function RenderNode({
         transform: textTransformStyle,
         transformOrigin: "center center",
         whiteSpace: "pre-wrap",
-        wordBreak: "break-word",
+        overflowWrap: "break-word",
+        wordBreak: "normal",
       };
 
       if (allowPreviewInput) {
@@ -1624,7 +1687,7 @@ function RenderNode({
             color,
             fontSize: px(props.fontSize),
             fontWeight: props.fontWeight as string,
-            fontFamily: (props.fontFamily as string) || "Inter",
+            fontFamily: (props.fontFamily as string) || "Outfit",
             borderRadius: px(props.borderRadius),
             border: `${borderWidth}px ${resolvedBorderStyle} ${borderColor}`,
             padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
@@ -1746,7 +1809,10 @@ function RenderNode({
       const h = (props.height as string) || "200px";
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
-      const triangleStroke = `${toNumber(props.borderWidth, 0)}px ${props.borderStyle as string} ${props.borderColor as string}`;
+      const bw = toNumber(props.borderWidth, 0);
+      const triangleStroke = `${bw}px ${props.borderStyle as string} ${props.borderColor as string}`;
+      const shapeStrokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
+      const useOutline = shapeStrokePlacement === "outside" && bw > 0 && type !== "Triangle";
 
       return wrap(
         <div
@@ -1781,9 +1847,13 @@ function RenderNode({
             backgroundPosition: type !== "Triangle" && bgImage ? (props.backgroundPosition as string) : undefined,
             backgroundRepeat: type !== "Triangle" && bgImage ? (props.backgroundRepeat as string) : undefined,
             borderRadius: type === "Circle" ? "50%" : undefined,
-            border: type === "Triangle"
-              ? undefined
-              : triangleStroke,
+            ...(type !== "Triangle" && bw > 0
+              ? useOutline
+                ? { border: "none", outline: triangleStroke, outlineOffset: 0 }
+                : { border: triangleStroke }
+              : type === "Triangle"
+                ? {}
+                : {}),
             alignItems: "center",
             justifyContent: "center",
             margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
@@ -2133,12 +2203,15 @@ export function LiveSite({
   pageIndex = 0,
   storeContext,
   initialPageSlug,
+  mobileBreakpoint = 480,
 }: {
   doc: BuilderDocument;
   pageIndex?: number;
   storeContext?: StoreContext | null;
   /** Optional initial page slug from URL (e.g. ?page=page-1) for deep linking */
   initialPageSlug?: string;
+  /** Width threshold (px) before switching to mobile frame behavior. */
+  mobileBreakpoint?: number;
 }): React.ReactElement {
   const safePages = doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page));
   const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
@@ -2174,7 +2247,7 @@ export function LiveSite({
   const pageProps = mergeProps("Page", currentPage.props) as Record<string, unknown>;
   const background = (pageProps.background as string) || "#ffffff";
   const { ref, width: viewportWidth } = useContainerWidth();
-  const isPhoneSize = viewportWidth <= 768;
+  const isPhoneSize = viewportWidth <= mobileBreakpoint;
   const liveSiteWrapperRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     if (isPhoneSize && liveSiteWrapperRef.current) {

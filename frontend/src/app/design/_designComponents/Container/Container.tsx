@@ -36,6 +36,7 @@ export const Container = ({
   borderColor = "transparent",
   borderWidth = 0,
   borderStyle = "solid",
+  strokePlacement = "mid",
   flexDirection = "column",
   flexWrap = "nowrap",
   alignItems = "center",
@@ -68,7 +69,9 @@ export const Container = ({
   customClassName = "",
   children
 }: ContainerProps) => {
-  const { id, connectors: { connect, drag } } = useNode();
+  const { id, connectors: { connect, drag }, childCount } = useNode((node) => ({
+    childCount: node.data.nodes.length,
+  }));
 
   const wPx = parsePx(width);
   const hPx = parsePx(height);
@@ -82,6 +85,10 @@ export const Container = ({
   const pr = paddingRight !== undefined ? paddingRight : p;
   const pt = paddingTop !== undefined ? paddingTop : p;
   const pb = paddingBottom !== undefined ? paddingBottom : p;
+  const effectivePl = pl;
+  const effectivePr = pr;
+  const effectivePt = pt;
+  const effectivePb = pb;
 
   // Resolve margin
   const m = typeof margin === 'number' ? margin : 0;
@@ -109,9 +116,9 @@ export const Container = ({
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className={`min-h-[50px] transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
+      className={`relative min-h-[120px] transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
       style={{
-        backgroundColor: background,
+        backgroundColor: childCount === 0 ? "#f4f5f7" : background,
         backgroundImage: backgroundImage
           ? backgroundOverlay
             ? `linear-gradient(${backgroundOverlay}, ${backgroundOverlay}), url(${backgroundImage})`
@@ -120,10 +127,10 @@ export const Container = ({
         backgroundSize: backgroundImage ? backgroundSize : undefined,
         backgroundPosition: backgroundImage ? backgroundPosition : undefined,
         backgroundRepeat: backgroundImage ? backgroundRepeat : undefined,
-        paddingLeft: `${pl}px`,
-        paddingRight: `${pr}px`,
-        paddingTop: `${pt}px`,
-        paddingBottom: `${pb}px`,
+        paddingLeft: `${effectivePl}px`,
+        paddingRight: `${effectivePr}px`,
+        paddingTop: `${effectivePt}px`,
+        paddingBottom: `${effectivePb}px`,
         marginLeft: `${ml}px`,
         marginRight: `${mr}px`,
         marginTop: `${mt}px`,
@@ -203,14 +210,15 @@ export const Container = ({
           {children}
         </div>
       ) : (
-        children
+        <>{children}</>
       )}
+
     </div>
   );
 };
 
 export const ContainerDefaultProps: Partial<ContainerProps> = {
-  background: "#9999A1",
+  background: "transparent",
   padding: 0,
   paddingTop: 0,
   paddingRight: 0,
@@ -232,10 +240,11 @@ export const ContainerDefaultProps: Partial<ContainerProps> = {
   borderColor: "transparent",
   borderWidth: 0,
   borderStyle: "solid",
+  strokePlacement: "mid",
   flexDirection: "column",
   flexWrap: "nowrap",
-  alignItems: "center",
-  justifyContent: "center",
+  alignItems: "flex-start",
+  justifyContent: "flex-start",
   gap: 0,
   gridTemplateColumns: "1fr 1fr",
   gridTemplateRows: "auto",

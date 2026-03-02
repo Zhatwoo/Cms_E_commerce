@@ -1,6 +1,6 @@
 // eto yung main navigation ni user
 
- 'use client';
+'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -21,6 +21,13 @@ const CloseIcon = () => (
   </svg>
 );
 
+const SubscriptionIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="5" width="20" height="14" rx="2" />
+    <line x1="2" y1="10" x2="22" y2="10" />
+  </svg>
+);
+
 type SidebarItem = {
   id: string;
   label: string;
@@ -35,6 +42,7 @@ const navItems: SidebarItem[] = [
   { id: 'orders', label: 'Orders', icon: <OrdersIcon />, href: '/m_dashboard/orders' },
   { id: 'analytics', label: 'Analytics', icon: <AnalyticsIcon />, href: '/m_dashboard/analytics' },
   { id: 'domains', label: 'Domains', icon: <DomainsIcon />, href: '/m_dashboard/domains' },
+  { id: 'subscription', label: 'Subscription', icon: <SubscriptionIcon />, href: '/m_dashboard/subscription' },
   { id: 'settings', label: 'Settings', icon: <SettingsIcon />, href: '/m_dashboard/settings' },
 ];
 
@@ -125,21 +133,21 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
               // Before a website/instance is selected, hide builder & commerce-specific items
               if (
                 !hasSelectedWebsite &&
-                ['web-builder', 'products', 'orders', 'analytics', 'domains', 'settings'].includes(item.id)
+                ['web-builder', 'products', 'orders', 'analytics', 'domains', 'subscription', 'settings'].includes(item.id)
               ) {
                 return false;
               }
               return true;
             })
             .map((item) => {
-            const isActive =
-              item.id === 'home'
-                ? pathname === '/m_dashboard'
-                : item.id === 'web-builder'
-                  ? pathname.startsWith('/m_dashboard/web-builder')
-                  : item.href
-                    ? pathname === item.href
-                    : false;
+              const isActive =
+                item.id === 'home'
+                  ? pathname === '/m_dashboard'
+                  : item.id === 'web-builder'
+                    ? pathname.startsWith('/m_dashboard/web-builder')
+                    : item.href
+                      ? pathname === item.href
+                      : false;
 
             const content = (
               <div
@@ -153,25 +161,25 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
               </div>
             );
 
-            return item.href ? (
-              <Link
-                key={item.id}
-                href={item.href}
-                className="block"
-                onClick={item.id === 'home' ? handleHomeClick : onClose}
-              >
-                {content}
-              </Link>
-            ) : (
-              <button
-                key={item.id}
-                type="button"
-                className="w-full text-left"
-              >
-                {content}
-              </button>
-            );
-          })}
+              return item.href ? (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  className="block"
+                  onClick={item.id === 'home' ? handleHomeClick : onClose}
+                >
+                  {content}
+                </Link>
+              ) : (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="w-full text-left"
+                >
+                  {content}
+                </button>
+              );
+            })}
         </nav>
 
         {selectedProject && (
@@ -233,28 +241,28 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
           .filter((item) => {
             if (
               !hasSelectedWebsite &&
-              ['web-builder', 'products', 'orders', 'analytics', 'domains', 'settings'].includes(item.id)
+              ['web-builder', 'products', 'orders', 'analytics', 'domains', 'subscription', 'settings'].includes(item.id)
             ) {
               return false;
             }
             return true;
           })
           .map((item) => {
-          const isActive =
-            item.id === 'home'
-              ? pathname === '/m_dashboard'
-              : item.id === 'web-builder'
-                ? pathname.startsWith('/m_dashboard/web-builder')
-                : item.href
-                  ? pathname === item.href
-                  : false;
+            const isActive =
+              item.id === 'home'
+                ? pathname === '/m_dashboard'
+                : item.id === 'web-builder'
+                  ? pathname.startsWith('/m_dashboard/web-builder')
+                  : item.href
+                    ? pathname === item.href
+                    : false;
 
-          return (
-            <Link
-              key={item.id}
-              href={item.href ?? '#'}
-              onClick={item.id === 'home' ? handleHomeClick : undefined}
-              className={`
+            return (
+              <Link
+                key={item.id}
+                href={item.href ?? '#'}
+                onClick={item.id === 'home' ? handleHomeClick : undefined}
+                className={`
                 group relative flex items-center rounded-lg transition-all duration-200
                 w-full px-4 py-3
               `}
@@ -291,7 +299,6 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
                     {item.label}
                   </motion.span>
                 )}
-              </AnimatePresence>
 
               {/* Active indicator when collapsed */}
               {isActive && !isHovered && (

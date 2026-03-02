@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { useNode } from "@craftjs/core";
+import { useNode, useEditor } from "@craftjs/core";
 import { TextSettings } from "./TextSettings";
 import { useInlineTextEdit } from "../../_components/InlineTextEditContext";
 import type { TextProps } from "../../_types/components";
@@ -7,7 +7,7 @@ import type { TextProps } from "../../_types/components";
 export const Text = ({
   text,
   fontSize = 16,
-  fontFamily = "Inter",
+  fontFamily = "Outfit",
   fontWeight = "400",
   fontStyle = "normal",
   lineHeight = 1.5,
@@ -88,7 +88,13 @@ export const Text = ({
     left: position !== "static" ? left : undefined,
     width: width || undefined,
     height: height || undefined,
+    minHeight: "1em",
     overflow: height ? "hidden" : undefined,
+    maxWidth: "100%",
+    minWidth: 0,
+    whiteSpace: "pre-wrap",
+    overflowWrap: "break-word",
+    wordBreak: "normal",
     marginTop: `${mt}px`,
     marginBottom: `${mb}px`,
     marginLeft: `${ml}px`,
@@ -125,10 +131,25 @@ export const Text = ({
   return (
     <div
       data-node-id={id}
-      ref={(ref) => {
-        if (ref) connect(drag(ref));
+      onDoubleClick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.stopPropagation();
+        setEditingTextNodeId(id);
       }}
-      className={`hover:outline hover:outline-blue-500 cursor-pointer ${customClassName}`}
+      onClick={(e) => {
+        if (isEditing) return;
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        setEditingTextNodeId(id);
+      }}
+      ref={(ref) => {
+        if (!ref) return;
+        if (isEditing) {
+          connect(ref);
+          return;
+        }
+        connect(drag(ref));
+      }}
+      className={`hover:outline hover:outline-blue-500 ${isEditing ? "cursor-text" : "cursor-pointer"} ${customClassName}`}
       style={baseStyle}
     >
       {isEditing ? (
@@ -137,6 +158,12 @@ export const Text = ({
           ref={editRef}
           contentEditable
           suppressContentEditableWarning
+          onMouseDown={(e) => {
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
           style={{
@@ -149,16 +176,16 @@ export const Text = ({
           {text}
         </div>
       ) : (
-        text
+        text || " "
       )}
     </div>
   );
 };
 
 export const TextDefaultProps: Partial<TextProps> = {
-  text: "Edit me!",
+  text: "",
   fontSize: 16,
-  fontFamily: "Inter",
+  fontFamily: "Outfit",
   fontWeight: "400",
   fontStyle: "normal",
   lineHeight: 1.5,

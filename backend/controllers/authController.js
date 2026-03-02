@@ -288,8 +288,15 @@ exports.login = async (req, res) => {
           msg = 'Login service misconfigured. Set FIREBASE_API_KEY in backend .env and ensure the key has no HTTP referrer restriction.';
         } else if (signInError.message.includes('EMAIL_NOT_VERIFIED')) {
           msg = 'Please confirm your email first. Check your inbox (and spam).';
-        } else if (m.includes('EMAIL_NOT_FOUND') || m.includes('INVALID_LOGIN_CREDENTIALS') || m.includes('INVALID_PASSWORD') || m.includes('INVALID_CREDENTIALS')) {
-          msg = 'No account with this email. Please Sign up first, then log in.';
+        } else if (m.includes('EMAIL_NOT_FOUND')) {
+          msg = 'No account with this email. Please sign up first.';
+        } else if (m.includes('INVALID_PASSWORD')) {
+          msg = 'Incorrect password. Please try again.';
+        } else if (m.includes('INVALID_LOGIN_CREDENTIALS') || m.includes('INVALID_CREDENTIALS')) {
+          const existingUser = await User.findByEmail(normEmail);
+          msg = existingUser
+            ? 'Incorrect password. Please try again.'
+            : 'No account with this email. Please sign up first.';
         }
         return res.status(401).json({ success: false, message: msg });
       }

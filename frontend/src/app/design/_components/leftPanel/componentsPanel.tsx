@@ -1,5 +1,6 @@
 import React from "react";
 import { useEditor, Element } from "@craftjs/core";
+import { useCanvasTool } from "../CanvasToolContext";
 import { Container } from "../../_designComponents/Container/Container";
 import { Text } from "../../_designComponents/Text/Text";
 import { Image } from "../../_designComponents/Image/Image";
@@ -113,6 +114,7 @@ const CATEGORY_ORDER: ComponentEntry["category"][] = ["page", "layout", "basic"]
 
 export const ComponentsPanel = () => {
   const { connectors } = useEditor();
+  const activeTool = useCanvasTool();
   const pageComponent = CRAFT_RESOLVER.Page ?? Container;
 
   const components: ComponentEntry[] = COMPONENTS.map((comp) => {
@@ -140,29 +142,29 @@ export const ComponentsPanel = () => {
                 return (
                   <div
                     key={comp.label}
+                    data-drag-source="component"
                     data-component-new-page={isNewPage ? "true" : undefined}
                     draggable={isNewPage ? true : undefined}
                     ref={(ref) => {
                       if (!ref) return;
                       if (isNewPage) return;
+                      if (activeTool === "hand") return; // Hand tool: block drops from panel
                       const sourceElement = comp.dragElement ?? comp.element;
                       if (!sourceElement) return;
                       connectors.create(ref, sourceElement);
                     }}
-                    className={`bg-brand-white/5 p-4 rounded-xl hover:bg-brand-white/10 transition border border-brand-medium/30 group ${
-                      isNewPage
+                    className={`bg-brand-white/5 p-4 rounded-xl hover:bg-brand-white/10 transition border border-brand-medium/30 group ${isNewPage
                         ? "cursor-grab active:cursor-grabbing"
                         : (comp.dragElement ?? comp.element)
                           ? "cursor-move"
                           : "cursor-pointer"
-                    }`}
+                      }`}
                   >
                     <div
-                      className={`h-20 ${comp.previewBg ?? "bg-brand-medium/20"} rounded-lg mb-2 border border-dashed border-brand-medium/50 flex items-center justify-center text-xs shadow-sm ${
-                        comp.previewBg === "bg-white"
+                      className={`h-20 ${comp.previewBg ?? "bg-brand-medium/20"} rounded-lg mb-2 border border-dashed border-brand-medium/50 flex items-center justify-center text-xs shadow-sm ${comp.previewBg === "bg-white"
                           ? "text-brand-black"
                           : "text-brand-lighter"
-                      }`}
+                        }`}
                     >
                       {comp.preview}
                     </div>

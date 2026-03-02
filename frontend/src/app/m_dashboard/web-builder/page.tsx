@@ -1,12 +1,13 @@
- 'use client';
+'use client';
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../components/context/theme-context';
 import { useRouter, useSearchParams } from 'next/navigation';
 import DomeGallery from '../components/templates/DomeGallery';
 import { templateService, Template as FullTemplate } from '@/lib/templateService';
-import { createProject, listProjects, updateProject, deleteProject, getStoredUser, type Project } from '@/lib/api';
+import { createProject, listProjects, updateProject, deleteProject, listTrashedProjects, restoreProject, permanentDeleteProject, getMyDomains, getStoredUser, type Project } from '@/lib/api';
 import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
+import { getLimits } from '@/lib/subscriptionLimits';
 import { useAlert } from '../components/context/alert-context';
 import { useProject } from '../components/context/project-context';
 import { DraftPreviewThumbnail } from '../components/projects/DraftPreviewThumbnail';
@@ -385,10 +386,22 @@ export default function WebBuilderPage() {
       .then((res) => {
         if (!cancelled && res.success && res.projects) setProjects(res.projects);
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => { if (!cancelled) setProjectsLoading(false); });
     return () => { cancelled = true; };
   }, [selectedProject?.id]);
+
+  // Load trashed projects when tab changes
+  useEffect(() => {
+    if (activeTab === 'trash') {
+      setTrashedProjectsLoading(true);
+      listTrashedProjects()
+        .then((res) => {
+          if (res.success && res.projects) setTrashedProjects(res.projects);
+        })
+        .finally(() => setTrashedProjectsLoading(false));
+    }
+  }, [activeTab]);
 
   // If coming from the "Create a website" CTA (autoCreate=1),
   // immediately open the create modal so the user can name the website,
@@ -420,6 +433,29 @@ export default function WebBuilderPage() {
   const handleCreateSubmit = async (title: string, subdomain: string) => {
     try {
       setCreating(true);
+
+      // Check subscription limits
+      const user = getStoredUser();
+      const plan = user?.subscriptionPlan || 'free';
+      const limits = getLimits(plan);
+
+      if (projects.length >= limits.projects) {
+        showAlert(`Limit reached: Your ${plan} plan allows up to ${limits.projects} projects. Upgrade to Pro for unlimited projects.`);
+        setCreating(false);
+        return;
+      }
+
+      // If user is assigning a subdomain, it counts towards domain limit
+      if (subdomain) {
+        const domainRes = await getMyDomains();
+        const currentDomains = domainRes.success ? (domainRes.data?.length || 0) : 0;
+        if (currentDomains >= limits.domains) {
+          showAlert(`Limit reached: Your ${plan} plan allows up to ${limits.domains} domains. Upgrade to Pro for unlimited domains.`);
+          setCreating(false);
+          return;
+        }
+      }
+
       const res = await createProject({
         title: title || 'Untitled Project',
         instanceId: selectedProject?.id || undefined,
@@ -427,14 +463,20 @@ export default function WebBuilderPage() {
         templateId: createModalTemplate ? String(createModalTemplate.id) : null,
       });
       if (!res.success || !res.project) {
-        showAlert('Failed to create project. Please try again.');
+        // Handle error as before
+        if (res.message?.includes('Limit reached')) {
+          showAlert(res.message);
+        } else {
+          showAlert('Failed to create project. Please try again.');
+        }
+        setCreating(false);
         return;
       }
-      const user = getStoredUser();
       const clientName = (user?.name || user?.username || 'client').trim() || 'client';
-      ensureProjectStorageFolder(clientName, res.project.title || 'website').catch(() => {});
+      ensureProjectStorageFolder(clientName, res.project.title || 'website').catch(() => { });
       setCreateModalOpen(false);
       if (createModalTemplate) await templateService.loadTemplate(createModalTemplate.id.toString(), res.project.id);
+      await refreshProjects();
       router.push(`/design?projectId=${res.project.id}`);
     } catch (error) {
       console.error('Error creating project:', error);
@@ -493,7 +535,7 @@ export default function WebBuilderPage() {
       if (res.success && res.project) {
         setProjects((prev) => prev.map((x) => (x.id === res.project!.id ? { ...x, title: res.project!.title } : x)));
       }
-    } catch (_) {}
+    } catch (_) { }
     setRenamingProject(null);
   };
 
@@ -510,8 +552,9 @@ export default function WebBuilderPage() {
       if (res.success && res.project) {
         const user = getStoredUser();
         const clientName = (user?.name || user?.username || 'client').trim() || 'client';
-        ensureProjectStorageFolder(clientName, res.project!.title || 'website').catch(() => {});
+        ensureProjectStorageFolder(clientName, res.project!.title || 'website').catch(() => { });
         setProjects((prev) => [res.project!, ...prev]);
+        await refreshProjects();
         router.push(`/design?projectId=${res.project!.id}`);
       }
     } catch (_) {
@@ -524,17 +567,48 @@ export default function WebBuilderPage() {
   const handleProjectDelete = async (e: React.MouseEvent, p: Project) => {
     e.stopPropagation();
     setProjectMenuId(null);
-    const confirmed = await showConfirm(`Delete website "${p.title}"? Only this website will be removed; your account will not be affected. This cannot be undone.`);
+    const confirmed = await showConfirm(`Move website "${p.title}" to trash? You can restore it later if you change your mind.`);
     if (!confirmed) return;
     try {
       const res = await deleteProject(p.id);
       if (res.success) {
         setProjects((prev) => prev.filter((x) => x.id !== p.id));
+        await refreshProjects();
+        // If we are on the active tab, we might want to refresh the notification or count
       } else {
         showAlert('Failed to delete project.');
       }
     } catch (_) {
       showAlert('Failed to delete project.');
+    }
+  };
+
+  const handleProjectRestore = async (p: Project) => {
+    try {
+      const res = await restoreProject(p.id);
+      if (res.success) {
+        setTrashedProjects((prev) => prev.filter((x) => x.id !== p.id));
+        // Add to active projects
+        setProjects((prev) => [res.project, ...prev]);
+        await refreshProjects();
+        showAlert(`Successfully restored "${p.title}"`);
+      }
+    } catch (_) {
+      showAlert('Failed to restore project.');
+    }
+  };
+
+  const handlePermanentDelete = async (p: Project) => {
+    const confirmed = await showConfirm(`Permanently delete "${p.title}"? This cannot be undone.`);
+    if (!confirmed) return;
+    try {
+      const res = await permanentDeleteProject(p.id);
+      if (res.success) {
+        setTrashedProjects((prev) => prev.filter((x) => x.id !== p.id));
+        showAlert(`Permanently deleted "${p.title}"`);
+      }
+    } catch (_) {
+      showAlert('Failed to delete project permanently.');
     }
   };
 
@@ -701,19 +775,36 @@ export default function WebBuilderPage() {
 
       {/* Your projects */}
       <div id="projects-section" className="space-y-4">
-        <h2 className="text-xl font-semibold tracking-tight" style={{ color: colors.text.primary }}>
-          Your projects
-        </h2>
-        <p className="text-sm" style={{ color: colors.text.secondary }}>
-          Edit or continue a saved draft.
-        </p>
-        {projectsLoading ? (
-          <div className="rounded-xl border p-6 text-center" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
-            Loading projects…
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <h2 className="text-xl font-semibold tracking-tight" style={{ color: colors.text.primary }}>
+              Manage Projects
+            </h2>
+            <p className="text-sm" style={{ color: colors.text.secondary }}>
+              {activeTab === 'active' ? 'Edit or continue a saved draft.' : 'Recently deleted projects.'}
+            </p>
           </div>
-        ) : visibleProjects.length === 0 ? (
-          <div className="rounded-xl border p-6 text-center" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
-            No projects yet. Start from scratch or use a template above.
+          <div className="flex items-center gap-1 p-1 rounded-xl" style={{ backgroundColor: colors.bg.elevated }}>
+            <button
+              onClick={() => setActiveTab('active')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === 'active' ? 'shadow-sm' : 'opacity-60 hover:opacity-100'}`}
+              style={{
+                backgroundColor: activeTab === 'active' ? colors.bg.card : 'transparent',
+                color: colors.text.primary,
+              }}
+            >
+              Active
+            </button>
+            <button
+              onClick={() => setActiveTab('trash')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === 'trash' ? 'shadow-sm' : 'opacity-60 hover:opacity-100'}`}
+              style={{
+                backgroundColor: activeTab === 'trash' ? colors.bg.card : 'transparent',
+                color: colors.text.primary,
+              }}
+            >
+              Trash
+            </button>
           </div>
         ) : (
           <div className="grid w-full max-w-full min-w-0 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
@@ -736,74 +827,190 @@ export default function WebBuilderPage() {
                     bgColor={colors.bg.elevated}
                   />
                 </div>
-                <div className="p-2">
-                {/* 3-dots menu */}
-                <div className="absolute top-1.5 right-1.5 z-10" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    type="button"
-                    aria-label="Project options"
-                    className="p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
-                    style={{ color: colors.text.muted }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setProjectMenuId((id) => (id === p.id ? null : p.id));
-                    }}
+              </div>
+            ) : projects.length === 0 ? (
+              <div className="rounded-xl border border-dashed p-12 text-center" style={{ borderColor: colors.border.faint }}>
+                <div className="space-y-2">
+                  <p className="text-sm" style={{ color: colors.text.muted }}>No active projects yet.</p>
+                  <button onClick={handleStartBlank} className="text-sm font-medium hover:underline" style={{ color: colors.status.info }}>Create your first project →</button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+                {projects.map((p) => (
+                  <motion.div
+                    key={p.id}
+                    className="relative min-w-0 rounded-lg border overflow-hidden cursor-pointer hover:border-opacity-80 transition-colors"
+                    style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => router.push(`/design?projectId=${p.id}`)}
                   >
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                      <circle cx="12" cy="6" r="1.5" />
-                      <circle cx="12" cy="12" r="1.5" />
-                      <circle cx="12" cy="18" r="1.5" />
-                    </svg>
-                  </button>
-                  <AnimatePresence>
-                    {projectMenuId === p.id && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        className="absolute right-0 top-full mt-0.5 py-1 min-w-[140px] rounded-md border shadow-xl z-20 text-xs"
-                        style={{ backgroundColor: colors.bg.elevated, borderColor: colors.border.default }}
+                    {/* Thumbnail: first-page draft preview */}
+                    <div className="relative w-full min-h-[100px]" style={{ backgroundColor: colors.bg.elevated, borderBottom: `1px solid ${colors.border.faint}` }}>
+                      <DraftPreviewThumbnail
+                        projectId={p.id}
+                        borderColor={colors.border.faint}
+                        bgColor={colors.bg.elevated}
+                      />
+                    </div>
+                    <div className="p-2">
+                      {/* 3-dots menu */}
+                      <div className="absolute top-1.5 right-1.5 z-10" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          aria-label="Project options"
+                          className="p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                          style={{ color: colors.text.muted }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setProjectMenuId((id) => (id === p.id ? null : p.id));
+                          }}
+                        >
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <circle cx="12" cy="6" r="1.5" />
+                            <circle cx="12" cy="12" r="1.5" />
+                            <circle cx="12" cy="18" r="1.5" />
+                          </svg>
+                        </button>
+                        <AnimatePresence>
+                          {projectMenuId === p.id && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.95 }}
+                              className="absolute right-0 top-full mt-0.5 py-1 min-w-[140px] rounded-md border shadow-xl z-20 text-xs"
+                              style={{ backgroundColor: colors.bg.elevated, borderColor: colors.border.default }}
+                            >
+                              <button
+                                type="button"
+                                className="w-full px-3 py-1.5 text-left flex items-center gap-1.5 hover:bg-black/5 dark:hover:bg-white/5"
+                                style={{ color: colors.text.primary }}
+                                onClick={(e) => handleProjectRename(e, p)}
+                              >
+                                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" /></svg>
+                                Rename
+                              </button>
+                              <button
+                                type="button"
+                                className="w-full px-3 py-1.5 text-left flex items-center gap-1.5 hover:bg-black/5 dark:hover:bg-white/5"
+                                style={{ color: colors.text.primary }}
+                                onClick={(e) => handleProjectDuplicate(e, p)}
+                              >
+                                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h2m8 0h2a2 2 0 012 2v2m0 8a2 2 0 01-2 2h-8a2 2 0 01-2-2v-8a2 2 0 012-2h2" /></svg>
+                                Duplicate
+                              </button>
+                              <button
+                                type="button"
+                                disabled={p.status === 'published'}
+                                className={`w-full px-3 py-1.5 text-left flex items-center gap-1.5 transition-colors ${p.status === 'published' ? 'opacity-40 cursor-not-allowed grayscale' : 'hover:bg-red-500/10 text-red-500'}`}
+                                style={{ color: p.status === 'published' ? colors.text.muted : '#ef4444' }}
+                                onClick={(e) => handleProjectDelete(e, p)}
+                                title={p.status === 'published' ? "Unpublish this site first to delete it" : "Move to trash"}
+                              >
+                                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                {p.status === 'published' ? 'Published' : 'Delete'}
+                              </button>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                      <h3 className="font-medium truncate pr-6 text-xs" style={{ color: colors.text.primary }}>{p.title}</h3>
+                      <p className="text-[9px] mt-0.5" style={{ color: colors.text.muted }}>
+                        {p.status} · {p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : '—'}
+                      </p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            {trashedProjectsLoading ? (
+              <div className="rounded-xl border p-12 text-center" style={{ borderColor: colors.border.faint }}>
+                <p className="text-sm" style={{ color: colors.text.muted }}>Loading trash…</p>
+              </div>
+            ) : trashedProjects.length === 0 ? (
+              <div className="rounded-xl border p-12 text-center border-dashed" style={{ borderColor: colors.border.faint }}>
+                <div className="space-y-1">
+                  <p className="text-sm" style={{ color: colors.text.muted }}>Trash is empty.</p>
+                  <p className="text-xs" style={{ color: colors.text.secondary }}>Deleted projects appear here for 30 days before being purged.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+                {trashedProjects.map((p) => {
+                  // Calculate days left in frontend if backend didn't provide it (stale process)
+                  let daysLeft = p.daysLeft;
+                  if (daysLeft === undefined && p.deletedAt) {
+                    const deletedDate = new Date(p.deletedAt);
+                    const now = new Date();
+                    const ageMs = now.getTime() - deletedDate.getTime();
+                    const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
+                    const msLeft = thirtyDaysInMs - ageMs;
+                    daysLeft = Math.max(1, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
+                  }
+
+                  return (
+                    <motion.div
+                      key={p.id}
+                      className="relative min-w-0 rounded-lg border overflow-hidden transition-all group/card"
+                      style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+                      whileHover={{ scale: 1.01, borderColor: colors.border.default }}
+                    >
+                      <div
+                        className="relative w-full h-[80px] grayscale opacity-50 overflow-hidden"
+                        style={{ backgroundColor: colors.bg.elevated }}
                       >
-                        <button
-                          type="button"
-                          className="w-full px-3 py-1.5 text-left flex items-center gap-1.5 hover:bg-black/5 dark:hover:bg-white/5"
-                          style={{ color: colors.text.primary }}
-                          onClick={(e) => handleProjectRename(e, p)}
-                        >
-                          <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" /></svg>
-                          Rename
-                        </button>
-                        <button
-                          type="button"
-                          className="w-full px-3 py-1.5 text-left flex items-center gap-1.5 hover:bg-black/5 dark:hover:bg-white/5"
-                          style={{ color: colors.text.primary }}
-                          onClick={(e) => handleProjectDuplicate(e, p)}
-                        >
-                          <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h2m8 0h2a2 2 0 012 2v2m0 8a2 2 0 01-2 2h-8a2 2 0 01-2-2v-8a2 2 0 012-2h2" /></svg>
-                          Duplicate
-                        </button>
-                        <button
-                          type="button"
-                          className="w-full px-3 py-1.5 text-left flex items-center gap-1.5 hover:bg-red-500/10"
-                          style={{ color: colors.text.primary }}
-                          onClick={(e) => handleProjectDelete(e, p)}
-                        >
-                          <svg className="w-3.5 h-3.5 shrink-0 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                          Delete
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-                <h3 className="font-medium truncate pr-6 text-sm" style={{ color: colors.text.primary }}>{p.title}</h3>
-                <p className="text-[10px] mt-0.5" style={{ color: colors.text.muted }}>
-                  {p.status} · {p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : '—'}
-                </p>
-                <p className="text-[10px] mt-1 font-medium" style={{ color: colors.status.info }}>Edit →</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+                        <DraftPreviewThumbnail
+                          projectId={p.id}
+                          borderColor={colors.border.faint}
+                          bgColor={colors.bg.elevated}
+                        />
+                      </div>
+                      <div className="p-3 space-y-2">
+                        <div>
+                          <h3 className="font-medium truncate text-[11px]" style={{ color: colors.text.primary }}>{p.title}</h3>
+                          <p className="text-[10px] text-red-500 font-medium">
+                            Restorable for {daysLeft ?? '—'} {daysLeft === 1 ? 'day' : 'days'}
+                          </p>
+                        </div>
+                        <div className="flex gap-1.5 relative z-10">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleProjectRestore(p);
+                            }}
+                            className="flex-1 py-1.5 rounded-md text-[10px] font-semibold border transition-all hover:bg-black/5 dark:hover:bg-white/10 whitespace-nowrap cursor-pointer relative z-50"
+                            style={{
+                              borderColor: colors.border.default,
+                              color: colors.text.primary,
+                              backgroundColor: 'transparent'
+                            }}
+                          >
+                            Restore Project
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePermanentDelete(p);
+                            }}
+                            className="p-1.5 rounded-md hover:bg-red-500/10 transition-colors group/del"
+                            title="Delete permanently"
+                          >
+                            <svg className="w-3.5 h-3.5 text-red-500 opacity-60 group-hover/del:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -843,7 +1050,6 @@ export default function WebBuilderPage() {
                 backgroundColor: colors.bg.card,
                 borderColor: colors.border.faint,
                 color: colors.text.primary,
-                focusRingColor: 'rgb(59, 130, 246)'
               }}
             >
               {CATEGORIES.map((cat) => (
@@ -860,7 +1066,6 @@ export default function WebBuilderPage() {
                   backgroundColor: colors.bg.card,
                   borderColor: colors.border.faint,
                   color: colors.text.primary,
-                  focusRingColor: 'rgb(59, 130, 246)'
                 }}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -918,7 +1123,7 @@ export default function WebBuilderPage() {
             {/* List view toggle */}
             <div className="flex items-center rounded-lg overflow-hidden border" style={{ borderColor: colors.border.faint }}>
               <button
-                onClick={() => {}}
+                onClick={() => { }}
                 className="px-3 py-1.5 text-sm hover:bg-white/5 transition-colors"
                 style={{ color: colors.text.primary }}
                 title="List view"

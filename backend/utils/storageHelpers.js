@@ -1,8 +1,11 @@
 const { getStorageBucket } = require('../config/firebase');
 const crypto = require('crypto');
+const path = require('path');
 
 /** Fixed prefix: always "Clients/" to match frontend. Never "clients/". */
 const STORAGE_PREFIX = 'Clients/';
+/** Product image root folder requested by user. */
+const PRODUCT_IMAGE_PREFIX = 'Products_img/';
 
 /**
  * Upload avatar to Storage at Clients/{folderName}/avatar.{ext}.
@@ -33,6 +36,67 @@ async function uploadAvatar(buffer, clientUid, mimeType = 'image/png', folderNam
   });
   const bucketName = bucket.name;
   const encodedPath = encodeURIComponent(path);
+  return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedPath}?alt=media&token=${token}`;
+}
+
+const MIME_EXTENSION_MAP = {
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+  'image/avif': 'avif',
+};
+
+function getFileExtension(originalName, mimeType) {
+  const fromName = path.extname(String(originalName || '')).replace('.', '').toLowerCase();
+  if (/^[a-z0-9]{2,8}$/.test(fromName)) return fromName;
+  const fromMime = MIME_EXTENSION_MAP[String(mimeType || '').toLowerCase()];
+  return fromMime || 'bin';
+}
+
+function safeStorageFileBase(originalName) {
+  const base = path
+    .basename(String(originalName || ''), path.extname(String(originalName || '')))
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9._-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  return base || 'file';
+}
+
+/**
+ * Upload product image to Storage at:
+ * Products_img/{uid}/products/{subdomain|general}/{timestamp}-{safeName}.{ext}
+ * Returns direct download URL with token.
+ */
+async function uploadProductImage({ buffer, userId, mimeType = 'application/octet-stream', originalName = 'image', subdomain = '' }) {
+  const bucket = getStorageBucket();
+  if (!bucket) {
+    throw new Error('Firebase Storage bucket not configured. Set FIREBASE_STORAGE_BUCKET in backend .env');
+  }
+
+  const folder = subdomain ? slugPathSegment(subdomain) : 'general';
+  const ext = getFileExtension(originalName, mimeType);
+  const baseName = safeStorageFileBase(originalName);
+  const fileName = `${Date.now()}-${baseName}.${ext}`;
+  const filePath = `${PRODUCT_IMAGE_PREFIX}${userId}/products/${folder}/${fileName}`;
+  const token = crypto.randomUUID();
+
+  const file = bucket.file(filePath);
+  await file.save(buffer, {
+    metadata: {
+      contentType: mimeType,
+      metadata: {
+        firebaseStorageDownloadTokens: token,
+      },
+    },
+  });
+
+  const bucketName = bucket.name;
+  const encodedPath = encodeURIComponent(filePath);
   return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedPath}?alt=media&token=${token}`;
 }
 
@@ -81,4 +145,93 @@ async function deleteProjectStorageFolder(clientName, websiteName) {
   }
 }
 
-module.exports = { slugPathSegment, deleteProjectStorageFolder, uploadAvatar };
+function extractStoragePathFromUrl(url, bucketName) {
+  if (!url || typeof url !== 'string') return null;
+
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+
+    if (parsed.protocol === 'gs:') {
+      const gsBucket = parsed.hostname;
+      if (bucketName && gsBucket !== bucketName) return null;
+      const gsPath = decodeURIComponent(parsed.pathname.replace(/^\/+/, ''));
+      return gsPath || null;
+    }
+
+    if (host === 'firebasestorage.googleapis.com') {
+      const match = parsed.pathname.match(/\/v0\/b\/([^/]+)\/o\/(.+)$/);
+      if (!match) return null;
+      const urlBucket = decodeURIComponent(match[1] || '');
+      if (bucketName && urlBucket !== bucketName) return null;
+      return decodeURIComponent(match[2] || '');
+    }
+
+    if (host === 'storage.googleapis.com') {
+      const pathParts = parsed.pathname.replace(/^\/+/, '').split('/');
+      if (pathParts.length < 2) return null;
+      const urlBucket = decodeURIComponent(pathParts.shift() || '');
+      if (bucketName && urlBucket !== bucketName) return null;
+      return decodeURIComponent(pathParts.join('/'));
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+/**
+ * Delete storage objects by their public URL(s). Ignores non-bucket/non-storage URLs.
+ * Returns deletion summary and never throws.
+ */
+async function deleteStorageFilesByUrls(urls, { allowedPrefixes = [] } = {}) {
+  const bucket = getStorageBucket();
+  if (!bucket) {
+    return { deleted: 0, skipped: Array.isArray(urls) ? urls.length : 0 };
+  }
+
+  const list = Array.isArray(urls) ? urls : [];
+  const uniqueUrls = [...new Set(list.filter((u) => typeof u === 'string' && u.trim().length > 0))];
+  let deleted = 0;
+  let skipped = 0;
+
+  for (const url of uniqueUrls) {
+    const objectPath = extractStoragePathFromUrl(url, bucket.name);
+    if (!objectPath) {
+      skipped += 1;
+      continue;
+    }
+
+    if (Array.isArray(allowedPrefixes) && allowedPrefixes.length > 0) {
+      const allowed = allowedPrefixes.some((prefix) => objectPath.startsWith(prefix));
+      if (!allowed) {
+        skipped += 1;
+        continue;
+      }
+    }
+
+    try {
+      await bucket.file(objectPath).delete();
+      deleted += 1;
+    } catch (err) {
+      const code = err && typeof err === 'object' ? err.code : undefined;
+      if (code === 404) {
+        skipped += 1;
+      } else {
+        console.warn('[storageHelpers] deleteStorageFilesByUrls failed:', objectPath, err.message);
+        skipped += 1;
+      }
+    }
+  }
+
+  return { deleted, skipped };
+}
+
+module.exports = {
+  slugPathSegment,
+  deleteProjectStorageFolder,
+  uploadAvatar,
+  uploadProductImage,
+  deleteStorageFilesByUrls,
+};

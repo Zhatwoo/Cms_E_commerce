@@ -5,6 +5,9 @@ import { Eye, EyeOff, Lock, LockOpen, Play, Code2, GripVertical, X, Terminal, Pa
 import { serializeCraftToClean } from "../../_lib/serializer";
 import { autoSavePage } from "../../_lib/pageApi";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
+import { getStoredUser } from "@/lib/api";
+import { useAuth } from "@/app/m_dashboard/components/context/auth-context";
+import { getLimits } from "@/lib/subscriptionLimits";
 import { AnimationGroup } from "./settings/AnimationGroup";
 import { BatchEditGroup } from "./settings/BatchEditGroup";
 import { PrototypeGroup } from "./settings/PrototypeGroup";
@@ -45,6 +48,7 @@ interface RightPanelProps {
 // Mounted lazily by RightPanel to avoid "setState during render" warnings
 // when Frame is rendering initial data.
 const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: setControlledTab, onClose, files, onFilesChange }: RightPanelProps) => {
+  const { user } = useAuth();
   const { showAlert } = useAlert();
   const [internalTab, setInternalTab] = useState<TabId>("design");
   const activeTab = controlledTab ?? internalTab;
@@ -114,7 +118,6 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
 
       try {
         window.sessionStorage.setItem(`${STORAGE_KEY_PREFIX}_${projectId}`, previewSnapshot);
-        window.sessionStorage.setItem(STORAGE_KEY_PREFIX, previewSnapshot);
       } catch (storageError) {
         console.warn('⚠️ Preview: failed to cache snapshot in sessionStorage', storageError);
       }
@@ -216,7 +219,7 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
   }, []);
 
   return (
-    <div className="flex h-full relative">
+    <div data-panel="right" className="flex h-full relative">
       {/* Resize Handle */}
       <div
         ref={resizeRef}
@@ -275,113 +278,127 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
           </div>
 
           <div className="flex-1 min-h-0 overflow-y-auto">
-          {/* Main conditional rendering */}
-          {selectedIds.length > 0 ? (
-            <div className={activeTab === "code" ? "h-full min-h-0 flex flex-col" : undefined}>
-              <div className="mb-6">
-                <div className="flex items-center gap-2 bg-brand-medium/20 p-2 rounded-lg border border-brand-medium/30">
-                  <span className="flex-1 text-brand-lighter font-medium text-sm text-center">
-                    {selectedIds.length === 1 && primary
-                      ? primary.name
-                      : `${selectedIds.length} components selected`}
-                  </span>
-                  {primary && (
-                    <div className="flex items-center gap-0.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const next = primary.visibility === "hidden" ? "visible" : "hidden";
-                          selectedIds.forEach((id) => {
-                            try {
-                              actions.setProp(id, (p: Record<string, unknown>) => { p.visibility = next; });
-                            } catch { /* skip */ }
-                          });
-                        }}
-                        className={`p-1.5 rounded transition-colors ${primary.visibility === "hidden" ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
-                        title={primary.visibility === "hidden" ? "Show" : "Hide"}
-                      >
-                        {primary.visibility === "hidden" ? <EyeOff size={14} /> : <Eye size={14} />}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const next = !primary.locked;
-                          selectedIds.forEach((id) => {
-                            try {
-                              actions.setProp(id, (p: Record<string, unknown>) => { p.locked = next; });
-                            } catch { /* skip */ }
-                          });
-                        }}
-                        className={`p-1.5 rounded transition-colors ${primary.locked ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
-                        title={primary.locked ? "Unlock" : "Lock"}
-                      >
-                        {primary.locked ? <Lock size={14} /> : <LockOpen size={14} />}
-                      </button>
+            {/* Main conditional rendering */}
+            {selectedIds.length > 0 ? (
+              <div className={activeTab === "code" ? "h-full min-h-0 flex flex-col" : undefined}>
+                <div className="mb-6">
+                  <div className="flex items-center gap-2 bg-brand-medium/20 p-2 rounded-lg border border-brand-medium/30">
+                    <span className="flex-1 text-brand-lighter font-medium text-sm text-center">
+                      {selectedIds.length === 1 && primary
+                        ? primary.name
+                        : `${selectedIds.length} components selected`}
+                    </span>
+                    {primary && (
+                      <div className="flex items-center gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = primary.visibility === "hidden" ? "visible" : "hidden";
+                            selectedIds.forEach((id) => {
+                              try {
+                                actions.setProp(id, (p: Record<string, unknown>) => { p.visibility = next; });
+                              } catch { /* skip */ }
+                            });
+                          }}
+                          className={`p-1.5 rounded transition-colors ${primary.visibility === "hidden" ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
+                          title={primary.visibility === "hidden" ? "Show" : "Hide"}
+                        >
+                          {primary.visibility === "hidden" ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = !primary.locked;
+                            selectedIds.forEach((id) => {
+                              try {
+                                actions.setProp(id, (p: Record<string, unknown>) => { p.locked = next; });
+                              } catch { /* skip */ }
+                            });
+                          }}
+                          className={`p-1.5 rounded transition-colors ${primary.locked ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
+                          title={primary.locked ? "Unlock" : "Lock"}
+                        >
+                          {primary.locked ? <Lock size={14} /> : <LockOpen size={14} />}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Tab Bar - Modern Pill Style */}
+                <div className="w-full mb-8">
+                  <div className="grid grid-cols-4 w-full p-1 bg-black/30 backdrop-blur-md rounded-2xl border border-white/5">
+                    {(() => {
+                      const limits = getLimits(user?.subscriptionPlan);
+                      return TABS.map((tab) => {
+                        const isRestricted = tab.id === 'code' && !limits.codeEditor;
+
+                        return (
+                          <button
+                            key={tab.id}
+                            onClick={() => {
+                              if (isRestricted) {
+                                showAlert("Code Editor is a Pro feature. Upgrade to unlock!");
+                                return;
+                              }
+                              setActiveTab(tab.id);
+                            }}
+                            className={`relative z-10 w-full px-2 py-2.5 rounded-xl transition-all duration-300 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap flex items-center justify-center gap-1 ${activeTab === tab.id
+                              ? "text-white"
+                              : isRestricted ? "text-white/20 hover:text-white/40" : "text-white/40 hover:text-white/60"
+                              }`}
+                          >
+                            {activeTab === tab.id && (
+                              <div className="absolute inset-0 bg-blue-600 rounded-xl shadow-lg shadow-blue-500/20 animate-in fade-in zoom-in-95 duration-200" style={{ zIndex: -1 }} />
+                            )}
+                            {isRestricted && <Lock size={10} className="text-amber-500/60" />}
+                            {tab.label}
+                          </button>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+
+                {/* Tab Content */}
+                <div className={activeTab === "code" ? "flex-1 min-h-0" : "space-y-6"}>
+                  {activeTab === "design" &&
+                    (selectedIds.length > 1 ? (
+                      <BatchEditGroup selectedIds={selectedIds} />
+                    ) : primary?.settings ? (
+                      React.createElement(primary.settings)
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-8 text-brand-lighter opacity-50">
+                        <p className="text-sm">No design settings available</p>
+                      </div>
+                    ))}
+
+                  {activeTab === "prototype" && (
+                    <PrototypeGroup selectedIds={selectedIds} />
+                  )}
+
+                  {activeTab === "animation" && (
+                    <AnimationGroup selectedIds={selectedIds} />
+                  )}
+
+                  {activeTab === "code" && (
+                    <div className="h-full min-h-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                      <CodeEditor
+                        mode="design"
+                        projectId={projectId}
+                        files={files || []}
+                        onFilesChange={onFilesChange}
+                        className="h-full border-none shadow-none rounded-none"
+                      />
                     </div>
                   )}
                 </div>
               </div>
-
-              {/* Tab Bar - Modern Pill Style */}
-              <div className="w-full mb-8">
-                <div className="grid grid-cols-4 w-full p-1 bg-black/30 backdrop-blur-md rounded-2xl border border-white/5">
-                  {TABS.map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`relative z-10 w-full px-2 py-2.5 rounded-xl transition-all duration-300 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap ${activeTab === tab.id
-                        ? "text-white"
-                        : "text-white/40 hover:text-white/60"
-                        }`}
-                    >
-                      {activeTab === tab.id && (
-                        <div className="absolute inset-0 bg-blue-600 rounded-xl shadow-lg shadow-blue-500/20 animate-in fade-in zoom-in-95 duration-200" style={{ zIndex: -1 }} />
-                      )}
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-64 text-brand-lighter opacity-50">
+                <p className="text-sm">Select an element to edit</p>
               </div>
-
-              {/* Tab Content */}
-              <div className={activeTab === "code" ? "flex-1 min-h-0" : "space-y-6"}>
-                {activeTab === "design" &&
-                  (selectedIds.length > 1 ? (
-                    <BatchEditGroup selectedIds={selectedIds} />
-                  ) : primary?.settings ? (
-                    React.createElement(primary.settings)
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-8 text-brand-lighter opacity-50">
-                      <p className="text-sm">No design settings available</p>
-                    </div>
-                  ))}
-
-                {activeTab === "prototype" && (
-                  <PrototypeGroup selectedIds={selectedIds} />
-                )}
-
-                {activeTab === "animation" && (
-                  <AnimationGroup selectedIds={selectedIds} />
-                )}
-
-                {activeTab === "code" && (
-                  <div className="h-full min-h-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <CodeEditor
-                      mode="design"
-                      projectId={projectId}
-                      files={files || []}
-                      onFilesChange={onFilesChange}
-                      className="h-full border-none shadow-none rounded-none"
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-64 text-brand-lighter opacity-50">
-              <p className="text-sm">Select an element to edit</p>
-            </div>
-          )}
+            )}
           </div>
 
         </div>

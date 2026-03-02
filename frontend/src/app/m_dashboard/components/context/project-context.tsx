@@ -8,8 +8,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { listInstances, type Instance } from '@/lib/api';
-import { useAuth } from './auth-context';
+import { listProjects, setActiveProjectId, type Project } from '@/lib/api';
 
 type ProjectContextType = {
   projects: Instance[];
@@ -62,17 +61,14 @@ export function ProjectProvider({ children }: ProviderProps) {
       if (res?.success && Array.isArray(res.instances)) {
         setProjects(res.instances);
 
-        // If current selected project no longer exists, clear selection
-        if (
-          selectedProjectId &&
-          !res.instances.find((p) => p.id === selectedProjectId)
-        ) {
+        // Ensure we always have a valid selected project when projects exist
+        if (res.projects.length === 0) {
           setSelectedProjectIdState(null);
-          if (storageKey) {
-            try {
-              window.localStorage.removeItem(storageKey);
-            } catch {}
-          }
+        } else if (
+          !selectedProjectId ||
+          !res.projects.find((p) => p.id === selectedProjectId)
+        ) {
+          setSelectedProjectIdState(res.projects[0].id);
         }
       } else {
         setProjects([]);
@@ -99,6 +95,10 @@ export function ProjectProvider({ children }: ProviderProps) {
   useEffect(() => {
     void fetchProjects();
   }, [fetchProjects]);
+
+  useEffect(() => {
+    setActiveProjectId(selectedProjectId);
+  }, [selectedProjectId]);
 
   const selectedProject = useMemo(
     () => projects.find((p) => p.id === selectedProjectId) ?? null,
