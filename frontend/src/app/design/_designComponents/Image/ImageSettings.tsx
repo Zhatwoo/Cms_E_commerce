@@ -187,7 +187,7 @@ export const ImageSettings = () => {
             )}
             {!useFirebaseStorage && (
               <p className="text-[9px] text-amber-400/90 mt-1">
-                Firebase not configured — add NEXT_PUBLIC_FIREBASE_API_KEY (and authDomain, projectId) to .env.local to upload to Storage.
+                Firebase not configured — add NEXT_PUBLIC_FIREBASE_API_KEY, NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, and NEXT_PUBLIC_FIREBASE_PROJECT_ID to .env.local to upload to Storage.
               </p>
             )}
             {isDataUrl && !uploading && !uploadError && (

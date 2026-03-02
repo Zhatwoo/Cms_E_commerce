@@ -16,6 +16,8 @@ export const TextSettings = () => {
     opacity, boxShadow,
     rotation, flipHorizontal, flipVertical,
     previewEditable,
+    isCodeBlock,
+    codeLanguage,
     toggleTarget, triggerAction, collapsibleKey, defaultOpen, defaultOpenMobile, defaultOpenDesktop, showOn, mobileBreakpoint,
     actions: { setProp }
   } = useNode(node => ({
@@ -41,6 +43,8 @@ export const TextSettings = () => {
     paddingRight: node.data.props.paddingRight,
     opacity: node.data.props.opacity,
     boxShadow: node.data.props.boxShadow,
+    isCodeBlock: node.data.props.isCodeBlock,
+    codeLanguage: node.data.props.codeLanguage,
     rotation: node.data.props.rotation,
     flipHorizontal: node.data.props.flipHorizontal,
     flipVertical: node.data.props.flipVertical,
@@ -73,9 +77,14 @@ export const TextSettings = () => {
         <textarea
           value={safeText}
           onChange={(e) => typedSetProp((props) => { props.text = e.target.value; })}
-          placeholder="Type your text here..."
-          className="w-full bg-brand-medium-dark p-2 rounded-lg text-brand-lighter focus:border-brand-light focus:outline-none resize-y min-h-[40px]"
+          placeholder={isCodeBlock ? "Type your code here..." : "Type your text here..."}
+          className={`w-full bg-brand-medium-dark p-2 rounded-lg text-brand-lighter focus:border-brand-light focus:outline-none resize-y min-h-[40px] ${isCodeBlock ? "font-mono text-[12px]" : ""}`}
         />
+        {isCodeBlock && (
+          <p className="text-[10px] text-brand-light mt-1">
+            Code block mode {codeLanguage ? `(${codeLanguage})` : ""}.
+          </p>
+        )}
         <div className="mt-3 flex items-center gap-2">
           <input
             type="checkbox"
