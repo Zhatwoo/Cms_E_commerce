@@ -418,6 +418,7 @@ export type ApiProduct = {
   description?: string;
   price: number;
   basePrice?: number;
+  costPrice?: number | null;
   finalPrice?: number;
   compareAtPrice?: number | null;
   discount?: number;
@@ -505,6 +506,7 @@ export async function createProduct(params: {
   description?: string;
   price?: number;
   basePrice?: number;
+  costPrice?: number | null;
   finalPrice?: number;
   compareAtPrice?: number | null;
   discount?: number;
@@ -542,6 +544,7 @@ export async function updateProduct(
     description?: string;
     price?: number;
     basePrice?: number;
+    costPrice?: number | null;
     finalPrice?: number;
     compareAtPrice?: number | null;
     discount?: number;
