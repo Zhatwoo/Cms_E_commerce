@@ -22,6 +22,7 @@ const EDITOR_DRAGGING_FLAG = "editorDragging";
 const EDITOR_DROP_COMMIT_FLAG = "editorDropCommit";
 const MULTI_DRAG_LOCK_FLAG = "multiDragLock";
 const BOX_SELECTING_FLAG = "boxSelecting";
+const BOX_SELECTING_INTENT_FLAG = "boxSelectingIntent";
 
 
 type MoveMode = "margin" | "offset";
@@ -244,6 +245,7 @@ export const FigmaStyleDragHandler = () => {
       if (!target) return;
 
       if (document.body.dataset[BOX_SELECTING_FLAG] === "true") return;
+      if (document.body.dataset[BOX_SELECTING_INTENT_FLAG] === "true") return;
 
       // Hand tool: do not start dragging elements, let panning handle it
       if (activeTool === "hand") return;
@@ -300,6 +302,16 @@ export const FigmaStyleDragHandler = () => {
 
     const handleMouseMove = (e: MouseEvent) => {
       if (document.body.dataset[BOX_SELECTING_FLAG] === "true") {
+        dragRef.current = null;
+        document.body.style.userSelect = "";
+        document.body.style.cursor = "";
+        clearDragPreview(draggedDomsRef.current);
+        setDraggingStyle(draggedDomsRef.current, false);
+        draggedDomsRef.current = [];
+        return;
+      }
+
+      if (document.body.dataset[BOX_SELECTING_INTENT_FLAG] === "true") {
         dragRef.current = null;
         document.body.style.userSelect = "";
         document.body.style.cursor = "";
