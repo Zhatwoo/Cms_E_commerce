@@ -30,6 +30,7 @@ import { PrototypeTabProvider } from "./PrototypeTabContext";
 import { PrototypeFlowLines } from "./PrototypeFlowLines";
 import { NewPageDropPlacementHandler } from "./NewPageDropPlacementHandler";
 import { HeaderFooterDropPlacementHandler } from "./HeaderFooterDropPlacementHandler";
+import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
@@ -199,9 +200,9 @@ const MIN_SCALE = 0.05;
 const MAX_SCALE = 3;
 const DEFAULT_SCALE = 0.5;
 const ZOOM_SENSITIVITY = 0.003;
-const INFINITE_CANVAS_WIDTH_VW = 4000;
-const INFINITE_CANVAS_HEIGHT_VH = 4000;
-const INFINITE_CANVAS_PADDING_PX = 30000;
+const INFINITE_CANVAS_WIDTH_VW = 8000;
+const INFINITE_CANVAS_HEIGHT_VH = 8000;
+const INFINITE_CANVAS_PADDING_PX = 100000;
 
 const isEditableTarget = (target: EventTarget | null) => {
   if (!target || !(target instanceof HTMLElement)) return false;
