@@ -683,7 +683,7 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
   Text: {
     text: "Edit me!",
     fontSize: 16,
-    fontFamily: "Inter",
+    fontFamily: "Outfit",
     fontWeight: "400",
     lineHeight: 1.5,
     letterSpacing: 0,
@@ -721,7 +721,7 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
     variant: "primary",
     fontSize: 14,
     fontWeight: "500",
-    fontFamily: "Inter",
+    fontFamily: "Outfit",
     borderRadius: 8,
     width: "auto",
     height: "auto",
@@ -1501,7 +1501,7 @@ function RenderNode({
         <div
           style={{
             fontSize: px(props.fontSize),
-            fontFamily: (props.fontFamily as string) || "Inter",
+            fontFamily: (props.fontFamily as string) || "Outfit",
             fontWeight: props.fontWeight as string,
             lineHeight: props.lineHeight as number,
             letterSpacing: px(props.letterSpacing),
@@ -1576,7 +1576,7 @@ function RenderNode({
             color,
             fontSize: px(props.fontSize),
             fontWeight: props.fontWeight as string,
-            fontFamily: (props.fontFamily as string) || "Inter",
+            fontFamily: (props.fontFamily as string) || "Outfit",
             borderRadius: px(props.borderRadius),
             border: `${borderWidth}px solid ${borderColor}`,
             padding: `${props.paddingTop}px ${props.paddingRight}px ${props.paddingBottom}px ${props.paddingLeft}px`,

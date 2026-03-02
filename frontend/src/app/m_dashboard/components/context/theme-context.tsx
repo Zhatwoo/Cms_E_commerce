@@ -8,11 +8,11 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 export const THEMES = {
   dark: {
     bg: {
-      primary: '#1D1D21',
-      dark: '#000000',
-      card: '#1D1D21',
-      elevated: '#26262C',
-      fog: '#0a0a0f',
+      primary: '#1B1437',
+      dark: '#120D26',
+      card: '#231A47',
+      elevated: '#2D2360',
+      fog: '#0F0B1F',
     },
     text: {
       primary: '#F4F4F6',
@@ -21,8 +21,8 @@ export const THEMES = {
       subtle: '#66666E',
     },
     border: {
-      default: '#66666E',
-      faint: '#4A4A52',
+      default: '#6B5FA2',
+      faint: '#4E437D',
     },
     status: {
       good: '#A3E635',

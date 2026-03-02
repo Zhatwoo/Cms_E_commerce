@@ -228,7 +228,7 @@ export function RecentProjects() {
               <div
                 className="relative rounded-lg overflow-hidden mb-3 transition-all group-hover/card:shadow-2xl h-[180px]"
                 style={{
-                  background: project.thumbnail ? '#f5f5f5' : '#f8f8f8',
+                  backgroundColor: project.thumbnail ? colors.bg.elevated : colors.bg.card,
                   boxShadow: theme === 'dark' 
                     ? '0 2px 8px rgba(0,0,0,0.4)' 
                     : '0 2px 8px rgba(0,0,0,0.12)',
@@ -243,11 +243,11 @@ export function RecentProjects() {
                   />
                 ) : (
                   <>
-                    <div className="absolute inset-0 bg-white">
-                      <div className="h-4 sm:h-5 bg-white" />
-                      <div className="h-full bg-[#e5e7eb]" />
+                    <div className="absolute inset-0" style={{ backgroundColor: colors.bg.card }}>
+                      <div className="h-4 sm:h-5" style={{ backgroundColor: colors.bg.card }} />
+                      <div className="h-full" style={{ backgroundColor: colors.bg.elevated }} />
                     </div>
-                    <div className="absolute top-2 left-2 text-[10px] font-medium text-zinc-400">
+                    <div className="absolute top-2 left-2 text-[10px] font-medium" style={{ color: colors.text.subtle }}>
                       Page Name
                     </div>
                   </>
