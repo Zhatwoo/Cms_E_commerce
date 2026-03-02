@@ -11,10 +11,10 @@ import React, {
 import { listProjects, setActiveProjectId, type Project } from '@/lib/api';
 
 type ProjectContextType = {
-  projects: Project[];
+  projects: Instance[];
   loading: boolean;
   selectedProjectId: string | null;
-  selectedProject: Project | null;
+  selectedProject: Instance | null;
   setSelectedProjectId: (id: string | null) => void;
   refreshProjects: () => Promise<void>;
 };
@@ -35,16 +35,31 @@ type ProviderProps = {
 };
 
 export function ProjectProvider({ children }: ProviderProps) {
-  const [projects, setProjects] = useState<Project[]>([]);
+  const { user } = useAuth();
+  const [projects, setProjects] = useState<Instance[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProjectId, setSelectedProjectIdState] = useState<string | null>(null);
+  const storageKey = user?.id ? `md_selected_instance_${user.id}` : null;
+
+  useEffect(() => {
+    if (!storageKey) {
+      setSelectedProjectIdState(null);
+      return;
+    }
+    try {
+      const saved = window.localStorage.getItem(storageKey);
+      setSelectedProjectIdState(saved || null);
+    } catch {
+      setSelectedProjectIdState(null);
+    }
+  }, [storageKey]);
 
   const fetchProjects = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await listProjects();
-      if (res?.success && Array.isArray(res.projects)) {
-        setProjects(res.projects);
+      const res = await listInstances();
+      if (res?.success && Array.isArray(res.instances)) {
+        setProjects(res.instances);
 
         // Ensure we always have a valid selected project when projects exist
         if (res.projects.length === 0) {
@@ -58,14 +73,24 @@ export function ProjectProvider({ children }: ProviderProps) {
       } else {
         setProjects([]);
         setSelectedProjectIdState(null);
+        if (storageKey) {
+          try {
+            window.localStorage.removeItem(storageKey);
+          } catch {}
+        }
       }
     } catch {
       setProjects([]);
       setSelectedProjectIdState(null);
+      if (storageKey) {
+        try {
+          window.localStorage.removeItem(storageKey);
+        } catch {}
+      }
     } finally {
       setLoading(false);
     }
-  }, [selectedProjectId]);
+  }, [selectedProjectId, storageKey]);
 
   useEffect(() => {
     void fetchProjects();
@@ -82,6 +107,12 @@ export function ProjectProvider({ children }: ProviderProps) {
 
   const handleSetSelectedProjectId = (id: string | null) => {
     setSelectedProjectIdState(id);
+    if (storageKey) {
+      try {
+        if (id) window.localStorage.setItem(storageKey, id);
+        else window.localStorage.removeItem(storageKey);
+      } catch {}
+    }
   };
 
   const value: ProjectContextType = {

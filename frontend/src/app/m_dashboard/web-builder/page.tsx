@@ -346,7 +346,7 @@ export default function WebBuilderPage() {
   const { showAlert, showConfirm } = useAlert();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { selectedProject, setSelectedProjectId, projects: contextProjects, loading: projectsLoadingFromContext, refreshProjects } = useProject();
+  const { selectedProject } = useProject();
   const [selectedCategory, setSelectedCategory] = useState('Type');
   const [previewTemplate, setPreviewTemplate] = useState<GalleryTemplate | null>(null);
   const [templates, setTemplates] = useState<GalleryTemplate[]>([]);
@@ -362,9 +362,9 @@ export default function WebBuilderPage() {
   const [renameValue, setRenameValue] = useState('');
   const [sortOption, setSortOption] = useState<SortOptionId>('relevant');
   const [showSortMenu, setShowSortMenu] = useState(false);
-  const [activeTab, setActiveTab] = useState<'active' | 'trash'>('active');
-  const [trashedProjects, setTrashedProjects] = useState<Project[]>([]);
-  const [trashedProjectsLoading, setTrashedProjectsLoading] = useState(false);
+
+  const visibleProjects = projects;
+
   // Load templates on mount
   useEffect(() => {
     const loadedTemplates = templateService.getTemplates();
@@ -373,22 +373,23 @@ export default function WebBuilderPage() {
     setLoading(false);
   }, []);
 
-  // Load user projects for this view (fallback to context projects if available)
+  // Load projects within selected instance only
   useEffect(() => {
     let cancelled = false;
-    if (contextProjects.length > 0) {
-      setProjects(contextProjects);
+    if (!selectedProject?.id) {
+      setProjects([]);
       setProjectsLoading(false);
       return;
     }
-    listProjects()
+    setProjectsLoading(true);
+    listProjects({ instanceId: selectedProject.id })
       .then((res) => {
         if (!cancelled && res.success && res.projects) setProjects(res.projects);
       })
       .catch(() => { })
       .finally(() => { if (!cancelled) setProjectsLoading(false); });
     return () => { cancelled = true; };
-  }, [contextProjects]);
+  }, [selectedProject?.id]);
 
   // Load trashed projects when tab changes
   useEffect(() => {
@@ -421,7 +422,7 @@ export default function WebBuilderPage() {
     setCreateModalOpen(true);
   };
 
-  // No "Choose a website to manage" modal: auto-select first project or open create modal
+  // In selected instance, open create modal when there are no projects yet.
   useEffect(() => {
     if (projectsLoading || projectsLoadingFromContext || isAutoCreate) return;
     if (selectedProject) return;
@@ -430,7 +431,7 @@ export default function WebBuilderPage() {
     } else {
       openCreateModal({ title: '' });
     }
-  }, [projectsLoading, projectsLoadingFromContext, isAutoCreate, selectedProject, projects, setSelectedProjectId]);
+  }, [projectsLoading, isAutoCreate, selectedProject?.id, projects]);
 
   const handleCreateSubmit = async (title: string, subdomain: string) => {
     try {
@@ -460,6 +461,7 @@ export default function WebBuilderPage() {
 
       const res = await createProject({
         title: title || 'Untitled Project',
+        instanceId: selectedProject?.id || undefined,
         subdomain: subdomain || undefined,
         templateId: createModalTemplate ? String(createModalTemplate.id) : null,
       });
@@ -476,11 +478,6 @@ export default function WebBuilderPage() {
       const clientName = (user?.name || user?.username || 'client').trim() || 'client';
       ensureProjectStorageFolder(clientName, res.project.title || 'website').catch(() => { });
       setCreateModalOpen(false);
-      // Treat as a new website/instance only if we don't already have one selected
-      // or if we explicitly came from the "Create website" CTA.
-      if (!selectedProject || isAutoCreate) {
-        setSelectedProjectId(res.project.id);
-      }
       if (createModalTemplate) await templateService.loadTemplate(createModalTemplate.id.toString(), res.project.id);
       await refreshProjects();
       router.push(`/design?projectId=${res.project.id}`);
@@ -552,6 +549,7 @@ export default function WebBuilderPage() {
       setCreating(true);
       const res = await createProject({
         title: `${p.title} (copy)`,
+        instanceId: selectedProject?.id || undefined,
         subdomain: p.subdomain ? `${p.subdomain}-copy` : undefined,
       });
       if (res.success && res.project) {
@@ -634,11 +632,11 @@ export default function WebBuilderPage() {
       return comparison;
     });
 
-  // While no project selected and not auto-create, show loading until we auto-select or open create modal
-  if (!selectedProject && !isAutoCreate && !createModalOpen) {
+  // While project list is loading, show loading placeholder.
+  if (projectsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]" style={{ color: colors.text.secondary }}>
-        <p className="text-sm">{projectsLoading || projectsLoadingFromContext ? 'Loading your websites…' : 'Opening Web Builder…'}</p>
+        <p className="text-sm">Loading your websites…</p>
       </div>
     );
   }
@@ -811,17 +809,26 @@ export default function WebBuilderPage() {
               Trash
             </button>
           </div>
-        </div>
-
-        {activeTab === 'active' ? (
-          <>
-            {projectsLoading ? (
-              <div className="rounded-xl border p-12 text-center" style={{ borderColor: colors.border.faint }}>
-                <div className="space-y-3">
-                  <div className="flex justify-center">
-                    <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-                  </div>
-                  <p className="text-sm" style={{ color: colors.text.muted }}>Loading your projects…</p>
+        ) : (
+          <div className="grid w-full max-w-full min-w-0 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+            {visibleProjects.map((p) => (
+              <motion.div
+                key={p.id}
+                className="relative min-w-0 rounded-lg border overflow-hidden cursor-pointer hover:border-opacity-80 transition-colors"
+                style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  router.push(`/design?projectId=${p.id}`);
+                }}
+              >
+                {/* Thumbnail: first-page draft preview */}
+                <div className="relative w-full min-h-[100px]" style={{ backgroundColor: colors.bg.elevated, borderBottom: `1px solid ${colors.border.faint}` }}>
+                  <DraftPreviewThumbnail
+                    projectId={p.id}
+                    borderColor={colors.border.faint}
+                    bgColor={colors.bg.elevated}
+                  />
                 </div>
               </div>
             ) : projects.length === 0 ? (

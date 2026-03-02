@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { 
   Geist, 
   Geist_Mono,
+  Outfit,
   Inter,
   Roboto,
   Open_Sans,
@@ -29,6 +30,12 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const outfit = Outfit({
+  variable: "--font-outfit",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800"],
 });
 
 const inter = Inter({ weight: ["400", "500", "700", "900"], variable: "--ff-Inter", subsets: ["latin"] });
@@ -61,7 +68,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${roboto.variable} ${openSans.variable} ${poppins.variable} ${ubuntu.variable} ${lato.variable} ${raleway.variable} ${playfair.variable} ${ebGaramond.variable} ${merriweather.variable} ${lora.variable} ${montserrat.variable} ${oswald.variable} ${pacifico.variable} ${jetbrainsMono.variable} ${firaCode.variable} antialiased overflow-x-hidden`}
+        className={`${geistSans.variable} ${geistMono.variable} ${outfit.variable} ${inter.variable} ${roboto.variable} ${openSans.variable} ${poppins.variable} ${ubuntu.variable} ${lato.variable} ${raleway.variable} ${playfair.variable} ${ebGaramond.variable} ${merriweather.variable} ${lora.variable} ${montserrat.variable} ${oswald.variable} ${pacifico.variable} ${jetbrainsMono.variable} ${firaCode.variable} antialiased overflow-x-hidden`}
         suppressHydrationWarning
       >
         {children}

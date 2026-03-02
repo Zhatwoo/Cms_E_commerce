@@ -188,7 +188,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
     } catch {
       // ignore
     }
-    router.push("/m_dashboard");
+    router.push("/m_dashboard/web-builder#projects-section");
   };
 
   return (
