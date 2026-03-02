@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef, useLayoutEffect } from 'react';
 import { getDraft } from '@/app/design/_lib/pageApi';
 import type { BuilderDocument } from '@/app/design/_types/schema';
 
-/** Reference size for the page (web builder canvas). Thumbnail scales to fit container. */
+/** Reference size fallback for the page (web builder canvas). */
 const REFERENCE_WIDTH = 1440;
 const REFERENCE_HEIGHT = 900;
 const THUMB_SCALE = 0.2;
@@ -94,6 +94,11 @@ export function DraftPreviewThumbnail({
   const [fitScale, setFitScale] = useState(THUMB_SCALE);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const firstPage = doc?.pages?.[0];
+  const pageProps = (firstPage?.props as Record<string, unknown>) ?? {};
+  const previewBaseWidth = Math.max(320, toPx(pageProps.width, REFERENCE_WIDTH));
+  const previewBaseHeight = Math.max(320, toPx(pageProps.height, REFERENCE_HEIGHT));
+
   useEffect(() => {
     let cancelled = false;
     getDraft(projectId)
@@ -164,9 +169,9 @@ export function DraftPreviewThumbnail({
     if (!el) return;
     const update = () => {
       const w = el.offsetWidth;
-      const h = el.offsetHeight;
-      if (w > 0 && h > 0) {
-        const s = Math.min(w / REFERENCE_WIDTH, h / REFERENCE_HEIGHT, 1);
+      if (w > 0) {
+        // Scale so the full design width always fits; height overflows and is clipped (shows top portion)
+        const s = w / previewBaseWidth;
         setFitScale(s);
       }
     };
@@ -174,7 +179,7 @@ export function DraftPreviewThumbnail({
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null;
     if (ro) ro.observe(el);
     return () => ro?.disconnect();
-  }, [WebPreviewComponent, doc]);
+  }, [WebPreviewComponent, previewBaseWidth, previewBaseHeight]);
 
   if (loading) {
     return (
@@ -194,7 +199,6 @@ export function DraftPreviewThumbnail({
   }
 
   const nodes = doc?.nodes ?? {};
-  const firstPage = doc?.pages?.[0];
   const childIds = firstPage?.children ?? [];
 
   if (!doc?.pages?.length || (Object.keys(nodes).length === 0 && childIds.length === 0)) {
@@ -216,7 +220,6 @@ export function DraftPreviewThumbnail({
     );
   }
 
-  const pageProps = (firstPage?.props as Record<string, unknown>) ?? {};
   const pageBg = (pageProps.background as string) ?? '#ffffff';
   const pageW = toPx(pageProps.width, REFERENCE_WIDTH);
   const pageH = toPx(pageProps.height, REFERENCE_HEIGHT);
@@ -239,27 +242,23 @@ export function DraftPreviewThumbnail({
     return (
       <div
         ref={containerRef}
-        className={`w-full aspect-[16/10] rounded-t-lg overflow-hidden flex items-center justify-center ${className}`}
+        className={`w-full aspect-[16/10] rounded-t-lg overflow-hidden flex items-start justify-start ${className}`}
         style={{
           backgroundColor: 'rgba(0,0,0,0.04)',
           borderBottom: `1px solid ${borderColor}`,
         }}
       >
         <div
-          className="overflow-hidden rounded-sm shrink-0"
+          className="overflow-hidden shrink-0"
           style={{
-            width: `${REFERENCE_WIDTH * fitScale}px`,
-            height: `${REFERENCE_HEIGHT * fitScale}px`,
-            maxWidth: '100%',
-            maxHeight: '100%',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04)',
-            borderRadius: '6px',
+            width: '100%',
+            height: '100%',
           }}
         >
           <div
             style={{
-              width: `${REFERENCE_WIDTH}px`,
-              height: `${REFERENCE_HEIGHT}px`,
+              width: `${previewBaseWidth}px`,
+              height: `${previewBaseHeight}px`,
               transform: `scale(${fitScale})`,
               transformOrigin: 'top left',
               overflow: 'hidden',
@@ -268,7 +267,7 @@ export function DraftPreviewThumbnail({
             <WebPreviewComponent
               doc={builderDoc}
               pageIndex={0}
-              simulatedWidth={REFERENCE_WIDTH}
+              simulatedWidth={previewBaseWidth}
             />
           </div>
         </div>

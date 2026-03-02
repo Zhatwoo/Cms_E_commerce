@@ -14,7 +14,7 @@ function DashboardLayoutContent({
     children: React.ReactNode;
 }) {
     const { user, loading } = useAuth();
-    const { selectedProject } = useProject();
+    const { selectedProject, loading: projectLoading } = useProject();
     const router = useRouter();
     const pathname = usePathname();
     const { colors } = useTheme();
@@ -27,20 +27,24 @@ function DashboardLayoutContent({
         }
     }, [loading, user, router]);
 
-    // If user is authenticated but no website/instance is selected yet,
-    // send them to the main dashboard page to choose a website first,
-    // but allow access to builder/domains so they can create their first site.
+    // Instance-first flow:
+    // If authenticated user has no selected website instance,
+    // always send them to the instance selection/creation page.
     useEffect(() => {
-        if (!loading && user && !selectedProject) {
-            const isDashboardRoot = pathname === '/m_dashboard';
-            const isBuilder = pathname.startsWith('/m_dashboard/web-builder');
-            const isDomains = pathname.startsWith('/m_dashboard/domains');
+        if (!loading && !projectLoading && user && !selectedProject) {
+            const isInstancesPage = pathname.startsWith('/m_dashboard/instances');
             const isInDashboard = pathname.startsWith('/m_dashboard');
-            if (isInDashboard && !isDashboardRoot && !isBuilder && !isDomains) {
-                router.replace('/m_dashboard');
+            const isDashboardHome = pathname === '/m_dashboard' || pathname === '/m_dashboard/';
+            if (isInDashboard && !isInstancesPage) {
+                if (isDashboardHome) {
+                    router.replace('/m_dashboard/instances');
+                } else {
+                    const from = encodeURIComponent(pathname);
+                    router.replace(`/m_dashboard/instances?requireInstance=1&from=${from}`);
+                }
             }
         }
-    }, [loading, user, selectedProject, pathname, router]);
+    }, [loading, projectLoading, user, selectedProject, pathname, router]);
 
     useEffect(() => {
         if (pathname === '/m_dashboard') {
@@ -118,17 +122,14 @@ function DashboardLayoutContent({
                 <DashboardSidebar />
             </div>
 
-            {/* Main content area */}
-            <div ref={contentScrollRef} className="no-scrollbar flex min-w-0 flex-1 basis-0 flex-col h-screen overflow-y-auto overflow-x-hidden">
-                <div className="sticky top-0 z-50 shrink-0" style={{ backgroundColor: colors.bg.primary }}>
+            {/* Main content area - ref: deep indigo/purple gradient (Color Palette) */}
+            <div ref={contentScrollRef} className="no-scrollbar flex min-w-0 flex-1 basis-0 flex-col h-screen overflow-y-auto overflow-x-hidden" style={{ background: 'linear-gradient(180deg, #1A1A4C 0%, #191E2D 100%)' }}>
+                <div className="sticky top-0 z-50 shrink-0 bg-transparent">
                     <DashboardHeader onMenuToggle={() => setSidebarOpen(true)} />
                 </div>
                 <main className="flex-1 min-w-0 max-w-full overflow-x-hidden px-4 sm:px-6 pt-5 sm:pt-7 pb-4 sm:pb-6">
                     {children}
                 </main>
-                <footer className="py-4 text-xs shrink-0 flex justify-center transition-colors duration-300" style={{ color: colors.text.muted }}>
-                    Thanks for using our platform ✨
-                </footer>
             </div>
         </div>
     );

@@ -8,10 +8,12 @@ function getProjectsRef(userId) {
 async function create(userId, data) {
   const ref = getProjectsRef(userId);
   const subdomain = (data.subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || null;
+  const instanceId = (data.instanceId || '').toString().trim() || null;
   const doc = {
     title: data.title || 'Untitled Project',
     status: 'draft',
     template_id: data.templateId || null,
+    instance_id: instanceId,
     subdomain: subdomain || null,
     thumbnail: data.thumbnail || null,
     created_at: new Date(),
@@ -22,10 +24,22 @@ async function create(userId, data) {
   return docToObject(snap);
 }
 
-async function list(userId) {
-  const ref = getProjectsRef(userId).orderBy('updated_at', 'desc');
-  const snap = await ref.get();
-  return snap.docs.map(d => docToObject(d));
+async function list(userId, options = {}) {
+  const instanceId = (options.instanceId || '').toString().trim() || null;
+  if (!instanceId) {
+    const ref = getProjectsRef(userId).orderBy('updated_at', 'desc');
+    const snap = await ref.get();
+    return snap.docs.map((d) => docToObject(d));
+  }
+
+  const snap = await getProjectsRef(userId).where('instance_id', '==', instanceId).get();
+  return snap.docs
+    .map((d) => docToObject(d))
+    .sort((a, b) => {
+      const aDate = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const bDate = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return bDate - aDate;
+    });
 }
 
 async function get(userId, projectId) {
@@ -38,6 +52,7 @@ async function update(userId, projectId, data) {
   const updates = {};
   if (data.title !== undefined) updates.title = data.title;
   if (data.status !== undefined) updates.status = data.status;
+  if (data.instanceId !== undefined) updates.instance_id = (data.instanceId || '').toString().trim() || null;
   if (data.subdomain !== undefined) updates.subdomain = (data.subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || null;
   if (data.thumbnail !== undefined) updates.thumbnail = data.thumbnail || null;
   if (Object.keys(updates).length === 0) return get(userId, projectId);

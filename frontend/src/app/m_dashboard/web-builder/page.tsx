@@ -345,7 +345,7 @@ export default function WebBuilderPage() {
   const { showAlert, showConfirm } = useAlert();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { selectedProject, setSelectedProjectId, projects: contextProjects, loading: projectsLoadingFromContext } = useProject();
+  const { selectedProject } = useProject();
   const [selectedCategory, setSelectedCategory] = useState('Type');
   const [previewTemplate, setPreviewTemplate] = useState<GalleryTemplate | null>(null);
   const [templates, setTemplates] = useState<GalleryTemplate[]>([]);
@@ -362,10 +362,7 @@ export default function WebBuilderPage() {
   const [sortOption, setSortOption] = useState<SortOptionId>('relevant');
   const [showSortMenu, setShowSortMenu] = useState(false);
 
-  const visibleProjects = React.useMemo(
-    () => (selectedProject ? projects.filter((p) => p.id === selectedProject.id) : projects),
-    [projects, selectedProject]
-  );
+  const visibleProjects = projects;
 
   // Load templates on mount
   useEffect(() => {
@@ -375,22 +372,23 @@ export default function WebBuilderPage() {
     setLoading(false);
   }, []);
 
-  // Load user projects for this view (fallback to context projects if available)
+  // Load projects within selected instance only
   useEffect(() => {
     let cancelled = false;
-    if (contextProjects.length > 0) {
-      setProjects(contextProjects);
+    if (!selectedProject?.id) {
+      setProjects([]);
       setProjectsLoading(false);
       return;
     }
-    listProjects()
+    setProjectsLoading(true);
+    listProjects({ instanceId: selectedProject.id })
       .then((res) => {
         if (!cancelled && res.success && res.projects) setProjects(res.projects);
       })
       .catch(() => {})
       .finally(() => { if (!cancelled) setProjectsLoading(false); });
     return () => { cancelled = true; };
-  }, [contextProjects]);
+  }, [selectedProject?.id]);
 
   // If coming from the "Create a website" CTA (autoCreate=1),
   // immediately open the create modal so the user can name the website,
@@ -410,22 +408,21 @@ export default function WebBuilderPage() {
     setCreateModalOpen(true);
   };
 
-  // No "Choose a website to manage" modal: auto-select first project or open create modal
+  // In selected instance, open create modal when there are no projects yet.
   useEffect(() => {
-    if (projectsLoading || projectsLoadingFromContext || isAutoCreate) return;
-    if (selectedProject) return;
-    if (projects.length > 0) {
-      setSelectedProjectId(projects[0].id);
-    } else {
+    if (projectsLoading || isAutoCreate) return;
+    if (!selectedProject?.id) return;
+    if (projects.length === 0) {
       openCreateModal({ title: '' });
     }
-  }, [projectsLoading, projectsLoadingFromContext, isAutoCreate, selectedProject, projects, setSelectedProjectId]);
+  }, [projectsLoading, isAutoCreate, selectedProject?.id, projects]);
 
   const handleCreateSubmit = async (title: string, subdomain: string) => {
     try {
       setCreating(true);
       const res = await createProject({
         title: title || 'Untitled Project',
+        instanceId: selectedProject?.id || undefined,
         subdomain: subdomain || undefined,
         templateId: createModalTemplate ? String(createModalTemplate.id) : null,
       });
@@ -437,11 +434,6 @@ export default function WebBuilderPage() {
       const clientName = (user?.name || user?.username || 'client').trim() || 'client';
       ensureProjectStorageFolder(clientName, res.project.title || 'website').catch(() => {});
       setCreateModalOpen(false);
-      // Treat as a new website/instance only if we don't already have one selected
-      // or if we explicitly came from the "Create website" CTA.
-      if (!selectedProject || isAutoCreate) {
-        setSelectedProjectId(res.project.id);
-      }
       if (createModalTemplate) await templateService.loadTemplate(createModalTemplate.id.toString(), res.project.id);
       router.push(`/design?projectId=${res.project.id}`);
     } catch (error) {
@@ -512,6 +504,7 @@ export default function WebBuilderPage() {
       setCreating(true);
       const res = await createProject({
         title: `${p.title} (copy)`,
+        instanceId: selectedProject?.id || undefined,
         subdomain: p.subdomain ? `${p.subdomain}-copy` : undefined,
       });
       if (res.success && res.project) {
@@ -562,11 +555,11 @@ export default function WebBuilderPage() {
       return comparison;
     });
 
-  // While no project selected and not auto-create, show loading until we auto-select or open create modal
-  if (!selectedProject && !isAutoCreate && !createModalOpen) {
+  // While project list is loading, show loading placeholder.
+  if (projectsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]" style={{ color: colors.text.secondary }}>
-        <p className="text-sm">{projectsLoading || projectsLoadingFromContext ? 'Loading your websites…' : 'Opening Web Builder…'}</p>
+        <p className="text-sm">Loading your websites…</p>
       </div>
     );
   }
@@ -731,7 +724,9 @@ export default function WebBuilderPage() {
                 style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => router.push(`/design?projectId=${p.id}`)}
+                onClick={() => {
+                  router.push(`/design?projectId=${p.id}`);
+                }}
               >
                 {/* Thumbnail: first-page draft preview */}
                 <div className="relative w-full min-h-[100px]" style={{ backgroundColor: colors.bg.elevated, borderBottom: `1px solid ${colors.border.faint}` }}>

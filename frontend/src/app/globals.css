@@ -299,3 +299,29 @@ body:has(.m-dashboard-shell) {
 [data-canvas-container].canvas-hand-panning * {
   cursor: grabbing !important;
 }
+
+/* Featured template image pan animation */
+@keyframes template-pan {
+  0%   { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
+}
+.template-pan-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 200%;
+  width: 100%;
+  object-fit: cover;
+  object-position: top;
+  animation: template-pan 7s ease-in-out infinite alternate;
+}
+.template-pan-img-slow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 200%;
+  width: 100%;
+  object-fit: cover;
+  object-position: top;
+  animation: template-pan 10s ease-in-out infinite alternate;
+}
