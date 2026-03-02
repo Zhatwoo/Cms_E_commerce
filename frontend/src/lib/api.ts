@@ -327,6 +327,8 @@ export type Project = {
   thumbnail?: string | null;
   createdAt?: string;
   updatedAt?: string;
+  deletedAt?: string;
+  daysLeft?: number;
 };
 
 export async function listProjects(): Promise<{ success: boolean; projects: Project[] }> {
@@ -368,15 +370,39 @@ export async function updateProject(
   });
 }
 
-export async function deleteProject(id: string): Promise<{ success: boolean }> {
-  return apiFetch<{ success: boolean }>(`/api/projects/${id}`, { method: 'DELETE' });
+/** Move project to trash instead of deleting permanently. */
+export async function deleteProject(id: string): Promise<{ success: boolean; message?: string }> {
+  return apiFetch<{ success: boolean; message?: string }>(`/api/projects/${id}`, { method: 'DELETE' });
+}
+
+/** List all projects currently in the trash for the user. */
+export async function listTrashedProjects(): Promise<{ success: boolean; projects: Project[] }> {
+  return apiFetch<{ success: boolean; projects: Project[] }>('/api/projects/trash');
+}
+
+/** Restore a project from the trash back to the active list. */
+export async function restoreProject(id: string): Promise<{ success: boolean; project: Project; message?: string }> {
+  return apiFetch<{ success: boolean; project: Project; message?: string }>(`/api/projects/${id}/restore`, {
+    method: 'POST',
+  });
+}
+
+/** Permanently purge a project from the database. This action cannot be undone. */
+export async function permanentDeleteProject(id: string): Promise<{ success: boolean; message?: string }> {
+  return apiFetch<{ success: boolean; message?: string }>(`/api/projects/${id}/permanent`, {
+    method: 'DELETE',
+  });
 }
 
 /** Publish current project from Preview: creates/updates domain and public lookup so /sites/:subdomain works. */
-export async function publishProject(projectId: string, subdomain?: string | null): Promise<{ success: boolean; message?: string; data?: { id: string; subdomain?: string } }> {
+export async function publishProject(
+  projectId: string,
+  subdomain?: string | null,
+  content?: string | Record<string, unknown> | null
+): Promise<{ success: boolean; message?: string; data?: { id: string; subdomain?: string } }> {
   return apiFetch<{ success: boolean; message?: string; data?: { id: string; subdomain?: string } }>('/api/domains/publish', {
     method: 'POST',
-    body: JSON.stringify({ projectId, subdomain: subdomain || undefined }),
+    body: JSON.stringify({ projectId, subdomain: subdomain || undefined, content: content ?? undefined }),
   });
 }
 
@@ -384,11 +410,12 @@ export async function publishProject(projectId: string, subdomain?: string | nul
 export async function schedulePublish(
   projectId: string,
   scheduledAt: string,
-  subdomain?: string | null
+  subdomain?: string | null,
+  content?: string | Record<string, unknown> | null
 ): Promise<{ success: boolean; message?: string; data?: { subdomain?: string; scheduledAt?: string } }> {
   return apiFetch('/api/domains/schedule-publish', {
     method: 'POST',
-    body: JSON.stringify({ projectId, subdomain: subdomain || undefined, scheduledAt }),
+    body: JSON.stringify({ projectId, subdomain: subdomain || undefined, scheduledAt, content: content ?? undefined }),
   });
 }
 
@@ -418,6 +445,7 @@ export type ApiProduct = {
   description?: string;
   price: number;
   basePrice?: number;
+  costPrice?: number | null;
   finalPrice?: number;
   compareAtPrice?: number | null;
   discount?: number;
@@ -505,6 +533,7 @@ export async function createProduct(params: {
   description?: string;
   price?: number;
   basePrice?: number;
+  costPrice?: number | null;
   finalPrice?: number;
   compareAtPrice?: number | null;
   discount?: number;
@@ -542,6 +571,7 @@ export async function updateProduct(
     description?: string;
     price?: number;
     basePrice?: number;
+    costPrice?: number | null;
     finalPrice?: number;
     compareAtPrice?: number | null;
     discount?: number;

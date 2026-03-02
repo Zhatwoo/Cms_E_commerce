@@ -58,7 +58,7 @@ export const OrderFormV1: TemplateEntry = {
             }),
             React.createElement(
               Element as any,
-              { is: Row as any, canvas: true, gap: 14, alignItems: "center", flexWrap: "nowrap" },
+              { is: Row as any, canvas: true, gap: 14, alignItems: "center", flexWrap: "wrap" },
               React.createElement(
                 Element as any,
                 {
@@ -96,7 +96,7 @@ export const OrderFormV1: TemplateEntry = {
             ),
             React.createElement(
               Element as any,
-              { is: Row as any, canvas: true, gap: 14, alignItems: "center", flexWrap: "nowrap" },
+              { is: Row as any, canvas: true, gap: 14, alignItems: "center", flexWrap: "wrap" },
               React.createElement(
                 Element as any,
                 {
@@ -157,13 +157,13 @@ export const OrderFormV1: TemplateEntry = {
             }),
             React.createElement(
               Element as any,
-              { is: Row as any, canvas: true, justifyContent: "space-between", gap: 8, flexWrap: "nowrap" },
+              { is: Row as any, canvas: true, justifyContent: "space-between", gap: 8, flexWrap: "wrap" },
               React.createElement(Text as any, { text: "Merchandise Subtotal", fontSize: 27, color: "#111111" }),
               React.createElement(Text as any, { text: "PHP 3,000", fontSize: 27, fontWeight: "600", color: "#111111" })
             ),
             React.createElement(
               Element as any,
-              { is: Row as any, canvas: true, justifyContent: "space-between", gap: 8, flexWrap: "nowrap" },
+              { is: Row as any, canvas: true, justifyContent: "space-between", gap: 8, flexWrap: "wrap" },
               React.createElement(Text as any, { text: "Shipping Subtotal", fontSize: 27, color: "#111111" }),
               React.createElement(Text as any, { text: "PHP 250", fontSize: 27, fontWeight: "600", color: "#111111" })
             ),
@@ -182,7 +182,7 @@ export const OrderFormV1: TemplateEntry = {
             ),
             React.createElement(
               Element as any,
-              { is: Row as any, canvas: true, justifyContent: "space-between", gap: 8, flexWrap: "nowrap" },
+              { is: Row as any, canvas: true, justifyContent: "space-between", gap: 8, flexWrap: "wrap" },
               React.createElement(Text as any, { text: "Total Payment", fontSize: 30, fontWeight: "700", color: "#111111" }),
               React.createElement(Text as any, { text: "PHP 3,250", fontSize: 42, fontWeight: "700", color: "#111111" })
             )
@@ -200,7 +200,7 @@ export const OrderFormV1: TemplateEntry = {
           }),
           React.createElement(
             Element as any,
-            { is: Row as any, canvas: true, gap: 12, flexWrap: "nowrap" },
+            { is: Row as any, canvas: true, gap: 12, flexWrap: "wrap" },
             React.createElement(
               Element as any,
               {
@@ -238,7 +238,7 @@ export const OrderFormV1: TemplateEntry = {
           ),
           React.createElement(
             Element as any,
-            { is: Row as any, canvas: true, gap: 12, flexWrap: "nowrap" },
+            { is: Row as any, canvas: true, gap: 12, flexWrap: "wrap" },
             React.createElement(
               Element as any,
               {
@@ -304,7 +304,7 @@ export const OrderFormV1: TemplateEntry = {
           ),
           React.createElement(
             Element as any,
-            { is: Row as any, canvas: true, gap: 12, flexWrap: "nowrap" },
+            { is: Row as any, canvas: true, gap: 12, flexWrap: "wrap" },
             React.createElement(
               Element as any,
               {

@@ -3,8 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getProjectBySubdomain } from '@/lib/api';
-import { getDraft } from '@/app/design/_lib/pageApi';
+import { getApiUrl } from '@/lib/api';
 import { LiveSite } from '@/app/design/_lib/webRenderer';
 import { serializeCraftToClean } from '@/app/design/_lib/serializer';
 
@@ -16,7 +15,6 @@ const RESERVED_SUBDOMAINS = new Set([
 export default function SubdomainSitePage() {
   const params = useParams();
   const subdomain = typeof params.subdomain === 'string' ? params.subdomain : null;
-  const [projectId, setProjectId] = useState<string | null>(null);
   const [rawJson, setRawJson] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -36,19 +34,21 @@ export default function SubdomainSitePage() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await getProjectBySubdomain(normalized);
+        const base = getApiUrl();
+        const res = await fetch(`${base}/api/public/sites/${encodeURIComponent(normalized)}`, {
+          credentials: 'omit',
+        });
+        const data = await res.json().catch(() => ({} as Record<string, unknown>));
         if (cancelled) return;
-        if (!res.success || !res.project?.id) {
+        if (!res.ok || !(data as { success?: boolean }).success) {
           setError(true);
           setLoading(false);
           return;
         }
-        setProjectId(res.project.id);
-        const result = await getDraft(res.project.id);
-        if (cancelled) return;
-        if (result.success && result.data?.content) {
-          const content = result.data.content;
-          setRawJson(typeof content === 'object' ? JSON.stringify(content) : content);
+        const content = (data as { data?: { content?: unknown } }).data?.content;
+        if (content) {
+          const serializedContent = typeof content === 'object' ? JSON.stringify(content) : String(content);
+          setRawJson(serializedContent);
         } else {
           setError(true);
         }
@@ -83,7 +83,7 @@ export default function SubdomainSitePage() {
     return null;
   }
 
-  if (loading || !projectId) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="animate-spin rounded-full h-10 w-10 border-2 border-zinc-300 border-t-zinc-600" />
@@ -96,7 +96,7 @@ export default function SubdomainSitePage() {
       <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-100 text-zinc-700 gap-4 px-4">
         <p className="text-lg">No site at this address.</p>
         <p className="text-sm text-zinc-500">
-          Make sure the project has a subdomain set and you’re logged in.
+          This site may not be published yet.
         </p>
         <Link href="/m_dashboard/domains" className="text-sm text-blue-600 hover:underline">
           ← Back to Domains
@@ -107,7 +107,7 @@ export default function SubdomainSitePage() {
 
   return (
     <div className="min-h-screen w-full bg-white">
-      <LiveSite doc={cleanDoc} pageIndex={0} />
+      <LiveSite doc={cleanDoc} pageIndex={0} mobileBreakpoint={480} />
     </div>
   );
 }

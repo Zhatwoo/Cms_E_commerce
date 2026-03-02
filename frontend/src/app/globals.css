@@ -268,7 +268,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--ff-Outfit), Arial, Helvetica, sans-serif;
 }
 
 html.m-dashboard-scroll-lock,
@@ -330,10 +330,47 @@ body:has(.m-dashboard-shell) {
   }
 }
 
+@keyframes landingCursorDrift {
+  0% {
+    transform: translate(-50%, -50%) translate(-34px, -10px) rotate(5deg) scale(1);
+  }
+  20% {
+    transform: translate(-50%, -50%) translate(-6px, -22px) rotate(10deg) scale(1.03);
+  }
+  40% {
+    transform: translate(-50%, -50%) translate(26px, -5px) rotate(7deg) scale(1.06);
+  }
+  60% {
+    transform: translate(-50%, -50%) translate(16px, 16px) rotate(11deg) scale(1.02);
+  }
+  80% {
+    transform: translate(-50%, -50%) translate(-20px, 12px) rotate(6deg) scale(1.04);
+  }
+  100% {
+    transform: translate(-50%, -50%) translate(-34px, -10px) rotate(5deg) scale(1);
+  }
+}
+
 .landing-snap-in {
   animation: landingSnapIn 4s infinite;
 }
 
 .landing-cursor-pop {
-  animation: landingCursorPop 1.8s ease-in-out infinite;
+  animation: landingCursorDrift 3.2s cubic-bezier(0.25, 1, 0.3, 1) infinite;
+}
+
+.landing-cursor-drift {
+  animation: landingCursorDrift 3.2s cubic-bezier(0.25, 1, 0.3, 1) infinite;
+}
+
+.dark-input:-webkit-autofill,
+.dark-input:-webkit-autofill:hover,
+.dark-input:-webkit-autofill:focus,
+.dark-input:-webkit-autofill:active {
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: 0 0 0px 1000px rgba(16, 19, 29, 0.98) inset !important;
+  -webkit-box-shadow: 0 0 0px 1000px rgba(16, 19, 29, 0.98) inset !important;
+  caret-color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+  transition: background-color 9999s ease-out 0s;
 }

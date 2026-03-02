@@ -140,6 +140,7 @@ function PublicSiteContent() {
       <LiveSite
         doc={doc}
         pageIndex={0}
+        mobileBreakpoint={480}
         storeContext={{ products, addToCart }}
       />
       <CartFab />

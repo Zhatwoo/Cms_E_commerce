@@ -99,7 +99,8 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
         name: editingProduct?.name || '', sku: editingProduct?.sku || '',
         category: editingProduct?.category || '', description: editingProduct?.description || '',
         status: editingProduct?.status || 'active', price: basePrice,
-        costPrice: 0, discount, discountType, images: imageList,
+        costPrice: typeof editingProduct?.costPrice === 'number' ? editingProduct.costPrice : 0,
+        discount, discountType, images: imageList,
         stock: editingProduct?.stock ?? 100, lowStockThreshold: 20, hasVariants, variants: existingVariants,
       });
     }

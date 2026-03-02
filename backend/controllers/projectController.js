@@ -160,7 +160,48 @@ exports.update = async (req, res) => {
   }
 };
 
-// @desc    Delete project (website only — client/user account is never deleted)
+// @desc    List trashed projects
+// @route   GET /api/projects/trash
+// @access  Private
+exports.listTrash = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const projects = await Project.listTrash(userId);
+    res.status(200).json({
+      success: true,
+      projects,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Restore project from trash
+// @route   POST /api/projects/:id/restore
+// @access  Private
+exports.restore = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const project = await Project.restore(userId, req.params.id);
+    res.status(200).json({
+      success: true,
+      message: 'Project restored from trash',
+      project,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Delete project (moves to trash)
 // @route   DELETE /api/projects/:id
 // @access  Private
 exports.delete = async (req, res) => {
@@ -192,7 +233,54 @@ exports.delete = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Website deleted (client account preserved)',
+      message: 'Project moved to trash',
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Permanently delete project (purges from trash and projects)
+// @route   DELETE /api/projects/:id/permanent
+// @access  Private
+exports.permanentDelete = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const existingInTrash = await Project.getTrashRef(userId).doc(req.params.id).get();
+    const existingInProjects = await Project.get(userId, req.params.id);
+
+    if (!existingInTrash.exists && !existingInProjects) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found in trash or active projects',
+      });
+    }
+
+    const projectData = existingInTrash.exists ? existingInTrash.data() : existingInProjects;
+    const title = projectData.title || 'Untitled';
+
+    await Project.permanentDelete(userId, req.params.id);
+
+    // Storage cleanup
+    const clientName = req.user.name || 'client';
+    let clientNameForStorage = clientName;
+    try {
+      const user = await User.get(userId);
+      if (user) {
+        clientNameForStorage = (user.displayName || user.username || user.email || clientName).trim() || clientName;
+      }
+    } catch {
+      // ignore
+    }
+    await deleteProjectStorageFolder(clientNameForStorage, title);
+
+    res.status(200).json({
+      success: true,
+      message: 'Project permanently deleted',
     });
   } catch (error) {
     res.status(500).json({

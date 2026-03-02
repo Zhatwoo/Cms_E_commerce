@@ -20,6 +20,7 @@ import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
 import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
+import { MarqueeSelectionHandler } from "./MarqueeSelectionHandler";
 import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import { TransformModeProvider } from "./TransformModeContext";
 import { InlineTextEditProvider } from "./InlineTextEditContext";

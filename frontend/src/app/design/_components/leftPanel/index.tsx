@@ -20,7 +20,54 @@ import { ComponentsPanel } from "./componentsPanel";
 import { AssetsPanel } from "./assetsPanel";
 import { TemplatePanel } from "./templatePanel";
 
-const STORAGE_KEY = "craftjs_preview_json";
+import { deleteDraft } from "../../_lib/pageApi";
+
+const STORAGE_KEY_PREFIX = "craftjs_preview_json";
+const PAGE_GRID_ORIGIN_X = 30000;
+const PAGE_GRID_ORIGIN_Y = 30000;
+
+const EMPTY_CANVAS_DATA = JSON.stringify({
+  ROOT: {
+    type: { resolvedName: "Viewport" },
+    isCanvas: true,
+    props: {},
+    displayName: "Viewport",
+    custom: {},
+    hidden: false,
+    nodes: ["page-1"],
+    linkedNodes: {},
+  },
+  "page-1": {
+    type: { resolvedName: "Page" },
+    isCanvas: true,
+    props: {
+      pageName: "Page 1",
+      pageSlug: "page-0",
+      canvasX: PAGE_GRID_ORIGIN_X,
+      canvasY: PAGE_GRID_ORIGIN_Y,
+      width: "1920px",
+      height: "1200px",
+      background: "#ffffff",
+    },
+    displayName: "Page",
+    custom: {},
+    parent: "ROOT",
+    hidden: false,
+    nodes: ["container-1"],
+    linkedNodes: {},
+  },
+  "container-1": {
+    type: { resolvedName: "Container" },
+    isCanvas: true,
+    props: { padding: 40, background: "#ffffff" },
+    displayName: "Container",
+    custom: {},
+    parent: "page-1",
+    hidden: false,
+    nodes: [],
+    linkedNodes: {},
+  },
+});
 
 export type LeftPanelTabId = "files" | "components" | "assets" | "templates";
 
@@ -46,7 +93,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
   const router = useRouter();
   const { websiteName } = useDesignProject();
 
-  const { query } = useEditor();
+  const { query, actions } = useEditor();
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setFilesPanelReady(true));
@@ -103,9 +150,34 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
     setMenuOpen(false);
   };
 
-  const handleClearCanvas = () => {
-    sessionStorage.removeItem(STORAGE_KEY);
-    window.location.reload();
+  const handleClearCanvas = async () => {
+    setMenuOpen(false);
+    if (!window.confirm("Clear the entire canvas? This cannot be undone.")) return;
+    try {
+      // Remove project-specific session cache
+      if (projectId) {
+        sessionStorage.removeItem(`${STORAGE_KEY_PREFIX}_${projectId}`);
+        // Also delete from DB
+        await deleteDraft(projectId);
+      } else {
+        // No projectId — clear all craftjs keys from session
+        Object.keys(sessionStorage)
+          .filter((k) => k.startsWith(STORAGE_KEY_PREFIX))
+          .forEach((k) => sessionStorage.removeItem(k));
+      }
+    } catch {
+      // ignore
+    }
+
+    try {
+      actions.deserialize(EMPTY_CANVAS_DATA);
+      if (projectId) {
+        sessionStorage.setItem(`${STORAGE_KEY_PREFIX}_${projectId}`, EMPTY_CANVAS_DATA);
+      }
+    } catch {
+      // If deserialize fails for any reason, fallback to reload behavior
+      window.location.reload();
+    }
   };
 
   const handleBackToDashboard = () => {

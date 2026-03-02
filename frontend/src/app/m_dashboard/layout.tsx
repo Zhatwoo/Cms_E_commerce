@@ -23,7 +23,7 @@ function DashboardLayoutContent({
 
     useEffect(() => {
         if (!loading && !user) {
-            router.replace('/auth/login');
+            router.replace('/');
         }
     }, [loading, user, router]);
 
