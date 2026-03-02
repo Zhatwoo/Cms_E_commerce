@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useEditor } from "@craftjs/core";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ChevronDown,
   Save,
@@ -91,6 +91,9 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
   const canMountFilesPanel = frameReady && filesPanelReady;
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const projectId = searchParams?.get("projectId") || null;
+  const STORAGE_KEY = projectId ? `${STORAGE_KEY_PREFIX}_${projectId}` : STORAGE_KEY_PREFIX;
   const { websiteName } = useDesignProject();
 
   const { query, actions } = useEditor();

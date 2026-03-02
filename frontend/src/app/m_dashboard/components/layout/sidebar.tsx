@@ -310,6 +310,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
                     {item.label}
                   </motion.span>
                 )}
+              </AnimatePresence>
 
               {/* Active indicator when collapsed */}
               {isActive && !isHovered && (
