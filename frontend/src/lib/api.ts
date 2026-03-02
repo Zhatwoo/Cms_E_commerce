@@ -600,6 +600,7 @@ export async function createProduct(params: {
   images?: string[];
   status?: string;
   stock?: number | null;
+  lowStockThreshold?: number;
 }): Promise<{ success: boolean; message?: string; data?: ApiProduct }> {
   return apiFetch<{ success: boolean; message?: string; data?: ApiProduct }>('/api/products', {
     method: 'POST',
@@ -638,6 +639,7 @@ export async function updateProduct(
     images?: string[];
     status?: string;
     stock?: number | null;
+    lowStockThreshold?: number;
   }
 ): Promise<{ success: boolean; message?: string; data?: ApiProduct }> {
   return apiFetch<{ success: boolean; message?: string; data?: ApiProduct }>(`/api/products/${id}`, {

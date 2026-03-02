@@ -27,6 +27,7 @@ export interface Product {
   priceRangeMin?: number | null;
   priceRangeMax?: number | null;
   stock: number;
+  lowStockThreshold?: number;
   status: 'active' | 'inactive' | 'draft';
   image: string;
   images?: string[];
