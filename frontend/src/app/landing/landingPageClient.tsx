@@ -1,22 +1,31 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { LandingHeader } from './components/header';
 import { AuthModal } from './components/authModal';
 import { LandingScrollRoot } from './components/scrolling';
 
 type AuthMode = 'login' | 'register';
+const LANDING_THEME_KEY = 'landing-theme';
+const THEME_EVENT_NAME = 'landing-theme-change';
+
+const subscribeTheme = (onStoreChange: () => void) => {
+  window.addEventListener('storage', onStoreChange);
+  window.addEventListener(THEME_EVENT_NAME, onStoreChange);
+
+  return () => {
+    window.removeEventListener('storage', onStoreChange);
+    window.removeEventListener(THEME_EVENT_NAME, onStoreChange);
+  };
+};
+
+const getThemeSnapshot = () => window.localStorage.getItem(LANDING_THEME_KEY) === 'dark';
+const getThemeServerSnapshot = () => false;
 
 export function LandingPageClient({ children }: { children: React.ReactNode }) {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>('login');
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    if (typeof window === 'undefined') {
-      return false;
-    }
-
-    return window.localStorage.getItem('landing-theme') === 'dark';
-  });
+  const isDarkMode = useSyncExternalStore(subscribeTheme, getThemeSnapshot, getThemeServerSnapshot);
 
   const handleAuthClick = (mode: AuthMode) => {
     setAuthMode(mode);
@@ -40,8 +49,8 @@ export function LandingPageClient({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setThemeState = (next: boolean) => {
-    setIsDarkMode(next);
-    window.localStorage.setItem('landing-theme', next ? 'dark' : 'light');
+    window.localStorage.setItem(LANDING_THEME_KEY, next ? 'dark' : 'light');
+    window.dispatchEvent(new Event(THEME_EVENT_NAME));
   };
 
   const toggleTheme = (e: React.MouseEvent<HTMLButtonElement>) => {
