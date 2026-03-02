@@ -104,7 +104,7 @@ class TemplateService {
 
       // Already clean format (from API/draft): has version + pages
       if (typeof parsed?.version === 'number' && Array.isArray(parsed?.pages)) {
-        cleanData = parsed as BuilderDocument;
+        cleanData = parsed as unknown as BuilderDocument;
       } else {
         // Craft.js raw format: convert to clean
         const { serializeCraftToClean } = require('@/app/design/_lib/serializer');

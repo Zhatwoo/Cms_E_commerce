@@ -14,7 +14,7 @@ function DashboardLayoutContent({
     children: React.ReactNode;
 }) {
     const { user, loading } = useAuth();
-    const { selectedProject, loading: projectLoading } = useProject();
+    const { selectedProject, projects, loading: projectLoading } = useProject();
     const router = useRouter();
     const pathname = usePathname();
     const { colors } = useTheme();
@@ -27,24 +27,17 @@ function DashboardLayoutContent({
         }
     }, [loading, user, router]);
 
-    // Instance-first flow:
-    // If authenticated user has no selected website instance,
-    // always send them to the instance selection/creation page.
+    // Only send users to instances page when they truly have no projects.
+    // If projects exist but selection is not yet hydrated, avoid forcing a prompt flow.
     useEffect(() => {
-        if (!loading && !projectLoading && user && !selectedProject) {
+        if (!loading && !projectLoading && user && !selectedProject && projects.length === 0) {
             const isInstancesPage = pathname.startsWith('/m_dashboard/instances');
             const isInDashboard = pathname.startsWith('/m_dashboard');
-            const isDashboardHome = pathname === '/m_dashboard' || pathname === '/m_dashboard/';
             if (isInDashboard && !isInstancesPage) {
-                if (isDashboardHome) {
-                    router.replace('/m_dashboard/instances');
-                } else {
-                    const from = encodeURIComponent(pathname);
-                    router.replace(`/m_dashboard/instances?requireInstance=1&from=${from}`);
-                }
+                router.replace('/m_dashboard/instances');
             }
         }
-    }, [loading, projectLoading, user, selectedProject, pathname, router]);
+    }, [loading, projectLoading, user, selectedProject, projects.length, pathname, router]);
 
     useEffect(() => {
         if (pathname === '/m_dashboard') {
