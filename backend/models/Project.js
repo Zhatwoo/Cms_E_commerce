@@ -72,9 +72,10 @@ async function moveToTrash(userId, projectId) {
 
   const data = snap.data();
 
-  // BLOCK DELETION IF PUBLISHED
-  if (data.status === 'published') {
-    throw new Error('This project is published and cannot be deleted. Please unpublish it first from Domain settings.');
+  // BLOCK DELETION IF LIVE/PUBLISHED
+  const normalizedStatus = String(data.status || '').trim().toLowerCase();
+  if (normalizedStatus === 'published' || normalizedStatus === 'live') {
+    throw new Error('This project is live/published and cannot be deleted. Please unpublish it first from Domain settings.');
   }
 
   const path = `user/roles/client/${userId}/trash/${projectId}`;
