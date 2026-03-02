@@ -1,8 +1,8 @@
 import React from "react";
 import { useEditor, Element } from "@craftjs/core";
+import { useCanvasTool } from "../CanvasToolContext";
 import { Container } from "../../_designComponents/Container/Container";
 import { Text } from "../../_designComponents/Text/Text";
-import { Page } from "../../_designComponents/Page/Page";
 import { Image } from "../../_designComponents/Image/Image";
 import { Button } from "../../_designComponents/Button/Button";
 import { Divider } from "../../_designComponents/Divider/Divider";
@@ -10,13 +10,15 @@ import { Section } from "../../_designComponents/Section/Section";
 import { Row } from "../../_designComponents/Row/Row";
 import { Column } from "../../_designComponents/Column/Column";
 import { Frame } from "../../_designComponents/Frame/Frame";
+import { CRAFT_RESOLVER } from "../craftResolver";
 
 // Dito naman ilalagay yung mga raw components na may default na properties
 interface ComponentEntry {
   label: string;
   preview: string;
   previewBg?: string;
-  element: React.ReactElement;
+  element?: React.ReactElement;
+  dragElement?: React.ReactElement;
   category: "page" | "layout" | "basic";
 }
 
@@ -26,7 +28,6 @@ const COMPONENTS: ComponentEntry[] = [
     label: "New Page",
     preview: "Page Preview",
     previewBg: "bg-brand-light",
-    element: <Element is={Page} canvas />,
     category: "page",
   },
   // ─── Layout ────────────────────────────────────────
@@ -68,9 +69,16 @@ const COMPONENTS: ComponentEntry[] = [
   // ─── Basic ─────────────────────────────────────────
   {
     label: "Text",
-    preview: "Text Preview",
+    preview: "Aa",
     previewBg: "bg-brand-dark",
     element: <Text text="New Text" fontSize={16} />,
+    category: "basic",
+  },
+  {
+    label: "Heading",
+    preview: "Aa",
+    previewBg: "bg-brand-dark",
+    element: <Text text="Heading" fontSize={24} fontWeight="600" />,
     category: "basic",
   },
   {
@@ -106,12 +114,22 @@ const CATEGORY_ORDER: ComponentEntry["category"][] = ["page", "layout", "basic"]
 
 export const ComponentsPanel = () => {
   const { connectors } = useEditor();
+  const activeTool = useCanvasTool();
+  const pageComponent = CRAFT_RESOLVER.Page ?? Container;
+
+  const components: ComponentEntry[] = COMPONENTS.map((comp) => {
+    if (comp.label !== "New Page") return comp;
+    return {
+      ...comp,
+      dragElement: <Element is={pageComponent} canvas />,
+    };
+  });
 
   return (
     <div className="relative">
       <div className="flex flex-col gap-4">
         {CATEGORY_ORDER.map((cat) => {
-          const items = COMPONENTS.filter((c) => c.category === cat);
+          const items = components.filter((c) => c.category === cat);
           if (items.length === 0) return null;
 
           return (
@@ -119,27 +137,43 @@ export const ComponentsPanel = () => {
               <span className="text-[10px] font-semibold text-brand-medium uppercase tracking-wider px-1">
                 {CATEGORY_LABELS[cat]}
               </span>
-              {items.map((comp) => (
-                <div
-                  key={comp.label}
-                  ref={(ref) => {
-                    if (ref) connectors.create(ref, comp.element);
-                  }}
-                  className="bg-brand-white/5 p-4 rounded-xl hover:bg-brand-white/10 transition cursor-move border border-brand-medium/30 group"
-                >
+              {items.map((comp) => {
+                const isNewPage = comp.label === "New Page";
+                return (
                   <div
-                    className={`h-20 ${comp.previewBg ?? "bg-brand-medium/20"} rounded-lg mb-2 border border-dashed border-brand-medium/50 flex items-center justify-center text-xs shadow-sm ${comp.previewBg === "bg-white"
-                      ? "text-brand-black"
-                      : "text-brand-lighter"
+                    key={comp.label}
+                    data-drag-source="component"
+                    data-component-new-page={isNewPage ? "true" : undefined}
+                    draggable={isNewPage ? true : undefined}
+                    ref={(ref) => {
+                      if (!ref) return;
+                      if (isNewPage) return;
+                      if (activeTool === "hand") return; // Hand tool: block drops from panel
+                      const sourceElement = comp.dragElement ?? comp.element;
+                      if (!sourceElement) return;
+                      connectors.create(ref, sourceElement);
+                    }}
+                    className={`bg-brand-white/5 p-4 rounded-xl hover:bg-brand-white/10 transition border border-brand-medium/30 group ${isNewPage
+                        ? "cursor-grab active:cursor-grabbing"
+                        : (comp.dragElement ?? comp.element)
+                          ? "cursor-move"
+                          : "cursor-pointer"
                       }`}
                   >
-                    {comp.preview}
+                    <div
+                      className={`h-20 ${comp.previewBg ?? "bg-brand-medium/20"} rounded-lg mb-2 border border-dashed border-brand-medium/50 flex items-center justify-center text-xs shadow-sm ${comp.previewBg === "bg-white"
+                          ? "text-brand-black"
+                          : "text-brand-lighter"
+                        }`}
+                    >
+                      {comp.preview}
+                    </div>
+                    <span className="text-sm text-brand-white font-medium">
+                      {comp.label}
+                    </span>
                   </div>
-                  <span className="text-sm text-brand-white font-medium">
-                    {comp.label}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           );
         })}

@@ -217,6 +217,9 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
         </div>
       </section>
 
+      {/* Recent Projects — show first */}
+      <RecentProjects />
+
       {/* Explore Templates */}
       <section className="space-y-3">
         <h2 className="text-xl font-semibold" style={{ color: colors.text.primary }}>
@@ -280,8 +283,6 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
       </section>
 
       {/* Projects & Commerce Rows */}
-      <RecentProjects />
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 w-full overflow-x-hidden">
         <TopSellingProducts />
         

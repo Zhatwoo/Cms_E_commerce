@@ -5,7 +5,6 @@ import { TransformGroup } from "../../_components/rightPanel/settings/TransformG
 import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
-import { InteractionGroup } from "../../_components/rightPanel/settings/InteractionGroup";
 import type { TextProps, SetProp } from "../../_types/components";
 
 export const TextSettings = () => {
@@ -16,6 +15,7 @@ export const TextSettings = () => {
     padding, paddingTop, paddingBottom, paddingLeft, paddingRight,
     opacity, boxShadow,
     rotation, flipHorizontal, flipVertical,
+    previewEditable,
     toggleTarget, triggerAction, collapsibleKey, defaultOpen, defaultOpenMobile, defaultOpenDesktop, showOn, mobileBreakpoint,
     actions: { setProp }
   } = useNode(node => ({
@@ -44,6 +44,7 @@ export const TextSettings = () => {
     rotation: node.data.props.rotation,
     flipHorizontal: node.data.props.flipHorizontal,
     flipVertical: node.data.props.flipVertical,
+    previewEditable: node.data.props.previewEditable,
     toggleTarget: node.data.props.toggleTarget,
     triggerAction: node.data.props.triggerAction,
     collapsibleKey: node.data.props.collapsibleKey,
@@ -55,6 +56,7 @@ export const TextSettings = () => {
   }));
 
   const typedSetProp = setProp as SetProp<TextProps>;
+  const safeText = typeof text === "string" ? text : "";
 
   return (
     <div className="flex flex-col pb-4">
@@ -65,6 +67,27 @@ export const TextSettings = () => {
           flipVertical={flipVertical}
           setProp={typedSetProp}
         />
+      </DesignSection>
+
+      <DesignSection title="Content">
+        <textarea
+          value={safeText}
+          onChange={(e) => typedSetProp((props) => { props.text = e.target.value; })}
+          placeholder="Type your text here..."
+          className="w-full bg-brand-medium-dark p-2 rounded-lg text-brand-lighter focus:border-brand-light focus:outline-none resize-y min-h-[40px]"
+        />
+        <div className="mt-3 flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={Boolean(previewEditable)}
+            onChange={(e) => typedSetProp((props) => { props.previewEditable = e.target.checked; })}
+            className="accent-brand-light cursor-pointer"
+          />
+          <span className="text-[12px] text-brand-lighter">Allow input in Preview</span>
+        </div>
+        <p className="text-[10px] text-brand-light mt-1">
+          Lets users type into this text block on the Preview page only.
+        </p>
       </DesignSection>
 
       <DesignSection title="Size & Spacing">
@@ -98,14 +121,6 @@ export const TextSettings = () => {
         />
       </DesignSection>
 
-      <DesignSection title="Content">
-        <textarea
-          value={text}
-          onChange={(e) => typedSetProp((props) => { props.text = e.target.value; })}
-          className="w-full bg-brand-medium-dark p-2 rounded-lg text-brand-lighter focus:border-brand-light focus:outline-none resize-y min-h-[40px]"
-        />
-      </DesignSection>
-
       <DesignSection title="Effects" defaultOpen={false}>
         <EffectsGroup
           opacity={opacity}
@@ -114,19 +129,6 @@ export const TextSettings = () => {
         />
       </DesignSection>
 
-      <DesignSection title="Interactions" defaultOpen={false}>
-        <InteractionGroup
-          toggleTarget={toggleTarget}
-          triggerAction={triggerAction}
-          collapsibleKey={collapsibleKey}
-          defaultOpen={defaultOpen}
-          defaultOpenMobile={defaultOpenMobile}
-          defaultOpenDesktop={defaultOpenDesktop}
-          showOn={showOn}
-          mobileBreakpoint={mobileBreakpoint}
-          setProp={typedSetProp}
-        />
-      </DesignSection>
     </div>
   );
 };

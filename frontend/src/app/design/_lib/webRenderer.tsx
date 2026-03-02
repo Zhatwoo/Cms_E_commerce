@@ -384,27 +384,66 @@ const frameResponsiveStyles = (
       .frame-responsive-inner.frame-fluid [data-node-id] {
         max-width: 100% !important;
         min-width: 0;
+        transition:
+          width 180ms ease,
+          max-width 180ms ease,
+          min-width 180ms ease,
+          margin 180ms ease,
+          transform 180ms ease,
+          left 180ms ease,
+          right 180ms ease,
+          top 180ms ease,
+          bottom 180ms ease,
+          opacity 180ms ease;
       }
-      @container (max-width: 640px) {
-        .frame-responsive-inner.frame-fluid [data-layout="row"] {
-          flex-direction: column !important;
-          align-items: stretch !important;
-        }
-        .frame-responsive-inner.frame-fluid [data-layout="row"] > * {
-          width: 100% !important;
-          max-width: 100% !important;
-          min-width: 0 !important;
-        }
+
+      @keyframes responsive-reflow-in {
+        from { opacity: 0.96; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
       }
-      @container (max-width: 400px) {
-        .frame-responsive-inner.frame-fluid [data-layout="row"] { gap: 12px !important; }
+      @container (max-width: 640px) {\r
+        /* Only stack top-level layout rows, not inner UI rows nested inside columns */\r
+        .frame-responsive-inner.frame-fluid > [data-layout="row"],\r
+        .frame-responsive-inner.frame-fluid > * > [data-layout="row"] {\r
+          flex-direction: column !important;\r
+          align-items: stretch !important;\r
+        }\r
+        .frame-responsive-inner.frame-fluid > [data-layout="row"] > *,\r
+        .frame-responsive-inner.frame-fluid > * > [data-layout="row"] > * {\r
+          width: 100% !important;\r
+          max-width: 100% !important;\r
+          min-width: 0 !important;\r
+        }\r
+\r
+        /* Auto-reflow positioned elements (e.g. side labels/text) so they stack on mobile */\r
+        .frame-responsive-inner.frame-fluid [data-node-id][style*="position: absolute"],\r
+        .frame-responsive-inner.frame-fluid [data-node-id][style*="position:absolute"],\r
+        .frame-responsive-inner.frame-fluid [data-node-id][style*="position: fixed"],\r
+        .frame-responsive-inner.frame-fluid [data-node-id][style*="position:fixed"] {\r
+          position: relative !important;\r
+          left: auto !important;\r
+          right: auto !important;\r
+          top: auto !important;\r
+          bottom: auto !important;\r
+          width: 100% !important;\r
+          max-width: 100% !important;\r
+          min-width: 0 !important;\r
+          margin-left: 0 !important;\r
+          margin-right: 0 !important;\r
+          transform: none !important;\r
+          animation: responsive-reflow-in 180ms ease;\r
+        }\r
+      }\r
+      @container (max-width: 400px) {\r
+        .frame-responsive-inner.frame-fluid > [data-layout="row"],\r
+        .frame-responsive-inner.frame-fluid > * > [data-layout="row"] { gap: 12px !important; }\r
       }
     `,
   }} />
 );
 
 /** Responsive Navigation Component - converts nav bars to hamburger menu on mobile */
-function ResponsiveNav({ children, containerStyle, onClick }: { 
+function ResponsiveNav({ children, containerStyle, onClick }: {
   children: React.ReactNode;
   containerStyle: React.CSSProperties;
   onClick?: () => void;
@@ -426,9 +465,9 @@ function ResponsiveNav({ children, containerStyle, onClick }: {
   }, [isOpen]);
 
   return (
-    <div 
-      ref={navRef} 
-      data-nav-container 
+    <div
+      ref={navRef}
+      data-nav-container
       style={{ ...containerStyle, position: "relative" }}
       onClick={onClick}
     >
@@ -443,7 +482,7 @@ function ResponsiveNav({ children, containerStyle, onClick }: {
         }}
         aria-label="Toggle menu"
         aria-expanded={isOpen}
-        style={{ 
+        style={{
           color: "inherit",
           display: "none",
           flexDirection: "column",
@@ -989,7 +1028,7 @@ function isNavContainer(
   const flexDirection = props.flexDirection as string;
   const isHorizontal = flexDirection === "row" || flexDirection === undefined;
   const childIds = node.children ?? [];
-  
+
   // Check if it has multiple buttons, links, or text elements (typical nav items)
   let navItemCount = 0;
   for (const childId of childIds) {
@@ -997,7 +1036,7 @@ function isNavContainer(
     if (!child) continue;
     const childType = child.type as string;
     const childProps = child.props ?? {};
-    
+
     // Count buttons, links, or text elements that could be nav items
     if (
       childType === "Button" ||
@@ -1008,7 +1047,7 @@ function isNavContainer(
       navItemCount++;
     }
   }
-  
+
   // Consider it a nav if horizontal layout with 2+ nav-like items
   return isHorizontal && navItemCount >= 2;
 }
@@ -1068,6 +1107,7 @@ function wrapWithPrototype(
 function RenderNode({
   node,
   nodes,
+  pages,
   pageIndex,
   viewportWidth,
   interactionState,
@@ -1077,9 +1117,11 @@ function RenderNode({
   nodeId,
   onPrototypeAction,
   mobileBreakpoint,
+  enableFormInputs,
 }: {
   node: CleanNode;
   nodes: Record<string, CleanNode>;
+  pages: PreviewPageMeta[];
   pageIndex: number;
   viewportWidth: number;
   interactionState: Record<string, boolean>;
@@ -1089,15 +1131,16 @@ function RenderNode({
   nodeId?: string;
   onPrototypeAction?: (interaction: Interaction) => void;
   mobileBreakpoint?: number;
+  enableFormInputs?: boolean;
 }): React.ReactElement {
   // Craft.js resolver uses lowercase keys (text, circle, etc.); normalize for switch/mergeProps
   const rawType = node.type as string;
   const type = (
     rawType === "text" ? "Text"
       : rawType === "circle" ? "Circle"
-      : rawType === "square" ? "Square"
-      : rawType === "triangle" ? "Triangle"
-      : rawType
+        : rawType === "square" ? "Square"
+          : rawType === "triangle" ? "Triangle"
+            : rawType
   ) as ComponentType;
   const props = mergeProps(type, node.props) as Record<string, unknown>;
   if (!shouldRenderNodeAtWidth(props, viewportWidth, mobileBreakpoint)) {
@@ -1106,9 +1149,10 @@ function RenderNode({
   if (!isCollapsibleOpen(props, viewportWidth, interactionState, availableTriggerTargets)) {
     return <></>;
   }
+  const allowPreviewInput = Boolean(enableFormInputs && props.previewEditable === true);
   const toggleTarget = getToggleTarget(props);
   const triggerAction = getTriggerAction(props);
-  const interactiveClick = toggleTarget ? () => onToggle(toggleTarget, triggerAction) : undefined;
+  const interactiveClick = !allowPreviewInput && toggleTarget ? () => onToggle(toggleTarget, triggerAction) : undefined;
   const animation = props.animation as AnimationConfig | undefined;
   const prototype = props.prototype as PrototypeConfig | undefined;
   const childIds = node.children ?? [];
@@ -1120,6 +1164,7 @@ function RenderNode({
         key={id}
         node={n}
         nodes={nodes}
+        pages={pages}
         pageIndex={pageIndex}
         viewportWidth={viewportWidth}
         interactionState={interactionState}
@@ -1129,6 +1174,7 @@ function RenderNode({
         nodeId={id}
         onPrototypeAction={onPrototypeAction}
         mobileBreakpoint={mobileBreakpoint}
+        enableFormInputs={enableFormInputs}
       />
     );
   });
@@ -1260,11 +1306,13 @@ function RenderNode({
       const mb = (props.marginBottom ?? m) as number;
       const br = (props.borderRadius ?? 0) as number;
       const bw = (props.borderWidth ?? 0) as number;
+      const strokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
+      const borderDecl = bw > 0 ? `${bw}px ${props.borderStyle} ${props.borderColor}` : undefined;
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
       const displayVal = (props.display as React.CSSProperties["display"]) ?? "flex";
       const isNav = isNavContainer(node, nodes, props);
-      
+
       const containerStyle: React.CSSProperties = {
         backgroundColor: props.background as string,
         backgroundImage: bgImage
@@ -1281,7 +1329,11 @@ function RenderNode({
         height: (props.height as string) ?? "auto",
         minHeight: !hasRenderableChildren ? "50px" : undefined,
         borderRadius: `${br}px`,
-        border: `${bw}px ${props.borderStyle} ${props.borderColor}`,
+        ...(strokePlacement === "outside" && borderDecl
+          ? { border: "none", outline: borderDecl, outlineOffset: 0 }
+          : borderDecl
+            ? { border: borderDecl }
+            : {}),
         position: props.position as React.CSSProperties["position"],
         display: displayVal,
         flexDirection: displayVal === "flex" ? (props.flexDirection as React.CSSProperties["flexDirection"]) : undefined,
@@ -1298,7 +1350,7 @@ function RenderNode({
         overflow: props.overflow as string,
         cursor: interactiveClick ? "pointer" : (props.cursor as string),
       };
-      
+
       const containerContent = isNav ? (
         <ResponsiveNav containerStyle={containerStyle} onClick={interactiveClick}>
           {children}
@@ -1308,7 +1360,7 @@ function RenderNode({
           {children}
         </div>
       );
-      
+
       return wrap(containerContent);
     }
 
@@ -1323,6 +1375,9 @@ function RenderNode({
       const mr = (props.marginRight ?? m) as number;
       const mt = (props.marginTop ?? m) as number;
       const mb = (props.marginBottom ?? m) as number;
+      const sectionBw = (props.borderWidth ?? 0) as number;
+      const sectionBorderDecl = sectionBw > 0 ? `${sectionBw}px ${props.borderStyle} ${props.borderColor}` : undefined;
+      const sectionStrokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
       const isHeaderAsset = nodeId != null && /header/i.test(nodeId);
@@ -1344,7 +1399,11 @@ function RenderNode({
             width: props.width as string,
             height: props.height as string,
             borderRadius: px(props.borderRadius),
-            border: `${props.borderWidth}px ${props.borderStyle} ${props.borderColor}`,
+            ...(sectionStrokePlacement === "outside" && sectionBorderDecl
+              ? { border: "none", outline: sectionBorderDecl, outlineOffset: 0 }
+              : sectionBorderDecl
+                ? { border: sectionBorderDecl }
+                : {}),
             display: "flex",
             flexDirection: props.flexDirection as React.CSSProperties["flexDirection"],
             flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
@@ -1410,6 +1469,9 @@ function RenderNode({
       const mb = (props.marginBottom ?? m) as number;
       const flexDir = (props.flexDirection as React.CSSProperties["flexDirection"]) ?? "row";
       const isHeaderRow = nodeId != null && /header/i.test(nodeId);
+      const rowBw = (props.borderWidth ?? 0) as number;
+      const rowBorderDecl = rowBw > 0 ? `${rowBw}px ${props.borderStyle} ${props.borderColor}` : undefined;
+      const rowStrokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
       return wrap(
         <div
           data-layout="row"
@@ -1421,7 +1483,11 @@ function RenderNode({
             width: props.width as string,
             height: props.height as string,
             borderRadius: px(props.borderRadius),
-            border: `${props.borderWidth}px ${props.borderStyle} ${props.borderColor}`,
+            ...(rowStrokePlacement === "outside" && rowBorderDecl
+              ? { border: "none", outline: rowBorderDecl, outlineOffset: 0 }
+              : rowBorderDecl
+                ? { border: rowBorderDecl }
+                : {}),
             display: "flex",
             flexDirection: flexDir,
             flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
@@ -1452,6 +1518,9 @@ function RenderNode({
       const mt = (props.marginTop ?? m) as number;
       const mb = (props.marginBottom ?? m) as number;
       const w = props.width as string;
+      const colBw = (props.borderWidth ?? 0) as number;
+      const colBorderDecl = colBw > 0 ? `${colBw}px ${props.borderStyle} ${props.borderColor}` : undefined;
+      const colStrokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
       return wrap(
         <div
           style={{
@@ -1462,7 +1531,11 @@ function RenderNode({
             margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
             height: props.height as string,
             borderRadius: px(props.borderRadius),
-            border: `${props.borderWidth}px ${props.borderStyle} ${props.borderColor}`,
+            ...(colStrokePlacement === "outside" && colBorderDecl
+              ? { border: "none", outline: colBorderDecl, outlineOffset: 0 }
+              : colBorderDecl
+                ? { border: colBorderDecl }
+                : {}),
             display: "flex",
             flexDirection: props.flexDirection as React.CSSProperties["flexDirection"],
             flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
@@ -1497,27 +1570,54 @@ function RenderNode({
       const flipH = props.flipHorizontal === true;
       const flipV = props.flipVertical === true;
       const textTransformStyle = [rot ? `rotate(${rot}deg)` : null, flipH ? "scaleX(-1)" : null, flipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
+      const textStyle: React.CSSProperties = {
+        fontSize: px(props.fontSize),
+        fontFamily: (props.fontFamily as string) || "Inter",
+        fontWeight: props.fontWeight as string,
+        lineHeight: props.lineHeight as number,
+        letterSpacing: px(props.letterSpacing),
+        textAlign: props.textAlign as React.CSSProperties["textAlign"],
+        textTransform: props.textTransform as React.CSSProperties["textTransform"],
+        color: (props.color as string) || "#000000",
+        margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
+        padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
+        opacity: props.opacity as number,
+        boxShadow: props.boxShadow as string,
+        cursor: allowPreviewInput ? "text" : (interactiveClick ? "pointer" : undefined),
+        transform: textTransformStyle,
+        transformOrigin: "center center",
+        whiteSpace: "pre-wrap",
+        overflowWrap: "break-word",
+        wordBreak: "normal",
+      };
+
+      if (allowPreviewInput) {
+        const previewInputStyle = {
+          ...textStyle,
+          color: "#111827",
+          background: "transparent",
+          border: "none",
+          outline: "none",
+          width: "100%",
+          minWidth: 0,
+          "--placeholder-color": (props.color as string) || "#94a3b8",
+        } as React.CSSProperties;
+
+        return wrapWithAnimation(
+          <input
+            type="text"
+            defaultValue=""
+            placeholder={textContent}
+            aria-label={textContent}
+            className="preview-input"
+            style={previewInputStyle}
+          />,
+          animation
+        );
+      }
+
       return wrap(
-        <div
-          style={{
-            fontSize: px(props.fontSize),
-            fontFamily: (props.fontFamily as string) || "Outfit",
-            fontWeight: props.fontWeight as string,
-            lineHeight: props.lineHeight as number,
-            letterSpacing: px(props.letterSpacing),
-            textAlign: props.textAlign as React.CSSProperties["textAlign"],
-            textTransform: props.textTransform as React.CSSProperties["textTransform"],
-            color: (props.color as string) || "#000000",
-            margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
-            padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
-            opacity: props.opacity as number,
-            boxShadow: props.boxShadow as string,
-            cursor: interactiveClick ? "pointer" : undefined,
-            transform: textTransformStyle,
-            transformOrigin: "center center",
-          }}
-          onClick={interactiveClick}
-        >
+        <div style={textStyle} onClick={interactiveClick}>
           {textContent}
         </div>
       );
@@ -1555,6 +1655,16 @@ function RenderNode({
       const color = (props.textColor as string) ?? style.text;
       const borderColor = (props.borderColor as string) ?? style.border;
       const borderWidth = (props.borderWidth as number) ?? style.borderWidth;
+      const borderStyle = ((props.borderStyle as string) || "solid");
+      const resolvedBorderStyle = borderWidth > 0 ? borderStyle : "none";
+      const width = (props.width as string) || "auto";
+      const height = (props.height as string) || "auto";
+      const isPercentWidth = typeof width === "string" && width.includes("%");
+      const p = typeof props.padding === "number" ? props.padding : 0;
+      const pt = toNumber(props.paddingTop ?? p, 10);
+      const pr = toNumber(props.paddingRight ?? p, 24);
+      const pb = toNumber(props.paddingBottom ?? p, 10);
+      const pl = toNumber(props.paddingLeft ?? p, 24);
       const m = typeof props.margin === "number" ? props.margin : 0;
       const mt = (props.marginTop ?? m) as number;
       const mr = (props.marginRight ?? m) as number;
@@ -1565,6 +1675,7 @@ function RenderNode({
       const link =
         explicitLink ||
         (storeContext ? getDefaultLinkForLabel(labelStr) : "");
+      const internalTargetSlug = link ? resolveInternalPageSlug(link, pages) : null;
       const btnRot = toNumber(props.rotation, 0);
       const btnFlipH = props.flipHorizontal === true;
       const btnFlipV = props.flipVertical === true;
@@ -1578,12 +1689,17 @@ function RenderNode({
             fontWeight: props.fontWeight as string,
             fontFamily: (props.fontFamily as string) || "Outfit",
             borderRadius: px(props.borderRadius),
-            border: `${borderWidth}px solid ${borderColor}`,
-            padding: `${props.paddingTop}px ${props.paddingRight}px ${props.paddingBottom}px ${props.paddingLeft}px`,
+            border: `${borderWidth}px ${resolvedBorderStyle} ${borderColor}`,
+            padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
             margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
+            width: isPercentWidth ? "100%" : width,
+            height: height,
+            boxSizing: "border-box",
             opacity: props.opacity as number,
             boxShadow: props.boxShadow as string,
-            display: "inline-block",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
             cursor: interactiveClick ? "pointer" : undefined,
             transform: btnTransform,
             transformOrigin: "center center",
@@ -1596,9 +1712,40 @@ function RenderNode({
       if (interactiveClick) {
         return wrapWithAnimation(content, animation);
       }
+      if (internalTargetSlug && onPrototypeAction) {
+        return wrap(
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onPrototypeAction({
+                trigger: "click",
+                action: "navigateTo",
+                destination: internalTargetSlug,
+              });
+            }}
+            style={{
+              all: "unset",
+              display: isPercentWidth ? "block" : "inline-block",
+              width: isPercentWidth ? width : undefined,
+              cursor: "pointer",
+            }}
+          >
+            {content}
+          </button>
+        );
+      }
       if (link) {
         return wrap(
-          <a href={link} style={{ textDecoration: "none" }}>
+          <a
+            href={link}
+            style={{
+              textDecoration: "none",
+              display: isPercentWidth ? "block" : "inline-block",
+              width: isPercentWidth ? width : undefined,
+            }}
+          >
             {content}
           </a>
         );
@@ -1620,7 +1767,7 @@ function RenderNode({
       );
 
     case "Icon":
-      return wrapWithAnimation(
+      return wrap(
         <div onClick={interactiveClick}>
           <DesignIcon
             iconType={props.iconType as string}
@@ -1641,8 +1788,7 @@ function RenderNode({
             opacity={toNumber(props.opacity, 1)}
             link={props.link as string}
           />
-        </div>,
-        animation
+        </div>
       );
 
     case "Circle":
@@ -1663,9 +1809,12 @@ function RenderNode({
       const h = (props.height as string) || "200px";
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
-      const triangleStroke = `${toNumber(props.borderWidth, 0)}px ${props.borderStyle as string} ${props.borderColor as string}`;
+      const bw = toNumber(props.borderWidth, 0);
+      const triangleStroke = `${bw}px ${props.borderStyle as string} ${props.borderColor as string}`;
+      const shapeStrokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
+      const useOutline = shapeStrokePlacement === "outside" && bw > 0 && type !== "Triangle";
 
-      return wrapWithAnimation(
+      return wrap(
         <div
           style={{
             width: w,
@@ -1698,9 +1847,13 @@ function RenderNode({
             backgroundPosition: type !== "Triangle" && bgImage ? (props.backgroundPosition as string) : undefined,
             backgroundRepeat: type !== "Triangle" && bgImage ? (props.backgroundRepeat as string) : undefined,
             borderRadius: type === "Circle" ? "50%" : undefined,
-            border: type === "Triangle"
-              ? undefined
-              : triangleStroke,
+            ...(type !== "Triangle" && bw > 0
+              ? useOutline
+                ? { border: "none", outline: triangleStroke, outlineOffset: 0 }
+                : { border: triangleStroke }
+              : type === "Triangle"
+                ? {}
+                : {}),
             alignItems: "center",
             justifyContent: "center",
             margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
@@ -1744,8 +1897,7 @@ function RenderNode({
             </svg>
           ) : null}
           {children}
-        </div>,
-        animation
+        </div>
       );
     }
 
@@ -1756,6 +1908,50 @@ function RenderNode({
 
 function getPageSlug(page: { slug?: string } | null | undefined, index: number): string {
   return page?.slug ?? `page-${index}`;
+}
+
+type PreviewPageMeta = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
+function normalizeNavToken(value: string): string {
+  return value.trim().replace(/^\/+/, "").toLowerCase();
+}
+
+function resolveInternalPageSlug(destination: string | undefined, pages: PreviewPageMeta[]): string | null {
+  if (!destination) return null;
+
+  const raw = destination.trim();
+  if (!raw) return null;
+
+  const normalized = normalizeNavToken(raw);
+
+  const bySlug = pages.find((p) => normalizeNavToken(p.slug) === normalized);
+  if (bySlug) return bySlug.slug;
+
+  const byName = pages.find((p) => normalizeNavToken(p.name) === normalized);
+  if (byName) return byName.slug;
+
+  const byId = pages.find((p) => normalizeNavToken(p.id) === normalized);
+  if (byId) return byId.slug;
+
+  if (raw.startsWith("?")) {
+    try {
+      const q = new URLSearchParams(raw.replace(/^\?/, ""));
+      const pageParam = q.get("page") ?? "";
+      const resolved = resolveInternalPageSlug(pageParam, pages);
+      if (resolved) return resolved;
+    } catch {
+      return null;
+    }
+  }
+
+  if (raw.startsWith("#")) return null;
+  if (raw.startsWith("http://") || raw.startsWith("https://") || raw.startsWith("mailto:")) return null;
+
+  return null;
 }
 
 const PAGE_TRANSITION_STYLES: Record<TransitionType, React.CSSProperties> = {
@@ -1776,6 +1972,7 @@ export function WebPreview({
   storeContext,
   simulatedWidth,
   mobileBreakpoint,
+  enableFormInputs = false,
 }: {
   doc: BuilderDocument;
   pageIndex?: number;
@@ -1784,6 +1981,7 @@ export function WebPreview({
   storeContext?: StoreContext | null;
   simulatedWidth?: number;
   mobileBreakpoint?: number;
+  enableFormInputs?: boolean;
 }): React.ReactElement {
   const safePages = doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page));
   const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
@@ -1794,18 +1992,37 @@ export function WebPreview({
 
   const currentPage = safePages.find((p, i) => getPageSlug(p, i) === currentPageSlug) ?? safePages[0];
   const currentPageIndex = safePages.findIndex((p, i) => getPageSlug(p, i) === currentPageSlug);
+  const pageMeta = React.useMemo<PreviewPageMeta[]>(
+    () => safePages.map((p, i) => ({
+      id: p.id,
+      name: p.name || (p.props?.pageName as string) || `Page ${i + 1}`,
+      slug: getPageSlug(p, i),
+    })),
+    [safePages]
+  );
 
   const onPrototypeAction = useCallback(
     (interaction: Interaction) => {
       const duration = (interaction.duration ?? 300) / 1000;
       if (interaction.action === "navigateTo" && interaction.destination) {
-        setHistory((h) => [...h, currentPageSlug]);
-        const trans = interaction.transition ?? "dissolve";
-        setTransitionStyle({
-          ...PAGE_TRANSITION_STYLES[trans],
-          animationDuration: `${duration}s`,
-        });
-        setCurrentPageSlug(interaction.destination);
+        const internalSlug = resolveInternalPageSlug(interaction.destination, pageMeta);
+        if (internalSlug) {
+          setHistory((h) => [...h, currentPageSlug]);
+          const trans = interaction.transition ?? "dissolve";
+          setTransitionStyle({
+            ...PAGE_TRANSITION_STYLES[trans],
+            animationDuration: `${duration}s`,
+          });
+          setCurrentPageSlug(internalSlug);
+        } else if (interaction.destination.startsWith("#")) {
+          document.getElementById(interaction.destination.slice(1))?.scrollIntoView({ behavior: "smooth" });
+        } else if (
+          interaction.destination.startsWith("http://") ||
+          interaction.destination.startsWith("https://") ||
+          interaction.destination.startsWith("mailto:")
+        ) {
+          window.open(interaction.destination, "_blank", "noopener");
+        }
       } else if (interaction.action === "back") {
         if (history.length > 0) {
           const prev = history[history.length - 1];
@@ -1819,11 +2036,18 @@ export function WebPreview({
         document.getElementById(interaction.destination)?.scrollIntoView({ behavior: "smooth" });
       }
     },
-    [currentPageSlug, history]
+    [currentPageSlug, history, pageMeta]
   );
 
   if (!currentPage) {
-    return <div style={{ padding: 24, color: "#666" }}>No page to display.</div>;
+    const hasPages = safePages.length > 0;
+    return (
+      <div style={{ padding: 24, color: "#666", textAlign: "center", maxWidth: 360 }}>
+        {hasPages
+          ? "No page to display."
+          : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
+      </div>
+    );
   }
 
   const pageProps = mergeProps("Page", currentPage.props) as Record<string, unknown>;
@@ -1873,11 +2097,14 @@ export function WebPreview({
       {currentPage.children.map((id) => {
         const node = doc.nodes[id];
         if (!node) return null;
+        const childType = String(node.type || "").toLowerCase();
+        if (childType === "page") return null;
         return (
           <RenderNode
             key={id}
             node={node}
             nodes={doc.nodes}
+            pages={pageMeta}
             pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
             viewportWidth={viewportWidth}
             interactionState={interactionState}
@@ -1887,6 +2114,7 @@ export function WebPreview({
             nodeId={id}
             onPrototypeAction={onPrototypeAction}
             mobileBreakpoint={mobileBreakpoint}
+            enableFormInputs={enableFormInputs}
           />
         );
       })}
@@ -1903,6 +2131,17 @@ export function WebPreview({
         @keyframes page-slide-down { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes page-push { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         @keyframes page-move-in { from { opacity: 0; } to { opacity: 1; } }
+        .preview-input {
+          background: transparent;
+          border: none;
+          outline: none;
+          width: 100%;
+          min-width: 0;
+        }
+        .preview-input::placeholder {
+          color: var(--placeholder-color, #94a3b8);
+          opacity: 1;
+        }
         /* Responsive preview styles */
         @media (max-width: 900px) {
           .responsive-preview {
@@ -1964,12 +2203,15 @@ export function LiveSite({
   pageIndex = 0,
   storeContext,
   initialPageSlug,
+  mobileBreakpoint = 480,
 }: {
   doc: BuilderDocument;
   pageIndex?: number;
   storeContext?: StoreContext | null;
   /** Optional initial page slug from URL (e.g. ?page=page-1) for deep linking */
   initialPageSlug?: string;
+  /** Width threshold (px) before switching to mobile frame behavior. */
+  mobileBreakpoint?: number;
 }): React.ReactElement {
   const safePages = doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page));
   const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
@@ -1982,15 +2224,30 @@ export function LiveSite({
 
   const currentPage = safePages.find((p, i) => getPageSlug(p, i) === currentPageSlug) ?? safePages[0];
   const currentPageIndex = safePages.findIndex((p, i) => getPageSlug(p, i) === currentPageSlug);
+  const pageMeta = React.useMemo<PreviewPageMeta[]>(
+    () => safePages.map((p, i) => ({
+      id: p.id,
+      name: p.name || (p.props?.pageName as string) || `Page ${i + 1}`,
+      slug: getPageSlug(p, i),
+    })),
+    [safePages]
+  );
 
   if (!currentPage) {
-    return <div style={{ padding: 24, color: "#666" }}>No page to display.</div>;
+    const hasPages = safePages.length > 0;
+    return (
+      <div style={{ padding: 24, color: "#666", textAlign: "center", maxWidth: 360 }}>
+        {hasPages
+          ? "No page to display."
+          : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
+      </div>
+    );
   }
 
   const pageProps = mergeProps("Page", currentPage.props) as Record<string, unknown>;
   const background = (pageProps.background as string) || "#ffffff";
   const { ref, width: viewportWidth } = useContainerWidth();
-  const isPhoneSize = viewportWidth <= 768;
+  const isPhoneSize = viewportWidth <= mobileBreakpoint;
   const liveSiteWrapperRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     if (isPhoneSize && liveSiteWrapperRef.current) {
@@ -2030,8 +2287,8 @@ export function LiveSite({
       document.getElementById(interaction.destination)?.scrollIntoView({ behavior: "smooth" });
     } else if (interaction.action === "navigateTo" && interaction.destination) {
       const dest = interaction.destination;
-      const isPageSlug = safePages.some((p, i) => getPageSlug(p, i) === dest);
-      if (isPageSlug) {
+      const internalSlug = resolveInternalPageSlug(dest, pageMeta);
+      if (internalSlug) {
         setHistory((h) => [...h, currentPageSlug]);
         const duration = (interaction.duration ?? 300) / 1000;
         const trans = (interaction.transition as keyof typeof PAGE_TRANSITION_STYLES) ?? "dissolve";
@@ -2039,9 +2296,9 @@ export function LiveSite({
           ...PAGE_TRANSITION_STYLES[trans],
           animationDuration: `${duration}s`,
         });
-        setCurrentPageSlug(dest);
+        setCurrentPageSlug(internalSlug);
       } else {
-        const el = document.getElementById(dest);
+        const el = document.getElementById(dest.startsWith("#") ? dest.slice(1) : dest);
         if (el) {
           el.scrollIntoView({ behavior: "smooth" });
         } else if (dest.startsWith("http://") || dest.startsWith("https://") || dest.startsWith("mailto:") || dest.startsWith("/")) {
@@ -2058,18 +2315,21 @@ export function LiveSite({
         window.history.back();
       }
     }
-  }, [currentPageSlug, doc.pages, history]);
+  }, [currentPageSlug, history, pageMeta]);
 
   const pageChildren = (
     <>
       {currentPage.children.map((id) => {
         const node = doc.nodes[id];
         if (!node) return null;
+        const childType = String(node.type || "").toLowerCase();
+        if (childType === "page") return null;
         return (
           <RenderNode
             key={id}
             node={node}
             nodes={doc.nodes}
+            pages={pageMeta}
             pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
             viewportWidth={viewportWidth}
             interactionState={interactionState}

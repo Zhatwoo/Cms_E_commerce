@@ -26,10 +26,11 @@ export default function LoginPage() {
       if (data.success) {
         // Sync current user to localStorage so Storage path and project folder use correct client name
         setStoredUser(data.user ?? null);
-        if (data.user?.role === 'super_admin') {
-          router.push('/auth/confirm');
+        const role = (data.user?.role || '').toLowerCase();
+        if (role === 'admin' || role === 'super_admin') {
+          router.push('/admindashboard');
         } else {
-          router.push('/m_dashboard');
+          router.push('/m_dashboard/web-builder');
         }
         router.refresh();
       } else {

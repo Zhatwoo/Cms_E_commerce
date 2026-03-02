@@ -45,6 +45,7 @@ export const Button = ({
   rotation = 0,
   flipHorizontal = false,
   flipVertical = false,
+  customClassName = "",
   children,
 }: ButtonProps) => {
   const { id, connectors: { connect, drag } } = useNode();
@@ -79,6 +80,8 @@ export const Button = ({
         borderStyle: bw > 0 ? "solid" : "none",
         width,
         height,
+        maxWidth: "100%",
+        minWidth: 0,
         paddingTop: `${paddingTop}px`,
         paddingBottom: `${paddingBottom}px`,
         paddingLeft: `${paddingLeft}px`,
@@ -94,9 +97,12 @@ export const Button = ({
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
+        textAlign: "center",
+        whiteSpace: "normal",
+        wordBreak: "break-word",
         transition: "background-color 0.15s, opacity 0.15s",
       }}
-      className="hover:outline hover:outline-blue-500"
+      className={`hover:outline hover:outline-blue-500 ${customClassName}`}
     >
       {children ?? label}
     </button>

@@ -1,11 +1,13 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useTheme } from '../context/theme-context';
 import { useAlert } from '../context/alert-context';
-import { listProjects, createProject, getStoredUser, type Project } from '@/lib/api';
+import { useProject } from '../context/project-context';
+import { createProject, getStoredUser } from '@/lib/api';
 import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
+import { DraftPreviewThumbnail } from '../projects/DraftPreviewThumbnail';
 
 const ChevronLeftIcon = () => (
   <svg className="w-4 h-4 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -29,32 +31,12 @@ export function RecentProjects() {
   const { theme, colors } = useTheme();
   const router = useRouter();
   const { showAlert } = useAlert();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { selectedProject, setSelectedProjectId, projects: contextProjects, loading } = useProject();
   const [isMobile, setIsMobile] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createTitle, setCreateTitle] = useState('');
   const [createSubdomain, setCreateSubdomain] = useState('');
   const [creating, setCreating] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    listProjects()
-      .then((res) => {
-        if (!cancelled && res.success && res.projects) {
-          // Get top 3 recent projects sorted by update time
-          const sorted = [...res.projects].sort((a, b) => {
-            const dateA = new Date(a.updatedAt || a.createdAt || 0).getTime();
-            const dateB = new Date(b.updatedAt || b.createdAt || 0).getTime();
-            return dateB - dateA;
-          });
-          setProjects(sorted.slice(0, 3));
-        }
-      })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, []);
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 639px)');
@@ -114,6 +96,10 @@ export function RecentProjects() {
       setCreateModalOpen(false);
       setCreateTitle('');
       setCreateSubdomain('');
+      // Only treat as a new website/instance if none is currently selected.
+      if (!selectedProject) {
+        setSelectedProjectId(res.project.id);
+      }
       router.push(`/design?projectId=${res.project.id}`);
     } catch (error) {
       const msg = error instanceof Error ? error.message : '';
@@ -127,6 +113,13 @@ export function RecentProjects() {
     }
   };
 
+  const visibleProjects = [...contextProjects]
+    .sort((a, b) => {
+      const dateA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const dateB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return dateB - dateA;
+    })
+    .slice(0, 3);
   return (
     <div className="mb-8 md:mb-12 w-full min-w-0 max-w-full overflow-x-hidden">
       <div className="flex items-center justify-between mb-5 md:mb-6">
@@ -159,7 +152,7 @@ export function RecentProjects() {
             </div>
           ))}
         </div>
-      ) : projects.length === 0 ? (
+      ) : visibleProjects.length === 0 ? (
         <div className="text-center py-16">
           <div className="flex justify-center mb-4" style={{ color: colors.text.muted, opacity: 0.3 }}>
             <ImageIcon />
@@ -210,7 +203,7 @@ export function RecentProjects() {
             </div>
           </motion.button>
 
-          {projects.map((project, idx) => (
+          {visibleProjects.map((project, idx) => (
             <motion.div
               key={project.id}
               className="cursor-pointer group/card flex-shrink-0 w-[calc(50%-8px)] sm:w-[calc(33.333%-11px)] md:w-[240px] lg:w-[240px]"
@@ -226,11 +219,11 @@ export function RecentProjects() {
             >
               {/* Preview Thumbnail */}
               <div
-                className="relative rounded-lg overflow-hidden mb-3 transition-all group-hover/card:shadow-2xl h-[180px]"
+                className="relative rounded-lg overflow-hidden mb-3 transition-all group-hover/card:shadow-2xl h-[180px] w-full flex items-center justify-center"
                 style={{
-                  backgroundColor: project.thumbnail ? colors.bg.elevated : colors.bg.card,
-                  boxShadow: theme === 'dark' 
-                    ? '0 2px 8px rgba(0,0,0,0.4)' 
+                  background: colors.bg.elevated,
+                  boxShadow: theme === 'dark'
+                    ? '0 2px 8px rgba(0,0,0,0.4)'
                     : '0 2px 8px rgba(0,0,0,0.12)',
                 }}
               >
@@ -242,15 +235,12 @@ export function RecentProjects() {
                     loading="lazy"
                   />
                 ) : (
-                  <>
-                    <div className="absolute inset-0" style={{ backgroundColor: colors.bg.card }}>
-                      <div className="h-4 sm:h-5" style={{ backgroundColor: colors.bg.card }} />
-                      <div className="h-full" style={{ backgroundColor: colors.bg.elevated }} />
-                    </div>
-                    <div className="absolute top-2 left-2 text-[10px] font-medium" style={{ color: colors.text.subtle }}>
-                      Page Name
-                    </div>
-                  </>
+                  <DraftPreviewThumbnail
+                    projectId={project.id}
+                    borderColor={colors.border.faint}
+                    bgColor={colors.bg.elevated}
+                    className="w-full h-full rounded-lg"
+                  />
                 )}
               </div>
 

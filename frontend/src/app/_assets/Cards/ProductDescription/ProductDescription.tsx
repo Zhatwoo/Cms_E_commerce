@@ -5,101 +5,154 @@ import { Element } from "@craftjs/core";
 import { Container } from "../../../design/_designComponents/Container/Container";
 import { Text } from "../../../design/_designComponents/Text/Text";
 import { Image } from "../../../design/_designComponents/Image/Image";
+import { Section } from "../../../design/_designComponents/Section/Section";
+import { Row } from "../../../design/_designComponents/Row/Row";
 import { TemplateEntry } from "../../_types";
 
-const createProductDescriptionItem = () =>
-	React.createElement(
-		Element as any,
-		{
-			is: Container as any,
-			background: "#ffffff",
-			borderWidth: 10,
-			borderColor: "#d1d5db",
-			borderStyle: "solid",
-			borderRadius: 4,
-			overflow: "hidden",
-			display: "flex",
-			flexDirection: "column",
-			alignItems: "stretch",
-			justifyContent: "flex-start",
-			canvas: true,
-		},
-		React.createElement(Element as any, {
-			is: Image as any,
-			src: "https://images.unsplash.com/photo-1556228578-8c89e6adf883?auto=format&fit=crop&w=1200&q=80",
-			alt: "Product image",
-			width: "100%",
-			height: "270px",
-			objectFit: "cover",
-			allowUpload: true,
-		}),
-		React.createElement(
-			Element as any,
-			{
-				is: Container as any,
-				background: "transparent",
-				paddingTop: 8,
-				paddingRight: 8,
-				paddingBottom: 8,
-				paddingLeft: 8,
-				display: "flex",
-				flexDirection: "column",
-				alignItems: "stretch",
-				justifyContent: "flex-start",
-				gap: 6,
-				canvas: true,
-			},
-			React.createElement(Text as any, {
-				text: "Lorum ipsum dolor sit amet, consectet cndkndkindkn dmksndmskindisknd jnjnjnj dsjdnjsudnsjbndjubkkj",
-				fontSize: 20,
-				lineHeight: 1.25,
-				fontWeight: "500",
-				color: "#111827",
-			}),
-			React.createElement(Text as any, {
-				text: "₱ 2,000",
-				fontSize: 20,
-				lineHeight: 1,
-				fontWeight: "700",
-				marginTop: 4,
-				textAlign: "right",
-				color: "#111827",
-			})
-		)
-	);
+const createProductDescriptionItem = (
+  name: string,
+  description: string,
+  price: string,
+  src: string
+) =>
+  React.createElement(
+    Element as any,
+    {
+      is: Container as any,
+      canvas: true,
+      background: "#FFFFFF",
+      width: "min(calc(50% - 12px), 282px)",
+      flexShrink: 0,
+      borderRadius: 12,
+      overflow: "hidden",
+      flexDirection: "column",
+      alignItems: "stretch",
+      justifyContent: "flex-start",
+      padding: 0,
+      gap: 0,
+      boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
+    },
+
+    // Image
+    React.createElement(
+      Element as any,
+      {
+        is: Container as any,
+        canvas: true,
+        background: "#F5F3F0",
+        width: "100%",
+        height: "220px",
+        padding: 0,
+        gap: 0,
+        overflow: "hidden",
+      },
+      React.createElement(Image as any, {
+        src,
+        alt: name,
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+        allowUpload: true,
+      })
+    ),
+
+    // Content
+    React.createElement(
+      Element as any,
+      {
+        is: Container as any,
+        canvas: true,
+        background: "transparent",
+        paddingTop: 14,
+        paddingRight: 14,
+        paddingBottom: 14,
+        paddingLeft: 14,
+        flexDirection: "column",
+        alignItems: "stretch",
+        gap: 6,
+      },
+      React.createElement(Text as any, {
+        text: name,
+        fontSize: 14,
+        fontWeight: "600",
+        color: "#111827",
+        lineHeight: 1.3,
+      }),
+      React.createElement(Text as any, {
+        text: description,
+        fontSize: 12,
+        fontWeight: "400",
+        color: "#6B7280",
+        lineHeight: 1.5,
+      }),
+      React.createElement(Text as any, {
+        text: price,
+        fontSize: 16,
+        fontWeight: "700",
+        color: "#111827",
+        lineHeight: 1,
+      })
+    )
+  );
 
 export const ProductDescription: TemplateEntry = {
-	label: "Product Description",
-	description: "Four-column product description cards with image and price",
-	preview: "🧴",
-	element: React.createElement(
-		Element as any,
-		{
-			is: Container as any,
-			background: "#d4d4d8",
-			padding: 16,
-			borderRadius: 0,
-			display: "flex",
-			flexDirection: "column",
-			alignItems: "stretch",
-			justifyContent: "flex-start",
-			canvas: true,
-		},
-		React.createElement(
-			Element as any,
-			{
-				is: Container as any,
-				background: "transparent",
-				display: "grid",
-				gridTemplateColumns: "1fr 1fr",
-				gridGap: 28,
-				alignItems: "stretch",
-				justifyContent: "stretch",
-				canvas: true,
-			},
-			createProductDescriptionItem(),
-			createProductDescriptionItem()
-		)
-	),
-	category: "card",
+  label: "Product Description",
+  description: "Product cards with image, name, description and price",
+  preview: "🧴",
+  category: "card",
+  element: React.createElement(
+    Element as any,
+    {
+      is: Section as any,
+      canvas: true,
+      background: "#F5F3F0",
+      width: "100%",
+      minHeight: "100vh",
+      paddingTop: 48,
+      paddingBottom: 48,
+      paddingLeft: 24,
+      paddingRight: 24,
+      flexDirection: "column",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    React.createElement(
+      Element as any,
+      {
+        is: Row as any,
+        canvas: true,
+        background: "transparent",
+        width: "min(100%, 1200px)",
+        padding: 0,
+        gap: 24,
+        alignItems: "stretch",
+        justifyContent: "center",
+        flexWrap: "wrap",
+      },
+      createProductDescriptionItem(
+        "Luminous Glow Serum",
+        "Brightening vitamin C serum for radiant skin.",
+        "₱ 1,299",
+        "https://images.unsplash.com/photo-1556228578-8c89e6adf883?auto=format&fit=crop&w=800&q=80"
+      ),
+      createProductDescriptionItem(
+        "Rose Toner Mist",
+        "Hydrating facial mist with rose water extract.",
+        "₱ 899",
+        "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=800&q=80"
+      ),
+      createProductDescriptionItem(
+        "Nourish Face Cream",
+        "Rich moisturizer for dry and sensitive skin.",
+        "₱ 1,099",
+        "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=800&q=80"
+      ),
+      createProductDescriptionItem(
+        "Gentle Foam Cleanser",
+        "Soft cleansing foam that respects skin barrier.",
+        "₱ 749",
+        "https://images.unsplash.com/photo-1515377905703-c4788e51af15?auto=format&fit=crop&w=800&q=80"
+      )
+    )
+  ),
 };

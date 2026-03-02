@@ -6,6 +6,21 @@ import { AuthModal } from './components/authModal';
 import { LandingScrollRoot } from './components/scrolling';
 
 type AuthMode = 'login' | 'register';
+const LANDING_THEME_KEY = 'landing-theme';
+const THEME_EVENT_NAME = 'landing-theme-change';
+
+const subscribeTheme = (onStoreChange: () => void) => {
+  window.addEventListener('storage', onStoreChange);
+  window.addEventListener(THEME_EVENT_NAME, onStoreChange);
+
+  return () => {
+    window.removeEventListener('storage', onStoreChange);
+    window.removeEventListener(THEME_EVENT_NAME, onStoreChange);
+  };
+};
+
+const getThemeSnapshot = () => window.localStorage.getItem(LANDING_THEME_KEY) === 'dark';
+const getThemeServerSnapshot = () => false;
 
 export function LandingPageClient({ children }: { children: React.ReactNode }) {
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -51,8 +66,8 @@ export function LandingPageClient({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setThemeState = (next: boolean) => {
-    setIsDarkMode(next);
-    window.localStorage.setItem('landing-theme', next ? 'dark' : 'light');
+    window.localStorage.setItem(LANDING_THEME_KEY, next ? 'dark' : 'light');
+    window.dispatchEvent(new Event(THEME_EVENT_NAME));
   };
 
   const runAnimatedThemeTransition = (next: boolean, x: number, y: number) => {

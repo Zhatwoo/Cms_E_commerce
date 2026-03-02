@@ -20,13 +20,14 @@ export const Square = (props: SquareProps) => {
     marginBottom,
     marginLeft,
     padding = 0,
-    paddingTop,
-    paddingRight,
-    paddingBottom,
-    paddingLeft,
+    paddingTop = 0,
+    paddingRight = 0,
+    paddingBottom = 0,
+    paddingLeft = 0,
     borderColor = "transparent",
     borderWidth = 0,
     borderStyle = "solid",
+    strokePlacement = "mid",
     position = "relative",
     display = "flex",
     zIndex = 0,
@@ -57,10 +58,10 @@ export const Square = (props: SquareProps) => {
   const pb = paddingBottom ?? p;
   const pl = paddingLeft ?? p;
   const effectiveOverflow = overflow === "visible" ? "hidden" : overflow;
-  const { connectors: { connect, drag }, id } = useNode();
   if (isPreview) {
     return <div style={{ width: w, height: h, backgroundColor: fillColor }} />;
   }
+  const { connectors: { connect, drag }, id } = useNode();
   return (
     <div
       ref={ref => { if (ref) connect(drag(ref)); }}
@@ -90,9 +91,9 @@ export const Square = (props: SquareProps) => {
         backgroundSize: backgroundImage ? backgroundSize : undefined,
         backgroundPosition: backgroundImage ? backgroundPosition : undefined,
         backgroundRepeat: backgroundImage ? backgroundRepeat : undefined,
-        borderWidth: `${borderWidth}px`,
-        borderColor,
-        borderStyle,
+        ...(strokePlacement === "outside" && borderWidth > 0
+          ? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
+          : { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
         boxShadow,
         opacity,
         overflow: effectiveOverflow,
@@ -115,6 +116,7 @@ export const SquareDefaultProps: Partial<SquareProps> = {
   borderColor: "transparent",
   borderWidth: 0,
   borderStyle: "solid",
+  strokePlacement: "mid",
   boxShadow: "none",
   opacity: 1,
   overflow: "hidden",

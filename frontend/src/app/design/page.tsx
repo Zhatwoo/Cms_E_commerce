@@ -1,18 +1,35 @@
 "use client";
 
-import React, { Suspense, useEffect } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { EditorShell } from "./_components/editorShell";
 import { DesignProjectProvider } from "./_context/DesignProjectContext";
+
+const LoadingPlaceholder = () => (
+  <div className="min-h-screen flex items-center justify-center bg-[#0a0d14] text-white">
+    <p>Loading...</p>
+  </div>
+);
 
 function DesignContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const projectId = searchParams.get("projectId");
+  const pageId = searchParams.get("pageId");
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
     if (!projectId) router.replace("/m_dashboard/web-builder");
-  }, [projectId, router]);
+  }, [mounted, projectId, router]);
+
+  if (!mounted) {
+    return <LoadingPlaceholder />;
+  }
 
   if (!projectId) {
     return (
@@ -23,8 +40,8 @@ function DesignContent() {
   }
 
   return (
-    <DesignProjectProvider projectId={projectId}>
-      <EditorShell projectId={projectId} />
+    <DesignProjectProvider projectId={projectId} pageId={pageId}>
+      <EditorShell projectId={projectId} pageId={pageId} />
     </DesignProjectProvider>
   );
 }

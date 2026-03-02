@@ -15,7 +15,7 @@ function parsePx(value: string | undefined): number | null {
  */
 export const Section = ({
   background = "transparent",
-  padding = 40,
+  padding = 0,
   paddingTop,
   paddingRight,
   paddingBottom,
@@ -36,17 +36,25 @@ export const Section = ({
   borderColor = "transparent",
   borderWidth = 0,
   borderStyle = "solid",
+  strokePlacement = "mid",
   flexDirection = "column",
   flexWrap = "nowrap",
   alignItems = "center",
   justifyContent = "flex-start",
   gap = 0,
+  position = "static",
+  zIndex = 0,
+  top = "auto",
+  right: posRight = "auto",
+  bottom = "auto",
+  left: posLeft = "auto",
   boxShadow = "none",
   opacity = 1,
   overflow = "visible",
   rotation = 0,
   designWidth,
   designHeight,
+  customClassName = "",
   children,
 }: ContainerProps) => {
   const { id, connectors: { connect, drag } } = useNode();
@@ -78,7 +86,7 @@ export const Section = ({
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className="min-h-[80px] transition-[outline] duration-150 hover:outline hover:outline-blue-500"
+      className={`min-h-[80px] transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
       style={{
         backgroundColor: background,
         backgroundImage: backgroundImage
@@ -99,11 +107,19 @@ export const Section = ({
         marginBottom: `${mb}px`,
         width,
         height,
+        maxWidth: "100%",
+        minWidth: 0,
         borderRadius: `${borderRadius}px`,
-        borderWidth: `${borderWidth}px`,
-        borderColor,
-        borderStyle,
+        ...(strokePlacement === "outside" && borderWidth > 0
+          ? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
+          : { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
         display: "flex",
+        position,
+        zIndex: zIndex !== 0 ? zIndex : undefined,
+        top: position !== "static" ? top : undefined,
+        right: position !== "static" ? posRight : undefined,
+        bottom: position !== "static" ? bottom : undefined,
+        left: position !== "static" ? posLeft : undefined,
         flexDirection,
         flexWrap,
         alignItems,
@@ -143,11 +159,11 @@ export const Section = ({
 
 export const SectionDefaultProps: Partial<ContainerProps> = {
   background: "transparent",
-  padding: 40,
-  paddingTop: 40,
-  paddingRight: 40,
-  paddingBottom: 40,
-  paddingLeft: 40,
+  padding: 0,
+  paddingTop: 0,
+  paddingRight: 0,
+  paddingBottom: 0,
+  paddingLeft: 0,
   margin: 0,
   marginTop: 0,
   marginRight: 0,
@@ -164,11 +180,18 @@ export const SectionDefaultProps: Partial<ContainerProps> = {
   borderColor: "transparent",
   borderWidth: 0,
   borderStyle: "solid",
+  strokePlacement: "mid",
   flexDirection: "column",
   flexWrap: "nowrap",
   alignItems: "center",
   justifyContent: "flex-start",
   gap: 0,
+  position: "static",
+  zIndex: 0,
+  top: "auto",
+  right: "auto",
+  bottom: "auto",
+  left: "auto",
   boxShadow: "none",
   opacity: 1,
   overflow: "visible",

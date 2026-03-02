@@ -81,6 +81,8 @@ export interface AppearanceProps {
   borderColor?: string;
   borderWidth?: number;
   borderStyle?: string;
+  /** Stroke/border placement: mid (center on edge), inside, or outside */
+  strokePlacement?: "mid" | "inside" | "outside";
   borderRadius?: number;
   radiusTopLeft?: number;
   radiusTopRight?: number;
@@ -105,6 +107,8 @@ export interface LayerProps {
   visibility?: "visible" | "hidden";
   /** When true, prevent move/resize/rotate on canvas */
   locked?: boolean;
+  /** Custom Tailwind CSS classes or custom classes */
+  customClassName?: string;
 }
 
 /** Position & display properties → PositionGroup */
@@ -158,10 +162,12 @@ export interface ContainerProps
 
 /** Text component props — combines typography, spacing, and basic effects. */
 // export interface TextProps extends SpacingProps, TypographyProps, TransformProps, AnimatableProps, InteractableProps {
-export interface TextProps extends SpacingProps, TypographyProps, TransformProps, LayerProps, AnimatableProps, InteractionProps {
+export interface TextProps extends SpacingProps, TypographyProps, TransformProps, LayerProps, PositionProps, AnimatableProps, InteractionProps {
   text: string;
   opacity?: number;
   boxShadow?: string;
+  /** When true, allow typing into this text element in preview mode. */
+  previewEditable?: boolean;
 }
 
 /** Image component props — media display with sizing, corners, and effects. */
@@ -200,6 +206,10 @@ export interface PageProps extends AnimatableProps, InteractableProps {
   width?: string;
   height?: string;
   background?: string;
+  /** Whiteboard X position in px. */
+  canvasX?: number;
+  /** Whiteboard Y position in px. */
+  canvasY?: number;
   /** User-editable page name (e.g. "About Us"). */
   pageName?: string;
   /** URL slug for navigation (e.g. "about-us"). Auto-derived from pageName if not set. */
@@ -240,8 +250,8 @@ export interface CircleProps
   isPreview?: boolean;
 }
 
-export interface SquareProps extends CircleProps {}
-export interface TriangleProps extends CircleProps {}
+export interface SquareProps extends CircleProps { }
+export interface TriangleProps extends CircleProps { }
 
 /** Frame component props — responsive wrapper so content scales for all devices (desktop, tablet, mobile). */
 export interface FrameProps extends SpacingProps, AnimatableProps, InteractionProps {

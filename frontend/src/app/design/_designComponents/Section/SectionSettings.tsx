@@ -5,7 +5,6 @@ import { AutoLayoutGroup } from "../../_components/rightPanel/settings/AutoLayou
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
-import { InteractionGroup } from "../../_components/rightPanel/settings/InteractionGroup";
 import type { ContainerProps, SetProp } from "../../_types/components";
 
 export const SectionSettings = () => {
@@ -16,7 +15,7 @@ export const SectionSettings = () => {
     width, height,
     backgroundImage, backgroundSize, backgroundPosition, backgroundRepeat, backgroundOverlay,
     borderRadius, radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft,
-    borderColor, borderWidth, borderStyle,
+    borderColor, borderWidth, borderStyle, strokePlacement,
     flexDirection, flexWrap, alignItems, justifyContent, gap,
     boxShadow, opacity, overflow,
     toggleTarget, triggerAction, collapsibleKey, defaultOpen, defaultOpenMobile, defaultOpenDesktop, showOn, mobileBreakpoint,
@@ -46,6 +45,7 @@ export const SectionSettings = () => {
     borderColor: node.data.props.borderColor,
     borderWidth: node.data.props.borderWidth,
     borderStyle: node.data.props.borderStyle,
+    strokePlacement: node.data.props.strokePlacement,
     flexDirection: node.data.props.flexDirection,
     flexWrap: node.data.props.flexWrap,
     alignItems: node.data.props.alignItems,
@@ -106,6 +106,7 @@ export const SectionSettings = () => {
           borderColor={borderColor}
           borderWidth={borderWidth}
           borderStyle={borderStyle}
+          strokePlacement={strokePlacement}
           radiusTopLeft={radiusTopLeft}
           radiusTopRight={radiusTopRight}
           radiusBottomRight={radiusBottomRight}
@@ -123,19 +124,6 @@ export const SectionSettings = () => {
         />
       </DesignSection>
 
-      <DesignSection title="Interactions" defaultOpen={false}>
-        <InteractionGroup
-          toggleTarget={toggleTarget}
-          triggerAction={triggerAction}
-          collapsibleKey={collapsibleKey}
-          defaultOpen={defaultOpen}
-          defaultOpenMobile={defaultOpenMobile}
-          defaultOpenDesktop={defaultOpenDesktop}
-          showOn={showOn}
-          mobileBreakpoint={mobileBreakpoint}
-          setProp={typedSetProp}
-        />
-      </DesignSection>
     </div>
   );
 };

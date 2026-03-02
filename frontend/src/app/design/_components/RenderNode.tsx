@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNode, useEditor } from "@craftjs/core";
 import ReactDOM from "react-dom";
 import { ResizeOverlay } from "./ResizeOverlay";
@@ -23,11 +23,12 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
     visibility: (node.data.props?.visibility as "visible" | "hidden" | undefined) ?? "visible",
   }));
 
-  const { isActive } = useEditor((_, query) => ({
+  const { isActive, actions } = useEditor((_, query) => ({
     isActive: query.getEvent('selected').contains(id),
   }));
 
   const [mounted, setMounted] = useState(false);
+  const pendingSelectTimerRef = useRef<number | null>(null);
   const isHandTool = activeTool === "hand";
 
   useEffect(() => {
@@ -37,13 +38,67 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
   // When Hand tool is active, don't show selection/hover outline or labels on assets
   useEffect(() => {
     if (dom) {
-      if (!isHandTool && (isActive || isHover)) {
+      if (id === "ROOT" || name === "Viewport") {
+        dom.classList.remove("component-selected");
+        return;
+      }
+
+      const isPendingSelected = dom.dataset.pendingSelected === "true";
+      if (isActive || isPendingSelected || (!isHandTool && isHover)) {
         dom.classList.add("component-selected");
       } else {
         dom.classList.remove("component-selected");
       }
     }
-  }, [dom, isActive, isHover, isHandTool]);
+  }, [dom, id, name, isActive, isHover, isHandTool]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingSelectTimerRef.current !== null) {
+        window.clearTimeout(pendingSelectTimerRef.current);
+        pendingSelectTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!dom) return;
+    if (id === "ROOT" || name === "Viewport") return;
+
+    const onMouseDownCapture = (event: MouseEvent) => {
+      if (event.button !== 0) return;
+      if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      if (document.body.dataset.canvasPan === "true") return;
+      if (document.body.dataset.boxSelecting === "true") return;
+
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest("[data-panel]")) return;
+      if (target.closest("input, textarea, select, [contenteditable='true']")) return;
+
+      dom.dataset.pendingSelected = "true";
+      dom.classList.add("component-selected");
+      if (pendingSelectTimerRef.current !== null) {
+        window.clearTimeout(pendingSelectTimerRef.current);
+      }
+      pendingSelectTimerRef.current = window.setTimeout(() => {
+        if (!dom) return;
+        delete dom.dataset.pendingSelected;
+        pendingSelectTimerRef.current = null;
+      }, 220);
+
+      try {
+        actions.selectNode(id);
+      } catch {
+        // ignore
+      }
+    };
+
+    dom.addEventListener("mousedown", onMouseDownCapture, true);
+    return () => {
+      dom.removeEventListener("mousedown", onMouseDownCapture, true);
+    };
+  }, [actions, dom, id, name]);
 
   // Don't render overlays for ROOT/Viewport shells only
   if (id === "ROOT" || name === "Viewport") {
@@ -57,7 +112,7 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
         ReactDOM.createPortal(
           <div
             data-panel="node-label"
-            className={`fixed px-2 py-1 bg-blue-500 text-brand-lighter text-[10px] rounded-t-md z-50 pointer-events-none transition-opacity duration-200 uppercase font-bold tracking-wider ${isActive || isHover ? "opacity-100" : "opacity-0"
+            className={`fixed px-2 py-1 bg-blue-500 text-brand-lighter text-[10px] rounded-t-md z-40 pointer-events-none transition-opacity duration-200 uppercase font-bold tracking-wider ${isActive || isHover ? "opacity-100" : "opacity-0"
               }`}
             style={{
               left: dom.getBoundingClientRect().left,
@@ -70,8 +125,8 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
         )
         : null}
 
-      {/* Resize / Move overlay — only for actively selected nodes */}
-      {mounted && isActive && dom ? (
+      {/* Resize / Move overlay — only for actively selected nodes (skip Text so inline edit remains clickable) */}
+      {mounted && isActive && dom && name !== "Text" ? (
         <ResizeOverlay nodeId={id} dom={dom} />
       ) : null}
 

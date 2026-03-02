@@ -4,16 +4,18 @@ import React, { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload, Monitor, Tablet, Smartphone } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
-import { getDraft } from "../_lib/pageApi";
+import { autoSavePage, getDraft } from "../_lib/pageApi";
 import { WebPreview } from "../_lib/webRenderer";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
-import { getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, type Project } from "@/lib/api";
+import { getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, getMyDomains, type Project } from "@/lib/api";
+import { getLimits } from "@/lib/subscriptionLimits";
 import { uploadClientFile } from "@/lib/firebaseStorage";
 import { createPortal } from "react-dom";
 import html2canvas from "html2canvas";
 //vdxvx
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
+const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 
 type ViewMode = "Web-Preview" | "clean" | "raw";
 type PreviewViewport = "desktop" | "tablet" | "mobile";
@@ -57,9 +59,9 @@ function PreviewIframe({ children, width, height = "80vh", isDesktop = false }: 
     <>
       <iframe
         ref={iframeRef}
-        style={{ 
-          width: responsiveWidth, 
-          height, 
+        style={{
+          width: responsiveWidth,
+          height,
           transition: "width 0.3s ease",
           borderRadius: isDesktop ? 0 : undefined,
           border: isDesktop ? "none" : undefined,
@@ -106,11 +108,31 @@ function PreviewContent() {
   const previewRef = useRef<HTMLDivElement | null>(null);
   const thumbnailCaptureRef = useRef(false);
 
+  const readSessionSnapshot = (targetProjectId: string): string | null => {
+    if (typeof window === "undefined") return null;
+    try {
+      const perProject = window.sessionStorage.getItem(`${STORAGE_KEY_PREFIX}_${targetProjectId}`);
+      if (perProject) return perProject;
+      return window.sessionStorage.getItem(STORAGE_KEY_PREFIX);
+    } catch {
+      return null;
+    }
+  };
+
   useEffect(() => {
     async function loadData() {
       try {
+        const sessionSnapshot = readSessionSnapshot(projectId);
+        if (sessionSnapshot) {
+          console.log('✅ Preview: Loaded latest snapshot from sessionStorage');
+          setRawJson(sessionSnapshot);
+          setLoading(false);
+          return;
+        }
+
         console.log(`📡 Preview: Fetching draft for Project: ${projectId}...`);
         const result = await getDraft(projectId);
+        let loaded = false;
 
         if (result.success && result.data) {
           console.log('✅ Preview: API result success. Keys in data:', Object.keys(result.data));
@@ -126,6 +148,7 @@ function PreviewContent() {
             } else {
               setRawJson(content);
             }
+            loaded = true;
             console.log('✅ Preview: Data loaded');
           } else {
             console.warn('⚠️ Preview: No content found in result data');
@@ -133,8 +156,21 @@ function PreviewContent() {
         } else {
           console.warn('⚠️ Preview: API success=false or no data found');
         }
+
+        if (!loaded) {
+          const fallback = readSessionSnapshot(projectId);
+          if (fallback) {
+            console.log('✅ Preview: Loaded fallback snapshot from sessionStorage');
+            setRawJson(fallback);
+          }
+        }
       } catch (error) {
         console.error('❌ Preview: Load error:', error);
+        const fallback = readSessionSnapshot(projectId);
+        if (fallback) {
+          console.log('✅ Preview: Loaded fallback snapshot after API error');
+          setRawJson(fallback);
+        }
       } finally {
         setLoading(false);
       }
@@ -213,10 +249,10 @@ function PreviewContent() {
     thumbnailCaptureRef.current = true;
     try {
       const canvas = await html2canvas(previewRef.current, {
-        backgroundColor: "#ffffff",
+        background: "#ffffff",
         scale: 0.7,
         useCORS: true,
-      });
+      } as any);
 
       const blob: Blob | null = await new Promise((resolve) => {
         canvas.toBlob((b: Blob | null) => resolve(b), "image/jpeg", 0.85);
@@ -309,12 +345,18 @@ function PreviewContent() {
       return;
     }
 
+    if (!rawJson) {
+      showAlert("No design to save. Edit your page in the design editor first, then open Preview and save as template.");
+      return;
+    }
+
     setSaving(true);
     try {
       const template = templateService.saveTemplate(
         templateName.trim(),
         templateCategory,
-        templateDescription.trim()
+        templateDescription.trim(),
+        rawJson
       );
 
       if (template) {
@@ -334,7 +376,7 @@ function PreviewContent() {
       setSaving(false);
     }
   };
-//cjdhv
+  //cjdhv
   const handlePublishClick = async () => {
     setPublishDomainError("");
     try {
@@ -384,7 +426,11 @@ function PreviewContent() {
         const sub = res.data?.subdomain ?? domain;
         showAlert(`Published! Your site is live. You can change the domain later in the dashboard.`);
       } else {
-        showAlert(res.message || "Publish failed.");
+        if (res.message?.includes('Limit reached')) {
+          showAlert(res.message);
+        } else {
+          showAlert(res.message || "Publish failed.");
+        }
       }
     } catch (error) {
       console.error("Publish error:", error);
@@ -415,7 +461,11 @@ function PreviewContent() {
     setPublishDomainError("");
     setScheduling(true);
     try {
-      const res = await schedulePublish(projectId, new Date(scheduledAt).toISOString(), domain);
+      const snapshot = cleanDoc ? JSON.stringify(cleanDoc) : null;
+      if (snapshot) {
+        await autoSavePage(snapshot, projectId);
+      }
+      const res = await schedulePublish(projectId, new Date(scheduledAt).toISOString(), domain, snapshot);
       if (res.success) {
         setShowPublishDialog(false);
         setPublishDomainName("");
@@ -619,6 +669,7 @@ function PreviewContent() {
                   pageIndex={0}
                   initialPageSlug={initialPageSlug}
                   mobileBreakpoint={mobileBreakpoint}
+                  enableFormInputs
                   simulatedWidth={
                     previewViewport === "desktop"
                       ? undefined
@@ -629,7 +680,7 @@ function PreviewContent() {
                 />
               </PreviewIframe>
             ) : (
-              <div className="flex flex-col items-center justify-center min-h-[400px] text-zinc-500 p-8 border border-white/10 rounded-xl">
+              <div className="flex flex-col items-center justify-center min-h-96 text-zinc-500 p-8 border border-white/10 rounded-xl">
                 <p className="text-base mb-1">No page data</p>
                 <p className="text-sm">Go back to the editor and press the play button to generate output.</p>
               </div>

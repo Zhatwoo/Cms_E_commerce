@@ -19,7 +19,7 @@ export const ShapeSettings = () => {
     backgroundPosition,
     backgroundRepeat,
     backgroundOverlay,
-    borderColor, borderWidth, borderStyle,
+    borderColor, borderWidth, borderStyle, strokePlacement,
     radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft,
     position, display, zIndex, top, right, bottom, left, editorVisibility,
     boxShadow, opacity, overflow, cursor,
@@ -44,6 +44,7 @@ export const ShapeSettings = () => {
     borderColor: node.data.props.borderColor,
     borderWidth: node.data.props.borderWidth,
     borderStyle: node.data.props.borderStyle,
+    strokePlacement: node.data.props.strokePlacement,
     radiusTopLeft: node.data.props.radiusTopLeft,
     radiusTopRight: node.data.props.radiusTopRight,
     radiusBottomRight: node.data.props.radiusBottomRight,
@@ -107,6 +108,7 @@ export const ShapeSettings = () => {
           borderColor={borderColor}
           borderWidth={borderWidth}
           borderStyle={borderStyle}
+          strokePlacement={strokePlacement}
           radiusTopLeft={radiusTopLeft}
           radiusTopRight={radiusTopRight}
           radiusBottomRight={radiusBottomRight}

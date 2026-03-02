@@ -4,16 +4,35 @@
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 const API_BASE_URL = `${BASE.replace(/\/$/, '')}/api`;
+const REQUEST_TIMEOUT_MS = 10000;
 
 /** Wraps fetch; returns null on network/parse errors so callers can handle gracefully. */
 async function safeFetch(
     input: RequestInfo | URL,
     init?: RequestInit
 ): Promise<Response | null> {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let controller: AbortController | null = null;
     try {
-        return await fetch(input, init);
+        const finalInit: RequestInit = { ...(init ?? {}) };
+
+        if (!finalInit.signal) {
+            controller = new AbortController();
+            finalInit.signal = controller.signal;
+            timeoutId = setTimeout(() => {
+                try {
+                    controller?.abort();
+                } catch {
+                    // ignore abort errors
+                }
+            }, REQUEST_TIMEOUT_MS);
+        }
+
+        return await fetch(input, finalInit);
     } catch {
         return null;
+    } finally {
+        if (timeoutId) clearTimeout(timeoutId);
     }
 }
 

@@ -8,7 +8,6 @@ import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePos
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
-import { InteractionGroup } from "../../_components/rightPanel/settings/InteractionGroup";
 import type { ContainerProps, SetProp } from "../../_types/components";
 
 export const ContainerSettings = () => {
@@ -19,7 +18,7 @@ export const ContainerSettings = () => {
     width, height,
     backgroundImage, backgroundSize, backgroundPosition, backgroundRepeat, backgroundOverlay,
     borderRadius, radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft,
-    borderColor, borderWidth, borderStyle,
+    borderColor, borderWidth, borderStyle, strokePlacement,
     flexDirection, flexWrap,
     alignItems, justifyContent,
     gap,
@@ -54,6 +53,7 @@ export const ContainerSettings = () => {
     borderColor: node.data.props.borderColor,
     borderWidth: node.data.props.borderWidth,
     borderStyle: node.data.props.borderStyle,
+    strokePlacement: node.data.props.strokePlacement,
     flexDirection: node.data.props.flexDirection,
     flexWrap: node.data.props.flexWrap,
     alignItems: node.data.props.alignItems,
@@ -171,6 +171,7 @@ export const ContainerSettings = () => {
           borderColor={borderColor}
           borderWidth={borderWidth}
           borderStyle={borderStyle}
+          strokePlacement={strokePlacement}
           radiusTopLeft={radiusTopLeft}
           radiusTopRight={radiusTopRight}
           radiusBottomRight={radiusBottomRight}
@@ -189,19 +190,6 @@ export const ContainerSettings = () => {
         />
       </DesignSection>
 
-      <DesignSection title="Interactions" defaultOpen={false}>
-        <InteractionGroup
-          toggleTarget={toggleTarget}
-          triggerAction={triggerAction}
-          collapsibleKey={collapsibleKey}
-          defaultOpen={defaultOpen}
-          defaultOpenMobile={defaultOpenMobile}
-          defaultOpenDesktop={defaultOpenDesktop}
-          showOn={showOn}
-          mobileBreakpoint={mobileBreakpoint}
-          setProp={typedSetProp}
-        />
-      </DesignSection>
     </div>
   );
 };

@@ -11,9 +11,20 @@ import {
   DarkModeHeader
 } from "./Header";
 import { CenteredHero, HeroWithImage, HeroBannerCTA, HeroBannerCTA_v2, HeroBannerCTA_v3 } from "./Hero";
-import { FeaturesGrid, Testimonial } from "./Content";
-import { ContactForm, NewsletterSignup, OrderForm, LoginForm, SignupForm, AddToCart, PaymentForm } from "./Forms";
-import { ProductCard, TeamMemberCard, GridViewCard, ProductDescription, FeaturedProduct } from "./Cards";
+import { FeaturesGrid, Testimonial, DeliveryAddress, DeliveryAddressV1 } from "./Content";
+import { ContactForm, NewsletterSignup, OrderForm, OrderFormV1, LoginForm, SignupForm, AddToCart, PaymentForm, PaymentMethod, PaymentMethodV1 } from "./Forms";
+import {
+  ProductCard,
+  TeamMemberCard,
+  GridViewCard,
+  ProductDescription,
+  FeaturedProduct,
+  CategoriesCard,
+  BrowseCategory,
+  ProductDetailView,
+  ProductDetailViewV2,
+  ProductDetailViewV3,
+} from "./Cards";
 import {
   SimpleFooter,
   MultiColumnFooter,
@@ -47,8 +58,6 @@ import { Square as CraftSquare } from "./shapes/square/square";
 import { Triangle as CraftTriangle } from "./shapes/triangle/triangle";
 
 import { TemplateEntry } from "./_types";
-import { ProductDetailView } from "./Content/ProductDetailView";
-
 
 export const Circle = ({ width = 60, height = 60 }: { width?: number; height?: number }) => (
   <svg width={width} height={height} viewBox="0 0 60 60">
@@ -108,16 +117,23 @@ export const TEMPLATES: TemplateEntry[] = [
   HeroBannerCTA_v3,
   FeaturesGrid,
   Testimonial,
+  DeliveryAddress,
+  DeliveryAddressV1,
   ContactForm,
   NewsletterSignup,
   OrderForm,
+  OrderFormV1,
   LoginForm,
   SignupForm,
   AddToCart,
   PaymentForm,
+  PaymentMethod,
+  PaymentMethodV1,
   ProductCard,
   TeamMemberCard,
   ProductDetailView,
+  ProductDetailViewV2,
+  ProductDetailViewV3,
   SimpleFooter,
   MultiColumnFooter,
   NewsletterFooter,
@@ -167,15 +183,26 @@ export const GROUPED_TEMPLATES = [
   },
   {
     folder: "Content",
-    items: [FeaturesGrid, Testimonial, ProductDetailView],
+    items: [FeaturesGrid, Testimonial, DeliveryAddress, DeliveryAddressV1],
   },
   {
     folder: "Cards",
-    items: [ProductCard, TeamMemberCard],
+    items: [
+      ProductCard,
+      TeamMemberCard,
+      GridViewCard,
+      ProductDescription,
+      FeaturedProduct,
+      CategoriesCard,
+      BrowseCategory,
+      ProductDetailView,
+      ProductDetailViewV2,
+      ProductDetailViewV3,
+    ],
   },
   {
     folder: "Forms",
-    items: [ContactForm, NewsletterSignup, OrderForm, LoginForm, SignupForm, AddToCart, PaymentForm],
+    items: [ContactForm, NewsletterSignup, OrderForm, OrderFormV1, LoginForm, SignupForm, AddToCart, PaymentForm, PaymentMethod, PaymentMethodV1],
   },
   {
     folder: "Footer",

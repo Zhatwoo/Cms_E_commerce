@@ -13,4 +13,19 @@ function docToObject(doc) {
   return keysToCamel(out);
 }
 
-module.exports = { docToObject };
+/**
+ * Helper to recursively delete a document and ALL its sub-collections.
+ * Firestore doesn't do this automatically.
+ */
+async function deleteRecursive(docRef) {
+  const collections = await docRef.listCollections();
+  for (const collection of collections) {
+    const documents = await collection.get();
+    for (const doc of documents.docs) {
+      await deleteRecursive(doc.ref);
+    }
+  }
+  await docRef.delete();
+}
+
+module.exports = { docToObject, deleteRecursive };

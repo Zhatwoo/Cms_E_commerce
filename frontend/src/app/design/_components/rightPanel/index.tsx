@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useEditor } from "@craftjs/core";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Lock, LockOpen, Play, Code2, GripVertical, X, Terminal } from "lucide-react";
+import { Eye, EyeOff, Lock, LockOpen, Play, Code2, GripVertical, X, Terminal, Palette, MousePointer2, Sparkles } from "lucide-react";
 import { serializeCraftToClean } from "../../_lib/serializer";
 import { autoSavePage } from "../../_lib/pageApi";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
+import { getStoredUser } from "@/lib/api";
+import { useAuth } from "@/app/m_dashboard/components/context/auth-context";
+import { getLimits } from "@/lib/subscriptionLimits";
 import { AnimationGroup } from "./settings/AnimationGroup";
 import { BatchEditGroup } from "./settings/BatchEditGroup";
 import { PrototypeGroup } from "./settings/PrototypeGroup";
@@ -15,14 +18,19 @@ export type TabId = "design" | "prototype" | "animation" | "code";
 interface Tab {
   id: TabId;
   label: string;
+  icon: React.ReactNode;
 }
 
 const TABS: Tab[] = [
-  { id: "design", label: "Design" },
-  { id: "prototype", label: "Prototype" },
-  { id: "animation", label: "Animation" },
-  { id: "code", label: "Code" },
+  { id: "design", label: "Design", icon: <Palette className="w-4 h-4 shrink-0" /> },
+  { id: "prototype", label: "Prototype", icon: <MousePointer2 className="w-4 h-4 shrink-0" /> },
+  { id: "animation", label: "Animation", icon: <Sparkles className="w-4 h-4 shrink-0" /> },
+  { id: "code", label: "Code", icon: <Code2 className="w-4 h-4 shrink-0" /> },
 ];
+
+const STORAGE_KEY_PREFIX = "craftjs_preview_json";
+const RIGHT_PANEL_DEFAULT_WIDTH = 420;
+const RIGHT_PANEL_MIN_WIDTH = RIGHT_PANEL_DEFAULT_WIDTH;
 
 interface RightPanelProps {
   projectId: string;
@@ -32,22 +40,26 @@ interface RightPanelProps {
   frameReady?: boolean;
   /** Called when the user clicks the X to close the Configs panel. */
   onClose?: () => void;
+  files?: any[];
+  onFilesChange?: (files: any[]) => void;
 }
 
 // Inner panel that subscribes to Craft editor.
 // Mounted lazily by RightPanel to avoid "setState during render" warnings
 // when Frame is rendering initial data.
-const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: setControlledTab, onClose }: RightPanelProps) => {
+const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: setControlledTab, onClose, files, onFilesChange }: RightPanelProps) => {
+  const { user } = useAuth();
   const { showAlert } = useAlert();
   const [internalTab, setInternalTab] = useState<TabId>("design");
   const activeTab = controlledTab ?? internalTab;
   const setActiveTab = setControlledTab ?? setInternalTab;
   const [isPreviewing, setIsPreviewing] = useState(false);
-  const [isCodeEditorOpen, setIsCodeEditorOpen] = useState(false);
-  const [panelWidth, setPanelWidth] = useState(320); // Default width
+  const [panelWidth, setPanelWidth] = useState(RIGHT_PANEL_DEFAULT_WIDTH); // Default width
   const [isResizing, setIsResizing] = useState(false);
   const [startX, setStartX] = useState(0);
-  const [startWidth, setStartWidth] = useState(320);
+  const [startWidth, setStartWidth] = useState(RIGHT_PANEL_DEFAULT_WIDTH);
+  const resizeRafRef = useRef<number | null>(null);
+  const pendingWidthRef = useRef<number>(RIGHT_PANEL_DEFAULT_WIDTH);
   const router = useRouter();
   const panelRef = useRef<HTMLDivElement>(null);
   const resizeRef = useRef<HTMLDivElement>(null);
@@ -67,12 +79,12 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
     const firstProps = firstNode?.data?.props as Record<string, unknown> | undefined;
     const primary = firstId && firstNode
       ? {
-          id: firstId,
-          name: firstNode.data.displayName,
-          settings: firstNode.related?.settings,
-          visibility: (firstProps?.visibility as "visible" | "hidden" | undefined) ?? "visible",
-          locked: (firstProps?.locked as boolean | undefined) ?? false,
-        }
+        id: firstId,
+        name: firstNode.data.displayName,
+        settings: firstNode.related?.settings,
+        visibility: (firstProps?.visibility as "visible" | "hidden" | undefined) ?? "visible",
+        locked: (firstProps?.locked as boolean | undefined) ?? false,
+      }
       : null;
     return { selectedIds: ids, primary };
   });
@@ -86,12 +98,35 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
       const rawCount = Object.keys(JSON.parse(json)).length;
       console.log(`📊 Preview: Raw Craft.js has ${rawCount} nodes.`);
 
-      const cleanCode = serializeCraftToClean(json);
-      const cleanCount = Object.keys(cleanCode.nodes).length;
-      console.log(`📊 Preview: Clean output has ${cleanCount} nodes.`);
+      let previewSnapshot: string;
+      try {
+        const cleanCode = serializeCraftToClean(json);
+        const cleanCount = Object.keys(cleanCode.nodes).length;
+        const rawCountSafe = Object.keys(JSON.parse(json)).length;
+        console.log(`📊 Preview: Clean output has ${cleanCode.pages.length} pages, ${cleanCount} nodes.`);
 
-      // Force save to DB before navigating
-      await autoSavePage(JSON.stringify(cleanCode), projectId);
+        if (cleanCode.pages.length === 0 && rawCountSafe > 1) {
+          console.warn('⚠️ Preview: clean output has 0 pages while raw has content. Using raw snapshot fallback to prevent data loss.');
+          previewSnapshot = json;
+        } else {
+          previewSnapshot = JSON.stringify(cleanCode);
+        }
+      } catch (serializeError) {
+        console.warn('⚠️ Preview: serializeCraftToClean failed, saving raw Craft JSON for preview fallback:', serializeError);
+        previewSnapshot = json;
+      }
+
+      try {
+        window.sessionStorage.setItem(`${STORAGE_KEY_PREFIX}_${projectId}`, previewSnapshot);
+      } catch (storageError) {
+        console.warn('⚠️ Preview: failed to cache snapshot in sessionStorage', storageError);
+      }
+
+      // Force save to DB before navigating (save clean format when possible)
+      const saveResult = await autoSavePage(previewSnapshot, projectId);
+      if (!saveResult.success) {
+        console.warn('⚠️ Preview: DB save failed, using session snapshot fallback.');
+      }
 
       console.log('✅ Save complete, navigating to preview...');
       router.push(`/design/preview?projectId=${encodeURIComponent(projectId)}`);
@@ -109,15 +144,12 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
     if (!panel) return;
 
     const handleWheelCapture = (e: WheelEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (!target) return;
-      const tag = target.tagName;
-      const isField =
-        tag === "INPUT" ||
-        tag === "TEXTAREA" ||
-        tag === "SELECT" ||
-        target.isContentEditable === true;
-      if (isField) {
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest("[data-code-editor-scroll='true']")) return;
+
+      const blockedField = target.closest("input, select, [contenteditable='true']");
+      if (blockedField) {
         e.preventDefault();
         e.stopPropagation();
       }
@@ -133,9 +165,16 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
       if (!isResizing) return;
       const deltaX = startX - e.clientX; // Positive when dragging left (increase width)
       const newWidth = startWidth + deltaX;
-      // Min width: 280px, Max width: 70% of screen for better UX
-      const constrainedWidth = Math.max(280, Math.min(newWidth, window.innerWidth * 0.7));
-      setPanelWidth(constrainedWidth);
+      // Min width is locked to default so panel cannot be resized smaller
+      const constrainedWidth = Math.max(RIGHT_PANEL_MIN_WIDTH, Math.min(newWidth, window.innerWidth * 0.7));
+
+      pendingWidthRef.current = constrainedWidth;
+      if (resizeRafRef.current !== null) return;
+
+      resizeRafRef.current = requestAnimationFrame(() => {
+        resizeRafRef.current = null;
+        setPanelWidth((prev) => (Math.abs(prev - pendingWidthRef.current) < 0.2 ? prev : pendingWidthRef.current));
+      });
     };
 
     const handleMouseUp = () => {
@@ -149,25 +188,38 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
       document.body.style.cursor = "col-resize";
       // Add visual feedback to the panel during resize
       if (panelRef.current) {
-        panelRef.current.style.transition = 'none';
-        panelRef.current.style.opacity = '0.8';
+        panelRef.current.style.transition = 'opacity 120ms ease';
+        panelRef.current.style.opacity = '0.9';
       }
       return () => {
         document.removeEventListener("mousemove", handleMouseMove);
         document.removeEventListener("mouseup", handleMouseUp);
+        if (resizeRafRef.current !== null) {
+          cancelAnimationFrame(resizeRafRef.current);
+          resizeRafRef.current = null;
+        }
         document.body.style.userSelect = "auto";
         document.body.style.cursor = "auto";
         // Restore panel styling
         if (panelRef.current) {
-          panelRef.current.style.transition = '';
+          panelRef.current.style.transition = 'width 160ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease';
           panelRef.current.style.opacity = '';
         }
       };
     }
-  }, [isResizing]);
+  }, [isResizing, startX, startWidth]);
+
+  useEffect(() => {
+    return () => {
+      if (resizeRafRef.current !== null) {
+        cancelAnimationFrame(resizeRafRef.current);
+        resizeRafRef.current = null;
+      }
+    };
+  }, []);
 
   return (
-    <div className="flex h-full relative">
+    <div data-panel="right" className="flex h-full relative">
       {/* Resize Handle */}
       <div
         ref={resizeRef}
@@ -175,182 +227,187 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
           e.preventDefault();
           setStartX(e.clientX);
           setStartWidth(panelWidth);
+          pendingWidthRef.current = panelWidth;
           setIsResizing(true);
         }}
-        className={`${
-          isResizing ? 'w-2 bg-blue-500/70' : 'w-3 bg-brand-medium/20 hover:bg-blue-500/40'
-        } cursor-col-resize transition-all duration-200 group relative flex items-center justify-center select-none z-10`}
+        className={`${isResizing ? 'w-2 bg-blue-500/70' : 'w-3 bg-brand-medium/20 hover:bg-blue-500/40'
+          } cursor-col-resize transition-all duration-200 group relative flex items-center justify-center select-none z-10`}
         title="Drag to resize panel"
       >
         {/* Visual grip indicator */}
-        <div className={`flex flex-col gap-0.5 transition-opacity duration-200 ${
-          isResizing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-        }`}>
+        <div className={`flex flex-col gap-0.5 transition-opacity duration-200 ${isResizing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+          }`}>
           <div className="w-0.5 h-1 bg-brand-light/60 rounded-full"></div>
           <div className="w-0.5 h-1 bg-brand-light/60 rounded-full"></div>
           <div className="w-0.5 h-1 bg-brand-light/60 rounded-full"></div>
         </div>
       </div>
-      
+
       <div
         ref={panelRef}
         data-panel="configs"
-        className="bg-brand-darker/75 backdrop-blur-lg rounded-3xl h-full shadow-2xl border border-white/10 transition-all duration-300 overflow-hidden"
+        className="bg-brand-darker/75 backdrop-blur-lg rounded-3xl h-full shadow-2xl border border-white/10 transition-all duration-300 overflow-hidden flex flex-col"
         style={{
           width: `${panelWidth}px`,
           boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)",
         }}
       >
-        <div className="h-full overflow-y-auto p-6">
-      <div className="flex items-center justify-between mb-6 gap-2">
-        <h3 className="text-brand-lighter font-bold text-lg">Configs</h3>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={handlePreview}
-            disabled={isPreviewing}
-            className={`p-1 rounded-lg transition-colors cursor-pointer ${isPreviewing ? 'opacity-50 cursor-wait' : 'hover:bg-brand-medium/40'}`}
-            title="Preview (Web / Clean / Raw)"
-          >
-            <Play strokeWidth={2} className={`w-5 h-5 transition-colors ${isPreviewing ? 'text-yellow-400 animate-pulse' : 'text-brand-light hover:text-brand-lighter'}`} />
-          </button>
-          {onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1 rounded-lg transition-colors hover:bg-brand-medium/40 text-brand-light hover:text-brand-lighter"
-              title="Close panel"
-            >
-              <X className="w-5 h-5" strokeWidth={2} />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {selectedIds.length > 0 ? (
-        <div>
-          <div className="mb-6">
-            <div className="flex items-center gap-2 bg-brand-medium/20 p-2 rounded-lg border border-brand-medium/30">
-              <span className="flex-1 text-brand-lighter font-medium text-sm text-center">
-                {selectedIds.length === 1 && primary
-                  ? primary.name
-                  : `${selectedIds.length} components selected`}
-              </span>
-              {primary && (
-                <div className="flex items-center gap-0.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = primary.visibility === "hidden" ? "visible" : "hidden";
-                      selectedIds.forEach((id) => {
-                        try {
-                          actions.setProp(id, (p: Record<string, unknown>) => { p.visibility = next; });
-                        } catch { /* skip */ }
-                      });
-                    }}
-                    className={`p-1.5 rounded transition-colors ${primary.visibility === "hidden" ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
-                    title={primary.visibility === "hidden" ? "Show" : "Hide"}
-                  >
-                    {primary.visibility === "hidden" ? <EyeOff size={14} /> : <Eye size={14} />}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = !primary.locked;
-                      selectedIds.forEach((id) => {
-                        try {
-                          actions.setProp(id, (p: Record<string, unknown>) => { p.locked = next; });
-                        } catch { /* skip */ }
-                      });
-                    }}
-                    className={`p-1.5 rounded transition-colors ${primary.locked ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
-                    title={primary.locked ? "Unlock" : "Lock"}
-                  >
-                    {primary.locked ? <Lock size={14} /> : <LockOpen size={14} />}
-                  </button>
-                </div>
+        <div className="h-full p-6 flex flex-col min-h-0">
+          <div className="flex items-center justify-between mb-6 gap-2">
+            <h3 className="text-brand-lighter font-bold text-lg">Configs</h3>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handlePreview}
+                disabled={isPreviewing}
+                className={`p-1 rounded-lg transition-colors cursor-pointer ${isPreviewing ? 'opacity-50 cursor-wait' : 'hover:bg-brand-medium/40'}`}
+                title="Preview (Web / Clean / Raw)"
+              >
+                <Play strokeWidth={2} className={`w-5 h-5 transition-colors ${isPreviewing ? 'text-yellow-400 animate-pulse' : 'text-brand-light hover:text-brand-lighter'}`} />
+              </button>
+              {onClose && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="p-1 rounded-lg transition-colors hover:bg-brand-medium/40 text-brand-light hover:text-brand-lighter"
+                  title="Close panel"
+                >
+                  <X className="w-5 h-5" strokeWidth={2} />
+                </button>
               )}
             </div>
           </div>
 
-          {/* Tab Bar */}
-          <div className="flex gap-2 text-sm items-center py-2 px-2 border-y border-brand-medium mb-6 overflow-x-auto">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap font-medium ${
-                  activeTab === tab.id
-                    ? "text-brand-lighter bg-brand-medium/50 border border-brand-medium"
-                    : "text-brand-light hover:text-brand-lighter py-2 hover:bg-brand-medium/20"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Tab Content */}
-          <div className="space-y-6">
-            {activeTab === "design" &&
-              (selectedIds.length > 1 ? (
-                <BatchEditGroup selectedIds={selectedIds} />
-              ) : primary?.settings ? (
-                React.createElement(primary.settings)
-              ) : (
-                <div className="flex flex-col items-center justify-center py-8 text-brand-lighter opacity-50">
-                  <p className="text-sm">No design settings available</p>
-                </div>
-              ))}
-
-            {activeTab === "prototype" && (
-              <PrototypeGroup selectedIds={selectedIds} />
-            )}
-
-            {activeTab === "animation" && (
-              <AnimationGroup selectedIds={selectedIds} />
-            )}
-
-            {activeTab === "code" && (
-              <div className="space-y-4">
-                <div className="bg-brand-medium/20 border border-brand-medium/30 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Code2 size={18} className="text-blue-400" />
-                    <h3 className="font-semibold text-brand-lighter">Code Editor</h3>
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            {/* Main conditional rendering */}
+            {selectedIds.length > 0 ? (
+              <div className={activeTab === "code" ? "h-full min-h-0 flex flex-col" : undefined}>
+                <div className="mb-6">
+                  <div className="flex items-center gap-2 bg-brand-medium/20 p-2 rounded-lg border border-brand-medium/30">
+                    <span className="flex-1 text-brand-lighter font-medium text-sm text-center">
+                      {selectedIds.length === 1 && primary
+                        ? primary.name
+                        : `${selectedIds.length} components selected`}
+                    </span>
+                    {primary && (
+                      <div className="flex items-center gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = primary.visibility === "hidden" ? "visible" : "hidden";
+                            selectedIds.forEach((id) => {
+                              try {
+                                actions.setProp(id, (p: Record<string, unknown>) => { p.visibility = next; });
+                              } catch { /* skip */ }
+                            });
+                          }}
+                          className={`p-1.5 rounded transition-colors ${primary.visibility === "hidden" ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
+                          title={primary.visibility === "hidden" ? "Show" : "Hide"}
+                        >
+                          {primary.visibility === "hidden" ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = !primary.locked;
+                            selectedIds.forEach((id) => {
+                              try {
+                                actions.setProp(id, (p: Record<string, unknown>) => { p.locked = next; });
+                              } catch { /* skip */ }
+                            });
+                          }}
+                          className={`p-1.5 rounded transition-colors ${primary.locked ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
+                          title={primary.locked ? "Unlock" : "Lock"}
+                        >
+                          {primary.locked ? <Lock size={14} /> : <LockOpen size={14} />}
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <p className="text-brand-light text-sm mb-4">
-                    Write, manage, and export Next.js components and assets. Choose between Component (reusable UI) or Asset (utilities & icons) mode.
-                  </p>
-                  <button
-                    onClick={() => setIsCodeEditorOpen(true)}
-                    className="w-full px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all font-medium text-sm flex items-center justify-center gap-2"
-                  >
-                    <Terminal size={16} />
-                    Open Code Editor
-                  </button>
                 </div>
+
+                {/* Tab Bar - Modern Pill Style */}
+                <div className="w-full mb-8">
+                  <div className="grid grid-cols-4 w-full p-1 bg-black/30 backdrop-blur-md rounded-2xl border border-white/5">
+                    {(() => {
+                      const limits = getLimits(user?.subscriptionPlan);
+                      return TABS.map((tab) => {
+                        const isRestricted = tab.id === 'code' && !limits.codeEditor;
+
+                        return (
+                          <button
+                            key={tab.id}
+                            onClick={() => {
+                              if (isRestricted) {
+                                showAlert("Code Editor is a Pro feature. Upgrade to unlock!");
+                                return;
+                              }
+                              setActiveTab(tab.id);
+                            }}
+                            className={`relative z-10 w-full px-2 py-2.5 rounded-xl transition-all duration-300 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap flex items-center justify-center gap-1 ${activeTab === tab.id
+                              ? "text-white"
+                              : isRestricted ? "text-white/20 hover:text-white/40" : "text-white/40 hover:text-white/60"
+                              }`}
+                          >
+                            {activeTab === tab.id && (
+                              <div className="absolute inset-0 bg-blue-600 rounded-xl shadow-lg shadow-blue-500/20 animate-in fade-in zoom-in-95 duration-200" style={{ zIndex: -1 }} />
+                            )}
+                            {isRestricted && <Lock size={10} className="text-amber-500/60" />}
+                            {tab.label}
+                          </button>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+
+                {/* Tab Content */}
+                <div className={activeTab === "code" ? "flex-1 min-h-0" : "space-y-6"}>
+                  {activeTab === "design" &&
+                    (selectedIds.length > 1 ? (
+                      <BatchEditGroup selectedIds={selectedIds} />
+                    ) : primary?.settings ? (
+                      React.createElement(primary.settings)
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-8 text-brand-lighter opacity-50">
+                        <p className="text-sm">No design settings available</p>
+                      </div>
+                    ))}
+
+                  {activeTab === "prototype" && (
+                    <PrototypeGroup selectedIds={selectedIds} />
+                  )}
+
+                  {activeTab === "animation" && (
+                    <AnimationGroup selectedIds={selectedIds} />
+                  )}
+
+                  {activeTab === "code" && (
+                    <div className="h-full min-h-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                      <CodeEditor
+                        mode="design"
+                        projectId={projectId}
+                        files={files || []}
+                        onFilesChange={onFilesChange}
+                        className="h-full border-none shadow-none rounded-none"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-64 text-brand-lighter opacity-50">
+                <p className="text-sm">Select an element to edit</p>
               </div>
             )}
           </div>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center h-64 text-brand-lighter opacity-50">
-          <p className="text-sm">Select an element to edit</p>
-        </div>
-      )}
 
-      {/* Code Editor Modal */}
-      <CodeEditor
-        isOpen={isCodeEditorOpen}
-        onClose={() => setIsCodeEditorOpen(false)}
-        projectId={projectId}
-      />
         </div>
       </div>
     </div>
   );
 };
 
-export const RightPanel = ({ frameReady = true, ...props }: RightPanelProps) => {
+export const RightPanel: React.FC<RightPanelProps> = (props) => {
   const [ready, setReady] = useState(false);
 
   // Delay mounting the editor-subscribed content until after Frame has committed (frameReady)
@@ -360,14 +417,14 @@ export const RightPanel = ({ frameReady = true, ...props }: RightPanelProps) => 
     return () => cancelAnimationFrame(id);
   }, []);
 
-  const canMountInner = frameReady && ready;
+  const canMountInner = props.frameReady && ready;
 
   if (!canMountInner) {
     return (
       <div
         data-panel="configs"
-        className="w-80 bg-brand-darker/75 backdrop-blur-lg rounded-3xl p-6 h-full shadow-2xl overflow-y-auto border border-white/10 transition-shadow duration-300 flex items-center justify-center text-xs text-brand-light/60"
-        style={{ boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)" }}
+        className="bg-brand-darker/75 backdrop-blur-lg rounded-3xl p-6 h-full shadow-2xl overflow-y-auto border border-white/10 transition-shadow duration-300 flex items-center justify-center text-xs text-brand-light/60"
+        style={{ width: `${RIGHT_PANEL_MIN_WIDTH}px`, boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)" }}
       >
         Loading inspector…
       </div>

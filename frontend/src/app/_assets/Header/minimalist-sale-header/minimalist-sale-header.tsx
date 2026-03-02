@@ -18,12 +18,12 @@ export const MinimalistSaleHeader: TemplateEntry = {
     { is: Section, canvas: true, customStyle: { padding: "0" } },
     React.createElement(
       Element as any,
-      { is: Container, background: "#dc2626", padding: "8px 16px", canvas: true },
+      { is: Container, background: "#dc2626", padding: 0, canvas: true },
       React.createElement(
         Element as any,
         { is: Row, justifyContent: "center", alignItems: "center", canvas: true },
         React.createElement(Text, { 
-          text: "⚡ FLASH SALE: Up to 70% off • Use code: SAVE70", 
+          text: "FLASH SALE: Up to 70% off • Use code: SAVE70", 
           fontSize: 13, 
           color: "#ffffff", 
           fontWeight: "500",
@@ -33,7 +33,7 @@ export const MinimalistSaleHeader: TemplateEntry = {
     ),
     React.createElement(
       Element as any,
-      { is: Container, background: "#ffffff", padding: "20px 32px", canvas: true },
+      { is: Container, background: "#ffffff", padding: 0, canvas: true },
       React.createElement(
         Element as any,
         { is: Row, alignItems: "center", justifyContent: "space-between", canvas: true },

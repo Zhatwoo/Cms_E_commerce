@@ -18,6 +18,7 @@ import {
   LockOpen,
 } from "lucide-react";
 import { duplicateNodes, groupSelection, ungroupSelection, selectedToIds } from "../../_lib/canvasActions";
+import { useCanvasTool } from "../CanvasToolContext";
 
 /** Node types that cannot be deleted, duplicated, or dragged */
 const PROTECTED = new Set(["Viewport"]);
@@ -81,6 +82,7 @@ export const FilesPanel = () => {
     nodes: state.nodes,
     selected: state.events.selected,
   }));
+  const activeTool = useCanvasTool();
 
   const [isPending, startTransition] = useTransition();
 
@@ -340,6 +342,8 @@ export const FilesPanel = () => {
   ) {
     // Only left-click
     if (e.button !== 0) return;
+    // Hand tool = pan only, no layer reordering
+    if (activeTool === "hand") return;
     // Don't drag protected nodes
     if (UNDRAGGABLE.has(nodeId)) return;
     const node = nodesRef.current[nodeId];
@@ -593,13 +597,44 @@ export const FilesPanel = () => {
                 actions.selectNode(next.size === 0 ? undefined : Array.from(next));
               } else {
                 actions.selectNode(nodeId);
+                // Scroll canvas to center the selected node, accounting for zoom/transform
+                try {
+                  const dom = query.node(nodeId).get()?.dom ?? null;
+                  if (dom) {
+                    const container = document.querySelector("[data-canvas-container]") as HTMLElement | null;
+                    if (container) {
+                      // getBoundingClientRect gives viewport-coords (already zoom-adjusted)
+                      const nodeRect = dom.getBoundingClientRect();
+                      const containerRect = container.getBoundingClientRect();
+
+                      // Center of the node in viewport coords
+                      const nodeCenterX = nodeRect.left + nodeRect.width / 2;
+                      const nodeCenterY = nodeRect.top + nodeRect.height / 2;
+
+                      // How far the center is from the container's center
+                      const containerCenterX = containerRect.left + containerRect.width / 2;
+                      const containerCenterY = containerRect.top + containerRect.height / 2;
+
+                      // Delta to shift the scroll so the node is centered
+                      const scrollDx = nodeCenterX - containerCenterX;
+                      const scrollDy = nodeCenterY - containerCenterY;
+
+                      container.scrollBy({ left: scrollDx, top: scrollDy, behavior: "smooth" });
+                    } else {
+                      // fallback
+                      dom.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+                    }
+                  }
+                } catch {
+                  // node may not have a DOM yet
+                }
               }
             });
           }}
           onContextMenu={openContextMenu}
           className={`
             group flex items-center gap-1 py-2 px-1 rounded-lg transition-colors relative
-            ${isSel ? "bg-blue-400/20 text-brand-lighter" : "text-brand-light hover:bg-brand-medium/20 hover:text-brand-lighter"}
+            ${isSel ? "bg-blue-400/20 text-white" : "text-white/80 hover:bg-brand-medium/20 hover:text-white"}
             cursor-pointer
           `}
           style={{ paddingLeft: `${depth * 10 + 5}px` }}
@@ -691,12 +726,12 @@ export const FilesPanel = () => {
         style={{ left: contextMenu.x, top: contextMenu.y }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-brand-light font-semibold border-b border-white/5">
+        <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-white/50 font-semibold border-b border-white/5">
           {nodeName}
         </div>
         <button
           onClick={() => handleSelect(contextMenu.nodeId)}
-          className="flex items-center gap-2 w-full px-3 py-1.5 text-brand-lighter hover:bg-white/10 transition-colors cursor-pointer"
+          className="flex items-center gap-2 w-full px-3 py-1.5 text-white hover:bg-white/10 transition-colors cursor-pointer"
         >
           <MousePointer2 className="w-3.5 h-3.5" />
           Select
@@ -704,9 +739,8 @@ export const FilesPanel = () => {
         <button
           onClick={() => !nodeProtected && handleDuplicate(contextMenu.nodeId)}
           disabled={nodeProtected}
-          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${
-            nodeProtected ? "text-brand-light/30 cursor-not-allowed" : "text-brand-lighter hover:bg-white/10 cursor-pointer"
-          }`}
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${nodeProtected ? "text-brand-light/30 cursor-not-allowed" : "text-brand-lighter hover:bg-white/10 cursor-pointer"
+            }`}
         >
           <Copy className="w-3.5 h-3.5" />
           Duplicate
@@ -714,9 +748,8 @@ export const FilesPanel = () => {
         <button
           onClick={() => canGroup && handleGroup()}
           disabled={!canGroup}
-          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${
-            !canGroup ? "text-brand-light/30 cursor-not-allowed" : "text-brand-lighter hover:bg-white/10 cursor-pointer"
-          }`}
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${!canGroup ? "text-brand-light/30 cursor-not-allowed" : "text-brand-lighter hover:bg-white/10 cursor-pointer"
+            }`}
         >
           <Group className="w-3.5 h-3.5" />
           Group
@@ -724,9 +757,8 @@ export const FilesPanel = () => {
         <button
           onClick={() => canUngroup && handleUngroup()}
           disabled={!canUngroup}
-          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${
-            !canUngroup ? "text-brand-light/30 cursor-not-allowed" : "text-brand-lighter hover:bg-white/10 cursor-pointer"
-          }`}
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${!canUngroup ? "text-brand-light/30 cursor-not-allowed" : "text-brand-lighter hover:bg-white/10 cursor-pointer"
+            }`}
         >
           <Ungroup className="w-3.5 h-3.5" />
           Ungroup
@@ -735,9 +767,8 @@ export const FilesPanel = () => {
         <button
           onClick={() => !nodeProtected && handleDelete(contextMenu.nodeId)}
           disabled={nodeProtected}
-          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${
-            nodeProtected ? "text-brand-light/30 cursor-not-allowed" : "text-red-400 hover:bg-red-500/10 cursor-pointer"
-          }`}
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${nodeProtected ? "text-brand-light/30 cursor-not-allowed" : "text-red-400 hover:bg-red-500/10 cursor-pointer"
+            }`}
         >
           <Trash2 className="w-3.5 h-3.5" />
           Delete

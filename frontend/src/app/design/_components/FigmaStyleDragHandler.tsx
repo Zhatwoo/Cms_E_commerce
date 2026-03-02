@@ -20,7 +20,9 @@ const CANVAS_DISPLAY_NAMES = new Set([
 ]);
 const EDITOR_DRAGGING_FLAG = "editorDragging";
 const EDITOR_DROP_COMMIT_FLAG = "editorDropCommit";
-const DRAG_THRESHOLD = 5;
+const MULTI_DRAG_LOCK_FLAG = "multiDragLock";
+const BOX_SELECTING_FLAG = "boxSelecting";
+
 
 type MoveMode = "margin" | "offset";
 
@@ -141,15 +143,15 @@ function getDropTargetAt(
  */
 function findDeepestNodeId(element: HTMLElement | null): string | null {
   if (!element) return null;
-  
+
   // Check if element itself has data-node-id
   const selfId = element.getAttribute("data-node-id");
   if (selfId) return selfId;
-  
+
   // Walk up the tree and collect all node-ids
   const nodeIds: Array<{ id: string; element: HTMLElement }> = [];
   let current: HTMLElement | null = element;
-  
+
   while (current && current !== document.body) {
     const id = current.getAttribute("data-node-id");
     if (id) {
@@ -157,7 +159,7 @@ function findDeepestNodeId(element: HTMLElement | null): string | null {
     }
     current = current.parentElement;
   }
-  
+
   // Return the first (deepest) node-id found
   return nodeIds.length > 0 ? nodeIds[0].id : null;
 }
@@ -181,10 +183,14 @@ export const FigmaStyleDragHandler = () => {
   const { actions, query } = useEditor();
   const actionsRef = useRef(actions);
   const queryRef = useRef(query);
+
   const rafRef = useRef<number>(0);
   const processDragRef = useRef<(() => void) | null>(null);
-
   const draggedDomsRef = useRef<HTMLElement[]>([]);
+  const dropTargetHighlightRef = useRef<HTMLElement | null>(null);
+  const insertIndicatorRef = useRef<HTMLElement | null>(null);
+  const activeTool = useCanvasTool();
+
 
   const dragRef = useRef<{
     startX: number;
@@ -193,6 +199,7 @@ export const FigmaStyleDragHandler = () => {
     lastY: number;
     zoom: number;
     committed: boolean;
+
     nodeMargins: Array<{
       id: string;
       marginTop: number;
@@ -202,11 +209,10 @@ export const FigmaStyleDragHandler = () => {
       left: number;
     }>;
     fallbackNodeId: string | null;
+    selectionSnapshotIds: string[];
+    clickedWasInSelection: boolean;
     dirty: boolean;
   } | null>(null);
-  const dropTargetHighlightRef = useRef<HTMLElement | null>(null);
-  const insertIndicatorRef = useRef<HTMLElement | null>(null);
-  const activeTool = useCanvasTool();
 
   useEffect(() => {
     actionsRef.current = actions;
@@ -237,6 +243,8 @@ export const FigmaStyleDragHandler = () => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
 
+      if (document.body.dataset[BOX_SELECTING_FLAG] === "true") return;
+
       // Hand tool: do not start dragging elements, let panning handle it
       if (activeTool === "hand") return;
 
@@ -245,12 +253,16 @@ export const FigmaStyleDragHandler = () => {
       if (target.closest("[data-panel]") && !target.closest("[data-panel='resize-overlay']")) return;
       if (target.closest("[data-resize-handle]")) return;
 
-      // Find the most specific (deepest) node-id in the element path
-      const nodeIdFromTarget = findDeepestNodeId(target);
-
       const state = queryRef.current.getState();
       const nodesMap = state.nodes as Record<string, { data?: { props?: { locked?: boolean } } }>;
       const exists = (id: string) => !!id && id !== "ROOT" && !!nodesMap[id];
+
+      const selectedIdsAtMouseDown = selectedToIds(state.events.selected).filter((id) => id && id !== "ROOT" && !!state.nodes[id]);
+      // Find the most specific (deepest) node-id in the element path
+      let nodeIdFromTarget = findDeepestNodeId(target);
+      if (!nodeIdFromTarget && target.closest("[data-panel='resize-overlay']") && selectedIdsAtMouseDown.length > 0) {
+        nodeIdFromTarget = selectedIdsAtMouseDown[0] ?? null;
+      }
 
       if (!nodeIdFromTarget || !exists(nodeIdFromTarget)) {
         return;
@@ -260,6 +272,17 @@ export const FigmaStyleDragHandler = () => {
       const locked = node?.data?.props?.locked === true;
       if (locked) return;
 
+      const clickedWasInSelection = selectedIdsAtMouseDown.includes(nodeIdFromTarget);
+
+      if (clickedWasInSelection && selectedIdsAtMouseDown.length > 1) {
+        if (e.cancelable) e.preventDefault();
+        e.stopPropagation();
+        if (typeof e.stopImmediatePropagation === "function") {
+          e.stopImmediatePropagation();
+        }
+        document.body.dataset[MULTI_DRAG_LOCK_FLAG] = "true";
+      }
+
       dragRef.current = {
         startX: e.clientX,
         startY: e.clientY,
@@ -268,12 +291,24 @@ export const FigmaStyleDragHandler = () => {
         zoom: 1,
         nodeMargins: [],
         fallbackNodeId: nodeIdFromTarget,
+        selectionSnapshotIds: selectedIdsAtMouseDown,
+        clickedWasInSelection,
         committed: false,
         dirty: false,
       };
     };
 
     const handleMouseMove = (e: MouseEvent) => {
+      if (document.body.dataset[BOX_SELECTING_FLAG] === "true") {
+        dragRef.current = null;
+        document.body.style.userSelect = "";
+        document.body.style.cursor = "";
+        clearDragPreview(draggedDomsRef.current);
+        setDraggingStyle(draggedDomsRef.current, false);
+        draggedDomsRef.current = [];
+        return;
+      }
+
       const d = dragRef.current;
       if (!d) return;
 
@@ -293,17 +328,42 @@ export const FigmaStyleDragHandler = () => {
       if (!d.committed) {
         const dx = d.lastX - d.startX;
         const dy = d.lastY - d.startY;
-        if (Math.sqrt(dx * dx + dy * dy) < DRAG_THRESHOLD) return;
+        const dragThreshold = 5;
+        if (Math.sqrt(dx * dx + dy * dy) < dragThreshold) return;
+
+        // Before committing, verify the cursor is NOT over a panel.
+        // This handles cases where a resize handle or selection overlay is rendered
+        // on top of the config panel — the drag should be cancelled, not committed.
+        const elemsAtCursor = document.elementsFromPoint(d.lastX, d.lastY);
+        const overPanel = elemsAtCursor.some(
+          (el) => (el as HTMLElement).closest?.("[data-panel]")
+        );
+        if (overPanel) {
+          dragRef.current = null;
+          return;
+        }
 
         const state = queryRef.current.getState();
         let ids = selectedToIds(state.events.selected).filter((id) => id && id !== "ROOT" && state.nodes[id]);
-        
+
+        if (d.clickedWasInSelection && d.selectionSnapshotIds.length > 1) {
+          const snapshotValid = d.selectionSnapshotIds.filter((id) => id && id !== "ROOT" && state.nodes[id]);
+          if (snapshotValid.length > 1) {
+            ids = snapshotValid;
+            try {
+              actionsRef.current.selectNode(snapshotValid);
+            } catch {
+              // ignore
+            }
+          }
+        }
+
         // If we clicked on a specific node and it's not in the selection, use the clicked node
         // This prevents dragging parent containers when clicking on child elements
         if (d.fallbackNodeId && state.nodes[d.fallbackNodeId]) {
           const clickedNodeId = d.fallbackNodeId;
           const clickedNodeInSelection = ids.includes(clickedNodeId);
-          
+
           // If clicked node is not in selection, prioritize the clicked node
           // This ensures we drag the actual clicked element, not a parent container
           if (!clickedNodeInSelection && ids.length > 0) {
@@ -318,7 +378,7 @@ export const FigmaStyleDragHandler = () => {
               }
               return false;
             });
-            
+
             // If clicked node is a descendant, use the clicked node instead
             if (isDescendant) {
               ids = [clickedNodeId];
@@ -328,7 +388,7 @@ export const FigmaStyleDragHandler = () => {
             ids = [clickedNodeId];
           }
         }
-        
+
         ids = ids.filter((id) => state.nodes[id]?.data?.props?.locked !== true);
         if (ids.length === 0) {
           dragRef.current = null;
@@ -424,39 +484,55 @@ export const FigmaStyleDragHandler = () => {
             });
           } catch {
             const nodes = queryRef.current?.getState()?.nodes ?? {};
+            const dx = (d.lastX - d.startX) / d.zoom;
+            const dy = (d.lastY - d.startY) / d.zoom;
+
             d.nodeMargins.filter((e) => e.id && nodes[e.id]).forEach((entry) => {
               const { id, mode, marginTop, marginLeft, top, left } = entry;
               actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
                 if (mode === "offset") {
-                  props.top = `${Math.round(top)}px`;
-                  props.left = `${Math.round(left)}px`;
+                  props.top = `${Math.round(top + dy)}px`;
+                  props.left = `${Math.round(left + dx)}px`;
                 } else {
-                  props.marginTop = Math.round(marginTop);
-                  props.marginLeft = Math.round(marginLeft);
+                  props.marginTop = Math.round(marginTop + dy);
+                  props.marginLeft = Math.round(marginLeft + dx);
                 }
               });
             });
           }
         } else {
           const nodes = queryRef.current?.getState()?.nodes ?? {};
+          const dx = (d.lastX - d.startX) / d.zoom;
+          const dy = (d.lastY - d.startY) / d.zoom;
+
           d.nodeMargins.filter((e) => e.id && nodes[e.id]).forEach((entry) => {
             const { id, mode, marginTop, marginLeft, top, left } = entry;
             actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
               if (mode === "offset") {
-                props.top = `${Math.round(top)}px`;
-                props.left = `${Math.round(left)}px`;
+                props.top = `${Math.round(top + dy)}px`;
+                props.left = `${Math.round(left + dx)}px`;
               } else {
-                props.marginTop = Math.round(marginTop);
-                props.marginLeft = Math.round(marginLeft);
+                props.marginTop = Math.round(marginTop + dy);
+                props.marginLeft = Math.round(marginLeft + dx);
               }
             });
           });
+        }
+
+        const validMovedIds = ids.filter((id) => !!queryRef.current?.getState()?.nodes?.[id]);
+        if (validMovedIds.length > 1) {
+          try {
+            actionsRef.current.selectNode(validMovedIds);
+          } catch {
+            // ignore
+          }
         }
       }
 
       // Always reset cursor, selection, and drag styles on mouseup
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
+      delete document.body.dataset[MULTI_DRAG_LOCK_FLAG];
       clearDragPreview(draggedDomsRef.current);
       setDraggingStyle(draggedDomsRef.current, false);
       draggedDomsRef.current = [];
@@ -479,6 +555,7 @@ export const FigmaStyleDragHandler = () => {
       draggedDomsRef.current = [];
       delete document.body.dataset[EDITOR_DRAGGING_FLAG];
       delete document.body.dataset[EDITOR_DROP_COMMIT_FLAG];
+      delete document.body.dataset[MULTI_DRAG_LOCK_FLAG];
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
 
@@ -487,6 +564,28 @@ export const FigmaStyleDragHandler = () => {
       document.removeEventListener("mouseup", handleMouseUp, true);
       window.removeEventListener("mouseup", handleMouseUp, true);
       window.removeEventListener("blur", handleMouseUp, true);
+    };
+  }, [activeTool]);
+
+  // Separate blocker effect: when hand tool is active, stop all dragstart and
+  // node-targeted mousedown events from bubbling to Craft.js' internal handlers.
+  useEffect(() => {
+    if (activeTool !== "hand") return;
+
+    const blockDrag = (e: Event) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      // Block if inside canvas (not in a panel)
+      if (target.closest("[data-panel]")) return;
+      if (target.closest("[data-canvas-container]") || target.closest("[data-node-id]")) {
+        e.stopPropagation();
+        if (e.type === "dragstart") e.preventDefault();
+      }
+    };
+
+    document.addEventListener("dragstart", blockDrag, true);
+    return () => {
+      document.removeEventListener("dragstart", blockDrag, true);
     };
   }, [activeTool]);
 

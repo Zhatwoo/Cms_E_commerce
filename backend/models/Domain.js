@@ -68,6 +68,26 @@ async function deleteById(id) {
   await db.collection(COLLECTION).doc(id).delete();
 }
 
+/** Delete domain record and public subdomain lookup for a project. */
+async function deleteByProjectId(userId, projectId) {
+  const domain = await findByProjectId(userId, projectId);
+  if (!domain) return;
+
+  const batch = db.batch();
+
+  // 1. Delete client domain doc: user/roles/client/{userId}/domains/{domainId}
+  const domainRef = getDomainsRef(userId).doc(domain.id);
+  batch.delete(domainRef);
+
+  // 2. Delete public subdomain lookup: published_subdomains/{subdomain}
+  if (domain.subdomain) {
+    const publishedRef = getPublishedSubdomainsRef().doc(domain.subdomain);
+    batch.delete(publishedRef);
+  }
+
+  await batch.commit();
+}
+
 /**
  * Publish for a client: write to BOTH paths in one batch so both always stay in sync for any client UID.
  * Saves a snapshot of content so the public site shows only what was published, not the live draft.
@@ -439,8 +459,9 @@ module.exports = {
   findById,
   findByUserId,
   findAll,
-  update,
+  update: updateForClient,
   delete: deleteById,
+  deleteByProjectId,
   publishForClientBatch,
   setSubdomainLookup,
   findBySubdomain,
