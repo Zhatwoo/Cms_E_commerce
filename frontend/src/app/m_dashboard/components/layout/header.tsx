@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { logout, type User } from '@/lib/api';
 import { useTheme } from '../context/theme-context';
 import { useAuth } from '../context/auth-context';
+import { useProject } from '../context/project-context';
 
 const SunIcon = () => (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -71,8 +72,11 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     const pathname = usePathname();
     const { user, setUser } = useAuth();
     const { theme, toggleTheme, colors } = useTheme();
+    const { projects, loading, selectedProject, setSelectedProjectId } = useProject();
+    const selectedProjectId = selectedProject?.id ?? null;
     const [showMenu, setShowMenu] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
+    const [showSwitchModal, setShowSwitchModal] = useState(false);
     const [scrolled, setScrolled] = useState(false);
     const userName = user?.name || user?.email || '';
 

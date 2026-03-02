@@ -362,6 +362,9 @@ export default function WebBuilderPage() {
   const [renameValue, setRenameValue] = useState('');
   const [sortOption, setSortOption] = useState<SortOptionId>('relevant');
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [activeTab, setActiveTab] = useState<'active' | 'trash'>('active');
+  const [trashedProjects, setTrashedProjects] = useState<Project[]>([]);
+  const [trashedProjectsLoading, setTrashedProjectsLoading] = useState(false);
 
   const visibleProjects = projects;
 
@@ -806,27 +809,13 @@ export default function WebBuilderPage() {
               Trash
             </button>
           </div>
-        ) : (
-          <div className="grid w-full max-w-full min-w-0 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
-            {visibleProjects.map((p) => (
-              <motion.div
-                key={p.id}
-                className="relative min-w-0 rounded-lg border overflow-hidden cursor-pointer hover:border-opacity-80 transition-colors"
-                style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => {
-                  router.push(`/design?projectId=${p.id}`);
-                }}
-              >
-                {/* Thumbnail: first-page draft preview */}
-                <div className="relative w-full min-h-[100px]" style={{ backgroundColor: colors.bg.elevated, borderBottom: `1px solid ${colors.border.faint}` }}>
-                  <DraftPreviewThumbnail
-                    projectId={p.id}
-                    borderColor={colors.border.faint}
-                    bgColor={colors.bg.elevated}
-                  />
-                </div>
+        </div>
+
+        {activeTab === 'active' ? (
+          <>
+            {loading ? (
+              <div className="rounded-xl border p-12 text-center" style={{ borderColor: colors.border.faint }}>
+                <p className="text-sm" style={{ color: colors.text.muted }}>Loading projects…</p>
               </div>
             ) : projects.length === 0 ? (
               <div className="rounded-xl border border-dashed p-12 text-center" style={{ borderColor: colors.border.faint }}>
