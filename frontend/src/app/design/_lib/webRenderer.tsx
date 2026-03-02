@@ -722,7 +722,7 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
   Text: {
     text: "Edit me!",
     fontSize: 16,
-    fontFamily: "Inter",
+    fontFamily: "Outfit",
     fontWeight: "400",
     lineHeight: 1.5,
     letterSpacing: 0,
@@ -760,7 +760,7 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
     variant: "primary",
     fontSize: 14,
     fontWeight: "500",
-    fontFamily: "Inter",
+    fontFamily: "Outfit",
     borderRadius: 8,
     width: "auto",
     height: "auto",
@@ -1587,7 +1587,8 @@ function RenderNode({
         transform: textTransformStyle,
         transformOrigin: "center center",
         whiteSpace: "pre-wrap",
-        wordBreak: "break-word",
+        overflowWrap: "break-word",
+        wordBreak: "normal",
       };
 
       if (allowPreviewInput) {
@@ -1686,7 +1687,7 @@ function RenderNode({
             color,
             fontSize: px(props.fontSize),
             fontWeight: props.fontWeight as string,
-            fontFamily: (props.fontFamily as string) || "Inter",
+            fontFamily: (props.fontFamily as string) || "Outfit",
             borderRadius: px(props.borderRadius),
             border: `${borderWidth}px ${resolvedBorderStyle} ${borderColor}`,
             padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
@@ -2202,12 +2203,15 @@ export function LiveSite({
   pageIndex = 0,
   storeContext,
   initialPageSlug,
+  mobileBreakpoint = 480,
 }: {
   doc: BuilderDocument;
   pageIndex?: number;
   storeContext?: StoreContext | null;
   /** Optional initial page slug from URL (e.g. ?page=page-1) for deep linking */
   initialPageSlug?: string;
+  /** Width threshold (px) before switching to mobile frame behavior. */
+  mobileBreakpoint?: number;
 }): React.ReactElement {
   const safePages = doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page));
   const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
@@ -2243,7 +2247,7 @@ export function LiveSite({
   const pageProps = mergeProps("Page", currentPage.props) as Record<string, unknown>;
   const background = (pageProps.background as string) || "#ffffff";
   const { ref, width: viewportWidth } = useContainerWidth();
-  const isPhoneSize = viewportWidth <= 768;
+  const isPhoneSize = viewportWidth <= mobileBreakpoint;
   const liveSiteWrapperRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     if (isPhoneSize && liveSiteWrapperRef.current) {

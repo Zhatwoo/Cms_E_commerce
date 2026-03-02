@@ -5,14 +5,16 @@ Etong theme-context.tsx naman na to eh yung sa theme ng application.
 'use client';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
+const THEME_STORAGE_KEY = 'mercato_theme_preference';
+
 export const THEMES = {
   dark: {
     bg: {
-      primary: '#1D1D21',
-      dark: '#000000',
-      card: '#1D1D21',
-      elevated: '#26262C',
-      fog: '#0a0a0f',
+      primary: '#1B1437',
+      dark: '#120D26',
+      card: '#231A47',
+      elevated: '#2D2360',
+      fog: '#0F0B1F',
     },
     text: {
       primary: '#F4F4F6',
@@ -21,8 +23,8 @@ export const THEMES = {
       subtle: '#66666E',
     },
     border: {
-      default: '#66666E',
-      faint: '#4A4A52',
+      default: '#6B5FA2',
+      faint: '#4E437D',
     },
     status: {
       good: '#A3E635',
@@ -68,12 +70,27 @@ type ThemeContextType = {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('dark');
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window === 'undefined') return 'dark';
+
+    const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+    if (storedTheme === 'dark' || storedTheme === 'light') {
+      return storedTheme;
+    }
+
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
 
   useEffect(() => {
     document.documentElement.classList.remove('dark', 'light');
     document.documentElement.classList.add(theme);
     (document.documentElement.style as any).colorScheme = theme;
+
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch {
+      // ignore localStorage errors
+    }
   }, [theme]);
 
   useEffect(() => {

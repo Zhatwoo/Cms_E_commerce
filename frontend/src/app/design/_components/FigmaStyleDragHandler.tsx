@@ -331,6 +331,18 @@ export const FigmaStyleDragHandler = () => {
         const dragThreshold = 5;
         if (Math.sqrt(dx * dx + dy * dy) < dragThreshold) return;
 
+        // Before committing, verify the cursor is NOT over a panel.
+        // This handles cases where a resize handle or selection overlay is rendered
+        // on top of the config panel — the drag should be cancelled, not committed.
+        const elemsAtCursor = document.elementsFromPoint(d.lastX, d.lastY);
+        const overPanel = elemsAtCursor.some(
+          (el) => (el as HTMLElement).closest?.("[data-panel]")
+        );
+        if (overPanel) {
+          dragRef.current = null;
+          return;
+        }
+
         const state = queryRef.current.getState();
         let ids = selectedToIds(state.events.selected).filter((id) => id && id !== "ROOT" && state.nodes[id]);
 
@@ -472,30 +484,36 @@ export const FigmaStyleDragHandler = () => {
             });
           } catch {
             const nodes = queryRef.current?.getState()?.nodes ?? {};
+            const dx = (d.lastX - d.startX) / d.zoom;
+            const dy = (d.lastY - d.startY) / d.zoom;
+
             d.nodeMargins.filter((e) => e.id && nodes[e.id]).forEach((entry) => {
               const { id, mode, marginTop, marginLeft, top, left } = entry;
               actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
                 if (mode === "offset") {
-                  props.top = `${Math.round(top)}px`;
-                  props.left = `${Math.round(left)}px`;
+                  props.top = `${Math.round(top + dy)}px`;
+                  props.left = `${Math.round(left + dx)}px`;
                 } else {
-                  props.marginTop = Math.round(marginTop);
-                  props.marginLeft = Math.round(marginLeft);
+                  props.marginTop = Math.round(marginTop + dy);
+                  props.marginLeft = Math.round(marginLeft + dx);
                 }
               });
             });
           }
         } else {
           const nodes = queryRef.current?.getState()?.nodes ?? {};
+          const dx = (d.lastX - d.startX) / d.zoom;
+          const dy = (d.lastY - d.startY) / d.zoom;
+
           d.nodeMargins.filter((e) => e.id && nodes[e.id]).forEach((entry) => {
             const { id, mode, marginTop, marginLeft, top, left } = entry;
             actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
               if (mode === "offset") {
-                props.top = `${Math.round(top)}px`;
-                props.left = `${Math.round(left)}px`;
+                props.top = `${Math.round(top + dy)}px`;
+                props.left = `${Math.round(left + dx)}px`;
               } else {
-                props.marginTop = Math.round(marginTop);
-                props.marginLeft = Math.round(marginLeft);
+                props.marginTop = Math.round(marginTop + dy);
+                props.marginLeft = Math.round(marginLeft + dx);
               }
             });
           });
@@ -546,6 +564,28 @@ export const FigmaStyleDragHandler = () => {
       document.removeEventListener("mouseup", handleMouseUp, true);
       window.removeEventListener("mouseup", handleMouseUp, true);
       window.removeEventListener("blur", handleMouseUp, true);
+    };
+  }, [activeTool]);
+
+  // Separate blocker effect: when hand tool is active, stop all dragstart and
+  // node-targeted mousedown events from bubbling to Craft.js' internal handlers.
+  useEffect(() => {
+    if (activeTool !== "hand") return;
+
+    const blockDrag = (e: Event) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      // Block if inside canvas (not in a panel)
+      if (target.closest("[data-panel]")) return;
+      if (target.closest("[data-canvas-container]") || target.closest("[data-node-id]")) {
+        e.stopPropagation();
+        if (e.type === "dragstart") e.preventDefault();
+      }
+    };
+
+    document.addEventListener("dragstart", blockDrag, true);
+    return () => {
+      document.removeEventListener("dragstart", blockDrag, true);
     };
   }, [activeTool]);
 

@@ -7,7 +7,7 @@ import type { TextProps } from "../../_types/components";
 export const Text = ({
   text,
   fontSize = 16,
-  fontFamily = "Inter",
+  fontFamily = "Outfit",
   fontWeight = "400",
   fontStyle = "normal",
   lineHeight = 1.5,
@@ -93,8 +93,8 @@ export const Text = ({
     maxWidth: "100%",
     minWidth: 0,
     whiteSpace: "pre-wrap",
-    overflowWrap: "anywhere",
-    wordBreak: "break-word",
+    overflowWrap: "break-word",
+    wordBreak: "normal",
     marginTop: `${mt}px`,
     marginBottom: `${mb}px`,
     marginLeft: `${ml}px`,
@@ -185,7 +185,7 @@ export const Text = ({
 export const TextDefaultProps: Partial<TextProps> = {
   text: "",
   fontSize: 16,
-  fontFamily: "Inter",
+  fontFamily: "Outfit",
   fontWeight: "400",
   fontStyle: "normal",
   lineHeight: 1.5,

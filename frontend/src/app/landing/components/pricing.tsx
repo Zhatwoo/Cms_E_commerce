@@ -1,7 +1,33 @@
 'use client';
 
-function Reveal({ children, className }: { children: React.ReactNode; className?: string; delay?: number; x?: number; y?: number; duration?: number }) {
-  return <div className={className}>{children}</div>;
+import { motion } from 'framer-motion';
+
+function Reveal({
+  children,
+  className,
+  delay = 0,
+  x = 0,
+  y = 24,
+  duration = 0.72,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+  x?: number;
+  y?: number;
+  duration?: number;
+}) {
+  return (
+    <motion.div
+      className={className}
+      initial={{ opacity: 0, x, y }}
+      whileInView={{ opacity: 1, x: 0, y: 0 }}
+      viewport={{ once: false, amount: 0.14 }}
+      transition={{ duration, delay, ease: [0.22, 1, 0.36, 1] }}
+    >
+      {children}
+    </motion.div>
+  );
 }
 
 const PLANS = [

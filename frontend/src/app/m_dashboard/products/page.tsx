@@ -357,6 +357,7 @@ function toDashboardProduct(product: ApiProduct): Product {
   const finalPrice = typeof product.finalPrice === 'number'
     ? product.finalPrice
     : (typeof product.price === 'number' ? product.price : 0);
+  const costPrice = typeof product.costPrice === 'number' ? product.costPrice : null;
   const priceRangeMin = typeof product.priceRangeMin === 'number' ? product.priceRangeMin : null;
   const priceRangeMax = typeof product.priceRangeMax === 'number' ? product.priceRangeMax : null;
   const discount = typeof product.discount === 'number' ? product.discount : 0;
@@ -371,6 +372,7 @@ function toDashboardProduct(product: ApiProduct): Product {
     description: product.description || '',
     price: finalPrice,
     basePrice,
+    costPrice,
     finalPrice,
     compareAtPrice: typeof product.compareAtPrice === 'number' ? product.compareAtPrice : null,
     discount,
@@ -538,6 +540,7 @@ export default function ProductsPage() {
         description: String(productData.description || ''),
         price: finalPrice,
         basePrice,
+        costPrice: productData.costPrice !== undefined ? Number(productData.costPrice || 0) : null,
         finalPrice,
         compareAtPrice: discount > 0 ? basePrice : null,
         discount,
@@ -837,6 +840,7 @@ export default function ProductsPage() {
         }}
         onSave={handleSaveProduct}
         editingProduct={editingProduct}
+        uploadSubdomain={selectedSubdomain}
       />
 
       <AnimatePresence>

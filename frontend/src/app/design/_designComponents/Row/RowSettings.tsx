@@ -5,7 +5,6 @@ import { AutoLayoutGroup } from "../../_components/rightPanel/settings/AutoLayou
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
-import { InteractionGroup } from "../../_components/rightPanel/settings/InteractionGroup";
 import type { ContainerProps, SetProp } from "../../_types/components";
 
 export const RowSettings = () => {
@@ -114,19 +113,6 @@ export const RowSettings = () => {
         />
       </DesignSection>
 
-      <DesignSection title="Interactions" defaultOpen={false}>
-        <InteractionGroup
-          toggleTarget={toggleTarget}
-          triggerAction={triggerAction}
-          collapsibleKey={collapsibleKey}
-          defaultOpen={defaultOpen}
-          defaultOpenMobile={defaultOpenMobile}
-          defaultOpenDesktop={defaultOpenDesktop}
-          showOn={showOn}
-          mobileBreakpoint={mobileBreakpoint}
-          setProp={typedSetProp}
-        />
-      </DesignSection>
     </div>
   );
 };

@@ -1,6 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState } from 'react';
 import { useTheme } from './components/context/theme-context';
 import { useAuth } from './components/context/auth-context';
 import { useProject } from './components/context/project-context';
@@ -153,17 +152,16 @@ function ProjectSelectionScreen() {
                                                     </button>
                                                     <button
                                                         type="button"
-                                                        disabled={isDeleting}
-                                                        className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-red-500/10"
+                                                        disabled={isDeleting || project.status === 'published'}
+                                                        className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors ${project.status === 'published' ? 'opacity-40 cursor-not-allowed' : 'hover:bg-red-500/10'}`}
                                                         style={{
-                                                            color: '#ef4444',
-                                                            opacity: isDeleting ? 0.6 : 1,
-                                                            cursor: isDeleting ? 'default' : 'pointer',
+                                                            color: project.status === 'published' ? colors.text.muted : '#ef4444',
                                                         }}
                                                         onClick={() => {
                                                             setMenuOpenId(null);
                                                             setConfirmTarget(project);
                                                         }}
+                                                        title={project.status === 'published' ? "Unpublish this site first to delete it" : "Move to trash"}
                                                     >
                                                         <svg
                                                             viewBox="0 0 24 24"
@@ -181,7 +179,7 @@ function ProjectSelectionScreen() {
                                                             <path d="M14 11v6" />
                                                             <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
                                                         </svg>
-                                                        <span>Delete</span>
+                                                        <span>{project.status === 'published' ? 'Published' : 'Delete'}</span>
                                                     </button>
                                                 </div>
                                             )}
@@ -277,14 +275,14 @@ function ProjectSelectionScreen() {
                     >
                         <div className="p-5 space-y-3">
                             <h2 className="text-lg font-semibold" style={{ color: colors.text.primary }}>
-                                Delete this website?
+                                Move to trash?
                             </h2>
                             <p className="text-sm" style={{ color: colors.text.muted }}>
-                                This will permanently delete{' '}
+                                This will move{' '}
                                 <span className="font-semibold" style={{ color: colors.text.primary }}>
                                     {confirmTarget.title || 'this website'}
                                 </span>
-                                . All designs and data for this website will be removed. This action cannot be undone.
+                                {' '}to the trash. You can restore it later if you change your mind.
                             </p>
                         </div>
                         <div className="px-5 pb-4 flex items-center justify-end gap-2">
@@ -318,7 +316,7 @@ function ProjectSelectionScreen() {
                                 className="px-3 py-1.5 rounded-lg text-sm font-medium"
                                 style={{ backgroundColor: '#ef4444', color: '#ffffff' }}
                             >
-                                {deletingId === confirmTarget.id ? 'Deleting…' : 'Delete permanently'}
+                                {deletingId === confirmTarget.id ? 'Moving…' : 'Move to trash'}
                             </button>
                         </div>
                     </div>
@@ -329,26 +327,9 @@ function ProjectSelectionScreen() {
 }
 
 export default function MDashboardPage() {
-    const router = useRouter();
     const { user } = useAuth();
-    const { selectedProject, loading } = useProject();
 
     const userName = user?.name || user?.email || 'User';
-
-    // No "Create or select a website" screen: redirect to Web Builder when no project selected
-    useEffect(() => {
-        if (!loading && !selectedProject) {
-            router.replace('/m_dashboard/web-builder');
-        }
-    }, [loading, selectedProject, router]);
-
-    if (!selectedProject) {
-        return (
-            <div className="flex items-center justify-center min-h-[40vh]">
-                <p className="text-sm opacity-70">Redirecting to Web Builder…</p>
-            </div>
-        );
-    }
 
     return (
         <DashboardContent userName={userName} />

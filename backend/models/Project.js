@@ -1,8 +1,14 @@
 const { db, getRealtimeDb } = require('../config/firebase');
-const { docToObject } = require('../utils/firestoreHelper');
+const { docToObject, deleteRecursive } = require('../utils/firestoreHelper');
+const Domain = require('./Domain');
 
 function getProjectsRef(userId) {
   return db.collection('user').doc('roles').collection('client').doc(userId).collection('projects');
+}
+
+/** Reference to the trash collection for a specific user */
+function getTrashRef(userId) {
+  return db.collection('user').doc('roles').collection('client').doc(userId).collection('trash');
 }
 
 async function create(userId, data) {
@@ -23,9 +29,15 @@ async function create(userId, data) {
 }
 
 async function list(userId) {
-  const ref = getProjectsRef(userId).orderBy('updated_at', 'desc');
+  const ref = getProjectsRef(userId);
   const snap = await ref.get();
-  return snap.docs.map(d => docToObject(d));
+  const items = snap.docs.map(d => docToObject(d)).filter(x => x);
+  // Sort in JS instead of Firestore to avoid filtering out docs missing 'updated_at'
+  return items.sort((a, b) => {
+    const tA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+    const tB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+    return tB - tA;
+  });
 }
 
 async function get(userId, projectId) {
@@ -47,8 +59,131 @@ async function update(userId, projectId, data) {
   return docToObject(snap);
 }
 
+/** Move project to trash instead of deleting it permanently */
+async function moveToTrash(userId, projectId) {
+  const projectRef = getProjectsRef(userId).doc(projectId);
+  const trashRef = getTrashRef(userId).doc(projectId);
+
+  const snap = await projectRef.get();
+  if (!snap.exists) throw new Error('Project not found');
+
+  const data = snap.data();
+
+  // BLOCK DELETION IF PUBLISHED
+  if (data.status === 'published') {
+    throw new Error('This project is published and cannot be deleted. Please unpublish it first from Domain settings.');
+  }
+
+  const path = `user/roles/client/${userId}/trash/${projectId}`;
+  console.log(`🗑️ Moving project to trash at: ${path}`);
+  // Mark with deletion timestamp and store in trash
+  await trashRef.set({
+    ...data,
+    deleted_at: new Date(),
+    original_id: projectId
+  });
+  console.log('✅ Document successfully written to trash.');
+
+  // Remove from active projects
+  await projectRef.delete();
+  console.log('✅ Document removed from active projects.');
+
+  // Cleanup Realtime DB
+  const rtdb = getRealtimeDb();
+  if (rtdb) {
+    try {
+      await rtdb.ref(`user/roles/client/${userId}/projects/${projectId}`).remove();
+    } catch (e) {
+      console.warn('moveToTrash: RTDB cleanup failed:', e.message);
+    }
+  }
+
+  // Deactivate domain records
+  await Domain.deleteByProjectId(userId, projectId);
+
+  return { id: projectId, ...data };
+}
+
+/** List projects currently in the trash for a user (only those <= 30 days old) */
+async function listTrash(userId) {
+  const ref = getTrashRef(userId);
+  const snap = await ref.get();
+
+  const now = new Date();
+  const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
+
+  const items = snap.docs.map(d => docToObject(d)).filter(x => {
+    if (!x || !x.deletedAt) return false;
+    const deletedDate = new Date(x.deletedAt);
+    const ageMs = now.getTime() - deletedDate.getTime();
+
+    // Auto-purge older than 30 days if found during listing
+    if (ageMs > thirtyDaysInMs) {
+      // Trigger background purge (don't await to keep response fast)
+      permanentDelete(userId, x.id).catch(err => console.error('Auto-purge failed:', err));
+      return false;
+    }
+
+    // Calculate fractional days left
+    const msLeft = thirtyDaysInMs - ageMs;
+    x.daysLeft = Math.max(1, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
+    return true;
+  });
+
+  return items.sort((a, b) => {
+    const tA = a.deletedAt ? new Date(a.deletedAt).getTime() : 0;
+    const tB = b.deletedAt ? new Date(b.deletedAt).getTime() : 0;
+    return tB - tA;
+  });
+}
+
+/** Restore a project from the trash back to the active list */
+async function restore(userId, projectId) {
+  const trashRef = getTrashRef(userId).doc(projectId);
+  const projectRef = getProjectsRef(userId).doc(projectId);
+
+  const snap = await trashRef.get();
+  if (!snap.exists) throw new Error('Project not found in trash');
+
+  const data = snap.data();
+  // Remove trash-specific fields
+  delete data.deleted_at;
+  delete data.original_id;
+
+  // Restore to active projects
+  await projectRef.set(data);
+  // Remove from trash
+  await trashRef.delete();
+
+  return { id: projectId, ...data };
+}
+
+/** Public delete function now moves to trash by default */
 async function deleteProject(userId, projectId) {
-  await getProjectsRef(userId).doc(projectId).delete();
+  return moveToTrash(userId, projectId);
+}
+
+/** Permanently purge a project from both active and trash collections */
+async function permanentDelete(userId, projectId) {
+  const docRef = getProjectsRef(userId).doc(projectId);
+  const trashRef = getTrashRef(userId).doc(projectId);
+
+  // 1. Delete domain records
+  await Domain.deleteByProjectId(userId, projectId);
+
+  // 2. Recursively delete all documents and sub-collections
+  await deleteRecursive(docRef);
+  await deleteRecursive(trashRef);
+
+  // 3. RTDB cleanup
+  const rtdb = getRealtimeDb();
+  if (rtdb) {
+    try {
+      await rtdb.ref(`user/roles/client/${userId}/projects/${projectId}`).remove();
+    } catch (e) {
+      console.warn('permanentDelete: RTDB cleanup failed:', e.message);
+    }
+  }
 }
 
 async function getBySubdomain(userId, subdomain) {
@@ -85,6 +220,11 @@ async function getBySubdomain(userId, subdomain) {
   return null;
 }
 
+async function countWithSubdomain(userId) {
+  const snap = await getProjectsRef(userId).where('subdomain', '!=', null).get();
+  return snap.size;
+}
+
 async function countAll() {
   const clientSnap = await db.collection('user').doc('roles').collection('client').get();
   let total = 0;
@@ -102,5 +242,11 @@ module.exports = {
   getBySubdomain,
   update,
   delete: deleteProject,
+  moveToTrash,
+  listTrash,
+  restore,
+  permanentDelete,
+  getTrashRef, // Exported for controller usage
   countAll,
+  countWithSubdomain,
 };

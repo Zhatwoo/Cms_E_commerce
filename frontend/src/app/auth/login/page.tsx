@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -46,14 +47,25 @@ export default function LoginPage() {
     <div className="w-full max-w-md">
         <Link
           href="/"
-          className="inline-block text-2xl font-medium tracking-wide text-white mb-8"
-          style={{ fontFamily: "'Great Vibes', cursive" }}
+          className="mb-8 flex items-center gap-2 text-white"
         >
-          Mercato
+          <span className="grid h-7 w-7 place-items-center rounded-md bg-[#1a0a62] ring-1 ring-white/10">
+            <Image
+              src="/img/centric-logo.svg"
+              alt="Centric logo"
+              width={20}
+              height={20}
+              className="h-5 w-5"
+              priority
+            />
+          </span>
+          <span className="text-[1.9rem] font-semibold leading-none tracking-tight">Centric</span>
         </Link>
-        <div className="rounded-2xl border border-white/10 bg-[#0a0d14] p-8 shadow-xl">
-          <h1 className="text-2xl font-bold text-white md:text-3xl">Log in</h1>
-          <p className="mt-2 text-sm text-white/70">
+        <div className="relative overflow-hidden rounded-3xl border border-[#4f36b8]/55 bg-[#09022f]/95 p-8 shadow-[0_24px_80px_rgba(8,3,36,0.75)]">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(168,85,247,0.2),transparent_40%),radial-gradient(circle_at_85%_15%,rgba(255,204,0,0.09),transparent_35%)]" />
+          <div className="relative z-10">
+          <h1 className="text-5xl font-black leading-none text-white">Log in</h1>
+          <p className="mt-3 text-base text-white/65">
             Welcome back. Enter your credentials to continue.
           </p>
           <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
@@ -63,7 +75,7 @@ export default function LoginPage() {
               </p>
             )}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-white/90">
+              <label htmlFor="email" className="block text-[1.75rem] font-bold text-white/95 leading-none">
                 Email
               </label>
               <input
@@ -73,11 +85,11 @@ export default function LoginPage() {
                 placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-2 w-full rounded-lg border border-neutral-600 bg-neutral-900/80 px-4 py-3 text-white placeholder:text-neutral-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                className="dark-input mt-3 w-full rounded-xl border border-white/25 bg-[#10131d]/85 px-4 py-3 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:outline-none focus:ring-2 focus:ring-[#8b3dff]/35"
               />
             </div>
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-white/90">
+              <label htmlFor="password" className="block text-[1.75rem] font-bold text-white/95 leading-none">
                 Password
               </label>
               <input
@@ -87,11 +99,11 @@ export default function LoginPage() {
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-2 w-full rounded-lg border border-neutral-600 bg-neutral-900/80 px-4 py-3 text-white placeholder:text-neutral-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                className="dark-input mt-3 w-full rounded-xl border border-white/25 bg-[#10131d]/85 px-4 py-3 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:outline-none focus:ring-2 focus:ring-[#8b3dff]/35"
               />
               <Link
                 href="/auth/forgotPassword"
-                className="mt-3 inline-block text-sm text-violet-400 hover:text-violet-300"
+                className="mt-3 inline-block text-sm text-[#b88cff] hover:text-[#cfa8ff]"
               >
                 forgot password?
               </Link>
@@ -99,17 +111,18 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-white py-3 text-sm font-semibold text-neutral-900 transition hover:bg-white/95 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full rounded-xl bg-gradient-to-r from-[#6d1eea] to-[#7b19dc] py-3 text-base font-extrabold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? 'Signing in…' : 'Log in'}
             </button>
           </form>
           <p className="mt-6 text-center text-sm text-white/70">
             Don&apos;t have an account?{' '}
-            <Link href="/auth/register" className="font-medium text-violet-400 hover:text-violet-300">
+            <Link href="/auth/register" className="font-semibold text-[#b88cff] hover:text-[#cfa8ff]">
               Sign up
             </Link>
           </p>
+          </div>
         </div>
     </div>
   );

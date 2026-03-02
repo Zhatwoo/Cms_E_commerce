@@ -5,13 +5,12 @@ import { TransformGroup } from "../../_components/rightPanel/settings/TransformG
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
-import { InteractionGroup } from "../../_components/rightPanel/settings/InteractionGroup";
 import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
 import { ColorInput } from "../../_components/rightPanel/settings/inputs/ColorInput";
 import type { ButtonProps, SetProp } from "../../_types/components";
 
 const FONT_OPTIONS = [
-  "Inter",
+  "Outfit",
   "Roboto",
   "Open Sans",
   "Poppins",
@@ -227,7 +226,7 @@ export const ButtonSettings = () => {
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-brand-lighter">Font</label>
             <select
-              value={fontFamily || "Inter"}
+              value={fontFamily || "Outfit"}
               onChange={(e) => typedSetProp((props) => { props.fontFamily = e.target.value; })}
               className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none"
             >
@@ -263,19 +262,6 @@ export const ButtonSettings = () => {
         />
       </DesignSection>
 
-      <DesignSection title="Interactions" defaultOpen={false}>
-        <InteractionGroup
-          toggleTarget={toggleTarget}
-          triggerAction={triggerAction}
-          collapsibleKey={collapsibleKey}
-          defaultOpen={defaultOpen}
-          defaultOpenMobile={defaultOpenMobile}
-          defaultOpenDesktop={defaultOpenDesktop}
-          showOn={showOn}
-          mobileBreakpoint={mobileBreakpoint}
-          setProp={typedSetProp}
-        />
-      </DesignSection>
     </div>
   );
 };

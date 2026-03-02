@@ -53,9 +53,10 @@ export const KeyboardShortcuts = () => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const ctrl = e.ctrlKey || e.metaKey;
+      const key = e.key.toLowerCase();
 
       // ── Save: Ctrl/Cmd + S ──
-      if (ctrl && e.key === "s") {
+      if (ctrl && key === "s") {
         e.preventDefault();
         try {
           const json = query.serialize();
@@ -70,7 +71,7 @@ export const KeyboardShortcuts = () => {
       if (isEditableTarget(e.target)) return;
 
       // ── Undo: Ctrl/Cmd + Z ──
-      if (ctrl && !e.shiftKey && e.key === "z") {
+      if (ctrl && !e.shiftKey && key === "z") {
         e.preventDefault();
         try {
           if (actions.history?.undo) actions.history.undo();
@@ -81,7 +82,7 @@ export const KeyboardShortcuts = () => {
       }
 
       // ── Redo: Ctrl/Cmd + Shift + Z  OR  Ctrl/Cmd + Y ──
-      if (ctrl && ((e.shiftKey && e.key === "z") || e.key === "y")) {
+      if (ctrl && ((e.shiftKey && key === "z") || key === "y")) {
         e.preventDefault();
         try {
           if (actions.history?.redo) actions.history.redo();
@@ -103,7 +104,7 @@ export const KeyboardShortcuts = () => {
       }
 
       // ── Duplicate: Cmd/Ctrl + D ──
-      if (ctrl && e.key === "d") {
+      if (ctrl && key === "d") {
         e.preventDefault();
         const state = query.getState();
         const ids = selectedToIds(state.events.selected);
@@ -112,7 +113,7 @@ export const KeyboardShortcuts = () => {
       }
 
       // ── Copy: Cmd/Ctrl + C ──
-      if (ctrl && e.key === "c") {
+      if (ctrl && key === "c") {
         e.preventDefault();
         const state = query.getState();
         const ids = selectedToIds(state.events.selected);
@@ -121,7 +122,7 @@ export const KeyboardShortcuts = () => {
       }
 
       // ── Cut: Cmd/Ctrl + X ──
-      if (ctrl && e.key === "x") {
+      if (ctrl && key === "x") {
         e.preventDefault();
         const state = query.getState();
         const ids = selectedToIds(state.events.selected);
@@ -130,7 +131,7 @@ export const KeyboardShortcuts = () => {
       }
 
       // ── Paste: Cmd/Ctrl + V ──
-      if (ctrl && e.key === "v") {
+      if (ctrl && key === "v") {
         e.preventDefault();
         const state = query.getState();
         const selectedIds = selectedToIds(state.events.selected);
@@ -148,12 +149,12 @@ export const KeyboardShortcuts = () => {
             atIndex = lastIndex === -1 ? siblings.length : lastIndex + 1;
           }
         }
-        pasteClipboard(actions, query, { parentId, atIndex });
+        pasteClipboard(actions as any, query as any, { parentId, atIndex });
         return;
       }
 
       // ── Select all: Cmd/Ctrl + A ──
-      if (ctrl && e.key === "a") {
+      if (ctrl && key === "a") {
         e.preventDefault();
         try {
           const state = query.getState();
@@ -175,31 +176,31 @@ export const KeyboardShortcuts = () => {
       }
 
       // ── Group: Cmd/Ctrl + G ──
-      if (ctrl && !e.shiftKey && e.key === "g") {
+      if (ctrl && !e.shiftKey && key === "g") {
         e.preventDefault();
         const state = query.getState();
         const ids = selectedToIds(state.events.selected);
-          groupSelection(actions as any, query as any, ids);
+        groupSelection(actions as any, query as any, ids);
         return;
       }
 
       // ── Ungroup: Cmd/Ctrl + Shift + G ──
-      if (ctrl && e.shiftKey && e.key === "g") {
+      if (ctrl && e.shiftKey && key === "g") {
         e.preventDefault();
         const state = query.getState();
         const ids = selectedToIds(state.events.selected);
-          ungroupSelection(actions as any, query as any, ids);
+        ungroupSelection(actions as any, query as any, ids);
         return;
       }
 
       // ── Paste to replace: Shift + Cmd/Ctrl + R ──
-      if (ctrl && e.shiftKey && e.key === "r") {
+      if (ctrl && e.shiftKey && key === "r") {
         e.preventDefault();
         const state = query.getState();
         const ids = selectedToIds(state.events.selected);
         const clip = getClipboard();
         if (ids.length === 1 && clip && clip.nodeIds.length > 0) {
-          pasteToReplaceSelection(actions, query, ids);
+          pasteToReplaceSelection(actions as any, query as any, ids);
         }
         return;
       }
@@ -256,7 +257,7 @@ export const KeyboardShortcuts = () => {
       }
 
       // ── Show/Hide: Shift + Cmd/Ctrl + H ──
-      if (ctrl && e.shiftKey && e.key === "h") {
+      if (ctrl && e.shiftKey && key === "h") {
         e.preventDefault();
         const state = query.getState();
         const ids = selectedToIds(state.events.selected);
@@ -276,7 +277,7 @@ export const KeyboardShortcuts = () => {
       }
 
       // ── Lock/Unlock: Shift + Cmd/Ctrl + L ──
-      if (ctrl && e.shiftKey && e.key === "l") {
+      if (ctrl && e.shiftKey && key === "l") {
         e.preventDefault();
         const state = query.getState();
         const ids = selectedToIds(state.events.selected);
@@ -296,7 +297,7 @@ export const KeyboardShortcuts = () => {
       }
 
       // ── Flip horizontal: Shift + H (no Cmd to avoid conflict with Hide) ──
-      if (!ctrl && e.shiftKey && e.key === "h") {
+      if (!ctrl && e.shiftKey && key === "h") {
         e.preventDefault();
         const state = query.getState();
         const ids = selectedToIds(state.events.selected);
@@ -314,7 +315,7 @@ export const KeyboardShortcuts = () => {
       }
 
       // ── Flip vertical: Shift + V ──
-      if (!ctrl && e.shiftKey && e.key === "v") {
+      if (!ctrl && e.shiftKey && key === "v") {
         e.preventDefault();
         const state = query.getState();
         const ids = selectedToIds(state.events.selected);

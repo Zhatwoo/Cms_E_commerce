@@ -5,6 +5,7 @@
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 let activeApiBase = API_URL.replace(/\/$/, '');
+let activeProjectId: string | null = null;
 
 /** In-memory user only; never persisted to localStorage or cookies. */
 let inMemoryUser: User | null = null;
@@ -71,6 +72,15 @@ export function setStoredUser(user: User | null): void {
   inMemoryUser = user;
 }
 
+export function setActiveProjectId(projectId: string | null): void {
+  const normalized = (projectId || '').toString().trim();
+  activeProjectId = normalized || null;
+}
+
+export function getActiveProjectId(): string | null {
+  return activeProjectId;
+}
+
 export function getApiUrl(): string {
   return activeApiBase;
 }
@@ -88,6 +98,19 @@ function getApiCandidates(): string[] {
     candidates.add('http://127.0.0.1:5000');
     candidates.add('http://localhost:5001');
     candidates.add('http://127.0.0.1:5001');
+  }
+
+  if (typeof window !== 'undefined') {
+    const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
+    const host = (window.location.hostname || '').trim();
+    if (host && host !== 'localhost' && host !== '127.0.0.1') {
+      candidates.add(`${protocol}://${host}:5000`);
+      candidates.add(`${protocol}://${host}:5001`);
+      if (protocol === 'https') {
+        candidates.add(`http://${host}:5000`);
+        candidates.add(`http://${host}:5001`);
+      }
+    }
   }
 
   return Array.from(candidates);
@@ -122,10 +145,14 @@ export async function apiFetch<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string>),
+    ...((options.headers as Record<string, string>) || {}),
   };
+
+  if (activeProjectId && !headers['x-project-id']) {
+    headers['x-project-id'] = activeProjectId;
+  }
 
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   const candidates = getApiCandidates();
@@ -300,6 +327,8 @@ export type Project = {
   thumbnail?: string | null;
   createdAt?: string;
   updatedAt?: string;
+  deletedAt?: string;
+  daysLeft?: number;
 };
 
 export async function listProjects(): Promise<{ success: boolean; projects: Project[] }> {
@@ -310,15 +339,15 @@ export async function createProject(params: {
   title?: string;
   templateId?: string | null;
   subdomain?: string | null;
-}): Promise<{ success: boolean; project: Project }> {
-  return apiFetch<{ success: boolean; project: Project }>('/api/projects', {
+}): Promise<{ success: boolean; project: Project; message?: string }> {
+  return apiFetch<{ success: boolean; project: Project; message?: string }>('/api/projects', {
     method: 'POST',
     body: JSON.stringify(params),
   });
 }
 
-export async function getProject(id: string): Promise<{ success: boolean; project: Project }> {
-  return apiFetch<{ success: boolean; project: Project }>(`/api/projects/${id}`);
+export async function getProject(id: string): Promise<{ success: boolean; project: Project; message?: string }> {
+  return apiFetch<{ success: boolean; project: Project; message?: string }>(`/api/projects/${id}`);
 }
 
 export async function getProjectBySubdomain(subdomain: string): Promise<{ success: boolean; project?: Project }> {
@@ -334,22 +363,46 @@ export async function getProjectBySubdomain(subdomain: string): Promise<{ succes
 export async function updateProject(
   id: string,
   params: { title?: string; status?: string; subdomain?: string | null; thumbnail?: string | null }
-): Promise<{ success: boolean; project: Project }> {
-  return apiFetch<{ success: boolean; project: Project }>(`/api/projects/${id}`, {
+): Promise<{ success: boolean; project: Project; message?: string }> {
+  return apiFetch<{ success: boolean; project: Project; message?: string }>(`/api/projects/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(params),
   });
 }
 
-export async function deleteProject(id: string): Promise<{ success: boolean }> {
-  return apiFetch<{ success: boolean }>(`/api/projects/${id}`, { method: 'DELETE' });
+/** Move project to trash instead of deleting permanently. */
+export async function deleteProject(id: string): Promise<{ success: boolean; message?: string }> {
+  return apiFetch<{ success: boolean; message?: string }>(`/api/projects/${id}`, { method: 'DELETE' });
+}
+
+/** List all projects currently in the trash for the user. */
+export async function listTrashedProjects(): Promise<{ success: boolean; projects: Project[] }> {
+  return apiFetch<{ success: boolean; projects: Project[] }>('/api/projects/trash');
+}
+
+/** Restore a project from the trash back to the active list. */
+export async function restoreProject(id: string): Promise<{ success: boolean; project: Project; message?: string }> {
+  return apiFetch<{ success: boolean; project: Project; message?: string }>(`/api/projects/${id}/restore`, {
+    method: 'POST',
+  });
+}
+
+/** Permanently purge a project from the database. This action cannot be undone. */
+export async function permanentDeleteProject(id: string): Promise<{ success: boolean; message?: string }> {
+  return apiFetch<{ success: boolean; message?: string }>(`/api/projects/${id}/permanent`, {
+    method: 'DELETE',
+  });
 }
 
 /** Publish current project from Preview: creates/updates domain and public lookup so /sites/:subdomain works. */
-export async function publishProject(projectId: string, subdomain?: string | null): Promise<{ success: boolean; message?: string; data?: { id: string; subdomain?: string } }> {
+export async function publishProject(
+  projectId: string,
+  subdomain?: string | null,
+  content?: string | Record<string, unknown> | null
+): Promise<{ success: boolean; message?: string; data?: { id: string; subdomain?: string } }> {
   return apiFetch<{ success: boolean; message?: string; data?: { id: string; subdomain?: string } }>('/api/domains/publish', {
     method: 'POST',
-    body: JSON.stringify({ projectId, subdomain: subdomain || undefined }),
+    body: JSON.stringify({ projectId, subdomain: subdomain || undefined, content: content ?? undefined }),
   });
 }
 
@@ -357,11 +410,12 @@ export async function publishProject(projectId: string, subdomain?: string | nul
 export async function schedulePublish(
   projectId: string,
   scheduledAt: string,
-  subdomain?: string | null
+  subdomain?: string | null,
+  content?: string | Record<string, unknown> | null
 ): Promise<{ success: boolean; message?: string; data?: { subdomain?: string; scheduledAt?: string } }> {
   return apiFetch('/api/domains/schedule-publish', {
     method: 'POST',
-    body: JSON.stringify({ projectId, subdomain: subdomain || undefined, scheduledAt }),
+    body: JSON.stringify({ projectId, subdomain: subdomain || undefined, scheduledAt, content: content ?? undefined }),
   });
 }
 
@@ -391,6 +445,7 @@ export type ApiProduct = {
   description?: string;
   price: number;
   basePrice?: number;
+  costPrice?: number | null;
   finalPrice?: number;
   compareAtPrice?: number | null;
   discount?: number;
@@ -434,6 +489,41 @@ export async function listProducts(params?: {
   return apiFetch<{ success: boolean; items: ApiProduct[]; total: number; page: number; totalPages: number }>(path);
 }
 
+// For uploading prodcut images to Firebase Storage 
+export async function uploadProductImageApi(
+  file: File,
+  subdomain?: string
+): Promise<{ success: boolean; message?: string; url?: string }> {
+  const candidates = getApiCandidates();
+  let lastError: unknown = null;
+
+  for (const base of candidates) {
+    const formData = new FormData();
+    formData.append('image', file);
+    if (subdomain) formData.append('subdomain', subdomain);
+
+    try {
+      const res = await fetch(`${base}/api/products/upload-image`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      activeApiBase = base;
+      return handleResponse<{ success: boolean; message?: string; url?: string }>(res);
+    } catch (error) {
+      lastError = error;
+      if (!(error instanceof TypeError)) {
+        throw error;
+      }
+    }
+  }
+
+  if (lastError instanceof Error && lastError.message) {
+    throw lastError;
+  }
+  throw new Error('Backend is unreachable. Start the backend server and ensure API URL/port is correct.');
+}
+
 export async function createProduct(params: {
   subdomain: string;
   name: string;
@@ -443,6 +533,7 @@ export async function createProduct(params: {
   description?: string;
   price?: number;
   basePrice?: number;
+  costPrice?: number | null;
   finalPrice?: number;
   compareAtPrice?: number | null;
   discount?: number;
@@ -480,6 +571,7 @@ export async function updateProduct(
     description?: string;
     price?: number;
     basePrice?: number;
+    costPrice?: number | null;
     finalPrice?: number;
     compareAtPrice?: number | null;
     discount?: number;
@@ -515,6 +607,21 @@ export async function deleteProduct(id: string): Promise<{ success: boolean; mes
 }
 
 /** Admin: User and Website Management — list websites with owner and plan from user/roles/client (subscription_plan). */
+export type DomainRow = {
+  id: string;
+  userId: string;
+  domain: string;
+  status: string;
+  createdAt?: string;
+};
+
+export async function getMyDomains(): Promise<{
+  success: boolean;
+  data?: DomainRow[];
+}> {
+  return apiFetch<{ success: boolean; data?: DomainRow[] }>('/api/domains/my');
+}
+
 export type WebsiteManagementRow = {
   id: string;
   userId: string;
