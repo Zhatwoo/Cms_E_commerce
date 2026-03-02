@@ -327,6 +327,8 @@ export type Project = {
   thumbnail?: string | null;
   createdAt?: string;
   updatedAt?: string;
+  deletedAt?: string;
+  daysLeft?: number;
 };
 
 export async function listProjects(): Promise<{ success: boolean; projects: Project[] }> {
@@ -368,8 +370,28 @@ export async function updateProject(
   });
 }
 
-export async function deleteProject(id: string): Promise<{ success: boolean }> {
-  return apiFetch<{ success: boolean }>(`/api/projects/${id}`, { method: 'DELETE' });
+/** Move project to trash instead of deleting permanently. */
+export async function deleteProject(id: string): Promise<{ success: boolean; message?: string }> {
+  return apiFetch<{ success: boolean; message?: string }>(`/api/projects/${id}`, { method: 'DELETE' });
+}
+
+/** List all projects currently in the trash for the user. */
+export async function listTrashedProjects(): Promise<{ success: boolean; projects: Project[] }> {
+  return apiFetch<{ success: boolean; projects: Project[] }>('/api/projects/trash');
+}
+
+/** Restore a project from the trash back to the active list. */
+export async function restoreProject(id: string): Promise<{ success: boolean; project: Project; message?: string }> {
+  return apiFetch<{ success: boolean; project: Project; message?: string }>(`/api/projects/${id}/restore`, {
+    method: 'POST',
+  });
+}
+
+/** Permanently purge a project from the database. This action cannot be undone. */
+export async function permanentDeleteProject(id: string): Promise<{ success: boolean; message?: string }> {
+  return apiFetch<{ success: boolean; message?: string }>(`/api/projects/${id}/permanent`, {
+    method: 'DELETE',
+  });
 }
 
 /** Publish current project from Preview: creates/updates domain and public lookup so /sites/:subdomain works. */
