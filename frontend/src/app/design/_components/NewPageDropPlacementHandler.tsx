@@ -122,6 +122,11 @@ export const NewPageDropPlacementHandler = () => {
   const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const previewElRef = useRef<HTMLElement | null>(null);
 
+  const setBodyDragSelectionLock = (locked: boolean) => {
+    if (typeof document === "undefined") return;
+    document.body.style.userSelect = locked ? "none" : "";
+  };
+
   const createPageAtDropPoint = (drop: DropPoint) => {
     try {
       const state = query.getState();
@@ -400,6 +405,8 @@ export const NewPageDropPlacementHandler = () => {
 
       if (!isNewPageDragStart) return;
 
+      setBodyDragSelectionLock(true);
+
       const state = query.getState();
       const nodes = state.nodes ?? {};
       const viewportId = resolveViewportId(nodes);
@@ -426,6 +433,7 @@ export const NewPageDropPlacementHandler = () => {
         armedDragRef.current = false;
         movedDuringDragRef.current = false;
         lastDropPointRef.current = null;
+        setBodyDragSelectionLock(false);
       }
     };
 
@@ -475,17 +483,20 @@ export const NewPageDropPlacementHandler = () => {
 
       armedDragRef.current = false;
       movedDuringDragRef.current = false;
+      setBodyDragSelectionLock(false);
     };
 
     const handleWindowBlur = () => {
       armedDragRef.current = false;
       movedDuringDragRef.current = false;
       lastDropPointRef.current = null;
+      setBodyDragSelectionLock(false);
     };
 
     const handleDragEnd = () => {
       armedDragRef.current = false;
       movedDuringDragRef.current = false;
+      setBodyDragSelectionLock(false);
     };
 
     document.addEventListener("mousedown", handleMouseDown, true);
@@ -503,6 +514,7 @@ export const NewPageDropPlacementHandler = () => {
       document.removeEventListener("drop", handleDrop, true);
       window.removeEventListener("blur", handleWindowBlur);
       document.removeEventListener("dragend", handleDragEnd, true);
+      setBodyDragSelectionLock(false);
       const el = previewElRef.current;
       if (el?.parentElement) el.parentElement.removeChild(el);
       previewElRef.current = null;

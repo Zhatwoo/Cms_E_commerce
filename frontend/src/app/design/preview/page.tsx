@@ -419,7 +419,12 @@ function PreviewContent() {
     setPublishDomainError("");
     setPublishing(true);
     try {
-      const res = await publishProject(projectId, domain);
+      const snapshot = cleanDoc ? JSON.stringify(cleanDoc) : null;
+      if (snapshot) {
+        await autoSavePage(snapshot, projectId);
+      }
+
+      const res = await publishProject(projectId, domain, snapshot);
       if (res.success) {
         setShowPublishDialog(false);
         setPublishDomainName("");

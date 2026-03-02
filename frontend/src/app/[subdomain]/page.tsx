@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getApiUrl } from '@/lib/api';
-import { LiveSite } from '@/app/design/_lib/webRenderer';
+import { WebPreview } from '@/app/design/_lib/webRenderer';
 import { serializeCraftToClean } from '@/app/design/_lib/serializer';
 
 const RESERVED_SUBDOMAINS = new Set([
@@ -107,7 +107,7 @@ export default function SubdomainSitePage() {
 
   return (
     <div className="min-h-screen w-full bg-white">
-      <LiveSite doc={cleanDoc} pageIndex={0} mobileBreakpoint={480} />
+      <WebPreview doc={cleanDoc} pageIndex={0} mobileBreakpoint={900} enableFormInputs />
     </div>
   );
 }

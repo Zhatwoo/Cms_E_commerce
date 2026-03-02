@@ -12,10 +12,10 @@ import { listInstances, setActiveProjectId, type Instance } from '@/lib/api';
 import { useAuth } from './auth-context';
 
 type ProjectContextType = {
-  projects: Instance[];
+  projects: Project[];
   loading: boolean;
   selectedProjectId: string | null;
-  selectedProject: Instance | null;
+  selectedProject: Project | null;
   setSelectedProjectId: (id: string | null) => void;
   refreshProjects: () => Promise<void>;
 };
@@ -37,7 +37,7 @@ type ProviderProps = {
 
 export function ProjectProvider({ children }: ProviderProps) {
   const { user } = useAuth();
-  const [projects, setProjects] = useState<Instance[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProjectId, setSelectedProjectIdState] = useState<string | null>(null);
   const storageKey = user?.id ? `md_selected_instance_${user.id}` : null;
@@ -58,9 +58,9 @@ export function ProjectProvider({ children }: ProviderProps) {
   const fetchProjects = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await listInstances();
-      if (res?.success && Array.isArray(res.instances)) {
-        setProjects(res.instances);
+      const res = await listProjects();
+      if (res?.success && Array.isArray(res.projects)) {
+        setProjects(res.projects);
 
         // Ensure we always have a valid selected project when projects exist
         if (res.instances.length === 0) {

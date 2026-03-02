@@ -77,7 +77,7 @@ export default function DomainsPage() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await listProjects({ instanceId: selectedProject?.id || undefined });
+        const res = await listProjects();
         if (!cancelled && res.success && res.projects) setProjects(res.projects);
       } catch {
         if (!cancelled) setProjects([]);
@@ -139,7 +139,7 @@ export default function DomainsPage() {
     return () => { cancelled = true; };
   }, [selectedDomain?.project.id]);
 
-  const siteUrl = selectedDomain
+  const siteUrl = selectedDomain?.subdomain
     ? getSubdomainSiteUrl(selectedDomain.subdomain, origin)
     : '';
 
@@ -403,7 +403,9 @@ export default function DomainsPage() {
                       Subdomain
                     </div>
                     <p className="text-sm font-mono" style={{ color: colors.text.primary }}>
-                      {getSiteDisplayUrl(selectedDomain.subdomain, origin)}
+                      {selectedDomain.subdomain
+                        ? getSiteDisplayUrl(selectedDomain.subdomain, origin)
+                        : 'No subdomain'}
                     </p>
                   </div>
                   <div>

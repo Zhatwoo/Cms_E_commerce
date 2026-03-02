@@ -6,13 +6,13 @@
 /** Minimal query/actions types to avoid @craftjs/core internal type dependency */
 type EditorQuery = {
   serialize: () => string;
-  getState: () => { nodes: Record<string, { data?: { parent?: string; nodes?: string[]; displayName?: string } }>; events?: { selected?: unknown } };
-  node: (id: string) => { get: () => { data?: { parent?: string; displayName?: string } } | null; isDeletable: () => boolean };
+  getState: () => any;
+  node: (id: string) => any;
 };
 type EditorActions = {
   deserialize: (json: string) => void;
-  selectNode: (id: string | string[] | null) => void;
-  delete: (id: string | string[]) => void;
+  selectNode: (id?: any) => void;
+  delete: (id: any) => void;
   move?: (nodeId: string, parentId: string, index: number) => void;
 };
 

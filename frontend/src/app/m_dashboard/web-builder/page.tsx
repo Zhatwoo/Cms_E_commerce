@@ -346,7 +346,7 @@ export default function WebBuilderPage() {
   const { showAlert, showConfirm } = useAlert();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { selectedProject } = useProject();
+  const { selectedProject, setSelectedProjectId, loading: projectsLoadingFromContext } = useProject();
   const [selectedCategory, setSelectedCategory] = useState('Type');
   const [previewTemplate, setPreviewTemplate] = useState<GalleryTemplate | null>(null);
   const [templates, setTemplates] = useState<GalleryTemplate[]>([]);
@@ -368,6 +368,18 @@ export default function WebBuilderPage() {
 
   const visibleProjects = projects;
 
+  const refreshProjects = async () => {
+    setProjectsLoading(true);
+    try {
+      const res = await listProjects();
+      if (res.success && res.projects) {
+        setProjects(res.projects);
+      }
+    } finally {
+      setProjectsLoading(false);
+    }
+  };
+
   // Load templates on mount
   useEffect(() => {
     const loadedTemplates = templateService.getTemplates();
@@ -385,7 +397,7 @@ export default function WebBuilderPage() {
       return;
     }
     setProjectsLoading(true);
-    listProjects({ instanceId: selectedProject.id })
+    listProjects()
       .then((res) => {
         if (!cancelled && res.success && res.projects) setProjects(res.projects);
       })
@@ -421,17 +433,20 @@ export default function WebBuilderPage() {
   const openCreateModal = (options: { title: string; template?: GalleryTemplate }) => {
     setCreateModalTitle(options.title);
     setCreateModalTemplate(options.template ?? null);
+    setSelectedProjectId(null); // Clear any selected project
     setCreateModalOpen(true);
   };
 
   // In selected instance, open create modal when there are no projects yet.
   useEffect(() => {
-    if (projectsLoading || isAutoCreate) return;
-    if (!selectedProject?.id) return;
-    if (projects.length === 0) {
+    if (projectsLoading || projectsLoadingFromContext || isAutoCreate) return;
+    if (selectedProject) return;
+    if (projects.length > 0 && !isAutoCreate) { // Prevent auto-selection during new website creation
+      setSelectedProjectId(projects[0].id);
+    } else {
       openCreateModal({ title: '' });
     }
-  }, [projectsLoading, isAutoCreate, selectedProject?.id, projects]);
+  }, [projectsLoading, projectsLoadingFromContext, isAutoCreate, selectedProject?.id, projects, setSelectedProjectId]);
 
   const handleCreateSubmit = async (title: string, subdomain: string) => {
     try {
@@ -461,7 +476,6 @@ export default function WebBuilderPage() {
 
       const res = await createProject({
         title: title || 'Untitled Project',
-        instanceId: selectedProject?.id || undefined,
         subdomain: subdomain || undefined,
         templateId: createModalTemplate ? String(createModalTemplate.id) : null,
       });
@@ -549,7 +563,6 @@ export default function WebBuilderPage() {
       setCreating(true);
       const res = await createProject({
         title: `${p.title} (copy)`,
-        instanceId: selectedProject?.id || undefined,
         subdomain: p.subdomain ? `${p.subdomain}-copy` : undefined,
       });
       if (res.success && res.project) {

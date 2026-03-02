@@ -3,7 +3,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { logout, type User } from '@/lib/api';
 import { useTheme } from '../context/theme-context';
 import { useAuth } from '../context/auth-context';
@@ -69,7 +69,6 @@ type DashboardHeaderProps = {
 
 export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     const router = useRouter();
-    const pathname = usePathname();
     const { user, setUser } = useAuth();
     const { theme, toggleTheme, colors } = useTheme();
     const { projects, loading, selectedProject, setSelectedProjectId } = useProject();
@@ -105,7 +104,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                 borderBottom: scrolled ? '1px solid rgba(255,255,255,0.07)' : 'none',
             }}
         >
-            <div className="relative flex items-center justify-between px-4 sm:px-6" style={{ height: '84px' }}>
+            <div className="flex items-center justify-between px-4 sm:px-6" style={{ height: '84px' }}>
                 <div className="flex items-center">
                     <button
                         type="button"
@@ -230,79 +229,6 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                     </div>
                 </div>
             </div>
-
-            {showSwitchModal && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-                    onClick={() => setShowSwitchModal(false)}
-                >
-                    <div
-                        className="w-full max-w-lg rounded-2xl border p-5 space-y-4"
-                        style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div>
-                            <h2 className="text-lg font-semibold" style={{ color: colors.text.primary }}>
-                                Switch project
-                            </h2>
-                            <p className="text-sm" style={{ color: colors.text.muted }}>
-                                Choose a project to continue.
-                            </p>
-                        </div>
-
-                        {loading ? (
-                            <div className="rounded-lg border px-4 py-3 text-sm" style={{ borderColor: colors.border.faint, color: colors.text.secondary }}>
-                                Loading your projects…
-                            </div>
-                        ) : projects.length === 0 ? (
-                            <div className="rounded-lg border px-4 py-3 text-sm" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
-                                No projects available.
-                            </div>
-                        ) : (
-                            <div className="space-y-2 max-h-72 overflow-y-auto">
-                                {projects.map((project) => {
-                                    const isActive = project.id === selectedProjectId;
-                                    return (
-                                        <button
-                                            key={project.id}
-                                            type="button"
-                                            onClick={() => {
-                                                setSelectedProjectId(project.id);
-                                                setShowSwitchModal(false);
-                                            }}
-                                            className="w-full rounded-lg border px-3 py-2.5 text-left"
-                                            style={{
-                                                borderColor: isActive ? colors.status.info : colors.border.faint,
-                                                backgroundColor: isActive ? colors.bg.elevated : colors.bg.card,
-                                            }}
-                                        >
-                                            <p className="text-sm font-medium truncate" style={{ color: colors.text.primary }}>
-                                                {project.title || 'Untitled website'}
-                                            </p>
-                                            {project.subdomain && (
-                                                <p className="text-xs mt-0.5 truncate" style={{ color: colors.text.muted }}>
-                                                    {project.subdomain}
-                                                </p>
-                                            )}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        )}
-
-                        <div className="flex justify-end pt-1">
-                            <button
-                                type="button"
-                                onClick={() => setShowSwitchModal(false)}
-                                className="px-4 py-2 rounded-lg text-sm font-medium border"
-                                style={{ borderColor: colors.border.faint, color: colors.text.primary }}
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </header>
     );
 }

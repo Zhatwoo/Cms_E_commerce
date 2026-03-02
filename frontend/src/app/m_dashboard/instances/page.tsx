@@ -1,15 +1,14 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { createInstance, deleteInstance, updateInstance, type Instance } from '@/lib/api';
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { createProject, deleteProject, updateProject, type Project } from '@/lib/api';
 import { useProject } from '../components/context/project-context';
 import { useAlert } from '../components/context/alert-context';
 import { DraftPreviewThumbnail } from '../components/projects/DraftPreviewThumbnail';
 
 export default function InstancesPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { showAlert, showConfirm } = useAlert();
   const { projects, loading, selectedProjectId, setSelectedProjectId, refreshProjects } = useProject();
 
@@ -21,25 +20,7 @@ export default function InstancesPage() {
   const [creating, setCreating] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [deletingInstanceId, setDeletingInstanceId] = useState<string | null>(null);
-  const hasShownPromptRef = useRef(false);
-
-  useEffect(() => {
-    const requireInstance = searchParams?.get('requireInstance');
-    if (requireInstance !== '1' || hasShownPromptRef.current) return;
-
-    hasShownPromptRef.current = true;
-    const from = searchParams?.get('from');
-    const source = from ? ` (${from})` : '';
-    void showAlert(`Please select a website instance first before opening this page${source}.`, 'Select Instance Required');
-
-    const nextParams = new URLSearchParams(searchParams?.toString() ?? '');
-    nextParams.delete('requireInstance');
-    nextParams.delete('from');
-    const query = nextParams.toString();
-    router.replace(query ? `/m_dashboard/instances?${query}` : '/m_dashboard/instances');
-  }, [searchParams, showAlert, router]);
-
-  const handleChooseProject = (project: Instance) => {
+  const handleChooseProject = (project: Project) => {
     setSelectedProjectId(project.id);
     router.push('/m_dashboard');
   };
@@ -51,18 +32,18 @@ export default function InstancesPage() {
       const cleanTitle = title.trim() || 'Untitled Project';
       const cleanSubdomain = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
 
-      const res = await createInstance({
+      const res = await createProject({
         title: cleanTitle,
         subdomain: cleanSubdomain || undefined,
       });
 
-      if (!res.success || !res.instance) {
+      if (!res.success || !res.project) {
         showAlert('Failed to create website instance. Please try again.');
         return;
       }
 
       await refreshProjects();
-      setSelectedProjectId(res.instance.id);
+      setSelectedProjectId(res.project.id);
       setCreateOpen(false);
       setTitle('');
       setSubdomain('');
@@ -74,7 +55,7 @@ export default function InstancesPage() {
     }
   };
 
-  const openEditModal = (instance: Instance) => {
+  const openEditModal = (instance: Project) => {
     setEditingInstanceId(instance.id);
     setTitle(instance.title || '');
     setSubdomain(instance.subdomain || '');
@@ -90,12 +71,12 @@ export default function InstancesPage() {
       const cleanTitle = title.trim() || 'Untitled Project';
       const cleanSubdomain = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
 
-      const res = await updateInstance(editingInstanceId, {
+      const res = await updateProject(editingInstanceId, {
         title: cleanTitle,
         subdomain: cleanSubdomain || undefined,
       });
 
-      if (!res.success || !res.instance) {
+      if (!res.success || !res.project) {
         showAlert('Failed to update website instance. Please try again.');
         return;
       }
@@ -114,7 +95,7 @@ export default function InstancesPage() {
     }
   };
 
-  const handleDeleteInstance = async (instance: Instance) => {
+  const handleDeleteInstance = async (instance: Project) => {
     const confirmed = await showConfirm(
       `Delete "${instance.title || 'Untitled website'}"? This action cannot be undone.`,
       'Delete Instance'
@@ -123,7 +104,7 @@ export default function InstancesPage() {
 
     try {
       setDeletingInstanceId(instance.id);
-      const res = await deleteInstance(instance.id);
+      const res = await deleteProject(instance.id);
       if (!res.success) {
         showAlert('Failed to delete website instance. Please try again.');
         return;
