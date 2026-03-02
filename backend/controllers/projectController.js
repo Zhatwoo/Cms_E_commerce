@@ -239,6 +239,13 @@ exports.delete = async (req, res) => {
       message: 'Project moved to trash',
     });
   } catch (error) {
+    const msg = String(error?.message || '').toLowerCase();
+    if (msg.includes('cannot be deleted') || msg.includes('unpublish')) {
+      return res.status(409).json({
+        success: false,
+        message: error.message,
+      });
+    }
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -251,45 +258,8 @@ exports.delete = async (req, res) => {
 // @route   DELETE /api/projects/:id/permanent
 // @access  Private
 exports.permanentDelete = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const existingInTrash = await Project.getTrashRef(userId).doc(req.params.id).get();
-    const existingInProjects = await Project.get(userId, req.params.id);
-
-    if (!existingInTrash.exists && !existingInProjects) {
-      return res.status(404).json({
-        success: false,
-        message: 'Project not found in trash or active projects',
-      });
-    }
-
-    const projectData = existingInTrash.exists ? existingInTrash.data() : existingInProjects;
-    const title = projectData.title || 'Untitled';
-
-    await Project.permanentDelete(userId, req.params.id);
-
-    // Storage cleanup
-    const clientName = req.user.name || 'client';
-    let clientNameForStorage = clientName;
-    try {
-      const user = await User.get(userId);
-      if (user) {
-        clientNameForStorage = (user.displayName || user.username || user.email || clientName).trim() || clientName;
-      }
-    } catch {
-      // ignore
-    }
-    await deleteProjectStorageFolder(clientNameForStorage, title);
-
-    res.status(200).json({
-      success: true,
-      message: 'Project permanently deleted',
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message,
-    });
-  }
+  return res.status(403).json({
+    success: false,
+    message: 'Manual permanent delete is disabled. Projects are automatically purged 30 days after being moved to trash.',
+  });
 };

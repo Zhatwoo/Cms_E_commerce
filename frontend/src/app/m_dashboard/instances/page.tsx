@@ -101,12 +101,17 @@ export default function InstancesPage() {
       'Delete Instance'
     );
     if (!confirmed) return;
+    const confirmedAgain = await showConfirm(
+      `Please confirm again: move "${instance.title || 'Untitled website'}" to trash now?`,
+      'Final Confirmation'
+    );
+    if (!confirmedAgain) return;
 
     try {
       setDeletingInstanceId(instance.id);
       const res = await deleteProject(instance.id);
       if (!res.success) {
-        showAlert('Failed to delete website instance. Please try again.');
+        showAlert(res.message || 'Failed to delete website instance. Please try again.');
         return;
       }
 

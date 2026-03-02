@@ -5,7 +5,7 @@ import { useTheme } from '../components/context/theme-context';
 import { useRouter, useSearchParams } from 'next/navigation';
 import DomeGallery from '../components/templates/DomeGallery';
 import { templateService, Template as FullTemplate } from '@/lib/templateService';
-import { createProject, listProjects, updateProject, deleteProject, listTrashedProjects, restoreProject, permanentDeleteProject, getMyDomains, getStoredUser, type Project } from '@/lib/api';
+import { createProject, listProjects, updateProject, deleteProject, listTrashedProjects, restoreProject, getMyDomains, getStoredUser, type Project } from '@/lib/api';
 import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
 import { getLimits } from '@/lib/subscriptionLimits';
 import { useAlert } from '../components/context/alert-context';
@@ -585,6 +585,8 @@ export default function WebBuilderPage() {
     setProjectMenuId(null);
     const confirmed = await showConfirm(`Move website "${p.title}" to trash? You can restore it later if you change your mind.`);
     if (!confirmed) return;
+    const confirmedAgain = await showConfirm(`Confirm delete: Move "${p.title}" to trash now?`);
+    if (!confirmedAgain) return;
     try {
       const res = await deleteProject(p.id);
       if (res.success) {
@@ -592,10 +594,11 @@ export default function WebBuilderPage() {
         await refreshProjects();
         // If we are on the active tab, we might want to refresh the notification or count
       } else {
-        showAlert('Failed to delete project.');
+        showAlert(res.message || 'Failed to delete project.');
       }
-    } catch (_) {
-      showAlert('Failed to delete project.');
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to delete project.';
+      showAlert(msg);
     }
   };
 
@@ -611,20 +614,6 @@ export default function WebBuilderPage() {
       }
     } catch (_) {
       showAlert('Failed to restore project.');
-    }
-  };
-
-  const handlePermanentDelete = async (p: Project) => {
-    const confirmed = await showConfirm(`Permanently delete "${p.title}"? This cannot be undone.`);
-    if (!confirmed) return;
-    try {
-      const res = await permanentDeleteProject(p.id);
-      if (res.success) {
-        setTrashedProjects((prev) => prev.filter((x) => x.id !== p.id));
-        showAlert(`Permanently deleted "${p.title}"`);
-      }
-    } catch (_) {
-      showAlert('Failed to delete project permanently.');
     }
   };
 
@@ -993,18 +982,9 @@ export default function WebBuilderPage() {
                           >
                             Restore Project
                           </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handlePermanentDelete(p);
-                            }}
-                            className="p-1.5 rounded-md hover:bg-red-500/10 transition-colors group/del"
-                            title="Delete permanently"
-                          >
-                            <svg className="w-3.5 h-3.5 text-red-500 opacity-60 group-hover/del:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
+                          <span className="px-2 py-1.5 text-[10px] rounded-md border whitespace-nowrap" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
+                            Auto-delete after 30 days
+                          </span>
                         </div>
                       </div>
                     </motion.div>
