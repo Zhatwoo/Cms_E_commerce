@@ -10,22 +10,52 @@ import { Row } from "../../../design/_designComponents/Row/Row";
 import { Column } from "../../../design/_designComponents/Column/Column";
 import { TemplateEntry } from "../../_types";
 
-export const LoginForm: TemplateEntry = {
+	export const LoginForm: TemplateEntry = {
 	label: "Login Form",
 	description: "Landscape login form with account details",
 	preview: "🔐",
 	element: React.createElement(
 		Element as any,
-		{ is: Section as any, background: "#f1f5f9", padding: 20, canvas: true },
+		{
+			is: Section as any,
+			background: "#f1f5f9",
+			width: "100%",
+			paddingTop: 24,
+			paddingBottom: 24,
+			paddingLeft: 16,
+			paddingRight: 16,
+			justifyContent: "center",
+			alignItems: "center",
+			canvas: true,
+		},
 		React.createElement(
 			Element as any,
-			{ is: Container as any, background: "#ffffff", padding: 16, width: "100%", maxWidth: "980px", borderRadius: 16, canvas: true },
+			{
+				is: Container as any,
+				background: "#ffffff",
+				paddingTop: 16,
+				paddingBottom: 16,
+				paddingLeft: 16,
+				paddingRight: 16,
+				width: "min(100%, 980px)",
+				borderRadius: 16,
+				canvas: true,
+			},
 			React.createElement(
 				Element as any,
-				{ is: Row as any, canvas: true, flexWrap: "wrap", alignItems: "stretch", justifyContent: "center", gap: 16 },
+				{ is: Row as any, canvas: true, flexWrap: "wrap", alignItems: "stretch", justifyContent: "space-between", gap: 16 },
 				React.createElement(
 					Element as any,
-					{ is: Column as any, width: "clamp(280px, 38%, 360px)", background: "#1d4ed8", borderRadius: 12, padding: 24, justifyContent: "space-between", canvas: true },
+					{
+						is: Column as any,
+						width: "min(100%, 340px)",
+						background: "#1d4ed8",
+						borderRadius: 12,
+						padding: 24,
+						justifyContent: "space-between",
+						minHeight: "360px",
+						canvas: true,
+					},
 					React.createElement(
 						Element as any,
 						{ is: Column as any, canvas: true },
@@ -39,7 +69,7 @@ export const LoginForm: TemplateEntry = {
 				),
 				React.createElement(
 					Element as any,
-					{ is: Column as any, width: "clamp(320px, 58%, 560px)", padding: 24, canvas: true, alignItems: "stretch" },
+					{ is: Column as any, width: "min(100%, 560px)", padding: 24, canvas: true, alignItems: "stretch" },
 					React.createElement(Text as any, { text: "Login Form", fontSize: 28, fontWeight: "bold", color: "#1e293b", marginBottom: 6 }),
 					React.createElement(Text as any, { text: "Use your credentials to continue", fontSize: 14, color: "#64748b", marginBottom: 22 }),
 					React.createElement(
@@ -92,7 +122,7 @@ export const LoginForm: TemplateEntry = {
 					),
 					React.createElement(
 						Element as any,
-						{ is: Row as any, canvas: true, justifyContent: "space-between", alignItems: "center", marginBottom: 18, gap: 8 },
+						{ is: Row as any, canvas: true, justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", marginBottom: 18, gap: 8 },
 						React.createElement(Text as any, { text: "☑ Remember me", fontSize: 13, color: "#64748b" }),
 						React.createElement(Text as any, { text: "Forgot password?", fontSize: 13, color: "#2563eb" })
 					),

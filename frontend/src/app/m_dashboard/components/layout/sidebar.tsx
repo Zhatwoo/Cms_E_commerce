@@ -1,11 +1,12 @@
 // eto yung main navigation ni user
 
- 'use client';
+'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../context/theme-context';
+import { useProject } from '../context/project-context';
 const HomeIcon = () => (
   <svg
     viewBox="0 0 24 24"
@@ -102,6 +103,13 @@ const CloseIcon = () => (
   </svg>
 );
 
+const SubscriptionIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="5" width="20" height="14" rx="2" />
+    <line x1="2" y1="10" x2="22" y2="10" />
+  </svg>
+);
+
 type SidebarItem = {
   id: string;
   label: string;
@@ -116,6 +124,7 @@ const navItems: SidebarItem[] = [
   { id: 'orders', label: 'Orders', icon: <OrdersIcon />, href: '/m_dashboard/orders' },
   { id: 'analytics', label: 'Analytics', icon: <AnalyticsIcon />, href: '/m_dashboard/analytics' },
   { id: 'domains', label: 'Domains', icon: <DomainsIcon />, href: '/m_dashboard/domains' },
+  { id: 'subscription', label: 'Subscription', icon: <SubscriptionIcon />, href: '/m_dashboard/subscription' },
   { id: 'settings', label: 'Settings', icon: <SettingsIcon />, href: '/m_dashboard/settings' },
 ];
 
@@ -129,6 +138,8 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
   const pathname = usePathname();
   const router = useRouter();
   const { colors, theme } = useTheme();
+  const { selectedProject } = useProject();
+  const hasSelectedWebsite = Boolean(selectedProject);
 
   const handleHomeClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     if (pathname === '/m_dashboard') {
@@ -190,7 +201,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
             >
               L
             </div>
-            
+
           </div>
           <button
             onClick={onClose}
@@ -204,47 +215,58 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
 
         <nav className="flex-1 px-3 py-6 overflow-y-auto">
           {/* Full labels for mobile */}
-          {navItems.map((item) => {
-            const isActive =
-              item.id === 'home'
-                ? pathname === '/m_dashboard'
-                : item.id === 'web-builder'
-                  ? pathname.startsWith('/m_dashboard/web-builder')
-                  : item.href
-                    ? pathname === item.href
-                    : false;
+          {navItems
+            .filter((item) => {
+              // Before a website/instance is selected, hide builder & commerce-specific items
+              if (
+                !hasSelectedWebsite &&
+                ['web-builder', 'products', 'orders', 'analytics', 'domains', 'subscription', 'settings'].includes(item.id)
+              ) {
+                return false;
+              }
+              return true;
+            })
+            .map((item) => {
+              const isActive =
+                item.id === 'home'
+                  ? pathname === '/m_dashboard'
+                  : item.id === 'web-builder'
+                    ? pathname.startsWith('/m_dashboard/web-builder')
+                    : item.href
+                      ? pathname === item.href
+                      : false;
 
-            const content = (
-              <div
-                className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg transition-colors`}
-                style={isActive ? itemActiveStyle : { ...itemInactiveStyle, ...{ ':hover': itemHoverStyle } }}
-              >
-                <span className="flex h-6 w-6 items-center justify-center" style={{ color: isActive ? colors.text.primary : colors.text.muted }}>
-                  {item.icon}
-                </span>
-                <span className="text-sm font-medium">{item.label}</span>
-              </div>
-            );
+              const content = (
+                <div
+                  className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg transition-colors`}
+                  style={isActive ? itemActiveStyle : { ...itemInactiveStyle, ...{ ':hover': itemHoverStyle } }}
+                >
+                  <span className="flex h-6 w-6 items-center justify-center" style={{ color: isActive ? colors.text.primary : colors.text.muted }}>
+                    {item.icon}
+                  </span>
+                  <span className="text-sm font-medium">{item.label}</span>
+                </div>
+              );
 
-            return item.href ? (
-              <Link
-                key={item.id}
-                href={item.href}
-                className="block"
-                onClick={item.id === 'home' ? handleHomeClick : onClose}
-              >
-                {content}
-              </Link>
-            ) : (
-              <button
-                key={item.id}
-                type="button"
-                className="w-full text-left"
-              >
-                {content}
-              </button>
-            );
-          })}
+              return item.href ? (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  className="block"
+                  onClick={item.id === 'home' ? handleHomeClick : onClose}
+                >
+                  {content}
+                </Link>
+              ) : (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="w-full text-left"
+                >
+                  {content}
+                </button>
+              );
+            })}
         </nav>
       </aside>
     );
@@ -285,70 +307,80 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
 
       {/* Navigation */}
       <nav className="flex-1 py-6 flex flex-col">
-        {navItems.map((item) => {
-          const isActive =
-            item.id === 'home'
-              ? pathname === '/m_dashboard'
-              : item.id === 'web-builder'
-                ? pathname.startsWith('/m_dashboard/web-builder')
-                : item.href
-                  ? pathname === item.href
-                  : false;
+        {navItems
+          .filter((item) => {
+            if (
+              !hasSelectedWebsite &&
+              ['web-builder', 'products', 'orders', 'analytics', 'domains', 'subscription', 'settings'].includes(item.id)
+            ) {
+              return false;
+            }
+            return true;
+          })
+          .map((item) => {
+            const isActive =
+              item.id === 'home'
+                ? pathname === '/m_dashboard'
+                : item.id === 'web-builder'
+                  ? pathname.startsWith('/m_dashboard/web-builder')
+                  : item.href
+                    ? pathname === item.href
+                    : false;
 
-          return (
-            <Link
-              key={item.id}
-              href={item.href ?? '#'}
-              onClick={item.id === 'home' ? handleHomeClick : undefined}
-              className={`
+            return (
+              <Link
+                key={item.id}
+                href={item.href ?? '#'}
+                onClick={item.id === 'home' ? handleHomeClick : undefined}
+                className={`
                 group relative flex items-center rounded-lg transition-all duration-200
                 w-full px-4 py-3
               `}
-              style={isActive ? itemActiveStyle : undefined}
-            >
-              {/* Hover effect overlay */}
-              {!isActive && (
-                <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                  style={{ backgroundColor: colors.bg.elevated }}
-                />
-              )}
-
-              {/* Fixed icon position */}
-              <div className="relative z-10 w-12 flex items-center justify-center shrink-0">
-                <span
-                  className="flex h-6 w-6 items-center justify-center transition-colors"
-                  style={{ color: isActive ? colors.text.primary : colors.text.muted }} // Use muted for inactive icons
-                >
-                  {item.icon}
-                </span>
-              </div>
-
-              {/* Label slide-in */}
-              <AnimatePresence>
-                {isHovered && (
-                  <motion.span
-                    initial={{ opacity: 0, x: -12 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -12 }}
-                    transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-                    className="relative z-10 ml-3 text-sm font-medium whitespace-nowrap"
-                    style={{ color: isActive ? colors.text.primary : colors.text.secondary }}
-                  >
-                    {item.label}
-                  </motion.span>
+                style={isActive ? itemActiveStyle : undefined}
+              >
+                {/* Hover effect overlay */}
+                {!isActive && (
+                  <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                    style={{ backgroundColor: colors.bg.elevated }}
+                  />
                 )}
-              </AnimatePresence>
 
-              {/* Active indicator when collapsed */}
-              {isActive && !isHovered && (
-                <div
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full"
-                  style={{ backgroundColor: colors.status.info }}
-                />
-              )}
-            </Link>
-          );
-        })}
+                {/* Fixed icon position */}
+                <div className="relative z-10 w-12 flex items-center justify-center shrink-0">
+                  <span
+                    className="flex h-6 w-6 items-center justify-center transition-colors"
+                    style={{ color: isActive ? colors.text.primary : colors.text.muted }} // Use muted for inactive icons
+                  >
+                    {item.icon}
+                  </span>
+                </div>
+
+                {/* Label slide-in */}
+                <AnimatePresence>
+                  {isHovered && (
+                    <motion.span
+                      initial={{ opacity: 0, x: -12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -12 }}
+                      transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                      className="relative z-10 ml-3 text-sm font-medium whitespace-nowrap"
+                      style={{ color: isActive ? colors.text.primary : colors.text.secondary }}
+                    >
+                      {item.label}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+
+                {/* Active indicator when collapsed */}
+                {isActive && !isHovered && (
+                  <div
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full"
+                    style={{ backgroundColor: colors.status.info }}
+                  />
+                )}
+              </Link>
+            );
+          })}
       </nav>
 
       <div

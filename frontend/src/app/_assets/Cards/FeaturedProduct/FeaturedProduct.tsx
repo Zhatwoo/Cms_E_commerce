@@ -6,127 +6,283 @@ import { Container } from "../../../design/_designComponents/Container/Container
 import { Text } from "../../../design/_designComponents/Text/Text";
 import { Image } from "../../../design/_designComponents/Image/Image";
 import { Button } from "../../../design/_designComponents/Button/Button";
+import { Section } from "../../../design/_designComponents/Section/Section";
+import { Row } from "../../../design/_designComponents/Row/Row";
+import { Column } from "../../../design/_designComponents/Column/Column";
 import { TemplateEntry } from "../../_types";
 
-const createFeaturedItem = (badge: string, badgeColor: string) =>
-	React.createElement(
-		Element as any,
-		{
-			is: Container as any,
-			background: "transparent",
-			display: "flex",
-			flexDirection: "column",
-			alignItems: "center",
-			justifyContent: "flex-start",
-			gap: 10,
-			canvas: true,
-		},
-		React.createElement(
-			Element as any,
-			{
-				is: Container as any,
-				background: "transparent",
-				borderWidth: 10,
-				borderColor: "#d1d5db",
-				borderStyle: "solid",
-				borderRadius: 6,
-				overflow: "hidden",
-				position: "relative",
-				width: "100%",
-				height: "245px",
-				canvas: true,
-			},
-			React.createElement(Element as any, {
-				is: Image as any,
-				src: "https://images.unsplash.com/photo-1556228578-8c89e6adf883?auto=format&fit=crop&w=1200&q=80",
-				alt: "Featured product image",
-				width: "100%",
-				height: "100%",
-				objectFit: "cover",
-				borderRadius: 6,
-				allowUpload: true,
-			}),
-			React.createElement(
-				Element as any,
-				{
-					is: Container as any,
-					position: "absolute",
-					top: "8px",
-					left: "10px",
-					background: badgeColor,
-					borderRadius: 999,
-					paddingTop: 6,
-					paddingRight: 12,
-					paddingBottom: 6,
-					paddingLeft: 12,
-					width: "auto",
-					display: "flex",
-					alignItems: "center",
-					justifyContent: "center",
-					canvas: true,
-				},
-				React.createElement(Text as any, {
-					text: badge,
-					fontSize: 12,
-					fontWeight: "500",
-					color: "#ffffff",
-				})
-			)
-		),
-		React.createElement(Text as any, {
-			text: "Product Name",
-			fontSize: 18,
-			fontWeight: "700",
-			textAlign: "center",
-			color: "#111827",
-		}),
-		React.createElement(Text as any, {
-			text: "₱ 1,000",
-			fontSize: 16,
-			fontWeight: "500",
-			textAlign: "center",
-			color: "#111827",
-		}),
-		React.createElement(Button as any, {
-			label: "Add to Cart",
-			backgroundColor: "#d4d4d8",
-			textColor: "#111827",
-			fontSize: 12,
-			fontWeight: "600",
-			borderWidth: 1,
-			borderColor: "#737373",
-			borderRadius: 4,
-			paddingTop: 10,
-			paddingRight: 34,
-			paddingBottom: 10,
-			paddingLeft: 34,
-			marginTop: 10,
-		})
-	);
+const createFeaturedItem = (
+  badge: string,
+  badgeColor: string,
+  name: string,
+  subtitle: string,
+  price: string,
+  originalPrice: string,
+  src: string
+) =>
+  React.createElement(
+    Element as any,
+    {
+      is: Container as any,
+      canvas: true,
+      background: "#FFFFFF",
+      width: "min(calc(50% - 16px), 380px)",
+      flexShrink: 0,
+      flexDirection: "column",
+      alignItems: "stretch",
+      justifyContent: "flex-start",
+      gap: 0,
+      padding: 0,
+      overflow: "hidden",
+      boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
+    },
+
+    // Image area
+    React.createElement(
+      Element as any,
+      {
+        is: Container as any,
+        canvas: true,
+        background: "#F7F4F0",
+        position: "relative",
+        width: "100%",
+        height: "clamp(180px, 22vw, 260px)",
+        padding: 0,
+        gap: 0,
+        overflow: "hidden",
+      },
+      React.createElement(Image as any, {
+        src,
+        alt: name,
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+        allowUpload: true,
+      }),
+      // Badge
+      React.createElement(
+        Element as any,
+        {
+          is: Container as any,
+          canvas: true,
+          position: "absolute",
+          top: "12px",
+          left: "12px",
+          background: badgeColor,
+          paddingTop: 5,
+          paddingBottom: 5,
+          paddingLeft: 12,
+          paddingRight: 12,
+          width: "auto",
+          height: "auto",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 0,
+        },
+        React.createElement(Text as any, {
+          text: badge,
+          fontSize: 10,
+          fontWeight: "800",
+          color: "#ffffff",
+          letterSpacing: 1,
+        })
+      )
+    ),
+
+    // Content
+    React.createElement(
+      Element as any,
+      {
+        is: Container as any,
+        canvas: true,
+        background: "transparent",
+        paddingTop: 20,
+        paddingBottom: 20,
+        paddingLeft: 20,
+        paddingRight: 20,
+        flexDirection: "column",
+        alignItems: "stretch",
+        gap: 16,
+      },
+
+      // Name + subtitle
+      React.createElement(
+        Element as any,
+        {
+          is: Column as any,
+          canvas: true,
+          background: "transparent",
+          padding: 0,
+          gap: 5,
+          alignItems: "flex-start",
+        },
+        React.createElement(Text as any, {
+          text: name,
+          fontSize: 16,
+          fontWeight: "700",
+          color: "#111827",
+          lineHeight: 1.3,
+        }),
+        React.createElement(Text as any, {
+          text: subtitle,
+          fontSize: 12,
+          fontWeight: "400",
+          color: "#9CA3AF",
+          lineHeight: 1.5,
+        })
+      ),
+
+      // Price + button row
+      React.createElement(
+        Element as any,
+        {
+          is: Row as any,
+          canvas: true,
+          background: "transparent",
+          padding: 0,
+          gap: 12,
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          width: "100%",
+        },
+        React.createElement(
+          Element as any,
+          {
+            is: Column as any,
+            canvas: true,
+            background: "transparent",
+            padding: 0,
+            gap: 4,
+            alignItems: "flex-start",
+          },
+          React.createElement(Text as any, {
+            text: price,
+            fontSize: 20,
+            fontWeight: "700",
+            color: "#111827",
+            lineHeight: 1,
+          }),
+          React.createElement(Text as any, {
+            text: originalPrice,
+            fontSize: 12,
+            fontWeight: "400",
+            color: "#D1D5DB",
+            lineHeight: 1,
+          })
+        ),
+        React.createElement(Button as any, {
+          label: "Add to Cart",
+          backgroundColor: "#111827",
+          textColor: "#ffffff",
+          fontSize: 12,
+          fontWeight: "700",
+          paddingTop: 10,
+          paddingBottom: 10,
+          paddingLeft: 18,
+          paddingRight: 18,
+          letterSpacing: 0.3,
+        })
+      )
+    )
+  );
 
 export const FeaturedProduct: TemplateEntry = {
-	label: "Featured Product",
-	description: "Three featured products with badges, price, and add to cart button",
-	preview: "🏷️",
-	element: React.createElement(
-		Element as any,
-		{
-			is: Container as any,
-			background: "#d4d4d8",
-			paddingTop: 24,
-			paddingRight: 20,
-			paddingBottom: 24,
-			paddingLeft: 20,
-			display: "grid",
-			gridTemplateColumns: "1fr 1fr 1fr",
-			gridGap: 28,
-			alignItems: "start",
-			justifyContent: "stretch",
-			canvas: true,
-		},
-		createFeaturedItem("New Arrival", "#ef4444"),
-		createFeaturedItem("Best Seller", "#eab308"),
-		createFeaturedItem("Editor's Pick", "#1d4ed8")
-	),
-	category: "card",
+  label: "Featured Product",
+  description: "Three featured products with badges, price, and add to cart button",
+  preview: "🏷️",
+  category: "card",
+  element: React.createElement(
+    Element as any,
+    {
+      is: Section as any,
+      canvas: true,
+      background: "#F7F4F0",
+      width: "100%",
+      minHeight: "100vh",
+      paddingTop: 64,
+      paddingBottom: 64,
+      paddingLeft: 40,
+      paddingRight: 40,
+      gap: 48,
+      flexDirection: "column",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+
+    // Header
+    React.createElement(
+      Element as any,
+      {
+        is: Column as any,
+        canvas: true,
+        background: "transparent",
+        padding: 0,
+        alignItems: "center",
+        gap: 10,
+        width: "min(100%, 520px)",
+      },
+      React.createElement(Text as any, {
+        text: "Featured Products",
+        fontSize: 32,
+        fontWeight: "700",
+        color: "#111827",
+        textAlign: "center",
+        lineHeight: 1.15,
+      }),
+      React.createElement(Text as any, {
+        text: "Handpicked pieces worth every peso.",
+        fontSize: 14,
+        fontWeight: "400",
+        color: "#9CA3AF",
+        textAlign: "center",
+        lineHeight: 1.6,
+      })
+    ),
+
+    // Cards
+    React.createElement(
+      Element as any,
+      {
+        is: Row as any,
+        canvas: true,
+        background: "transparent",
+        width: "min(100%, 1280px)",
+        padding: 0,
+        gap: 24,
+        flexDirection: "row",
+        flexWrap: "wrap",
+        justifyContent: "center",
+        alignItems: "flex-start",
+        alignContent: "flex-start",
+      },
+      createFeaturedItem(
+        "NEW ARRIVAL",
+        "#C2410C",
+        "Luminous Glow Serum",
+        "Vitamin C · Brightening · 30ml",
+        "₱ 1,299",
+        "₱ 2,500",
+        "https://images.unsplash.com/photo-1556228578-8c89e6adf883?auto=format&fit=crop&w=800&q=80"
+      ),
+      createFeaturedItem(
+        "BEST SELLER",
+        "#A16207",
+        "Rose Toner Mist",
+        "Hydrating · Rose Extract · 100ml",
+        "₱ 899",
+        "₱ 1,800",
+        "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=800&q=80"
+      ),
+      createFeaturedItem(
+        "EDITOR'S PICK",
+        "#1D4ED8",
+        "Nourish Face Cream",
+        "Rich Moisture · Sensitive Skin · 50ml",
+        "₱ 1,099",
+        "₱ 2,200",
+        "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=800&q=80"
+      )
+    )
+  ),
 };

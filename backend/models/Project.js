@@ -1,5 +1,6 @@
 const { db, getRealtimeDb } = require('../config/firebase');
-const { docToObject } = require('../utils/firestoreHelper');
+const { docToObject, deleteRecursive } = require('../utils/firestoreHelper');
+const Domain = require('./Domain');
 
 function getProjectsRef(userId) {
   return db.collection('user').doc('roles').collection('client').doc(userId).collection('projects');
@@ -23,9 +24,15 @@ async function create(userId, data) {
 }
 
 async function list(userId) {
-  const ref = getProjectsRef(userId).orderBy('updated_at', 'desc');
+  const ref = getProjectsRef(userId);
   const snap = await ref.get();
-  return snap.docs.map(d => docToObject(d));
+  const items = snap.docs.map(d => docToObject(d)).filter(x => x);
+  // Sort in JS instead of Firestore to avoid filtering out docs missing 'updated_at'
+  return items.sort((a, b) => {
+    const tA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+    const tB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+    return tB - tA;
+  });
 }
 
 async function get(userId, projectId) {
@@ -48,7 +55,23 @@ async function update(userId, projectId, data) {
 }
 
 async function deleteProject(userId, projectId) {
-  await getProjectsRef(userId).doc(projectId).delete();
+  const docRef = getProjectsRef(userId).doc(projectId);
+
+  // 1. Delete domain and public subdomain records
+  await Domain.deleteByProjectId(userId, projectId);
+
+  // 2. Delete project doc and all sub-collections (e.g. pages) recursively
+  await deleteRecursive(docRef);
+
+  // 3. Delete from Realtime Database if configured
+  const rtdb = getRealtimeDb();
+  if (rtdb) {
+    try {
+      await rtdb.ref(`user/roles/client/${userId}/projects/${projectId}`).remove();
+    } catch (e) {
+      console.warn('deleteProject: RTDB cleanup failed:', e.message);
+    }
+  }
 }
 
 async function getBySubdomain(userId, subdomain) {
@@ -85,6 +108,11 @@ async function getBySubdomain(userId, subdomain) {
   return null;
 }
 
+async function countWithSubdomain(userId) {
+  const snap = await getProjectsRef(userId).where('subdomain', '!=', null).get();
+  return snap.size;
+}
+
 async function countAll() {
   const clientSnap = await db.collection('user').doc('roles').collection('client').get();
   let total = 0;
@@ -103,4 +131,5 @@ module.exports = {
   update,
   delete: deleteProject,
   countAll,
+  countWithSubdomain,
 };

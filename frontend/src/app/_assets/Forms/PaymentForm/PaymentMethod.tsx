@@ -31,7 +31,7 @@ function paymentOptionRow(label: string, iconType: string) {
     },
     React.createElement(
       Element as any,
-      { is: Row as any, canvas: true, alignItems: "center", flexWrap: "nowrap", gap: 8 },
+      { is: Row as any, canvas: true, alignItems: "center", flexWrap: "wrap", gap: 8 },
       React.createElement(Icon as any, {
         iconType,
         size: 18,
@@ -39,7 +39,7 @@ function paymentOptionRow(label: string, iconType: string) {
       }),
       React.createElement(Text as any, {
         text: label,
-        fontSize: 24,
+        fontSize: 20,
         fontWeight: "400",
         color: "#1a1a1a",
       })
@@ -53,14 +53,28 @@ export const PaymentMethod: TemplateEntry = {
   preview: "PM",
   element: React.createElement(
     Element as any,
-    { is: Section as any, background: "#dddddd", padding: 16, canvas: true },
+    {
+      is: Section as any,
+      background: "#dddddd",
+      width: "100%",
+      paddingTop: 16,
+      paddingBottom: 16,
+      paddingLeft: 12,
+      paddingRight: 12,
+      justifyContent: "center",
+      alignItems: "center",
+      canvas: true,
+    },
     React.createElement(
       Element as any,
       {
         is: Container as any,
         background: "#dddddd",
-        maxWidth: "760px",
-        padding: 6,
+        width: "min(100%, 760px)",
+        paddingTop: 6,
+        paddingBottom: 6,
+        paddingLeft: 6,
+        paddingRight: 6,
         canvas: true,
         alignItems: "stretch",
         justifyContent: "flex-start",

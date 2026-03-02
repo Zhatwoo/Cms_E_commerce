@@ -30,12 +30,12 @@ function fieldBox(label: string, value: string, width = "100%") {
     },
     React.createElement(Text as any, {
       text: label,
-      fontSize: 12,
+      fontSize: 11,
       color: "#6b6b6b",
     }),
     React.createElement(Text as any, {
       text: value,
-      fontSize: 34,
+      fontSize: 24,
       color: "#333333",
       marginTop: 2,
     })
@@ -48,14 +48,28 @@ export const PaymentMethodV1: TemplateEntry = {
   preview: "PM1",
   element: React.createElement(
     Element as any,
-    { is: Section as any, background: "#dddddd", padding: 16, canvas: true },
+    {
+      is: Section as any,
+      background: "#dddddd",
+      width: "100%",
+      paddingTop: 16,
+      paddingBottom: 16,
+      paddingLeft: 12,
+      paddingRight: 12,
+      justifyContent: "center",
+      alignItems: "center",
+      canvas: true,
+    },
     React.createElement(
       Element as any,
       {
         is: Container as any,
         background: "#dddddd",
-        maxWidth: "820px",
-        padding: 0,
+        width: "min(100%, 820px)",
+        paddingTop: 0,
+        paddingBottom: 0,
+        paddingLeft: 0,
+        paddingRight: 0,
         canvas: true,
         alignItems: "stretch",
         justifyContent: "flex-start",
@@ -77,7 +91,7 @@ export const PaymentMethodV1: TemplateEntry = {
         },
         React.createElement(Text as any, {
           text: "Payment Method",
-          fontSize: 42,
+          fontSize: 32,
           fontWeight: "700",
           color: "#101010",
           marginBottom: 8,
@@ -85,13 +99,13 @@ export const PaymentMethodV1: TemplateEntry = {
         fieldBox("Name on card", "Juan Dela Cruz"),
         React.createElement(
           Element as any,
-          { is: Row as any, canvas: true, gap: 10, flexWrap: "nowrap" },
-          fieldBox("Card Number", "1234   1234   1234   1234", "50%"),
-          fieldBox("CVV", "123", "50%")
+          { is: Row as any, canvas: true, gap: 10, flexWrap: "wrap" },
+          fieldBox("Card Number", "1234   1234   1234   1234", "min(100%, 520px)"),
+          fieldBox("CVV", "123", "min(100%, 240px)")
         ),
         React.createElement(
           Element as any,
-          { is: Row as any, canvas: true, gap: 10, flexWrap: "nowrap" },
+          { is: Row as any, canvas: true, gap: 10, flexWrap: "wrap" },
           React.createElement(
             Element as any,
             {
@@ -105,7 +119,7 @@ export const PaymentMethodV1: TemplateEntry = {
               paddingBottom: 8,
               paddingLeft: 12,
               paddingRight: 12,
-              width: "50%",
+              width: "min(100%, 390px)",
               alignItems: "stretch",
               justifyContent: "center",
               canvas: true,
@@ -116,10 +130,10 @@ export const PaymentMethodV1: TemplateEntry = {
               React.createElement(
                 Element as any,
                 { is: Column as any, canvas: true, padding: 0, gap: 2, alignItems: "flex-start" },
-                React.createElement(Text as any, { text: "Month", fontSize: 12, color: "#6b6b6b" }),
-                React.createElement(Text as any, { text: "MM", fontSize: 34, color: "#333333" })
+                React.createElement(Text as any, { text: "Month", fontSize: 11, color: "#6b6b6b" }),
+                React.createElement(Text as any, { text: "MM", fontSize: 24, color: "#333333" })
               ),
-              React.createElement(Text as any, { text: "v", fontSize: 28, color: "#333333" })
+              React.createElement(Text as any, { text: "v", fontSize: 20, color: "#333333" })
             )
           ),
           React.createElement(
@@ -135,7 +149,7 @@ export const PaymentMethodV1: TemplateEntry = {
               paddingBottom: 8,
               paddingLeft: 12,
               paddingRight: 12,
-              width: "50%",
+              width: "min(100%, 390px)",
               alignItems: "stretch",
               justifyContent: "center",
               canvas: true,
@@ -146,10 +160,10 @@ export const PaymentMethodV1: TemplateEntry = {
               React.createElement(
                 Element as any,
                 { is: Column as any, canvas: true, padding: 0, gap: 2, alignItems: "flex-start" },
-                React.createElement(Text as any, { text: "Year", fontSize: 12, color: "#6b6b6b" }),
-                React.createElement(Text as any, { text: "YYYY", fontSize: 34, color: "#333333" })
+                React.createElement(Text as any, { text: "Year", fontSize: 11, color: "#6b6b6b" }),
+                React.createElement(Text as any, { text: "YYYY", fontSize: 24, color: "#333333" })
               ),
-              React.createElement(Text as any, { text: "v", fontSize: 28, color: "#333333" })
+              React.createElement(Text as any, { text: "v", fontSize: 20, color: "#333333" })
             )
           )
         )
