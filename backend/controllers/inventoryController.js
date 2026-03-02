@@ -69,7 +69,7 @@ exports.getInventorySummary = async (req, res) => {
         acc.stockValue += stock * unitValue;
 
         if (stock <= 0) acc.outOfStock += 1;
-        else if (stock <= Number(lowThreshold ?? 5)) acc.lowStock += 1;
+        else if (stock < Number(lowThreshold ?? 5)) acc.lowStock += 1;
         return acc;
       },
       {
