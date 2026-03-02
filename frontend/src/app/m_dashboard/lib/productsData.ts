@@ -17,6 +17,7 @@ export interface Product {
   category: string;
   price: number;
   basePrice?: number;
+  costPrice?: number | null;
   finalPrice?: number;
   compareAtPrice?: number | null;
   discount?: number;

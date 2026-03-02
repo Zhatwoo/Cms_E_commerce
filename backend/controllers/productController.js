@@ -85,6 +85,7 @@ exports.create = async (req, res) => {
       description,
       price,
       basePrice,
+      costPrice,
       finalPrice,
       compareAtPrice,
       discount,
@@ -120,6 +121,7 @@ exports.create = async (req, res) => {
         description: description || '',
         price: price ?? 0,
         basePrice: basePrice ?? null,
+        costPrice: costPrice ?? null,
         finalPrice: finalPrice ?? null,
         compareAtPrice: compareAtPrice ?? null,
         discount: discount ?? 0,
@@ -150,6 +152,7 @@ exports.update = async (req, res) => {
       description,
       price,
       basePrice,
+      costPrice,
       finalPrice,
       compareAtPrice,
       discount,
@@ -175,6 +178,7 @@ exports.update = async (req, res) => {
     if (description !== undefined) updates.description = description;
     if (price !== undefined) updates.price = price;
     if (basePrice !== undefined) updates.basePrice = basePrice;
+    if (costPrice !== undefined) updates.costPrice = costPrice;
     if (finalPrice !== undefined) updates.finalPrice = finalPrice;
     if (compareAtPrice !== undefined) updates.compareAtPrice = compareAtPrice;
     if (discount !== undefined) updates.discount = discount;

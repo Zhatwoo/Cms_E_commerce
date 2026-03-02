@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload, Monitor, Tablet, Smartphone } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
-import { getDraft } from "../_lib/pageApi";
+import { autoSavePage, getDraft } from "../_lib/pageApi";
 import { WebPreview } from "../_lib/webRenderer";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
@@ -419,25 +419,6 @@ function PreviewContent() {
     setPublishDomainError("");
     setPublishing(true);
     try {
-      // Check subscription limits
-      const user = getStoredUser();
-      const plan = user?.subscriptionPlan || 'free';
-      const limits = getLimits(plan);
-
-      // We only count it as a "new domain" if the project doesn't already have a subdomain
-      const isNewDomain = !project?.subdomain;
-
-      if (isNewDomain) {
-        const domainRes = await getMyDomains();
-        const currentDomains = domainRes.success ? (domainRes.data?.length || 0) : 0;
-
-        if (currentDomains >= limits.domains) {
-          showAlert(`Limit reached: Your ${plan} plan allows up to ${limits.domains} domains. Upgrade to Pro for unlimited domains.`);
-          setPublishing(false);
-          return;
-        }
-      }
-
       const res = await publishProject(projectId, domain);
       if (res.success) {
         setShowPublishDialog(false);
@@ -480,7 +461,11 @@ function PreviewContent() {
     setPublishDomainError("");
     setScheduling(true);
     try {
-      const res = await schedulePublish(projectId, new Date(scheduledAt).toISOString(), domain);
+      const snapshot = cleanDoc ? JSON.stringify(cleanDoc) : null;
+      if (snapshot) {
+        await autoSavePage(snapshot, projectId);
+      }
+      const res = await schedulePublish(projectId, new Date(scheduledAt).toISOString(), domain, snapshot);
       if (res.success) {
         setShowPublishDialog(false);
         setPublishDomainName("");
