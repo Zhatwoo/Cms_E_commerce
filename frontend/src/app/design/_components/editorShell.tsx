@@ -20,7 +20,7 @@ import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
 import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
-import { MarqueeSelectionHandler } from "./MarqueeSelectionHandler";
+import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import { TransformModeProvider } from "./TransformModeContext";
 import { InlineTextEditProvider } from "./InlineTextEditContext";
 import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
@@ -1823,7 +1823,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 <CanvasContextMenu />
                 <FigmaStyleDragHandler />
                 <NewPageDropPlacementHandler />
-                <BoxSelectionHandler />
                 <DoubleClickTransformHandler />
                 <PrototypeFlowLines />
                 {/* Top Panel */}
@@ -1902,8 +1901,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                     <div className="h-full flex items-start pointer-events-auto">
                       <div
                         className={`h-full origin-left transition-[transform,opacity] duration-300 ease-out will-change-transform ${leftPanelOpen
-                            ? "translate-x-0 scale-100 opacity-100 pointer-events-auto"
-                            : "-translate-x-full scale-90 opacity-0 pointer-events-none"
+                          ? "translate-x-0 scale-100 opacity-100 pointer-events-auto"
+                          : "-translate-x-full scale-90 opacity-0 pointer-events-none"
                           }`}
                       >
                         <LeftPanel
@@ -1928,8 +1927,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                     <div className="h-full flex items-start justify-end pointer-events-auto">
                       <div
                         className={`h-full origin-right transition-[transform,opacity] duration-300 ease-out will-change-transform ${rightPanelOpen
-                            ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
-                            : 'translate-x-full scale-90 opacity-0 pointer-events-none'
+                          ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
+                          : 'translate-x-full scale-90 opacity-0 pointer-events-none'
                           }`}
                       >
                         <RightPanel

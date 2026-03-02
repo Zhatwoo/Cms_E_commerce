@@ -58,6 +58,7 @@ function boxStyles(props: Record<string, unknown>) {
     borderRadius: `${br}px`,
     border: bw > 0 ? `${bw}px ${(props.borderStyle as string) ?? 'solid'} ${(props.borderColor as string) ?? 'transparent'}` : undefined,
     width: (props.width as string) ?? '100%',
+    minWidth: (props.minWidth as string) ?? undefined,
     minHeight: gap ? undefined : '2px',
     boxSizing: 'border-box' as const,
     overflow: 'hidden' as const,
@@ -67,7 +68,7 @@ function boxStyles(props: Record<string, unknown>) {
 /** Clean document shape (minimal type for preview). */
 type CleanDoc = {
   version?: number;
-  pages?: { id: string; children: string[]; props?: Record<string, unknown> }[];
+  pages?: { id: string; name?: string; slug?: string; children: string[]; props?: Record<string, unknown> }[];
   nodes?: Record<string, { type: string; props?: Record<string, unknown>; children?: string[] }>;
 };
 
@@ -145,7 +146,7 @@ export function DraftPreviewThumbnail({
           setDoc(parsed);
         }
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [projectId]);
@@ -156,7 +157,7 @@ export function DraftPreviewThumbnail({
     if (!firstPage?.children?.length) return;
     import('@/app/design/_lib/webRenderer')
       .then((m) => setWebPreviewComponent(() => m.WebPreview))
-      .catch(() => {});
+      .catch(() => { });
   }, [doc]);
 
   useLayoutEffect(() => {
@@ -227,8 +228,8 @@ export function DraftPreviewThumbnail({
     version: typeof doc?.version === 'number' ? doc.version : 2,
     pages: (doc?.pages ?? []).map((p) => ({
       id: p.id,
-      name: p.name,
-      slug: p.slug,
+      name: p.name ?? 'Page',
+      slug: p.slug ?? 'page',
       props: p.props ?? {},
       children: p.children ?? [],
     })),

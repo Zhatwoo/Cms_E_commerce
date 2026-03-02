@@ -10,13 +10,14 @@ type AuthMode = 'login' | 'register';
 export function LandingPageClient({ children }: { children: React.ReactNode }) {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>('login');
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    if (typeof window === 'undefined') {
-      return false;
-    }
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
-    return window.localStorage.getItem('landing-theme') === 'dark';
-  });
+  useEffect(() => {
+    const storedTheme = window.localStorage.getItem('landing-theme');
+    if (storedTheme === 'dark') {
+      setIsDarkMode(true);
+    }
+  }, []);
 
   const handleAuthClick = (mode: AuthMode) => {
     setAuthMode(mode);
