@@ -5,57 +5,74 @@ Etong theme-context.tsx naman na to eh yung sa theme ng application.
 'use client';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
-const THEME_STORAGE_KEY = 'mercato_theme_preference';
-
+/* Reference: Color Palette 1 & 2 – deep indigo/purple, yellow accent, Outfit font */
 export const THEMES = {
   dark: {
     bg: {
-      primary: '#1B1437',
-      dark: '#120D26',
-      card: '#231A47',
-      elevated: '#2D2360',
-      fog: '#0F0B1F',
+      primary: '#1A1A4C',
+      primaryEnd: '#191E2D',
+      dark: '#191E2D',
+      card: '#2C354F',
+      elevated: '#2C354F',
+      fog: '#191E2D',
+      sidebar: '#1A1A4C',
+      searchBar: '#2C354F',
     },
     text: {
-      primary: '#F4F4F6',
-      secondary: '#E6E6E9',
-      muted: '#9999A1',
-      subtle: '#66666E',
+      primary: '#FFFFFF',
+      secondary: '#8799C0',
+      muted: '#8799C0',
+      subtle: '#4C597D',
     },
     border: {
-      default: '#6B5FA2',
-      faint: '#4E437D',
+      default: '#4C597D',
+      faint: 'rgba(135, 153, 192, 0.35)',
+    },
+    accent: {
+      yellow: '#FFCE00',
+      yellowBright: '#FFCE00',
+      purple: '#A64CD9',
+      purpleDeep: '#5C1D8F',
     },
     status: {
       good: '#A3E635',
-      warning: '#FCD34D',
+      warning: '#FFB800',
       error: '#FDA4AF',
-      info: '#93C5FD',
+      info: '#29265C',
     },
   },
   light: {
     bg: {
-      primary: '#F0F2F5', // Cool gray background for better separation
+      primary: '#F0F2F5',
+      primaryEnd: '#F0F2F5',
       dark: '#FFFFFF',
       card: '#FFFFFF',
-      elevated: '#F1F5F9', // Slate 100 - Better visibility against white
+      elevated: '#F1F5F9',
       fog: '#FFFFFF',
+      sidebar: '#1C172B',
+      searchBar: '#E2E8F0',
     },
     text: {
-      primary: '#0F172A', // Slate 900 - High contrast
-      secondary: '#334155', // Slate 700 - Readable secondary
-      muted: '#64748B', // Slate 500
-      subtle: '#94A3B8', // Slate 400
+      primary: '#0F172A',
+      secondary: '#334155',
+      muted: '#64748B',
+      subtle: '#94A3B8',
     },
     border: {
-      default: '#CBD5E1', // Slate 300 - Visible borders
-      faint: '#E2E8F0', // Slate 200 - Subtle styling
+      default: '#CBD5E1',
+      faint: '#E2E8F0',
+    },
+    accent: {
+      yellow: '#D97706',
+      yellowBright: '#FCD34D',
+      purple: '#6B2DC0',
+      purpleDeep: '#5B21B6',
     },
     status: {
-      good: '#16A34A', // Green 600
-      warning: '#D97706', // Amber 600
-      error: '#DC2626', // Red 600
-      info: '#2563EB', // Blue 600
+      good: '#16A34A',
+      warning: '#D97706',
+      error: '#DC2626',
+      info: '#2563EB',
     },
   },
 };
