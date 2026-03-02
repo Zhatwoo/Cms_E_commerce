@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { LiveSite } from '@/app/design/_lib/webRenderer';
+import { WebPreview } from '@/app/design/_lib/webRenderer';
 import { serializeCraftToClean } from '@/app/design/_lib/serializer';
 import type { BuilderDocument } from '@/app/design/_types/schema';
 import { getApiUrl } from '@/lib/api';
@@ -94,7 +94,7 @@ function PublicSiteContent() {
       }
     })();
     return () => { cancelled = true; };
-  }, [subdomain]);
+  }, [subdomain, setSiteTitle]);
 
   useEffect(() => {
     if (!subdomain || typeof subdomain !== 'string') return;
@@ -137,10 +137,11 @@ function PublicSiteContent() {
 
   return (
     <>
-      <LiveSite
+      <WebPreview
         doc={doc}
         pageIndex={0}
-        mobileBreakpoint={480}
+        mobileBreakpoint={900}
+        enableFormInputs
         storeContext={{ products, addToCart }}
       />
       <CartFab />

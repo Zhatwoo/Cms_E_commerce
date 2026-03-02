@@ -21,7 +21,6 @@ import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
 import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
 import { MarqueeSelectionHandler } from "./MarqueeSelectionHandler";
-import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import { TransformModeProvider } from "./TransformModeContext";
 import { InlineTextEditProvider } from "./InlineTextEditContext";
 import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
@@ -200,9 +199,9 @@ const MIN_SCALE = 0.05;
 const MAX_SCALE = 3;
 const DEFAULT_SCALE = 0.5;
 const ZOOM_SENSITIVITY = 0.003;
-const INFINITE_CANVAS_WIDTH_VW = 4000;
-const INFINITE_CANVAS_HEIGHT_VH = 4000;
-const INFINITE_CANVAS_PADDING_PX = 30000;
+const INFINITE_CANVAS_WIDTH_VW = 8000;
+const INFINITE_CANVAS_HEIGHT_VH = 8000;
+const INFINITE_CANVAS_PADDING_PX = 100000;
 
 const isEditableTarget = (target: EventTarget | null) => {
   if (!target || !(target instanceof HTMLElement)) return false;
@@ -1824,7 +1823,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 <CanvasContextMenu />
                 <FigmaStyleDragHandler />
                 <NewPageDropPlacementHandler />
-                <BoxSelectionHandler />
+                <MarqueeSelectionHandler />
                 <DoubleClickTransformHandler />
                 <PrototypeFlowLines />
                 {/* Top Panel */}
