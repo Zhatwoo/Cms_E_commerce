@@ -4,13 +4,14 @@ const Project = require('../models/Project');
 const Page = require('../models/Page');
 const User = require('../models/User');
 const { getRealtimeDb, db } = require('../config/firebase');
+const { getLimits } = require('../utils/subscriptionLimits');
 
 const BASE_DOMAIN = process.env.BASE_DOMAIN || process.env.NEXT_PUBLIC_BASE_DOMAIN || 'cms.com';
 
 // List for current user (protect)
 exports.getMyDomains = async (req, res) => {
   try {
-    const items = await Domain.findByUserId(req.user.id);
+    const items = await Domain.listByClient(req.user.id);
     res.status(200).json({ success: true, data: items });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
@@ -150,10 +151,47 @@ exports.publish = async (req, res) => {
       return res.status(400).json({ success: false, message: 'projectId is required' });
     }
     const userId = req.user.id;
+
+    // Check subscription limits
+    const user = await User.findById(userId);
+    const limits = getLimits(user?.subscriptionPlan);
+    const publishedList = await Domain.listByClient(userId);
+    const existingDomain = await Domain.findByProjectId(userId, projectId);
+
     const project = await Project.get(userId, String(projectId).trim());
     if (!project) {
       return res.status(404).json({ success: false, message: 'Project not found' });
     }
+
+    // 1. PROJECT-BASED SUBDOMAIN RESERVATION LIMIT
+    if (!project.subdomain) {
+      const reservedCount = await Project.countWithSubdomain(userId);
+      if (reservedCount >= limits.domains) {
+        return res.status(403).json({
+          success: false,
+          message: `Limit reached: Your plan has reached its limit. Please upgrade your subscription to add more domains or projects. Your current ${user?.subscriptionPlan || 'free'} plan allows up to ${limits.domains} domains.`,
+        });
+      }
+    }
+
+    // 2. ACTUAL PUBLISHED DOMAINS LIMIT
+    // Block if it's a NEW publication and they are at the limit.
+    if (!existingDomain && publishedList.length >= limits.domains) {
+      return res.status(403).json({
+        success: false,
+        message: `Limit reached: Your plan has reached its limit. Please upgrade your subscription to add more domains or projects. Your current ${user?.subscriptionPlan || 'free'} plan allows up to ${limits.domains} domains.`,
+      });
+    }
+
+    // 3. OVER-LIMIT PROTECTION: If already way over (e.g. they have 5 domains on Free limit 3)
+    // block any publish action until they are under limit.
+    if (publishedList.length > limits.domains) {
+      return res.status(403).json({
+        success: false,
+        message: `Limit reached: Your plan has reached its limit (currently ${publishedList.length}/${limits.domains}). Please upgrade your subscription or remove domains to proceed.`,
+      });
+    }
+
     const subdomain = (subdomainOverride && String(subdomainOverride).trim())
       ? String(subdomainOverride).trim().toLowerCase().replace(/[^a-z0-9-]/g, '')
       : (project.subdomain || (project.title || 'site').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'site');

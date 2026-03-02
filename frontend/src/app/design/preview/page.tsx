@@ -8,7 +8,8 @@ import { autoSavePage, getDraft } from "../_lib/pageApi";
 import { WebPreview } from "../_lib/webRenderer";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
-import { getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, type Project } from "@/lib/api";
+import { getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, getMyDomains, type Project } from "@/lib/api";
+import { getLimits } from "@/lib/subscriptionLimits";
 import { uploadClientFile } from "@/lib/firebaseStorage";
 import { createPortal } from "react-dom";
 import html2canvas from "html2canvas";
@@ -58,9 +59,9 @@ function PreviewIframe({ children, width, height = "80vh", isDesktop = false }: 
     <>
       <iframe
         ref={iframeRef}
-        style={{ 
-          width: responsiveWidth, 
-          height, 
+        style={{
+          width: responsiveWidth,
+          height,
           transition: "width 0.3s ease",
           borderRadius: isDesktop ? 0 : undefined,
           border: isDesktop ? "none" : undefined,
@@ -251,7 +252,7 @@ function PreviewContent() {
         background: "#ffffff",
         scale: 0.7,
         useCORS: true,
-      });
+      } as any);
 
       const blob: Blob | null = await new Promise((resolve) => {
         canvas.toBlob((b: Blob | null) => resolve(b), "image/jpeg", 0.85);
@@ -375,7 +376,7 @@ function PreviewContent() {
       setSaving(false);
     }
   };
-//cjdhv
+  //cjdhv
   const handlePublishClick = async () => {
     setPublishDomainError("");
     try {
@@ -418,18 +419,18 @@ function PreviewContent() {
     setPublishDomainError("");
     setPublishing(true);
     try {
-      const snapshot = cleanDoc ? JSON.stringify(cleanDoc) : null;
-      if (snapshot) {
-        await autoSavePage(snapshot, projectId);
-      }
-      const res = await publishProject(projectId, domain, snapshot);
+      const res = await publishProject(projectId, domain);
       if (res.success) {
         setShowPublishDialog(false);
         setPublishDomainName("");
         const sub = res.data?.subdomain ?? domain;
         showAlert(`Published! Your site is live. You can change the domain later in the dashboard.`);
       } else {
-        showAlert(res.message || "Publish failed.");
+        if (res.message?.includes('Limit reached')) {
+          showAlert(res.message);
+        } else {
+          showAlert(res.message || "Publish failed.");
+        }
       }
     } catch (error) {
       console.error("Publish error:", error);

@@ -8,17 +8,12 @@ import { Image } from "../../../design/_designComponents/Image/Image";
 import { Button } from "../../../design/_designComponents/Button/Button";
 import { Row } from "../../../design/_designComponents/Row/Row";
 import { Column } from "../../../design/_designComponents/Column/Column";
+import { Section } from "../../../design/_designComponents/Section/Section";
 import { TemplateEntry } from "../../_types";
 
 const topCards = [
-  {
-    title: "Browse Featured products",
-    tag: "Featured",
-  },
-  {
-    title: "Browse New products",
-    tag: "New",
-  },
+  { title: "Browse Featured products", tag: "Featured" },
+  { title: "Browse New products", tag: "New" },
 ];
 
 const gridCards = [
@@ -63,13 +58,14 @@ function browseBtn() {
     label: "Browse",
     backgroundColor: "#ffffff",
     textColor: "#1f1f1f",
-    fontSize: 12,
+    // ✅ More aggressive min so button text never overflows on tiny screens
+    fontSize: "clamp(8px, 1.8vw, 12px)",
     fontWeight: "600",
     borderRadius: 16,
-    paddingTop: 5,
-    paddingBottom: 5,
-    paddingLeft: 22,
-    paddingRight: 22,
+    paddingTop: 4,
+    paddingBottom: 4,
+    paddingLeft: 10,
+    paddingRight: 10,
   });
 }
 
@@ -78,42 +74,49 @@ function topCard(title: string, tag: string, img: string) {
     Element as any,
     {
       is: Container as any,
+      canvas: true,
       background: "linear-gradient(120deg, #7f8188, #6f7178)",
       borderRadius: 4,
-      width: "49%",
-      height: "175px",
-      paddingTop: 10,
-      paddingBottom: 12,
-      paddingLeft: 14,
-      paddingRight: 14,
+      width: "min(calc(50% - 6px), 600px)",
+      flexShrink: 0,
+      height: "clamp(130px, 16vw, 175px)",
+      paddingTop: "clamp(8px, 1vw, 12px)",
+      paddingBottom: "clamp(8px, 1vw, 12px)",
+      paddingLeft: "clamp(10px, 1.2vw, 14px)",
+      paddingRight: "clamp(10px, 1.2vw, 14px)",
       position: "relative",
-      canvas: true,
       alignItems: "stretch",
       justifyContent: "space-between",
       overflow: "hidden",
     },
+    // Tag badge
     React.createElement(
       Element as any,
       {
         is: Container as any,
+        canvas: true,
         background: "#f5b400",
         borderRadius: 2,
         paddingTop: 2,
         paddingBottom: 2,
-        paddingLeft: 14,
-        paddingRight: 14,
-        width: "84px",
-        canvas: true,
+        paddingLeft: 6,
+        paddingRight: 6,
+        width: "auto",
+        height: "auto",
         alignItems: "center",
         justifyContent: "center",
+        gap: 0,
       },
       React.createElement(Text as any, {
         text: tag,
-        fontSize: 20,
+        // ✅ Scales down to 8px on very small screens
+        fontSize: "clamp(8px, 2vw, 11px)",
         fontWeight: "700",
         color: "#111111",
+        letterSpacing: 0.5,
       })
     ),
+    // Image + text row
     React.createElement(
       Element as any,
       {
@@ -122,25 +125,29 @@ function topCard(title: string, tag: string, img: string) {
         alignItems: "center",
         justifyContent: "space-between",
         flexWrap: "nowrap",
-        gap: 10,
+        gap: 8,
+        background: "transparent",
+        padding: 0,
+        width: "100%",
       },
       React.createElement(
         Element as any,
         {
           is: Container as any,
+          canvas: true,
           width: "52%",
-          height: "138px",
+          height: "clamp(90px, 11vw, 130px)",
           background: "transparent",
           padding: 0,
-          canvas: true,
           alignItems: "center",
           justifyContent: "center",
+          gap: 0,
         },
         React.createElement(Image as any, {
           src: img,
           alt: tag,
           width: "100%",
-          height: "136px",
+          height: "100%",
           objectFit: "contain",
         })
       ),
@@ -148,19 +155,21 @@ function topCard(title: string, tag: string, img: string) {
         Element as any,
         {
           is: Column as any,
-          width: "50%",
-          padding: 0,
-          gap: 8,
           canvas: true,
+          width: "48%",
+          padding: 0,
+          gap: 6,
           alignItems: "flex-start",
           justifyContent: "center",
+          background: "transparent",
         },
         React.createElement(Text as any, {
           text: title,
-          fontSize: 20,
+          // ✅ Key fix: min dropped to 9px so long titles fit on mobile
+          fontSize: "clamp(9px, 2.2vw, 15px)",
           fontWeight: "700",
           color: "#ffffff",
-          lineHeight: 1.1,
+          lineHeight: 1.3,
         }),
         browseBtn()
       )
@@ -173,47 +182,60 @@ function smallCard(title: string, img: string) {
     Element as any,
     {
       is: Container as any,
+      canvas: true,
       background: "#cccccf",
       borderRadius: 4,
-      width: "23.8%",
-      height: "210px",
-      paddingTop: 12,
-      paddingBottom: 12,
-      paddingLeft: 12,
-      paddingRight: 12,
-      canvas: true,
+      width: "min(calc(50% - 6px), 260px)",
+      flexShrink: 0,
+      height: "clamp(120px, 14vw, 160px)",
+      paddingTop: "clamp(8px, 1vw, 10px)",
+      paddingBottom: "clamp(8px, 1vw, 10px)",
+      paddingLeft: "clamp(8px, 1vw, 10px)",
+      paddingRight: "clamp(8px, 1vw, 10px)",
       alignItems: "stretch",
       justifyContent: "space-between",
       overflow: "hidden",
     },
     React.createElement(Text as any, {
       text: title,
-      fontSize: 20,
+      // ✅ Scales down aggressively; long labels like "Health & Personal Care" stay in bounds
+      fontSize: "clamp(8px, 2.5vw, 13px)",
       fontWeight: "700",
       color: "#111111",
-      lineHeight: 1.08,
+      lineHeight: 1.3,
     }),
     React.createElement(
       Element as any,
-      { is: Row as any, canvas: true, justifyContent: "space-between", alignItems: "flex-end", flexWrap: "nowrap", gap: 8 },
+      {
+        is: Row as any,
+        canvas: true,
+        background: "transparent",
+        padding: 0,
+        justifyContent: "space-between",
+        alignItems: "flex-end",
+        flexWrap: "nowrap",
+        gap: 6,
+        width: "100%",
+      },
       browseBtn(),
       React.createElement(
         Element as any,
         {
           is: Container as any,
-          width: "64%",
-          height: "136px",
+          canvas: true,
+          width: "60%",
+          height: "clamp(70px, 9vw, 100px)",
           background: "transparent",
           padding: 0,
-          canvas: true,
           alignItems: "center",
           justifyContent: "center",
+          gap: 0,
         },
         React.createElement(Image as any, {
           src: img,
           alt: title,
           width: "100%",
-          height: "134px",
+          height: "100%",
           objectFit: "contain",
         })
       )
@@ -225,84 +247,101 @@ export const BrowseCategory: TemplateEntry = {
   label: "Browse Category",
   description: "Category grid with featured banners and browse cards",
   preview: "Browse",
+  category: "card",
   element: React.createElement(
     Element as any,
     {
-      is: Container as any,
+      is: Section as any,
+      canvas: true,
       background: "#f1f1f1",
       width: "100%",
-      paddingTop: 0,
-      paddingBottom: 14,
-      paddingLeft: 0,
-      paddingRight: 0,
-      canvas: true,
-      alignItems: "stretch",
+      minHeight: "100vh",
+      padding: 0,
+      flexDirection: "column",
+      alignItems: "center",
       justifyContent: "flex-start",
     },
+
+    // Header bar
     React.createElement(
       Element as any,
       {
         is: Container as any,
-        background: "#3a3a3f",
-        paddingTop: 10,
-        paddingBottom: 10,
-        width: "100%",
         canvas: true,
+        background: "#3a3a3f",
+        paddingTop: 14,
+        paddingBottom: 14,
+        paddingLeft: 24,
+        paddingRight: 24,
+        width: "100%",
         alignItems: "center",
         justifyContent: "center",
+        gap: 0,
       },
       React.createElement(Text as any, {
         text: "Browse Categories",
-        fontSize: 30,
+        // ✅ Header also scales: readable on mobile, elegant on desktop
+        fontSize: "clamp(13px, 3vw, 20px)",
         fontWeight: "700",
         color: "#ffffff",
+        letterSpacing: 0.5,
       })
     ),
+
+    // Content
     React.createElement(
       Element as any,
       {
         is: Container as any,
-        background: "#f1f1f1",
-        paddingTop: 12,
-        paddingBottom: 8,
-        paddingLeft: 12,
-        paddingRight: 12,
         canvas: true,
+        background: "transparent",
+        width: "min(100%, 1280px)",
+        paddingTop: 16,
+        paddingBottom: 16,
+        paddingLeft: 16,
+        paddingRight: 16,
+        flexDirection: "column",
         alignItems: "stretch",
         justifyContent: "flex-start",
-        gap: 10,
+        gap: 12,
       },
+
+      // Top banner cards
       React.createElement(
         Element as any,
-        { is: Row as any, canvas: true, gap: 12, flexWrap: "nowrap", alignItems: "stretch" },
+        {
+          is: Row as any,
+          canvas: true,
+          background: "transparent",
+          padding: 0,
+          gap: 12,
+          flexWrap: "wrap",
+          alignItems: "stretch",
+          justifyContent: "center",
+          width: "100%",
+        },
         topCard(topCards[0].title, topCards[0].tag, getGeneratedImage(topCards[0].title, 0)),
         topCard(topCards[1].title, topCards[1].tag, getGeneratedImage(topCards[1].title, 1))
       ),
+
+      // Small cards
       React.createElement(
         Element as any,
-        { is: Row as any, canvas: true, gap: 12, flexWrap: "nowrap", alignItems: "stretch" },
-        smallCard(gridCards[0].title, getGeneratedImage(gridCards[0].title, 2)),
-        smallCard(gridCards[1].title, getGeneratedImage(gridCards[1].title, 3)),
-        smallCard(gridCards[2].title, getGeneratedImage(gridCards[2].title, 4)),
-        smallCard(gridCards[3].title, getGeneratedImage(gridCards[3].title, 5))
-      ),
-      React.createElement(
-        Element as any,
-        { is: Row as any, canvas: true, gap: 12, flexWrap: "nowrap", alignItems: "stretch" },
-        smallCard(gridCards[4].title, getGeneratedImage(gridCards[4].title, 6)),
-        smallCard(gridCards[5].title, getGeneratedImage(gridCards[5].title, 7)),
-        smallCard(gridCards[6].title, getGeneratedImage(gridCards[6].title, 8)),
-        smallCard(gridCards[7].title, getGeneratedImage(gridCards[7].title, 9))
-      ),
-      React.createElement(
-        Element as any,
-        { is: Row as any, canvas: true, gap: 12, flexWrap: "nowrap", alignItems: "stretch" },
-        smallCard(gridCards[8].title, getGeneratedImage(gridCards[8].title, 10)),
-        smallCard(gridCards[9].title, getGeneratedImage(gridCards[9].title, 11)),
-        smallCard(gridCards[10].title, getGeneratedImage(gridCards[10].title, 12)),
-        smallCard(gridCards[11].title, getGeneratedImage(gridCards[11].title, 13))
+        {
+          is: Row as any,
+          canvas: true,
+          background: "transparent",
+          padding: 0,
+          gap: 12,
+          flexWrap: "wrap",
+          alignItems: "stretch",
+          justifyContent: "center",
+          width: "100%",
+        },
+        ...gridCards.map((card, idx) =>
+          smallCard(card.title, getGeneratedImage(card.title, idx + 2))
+        )
       )
     )
   ),
-  category: "card",
 };
