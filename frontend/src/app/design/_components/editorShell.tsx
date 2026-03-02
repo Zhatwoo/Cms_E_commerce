@@ -21,7 +21,6 @@ import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
 import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
 import { MarqueeSelectionHandler } from "./MarqueeSelectionHandler";
-import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import { TransformModeProvider } from "./TransformModeContext";
 import { InlineTextEditProvider } from "./InlineTextEditContext";
 import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
@@ -31,7 +30,6 @@ import { PrototypeTabProvider } from "./PrototypeTabContext";
 import { PrototypeFlowLines } from "./PrototypeFlowLines";
 import { NewPageDropPlacementHandler } from "./NewPageDropPlacementHandler";
 import { HeaderFooterDropPlacementHandler } from "./HeaderFooterDropPlacementHandler";
-import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
@@ -1825,7 +1823,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 <CanvasContextMenu />
                 <FigmaStyleDragHandler />
                 <NewPageDropPlacementHandler />
-                <BoxSelectionHandler />
+                <MarqueeSelectionHandler />
                 <DoubleClickTransformHandler />
                 <PrototypeFlowLines />
                 {/* Top Panel */}

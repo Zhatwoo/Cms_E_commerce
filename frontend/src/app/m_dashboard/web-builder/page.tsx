@@ -417,6 +417,7 @@ export default function WebBuilderPage() {
   const openCreateModal = (options: { title: string; template?: GalleryTemplate }) => {
     setCreateModalTitle(options.title);
     setCreateModalTemplate(options.template ?? null);
+    setSelectedProjectId(null); // Clear any selected project
     setCreateModalOpen(true);
   };
 
@@ -424,7 +425,7 @@ export default function WebBuilderPage() {
   useEffect(() => {
     if (projectsLoading || projectsLoadingFromContext || isAutoCreate) return;
     if (selectedProject) return;
-    if (projects.length > 0) {
+    if (projects.length > 0 && !isAutoCreate) { // Prevent auto-selection during new website creation
       setSelectedProjectId(projects[0].id);
     } else {
       openCreateModal({ title: '' });
