@@ -9,7 +9,7 @@ interface TypographyGroupProps extends TypographyProps {
 }
 
 const FONT_OPTIONS = [
-  "Inter",
+  "Outfit",
   "Roboto",
   "Open Sans",
   "Poppins",
@@ -28,7 +28,7 @@ const FONT_OPTIONS = [
 ];
 
 export const TypographyGroup = ({
-  fontFamily = "Inter",
+  fontFamily = "Outfit",
   fontWeight = "400",
   fontStyle = "normal",
   fontSize = 16,

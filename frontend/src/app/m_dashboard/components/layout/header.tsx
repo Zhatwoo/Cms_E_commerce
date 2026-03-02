@@ -83,7 +83,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
         await logout();
         setUser(null);
         setShowMenu(false);
-        router.push('/auth/login');
+        router.push('/');
         router.refresh();
     };
 
