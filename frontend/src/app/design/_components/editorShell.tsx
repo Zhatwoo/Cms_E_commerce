@@ -22,6 +22,9 @@ import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
 import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
 import { MarqueeSelectionHandler } from "./MarqueeSelectionHandler";
+import { BoxSelectionHandler } from "./BoxSelectionHandler";
+import { TextToolHandler } from "./TextToolHandler";
+import { ShapeToolHandler } from "./ShapeToolHandler";
 import { TransformModeProvider } from "./TransformModeContext";
 import { InlineTextEditProvider } from "./InlineTextEditContext";
 import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
@@ -76,6 +79,8 @@ const UI_STATE_KEY_PREFIX = "craftjs_editor_ui";
 // These must match the Viewport constants for proper page positioning
 const PAGE_GRID_ORIGIN_X = 30000;
 const PAGE_GRID_ORIGIN_Y = 30000;
+const PAGE_BASE_WIDTH = 1920;
+const PAGE_BASE_HEIGHT = 1200;
 
 const EMPTY_FRAME_DATA = JSON.stringify({
   ROOT: {
@@ -96,24 +101,12 @@ const EMPTY_FRAME_DATA = JSON.stringify({
       pageSlug: "page-0",
       canvasX: PAGE_GRID_ORIGIN_X,
       canvasY: PAGE_GRID_ORIGIN_Y,
-      width: "1920px",
       height: "1200px",
       background: "#ffffff"
     },
     displayName: "Page",
     custom: {},
     parent: "ROOT",
-    hidden: false,
-    nodes: ["container-1"],
-    linkedNodes: {},
-  },
-  "container-1": {
-    type: { resolvedName: "Container" },
-    isCanvas: true,
-    props: { padding: 40, background: "#ffffff" },
-    displayName: "Container",
-    custom: {},
-    parent: "page-1",
     hidden: false,
     nodes: [],
     linkedNodes: {},
@@ -611,7 +604,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const containerRef = useRef<HTMLDivElement>(null);
   const horizontalScrollbarRef = useRef<HTMLDivElement>(null);
   const horizontalScrollbarInnerRef = useRef<HTMLDivElement>(null);
-  const previousScaleRef = useRef(DEFAULT_SCALE);
+  const previousScaleRef = useRef(1);
+  const zoomAnchorRef = useRef({ x: 0, y: 0, hasValue: false });
   const wheelZoomDeltaRef = useRef(0);
   const wheelZoomRafRef = useRef<number | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -861,8 +855,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     const handleWheel = (e: WheelEvent) => {
       if (!(e.ctrlKey || e.metaKey)) return;
 
+      const targetEl = e.target instanceof HTMLElement ? e.target : null;
+      if (!targetEl || !targetEl.closest("[data-web-builder-root]")) return;
       if (isEditableTarget(e.target)) return;
-      if (e.target instanceof HTMLElement && e.target.closest("[data-panel]")) return;
 
       const container = containerRef.current;
       if (!container) return;
@@ -875,6 +870,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         e.clientY <= rect.bottom;
 
       if (!isInsideCanvas) return;
+
+      const anchorX = Math.min(container.clientWidth, Math.max(0, e.clientX - rect.left));
+      const anchorY = Math.min(container.clientHeight, Math.max(0, e.clientY - rect.top));
+      zoomAnchorRef.current = { x: anchorX, y: anchorY, hasValue: true };
 
       if (e.cancelable) {
         e.preventDefault();
@@ -924,7 +923,47 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     };
   }, []);
 
-  // Keep center point stationary while zooming, including rapid wheel bursts
+  // Prevent browser zoom shortcuts while in builder; use internal canvas zoom instead.
+  useEffect(() => {
+    const ZOOM_STEP = 0.1;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const ctrl = e.ctrlKey || e.metaKey;
+      if (!ctrl) return;
+
+      const targetEl = e.target instanceof HTMLElement ? e.target : null;
+      if (!targetEl || !targetEl.closest("[data-web-builder-root]")) return;
+      if (isEditableTarget(e.target)) return;
+
+      const key = e.key;
+      const isZoomIn = key === "+" || key === "=" || e.code === "NumpadAdd";
+      const isZoomOut = key === "-" || key === "_" || e.code === "NumpadSubtract";
+      const isZoomReset = key === "0" || e.code === "Digit0" || e.code === "Numpad0";
+
+      if (!isZoomIn && !isZoomOut && !isZoomReset) return;
+
+      if (e.cancelable) e.preventDefault();
+      e.stopPropagation();
+
+      if (isZoomReset) {
+        setScale(1);
+        return;
+      }
+
+      setScale((prevScale) => {
+        const safePrev = clampScale(prevScale, previousScaleRef.current || 1);
+        const nextScale = isZoomIn ? safePrev + ZOOM_STEP : safePrev - ZOOM_STEP;
+        return clampScale(nextScale, safePrev);
+      });
+    };
+
+    window.addEventListener("keydown", handleKeyDown, { capture: true });
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, { capture: true });
+    };
+  }, []);
+
+  // Keep mouse focus point stationary while zooming, including rapid wheel bursts
   useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) {
@@ -944,18 +983,24 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       return;
     }
 
-    const centerX = container.clientWidth / 2;
-    const centerY = container.clientHeight / 2;
-    const contentX = (container.scrollLeft + centerX) / prevScale;
-    const contentY = (container.scrollTop + centerY) / prevScale;
+    const fallbackX = container.clientWidth / 2;
+    const fallbackY = container.clientHeight / 2;
+    const anchorX = zoomAnchorRef.current.hasValue
+      ? Math.min(container.clientWidth, Math.max(0, zoomAnchorRef.current.x))
+      : fallbackX;
+    const anchorY = zoomAnchorRef.current.hasValue
+      ? Math.min(container.clientHeight, Math.max(0, zoomAnchorRef.current.y))
+      : fallbackY;
+    const contentX = (container.scrollLeft + anchorX) / prevScale;
+    const contentY = (container.scrollTop + anchorY) / prevScale;
 
     if (!Number.isFinite(contentX) || !Number.isFinite(contentY)) {
       previousScaleRef.current = nextScale;
       return;
     }
 
-    const nextScrollLeft = contentX * nextScale - centerX;
-    const nextScrollTop = contentY * nextScale - centerY;
+    const nextScrollLeft = contentX * nextScale - anchorX;
+    const nextScrollTop = contentY * nextScale - anchorY;
     const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
     const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
 
@@ -964,59 +1009,19 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     previousScaleRef.current = nextScale;
   }, [scale]);
 
-  // Center the canvas in the view - focus on first page element
+  // Center the viewport in the full infinite canvas area
   const centerCanvasInView = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    // Try to find the first Page element and center on it
-    const firstPage = container.querySelector("[data-page-node]") as HTMLElement | null;
+    const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
+    const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
 
-    if (firstPage) {
-      const containerRect = container.getBoundingClientRect();
-      const pageRect = firstPage.getBoundingClientRect();
+    const centerLeft = maxScrollLeft / 2;
+    const centerTop = maxScrollTop / 2;
 
-      // Calculate where the page center is in scroll coordinates
-      const pageCenterX = container.scrollLeft + (pageRect.left - containerRect.left) + pageRect.width / 2;
-      const pageCenterY = container.scrollTop + (pageRect.top - containerRect.top) + pageRect.height / 2;
-
-      const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
-      const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
-
-      const nextLeft = Math.min(maxScrollLeft, Math.max(0, pageCenterX - container.clientWidth / 2));
-      const nextTop = Math.min(maxScrollTop, Math.max(0, pageCenterY - container.clientHeight / 2));
-
-      container.scrollLeft = nextLeft;
-      container.scrollTop = nextTop;
-      return;
-    }
-
-    // Fallback: try viewport desktop
-    const desktopViewport = container.querySelector("[data-viewport-desktop]") as HTMLElement | null;
-
-    if (desktopViewport) {
-      const containerRect = container.getBoundingClientRect();
-      const viewportRect = desktopViewport.getBoundingClientRect();
-
-      const viewportCenterX = container.scrollLeft + (viewportRect.left - containerRect.left) + viewportRect.width / 2;
-      const viewportCenterY = container.scrollTop + (viewportRect.top - containerRect.top) + viewportRect.height / 2;
-
-      const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
-      const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
-
-      const nextLeft = Math.min(maxScrollLeft, Math.max(0, viewportCenterX - container.clientWidth / 2));
-      const nextTop = Math.min(maxScrollTop, Math.max(0, viewportCenterY - container.clientHeight / 2));
-
-      container.scrollLeft = nextLeft;
-      container.scrollTop = nextTop;
-      return;
-    }
-
-    // Ultimate fallback: center of scroll area
-    const fallbackLeft = (container.scrollWidth - container.clientWidth) / 2;
-    const fallbackTop = (container.scrollHeight - container.clientHeight) / 2;
-    container.scrollLeft = fallbackLeft;
-    container.scrollTop = fallbackTop;
+    container.scrollLeft = centerLeft;
+    container.scrollTop = centerTop;
   }, []);
 
   // Center immediately on first mount so default view starts at middle even before frame settles
@@ -1125,95 +1130,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     }, 100);
   }, [handleFitToCanvas]);
 
-  // Handle add button (open left panel)
-  const handleAddButton = useCallback(() => {
-    setLeftPanelOpen(true);
-  }, []);
-
-  const clampPanelWidthWithCanvasRoom = useCallback(
-    (side: "left" | "right", value: number) => {
-      if (typeof window === "undefined") return value;
-
-      const sideMin = side === "left" ? LEFT_PANEL_DEFAULT_WIDTH : 360;
-      const sideBaseMax = Math.max(sideMin, Math.min(820, Math.floor(window.innerWidth * 0.7)));
-
-      const otherPanelOccupied =
-        side === "left"
-          ? rightPanelOpen
-            ? rightPanelWidth + sidePanelCanvasGapPx
-            : 0
-          : leftPanelOpen
-            ? leftPanelWidth + sidePanelCanvasGapPx
-            : 0;
-
-      const thisPanelGap = sidePanelCanvasGapPx;
-      const maxAllowedByCanvas = Math.floor(
-        window.innerWidth - MIN_CANVAS_VIEWPORT_WIDTH - otherPanelOccupied - thisPanelGap
-      );
-
-      const sideMax = Math.max(sideMin, Math.min(sideBaseMax, maxAllowedByCanvas));
-      return Math.min(sideMax, Math.max(sideMin, value));
-    },
-    [leftPanelOpen, leftPanelWidth, rightPanelOpen, rightPanelWidth, sidePanelCanvasGapPx]
-  );
-
-  const startPanelDrag = useCallback(
-    (side: "left" | "right", event: React.MouseEvent<HTMLDivElement>) => {
-      if (event.button !== 0) return;
-
-      panelDragRef.current = {
-        side,
-        startX: event.clientX,
-        startWidth: side === "left" ? leftPanelWidth : rightPanelWidth,
-      };
-      setIsPanelDragging(true);
-
-      document.body.style.userSelect = "none";
-      document.body.style.cursor = "ew-resize";
-
-      event.preventDefault();
-      event.stopPropagation();
-    },
-    [leftPanelWidth, rightPanelWidth]
-  );
-
-  useEffect(() => {
-    const handleMouseMove = (event: MouseEvent) => {
-      const drag = panelDragRef.current;
-      if (!drag) return;
-
-      const deltaX = event.clientX - drag.startX;
-      const nextWidth = drag.side === "left"
-        ? clampPanelWidthWithCanvasRoom("left", drag.startWidth + deltaX)
-        : clampPanelWidthWithCanvasRoom("right", drag.startWidth - deltaX);
-
-      if (drag.side === "left") {
-        setLeftPanelWidth(nextWidth);
-      } else {
-        setRightPanelWidth(nextWidth);
-      }
-    };
-
-    const stopPanelDrag = () => {
-      if (!panelDragRef.current) return;
-      panelDragRef.current = null;
-      setIsPanelDragging(false);
-      document.body.style.userSelect = "";
-      document.body.style.cursor = "";
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", stopPanelDrag);
-
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", stopPanelDrag);
-      document.body.style.userSelect = "";
-      document.body.style.cursor = "";
-    };
-  }, [clampPanelWidthWithCanvasRoom]);
-
-  const isSpacePanActive = activeTool === "move" && isSpacePressed;
+  const isSpacePanActive = isSpacePressed;
   const canPanWithPointerDrag = activeTool === "hand" || isSpacePanActive;
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -1237,6 +1154,13 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const anchorX = Math.min(containerRef.current.clientWidth, Math.max(0, e.clientX - rect.left));
+      const anchorY = Math.min(containerRef.current.clientHeight, Math.max(0, e.clientY - rect.top));
+      zoomAnchorRef.current = { x: anchorX, y: anchorY, hasValue: true };
+    }
+
     if (isPanning && containerRef.current) {
       containerRef.current.scrollLeft -= e.movementX;
       containerRef.current.scrollTop -= e.movementY;
@@ -1250,9 +1174,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       if (isEditableTarget(event.target)) return;
 
       event.preventDefault();
-      if (activeTool === "move") {
-        setIsSpacePressed(true);
-      }
+      setIsSpacePressed(true);
     };
 
     const handleKeyUp = (event: KeyboardEvent) => {
@@ -1893,7 +1815,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   }, [initialJson]);
 
   return (
-    <div className="h-screen bg-brand-black text-brand-lighter overflow-hidden font-sans relative">
+    <div data-web-builder-root className="h-screen bg-brand-black text-brand-lighter overflow-hidden font-sans relative">
       <Editor
         resolver={resolver}
         indicator={{
@@ -1907,7 +1829,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       >
         <QueryStasher onQuery={(q) => { lastQueryRef.current = q; }} />
         <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
-          <CanvasToolProvider value={activeTool}>
+          <CanvasToolProvider value={activeTool} onToolChange={setActiveTool}>
             <TransformModeProvider>
               <InlineTextEditProvider>
                 <KeyboardShortcuts />
@@ -1916,6 +1838,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 <CanvasContextMenu />
                 <FigmaStyleDragHandler />
                 <NewPageDropPlacementHandler />
+                <BoxSelectionHandler />
+                <TextToolHandler />
+                <ShapeToolHandler />
                 <DoubleClickTransformHandler />
                 <PrototypeFlowLines />
                 {/* Top Panel */}
@@ -1925,7 +1850,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                     onScaleChange={handleScaleChange}
                     onRotateCanvas={handleRotateCanvas}
                     onFitToCanvas={handleFitToCanvas}
-                    onAddButton={handleAddButton}
                     canvasWidth={canvasWidth}
                     canvasHeight={canvasHeight}
                     onDevicePresetSelect={handleDevicePresetSelect}

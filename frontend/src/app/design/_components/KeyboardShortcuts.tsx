@@ -397,6 +397,28 @@ export const KeyboardShortcuts = () => {
         return;
       }
 
+      // ── Tool Switch: G (Move), H (Hand), T (Text) ──
+      if (!ctrl && !e.shiftKey) {
+        if (key === "g") {
+          e.preventDefault();
+          const btn = document.querySelector('button[title*="Move"]');
+          if (btn instanceof HTMLElement) btn.click();
+          return;
+        }
+        if (key === "h") {
+          e.preventDefault();
+          const btn = document.querySelector('button[title*="Hand"]');
+          if (btn instanceof HTMLElement) btn.click();
+          return;
+        }
+        if (key === "t") {
+          e.preventDefault();
+          const btn = document.querySelector('button[title*="Text"]');
+          if (btn instanceof HTMLElement) btn.click();
+          return;
+        }
+      }
+
       // ── Delete: Backspace or Delete key (all selected nodes) ──
       if (e.key === "Backspace" || e.key === "Delete") {
         e.preventDefault();

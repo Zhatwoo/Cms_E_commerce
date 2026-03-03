@@ -5,7 +5,7 @@ import { ResizeOverlay } from "./ResizeOverlay";
 import { useCanvasTool } from "./CanvasToolContext";
 
 export const RenderNode = ({ render }: { render: React.ReactElement }) => {
-  const activeTool = useCanvasTool();
+  const { activeTool } = useCanvasTool();
 
   const {
     id,

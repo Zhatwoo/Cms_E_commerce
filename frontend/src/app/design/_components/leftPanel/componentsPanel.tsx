@@ -114,7 +114,7 @@ const CATEGORY_ORDER: ComponentEntry["category"][] = ["page", "layout", "basic"]
 
 export const ComponentsPanel = () => {
   const { connectors } = useEditor();
-  const activeTool = useCanvasTool();
+  const { activeTool } = useCanvasTool();
   const pageComponent = CRAFT_RESOLVER.Page ?? Container;
 
   const components: ComponentEntry[] = COMPONENTS.map((comp) => {
@@ -154,16 +154,16 @@ export const ComponentsPanel = () => {
                       connectors.create(ref, sourceElement);
                     }}
                     className={`bg-brand-white/5 p-4 rounded-xl hover:bg-brand-white/10 transition border border-brand-medium/30 group ${isNewPage
-                        ? "cursor-grab active:cursor-grabbing"
-                        : (comp.dragElement ?? comp.element)
-                          ? "cursor-move"
-                          : "cursor-pointer"
+                      ? "cursor-grab active:cursor-grabbing"
+                      : (comp.dragElement ?? comp.element)
+                        ? "cursor-move"
+                        : "cursor-pointer"
                       }`}
                   >
                     <div
                       className={`h-20 ${comp.previewBg ?? "bg-brand-medium/20"} rounded-lg mb-2 border border-dashed border-brand-medium/50 flex items-center justify-center text-xs shadow-sm ${comp.previewBg === "bg-white"
-                          ? "text-brand-black"
-                          : "text-brand-lighter"
+                        ? "text-brand-black"
+                        : "text-brand-lighter"
                         }`}
                     >
                       {comp.preview}

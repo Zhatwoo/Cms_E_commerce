@@ -14,7 +14,7 @@ import { useCanvasTool } from "./CanvasToolContext";
  */
 export const CanvasSelectionHandler = () => {
   const { actions, query } = useEditor();
-  const activeTool = useCanvasTool();
+  const { activeTool } = useCanvasTool();
   const lastSelectedNodeIdRef = useRef<string | null>(null);
   const MULTI_DRAG_LOCK_FLAG = "multiDragLock";
 
