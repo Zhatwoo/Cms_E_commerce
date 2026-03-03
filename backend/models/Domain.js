@@ -363,6 +363,44 @@ async function getScheduleByProject(userId, projectId) {
   return { scheduledAt: date.toISOString(), subdomain: existing.subdomain || null };
 }
 
+/**
+ * Unpublish a project: set status to draft in both user/roles/client/{userId}/domains and published_subdomains.
+ * Site will no longer be served at the subdomain until published again.
+ */
+async function unpublishForClient(userId, projectId) {
+  const existing = await findByProjectId(userId, projectId);
+  if (!existing) return null;
+  const status = (existing.status || 'published').toString().toLowerCase();
+  if (status === 'draft') return existing;
+
+  const subdomain = (existing.subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  if (!subdomain) return null;
+
+  const domainId = existing.id;
+  const clientRef = getDomainsRef(userId).doc(domainId);
+  const publishedRef = getPublishedSubdomainsRef().doc(subdomain);
+  const now = new Date();
+
+  const prevHistory = Array.isArray(existing.publishHistory) ? existing.publishHistory : (Array.isArray(existing.publish_history) ? existing.publish_history : []);
+  const publish_history = prevHistory
+    .concat({ at: now.toISOString(), type: 'unpublished' })
+    .slice(-50);
+
+  const batch = db.batch();
+  batch.update(clientRef, {
+    status: 'draft',
+    updated_at: now,
+    publish_history,
+  });
+  batch.update(publishedRef, {
+    status: 'draft',
+    updated_at: now,
+  }, { merge: true });
+
+  await batch.commit();
+  return { id: domainId, subdomain, projectId, status: 'draft' };
+}
+
 /** Get publish history for a project (stack of { at, type }), newest first. Backfills from updatedAt/createdAt if no history. Returns at most 10 most recent. */
 async function getPublishHistoryByProject(userId, projectId) {
   const existing = await findByProjectId(userId, projectId);
@@ -463,6 +501,7 @@ module.exports = {
   delete: deleteById,
   deleteByProjectId,
   publishForClientBatch,
+  unpublishForClient,
   setSubdomainLookup,
   findBySubdomain,
   listAllFromPublishedSubdomains,
