@@ -556,7 +556,7 @@ export default function InventoryPage() {
           <span>Product</span>
           <span>SKU</span>
           <span>Stock</span>
-          <span>Reserved</span>
+          <span>Pre Orders</span>
           <span>Status</span>
           <span className="text-right">Actions</span>
         </div>
