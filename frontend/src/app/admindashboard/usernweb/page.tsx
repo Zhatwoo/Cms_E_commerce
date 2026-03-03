@@ -10,6 +10,7 @@ import {
   updateClientPlan,
   updateClientStatus,
   deleteClient,
+  setClientDomainStatus,
   type WebsiteManagementRow,
   type ClientRow,
 } from '@/lib/api';
@@ -471,6 +472,25 @@ function ClientManagementTab() {
   );
 }
 
+const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'websitelink';
+
+const ExternalLinkIcon = () => (
+  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+  </svg>
+);
+
+function getViewWebsiteUrl(domainName: string): string {
+  if (!domainName || domainName === '—') return '#';
+  const subdomain = domainName.split('.')[0]?.trim().toLowerCase() || '';
+  if (!subdomain) return '#';
+  if (typeof window !== 'undefined' && (window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1'))) {
+    const port = window.location.port || '3000';
+    return `http://${subdomain}.localhost:${port}`;
+  }
+  return `https://${subdomain}.${BASE_DOMAIN}`;
+}
+
 /* ─────────────── Domain Management Tab ─────────────── */
 
 function DomainManagementTab() {
@@ -483,6 +503,10 @@ function DomainManagementTab() {
   const [statusFilter, setStatusFilter] = useState('');
   const [planFilter, setPlanFilter] = useState('');
   const [domainTypeFilter, setDomainTypeFilter] = useState('');
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -522,8 +546,61 @@ function DomainManagementTab() {
     });
   }, [websites, search, statusFilter, planFilter, domainTypeFilter]);
 
+  const getRowKey = (w: WebsiteManagementRow) => `${w.userId}::${w.id}`;
+
+  const selectedRows = useMemo(() => {
+    return filtered.filter((w) => selectedIds.has(getRowKey(w)));
+  }, [filtered, selectedIds]);
+
+  const toggleSelect = (w: WebsiteManagementRow) => {
+    const k = getRowKey(w);
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size >= filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((w) => getRowKey(w))));
+    }
+  };
+
+  const handleBulkAction = async (status: string) => {
+    if (selectedRows.length === 0) return;
+    setBulkLoading(true);
+    let done = 0;
+    let failed = 0;
+    for (const w of selectedRows) {
+      try {
+        const res = await setClientDomainStatus(w.userId, w.id, status);
+        if (res.success) done++;
+        else failed++;
+      } catch {
+        failed++;
+      }
+    }
+    setSelectedIds(new Set());
+    setToast(failed > 0 ? `Updated ${done}, failed ${failed}` : `Updated ${done} site(s)`);
+    setTimeout(() => setToast(null), 3000);
+    setBulkLoading(false);
+    const res = await getDomainsManagement();
+    if (res.success && res.data) setWebsites(Array.isArray(res.data) ? res.data : []);
+    if (res.stats) setStats(res.stats);
+  };
+
   return (
     <>
+      {toast && (
+        <div className="fixed top-6 right-6 z-50 bg-gray-900 text-white text-sm px-4 py-2.5 rounded-lg shadow-lg animate-fade-in">
+          {toast}
+        </div>
+      )}
+
       {error && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>
       )}
@@ -550,7 +627,7 @@ function DomainManagementTab() {
 
       {/* Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="px-6 py-6 border-b border-gray-200">
+        <div className="px-6 py-6 border-b border-gray-200 space-y-4">
           <div className="flex flex-wrap items-center gap-4">
             <div className="w-80 relative">
               <input
@@ -572,70 +649,147 @@ function DomainManagementTab() {
               </select>
               <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"><ChevronDownIcon /></div>
             </div>
-            <div className="relative">
-              <select value={planFilter} onChange={(e) => setPlanFilter(e.target.value)}
-                className="appearance-none pl-4 pr-10 py-2.5 bg-white text-gray-900 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[140px]">
-                <option value="">Plan</option>
-                <option value="Free">Free</option>
-                <option value="Basic">Basic</option>
-                <option value="Pro">Pro</option>
-              </select>
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"><ChevronDownIcon /></div>
-            </div>
-            <div className="relative">
-              <select value={domainTypeFilter} onChange={(e) => setDomainTypeFilter(e.target.value)}
-                className="appearance-none pl-4 pr-10 py-2.5 bg-white text-gray-900 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[160px]">
-                <option value="">Domain Type</option>
-                <option value="Subdomain">Subdomain</option>
-                <option value="Custom">Custom</option>
-              </select>
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"><ChevronDownIcon /></div>
-            </div>
+            <button
+              type="button"
+              onClick={() => setAdvancedFiltersOpen(!advancedFiltersOpen)}
+              className="text-sm text-gray-600 hover:text-gray-900 font-medium"
+            >
+              {advancedFiltersOpen ? 'Hide' : 'Show'} advanced filters
+            </button>
           </div>
+          {advancedFiltersOpen && (
+            <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-gray-100">
+              <div className="relative">
+                <select value={planFilter} onChange={(e) => setPlanFilter(e.target.value)}
+                  className="appearance-none pl-4 pr-10 py-2.5 bg-white text-gray-900 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[140px]">
+                  <option value="">Plan</option>
+                  <option value="Free">Free</option>
+                  <option value="Basic">Basic</option>
+                  <option value="Pro">Pro</option>
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"><ChevronDownIcon /></div>
+              </div>
+              <div className="relative">
+                <select value={domainTypeFilter} onChange={(e) => setDomainTypeFilter(e.target.value)}
+                  className="appearance-none pl-4 pr-10 py-2.5 bg-white text-gray-900 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[160px]">
+                  <option value="">Domain Type</option>
+                  <option value="Subdomain">Subdomain</option>
+                  <option value="Custom">Custom</option>
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"><ChevronDownIcon /></div>
+              </div>
+            </div>
+          )}
+          {selectedRows.length > 0 && (
+            <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
+              <span className="text-sm text-gray-600">{selectedRows.length} selected</span>
+              <button
+                type="button"
+                onClick={() => handleBulkAction('suspended')}
+                disabled={bulkLoading}
+                className="px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100 disabled:opacity-50"
+              >
+                Suspend
+              </button>
+              <button
+                type="button"
+                onClick={() => handleBulkAction('published')}
+                disabled={bulkLoading}
+                className="px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50"
+              >
+                Reactivate
+              </button>
+              <button
+                type="button"
+                onClick={() => handleBulkAction('flagged')}
+                disabled={bulkLoading}
+                className="px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 disabled:opacity-50"
+              >
+                Flag
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedIds(new Set())}
+                className="text-sm text-gray-500 hover:text-gray-700"
+              >
+                Clear
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full table-fixed">
+          <table className="w-full">
             <thead>
               <tr className="bg-white border-b">
+                <th className="px-4 py-5 text-left w-12">
+                  <input
+                    type="checkbox"
+                    checked={filtered.length > 0 && selectedIds.size >= filtered.length}
+                    onChange={toggleSelectAll}
+                    className="rounded border-gray-300"
+                  />
+                </th>
                 <th className="px-4 py-5 text-left text-sm font-semibold text-gray-900">Domain</th>
                 <th className="px-4 py-5 text-left text-sm font-semibold text-gray-900">Owner</th>
                 <th className="px-4 py-5 text-left text-sm font-semibold text-gray-900">Status</th>
-                <th className="px-4 py-5 text-left text-sm font-semibold text-gray-900">Plan</th>
-                <th className="px-4 py-5 text-left text-sm font-semibold text-gray-900">Domain Type</th>
-                <th className="px-4 py-5 text-center text-sm font-semibold text-gray-900">Actions</th>
+                <th className="px-4 py-5 text-right text-sm font-semibold text-gray-900">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-500">Loading…</td></tr>
+                <tr><td colSpan={5} className="px-4 py-12 text-center text-gray-500">Loading…</td></tr>
               ) : filtered.length > 0 ? (
-                filtered.map((w) => (
-                  <tr key={w.id} className="border-b hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-5 text-sm font-medium text-gray-900">{w.domainName}</td>
-                    <td className="px-4 py-5 text-sm text-gray-900">{w.owner}</td>
-                    <td className="px-4 py-5 text-sm"><span className={`font-medium ${statusColor(w.status)}`}>{w.status}</span></td>
-                    <td className="px-4 py-5 text-sm font-medium text-gray-900">{w.plan}</td>
-                    <td className="px-4 py-5 text-sm text-gray-900">{w.domainType}</td>
-                    <td className="px-4 py-5 text-sm text-center">
-                      <button
-                        onClick={() => router.push(`/admindashboard/usernweb/webmng?${new URLSearchParams({
-                          id: w.id,
-                          userId: w.userId,
-                          domainName: w.domainName,
-                          owner: w.owner,
-                          status: w.status,
-                          plan: w.plan,
-                        })}`)}
-                        className="text-green-600 hover:text-green-800 hover:underline font-medium transition-colors"
-                      >
-                        Manage
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                filtered.map((w) => {
+                  const viewUrl = getViewWebsiteUrl(w.domainName);
+                  return (
+                    <tr key={getRowKey(w)} className="border-b hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-5 w-12">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(getRowKey(w))}
+                          onChange={() => toggleSelect(w)}
+                          className="rounded border-gray-300"
+                        />
+                      </td>
+                      <td className="px-4 py-5 text-sm font-medium text-gray-900">{w.domainName}</td>
+                      <td className="px-4 py-5 text-sm text-gray-900">{w.owner}</td>
+                      <td className="px-4 py-5 text-sm"><span className={`font-medium ${statusColor(w.status)}`}>{w.status}</span></td>
+                      <td className="px-4 py-5 text-sm text-right">
+                        <div className="inline-flex items-center gap-2 justify-end">
+                          {viewUrl !== '#' && (
+                            <Tooltip label="View website">
+                              <a
+                                href={viewUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                                aria-label="View website"
+                              >
+                                <ExternalLinkIcon />
+                              </a>
+                            </Tooltip>
+                          )}
+                          <button
+                            onClick={() => router.push(`/admindashboard/usernweb/webmng?${new URLSearchParams({
+                              id: w.id,
+                              userId: w.userId,
+                              domainName: w.domainName,
+                              owner: w.owner,
+                              status: w.status,
+                              plan: w.plan,
+                            })}`)}
+                            className="text-green-600 hover:text-green-800 hover:underline font-medium transition-colors"
+                          >
+                            Manage
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-500">No websites found matching your search.</td></tr>
+                <tr><td colSpan={5} className="px-4 py-12 text-center text-gray-500">No websites found matching your search.</td></tr>
               )}
             </tbody>
           </table>
