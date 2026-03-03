@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { logout, type User } from '@/lib/api';
+import { getApiUrl, logout } from '@/lib/api';
 import { useTheme } from '../context/theme-context';
 import { useAuth } from '../context/auth-context';
 import { useProject } from '../context/project-context';
@@ -77,13 +77,29 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     const [showNotifications, setShowNotifications] = useState(false);
     const [showSwitchModal, setShowSwitchModal] = useState(false);
     const [scrolled, setScrolled] = useState(false);
+    const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
     const userName = user?.name || user?.email || '';
+
+    const resolveAvatarUrl = (raw?: string): string => {
+        const value = String(raw || '').trim();
+        if (!value) return '';
+        if (/^(https?:|data:|blob:)/i.test(value)) return value;
+        if (value.startsWith('/')) return `${getApiUrl()}${value}`;
+        return value;
+    };
+
+    const avatarSrc = resolveAvatarUrl(user?.avatar);
 
     useEffect(() => {
         const onScroll = () => setScrolled(window.scrollY > 10);
         window.addEventListener('scroll', onScroll, { passive: true });
         return () => window.removeEventListener('scroll', onScroll);
     }, []);
+
+    useEffect(() => {
+        setAvatarLoadFailed(false);
+    }, [user?.avatar]);
+
     const unreadCount = NOTIFICATIONS.filter((n) => n.unread).length;
 
     const handleLogout = async () => {
@@ -190,7 +206,16 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                                 }}
                                 aria-label="Profile menu"
                             >
-                                <UserIcon />
+                                {avatarSrc && !avatarLoadFailed ? (
+                                    <img
+                                        src={avatarSrc}
+                                        alt={userName || 'User avatar'}
+                                        className="h-full w-full object-cover"
+                                        onError={() => setAvatarLoadFailed(true)}
+                                    />
+                                ) : (
+                                    <UserIcon />
+                                )}
                             </button>
                             {showMenu && (
                                 <>
