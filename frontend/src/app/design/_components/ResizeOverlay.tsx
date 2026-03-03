@@ -10,7 +10,7 @@ const HANDLE_SIZE = 8;
 const ROTATION_HANDLE_OFFSET = 24;
 const EPSILON = 0.01;
 const MOVE_DRAG_START_THRESHOLD = 2;
-const CONTAINER_LIMIT_MARGIN_PX = 8;
+const CONTAINER_LIMIT_MARGIN_PX = 0;
 
 const HANDLE_CURSORS: Record<Handle, string> = {
   n: "ns-resize",
@@ -409,6 +409,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
 
         try {
           const state = query.getState();
+          let hasPageCanvasMove = false;
           if (dragRef.current) {
             dragRef.current.moveMode = getMoveModeForNode(nodeId, state);
 
@@ -436,46 +437,59 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
 
             dragRef.current.moveItems = moveItems.length > 0 ? moveItems : undefined;
 
+            hasPageCanvasMove =
+              dragRef.current.moveMode === "page-canvas" ||
+              (dragRef.current.moveItems ?? []).some((item) => item.moveMode === "page-canvas");
+
             for (const item of dragRef.current.moveItems ?? []) {
               item.dom.style.transition = "none";
               item.dom.style.setProperty("translate", "0px 0px");
               item.dom.style.willChange = "translate";
             }
+
+            if (hasPageCanvasMove) {
+              dragRef.current.guideBounds = undefined;
+              dragRef.current.parentCenterX = undefined;
+              dragRef.current.parentCenterY = undefined;
+              dragRef.current.siblingRects = undefined;
+            }
           }
 
-          const parentId = state.nodes[nodeId]?.data?.parent;
-          const parentDom = parentId ? query.node(parentId).get()?.dom ?? null : null;
-          const siblingIds = (state.nodes[parentId ?? ""]?.data?.nodes as string[]) ?? [];
-          const siblingRects: SiblingRect[] = [];
-          for (const sid of siblingIds) {
-            if (sid === nodeId) continue;
-            try {
-              const el = query.node(sid).get()?.dom;
-              if (el) {
-                const r = el.getBoundingClientRect();
-                siblingRects.push({
-                  left: r.left,
-                  right: r.right,
-                  top: r.top,
-                  bottom: r.bottom,
-                  centerX: r.left + r.width / 2,
-                  centerY: r.top + r.height / 2,
-                });
+          if (!hasPageCanvasMove) {
+            const parentId = state.nodes[nodeId]?.data?.parent;
+            const parentDom = parentId ? query.node(parentId).get()?.dom ?? null : null;
+            const siblingIds = (state.nodes[parentId ?? ""]?.data?.nodes as string[]) ?? [];
+            const siblingRects: SiblingRect[] = [];
+            for (const sid of siblingIds) {
+              if (sid === nodeId) continue;
+              try {
+                const el = query.node(sid).get()?.dom;
+                if (el) {
+                  const r = el.getBoundingClientRect();
+                  siblingRects.push({
+                    left: r.left,
+                    right: r.right,
+                    top: r.top,
+                    bottom: r.bottom,
+                    centerX: r.left + r.width / 2,
+                    centerY: r.top + r.height / 2,
+                  });
+                }
+              } catch { /* skip */ }
+            }
+            if (dragRef.current) {
+              dragRef.current.siblingRects = siblingRects;
+              if (parentDom) {
+                const parentRect = parentDom.getBoundingClientRect();
+                dragRef.current.guideBounds = {
+                  left: parentRect.left,
+                  right: parentRect.right,
+                  top: parentRect.top,
+                  bottom: parentRect.bottom,
+                };
+                dragRef.current.parentCenterX = parentRect.left + parentRect.width / 2;
+                dragRef.current.parentCenterY = parentRect.top + parentRect.height / 2;
               }
-            } catch { /* skip */ }
-          }
-          if (dragRef.current) {
-            dragRef.current.siblingRects = siblingRects;
-            if (parentDom) {
-              const parentRect = parentDom.getBoundingClientRect();
-              dragRef.current.guideBounds = {
-                left: parentRect.left,
-                right: parentRect.right,
-                top: parentRect.top,
-                bottom: parentRect.bottom,
-              };
-              dragRef.current.parentCenterX = parentRect.left + parentRect.width / 2;
-              dragRef.current.parentCenterY = parentRect.top + parentRect.height / 2;
             }
           }
         } catch {

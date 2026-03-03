@@ -29,6 +29,41 @@ function toNullableNumber(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+function toNullableInt(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const n = parseInt(value, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+function toNonNegativeInt(value, fallback = 0) {
+  const n = parseInt(value, 10);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, n);
+}
+
+function clampReservedToOnHand(onHandStock, reservedStock) {
+  if (onHandStock === null || onHandStock === undefined) return 0;
+  return Math.min(Math.max(0, reservedStock), Math.max(0, onHandStock));
+}
+
+function computeAvailable(onHandStock, reservedStock) {
+  if (onHandStock === null || onHandStock === undefined) return null;
+  return Math.max(0, onHandStock - reservedStock);
+}
+
+function resolveInventorySnapshot(raw) {
+  const onHandCandidate =
+    raw?.onHandStock !== undefined ? raw.onHandStock : raw?.stock;
+  const onHandStock = toNullableInt(onHandCandidate);
+  const reservedStock = clampReservedToOnHand(
+    onHandStock,
+    toNonNegativeInt(raw?.reservedStock, 0)
+  );
+  const availableStock = computeAvailable(onHandStock, reservedStock);
+  const lowStockThreshold = toNonNegativeInt(raw?.lowStockThreshold, 5);
+  return { onHandStock, reservedStock, availableStock, lowStockThreshold };
+}
+
 function sanitizeVariants(value) {
   if (!Array.isArray(value)) return [];
 
@@ -73,6 +108,13 @@ async function createForSubdomain({ subdomain, userId, projectId, domainId, data
   const variants = sanitizeVariants(data.variants);
   const hasVariants = !!data.hasVariants && variants.length > 0;
 
+  const initialInventory = resolveInventorySnapshot({
+    onHandStock: data.onHandStock,
+    stock: data.stock,
+    reservedStock: data.reservedStock,
+    lowStockThreshold: data.lowStockThreshold,
+  });
+
   const doc = {
     name: data.name || '',
     sku: data.sku || '',
@@ -92,7 +134,12 @@ async function createForSubdomain({ subdomain, userId, projectId, domainId, data
     price_range_max: toNullableNumber(data.priceRangeMax),
     images: Array.isArray(data.images) ? data.images : [],
     status: data.status || 'draft',
-    stock: data.stock != null ? parseInt(data.stock, 10) : null,
+    // Backward-compatible legacy stock mirror (same as on_hand_stock)
+    stock: initialInventory.onHandStock,
+    on_hand_stock: initialInventory.onHandStock,
+    reserved_stock: initialInventory.reservedStock,
+    available_stock: initialInventory.availableStock,
+    low_stock_threshold: initialInventory.lowStockThreshold,
     user_id: userId,
     subdomain: normalized,
     project_id: projectId || null,
@@ -179,6 +226,23 @@ async function findBySlugForUser(slug, userId, subdomain) {
   return docToObject(matchGroup.docs[0]);
 }
 
+async function findBySkuForUser(sku, userId, subdomain) {
+  if (!sku || !userId) return null;
+  const normalizedSku = String(sku).trim();
+  if (!normalizedSku) return null;
+  const subdomains = await getOwnedSubdomains(userId, subdomain);
+  if (!subdomains.length) return null;
+
+  const snaps = await Promise.all(
+    subdomains.map((sub) =>
+      getSubdomainProductsRef(sub).where('sku', '==', normalizedSku).limit(1).get()
+    )
+  );
+  const matchGroup = snaps.find((s) => !s.empty);
+  if (!matchGroup) return null;
+  return docToObject(matchGroup.docs[0]);
+}
+
 async function updateForUser(id, userId, data) {
   const existing = await findByIdForUser(id, userId);
   if (!existing) return null;
@@ -212,7 +276,42 @@ async function updateForUser(id, userId, data) {
   if (data.priceRangeMax !== undefined) updates.price_range_max = toNullableNumber(data.priceRangeMax);
   if (data.images !== undefined) updates.images = Array.isArray(data.images) ? data.images : [];
   if (data.status !== undefined) updates.status = data.status;
-  if (data.stock !== undefined) updates.stock = data.stock != null ? parseInt(data.stock, 10) : null;
+
+  const existingInventory = resolveInventorySnapshot({
+    onHandStock: existing.onHandStock,
+    stock: existing.stock,
+    reservedStock: existing.reservedStock,
+    lowStockThreshold: existing.lowStockThreshold,
+  });
+  const inventoryInputPresent =
+    data.stock !== undefined ||
+    data.onHandStock !== undefined ||
+    data.reservedStock !== undefined ||
+    data.lowStockThreshold !== undefined;
+  if (inventoryInputPresent) {
+    const nextOnHand =
+      data.onHandStock !== undefined
+        ? toNullableInt(data.onHandStock)
+        : data.stock !== undefined
+          ? toNullableInt(data.stock)
+          : existingInventory.onHandStock;
+    const requestedReserved =
+      data.reservedStock !== undefined
+        ? toNonNegativeInt(data.reservedStock, 0)
+        : existingInventory.reservedStock;
+    const nextReserved = clampReservedToOnHand(nextOnHand, requestedReserved);
+    const nextAvailable = computeAvailable(nextOnHand, nextReserved);
+    const nextThreshold =
+      data.lowStockThreshold !== undefined
+        ? toNonNegativeInt(data.lowStockThreshold, 0)
+        : existingInventory.lowStockThreshold;
+
+    updates.stock = nextOnHand;
+    updates.on_hand_stock = nextOnHand;
+    updates.reserved_stock = nextReserved;
+    updates.available_stock = nextAvailable;
+    updates.low_stock_threshold = nextThreshold;
+  }
 
   if (Object.keys(updates).length === 0) return existing;
 
@@ -226,6 +325,88 @@ async function updateForUser(id, userId, data) {
     .update(updates);
 
   return findByIdForUser(id, userId);
+}
+
+async function applyInventoryDeltaForUser({
+  id,
+  userId,
+  onHandDelta = 0,
+  reservedDelta = 0,
+  setOnHandStock,
+  setReservedStock,
+  lowStockThreshold,
+  allowNegativeOnHand = false,
+}) {
+  const existing = await findByIdForUser(id, userId);
+  if (!existing) return null;
+
+  const productRef = db
+    .collection(ROOT_COLLECTION)
+    .doc(existing.subdomain)
+    .collection(PRODUCT_COLLECTION)
+    .doc(existing.id);
+
+  let beforeSnapshot = null;
+  let afterSnapshot = null;
+
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(productRef);
+    if (!snap.exists) throw new Error('Product not found');
+
+    const raw = docToObject(snap);
+    const current = resolveInventorySnapshot({
+      onHandStock: raw.onHandStock,
+      stock: raw.stock,
+      reservedStock: raw.reservedStock,
+      lowStockThreshold: raw.lowStockThreshold,
+    });
+    beforeSnapshot = current;
+
+    const baseOnHand = current.onHandStock ?? 0;
+    const baseReserved = current.reservedStock ?? 0;
+    let nextOnHand =
+      setOnHandStock !== undefined
+        ? toNullableInt(setOnHandStock)
+        : baseOnHand + toNumber(onHandDelta, 0);
+    let nextReserved =
+      setReservedStock !== undefined
+        ? toNonNegativeInt(setReservedStock, 0)
+        : baseReserved + toNumber(reservedDelta, 0);
+
+    if (!allowNegativeOnHand && nextOnHand !== null && nextOnHand < 0) {
+      throw new Error('Insufficient on-hand stock');
+    }
+    if (nextOnHand !== null && nextOnHand < 0) nextOnHand = 0;
+    nextReserved = clampReservedToOnHand(nextOnHand, Math.max(0, nextReserved));
+    const nextAvailable = computeAvailable(nextOnHand, nextReserved);
+    const nextThreshold =
+      lowStockThreshold !== undefined
+        ? toNonNegativeInt(lowStockThreshold, 0)
+        : current.lowStockThreshold;
+
+    afterSnapshot = {
+      onHandStock: nextOnHand,
+      reservedStock: nextReserved,
+      availableStock: nextAvailable,
+      lowStockThreshold: nextThreshold,
+    };
+
+    tx.update(productRef, {
+      stock: nextOnHand,
+      on_hand_stock: nextOnHand,
+      reserved_stock: nextReserved,
+      available_stock: nextAvailable,
+      low_stock_threshold: nextThreshold,
+      updated_at: new Date(),
+    });
+  });
+
+  const updated = await findByIdForUser(id, userId);
+  return {
+    product: updated,
+    before: beforeSnapshot,
+    after: afterSnapshot,
+  };
 }
 
 async function deleteByIdForUser(id, userId) {
@@ -261,8 +442,11 @@ module.exports = {
   findAllForUser,
   findByIdForUser,
   findBySlugForUser,
+  findBySkuForUser,
   updateForUser,
+  applyInventoryDeltaForUser,
   deleteByIdForUser,
   findPublicBySubdomain,
   normalizeSubdomain,
+  resolveInventorySnapshot,
 };

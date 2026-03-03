@@ -103,7 +103,7 @@ export function useAddPageToCanvas(onPageAdded?: (id: string, name: string) => v
           },
         },
       };
-      (actions as { addNodeTree?: (tree: typeof tree, parentId: string) => void }).addNodeTree?.(tree, viewportId);
+      (actions as { addNodeTree?: (tree: any, parentId: string) => void }).addNodeTree?.(tree, viewportId);
       onPageAdded?.(pageId, pageName);
     } catch (e) {
       console.error("Add page to canvas failed:", e);

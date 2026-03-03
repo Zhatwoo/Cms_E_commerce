@@ -45,13 +45,15 @@ export function DesignProjectProvider({
     const name = (user?.name || user?.username || "client")?.trim() || "client";
     setClientName(name);
 
-    getProject(projectId).then((res) => {
-      if (cancelled) return;
-      const title = (res.project?.title || "website")?.trim() || "website";
-      setWebsiteName(title);
-    }).catch(() => {
-      if (!cancelled) setWebsiteName("website");
-    });
+    getProject(projectId)
+      .then((res) => {
+        if (cancelled) return;
+        const title = (res.project?.title || "website")?.trim() || "website";
+        setWebsiteName(title);
+      })
+      .catch(() => {
+        if (!cancelled) setWebsiteName("website");
+      });
 
     return () => { cancelled = true; };
   }, [projectId]);

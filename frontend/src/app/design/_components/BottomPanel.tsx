@@ -11,6 +11,8 @@ export type ShapeType = "Square" | "Circle" | "Triangle";
 interface BottomPanelProps {
   activeTool: CanvasTool;
   onToolChange: (tool: CanvasTool) => void;
+  selectedShape?: ShapeAsset;
+  onShapeChange?: (shape: ShapeAsset) => void;
   showHints?: boolean;
   saveStatus?: "idle" | "saving" | "saved" | "error";
   saveError?: string | null;
@@ -26,6 +28,8 @@ interface BottomPanelProps {
 export const BottomPanel: React.FC<BottomPanelProps> = ({
   activeTool,
   onToolChange,
+  selectedShape = "Square",
+  onShapeChange,
   showHints = true,
   saveStatus = "idle",
   saveError = null,
@@ -35,10 +39,31 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
   onScaleChange,
 }) => {
   const { actions } = useEditor();
+  const [isShapesPickerOpen, setIsShapesPickerOpen] = React.useState(false);
+  const shapesPickerRef = React.useRef<HTMLDivElement | null>(null);
   const showZoom = onZoomFit != null || onScaleChange != null;
   const is100 = scale >= 0.98 && scale <= 1.02;
   const canUndo = Boolean(actions?.history?.undo);
   const canRedo = Boolean(actions?.history?.redo);
+
+  React.useEffect(() => {
+    if (activeTool !== "shapes") {
+      setIsShapesPickerOpen(false);
+    }
+  }, [activeTool]);
+
+  React.useEffect(() => {
+    const handleOutside = (event: MouseEvent) => {
+      if (!isShapesPickerOpen) return;
+      const target = event.target as Node | null;
+      if (shapesPickerRef.current && target && !shapesPickerRef.current.contains(target)) {
+        setIsShapesPickerOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [isShapesPickerOpen]);
 
   const handleUndo = () => {
     try {
@@ -87,6 +112,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
         <button
           type="button"
           onClick={() => onToolChange("move")}
+          aria-pressed={activeTool === "move"}
           className={`h-9 w-9 grid place-items-center rounded-lg transition-colors ${activeTool === "move"
             ? "bg-blue-500/25 text-blue-300"
             : "text-white/70 hover:text-white hover:bg-white/[0.08]"
@@ -98,6 +124,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
         <button
           type="button"
           onClick={() => onToolChange("hand")}
+          aria-pressed={activeTool === "hand"}
           className={`h-9 w-9 grid place-items-center rounded-lg transition-colors ${activeTool === "hand"
             ? "bg-blue-500/25 text-blue-300"
             : "text-white/70 hover:text-white hover:bg-white/[0.08]"
