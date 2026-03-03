@@ -404,6 +404,16 @@ function PreviewContent() {
     setScheduledAt(tomorrow.toISOString().slice(0, 16));
   };
 
+  const isPlanLimitError = (message: string) => {
+    const lower = message.toLowerCase();
+    return (
+      lower.includes("limit reached") ||
+      lower.includes("free plan") ||
+      lower.includes("allows up to") ||
+      lower.includes("upgrade your subscription")
+    );
+  };
+
   const handlePublishConfirm = async () => {
     const domain = publishDomainName.trim().toLowerCase();
     if (!domain) {
@@ -442,8 +452,14 @@ function PreviewContent() {
         }
       }
     } catch (error) {
-      console.error("Publish error:", error);
-      showAlert(error instanceof Error ? error.message : "Publish failed.");
+      const message = error instanceof Error ? error.message : "Publish failed.";
+      if (isPlanLimitError(message)) {
+        setPublishDomainError(message);
+        showAlert(message);
+      } else {
+        console.error("Publish error:", error);
+        showAlert(message);
+      }
     } finally {
       setPublishing(false);
     }
@@ -484,8 +500,14 @@ function PreviewContent() {
         showAlert(res.message || "Schedule failed.");
       }
     } catch (error) {
-      console.error("Schedule error:", error);
-      showAlert(error instanceof Error ? error.message : "Schedule failed.");
+      const message = error instanceof Error ? error.message : "Schedule failed.";
+      if (isPlanLimitError(message)) {
+        setPublishDomainError(message);
+        showAlert(message);
+      } else {
+        console.error("Schedule error:", error);
+        showAlert(message);
+      }
     } finally {
       setScheduling(false);
     }

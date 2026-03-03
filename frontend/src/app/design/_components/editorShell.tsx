@@ -198,12 +198,14 @@ type EditorShellProps = {
 const MIN_SCALE = 0.05;
 const MAX_SCALE = 3;
 const DEFAULT_SCALE = 0.75;
+const ZOOM_BUTTON_STEP = 0.1;
 const ZOOM_SENSITIVITY = 0.003;
 const INFINITE_CANVAS_WIDTH_VW = 8000;
 const INFINITE_CANVAS_HEIGHT_VH = 8000;
 const INFINITE_CANVAS_PADDING_PX = 100000;
 const LEFT_PANEL_DEFAULT_WIDTH = 320;
-const RIGHT_PANEL_DEFAULT_WIDTH = 420;
+const RIGHT_PANEL_DEFAULT_WIDTH = 300;
+const RIGHT_PANEL_MIN_WIDTH = 300;
 const MIN_CANVAS_VIEWPORT_WIDTH = 760;
 const TOP_PANEL_HEIGHT_PX = 48;
 
@@ -648,6 +650,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     startWidth: number;
   } | null>(null);
   const [isPanelDragging, setIsPanelDragging] = useState(false);
+  const panelDragPointerXRef = useRef<number | null>(null);
+  const panelDragRafRef = useRef<number | null>(null);
+  const panPointerRef = useRef<{ x: number; y: number } | null>(null);
+  const activePanPointerIdRef = useRef<number | null>(null);
+  const zoomRecenterTimerRef = useRef<number | null>(null);
+  const isProgrammaticScrollRef = useRef(false);
 
   // Sync saveStatus to ref for safe use in beforeunload effect
   useEffect(() => {
@@ -658,6 +666,37 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const infiniteCanvasHeightVh = INFINITE_CANVAS_HEIGHT_VH;
   const infiniteCanvasPaddingPx = INFINITE_CANVAS_PADDING_PX;
   const sidePanelCanvasGapPx = 0;
+  const leftCanvasInsetPx = panelsReady && leftPanelOpen ? leftPanelWidth + sidePanelCanvasGapPx : 0;
+  const rightCanvasInsetPx = panelsReady && rightPanelOpen ? rightPanelWidth + sidePanelCanvasGapPx : 0;
+  const previousInsetsRef = useRef<{ left: number; right: number } | null>(null);
+
+  // Keep the same visual canvas position when panel insets change.
+  // Without this, closing/opening the left panel shifts the whole canvas with it.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const prev = previousInsetsRef.current;
+    if (!prev) {
+      previousInsetsRef.current = { left: leftCanvasInsetPx, right: rightCanvasInsetPx };
+      return;
+    }
+
+    const deltaLeftInset = leftCanvasInsetPx - prev.left;
+    if (deltaLeftInset !== 0) {
+      const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
+      const nextScrollLeft = Math.min(maxScrollLeft, Math.max(0, container.scrollLeft + deltaLeftInset));
+      if (nextScrollLeft !== container.scrollLeft) {
+        isProgrammaticScrollRef.current = true;
+        container.scrollLeft = nextScrollLeft;
+        requestAnimationFrame(() => {
+          isProgrammaticScrollRef.current = false;
+        });
+      }
+    }
+
+    previousInsetsRef.current = { left: leftCanvasInsetPx, right: rightCanvasInsetPx };
+  }, [leftCanvasInsetPx, rightCanvasInsetPx]);
 
   // Per-project UI state key so zoom, panels, and last page persist across reloads
   const uiStateStorageKey = React.useMemo(
@@ -926,44 +965,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     };
   }, []);
 
-  // Keep center point stationary while zooming, including rapid wheel bursts
+  // Keep zoom state stable. Do not force scroll compensation here because
+  // transform-based scaling can desync from scroll metrics and cause canvas jumps.
   useLayoutEffect(() => {
-    const container = containerRef.current;
-    if (!container) {
-      previousScaleRef.current = clampScale(scale, previousScaleRef.current || 1);
-      return;
-    }
-
-    const prevScale = clampScale(previousScaleRef.current, scale || 1);
-    const nextScale = clampScale(scale, prevScale);
-    if (prevScale === nextScale) {
-      previousScaleRef.current = nextScale;
-      return;
-    }
-
-    if (container.clientWidth <= 0 || container.clientHeight <= 0) {
-      previousScaleRef.current = nextScale;
-      return;
-    }
-
-    const centerX = container.clientWidth / 2;
-    const centerY = container.clientHeight / 2;
-    const contentX = (container.scrollLeft + centerX) / prevScale;
-    const contentY = (container.scrollTop + centerY) / prevScale;
-
-    if (!Number.isFinite(contentX) || !Number.isFinite(contentY)) {
-      previousScaleRef.current = nextScale;
-      return;
-    }
-
-    const nextScrollLeft = contentX * nextScale - centerX;
-    const nextScrollTop = contentY * nextScale - centerY;
-    const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
-    const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
-
-    container.scrollLeft = Math.min(maxScrollLeft, Math.max(0, nextScrollLeft));
-    container.scrollTop = Math.min(maxScrollTop, Math.max(0, nextScrollTop));
-    previousScaleRef.current = nextScale;
+    previousScaleRef.current = clampScale(scale, previousScaleRef.current || 1);
   }, [scale]);
 
   // Center the canvas in the view - focus on first page element
@@ -971,8 +976,21 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     const container = containerRef.current;
     if (!container) return;
 
+    const applyProgrammaticScroll = (nextLeft: number, nextTop: number) => {
+      isProgrammaticScrollRef.current = true;
+      container.scrollLeft = nextLeft;
+      container.scrollTop = nextTop;
+      requestAnimationFrame(() => {
+        isProgrammaticScrollRef.current = false;
+      });
+    };
+
+    const desktopViewport = container.querySelector("[data-viewport-desktop]") as HTMLElement | null;
+
     // Try to find the first Page element and center on it
-    const firstPage = container.querySelector("[data-page-node]") as HTMLElement | null;
+    const firstPage =
+      (desktopViewport?.querySelector("[data-page-node='true']") as HTMLElement | null) ??
+      (container.querySelector("[data-page-node='true']") as HTMLElement | null);
 
     if (firstPage) {
       const containerRect = container.getBoundingClientRect();
@@ -988,13 +1006,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       const nextLeft = Math.min(maxScrollLeft, Math.max(0, pageCenterX - container.clientWidth / 2));
       const nextTop = Math.min(maxScrollTop, Math.max(0, pageCenterY - container.clientHeight / 2));
 
-      container.scrollLeft = nextLeft;
-      container.scrollTop = nextTop;
+      applyProgrammaticScroll(nextLeft, nextTop);
       return;
     }
 
     // Fallback: try viewport desktop
-    const desktopViewport = container.querySelector("[data-viewport-desktop]") as HTMLElement | null;
 
     if (desktopViewport) {
       const containerRect = container.getBoundingClientRect();
@@ -1009,16 +1025,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       const nextLeft = Math.min(maxScrollLeft, Math.max(0, viewportCenterX - container.clientWidth / 2));
       const nextTop = Math.min(maxScrollTop, Math.max(0, viewportCenterY - container.clientHeight / 2));
 
-      container.scrollLeft = nextLeft;
-      container.scrollTop = nextTop;
+      applyProgrammaticScroll(nextLeft, nextTop);
       return;
     }
 
-    // Ultimate fallback: center of scroll area
-    const fallbackLeft = (container.scrollWidth - container.clientWidth) / 2;
-    const fallbackTop = (container.scrollHeight - container.clientHeight) / 2;
-    container.scrollLeft = fallbackLeft;
-    container.scrollTop = fallbackTop;
+    // No stable page target found yet; keep current viewport to avoid jumping into empty canvas.
+    return;
   }, []);
 
   // Center immediately on first mount so default view starts at middle even before frame settles
@@ -1036,40 +1048,65 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     return () => cancelAnimationFrame(rafId);
   }, [centerCanvasInView]);
 
-  // Center canvas after refresh/load and keep centering while layout is still settling
+  // Center canvas after refresh/load with lightweight passes
   useEffect(() => {
     if (!frameReady) return;
 
-    const container = containerRef.current;
-    if (!container) return;
-
-    centerCanvasInView();
     const rafId = requestAnimationFrame(centerCanvasInView);
-    const settleIntervalId = window.setInterval(centerCanvasInView, 120);
-    const t1 = window.setTimeout(centerCanvasInView, 300);
-    const t2 = window.setTimeout(centerCanvasInView, 700);
-    const t3 = window.setTimeout(centerCanvasInView, 1200);
-
-    const resizeObserver = new ResizeObserver(() => {
-      centerCanvasInView();
-    });
-    resizeObserver.observe(container);
-
-    const stopSettlingId = window.setTimeout(() => {
-      window.clearInterval(settleIntervalId);
-      resizeObserver.disconnect();
-    }, 2000);
+    const timeoutId = window.setTimeout(centerCanvasInView, 180);
 
     return () => {
       cancelAnimationFrame(rafId);
-      window.clearInterval(settleIntervalId);
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-      window.clearTimeout(t3);
-      window.clearTimeout(stopSettlingId);
-      resizeObserver.disconnect();
+      window.clearTimeout(timeoutId);
     };
   }, [frameReady, initialJson, centerCanvasInView]);
+
+  // Guard against canvas "disappearing" after zoom changes by re-centering
+  // when the first page is mostly outside the visible viewport.
+  useEffect(() => {
+    if (!frameReady) return;
+
+    const ensureCanvasVisible = () => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      const desktopViewport = container.querySelector("[data-viewport-desktop]") as HTMLElement | null;
+      const firstPage =
+        (desktopViewport?.querySelector("[data-page-node='true']") as HTMLElement | null) ??
+        (container.querySelector("[data-page-node='true']") as HTMLElement | null);
+      if (!firstPage) {
+        centerCanvasInView();
+        return;
+      }
+
+      const containerRect = container.getBoundingClientRect();
+      const pageRect = firstPage.getBoundingClientRect();
+
+      const visibleWidth = Math.max(
+        0,
+        Math.min(containerRect.right, pageRect.right) - Math.max(containerRect.left, pageRect.left)
+      );
+      const visibleHeight = Math.max(
+        0,
+        Math.min(containerRect.bottom, pageRect.bottom) - Math.max(containerRect.top, pageRect.top)
+      );
+
+      const pageArea = Math.max(1, pageRect.width * pageRect.height);
+      const visibleArea = visibleWidth * visibleHeight;
+      const visibleRatio = visibleArea / pageArea;
+
+      // Recenter when page is lost or barely visible.
+      if (visibleWidth <= 1 || visibleHeight <= 1 || visibleRatio < 0.01) {
+        centerCanvasInView();
+      }
+    };
+
+    const rafId = requestAnimationFrame(ensureCanvasVisible);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+    };
+  }, [scale, frameReady, centerCanvasInView]);
 
   // Handle canvas rotation
   const handleRotateCanvas = useCallback(() => {
@@ -1118,6 +1155,38 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     });
   }, []);
 
+  const handleZoomIn = useCallback(() => {
+    setScale((prevScale) => clampScale(prevScale + ZOOM_BUTTON_STEP, prevScale));
+    requestAnimationFrame(centerCanvasInView);
+    if (zoomRecenterTimerRef.current !== null) {
+      window.clearTimeout(zoomRecenterTimerRef.current);
+    }
+    zoomRecenterTimerRef.current = window.setTimeout(() => {
+      centerCanvasInView();
+      zoomRecenterTimerRef.current = null;
+    }, 120);
+  }, [centerCanvasInView]);
+
+  const handleZoomOut = useCallback(() => {
+    setScale((prevScale) => clampScale(prevScale - ZOOM_BUTTON_STEP, prevScale));
+    requestAnimationFrame(centerCanvasInView);
+    if (zoomRecenterTimerRef.current !== null) {
+      window.clearTimeout(zoomRecenterTimerRef.current);
+    }
+    zoomRecenterTimerRef.current = window.setTimeout(() => {
+      centerCanvasInView();
+      zoomRecenterTimerRef.current = null;
+    }, 120);
+  }, [centerCanvasInView]);
+
+  useEffect(() => {
+    return () => {
+      if (zoomRecenterTimerRef.current !== null) {
+        window.clearTimeout(zoomRecenterTimerRef.current);
+      }
+    };
+  }, []);
+
   // Handle device preset selection - only width changes; preserve page height so it doesn't reset
   const handleDevicePresetSelect = useCallback((preset: DevicePreset) => {
     setCanvasWidth(preset.width);
@@ -1136,7 +1205,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     (side: "left" | "right", value: number) => {
       if (typeof window === "undefined") return value;
 
-      const sideMin = side === "left" ? LEFT_PANEL_DEFAULT_WIDTH : 360;
+      const sideMin = side === "left" ? LEFT_PANEL_DEFAULT_WIDTH : RIGHT_PANEL_MIN_WIDTH;
       const sideBaseMax = Math.max(sideMin, Math.min(820, Math.floor(window.innerWidth * 0.7)));
 
       const otherPanelOccupied =
@@ -1184,21 +1253,37 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       const drag = panelDragRef.current;
       if (!drag) return;
 
-      const deltaX = event.clientX - drag.startX;
-      const nextWidth = drag.side === "left"
-        ? clampPanelWidthWithCanvasRoom("left", drag.startWidth + deltaX)
-        : clampPanelWidthWithCanvasRoom("right", drag.startWidth - deltaX);
+      panelDragPointerXRef.current = event.clientX;
+      if (panelDragRafRef.current !== null) return;
 
-      if (drag.side === "left") {
-        setLeftPanelWidth(nextWidth);
-      } else {
-        setRightPanelWidth(nextWidth);
-      }
+      panelDragRafRef.current = requestAnimationFrame(() => {
+        panelDragRafRef.current = null;
+
+        const activeDrag = panelDragRef.current;
+        const pointerX = panelDragPointerXRef.current;
+        if (!activeDrag || pointerX === null) return;
+
+        const deltaX = pointerX - activeDrag.startX;
+        const nextWidth = activeDrag.side === "left"
+          ? clampPanelWidthWithCanvasRoom("left", activeDrag.startWidth + deltaX)
+          : clampPanelWidthWithCanvasRoom("right", activeDrag.startWidth - deltaX);
+
+        if (activeDrag.side === "left") {
+          setLeftPanelWidth((prev) => (prev === nextWidth ? prev : nextWidth));
+        } else {
+          setRightPanelWidth((prev) => (prev === nextWidth ? prev : nextWidth));
+        }
+      });
     };
 
     const stopPanelDrag = () => {
       if (!panelDragRef.current) return;
       panelDragRef.current = null;
+      panelDragPointerXRef.current = null;
+      if (panelDragRafRef.current !== null) {
+        cancelAnimationFrame(panelDragRafRef.current);
+        panelDragRafRef.current = null;
+      }
       setIsPanelDragging(false);
       document.body.style.userSelect = "";
       document.body.style.cursor = "";
@@ -1210,6 +1295,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", stopPanelDrag);
+      panelDragPointerXRef.current = null;
+      if (panelDragRafRef.current !== null) {
+        cancelAnimationFrame(panelDragRafRef.current);
+        panelDragRafRef.current = null;
+      }
       document.body.style.userSelect = "";
       document.body.style.cursor = "";
     };
@@ -1218,32 +1308,104 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const isSpacePanActive = activeTool === "move" && isSpacePressed;
   const canPanWithPointerDrag = activeTool === "hand" || isSpacePanActive;
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (canPanWithPointerDrag) {
-      const target = e.target as HTMLElement | null;
-      const nodeEl = target?.closest("[data-node-id]") as HTMLElement | null;
-      const nodeId = nodeEl?.getAttribute("data-node-id") ?? null;
-      if (nodeId && nodeId !== "ROOT" && nodeId !== "Viewport") {
+  const stopPan = useCallback(() => {
+    setIsPanning(false);
+    panPointerRef.current = null;
+    activePanPointerIdRef.current = null;
+    document.body.removeAttribute("data-canvas-pan");
+  }, []);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!canPanWithPointerDrag) return;
+    if (e.button !== 0) return;
+
+    activePanPointerIdRef.current = e.pointerId;
+    panPointerRef.current = { x: e.clientX, y: e.clientY };
+    setIsPanning(true);
+    document.body.dataset.canvasPan = "true";
+
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Ignore pointer capture failures and fallback to window listeners
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isPanning && containerRef.current) {
+      if (activePanPointerIdRef.current !== null && e.pointerId !== activePanPointerIdRef.current) return;
+      const prev = panPointerRef.current;
+      if (!prev) {
+        panPointerRef.current = { x: e.clientX, y: e.clientY };
         return;
       }
-      setIsPanning(true);
-      document.body.dataset.canvasPan = "true";
-      e.preventDefault();
-      e.stopPropagation(); // Prevent Craft.js from handling drag events
+
+      const deltaX = e.clientX - prev.x;
+      const deltaY = e.clientY - prev.y;
+      containerRef.current.scrollLeft -= deltaX;
+      containerRef.current.scrollTop -= deltaY;
+      if (Math.abs(deltaX) > 0 || Math.abs(deltaY) > 0) {
+        hasUserMovedCanvasRef.current = true;
+      }
+      panPointerRef.current = { x: e.clientX, y: e.clientY };
     }
   };
 
-  const handleMouseUp = () => {
-    setIsPanning(false);
-    document.body.removeAttribute("data-canvas-pan");
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (activePanPointerIdRef.current !== null && e.pointerId !== activePanPointerIdRef.current) return;
+    stopPan();
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (isPanning && containerRef.current) {
-      containerRef.current.scrollLeft -= e.movementX;
-      containerRef.current.scrollTop -= e.movementY;
-    }
+  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (activePanPointerIdRef.current !== null && e.pointerId !== activePanPointerIdRef.current) return;
+    stopPan();
   };
+
+  useEffect(() => {
+    if (!isPanning) return;
+
+    const handleWindowPointerMove = (event: PointerEvent) => {
+      if (activePanPointerIdRef.current !== null && event.pointerId !== activePanPointerIdRef.current) return;
+      const container = containerRef.current;
+      const prev = panPointerRef.current;
+      if (!container || !prev) {
+        panPointerRef.current = { x: event.clientX, y: event.clientY };
+        return;
+      }
+
+      const deltaX = event.clientX - prev.x;
+      const deltaY = event.clientY - prev.y;
+      container.scrollLeft -= deltaX;
+      container.scrollTop -= deltaY;
+      if (Math.abs(deltaX) > 0 || Math.abs(deltaY) > 0) {
+        hasUserMovedCanvasRef.current = true;
+      }
+      panPointerRef.current = { x: event.clientX, y: event.clientY };
+    };
+
+    const handleWindowPointerUp = (event: PointerEvent) => {
+      if (activePanPointerIdRef.current !== null && event.pointerId !== activePanPointerIdRef.current) return;
+      stopPan();
+    };
+
+    window.addEventListener("pointermove", handleWindowPointerMove);
+    window.addEventListener("pointerup", handleWindowPointerUp);
+    window.addEventListener("pointercancel", handleWindowPointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handleWindowPointerMove);
+      window.removeEventListener("pointerup", handleWindowPointerUp);
+      window.removeEventListener("pointercancel", handleWindowPointerUp);
+    };
+  }, [isPanning, stopPan]);
+
+  const handleCanvasScroll = useCallback(() => {
+    if (isProgrammaticScrollRef.current) return;
+    hasUserMovedCanvasRef.current = true;
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -1287,10 +1449,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
   useEffect(() => {
     if (activeTool === "move" && !isSpacePanActive && isPanning) {
-      setIsPanning(false);
-      document.body.removeAttribute("data-canvas-pan");
+      stopPan();
     }
-  }, [activeTool, isSpacePanActive, isPanning]);
+  }, [activeTool, isSpacePanActive, isPanning, stopPan]);
 
   useEffect(() => {
     const handleToolShortcut = (event: KeyboardEvent) => {
@@ -1927,6 +2088,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                   <TopPanel
                     scale={scale}
                     onScaleChange={handleScaleChange}
+                    onZoomIn={handleZoomIn}
+                    onZoomOut={handleZoomOut}
                     onRotateCanvas={handleRotateCanvas}
                     onFitToCanvas={handleFitToCanvas}
                     onAddButton={handleAddButton}
@@ -1944,8 +2107,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                   className={`absolute inset-0 overflow-auto bg-brand-darker canvas-scroll-container ${canPanWithPointerDrag ? "canvas-hand-tool" : ""} ${canPanWithPointerDrag && isPanning ? "canvas-hand-panning" : ""} ${isPanelDragging ? "transition-none" : "transition-[left,right] duration-300 ease-out"}`}
                   style={{
                     top: `${TOP_PANEL_HEIGHT_PX}px`,
-                    left: panelsReady && leftPanelOpen ? `${leftPanelWidth}px` : "0px",
-                    right: panelsReady && rightPanelOpen ? `${rightPanelWidth}px` : "0px",
+                    left: `${leftCanvasInsetPx}px`,
+                    right: `${rightCanvasInsetPx}px`,
                     bottom: "0px",
                     cursor:
                       canPanWithPointerDrag
@@ -1954,10 +2117,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                           : "grab"
                         : "default",
                   }}
-                  onMouseDown={handleMouseDown}
-                  onMouseUp={handleMouseUp}
-                  onMouseLeave={handleMouseUp}
-                  onMouseMove={handleMouseMove}
+                  onPointerDownCapture={handlePointerDown}
+                  onPointerMove={handlePointerMove}
+                  onPointerUp={handlePointerUp}
+                  onPointerCancel={handlePointerCancel}
+                  onScroll={handleCanvasScroll}
                 >
                   {/* Inner Content - Infinite Canvas */}
                   <div

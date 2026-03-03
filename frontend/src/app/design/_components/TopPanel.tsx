@@ -66,6 +66,8 @@ const ZOOM_STEP = 0.15;
 interface TopPanelProps {
   scale: number;
   onScaleChange: (scale: number) => void;
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
   onRotateCanvas: () => void;
   onFitToCanvas: () => void;
   onAddButton: () => void;
@@ -79,6 +81,8 @@ interface TopPanelProps {
 export const TopPanel: React.FC<TopPanelProps> = ({
   scale,
   onScaleChange,
+  onZoomIn,
+  onZoomOut,
   onRotateCanvas,
   onFitToCanvas,
   onAddButton,
@@ -121,12 +125,20 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   }, [canvasWidth, canvasHeight]);
 
   const handleZoomIn = () => {
+    if (onZoomIn) {
+      onZoomIn();
+      return;
+    }
     const safeScale = Number.isFinite(scale) ? scale : 1;
     const newScale = Math.min(safeScale + ZOOM_STEP, MAX_SCALE);
     onScaleChange(newScale);
   };
 
   const handleZoomOut = () => {
+    if (onZoomOut) {
+      onZoomOut();
+      return;
+    }
     const safeScale = Number.isFinite(scale) ? scale : 1;
     const newScale = Math.max(safeScale - ZOOM_STEP, MIN_SCALE);
     onScaleChange(newScale);
