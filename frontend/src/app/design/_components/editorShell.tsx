@@ -48,6 +48,7 @@ import {
   DEFAULT_SCALE,
   ZOOM_STEP,
   ZOOM_SENSITIVITY,
+  SMOOTH_LERP_FACTOR,
 } from "./zoomConstants";
 
 /**
@@ -610,6 +611,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const wheelPanDeltaRef = useRef({ x: 0, y: 0 });
   const wheelAnchorRef = useRef({ x: 0, y: 0 });
   const wheelZoomRafRef = useRef<number | null>(null);
+  const smoothTargetRef = useRef<{ scale: number; camX: number; camY: number } | null>(null);
+  const smoothingRafRef = useRef<number | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSnapshotRef = useRef<string | null>(null);
   const lastSavedRawRef = useRef<string | null>(null);
@@ -894,8 +897,42 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     }
   }, [initialJson, projectId, loadPages, showAlert]);
 
-  // Figma-style zoom: Ctrl+wheel zooms anchored to cursor; plain wheel pans. RAF batching for smooth zoom.
+  // Figma-style zoom: Ctrl+wheel zooms anchored to cursor; plain wheel pans. RAF batching + exponential smoothing.
   useEffect(() => {
+    const SNAP_EPS = 0.0002;
+    const SNAP_CAM = 0.3;
+
+    const runSmoothingFrame = () => {
+      const target = smoothTargetRef.current;
+      if (!target) {
+        smoothingRafRef.current = null;
+        return;
+      }
+      const cam = cameraRef.current;
+      const curScale = scaleRef.current;
+      const newScale = curScale + (target.scale - curScale) * SMOOTH_LERP_FACTOR;
+      const newCamX = cam.x + (target.camX - cam.x) * SMOOTH_LERP_FACTOR;
+      const newCamY = cam.y + (target.camY - cam.y) * SMOOTH_LERP_FACTOR;
+
+      const scaleDone = Math.abs(newScale - target.scale) < SNAP_EPS;
+      const camDone =
+        Math.abs(newCamX - target.camX) < SNAP_CAM && Math.abs(newCamY - target.camY) < SNAP_CAM;
+
+      if (scaleDone && camDone) {
+        cam.x = target.camX;
+        cam.y = target.camY;
+        setScale(target.scale);
+        smoothTargetRef.current = null;
+        smoothingRafRef.current = null;
+      } else {
+        cam.x = newCamX;
+        cam.y = newCamY;
+        setScale(newScale);
+        smoothingRafRef.current = requestAnimationFrame(runSmoothingFrame);
+      }
+      setCameraVersion((v) => v + 1);
+    };
+
     const applyWheelFrame = () => {
       wheelZoomRafRef.current = null;
       const zoomDelta = wheelZoomDeltaRef.current;
@@ -907,34 +944,43 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       if (!container) return;
 
       const cam = cameraRef.current;
-      let scaleUpdated = false;
-      const prevScale = scaleRef.current;
+      const prevTarget = smoothTargetRef.current;
+      let targetScale = prevTarget ? prevTarget.scale : scaleRef.current;
+      let targetCamX = prevTarget ? prevTarget.camX : cam.x;
+      let targetCamY = prevTarget ? prevTarget.camY : cam.y;
 
       if (Math.abs(zoomDelta) >= 0.01) {
         const zoomFactor = Math.exp(-zoomDelta * ZOOM_SENSITIVITY);
         if (Number.isFinite(zoomFactor) && zoomFactor > 0) {
-          const prev = clampScale(prevScale, 1);
-          const newScale = clampScale(prev * zoomFactor, prev);
-          if (newScale !== prevScale) {
+          const prev = clampScale(targetScale, 1);
+          const next = clampScale(prev * zoomFactor, prev);
+          if (next !== prev) {
             const mx = wheelAnchorRef.current.x;
             const my = wheelAnchorRef.current.y;
-            const ratio = newScale / prevScale;
-            cam.x = mx - (mx - cam.x) * ratio;
-            cam.y = my - (my - cam.y) * ratio;
-            setScale(newScale);
-            scaleUpdated = true;
+            const ratio = next / prev;
+            targetScale = next;
+            targetCamX = mx - (mx - targetCamX) * ratio;
+            targetCamY = my - (my - targetCamY) * ratio;
           }
         }
       }
 
       if (Math.abs(panDelta.x) >= 0.5 || Math.abs(panDelta.y) >= 0.5) {
-        cam.x -= panDelta.x;
-        cam.y -= panDelta.y;
-        setCameraVersion((v) => v + 1);
+        targetCamX -= panDelta.x;
+        targetCamY -= panDelta.y;
       }
 
-      if (scaleUpdated) {
-        setCameraVersion((v) => v + 1);
+      const curScale = scaleRef.current;
+      const hasChange =
+        Math.abs(targetScale - curScale) >= SNAP_EPS ||
+        Math.abs(targetCamX - cam.x) >= SNAP_CAM ||
+        Math.abs(targetCamY - cam.y) >= SNAP_CAM;
+
+      if (hasChange) {
+        smoothTargetRef.current = { scale: targetScale, camX: targetCamX, camY: targetCamY };
+        if (smoothingRafRef.current === null) {
+          smoothingRafRef.current = requestAnimationFrame(runSmoothingFrame);
+        }
       }
     };
 
@@ -990,6 +1036,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       if (wheelZoomRafRef.current !== null) {
         cancelAnimationFrame(wheelZoomRafRef.current);
         wheelZoomRafRef.current = null;
+      }
+      if (smoothingRafRef.current !== null) {
+        cancelAnimationFrame(smoothingRafRef.current);
+        smoothingRafRef.current = null;
       }
     };
   }, []);
