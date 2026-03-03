@@ -578,8 +578,38 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                   <div>
                     <label className={lCls} style={{ color: colors.text.muted }}>Category</label>
                     <select value={fd.category} onChange={e => set('category', e.target.value)} className={iCls} style={iSt}>
-                      <option value="">Select…</option>
-                      {['Electronics', 'Clothing', 'Books', 'Home', 'Sports'].map(c => (
+                      <option value="" disabled hidden>Select Category</option>
+                      {[
+                        'Electronics',
+                        'Clothing',
+                        'Shoes & Footwear',
+                        'Bags & Luggage',
+                        'Jewelry & Watches',
+                        'Beauty & Personal Care',
+                        'Health & Wellness',
+                        'Home & Living',
+                        'Furniture',
+                        'Home Improvement & Tools',
+                        'Appliances',
+                        'Sports & Outdoor',
+                        'Toys & Games',
+                        'Baby & Kids',
+                        'Books',
+                        'Office & School Supplies',
+                        'Automotive',
+                        'Pet Supplies',
+                        'Gaming',
+                        'Hobbies & Crafts',
+                        'Musical Instruments',
+                        'Photography & Cameras',
+                        'Travel & Luggage',
+                        'Accessories',
+                        'Industrial & Business Supplies',
+                        'Garden & Outdoor',
+                        'Smart Home',
+                        'Security & Surveillance',
+                        'Digital Products',
+                      ].map(c => (
                         <option key={c} value={c}>{c}</option>
                       ))}
                     </select>
