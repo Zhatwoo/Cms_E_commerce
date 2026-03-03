@@ -77,9 +77,10 @@ interface LeftPanelProps {
   setActivePanel?: (tab: LeftPanelTabId) => void;
   /** When false, FilesPanel is not mounted to avoid Craft.js setState-during-render. Set by EditorShell after Frame has committed. */
   frameReady?: boolean;
+  width?: number;
 }
 
-export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePanel: setControlledPanel, frameReady = true }: LeftPanelProps) => {
+export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePanel: setControlledPanel, frameReady = true, width = 320 }: LeftPanelProps) => {
   const [internalPanel, setInternalPanel] = useState<LeftPanelTabId>("files");
   const activePanel = controlledPanel ?? internalPanel;
   const setActivePanel = setControlledPanel ?? setInternalPanel;
@@ -197,8 +198,8 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
   return (
     <div
       data-panel="left"
-      className="w-80 bg-brand-dark/75 backdrop-blur-lg rounded-3xl p-6 flex flex-col h-full border border-white/10 transition-shadow duration-300 overflow-hidden"
-      style={{ boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)" }}
+      className="bg-brand-dark/75 backdrop-blur-lg rounded-3xl p-6 flex flex-col h-full border border-white/10 transition-shadow duration-300 overflow-hidden"
+      style={{ width: `${width}px`, boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)" }}
     >
       {/* Header + Title + Tabs: fixed at top, do not scroll */}
       <div className="flex flex-col gap-4 shrink-0">

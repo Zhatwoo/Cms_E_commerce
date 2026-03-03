@@ -198,11 +198,14 @@ type EditorShellProps = {
 
 const MIN_SCALE = 0.05;
 const MAX_SCALE = 3;
-const DEFAULT_SCALE = 0.5;
+const DEFAULT_SCALE = 0.75;
 const ZOOM_SENSITIVITY = 0.003;
 const INFINITE_CANVAS_WIDTH_VW = 8000;
 const INFINITE_CANVAS_HEIGHT_VH = 8000;
 const INFINITE_CANVAS_PADDING_PX = 100000;
+const LEFT_PANEL_DEFAULT_WIDTH = 320;
+const RIGHT_PANEL_DEFAULT_WIDTH = 420;
+const MIN_CANVAS_VIEWPORT_WIDTH = 760;
 
 const isEditableTarget = (target: EventTarget | null) => {
   if (!target || !(target instanceof HTMLElement)) return false;
@@ -607,7 +610,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const containerRef = useRef<HTMLDivElement>(null);
   const horizontalScrollbarRef = useRef<HTMLDivElement>(null);
   const horizontalScrollbarInnerRef = useRef<HTMLDivElement>(null);
-  const previousScaleRef = useRef(1);
+  const previousScaleRef = useRef(DEFAULT_SCALE);
   const wheelZoomDeltaRef = useRef(0);
   const wheelZoomRafRef = useRef<number | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -618,13 +621,15 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const hasUserMovedCanvasRef = useRef(false);
   const [isPanning, setIsPanning] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState(DEFAULT_SCALE);
   const [initialJson, setInitialJson] = useState<string | null | undefined>(undefined);
   const [panelsReady, setPanelsReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const [leftPanelWidth, setLeftPanelWidth] = useState(LEFT_PANEL_DEFAULT_WIDTH);
+  const [rightPanelWidth, setRightPanelWidth] = useState(RIGHT_PANEL_DEFAULT_WIDTH);
   const [rightPanelTab, setRightPanelTab] = useState<TabId>("design");
   const [canvasWidth, setCanvasWidth] = useState(1440);
   const [canvasHeight, setCanvasHeight] = useState(900);
@@ -637,6 +642,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const hasInitialCenteringRef = useRef(false);
   const hasForcedRightPanelOpenRef = useRef(false);
   const saveStatusRef = useRef(saveStatus);
+  const panelDragRef = useRef<{
+    side: "left" | "right";
+    startX: number;
+    startWidth: number;
+  } | null>(null);
 
   // Sync saveStatus to ref for safe use in beforeunload effect
   useEffect(() => {
@@ -646,6 +656,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const infiniteCanvasWidthVw = INFINITE_CANVAS_WIDTH_VW;
   const infiniteCanvasHeightVh = INFINITE_CANVAS_HEIGHT_VH;
   const infiniteCanvasPaddingPx = INFINITE_CANVAS_PADDING_PX;
+  const sidePanelCanvasGapPx = 24;
+  const leftCanvasInset = panelsReady && leftPanelOpen ? leftPanelWidth + sidePanelCanvasGapPx : 0;
+  const rightCanvasInset = panelsReady && rightPanelOpen ? rightPanelWidth + sidePanelCanvasGapPx : 0;
+  const canvasShiftX = Math.round((leftCanvasInset - rightCanvasInset) / 2);
 
   // Per-project UI state key so zoom, panels, and last page persist across reloads
   const uiStateStorageKey = React.useMemo(
@@ -1119,6 +1133,87 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const handleAddButton = useCallback(() => {
     setLeftPanelOpen(true);
   }, []);
+
+  const clampPanelWidthWithCanvasRoom = useCallback(
+    (side: "left" | "right", value: number) => {
+      if (typeof window === "undefined") return value;
+
+      const sideMin = side === "left" ? LEFT_PANEL_DEFAULT_WIDTH : 360;
+      const sideBaseMax = Math.max(sideMin, Math.min(820, Math.floor(window.innerWidth * 0.7)));
+
+      const otherPanelOccupied =
+        side === "left"
+          ? rightPanelOpen
+            ? rightPanelWidth + sidePanelCanvasGapPx
+            : 0
+          : leftPanelOpen
+            ? leftPanelWidth + sidePanelCanvasGapPx
+            : 0;
+
+      const thisPanelGap = sidePanelCanvasGapPx;
+      const maxAllowedByCanvas = Math.floor(
+        window.innerWidth - MIN_CANVAS_VIEWPORT_WIDTH - otherPanelOccupied - thisPanelGap
+      );
+
+      const sideMax = Math.max(sideMin, Math.min(sideBaseMax, maxAllowedByCanvas));
+      return Math.min(sideMax, Math.max(sideMin, value));
+    },
+    [leftPanelOpen, leftPanelWidth, rightPanelOpen, rightPanelWidth, sidePanelCanvasGapPx]
+  );
+
+  const startPanelDrag = useCallback(
+    (side: "left" | "right", event: React.MouseEvent<HTMLDivElement>) => {
+      if (event.button !== 0) return;
+
+      panelDragRef.current = {
+        side,
+        startX: event.clientX,
+        startWidth: side === "left" ? leftPanelWidth : rightPanelWidth,
+      };
+
+      document.body.style.userSelect = "none";
+      document.body.style.cursor = "ew-resize";
+
+      event.preventDefault();
+      event.stopPropagation();
+    },
+    [leftPanelWidth, rightPanelWidth]
+  );
+
+  useEffect(() => {
+    const handleMouseMove = (event: MouseEvent) => {
+      const drag = panelDragRef.current;
+      if (!drag) return;
+
+      const deltaX = event.clientX - drag.startX;
+      const nextWidth = drag.side === "left"
+        ? clampPanelWidthWithCanvasRoom("left", drag.startWidth + deltaX)
+        : clampPanelWidthWithCanvasRoom("right", drag.startWidth - deltaX);
+
+      if (drag.side === "left") {
+        setLeftPanelWidth(nextWidth);
+      } else {
+        setRightPanelWidth(nextWidth);
+      }
+    };
+
+    const stopPanelDrag = () => {
+      if (!panelDragRef.current) return;
+      panelDragRef.current = null;
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", stopPanelDrag);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", stopPanelDrag);
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+    };
+  }, [clampPanelWidthWithCanvasRoom]);
 
   const isSpacePanActive = activeTool === "move" && isSpacePressed;
   const canPanWithPointerDrag = activeTool === "hand" || isSpacePanActive;
@@ -1867,22 +1962,29 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                       minWidth: `${infiniteCanvasWidthVw}vw`,
                       minHeight: `${infiniteCanvasHeightVh}vh`,
                       padding: `${infiniteCanvasPaddingPx}px`,
-                      transformOrigin: "top left",
-                      transform:
-                        canvasRotation !== 0
-                          ? `scale(${scale}) rotate(${canvasRotation}deg)`
-                          : `scale(${scale})`,
+                      transform: `translateX(${canvasShiftX}px)`,
+                      transition: "transform 140ms ease",
                     }}
                   >
-                    {initialJson === undefined ? null : (
-                      <SafeFrame
-                        data={validFrameData ?? initialJson}
-                        onError={handleFrameError}
-                        onFrameMounted={() => {
-                          setFrameReady((prev) => (prev ? prev : true));
-                        }}
-                      />
-                    )}
+                    <div
+                      style={{
+                        transformOrigin: "top left",
+                        transform:
+                          canvasRotation !== 0
+                            ? `scale(${scale}) rotate(${canvasRotation}deg)`
+                            : `scale(${scale})`,
+                      }}
+                    >
+                      {initialJson === undefined ? null : (
+                        <SafeFrame
+                          data={validFrameData ?? initialJson}
+                          onError={handleFrameError}
+                          onFrameMounted={() => {
+                            setFrameReady((prev) => (prev ? prev : true));
+                          }}
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
                 {/* Floating Panels */}
@@ -1899,8 +2001,18 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 )}
                 {/* Left Panel */}
                 {panelsReady && (
-                  <div className="absolute top-14 left-4 z-50 h-[calc(100vh-6.5rem)] flex items-start pointer-events-none">
-                    <div className="h-full flex items-start pointer-events-auto">
+                  <div
+                    className="absolute top-14 left-4 z-50 h-[calc(100vh-6.5rem)] flex items-start pointer-events-none"
+                  >
+                    <div
+                      className="h-full flex items-start pointer-events-auto relative"
+                    >
+                      <div
+                        onMouseDown={(event) => startPanelDrag("left", event)}
+                        className={`absolute top-0 -right-2 h-full w-3 cursor-ew-resize ${leftPanelOpen ? "pointer-events-auto" : "pointer-events-none"}`}
+                        data-no-panel-drag="true"
+                        aria-hidden
+                      />
                       <div
                         className={`h-full origin-left transition-[transform,opacity] duration-300 ease-out will-change-transform ${leftPanelOpen
                           ? "translate-x-0 scale-100 opacity-100 pointer-events-auto"
@@ -1908,6 +2020,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                           }`}
                       >
                         <LeftPanel
+                          width={leftPanelWidth}
                           frameReady={frameReady}
                           onToggle={() => setLeftPanelOpen(false)}
                         />
@@ -1925,8 +2038,18 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 )}
                 {/* Right Panel */}
                 {panelsReady && (
-                  <div className="absolute top-14 right-4 z-50 h-[calc(100vh-6.5rem)] flex items-start pointer-events-none">
-                    <div className="h-full flex items-start justify-end pointer-events-auto">
+                  <div
+                    className="absolute top-14 right-4 z-50 h-[calc(100vh-6.5rem)] flex items-start pointer-events-none"
+                  >
+                    <div
+                      className="h-full flex items-start justify-end pointer-events-auto relative"
+                    >
+                      <div
+                        onMouseDown={(event) => startPanelDrag("right", event)}
+                        className={`absolute top-0 -left-2 h-full w-3 cursor-ew-resize ${rightPanelOpen ? "pointer-events-auto" : "pointer-events-none"}`}
+                        data-no-panel-drag="true"
+                        aria-hidden
+                      />
                       <div
                         className={`h-full origin-right transition-[transform,opacity] duration-300 ease-out will-change-transform ${rightPanelOpen
                           ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
@@ -1935,6 +2058,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                       >
                         <RightPanel
                           projectId={projectId}
+                          width={rightPanelWidth}
                           activeTab={rightPanelTab}
                           setActiveTab={setRightPanelTab}
                           frameReady={frameReady}
@@ -1966,7 +2090,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                   />
                 )}
               </InlineTextEditProvider>
-            </TransformModeProvider>
+             </TransformModeProvider>
           </CanvasToolProvider>
         </PrototypeTabProvider>
       </Editor>

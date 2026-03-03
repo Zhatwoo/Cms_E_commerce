@@ -1,6 +1,6 @@
 'use client';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   Package,
   AlertTriangle,
@@ -132,6 +132,19 @@ function parseCsvLine(line: string): string[] {
 }
 
 type StockStatus = 'all' | 'in-stock' | 'low-stock' | 'out-of-stock';
+type StockAdjustmentType = 'IN' | 'OUT';
+
+type StockAdjustmentModalState = {
+  open: boolean;
+  product: ApiProduct | null;
+  movementType: StockAdjustmentType;
+  quantity: string;
+  notes: string;
+  error: string | null;
+};
+
+const getDefaultAdjustmentNote = (movementType: StockAdjustmentType) =>
+  movementType === 'IN' ? 'Manual stock-in from inventory page' : 'Manual stock-out from inventory page';
 
 const STAT_CARDS = [
   { id: 'total', label: 'Total Products', icon: Package, valueKey: 'total' as const },
@@ -139,6 +152,8 @@ const STAT_CARDS = [
   { id: 'out', label: 'Out of Stock', icon: ArrowDownUp, valueKey: 'outOfStock' as const },
   { id: 'value', label: 'Stock Value', icon: TrendingUp, valueKey: 'stockValue' as const },
 ];
+const RECENT_MOVEMENTS_LIMIT = 5;
+const ALL_MOVEMENTS_LIMIT = 500;
 
 export default function InventoryPage() {
   const router = useRouter();
@@ -148,12 +163,21 @@ export default function InventoryPage() {
   const [items, setItems] = useState<ApiProduct[]>([]);
   const [summary, setSummary] = useState<InventorySummary | null>(null);
   const [movements, setMovements] = useState<InventoryMovement[]>([]);
+  const [allMovements, setAllMovements] = useState<InventoryMovement[]>([]);
+  const [showAllMovementsModal, setShowAllMovementsModal] = useState(false);
+  const [loadingAllMovements, setLoadingAllMovements] = useState(false);
+  const [allMovementsError, setAllMovementsError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [adjustingId, setAdjustingId] = useState<string | null>(null);
-  const [importing, setImporting] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [stockModal, setStockModal] = useState<StockAdjustmentModalState>({
+    open: false,
+    product: null,
+    movementType: 'IN',
+    quantity: '1',
+    notes: getDefaultAdjustmentNote('IN'),
+    error: null,
+  });
 
   const formatStat = (value: string | number) => (typeof value === 'number' ? String(value) : value);
   const stockValueLabel = useMemo(() => `$${(summary?.stockValue || 0).toLocaleString()}`, [summary?.stockValue]);
@@ -165,7 +189,7 @@ export default function InventoryPage() {
       const [invRes, summaryRes, movementRes] = await Promise.all([
         listInventory({ limit: 500, search: search || undefined }),
         getInventorySummary({ search: search || undefined }),
-        listInventoryMovements({ limit: 12 }),
+        listInventoryMovements({ limit: RECENT_MOVEMENTS_LIMIT }),
       ]);
 
       const inventoryItems = Array.isArray(invRes.items) ? invRes.items : [];
@@ -182,6 +206,37 @@ export default function InventoryPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const loadAllMovements = useCallback(async () => {
+    setLoadingAllMovements(true);
+    setAllMovementsError(null);
+    try {
+      const res = await listInventoryMovements({ limit: ALL_MOVEMENTS_LIMIT });
+      setAllMovements(Array.isArray(res.items) ? res.items : []);
+    } catch (err) {
+      setAllMovementsError(err instanceof Error ? err.message : 'Failed to load movement history');
+    } finally {
+      setLoadingAllMovements(false);
+    }
+  }, []);
+
+  const openAllMovementsModal = useCallback(() => {
+    setShowAllMovementsModal(true);
+    void loadAllMovements();
+  }, [loadAllMovements]);
+
+  const closeAllMovementsModal = useCallback(() => {
+    setShowAllMovementsModal(false);
+  }, []);
+
+  useEffect(() => {
+    if (!showAllMovementsModal) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeAllMovementsModal();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showAllMovementsModal, closeAllMovementsModal]);
 
   const getStockNumbers = useCallback((p: ApiProduct) => {
     const onHand = Number(p.onHandStock ?? p.stock ?? 0);
@@ -203,106 +258,78 @@ export default function InventoryPage() {
       const matchesStatus =
         statusFilter === 'all' ||
         (statusFilter === 'out-of-stock' && onHand <= 0) ||
-        (statusFilter === 'low-stock' && onHand > 0 && onHand <= lowThreshold) ||
-        (statusFilter === 'in-stock' && onHand > lowThreshold);
+        (statusFilter === 'low-stock' && onHand > 0 && onHand < lowThreshold) ||
+        (statusFilter === 'in-stock' && onHand >= lowThreshold);
 
       return matchesSearch && matchesStatus;
     });
   }, [items, search, statusFilter, getStockNumbers]);
 
-  const handleAdjust = useCallback(
-    async (product: ApiProduct, movementType: 'IN' | 'OUT') => {
-      const qtyText = window.prompt(
-        `${movementType === 'IN' ? 'Add' : 'Deduct'} stock for ${product.name}\nEnter quantity:`,
-        '1'
-      );
-      if (!qtyText) return;
-      const qty = parseInt(qtyText, 10);
-      if (!Number.isFinite(qty) || qty <= 0) {
-        window.alert('Please enter a valid quantity.');
-        return;
-      }
-
-      try {
-        setAdjustingId(product.id);
-        await adjustInventoryStock({
-          productId: product.id,
-          movementType,
-          quantity: qty,
-          notes: movementType === 'IN' ? 'Manual stock-in from inventory page' : 'Manual stock-out from inventory page',
-        });
-        await loadData();
-      } catch (err) {
-        window.alert(err instanceof Error ? err.message : 'Failed to adjust stock');
-      } finally {
-        setAdjustingId(null);
-      }
-    },
-    [loadData]
-  );
-
-  const handleExport = useCallback(async () => {
-    setExporting(true);
-    try {
-      const res = await listInventory({ limit: 5000, search: search || undefined });
-      const data = Array.isArray(res.items) ? res.items : [];
-      if (data.length === 0) {
-        window.alert('No inventory to export.');
-        return;
-      }
-      const csv = productsToCsv(data);
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `inventory-export-${new Date().toISOString().slice(0, 10)}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      window.alert(err instanceof Error ? err.message : 'Export failed');
-    } finally {
-      setExporting(false);
-    }
-  }, [search]);
-
-  const handleImport = useCallback(() => {
-    fileInputRef.current?.click();
+  const openStockModal = useCallback((product: ApiProduct, movementType: StockAdjustmentType) => {
+    setStockModal({
+      open: true,
+      product,
+      movementType,
+      quantity: '1',
+      notes: getDefaultAdjustmentNote(movementType),
+      error: null,
+    });
   }, []);
 
-  const handleFileChange = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      e.target.value = '';
-      if (!file) return;
+  const closeStockModal = useCallback(() => {
+    if (adjustingId) return;
+    setStockModal((prev) => ({ ...prev, open: false, product: null, error: null }));
+  }, [adjustingId]);
 
-      setImporting(true);
-      try {
-        const text = await file.text();
-        const rows = parseCsvToRows(text);
-        if (rows.length === 0) {
-          window.alert('No valid rows in CSV. Ensure file has a header with "sku" and optionally "onHandStock", "reservedStock", "lowStockThreshold".');
-          return;
-        }
+  useEffect(() => {
+    if (!stockModal.open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeStockModal();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [stockModal.open, closeStockModal]);
 
-        const result = await importInventoryCsv({ rows });
+  const submitStockAdjustment = useCallback(async () => {
+    if (!stockModal.product) return;
+    const qty = parseInt(stockModal.quantity, 10);
+    if (!Number.isFinite(qty) || qty <= 0) {
+      setStockModal((prev) => ({ ...prev, error: 'Please enter a valid quantity greater than zero.' }));
+      return;
+    }
 
-        if (result.updated && result.updated > 0) {
-          await loadData();
-        }
+    const { onHand } = getStockNumbers(stockModal.product);
+    if (stockModal.movementType === 'OUT' && qty > onHand) {
+      setStockModal((prev) => ({ ...prev, error: `Cannot deduct ${qty}. Current stock is ${onHand}.` }));
+      return;
+    }
 
-        const msg =
-          result.errors && result.errors.length > 0
-            ? `${result.message}\n\nErrors: ${result.errors.slice(0, 5).map((e) => `Row ${e.row} (${e.sku}): ${e.message}`).join('; ')}${result.errors.length > 5 ? ` ... and ${result.errors.length - 5} more` : ''}`
-            : result.message ?? `Updated ${result.updated ?? 0} product(s).`;
-        window.alert(msg);
-      } catch (err) {
-        window.alert(err instanceof Error ? err.message : 'Import failed');
-      } finally {
-        setImporting(false);
+    try {
+      setAdjustingId(stockModal.product.id);
+      setStockModal((prev) => ({ ...prev, error: null }));
+      await adjustInventoryStock({
+        productId: stockModal.product.id,
+        movementType: stockModal.movementType,
+        quantity: qty,
+        notes: stockModal.notes.trim() || getDefaultAdjustmentNote(stockModal.movementType),
+      });
+      await loadData();
+      if (showAllMovementsModal) {
+        await loadAllMovements();
       }
-    },
-    [loadData]
-  );
+      setStockModal((prev) => ({ ...prev, open: false, product: null, error: null }));
+    } catch (err) {
+      setStockModal((prev) => ({
+        ...prev,
+        error: err instanceof Error ? err.message : 'Failed to adjust stock',
+      }));
+    } finally {
+      setAdjustingId(null);
+    }
+  }, [stockModal, getStockNumbers, loadData, showAllMovementsModal, loadAllMovements]);
+
+  const isAdjustingFromModal = Boolean(stockModal.product && adjustingId === stockModal.product.id);
+  const modalOnHand = stockModal.product ? getStockNumbers(stockModal.product).onHand : 0;
 
   return (
     <div className="space-y-6 md:space-y-8 max-w-full overflow-x-hidden">
@@ -493,8 +520,8 @@ export default function InventoryPage() {
           <div className="divide-y" style={{ borderColor: colors.border.faint }}>
             {filteredItems.map((product) => {
               const { onHand, reserved, lowThreshold } = getStockNumbers(product);
-              const statusLabel = onHand <= 0 ? 'Out of stock' : onHand <= lowThreshold ? 'Low stock' : 'In stock';
-              const statusColor = onHand <= 0 ? '#ef4444' : onHand <= lowThreshold ? '#f59e0b' : '#10b981';
+              const statusLabel = onHand <= 0 ? 'Out of stock' : onHand < lowThreshold ? 'Low stock' : 'In stock';
+              const statusColor = onHand <= 0 ? '#ef4444' : onHand < lowThreshold ? '#f59e0b' : '#10b981';
               return (
                 <div
                   key={product.id}
@@ -510,7 +537,7 @@ export default function InventoryPage() {
                   <div className="flex items-center justify-end gap-1">
                     <button
                       type="button"
-                      onClick={() => handleAdjust(product, 'IN')}
+                      onClick={() => openStockModal(product, 'IN')}
                       disabled={adjustingId === product.id}
                       className="p-1.5 rounded border"
                       style={{ borderColor: colors.border.default, color: colors.text.secondary }}
@@ -520,7 +547,7 @@ export default function InventoryPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleAdjust(product, 'OUT')}
+                      onClick={() => openStockModal(product, 'OUT')}
                       disabled={adjustingId === product.id}
                       className="p-1.5 rounded border"
                       style={{ borderColor: colors.border.default, color: colors.text.secondary }}
@@ -552,10 +579,12 @@ export default function InventoryPage() {
           </div>
           <button
             type="button"
+            onClick={openAllMovementsModal}
+            disabled={loading}
             className="text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors hover:opacity-90"
             style={{ borderColor: colors.border.default, color: colors.text.secondary }}
           >
-            View All
+            See All
           </button>
         </div>
 
@@ -580,7 +609,7 @@ export default function InventoryPage() {
               >
                 <div>
                   <div style={{ color: colors.text.primary }}>
-                    {m.productName || 'Product'} · {m.type}
+                    {m.productName || 'Product'} - {m.type}
                   </div>
                   <div style={{ color: colors.text.muted }}>
                     {m.notes || 'Inventory movement'}
@@ -588,13 +617,206 @@ export default function InventoryPage() {
                 </div>
                 <div className="text-right">
                   <div style={{ color: colors.text.primary }}>{m.quantity > 0 ? `+${m.quantity}` : m.quantity}</div>
-                  <div style={{ color: colors.text.muted }}>{m.createdAt ? new Date(m.createdAt).toLocaleString() : '—'}</div>
+                  <div style={{ color: colors.text.muted }}>{m.createdAt ? new Date(m.createdAt).toLocaleString() : '-'}</div>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      <AnimatePresence>
+        {showAllMovementsModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[110] flex items-center justify-center p-4"
+            style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }}
+            onClick={closeAllMovementsModal}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 18, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 18, scale: 0.98 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-3xl rounded-2xl border overflow-hidden"
+              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.default }}
+            >
+              <div className="px-6 py-4 border-b flex items-center justify-between" style={{ borderColor: colors.border.faint }}>
+                <div>
+                  <h3 className="text-lg font-semibold" style={{ color: colors.text.primary }}>
+                    All Stock Movements
+                  </h3>
+                  <p className="text-xs mt-1" style={{ color: colors.text.muted }}>
+                    Complete movement history (latest first)
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeAllMovementsModal}
+                  className="px-3 py-1.5 rounded-lg border text-xs font-medium"
+                  style={{ borderColor: colors.border.default, color: colors.text.secondary }}
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="max-h-[70vh] overflow-y-auto p-5">
+                {loadingAllMovements ? (
+                  <div className="py-8 text-center text-sm" style={{ color: colors.text.muted }}>
+                    Loading movement history...
+                  </div>
+                ) : allMovementsError ? (
+                  <div className="py-8 text-center text-sm" style={{ color: '#ef4444' }}>
+                    {allMovementsError}
+                  </div>
+                ) : allMovements.length === 0 ? (
+                  <div className="py-8 text-center text-sm" style={{ color: colors.text.muted }}>
+                    No stock movements recorded yet.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {allMovements.map((m) => (
+                      <div
+                        key={m.id}
+                        className="flex items-center justify-between rounded-lg border px-3 py-2 text-xs"
+                        style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}
+                      >
+                        <div>
+                          <div style={{ color: colors.text.primary }}>
+                            {m.productName || 'Product'} - {m.type}
+                          </div>
+                          <div style={{ color: colors.text.muted }}>
+                            {m.notes || 'Inventory movement'}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div style={{ color: colors.text.primary }}>{m.quantity > 0 ? `+${m.quantity}` : m.quantity}</div>
+                          <div style={{ color: colors.text.muted }}>{m.createdAt ? new Date(m.createdAt).toLocaleString() : '-'}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {stockModal.open && stockModal.product && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[120] flex items-center justify-center p-4"
+            style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }}
+            onClick={closeStockModal}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 18, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 18, scale: 0.98 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-lg rounded-2xl border overflow-hidden"
+              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.default }}
+            >
+              <div className="px-6 py-5 border-b" style={{ borderColor: colors.border.faint }}>
+                <h3 className="text-lg font-semibold" style={{ color: colors.text.primary }}>
+                  {stockModal.movementType === 'IN' ? 'Add stock' : 'Deduct stock'} for {stockModal.product.name}
+                </h3>
+                <p className="text-sm mt-1" style={{ color: colors.text.secondary }}>
+                  Current on-hand stock: {modalOnHand}
+                </p>
+              </div>
+
+              <form
+                className="px-6 py-5 space-y-4"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  submitStockAdjustment();
+                }}
+              >
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: colors.text.muted }}>
+                    Quantity
+                  </label>
+                  <input
+                    autoFocus
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={stockModal.quantity}
+                    onChange={(e) =>
+                      setStockModal((prev) => ({
+                        ...prev,
+                        quantity: e.target.value,
+                        error: null,
+                      }))
+                    }
+                    className="w-full rounded-lg border px-3 py-2.5 text-sm bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                    style={{ borderColor: colors.border.default, color: colors.text.primary }}
+                    placeholder="Enter quantity"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: colors.text.muted }}>
+                    Notes
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={stockModal.notes}
+                    onChange={(e) =>
+                      setStockModal((prev) => ({
+                        ...prev,
+                        notes: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-lg border px-3 py-2.5 text-sm bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"
+                    style={{ borderColor: colors.border.default, color: colors.text.primary }}
+                    placeholder="Reason for this adjustment"
+                  />
+                </div>
+
+                {stockModal.error && (
+                  <p className="text-sm" style={{ color: '#ef4444' }}>
+                    {stockModal.error}
+                  </p>
+                )}
+
+                <div className="pt-2 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={closeStockModal}
+                    disabled={isAdjustingFromModal}
+                    className="px-4 py-2 rounded-lg text-sm font-medium border transition-colors hover:opacity-90 disabled:opacity-60"
+                    style={{ borderColor: colors.border.default, color: colors.text.secondary }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isAdjustingFromModal}
+                    className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors bg-blue-600 hover:bg-blue-700 disabled:opacity-60"
+                  >
+                    {isAdjustingFromModal
+                      ? 'Saving...'
+                      : stockModal.movementType === 'IN'
+                        ? 'Add Stock'
+                        : 'Deduct Stock'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+

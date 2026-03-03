@@ -812,9 +812,10 @@ export default function WebBuilderPage() {
             </button>
           </div>
         </div>
+
         {activeTab === 'active' ? (
           <>
-            {projectsLoading ? (
+            {loading ? (
               <div className="rounded-xl border p-12 text-center" style={{ borderColor: colors.border.faint }}>
                 <p className="text-sm" style={{ color: colors.text.muted }}>Loading projects…</p>
               </div>

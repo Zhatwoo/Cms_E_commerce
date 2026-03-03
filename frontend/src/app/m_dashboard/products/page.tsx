@@ -10,6 +10,17 @@ import { createProduct, deleteProduct, listProducts, updateProduct, type ApiProd
 import ProductAddModal from './components/productAddModal';
 
 type ProductUpsertPayload = Omit<Parameters<typeof createProduct>[0], 'subdomain'>;
+const DEFAULT_LOW_STOCK_THRESHOLD = 5;
+
+function getLowStockThreshold(product: Product): number {
+  const threshold = Number(product.lowStockThreshold);
+  if (!Number.isFinite(threshold) || threshold < 0) return DEFAULT_LOW_STOCK_THRESHOLD;
+  return threshold;
+}
+
+function isLowStock(product: Product): boolean {
+  return product.stock > 0 && product.stock < getLowStockThreshold(product);
+}
 
 function isImageSource(value: string): boolean {
   const v = (value || '').trim();
@@ -101,8 +112,8 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, onToggleStatus
           </div>
           <div>
             <p className="text-xs mb-1" style={{ color: colors.text.muted }}>Stock</p>
-            <p className={`font-semibold text-sm ${product.stock === 0 ? 'text-red-500' : product.stock < 20 ? 'text-yellow-500' : 'text-green-500'}`}>
-              {product.stock} units
+            <p className={`font-semibold text-sm ${product.stock === 0 ? 'text-red-500' : isLowStock(product) ? 'text-yellow-500' : 'text-green-500'}`}>
+              {product.stock} Units
             </p>
           </div>
         </div>
@@ -384,6 +395,7 @@ function toDashboardProduct(product: ApiProduct): Product {
     priceRangeMin,
     priceRangeMax,
     stock: typeof product.stock === 'number' ? product.stock : 0,
+    lowStockThreshold: typeof product.lowStockThreshold === 'number' ? product.lowStockThreshold : DEFAULT_LOW_STOCK_THRESHOLD,
     status: toDashboardStatus(product.status),
     image: images[0] || '[product]',
     images,
@@ -534,6 +546,12 @@ export default function ProductsPage() {
       const priceRangeMax = hasVariants
         ? Number(productData.priceRangeMax ?? finalPrice)
         : finalPrice;
+      const normalizedLowStockThreshold = Math.max(
+        0,
+        Number.isFinite(Number(productData.lowStockThreshold))
+          ? Number(productData.lowStockThreshold)
+          : DEFAULT_LOW_STOCK_THRESHOLD
+      );
 
       const payload: ProductUpsertPayload = {
         name: String(productData.name || ''),
@@ -552,6 +570,7 @@ export default function ProductsPage() {
         priceRangeMin,
         priceRangeMax,
         stock: Number(productData.stock || 0),
+        lowStockThreshold: normalizedLowStockThreshold,
         status: toDashboardStatus(String(productData.status || 'draft')),
         images: Array.isArray(productData.images) ? (productData.images as string[]) : [],
       };
@@ -587,7 +606,7 @@ export default function ProductsPage() {
   const stats = {
     total: products.length,
     active: products.filter(p => p.status === 'active').length,
-    lowStock: products.filter(p => p.stock > 0 && p.stock < 20).length,
+    lowStock: products.filter((p) => isLowStock(p)).length,
     outOfStock: products.filter(p => p.stock === 0).length
   };
 
