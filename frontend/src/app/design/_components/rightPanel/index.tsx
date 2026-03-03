@@ -157,13 +157,12 @@ const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeT
       <div
         ref={panelRef}
         data-panel="configs"
-        className="bg-brand-darker/75 backdrop-blur-lg rounded-3xl h-full shadow-2xl border border-white/10 transition-all duration-300 overflow-hidden flex flex-col"
+        className="bg-brand-darker h-full border-l border-white/10 transition-[width,transform,opacity] duration-300 ease-out overflow-hidden flex flex-col"
         style={{
           width: `${width}px`,
-          boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)",
         }}
       >
-        <div className="h-full p-6 flex flex-col min-h-0">
+        <div className="h-full p-4 flex flex-col min-h-0">
           <div className="flex items-center justify-between mb-6 gap-2">
             <h3 className="text-brand-lighter font-bold text-lg">Configs</h3>
             <div className="flex items-center gap-1">
@@ -188,7 +187,7 @@ const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeT
             </div>
           </div>
 
-          <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="editor-panel-scroll flex-1 min-h-0 overflow-y-auto">
             {/* Main conditional rendering */}
             {selectedIds.length > 0 ? (
               <div className={activeTab === "code" ? "h-full min-h-0 flex flex-col" : undefined}>
@@ -334,8 +333,8 @@ export const RightPanel: React.FC<RightPanelProps> = (props) => {
     return (
       <div
         data-panel="configs"
-        className="bg-brand-darker/75 backdrop-blur-lg rounded-3xl p-6 h-full shadow-2xl overflow-y-auto border border-white/10 transition-shadow duration-300 flex items-center justify-center text-xs text-brand-light/60"
-        style={{ width: `${props.width ?? RIGHT_PANEL_DEFAULT_WIDTH}px`, boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)" }}
+        className="bg-brand-darker p-4 h-full overflow-y-auto border-l border-white/10 transition-[width,opacity] duration-300 ease-out flex items-center justify-center text-xs text-brand-light/60"
+        style={{ width: `${props.width ?? RIGHT_PANEL_DEFAULT_WIDTH}px` }}
       >
         Loading inspector…
       </div>

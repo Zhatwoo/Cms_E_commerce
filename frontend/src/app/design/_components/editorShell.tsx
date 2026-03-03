@@ -206,6 +206,7 @@ const INFINITE_CANVAS_PADDING_PX = 100000;
 const LEFT_PANEL_DEFAULT_WIDTH = 320;
 const RIGHT_PANEL_DEFAULT_WIDTH = 420;
 const MIN_CANVAS_VIEWPORT_WIDTH = 760;
+const TOP_PANEL_HEIGHT_PX = 48;
 
 const isEditableTarget = (target: EventTarget | null) => {
   if (!target || !(target instanceof HTMLElement)) return false;
@@ -647,6 +648,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     startX: number;
     startWidth: number;
   } | null>(null);
+  const [isPanelDragging, setIsPanelDragging] = useState(false);
 
   // Sync saveStatus to ref for safe use in beforeunload effect
   useEffect(() => {
@@ -656,10 +658,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const infiniteCanvasWidthVw = INFINITE_CANVAS_WIDTH_VW;
   const infiniteCanvasHeightVh = INFINITE_CANVAS_HEIGHT_VH;
   const infiniteCanvasPaddingPx = INFINITE_CANVAS_PADDING_PX;
-  const sidePanelCanvasGapPx = 24;
-  const leftCanvasInset = panelsReady && leftPanelOpen ? leftPanelWidth + sidePanelCanvasGapPx : 0;
-  const rightCanvasInset = panelsReady && rightPanelOpen ? rightPanelWidth + sidePanelCanvasGapPx : 0;
-  const canvasShiftX = Math.round((leftCanvasInset - rightCanvasInset) / 2);
+  const sidePanelCanvasGapPx = 0;
 
   // Per-project UI state key so zoom, panels, and last page persist across reloads
   const uiStateStorageKey = React.useMemo(
@@ -1167,6 +1166,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         startX: event.clientX,
         startWidth: side === "left" ? leftPanelWidth : rightPanelWidth,
       };
+      setIsPanelDragging(true);
 
       document.body.style.userSelect = "none";
       document.body.style.cursor = "ew-resize";
@@ -1197,6 +1197,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     const stopPanelDrag = () => {
       if (!panelDragRef.current) return;
       panelDragRef.current = null;
+      setIsPanelDragging(false);
       document.body.style.userSelect = "";
       document.body.style.cursor = "";
     };
@@ -1936,8 +1937,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 <div
                   ref={containerRef}
                   data-canvas-container
-                  className={`absolute inset-0 overflow-auto bg-brand-darker canvas-scroll-container ${canPanWithPointerDrag ? "canvas-hand-tool" : ""} ${canPanWithPointerDrag && isPanning ? "canvas-hand-panning" : ""}`}
+                  className={`absolute inset-0 overflow-auto bg-brand-darker canvas-scroll-container ${canPanWithPointerDrag ? "canvas-hand-tool" : ""} ${canPanWithPointerDrag && isPanning ? "canvas-hand-panning" : ""} ${isPanelDragging ? "transition-none" : "transition-[left,right] duration-300 ease-out"}`}
                   style={{
+                    top: `${TOP_PANEL_HEIGHT_PX}px`,
+                    left: panelsReady && leftPanelOpen ? `${leftPanelWidth}px` : "0px",
+                    right: panelsReady && rightPanelOpen ? `${rightPanelWidth}px` : "0px",
+                    bottom: "0px",
                     cursor:
                       canPanWithPointerDrag
                         ? isPanning
@@ -1957,8 +1962,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                       minWidth: `${infiniteCanvasWidthVw}vw`,
                       minHeight: `${infiniteCanvasHeightVh}vh`,
                       padding: `${infiniteCanvasPaddingPx}px`,
-                      transform: `translateX(${canvasShiftX}px)`,
-                      transition: "transform 140ms ease",
                     }}
                   >
                     <div
@@ -1982,7 +1985,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                     </div>
                   </div>
                 </div>
-                {/* Floating Panels */}
+                {/* Docked Panels */}
                 {/* Right Panel Reopen Fallback */}
                 {panelsReady && !rightPanelOpen && (
                   <button
@@ -1997,21 +2000,24 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 {/* Left Panel */}
                 {panelsReady && (
                   <div
-                    className="absolute top-14 left-4 z-50 h-[calc(100vh-6.5rem)] flex items-start pointer-events-none"
+                    className="absolute top-12 left-0 z-50 h-[calc(100vh-3rem)] flex items-start pointer-events-none"
                   >
                     <div
                       className="h-full flex items-start pointer-events-auto relative"
                     >
                       <div
                         onMouseDown={(event) => startPanelDrag("left", event)}
-                        className={`absolute top-0 -right-2 h-full w-3 cursor-ew-resize ${leftPanelOpen ? "pointer-events-auto" : "pointer-events-none"}`}
+                        className={`absolute top-0 -right-2 h-full w-4 cursor-ew-resize ${leftPanelOpen ? "pointer-events-auto" : "pointer-events-none"}`}
                         data-no-panel-drag="true"
                         aria-hidden
                       />
+                      {leftPanelOpen && (
+                        <div className="absolute top-0 right-0 h-full w-px bg-white/10 pointer-events-none" aria-hidden />
+                      )}
                       <div
-                        className={`h-full origin-left transition-[transform,opacity] duration-300 ease-out will-change-transform ${leftPanelOpen
-                          ? "translate-x-0 scale-100 opacity-100 pointer-events-auto"
-                          : "-translate-x-full scale-90 opacity-0 pointer-events-none"
+                        className={`h-full origin-left ${isPanelDragging ? "transition-none" : "transition-[transform,opacity,width] duration-300 ease-out"} will-change-transform ${leftPanelOpen
+                          ? "translate-x-0 opacity-100 pointer-events-auto"
+                          : "-translate-x-full opacity-0 pointer-events-none"
                           }`}
                       >
                         <LeftPanel
@@ -2022,7 +2028,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                       </div>
                       <button
                         onClick={() => setLeftPanelOpen((open) => !open)}
-                        className={`absolute left-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${leftPanelOpen ? "opacity-0 pointer-events-none scale-95" : "opacity-100 pointer-events-auto scale-100"
+                        className={`absolute left-4 top-2 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${leftPanelOpen ? "opacity-0 pointer-events-none scale-95" : "opacity-100 pointer-events-auto scale-100"
                           }`}
                         title={leftPanelOpen ? "Hide left panel" : "Show left panel"}
                       >
@@ -2034,21 +2040,24 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 {/* Right Panel */}
                 {panelsReady && (
                   <div
-                    className="absolute top-14 right-4 z-50 h-[calc(100vh-6.5rem)] flex items-start pointer-events-none"
+                    className="absolute top-12 right-0 z-50 h-[calc(100vh-3rem)] flex items-start pointer-events-none"
                   >
                     <div
                       className="h-full flex items-start justify-end pointer-events-auto relative"
                     >
                       <div
                         onMouseDown={(event) => startPanelDrag("right", event)}
-                        className={`absolute top-0 -left-2 h-full w-3 cursor-ew-resize ${rightPanelOpen ? "pointer-events-auto" : "pointer-events-none"}`}
+                        className={`absolute top-0 -left-2 h-full w-4 cursor-ew-resize ${rightPanelOpen ? "pointer-events-auto" : "pointer-events-none"}`}
                         data-no-panel-drag="true"
                         aria-hidden
                       />
+                      {rightPanelOpen && (
+                        <div className="absolute top-0 left-0 h-full w-px bg-white/10 pointer-events-none" aria-hidden />
+                      )}
                       <div
-                        className={`h-full origin-right transition-[transform,opacity] duration-300 ease-out will-change-transform ${rightPanelOpen
-                          ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
-                          : 'translate-x-full scale-90 opacity-0 pointer-events-none'
+                        className={`h-full origin-right ${isPanelDragging ? "transition-none" : "transition-[transform,opacity,width] duration-300 ease-out"} will-change-transform ${rightPanelOpen
+                          ? 'translate-x-0 opacity-100 pointer-events-auto'
+                          : 'translate-x-full opacity-0 pointer-events-none'
                           }`}
                       >
                         <RightPanel

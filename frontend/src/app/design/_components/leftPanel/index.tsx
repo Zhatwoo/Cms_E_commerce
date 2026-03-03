@@ -198,9 +198,10 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
   return (
     <div
       data-panel="left"
-      className="bg-brand-dark/75 backdrop-blur-lg rounded-3xl p-6 flex flex-col h-full border border-white/10 transition-shadow duration-300 overflow-hidden"
-      style={{ width: `${width}px`, boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)" }}
+      className="bg-brand-dark flex flex-col h-full border-r border-white/10 overflow-hidden transition-[width] duration-300 ease-out"
+      style={{ width: `${width}px` }}
     >
+      <div className="flex flex-col gap-4 shrink-0 px-4 pt-4">
       {/* Header + Title + Tabs: fixed at top, do not scroll */}
       <div className="flex flex-col gap-4 shrink-0">
       {/* Left Panel Header */}
@@ -299,6 +300,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
           )}
         </div>
       </div>
+      </div>
 
       {/* Navigation Tabs */}
       <div className="flex text-sm items-stretch justify-center py-1.5 px-1 border-y border-brand-medium gap-1 min-h-0">
@@ -354,7 +356,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
       </div>
 
       {/* Panel content: scrollable; Files/Assets/Templates show scrollbar for full layer access */}
-      <div className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden mt-4 overscroll-contain ${activePanel === "components" ? "no-scrollbar" : ""}`}>
+      <div className={`editor-panel-scroll flex-1 min-h-0 overflow-y-auto overflow-x-hidden mt-4 px-4 pb-4 overscroll-contain ${activePanel === "components" ? "no-scrollbar" : ""}`}>
         {activePanel === "files" && (canMountFilesPanel ? <FilesPanel /> : null)}
         {activePanel === "assets" && <AssetsPanel />}
         {activePanel === "components" && <ComponentsPanel />}
