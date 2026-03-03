@@ -1165,8 +1165,13 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       const nodeCenterX = container.scrollLeft + (nodeRect.left - contRect.left) + nodeRect.width / 2;
       const nodeCenterY = container.scrollTop + (nodeRect.top - contRect.top) + nodeRect.height / 2;
 
-      container.scrollLeft = nodeCenterX - container.clientWidth / 2;
-      container.scrollTop = nodeCenterY - container.clientHeight / 2;
+      const targetLeft = nodeCenterX - container.clientWidth / 2;
+      const targetTop = nodeCenterY - container.clientHeight / 2;
+      container.scrollTo({
+        left: targetLeft,
+        top: targetTop,
+        behavior: "smooth",
+      });
     };
 
     container.addEventListener("center-on-node", handleCenterOnNode);
