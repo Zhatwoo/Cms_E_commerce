@@ -11,7 +11,6 @@ import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 import { getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, getMyDomains, type Project } from "@/lib/api";
 import { getLimits } from "@/lib/subscriptionLimits";
 import { uploadClientFile } from "@/lib/firebaseStorage";
-import { createPortal } from "react-dom";
 import html2canvas from "html2canvas";
 //vdxvx
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
@@ -19,63 +18,6 @@ const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 
 type ViewMode = "Web-Preview" | "clean" | "raw";
 type PreviewViewport = "desktop" | "tablet" | "mobile";
-
-function PreviewIframe({ children, width, height = "80vh", isDesktop = false }: { children: React.ReactNode; width: string | number; height?: string | number; isDesktop?: boolean }) {
-  const [mountNode, setMountNode] = useState<HTMLElement | null>(null);
-  const iframeRef = React.useRef<HTMLIFrameElement>(null);
-
-  React.useEffect(() => {
-    const iframe = iframeRef.current;
-    if (!iframe) return;
-
-    const handleLoad = () => {
-      const doc = iframe.contentDocument;
-      if (doc && doc.head && doc.body) {
-        const root = doc.getElementById("preview-root");
-        if (root) setMountNode(root);
-      }
-    };
-
-    iframe.addEventListener("load", handleLoad);
-    // If already loaded (e.g. from cache or srcDoc fast load)
-    if (iframe.contentDocument?.readyState === "complete" || iframe.contentDocument?.body) {
-      handleLoad();
-    }
-
-    return () => iframe.removeEventListener("load", handleLoad);
-  }, []);
-
-  // Responsive: set width based on device
-  let responsiveWidth = width;
-  if (width === "responsive") {
-    // fallback: 100vw for desktop, 768px for tablet, 390px for mobile
-    responsiveWidth = "100vw";
-  } else if (typeof width === "number") {
-    // Convert number to pixel value
-    responsiveWidth = `${width}px`;
-  }
-
-  return (
-    <>
-      <iframe
-        ref={iframeRef}
-        style={{
-          width: responsiveWidth,
-          height,
-          transition: "width 0.3s ease",
-          borderRadius: isDesktop ? 0 : undefined,
-          border: isDesktop ? "none" : undefined,
-        }}
-        className={isDesktop ? "bg-white min-h-full" : "rounded-xl border border-white/10 bg-white min-h-full"}
-        srcDoc={`<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1'/><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet"/><style>*,*::before,*::after{box-sizing:border-box;}body{margin:0;font-family:'Outfit',sans-serif;}</style></head><body><div id='preview-root'></div></body></html>`}
-        sandbox="allow-scripts allow-same-origin"
-        tabIndex={-1}
-        aria-hidden
-      />
-      {mountNode && createPortal(children, mountNode)}
-    </>
-  );
-}
 
 
 
@@ -237,13 +179,6 @@ function PreviewContent() {
   }, [rawJson]);
 
   const activeJson = viewMode === "clean" ? cleanJson : viewMode === "raw" ? rawFormatted : null;
-  const viewportClass =
-    previewViewport === "desktop"
-      ? "w-[1200px]"
-      : previewViewport === "tablet"
-        ? "w-[768px]"
-        : "w-[390px]";
-
   const capturePreviewThumbnail = async () => {
     if (thumbnailCaptureRef.current || !previewRef.current || !projectId) return;
     if (viewMode !== "Web-Preview" || loading || !cleanDoc) return;
@@ -684,16 +619,19 @@ function PreviewContent() {
         ) : viewMode === "Web-Preview" ? (
           <div className="flex justify-center py-6 h-full">
             {cleanDoc ? (
-              <PreviewIframe
-                width={
-                  previewViewport === "desktop"
-                    ? "100%"
-                    : previewViewport === "tablet"
-                      ? 768
-                      : 390
+              <div
+                ref={previewRef}
+                className={`bg-white transition-[width] duration-300 ease-out ${previewViewport === "desktop"
+                    ? "w-full min-h-[calc(100vh-200px)]"
+                    : "min-h-[calc(100vh-200px)] rounded-xl border border-white/10 overflow-hidden"
+                  }`}
+                style={
+                  previewViewport === "tablet"
+                    ? { width: 768, maxWidth: "100%" }
+                    : previewViewport === "mobile"
+                      ? { width: 390, maxWidth: "100%" }
+                      : undefined
                 }
-                height="calc(100vh - 200px)"
-                isDesktop={previewViewport === "desktop"}
               >
                 <WebPreview
                   doc={cleanDoc}
@@ -709,7 +647,7 @@ function PreviewContent() {
                         : 390
                   }
                 />
-              </PreviewIframe>
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center min-h-96 text-zinc-500 p-8 border border-white/10 rounded-xl">
                 <p className="text-base mb-1">No page data</p>

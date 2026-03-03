@@ -444,10 +444,11 @@ const frameResponsiveStyles = (
 );
 
 /** Responsive Navigation Component - converts nav bars to hamburger menu on mobile */
-function ResponsiveNav({ children, containerStyle, onClick }: {
+function ResponsiveNav({ children, containerStyle, onClick, className }: {
   children: React.ReactNode;
   containerStyle: React.CSSProperties;
   onClick?: () => void;
+  className?: string;
 }) {
   const [isOpen, setIsOpen] = React.useState(false);
   const navRef = React.useRef<HTMLDivElement>(null);
@@ -469,6 +470,7 @@ function ResponsiveNav({ children, containerStyle, onClick }: {
     <div
       ref={navRef}
       data-nav-container
+      className={className}
       style={{ ...containerStyle, position: "relative" }}
       onClick={onClick}
     >
@@ -865,7 +867,7 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
   Frame: {
     referenceWidth: 1440,
     referenceHeight: 900,
-    fitMode: "contain",
+    fitMode: "fluid",
     width: "100%",
     minHeight: "400px",
     height: "400px",
@@ -1137,15 +1139,24 @@ function RenderNode({
   mobileBreakpoint?: number;
   enableFormInputs?: boolean;
 }): React.ReactElement {
-  // Craft.js resolver uses lowercase keys (text, circle, etc.); normalize for switch/mergeProps
+  // Normalize legacy lowercase node types so published and preview payloads render identically.
   const rawType = node.type as string;
-  const type = (
-    rawType === "text" ? "Text"
-      : rawType === "circle" ? "Circle"
-        : rawType === "square" ? "Square"
-          : rawType === "triangle" ? "Triangle"
-            : rawType
-  ) as ComponentType;
+  const normalizedTypeMap: Record<string, ComponentType> = {
+    text: "Text",
+    container: "Container",
+    section: "Section",
+    frame: "Frame",
+    row: "Row",
+    column: "Column",
+    image: "Image",
+    button: "Button",
+    divider: "Divider",
+    icon: "Icon",
+    circle: "Circle",
+    square: "Square",
+    triangle: "Triangle",
+  };
+  const type = (normalizedTypeMap[rawType.toLowerCase()] ?? rawType) as ComponentType;
   const props = mergeProps(type, node.props) as Record<string, unknown>;
   if (!shouldRenderNodeAtWidth(props, viewportWidth, mobileBreakpoint)) {
     return <></>;
@@ -1212,6 +1223,7 @@ function RenderNode({
         return (
           <div
             id="products"
+            className={((props.customClassName as string) || "").trim() || undefined}
             style={{
               backgroundColor: props.background as string,
               padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
@@ -1356,11 +1368,19 @@ function RenderNode({
       };
 
       const containerContent = isNav ? (
-        <ResponsiveNav containerStyle={containerStyle} onClick={interactiveClick}>
+        <ResponsiveNav
+          containerStyle={containerStyle}
+          onClick={interactiveClick}
+          className={((props.customClassName as string) || "").trim() || undefined}
+        >
           {children}
         </ResponsiveNav>
       ) : (
-        <div style={containerStyle} onClick={interactiveClick}>
+        <div
+          className={((props.customClassName as string) || "").trim() || undefined}
+          style={containerStyle}
+          onClick={interactiveClick}
+        >
           {children}
         </div>
       );
@@ -1388,6 +1408,7 @@ function RenderNode({
       return wrap(
         <section
           {...(isHeaderAsset ? { "data-header": "true" } : {})}
+          className={((props.customClassName as string) || "").trim() || undefined}
           style={{
             backgroundColor: props.background as string,
             backgroundImage: bgImage
@@ -1439,8 +1460,7 @@ function RenderNode({
       const mb = (props.marginBottom ?? m) as number;
       const refW = Math.max(320, (props.referenceWidth as number) ?? 1440);
       const refH = Math.max(200, (props.referenceHeight as number) ?? 900);
-      const propsFit = (props.fitMode as "contain" | "cover" | "width" | "fluid") ?? "contain";
-      const fit = viewportWidth <= 768 ? "fluid" : propsFit;
+      const fit = "fluid";
       const minH = (props.minHeight as string) ?? (props.height as string) ?? "400px";
       return wrap(
         <ResponsiveFrameWrapper
@@ -1480,6 +1500,7 @@ function RenderNode({
         <div
           data-layout="row"
           {...(isHeaderRow ? { "data-header": "true" } : {})}
+          className={((props.customClassName as string) || "").trim() || undefined}
           style={{
             backgroundColor: props.background as string,
             padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
@@ -1527,6 +1548,7 @@ function RenderNode({
       const colStrokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
       return wrap(
         <div
+          className={((props.customClassName as string) || "").trim() || undefined}
           style={{
             flex: w === "auto" ? 1 : undefined,
             width: w !== "auto" ? w : undefined,
@@ -1576,13 +1598,27 @@ function RenderNode({
       const textTransformStyle = [rot ? `rotate(${rot}deg)` : null, flipH ? "scaleX(-1)" : null, flipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
       const textStyle: React.CSSProperties = {
         fontSize: px(props.fontSize),
-        fontFamily: (props.fontFamily as string) || "Inter",
+        fontFamily: (props.fontFamily as string) || "Outfit",
         fontWeight: props.fontWeight as string,
+        fontStyle: (props.fontStyle as string) || "normal",
         lineHeight: props.lineHeight as number,
         letterSpacing: px(props.letterSpacing),
         textAlign: props.textAlign as React.CSSProperties["textAlign"],
         textTransform: props.textTransform as React.CSSProperties["textTransform"],
         color: (props.color as string) || "#000000",
+        position: ((props.position as React.CSSProperties["position"]) || "relative"),
+        display: ((props.display as React.CSSProperties["display"]) || "block"),
+        zIndex: (props.zIndex as number | undefined) ?? 2,
+        top: props.position !== "static" ? (props.top as React.CSSProperties["top"]) : undefined,
+        right: props.position !== "static" ? (props.right as React.CSSProperties["right"]) : undefined,
+        bottom: props.position !== "static" ? (props.bottom as React.CSSProperties["bottom"]) : undefined,
+        left: props.position !== "static" ? (props.left as React.CSSProperties["left"]) : undefined,
+        width: (props.width as string | undefined) || undefined,
+        height: (props.height as string | undefined) || undefined,
+        minHeight: "1em",
+        overflow: props.height ? "hidden" : undefined,
+        maxWidth: "100%",
+        minWidth: 0,
         margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
         padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
         opacity: props.opacity as number,
@@ -1613,7 +1649,7 @@ function RenderNode({
             defaultValue=""
             placeholder={textContent}
             aria-label={textContent}
-            className="preview-input"
+            className={`preview-input ${((props.customClassName as string) || "").trim()}`.trim() || undefined}
             style={previewInputStyle}
           />,
           animation
@@ -1621,7 +1657,11 @@ function RenderNode({
       }
 
       return wrap(
-        <div style={textStyle} onClick={interactiveClick}>
+        <div
+          className={((props.customClassName as string) || "").trim() || undefined}
+          style={textStyle}
+          onClick={interactiveClick}
+        >
           {textContent}
         </div>
       );
@@ -1636,6 +1676,7 @@ function RenderNode({
         <img
           src={(props.src as string) || "https://placehold.co/600x400?text=Image"}
           alt={(props.alt as string) || "Image"}
+          className={((props.customClassName as string) || "").trim() || undefined}
           style={{
             width: props.width as string,
             height: props.height as string,
@@ -1686,6 +1727,7 @@ function RenderNode({
       const btnTransform = [btnRot ? `rotate(${btnRot}deg)` : null, btnFlipH ? "scaleX(-1)" : null, btnFlipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
       const content = (
         <span
+          className={((props.customClassName as string) || "").trim() || undefined}
           style={{
             backgroundColor: bg,
             color,
@@ -2208,6 +2250,7 @@ export function LiveSite({
   storeContext,
   initialPageSlug,
   mobileBreakpoint = 480,
+  enableFormInputs = false,
 }: {
   doc: BuilderDocument;
   pageIndex?: number;
@@ -2216,6 +2259,7 @@ export function LiveSite({
   initialPageSlug?: string;
   /** Width threshold (px) before switching to mobile frame behavior. */
   mobileBreakpoint?: number;
+  enableFormInputs?: boolean;
 }): React.ReactElement {
   const safePages = doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page));
   const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
@@ -2342,6 +2386,7 @@ export function LiveSite({
             storeContext={storeContext}
             nodeId={id}
             onPrototypeAction={onPrototypeAction}
+            enableFormInputs={enableFormInputs}
           />
         );
       })}

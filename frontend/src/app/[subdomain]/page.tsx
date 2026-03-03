@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getApiUrl } from '@/lib/api';
-import { WebPreview } from '@/app/design/_lib/webRenderer';
+import { apiFetch } from '@/lib/api';
+import { LiveSite } from '@/app/design/_lib/webRenderer';
 import { serializeCraftToClean } from '@/app/design/_lib/serializer';
 import type { BuilderDocument } from '@/app/design/_types/schema';
 
@@ -69,18 +69,17 @@ export default function SubdomainSitePage() {
     let cancelled = false;
     (async () => {
       try {
-        const base = getApiUrl();
-        const res = await fetch(`${base}/api/public/sites/${encodeURIComponent(normalized)}`, {
-          credentials: 'omit',
-        });
-        const data = await res.json().catch(() => ({} as Record<string, unknown>));
+        const data = await apiFetch<{ success?: boolean; data?: { content?: unknown } }>(
+          `/api/public/sites/${encodeURIComponent(normalized)}?t=${Date.now()}`,
+          { method: 'GET' }
+        );
         if (cancelled) return;
-        if (!res.ok || !(data as { success?: boolean }).success) {
+        if (!data?.success) {
           setError(true);
           setLoading(false);
           return;
         }
-        const content = (data as { data?: { content?: unknown } }).data?.content;
+        const content = data?.data?.content;
         const parsed = parsePublishedContentToCleanDoc(content);
         if (parsed) {
           setCleanDoc(parsed);
@@ -131,7 +130,7 @@ export default function SubdomainSitePage() {
 
   return (
     <div className="min-h-screen w-full bg-white">
-      <WebPreview doc={cleanDoc} pageIndex={0} mobileBreakpoint={900} enableFormInputs />
+      <LiveSite doc={cleanDoc} pageIndex={0} mobileBreakpoint={900} enableFormInputs />
     </div>
   );
 }

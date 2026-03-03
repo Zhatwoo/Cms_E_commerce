@@ -22,7 +22,6 @@ import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
 import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
 import { MarqueeSelectionHandler } from "./MarqueeSelectionHandler";
-import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import { TextToolHandler } from "./TextToolHandler";
 import { ShapeToolHandler } from "./ShapeToolHandler";
 import { TransformModeProvider } from "./TransformModeContext";
@@ -1007,8 +1006,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     const container = containerRef.current;
     if (!container) return;
 
-    // Try to find the first Page element and center on it
-    const firstPage = container.querySelector("[data-page-node]") as HTMLElement | null;
+    // Try to find the first real Page element and center on it
+    const firstPage = container.querySelector("[data-page-node='true'][data-node-id]") as HTMLElement | null;
 
     if (firstPage) {
       const containerRect = container.getBoundingClientRect();
@@ -1096,8 +1095,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
       const desktopViewport = container.querySelector("[data-viewport-desktop]") as HTMLElement | null;
       const firstPage =
-        (desktopViewport?.querySelector("[data-page-node='true']") as HTMLElement | null) ??
-        (container.querySelector("[data-page-node='true']") as HTMLElement | null);
+        (desktopViewport?.querySelector("[data-page-node='true'][data-node-id]") as HTMLElement | null) ??
+        (container.querySelector("[data-page-node='true'][data-node-id]") as HTMLElement | null);
       if (!firstPage) {
         centerCanvasInView();
         return;
@@ -1373,6 +1372,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       containerRef.current.scrollTop -= e.movementY;
     }
   };
+
+  const handleCanvasScroll = useCallback(() => {
+    if (isProgrammaticScrollRef.current) return;
+    hasUserMovedCanvasRef.current = true;
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -2044,7 +2048,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 <CanvasContextMenu />
                 <FigmaStyleDragHandler />
                 <NewPageDropPlacementHandler />
-                <BoxSelectionHandler />
                 <TextToolHandler />
                 <ShapeToolHandler />
                 <DoubleClickTransformHandler />

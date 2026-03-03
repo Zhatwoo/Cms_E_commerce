@@ -2,10 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { WebPreview } from '@/app/design/_lib/webRenderer';
+import { LiveSite } from '@/app/design/_lib/webRenderer';
 import { serializeCraftToClean } from '@/app/design/_lib/serializer';
 import type { BuilderDocument } from '@/app/design/_types/schema';
-import { getApiUrl } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 import { StorefrontProvider, useStorefront } from '@/app/sites/_storefront/StorefrontContext';
 import { CartDrawer } from '@/app/sites/_storefront/CartDrawer';
 import type { StorefrontProduct } from '@/app/sites/_storefront/StorefrontProducts';
@@ -87,18 +87,15 @@ function PublicSiteContent() {
     let cancelled = false;
     (async () => {
       try {
-        const base = getApiUrl();
-        const res = await fetch(`${base}/api/public/sites/${encodeURIComponent(normalized)}`, {
-          credentials: 'omit',
+        const data = await apiFetch<{
+          success?: boolean;
+          message?: string;
+          projectTitle?: string;
+          data?: { content?: unknown };
+        }>(`/api/public/sites/${encodeURIComponent(normalized)}?t=${Date.now()}`, {
+          method: 'GET',
         });
-        const data = await res.json().catch(() => ({}));
         if (cancelled) return;
-        if (!res.ok) {
-          const msg = (data as { message?: string }).message || 'Site not found';
-          setError(msg === 'Route not found' ? 'Backend not ready. Restart the backend server and try again.' : msg);
-          setLoading(false);
-          return;
-        }
         const content = data?.data?.content;
         if (data?.projectTitle) setSiteTitle(data.projectTitle as string);
         if (!content) {
@@ -115,7 +112,12 @@ function PublicSiteContent() {
         setDoc(clean);
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : 'Failed to load site');
+          const message = e instanceof Error ? e.message : 'Failed to load site';
+          if (message.includes('Backend is unreachable') || message.includes('Failed to fetch')) {
+            setError('Backend not reachable. Start the backend server and try again.');
+          } else {
+            setError(message);
+          }
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -131,11 +133,10 @@ function PublicSiteContent() {
     let cancelled = false;
     (async () => {
       try {
-        const base = getApiUrl();
-        const res = await fetch(`${base}/api/public/sites/${encodeURIComponent(normalized)}/products`, {
-          credentials: 'omit',
-        });
-        const data = await res.json().catch(() => ({}));
+        const data = await apiFetch<{ success?: boolean; data?: StorefrontProduct[] }>(
+          `/api/public/sites/${encodeURIComponent(normalized)}/products?t=${Date.now()}`,
+          { method: 'GET' }
+        );
         if (cancelled) return;
         if (data?.success && Array.isArray(data?.data)) {
           setProducts(data.data);
@@ -165,7 +166,7 @@ function PublicSiteContent() {
 
   return (
     <>
-      <WebPreview
+      <LiveSite
         doc={doc}
         pageIndex={0}
         mobileBreakpoint={900}
