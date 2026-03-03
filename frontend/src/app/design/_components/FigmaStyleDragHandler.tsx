@@ -189,7 +189,7 @@ export const FigmaStyleDragHandler = () => {
   const draggedDomsRef = useRef<HTMLElement[]>([]);
   const dropTargetHighlightRef = useRef<HTMLElement | null>(null);
   const insertIndicatorRef = useRef<HTMLElement | null>(null);
-  const activeTool = useCanvasTool();
+  const { activeTool } = useCanvasTool();
 
 
   const dragRef = useRef<{

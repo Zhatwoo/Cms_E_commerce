@@ -23,6 +23,7 @@ import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
 import { MarqueeSelectionHandler } from "./MarqueeSelectionHandler";
 import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import { TextToolHandler } from "./TextToolHandler";
+import { ShapeToolHandler } from "./ShapeToolHandler";
 import { TransformModeProvider } from "./TransformModeContext";
 import { InlineTextEditProvider } from "./InlineTextEditContext";
 import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
@@ -1118,7 +1119,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     }, 100);
   }, [handleFitToCanvas]);
 
-  const isSpacePanActive = activeTool === "move" && isSpacePressed;
+  const isSpacePanActive = isSpacePressed;
   const canPanWithPointerDrag = activeTool === "hand" || isSpacePanActive;
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -1162,9 +1163,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       if (isEditableTarget(event.target)) return;
 
       event.preventDefault();
-      if (activeTool === "move") {
-        setIsSpacePressed(true);
-      }
+      setIsSpacePressed(true);
     };
 
     const handleKeyUp = (event: KeyboardEvent) => {
@@ -1821,7 +1820,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       >
         <QueryStasher onQuery={(q) => { lastQueryRef.current = q; }} />
         <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
-          <CanvasToolProvider value={activeTool}>
+          <CanvasToolProvider value={activeTool} onToolChange={setActiveTool}>
             <TransformModeProvider>
               <InlineTextEditProvider>
                 <KeyboardShortcuts />
@@ -1831,6 +1830,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 <NewPageDropPlacementHandler />
                 <BoxSelectionHandler />
                 <TextToolHandler />
+                <ShapeToolHandler />
                 <DoubleClickTransformHandler />
                 <PrototypeFlowLines />
                 {/* Top Panel */}

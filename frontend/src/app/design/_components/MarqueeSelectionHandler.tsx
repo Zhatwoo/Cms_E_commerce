@@ -33,7 +33,7 @@ function rectsIntersect(a: Rect, b: Rect): boolean {
 
 export const MarqueeSelectionHandler = () => {
   const { actions, query } = useEditor();
-  const activeTool = useCanvasTool();
+  const { activeTool } = useCanvasTool();
 
   const [marqueeRect, setMarqueeRect] = useState<MarqueeRect | null>(null);
 

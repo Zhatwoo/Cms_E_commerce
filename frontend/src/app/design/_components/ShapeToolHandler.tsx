@@ -4,11 +4,12 @@ import React, { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import { useEditor } from "@craftjs/core";
 import { useCanvasTool } from "./CanvasToolContext";
-import { useInlineTextEdit } from "./InlineTextEditContext";
-import { Text } from "../_designComponents/Text/Text";
+import { Circle } from "../../_assets/shapes/circle/circle";
+import { Square } from "../../_assets/shapes/square/square";
+import { Triangle } from "../../_assets/shapes/triangle/triangle";
 
 const DRAG_THRESHOLD = 5;
-const TEXT_ADDING_FLAG = "textAdding";
+const SHAPE_ADDING_FLAG = "shapeAdding";
 
 type DragState = {
     active: boolean;
@@ -27,10 +28,9 @@ type PreviewRect = {
     height: number;
 };
 
-export const TextToolHandler = () => {
+export const ShapeToolHandler = () => {
     const { actions, query } = useEditor();
-    const { activeTool } = useCanvasTool();
-    const { setEditingTextNodeId } = useInlineTextEdit();
+    const { activeTool, activeShape } = useCanvasTool();
 
     const [previewRect, setPreviewRect] = useState<PreviewRect | null>(null);
     const dragRef = useRef<DragState | null>(null);
@@ -38,6 +38,7 @@ export const TextToolHandler = () => {
     const actionsRef = useRef(actions);
     const queryRef = useRef(query);
     const activeToolRef = useRef(activeTool);
+    const activeShapeRef = useRef(activeShape);
 
     useEffect(() => {
         actionsRef.current = actions;
@@ -46,17 +47,18 @@ export const TextToolHandler = () => {
 
     useEffect(() => {
         activeToolRef.current = activeTool;
-    }, [activeTool]);
+        activeShapeRef.current = activeShape;
+    }, [activeTool, activeShape]);
 
     useEffect(() => {
         const clearState = () => {
             dragRef.current = null;
             setPreviewRect(null);
-            delete document.body.dataset[TEXT_ADDING_FLAG];
+            delete document.body.dataset[SHAPE_ADDING_FLAG];
         };
 
         const handleMouseDown = (e: MouseEvent) => {
-            if (activeToolRef.current !== "text") return;
+            if (activeToolRef.current !== "shape") return;
             if (e.button !== 0) return;
 
             const target = e.target as HTMLElement | null;
@@ -66,7 +68,6 @@ export const TextToolHandler = () => {
             if (!target.closest("[data-canvas-container]")) return;
             if (document.body.dataset.spacePan === "true") return;
 
-            // Block Craft.js internal handlers and all other handlers from processing this click
             e.stopPropagation();
             e.preventDefault();
 
@@ -101,7 +102,7 @@ export const TextToolHandler = () => {
             if (distance < DRAG_THRESHOLD) return;
 
             dragState.hasDragged = true;
-            document.body.dataset[TEXT_ADDING_FLAG] = "true";
+            document.body.dataset[SHAPE_ADDING_FLAG] = "true";
 
             setPreviewRect({
                 left: Math.min(dragState.startX, dragState.currentX),
@@ -120,7 +121,7 @@ export const TextToolHandler = () => {
 
             const left = Math.min(dragState.startX, dragState.currentX);
             const top = Math.min(dragState.startY, dragState.currentY);
-            const width = Math.max(Math.abs(dragState.currentX - dragState.startX), 150);
+            const width = Math.abs(dragState.currentX - dragState.startX);
             const height = Math.abs(dragState.currentY - dragState.startY);
 
             if (dragState.targetNodeId) {
@@ -135,36 +136,41 @@ export const TextToolHandler = () => {
                         finalTop = (top - rect.top);
                     }
 
-                    const tree = queryRef.current.parseReactElement(
-                        <Text
-                            text="Type something..."
-                            fontSize={18}
-                            position="absolute"
-                            left={`${finalLeft}px`}
-                            top={`${finalTop}px`}
-                            width={`${width}px`}
-                            height={height > 20 ? `${height}px` : undefined}
-                        />
-                    ).toNodeTree();
+                    let shapeElement;
+                    const commonProps = {
+                        position: "absolute" as const,
+                        left: `${finalLeft}px`,
+                        top: `${finalTop}px`,
+                        width: `${width}px`,
+                        height: `${height}px`,
+                    };
+
+                    if (activeShapeRef.current === "Circle") {
+                        shapeElement = <Circle {...commonProps} />;
+                    } else if (activeShapeRef.current === "Triangle") {
+                        shapeElement = <Triangle {...commonProps} />;
+                    } else {
+                        shapeElement = <Square {...commonProps} />;
+                    }
+
+                    const tree = queryRef.current.parseReactElement(shapeElement).toNodeTree();
 
                     (actionsRef.current as any).addNodeTree(tree, dragState.targetNodeId);
 
                     setTimeout(() => {
                         actionsRef.current.selectNode(tree.rootNodeId);
-                        setEditingTextNodeId(tree.rootNodeId);
                     }, 50);
 
                 } catch (error) {
-                    console.error("Failed to add text node:", error);
+                    console.error("Failed to add shape node:", error);
                 }
             }
 
             clearState();
         };
 
-        // Block Craft.js drag connector from processing canvas clicks when text tool is active
         const handleClick = (e: MouseEvent) => {
-            if (activeToolRef.current !== "text") return;
+            if (activeToolRef.current !== "shape") return;
             const target = e.target as HTMLElement | null;
             if (!target) return;
             if (target.closest("[data-panel]")) return;
@@ -186,14 +192,14 @@ export const TextToolHandler = () => {
             document.removeEventListener("click", handleClick, true);
             clearState();
         };
-    }, [setEditingTextNodeId]);
+    }, []);
 
     if (!previewRect) return null;
 
     return typeof document !== "undefined"
         ? ReactDOM.createPortal(
             <div
-                data-panel="text-tool-preview"
+                data-panel="shape-tool-preview"
                 style={{
                     position: "fixed",
                     left: previewRect.left,
@@ -204,7 +210,7 @@ export const TextToolHandler = () => {
                     backgroundColor: "rgba(59, 130, 246, 0.1)",
                     pointerEvents: "none",
                     zIndex: 10000,
-                    borderRadius: 2,
+                    borderRadius: activeShape === "Circle" ? "50%" : 2,
                 }}
             />,
             document.body

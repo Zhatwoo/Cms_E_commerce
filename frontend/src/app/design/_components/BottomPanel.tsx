@@ -2,9 +2,11 @@
 
 import React from "react";
 import { useEditor } from "@craftjs/core";
-import { MousePointer2, Hand, Maximize2, Undo2, Redo2, Type } from "lucide-react";
+import { MousePointer2, Hand, Maximize2, Undo2, Redo2, Type, Square as SquareIcon, Circle as CircleIcon, Triangle as TriangleIcon, Shapes } from "lucide-react";
+import { useCanvasTool } from "./CanvasToolContext";
 
-export type CanvasTool = "move" | "hand" | "text";
+export type CanvasTool = "move" | "hand" | "text" | "shape";
+export type ShapeType = "Square" | "Circle" | "Triangle";
 
 interface BottomPanelProps {
   activeTool: CanvasTool;
@@ -68,6 +70,15 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
         ? "Saved"
         : saveError || "Save failed";
 
+  const { activeShape, setActiveShape } = useCanvasTool();
+  const [showShapesMenu, setShowShapesMenu] = React.useState(false);
+
+  const SHAPES: Array<{ type: ShapeType; icon: React.ReactNode; label: string }> = [
+    { type: "Square", icon: <SquareIcon className="w-4 h-4" />, label: "Square" },
+    { type: "Circle", icon: <CircleIcon className="w-4 h-4" />, label: "Circle" },
+    { type: "Triangle", icon: <TriangleIcon className="w-4 h-4" />, label: "Triangle" },
+  ];
+
   return (
     <div data-panel="bottom-tools" className="absolute bottom-16 left-1/2 -translate-x-1/2 z-[9999] pointer-events-none flex flex-col items-center gap-2">
       <div
@@ -106,6 +117,48 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
         >
           <Type className="w-4 h-4" strokeWidth={1.8} />
         </button>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => {
+              if (activeTool === "shape") {
+                setShowShapesMenu(!showShapesMenu);
+              } else {
+                onToolChange("shape");
+                setShowShapesMenu(true);
+              }
+            }}
+            className={`h-9 w-9 grid place-items-center rounded-lg transition-colors ${activeTool === "shape"
+              ? "bg-blue-500/25 text-blue-300"
+              : "text-white/70 hover:text-white hover:bg-white/[0.08]"
+              }`}
+            title="Shapes – Click to choose, then drag to add"
+          >
+            <Shapes className="w-4 h-4" strokeWidth={1.8} />
+          </button>
+          {showShapesMenu && (
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-brand-dark/95 border border-white/10 rounded-xl shadow-xl p-1 flex flex-col min-w-[120px] backdrop-blur-md">
+              {SHAPES.map((s) => (
+                <button
+                  key={s.type}
+                  type="button"
+                  onClick={() => {
+                    setActiveShape(s.type);
+                    onToolChange("shape");
+                    setShowShapesMenu(false);
+                  }}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors ${activeShape === s.type && activeTool === "shape"
+                    ? "bg-blue-500/20 text-blue-300"
+                    : "text-white/70 hover:text-white hover:bg-white/10"
+                    }`}
+                >
+                  {s.icon}
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <div className="w-px h-5 bg-white/15 rounded-full mx-0.5" aria-hidden />
         <button
           type="button"
@@ -156,7 +209,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
       <div className="pointer-events-none flex items-center gap-2">
         {showHints && (
           <span className="pointer-events-auto rounded-full border border-white/10 bg-brand-dark/70 px-3 py-1 text-[10px] text-brand-light/85 backdrop-blur-sm">
-            G Move • H Hand • T Text • Hold Space to pan
+            G Move • H Hand • T Text • S Shapes • Hold Space
           </span>
         )}
         {saveStatus !== "idle" && (
