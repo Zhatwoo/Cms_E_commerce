@@ -80,7 +80,6 @@ export const THEMES = {
 };
 
 type Theme = 'dark' | 'light';
-const THEME_STORAGE_KEY = 'm_dashboard_theme';
 
 type ThemeContextType = {
   theme: Theme;
