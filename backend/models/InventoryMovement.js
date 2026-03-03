@@ -1,19 +1,53 @@
 const { db } = require('../config/firebase');
 const { docToObject } = require('../utils/firestoreHelper');
 
-const COLLECTION = 'inventory_movements';
+const ROOT_COLLECTION = 'published_subdomains';
+const MOVEMENT_COLLECTION = 'inventory_movements';
 
 function toNumber(value, fallback = 0) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
 }
 
+function normalizeSubdomain(subdomain) {
+  return (subdomain || '')
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '');
+}
+
+function getSubdomainMovementsRef(subdomain) {
+  const normalized = normalizeSubdomain(subdomain);
+  if (!normalized) throw new Error('subdomain is required');
+  return db.collection(ROOT_COLLECTION).doc(normalized).collection(MOVEMENT_COLLECTION);
+}
+
+async function getOwnedSubdomains(userId, subdomain) {
+  if (!userId) return [];
+  const normalized = normalizeSubdomain(subdomain);
+  if (normalized) {
+    const snap = await db.collection(ROOT_COLLECTION).doc(normalized).get();
+    if (!snap.exists) return [];
+    const ownerId = snap.get('user_id');
+    return ownerId === userId ? [normalized] : [];
+  }
+
+  const snap = await db.collection(ROOT_COLLECTION).where('user_id', '==', userId).get();
+  return snap.docs.map((d) => d.id);
+}
+
 async function create(data) {
+  const normalizedSubdomain = normalizeSubdomain(data.subdomain);
+  if (!normalizedSubdomain) {
+    throw new Error('subdomain is required for inventory movements');
+  }
+
   const quantity = toNumber(data.quantity, 0);
   const doc = {
     user_id: data.userId || null,
     project_id: data.projectId || null,
-    subdomain: data.subdomain || null,
+    subdomain: normalizedSubdomain,
     product_id: data.productId || null,
     product_name: data.productName || null,
     product_sku: data.productSku || null,
@@ -31,7 +65,7 @@ async function create(data) {
     updated_at: new Date(),
   };
 
-  const ref = await db.collection(COLLECTION).add(doc);
+  const ref = await getSubdomainMovementsRef(normalizedSubdomain).add(doc);
   const snap = await ref.get();
   return docToObject(snap);
 }
@@ -39,15 +73,29 @@ async function create(data) {
 async function listForUser(userId, filters = {}) {
   if (!userId) return [];
   const limit = Math.max(1, parseInt(filters.limit, 10) || 50);
+  const scopedSubdomain = normalizeSubdomain(filters.subdomain);
 
-  let ref = db.collection(COLLECTION).where('user_id', '==', userId);
-  if (filters.projectId) ref = ref.where('project_id', '==', filters.projectId);
-  if (filters.subdomain) ref = ref.where('subdomain', '==', filters.subdomain);
-  if (filters.productId) ref = ref.where('product_id', '==', filters.productId);
-  if (filters.type) ref = ref.where('type', '==', filters.type);
+  const subdomains = await getOwnedSubdomains(userId, scopedSubdomain);
+  if (!subdomains.length) return [];
 
-  const snap = await ref.get();
-  const items = snap.docs.map((d) => docToObject(d));
+  const snaps = await Promise.all(
+    subdomains.map((subdomain) => getSubdomainMovementsRef(subdomain).where('user_id', '==', userId).get())
+  );
+  let items = snaps.flatMap((snap) => snap.docs.map((d) => docToObject(d)));
+
+  if (filters.projectId) {
+    const projectId = String(filters.projectId).trim();
+    items = items.filter((item) => String(item.projectId || '').trim() === projectId);
+  }
+  if (filters.productId) {
+    const productId = String(filters.productId).trim();
+    items = items.filter((item) => String(item.productId || '').trim() === productId);
+  }
+  if (filters.type) {
+    const movementType = String(filters.type).trim().toUpperCase();
+    items = items.filter((item) => String(item.type || '').trim().toUpperCase() === movementType);
+  }
+
   return items
     .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
     .slice(0, limit);
