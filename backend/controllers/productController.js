@@ -97,6 +97,9 @@ exports.create = async (req, res) => {
       images,
       status,
       stock,
+      onHandStock,
+      reservedStock,
+      lowStockThreshold,
       subdomain,
     } = req.body;
     if (!name) {
@@ -133,6 +136,9 @@ exports.create = async (req, res) => {
         images: Array.isArray(images) ? images : [],
         status: status || 'draft',
         stock: stock ?? null,
+        onHandStock: onHandStock ?? undefined,
+        reservedStock: reservedStock ?? undefined,
+        lowStockThreshold: lowStockThreshold ?? undefined,
       },
     });
 
@@ -164,6 +170,9 @@ exports.update = async (req, res) => {
       images,
       status,
       stock,
+      onHandStock,
+      reservedStock,
+      lowStockThreshold,
     } = req.body;
     const existing = await Product.findByIdForUser(req.params.id, req.user.id);
     if (!existing) {
@@ -190,6 +199,9 @@ exports.update = async (req, res) => {
     if (images !== undefined) updates.images = Array.isArray(images) ? images : [];
     if (status !== undefined) updates.status = status;
     if (stock !== undefined) updates.stock = stock;
+    if (onHandStock !== undefined) updates.onHandStock = onHandStock;
+    if (reservedStock !== undefined) updates.reservedStock = reservedStock;
+    if (lowStockThreshold !== undefined) updates.lowStockThreshold = lowStockThreshold;
 
     const data = await Product.updateForUser(req.params.id, req.user.id, updates);
     if (!data) {

@@ -5,6 +5,8 @@ Etong theme-context.tsx naman na to eh yung sa theme ng application.
 'use client';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
+const THEME_STORAGE_KEY = 'm_dashboard_theme';
+
 /* Reference: Color Palette 1 & 2 – deep indigo/purple, yellow accent, Outfit font */
 export const THEMES = {
   dark: {
@@ -86,13 +88,15 @@ type ThemeContextType = {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-const THEME_STORAGE_KEY = 'dashboard-theme';
-
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>('dark');
 
+<<<<<<< HEAD
   useEffect(() => {
     const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+=======
+    const storedTheme = window.sessionStorage.getItem(THEME_STORAGE_KEY);
+>>>>>>> ba5a1b3b49c310d6a10fb92e356be506852e803a
     if (storedTheme === 'dark' || storedTheme === 'light') {
       setTheme(storedTheme);
       return;
@@ -107,9 +111,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     (document.documentElement.style as any).colorScheme = theme;
 
     try {
-      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+      window.sessionStorage.setItem(THEME_STORAGE_KEY, theme);
     } catch {
-      // ignore localStorage errors
+      // ignore sessionStorage errors
     }
   }, [theme]);
 

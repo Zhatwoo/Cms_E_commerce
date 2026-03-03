@@ -79,24 +79,31 @@ async function moveToTrash(userId, projectId) {
 
   const data = snap.data();
 
-  // BLOCK DELETION IF PUBLISHED
-  if (data.status === 'published') {
-    throw new Error('This project is published and cannot be deleted. Please unpublish it first from Domain settings.');
+  // If published, auto-unpublish first (takedown) so site goes offline, then proceed with trash
+  const normalizedStatus = String(data.status || '').trim().toLowerCase();
+  if (normalizedStatus === 'published' || normalizedStatus === 'live') {
+    await Domain.unpublishForClient(userId, projectId);
+    await update(userId, projectId, { status: 'draft' });
+    data.status = 'draft';
+    const rtdb = getRealtimeDb();
+    if (rtdb) {
+      try {
+        await rtdb.ref(`user/roles/client/${userId}/projects/${projectId}`).update({ status: 'draft' });
+      } catch (e) {
+        console.warn('moveToTrash: RTDB unpublish sync failed:', e.message);
+      }
+    }
   }
 
-  const path = `user/roles/client/${userId}/trash/${projectId}`;
-  console.log(`🗑️ Moving project to trash at: ${path}`);
   // Mark with deletion timestamp and store in trash
   await trashRef.set({
     ...data,
     deleted_at: new Date(),
     original_id: projectId
   });
-  console.log('✅ Document successfully written to trash.');
 
   // Remove from active projects
   await projectRef.delete();
-  console.log('✅ Document removed from active projects.');
 
   // Cleanup Realtime DB
   const rtdb = getRealtimeDb();
@@ -108,8 +115,8 @@ async function moveToTrash(userId, projectId) {
     }
   }
 
-  // Deactivate domain records
-  await Domain.deleteByProjectId(userId, projectId);
+  // Move domain to trash (preserves for restore) instead of hard-delete
+  await Domain.moveToTrashByProjectId(userId, projectId);
 
   return { id: projectId, ...data };
 }
@@ -164,6 +171,22 @@ async function restore(userId, projectId) {
   await projectRef.set(data);
   // Remove from trash
   await trashRef.delete();
+
+  // Restore domain from domain_trash if any (domain stays draft)
+  await Domain.restoreFromTrashByProjectId(userId, projectId);
+
+  // Sync RTDB so frontend subscribeUserProjectSubdomains stays in sync
+  const rtdb = getRealtimeDb();
+  if (rtdb) {
+    try {
+      await rtdb.ref(`user/roles/client/${userId}/projects/${projectId}`).set({
+        subdomain: data.subdomain ?? null,
+        status: data.status ?? 'draft',
+      });
+    } catch (e) {
+      console.warn('restore: RTDB sync failed:', e.message);
+    }
+  }
 
   return { id: projectId, ...data };
 }
@@ -231,8 +254,8 @@ async function getBySubdomain(userId, subdomain) {
 }
 
 async function countWithSubdomain(userId) {
-  const snap = await getProjectsRef(userId).where('subdomain', '!=', null).get();
-  return snap.size;
+  const projects = await list(userId);
+  return projects.filter((p) => p.subdomain != null && String(p.subdomain).trim() !== '').length;
 }
 
 async function countAll() {

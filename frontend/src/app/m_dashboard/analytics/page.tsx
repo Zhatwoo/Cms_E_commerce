@@ -81,7 +81,7 @@ import { FunnelChart } from '../components/analytics/FunnelChart';
 import { MetricCard } from '../components/analytics/MetricCard';
 import { RadialProgressChart } from '../components/analytics/RadialProgressChart';
 
-type ModalType = 'revenue' | 'orders' | 'customers' | 'traffic' | 'newCustomers' | 'returningCustomers' | 'uniqueVisitors' | 'bounceRate' | null;
+type ModalType = 'revenue' | 'orders' | 'customers' | 'traffic' | 'newCustomers' | 'returningCustomers' | 'uniqueVisitors' | 'bounceRate';
 
 interface MetricDetails {
     title: string;
@@ -95,7 +95,7 @@ interface MetricDetails {
 export default function AnalyticsPage() {
     const { colors, theme } = useTheme();
     const [selectedPeriod, setSelectedPeriod] = useState('6M');
-    const [openModal, setOpenModal] = useState<ModalType>(null);
+    const [openModal, setOpenModal] = useState<ModalType | null>(null);
     const data = emptyAnalyticsData;
 
     const periods = ['1D', '1W', '1M', '3M', '6M', '1Y'];
@@ -242,7 +242,6 @@ export default function AnalyticsPage() {
                 { label: 'Top Bounce Page', value: '/home' }
             ],
         },
-        null: null,
     };
 
     return (
@@ -328,42 +327,42 @@ export default function AnalyticsPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <motion.div onClick={() => setOpenModal('revenue')} className="cursor-pointer" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
                         <MetricCard
-                        title="Total Revenue"
-                        value={`$${data.revenue.total.toLocaleString()}`}
-                        growth={data.revenue.growth}
-                        icon={revenueIcon}
-                        color="#10b981"
-                        colors={colors}
-                    />
+                            title="Total Revenue"
+                            value={`$${data.revenue.total.toLocaleString()}`}
+                            growth={data.revenue.growth}
+                            icon={revenueIcon}
+                            color="#10b981"
+                            colors={colors}
+                        />
                     </motion.div>
                     <motion.div onClick={() => setOpenModal('orders')} className="cursor-pointer" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
                         <MetricCard
-                        title="Total Orders"
-                        value={data.orders.total.toLocaleString()}
-                        growth={data.orders.growth}
-                        icon={ordersIcon}
-                        color="#3b82f6"
-                        colors={colors}
-                    />
+                            title="Total Orders"
+                            value={data.orders.total.toLocaleString()}
+                            growth={data.orders.growth}
+                            icon={ordersIcon}
+                            color="#3b82f6"
+                            colors={colors}
+                        />
                     </motion.div>
                     <motion.div onClick={() => setOpenModal('customers')} className="cursor-pointer" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
                         <MetricCard
-                        title="Total Customers"
-                        value={data.customers.total.toLocaleString()}
-                        growth={data.customers.growth}
-                        icon={customersIcon}
-                        color="#8b5cf6"
-                        colors={colors}
-                    />
+                            title="Total Customers"
+                            value={data.customers.total.toLocaleString()}
+                            growth={data.customers.growth}
+                            icon={customersIcon}
+                            color="#8b5cf6"
+                            colors={colors}
+                        />
                     </motion.div>
                     <motion.div onClick={() => setOpenModal('traffic')} className="cursor-pointer" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
                         <MetricCard
-                        title="Total Traffic"
-                        value={data.traffic.total.toLocaleString()}
-                        icon={trafficIcon}
-                        color="#f59e0b"
-                        colors={colors}
-                    />
+                            title="Total Traffic"
+                            value={data.traffic.total.toLocaleString()}
+                            icon={trafficIcon}
+                            color="#f59e0b"
+                            colors={colors}
+                        />
                     </motion.div>
                 </div>
             </section>
@@ -591,7 +590,7 @@ export default function AnalyticsPage() {
                             exit={{ opacity: 0 }}
                             className="fixed inset-0 bg-black/50 z-50"
                         />
-                        
+
                         {/* Modal */}
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -610,20 +609,20 @@ export default function AnalyticsPage() {
                                     <div
                                         className="w-12 h-12 rounded-xl flex items-center justify-center"
                                         style={{
-                                            backgroundColor: 
+                                            backgroundColor:
                                                 openModal === 'revenue' ? '#10b98120' :
-                                                openModal === 'orders' ? '#3b82f620' :
-                                                (openModal === 'customers' || openModal === 'newCustomers' || openModal === 'returningCustomers') ? '#8b5cf620' :
-                                                '#f59e0b20'
+                                                    openModal === 'orders' ? '#3b82f620' :
+                                                        (openModal === 'customers' || openModal === 'newCustomers' || openModal === 'returningCustomers') ? '#8b5cf620' :
+                                                            '#f59e0b20'
                                         }}
                                     >
                                         <div
                                             style={{
-                                                color: 
+                                                color:
                                                     openModal === 'revenue' ? '#10b981' :
-                                                    openModal === 'orders' ? '#3b82f6' :
-                                                    (openModal === 'customers' || openModal === 'newCustomers' || openModal === 'returningCustomers') ? '#8b5cf6' :
-                                                    '#f59e0b'
+                                                        openModal === 'orders' ? '#3b82f6' :
+                                                            (openModal === 'customers' || openModal === 'newCustomers' || openModal === 'returningCustomers') ? '#8b5cf6' :
+                                                                '#f59e0b'
                                             }}
                                         >
                                             {modalDetails[openModal]?.icon}

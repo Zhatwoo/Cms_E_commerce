@@ -62,8 +62,8 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
   // Reset on open
   useEffect(() => {
     if (isOpen) {
-      const existingVariants = Array.isArray(editingProduct?.variants)
-        ? editingProduct.variants.map((variant, variantIndex) => ({
+      const existingVariants: Variant[] = Array.isArray(editingProduct?.variants)
+        ? editingProduct.variants.map((variant, variantIndex): Variant => ({
           id: String(variant?.id || uid() || `var-${variantIndex + 1}`),
           name: String(variant?.name || ''),
           pricingMode: variant?.pricingMode === 'override' ? 'override' : 'modifier',
@@ -101,7 +101,10 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
         status: editingProduct?.status || 'active', price: basePrice,
         costPrice: typeof editingProduct?.costPrice === 'number' ? editingProduct.costPrice : 0,
         discount, discountType, images: imageList,
-        stock: editingProduct?.stock ?? 100, lowStockThreshold: 20, hasVariants, variants: existingVariants,
+        stock: editingProduct?.stock ?? 100,
+        lowStockThreshold: typeof editingProduct?.lowStockThreshold === 'number' ? editingProduct.lowStockThreshold : 20,
+        hasVariants,
+        variants: existingVariants,
       });
     }
   }, [isOpen, editingProduct]);
@@ -199,8 +202,8 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
     if (fd.price <= 0) { showAlert('Please enter a valid price', 'error'); return; }
     setSaving(true);
     try {
-      const variants = fd.variants
-        .map((variant) => ({
+      const variants: Variant[] = fd.variants
+        .map((variant): Variant => ({
           id: String(variant.id || uid()),
           name: String(variant.name || '').trim(),
           pricingMode: variant.pricingMode === 'override' ? 'override' : 'modifier',
@@ -575,8 +578,32 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                   <div>
                     <label className={lCls} style={{ color: colors.text.muted }}>Category</label>
                     <select value={fd.category} onChange={e => set('category', e.target.value)} className={iCls} style={iSt}>
-                      <option value="">Select…</option>
-                      {['Electronics', 'Clothing', 'Books', 'Home', 'Sports'].map(c => (
+                      <option value="" disabled hidden>Select Category</option>
+                      {[
+                        'Mobile & Gadgets',
+                        'Computers & Accessories',
+                        'Home & Living',
+                        'Health & Personal Care',
+                        'Beauty & Fragrances',
+                        'Babies & Kids',
+                        'Toys, Games & Collectibles',
+                        'Women’s Apparel',
+                        'Men’s Apparel',
+                        'Muslim Fashion',
+                        'Women’s Bags',
+                        'Men’s Bags',
+                        'Women’s Shoes',
+                        'Men’s Shoes',
+                        'Watches',
+                        'Fashion Accessories',
+                        'Sports & Outdoor',
+                        'Automotive',
+                        'Books & Stationery',
+                        'Pet Care',
+                        'Cameras & Drones',
+                        'Gaming & Consoles',
+                        'Digital Products',
+                      ].map(c => (
                         <option key={c} value={c}>{c}</option>
                       ))}
                     </select>

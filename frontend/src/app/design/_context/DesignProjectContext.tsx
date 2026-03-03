@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { getMe, getProject, getStoredUser } from "@/lib/api";
+import { getProject, getStoredUser } from "@/lib/api";
 import { ensureFirebaseAuthForStorage } from "@/lib/firebase";
 
 type DesignProjectContextType = {
@@ -45,34 +45,11 @@ export function DesignProjectProvider({
     const name = (user?.name || user?.username || "client")?.trim() || "client";
     setClientName(name);
 
-    const syncSelectedInstance = async (instanceId?: string | null) => {
-      if (!instanceId || typeof window === "undefined") return;
-
-      let userId = getStoredUser()?.id || null;
-      if (!userId) {
-        try {
-          const me = await getMe();
-          userId = me?.user?.id || null;
-        } catch {
-          userId = null;
-        }
-      }
-
-      if (!userId) return;
-
-      try {
-        window.localStorage.setItem(`md_selected_instance_${userId}`, instanceId);
-      } catch {
-        // ignore localStorage write errors
-      }
-    };
-
     getProject(projectId)
-      .then(async (res) => {
+      .then((res) => {
         if (cancelled) return;
         const title = (res.project?.title || "website")?.trim() || "website";
         setWebsiteName(title);
-        await syncSelectedInstance(res.project?.instanceId);
       })
       .catch(() => {
         if (!cancelled) setWebsiteName("website");

@@ -147,7 +147,6 @@ exports.delete = async (req, res) => {
 // @route   POST /api/pages/autosave
 // @access  Private
 exports.autoSave = async (req, res) => {
-  console.log('👉 Controller: autoSave called for user:', req.user ? req.user.id : 'unknown');
   try {
     const { content, projectId } = req.body;
     const userId = req.user.id;
@@ -169,8 +168,6 @@ exports.autoSave = async (req, res) => {
     // Save to specific path: /user/roles/client/{userId}/projects/{projectId}/pages/{userId}
     // Using userId as pageId as per requirement
     const updated = await Page.savePageData(userId, projectId, userId, content);
-
-    console.log(`✅ Auto-saved to project ${projectId} for user ${userId}`);
 
     res.status(200).json({
       success: true,
@@ -248,7 +245,6 @@ exports.deleteDraft = async (req, res) => {
     }
 
     await Page.deletePageData(userId, projectId, userId);
-    console.log(`🗑️ Deleted draft for project ${projectId} user ${userId}`);
 
     res.status(200).json({
       success: true,

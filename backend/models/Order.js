@@ -11,6 +11,7 @@ async function create(data) {
     total: typeof data.total === 'number' ? data.total : parseFloat(data.total) || 0,
     status: data.status || 'Pending',
     shipping_address: data.shippingAddress || null,
+    inventory_state: data.inventoryState || { reserved_applied: false, deducted_applied: false },
     created_at: new Date(),
     updated_at: new Date(),
   };
@@ -63,6 +64,12 @@ async function update(id, data) {
   if (data.items !== undefined) updates.items = data.items;
   if (data.total !== undefined) updates.total = data.total;
   if (data.shippingAddress !== undefined) updates.shipping_address = data.shippingAddress;
+  if (data.inventoryState !== undefined) {
+    updates.inventory_state = {
+      reserved_applied: !!data.inventoryState?.reservedApplied,
+      deducted_applied: !!data.inventoryState?.deductedApplied,
+    };
+  }
   if (Object.keys(updates).length === 0) return findById(id);
   updates.updated_at = new Date();
   await db.collection(COLLECTION).doc(id).update(updates);

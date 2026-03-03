@@ -5,6 +5,7 @@ import type { BuilderDocument, CleanNode, ComponentType } from "../_types/schema
 import type { AnimationConfig } from "../_types/animation";
 import type { Interaction, PrototypeConfig, TransitionType } from "../_types/prototype";
 import { AnimationWrapper, hasActiveAnimation } from "./animationEngine";
+import { getComponentDefaults } from "./serializer";
 import { Icon as DesignIcon } from "../_designComponents/Icon/Icon";
 
 /** When provided, the storefront can show real products and handle Add to Cart in place of static product cards. */
@@ -972,7 +973,10 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
 };
 
 function mergeProps(type: string, props: Record<string, unknown>): Record<string, unknown> {
-  return { ...(DEFAULTS[type] ?? {}), ...props };
+  const sharedDefaults = getComponentDefaults(type);
+  const fallbackDefaults = DEFAULTS[type] ?? {};
+  const baseDefaults = Object.keys(sharedDefaults).length > 0 ? sharedDefaults : fallbackDefaults;
+  return { ...baseDefaults, ...props };
 }
 
 function px(v: unknown): string {

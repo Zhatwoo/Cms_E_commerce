@@ -8,14 +8,14 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { listInstances, setActiveProjectId, type Instance } from '@/lib/api';
+import { listProjects, setActiveProjectId, type Project } from '@/lib/api';
 import { useAuth } from './auth-context';
 
 type ProjectContextType = {
-  projects: Instance[];
+  projects: Project[];
   loading: boolean;
   selectedProjectId: string | null;
-  selectedProject: Instance | null;
+  selectedProject: Project | null;
   setSelectedProjectId: (id: string | null) => void;
   refreshProjects: () => Promise<void>;
 };
@@ -37,7 +37,7 @@ type ProviderProps = {
 
 export function ProjectProvider({ children }: ProviderProps) {
   const { user } = useAuth();
-  const [projects, setProjects] = useState<Instance[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProjectId, setSelectedProjectIdState] = useState<string | null>(null);
   const storageKey = user?.id ? `md_selected_instance_${user.id}` : null;
@@ -48,7 +48,7 @@ export function ProjectProvider({ children }: ProviderProps) {
       return;
     }
     try {
-      const saved = window.localStorage.getItem(storageKey);
+      const saved = window.sessionStorage.getItem(storageKey);
       setSelectedProjectIdState(saved || null);
     } catch {
       setSelectedProjectIdState(null);
@@ -58,25 +58,25 @@ export function ProjectProvider({ children }: ProviderProps) {
   const fetchProjects = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await listInstances();
-      if (res?.success && Array.isArray(res.instances)) {
-        setProjects(res.instances);
+      const res = await listProjects();
+      if (res?.success && Array.isArray(res.projects)) {
+        setProjects(res.projects);
 
         // Ensure we always have a valid selected project when projects exist
-        if (res.instances.length === 0) {
+        if (res.projects.length === 0) {
           setSelectedProjectIdState(null);
         } else if (
           !selectedProjectId ||
-          !res.instances.find((p) => p.id === selectedProjectId)
+          !res.projects.find((p) => p.id === selectedProjectId)
         ) {
-          setSelectedProjectIdState(res.instances[0].id);
+          setSelectedProjectIdState(res.projects[0].id);
         }
       } else {
         setProjects([]);
         setSelectedProjectIdState(null);
         if (storageKey) {
           try {
-            window.localStorage.removeItem(storageKey);
+            window.sessionStorage.removeItem(storageKey);
           } catch {}
         }
       }
@@ -85,7 +85,7 @@ export function ProjectProvider({ children }: ProviderProps) {
       setSelectedProjectIdState(null);
       if (storageKey) {
         try {
-          window.localStorage.removeItem(storageKey);
+          window.sessionStorage.removeItem(storageKey);
         } catch {}
       }
     } finally {
@@ -110,8 +110,8 @@ export function ProjectProvider({ children }: ProviderProps) {
     setSelectedProjectIdState(id);
     if (storageKey) {
       try {
-        if (id) window.localStorage.setItem(storageKey, id);
-        else window.localStorage.removeItem(storageKey);
+        if (id) window.sessionStorage.setItem(storageKey, id);
+        else window.sessionStorage.removeItem(storageKey);
       } catch {}
     }
   };

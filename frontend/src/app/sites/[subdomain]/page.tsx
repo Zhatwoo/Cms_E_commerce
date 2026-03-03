@@ -2,13 +2,47 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { LiveSite } from '@/app/design/_lib/webRenderer';
+import { WebPreview } from '@/app/design/_lib/webRenderer';
 import { serializeCraftToClean } from '@/app/design/_lib/serializer';
 import type { BuilderDocument } from '@/app/design/_types/schema';
 import { getApiUrl } from '@/lib/api';
 import { StorefrontProvider, useStorefront } from '@/app/sites/_storefront/StorefrontContext';
 import { CartDrawer } from '@/app/sites/_storefront/CartDrawer';
 import type { StorefrontProduct } from '@/app/sites/_storefront/StorefrontProducts';
+
+function parsePublishedContentToCleanDoc(content: unknown): BuilderDocument | null {
+  if (content == null) return null;
+
+  try {
+    let normalized: unknown = content;
+
+    for (let i = 0; i < 2; i += 1) {
+      if (typeof normalized !== 'string') break;
+      const trimmed = normalized.trim();
+      if (!trimmed) return null;
+      try {
+        normalized = JSON.parse(trimmed);
+      } catch {
+        break;
+      }
+    }
+
+    if (
+      normalized &&
+      typeof normalized === 'object' &&
+      'version' in normalized &&
+      'pages' in normalized &&
+      'nodes' in normalized
+    ) {
+      return normalized as BuilderDocument;
+    }
+
+    const raw = typeof normalized === 'string' ? normalized : JSON.stringify(normalized);
+    return serializeCraftToClean(raw);
+  } catch {
+    return null;
+  }
+}
 
 function CartFab() {
   const { cartCount, openCart } = useStorefront();
@@ -72,14 +106,8 @@ function PublicSiteContent() {
           setLoading(false);
           return;
         }
-        let clean: BuilderDocument | null = null;
-        try {
-          if (typeof content === 'object' && content.version !== undefined && content.pages && content.nodes) {
-            clean = content as BuilderDocument;
-          } else {
-            clean = serializeCraftToClean(typeof content === 'string' ? content : JSON.stringify(content));
-          }
-        } catch {
+        const clean = parsePublishedContentToCleanDoc(content);
+        if (!clean) {
           setError('Invalid content');
           setLoading(false);
           return;
@@ -94,7 +122,7 @@ function PublicSiteContent() {
       }
     })();
     return () => { cancelled = true; };
-  }, [subdomain]);
+  }, [subdomain, setSiteTitle]);
 
   useEffect(() => {
     if (!subdomain || typeof subdomain !== 'string') return;
@@ -137,10 +165,11 @@ function PublicSiteContent() {
 
   return (
     <>
-      <LiveSite
+      <WebPreview
         doc={doc}
         pageIndex={0}
-        mobileBreakpoint={480}
+        mobileBreakpoint={900}
+        enableFormInputs
         storeContext={{ products, addToCart }}
       />
       <CartFab />
