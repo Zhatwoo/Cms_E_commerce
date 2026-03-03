@@ -170,7 +170,7 @@ export const FilesPanel = () => {
 
   const handleDuplicate = useCallback(
     (nodeId: string) => {
-      duplicateNodes(actions, query, [nodeId]);
+      duplicateNodes(actions as any, query as any, [nodeId]);
       setContextMenu(null);
     },
     [actions, query, startTransition]
@@ -178,13 +178,13 @@ export const FilesPanel = () => {
 
   const handleGroup = useCallback(() => {
     const ids = selectedToIds(selected);
-    if (ids.length >= 1) groupSelection(actions, query, ids);
+    if (ids.length >= 1) groupSelection(actions as any, query as any, ids);
     setContextMenu(null);
   }, [actions, query, selected]);
 
   const handleUngroup = useCallback(() => {
     const ids = selectedToIds(selected);
-    if (ids.length === 1) ungroupSelection(actions, query, ids);
+    if (ids.length === 1) ungroupSelection(actions as any, query as any, ids);
     setContextMenu(null);
   }, [actions, query, selected]);
 

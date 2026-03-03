@@ -280,7 +280,7 @@ export function cutSelection(
       deletable.push(id);
     }
     if (deletable.length > 0) actions.delete(deletable.length === 1 ? deletable[0] : deletable);
-    actions.selectNode(null);
+    actions.selectNode();
   } catch (e) {
     console.warn("cutSelection failed:", e);
   }
