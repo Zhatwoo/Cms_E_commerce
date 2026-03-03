@@ -8,7 +8,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { listInstances, setActiveProjectId, type Instance } from '@/lib/api';
+import { listProjects, setActiveProjectId, type Project } from '@/lib/api';
 import { useAuth } from './auth-context';
 
 type ProjectContextType = {
@@ -63,13 +63,13 @@ export function ProjectProvider({ children }: ProviderProps) {
         setProjects(res.projects);
 
         // Ensure we always have a valid selected project when projects exist
-        if (res.instances.length === 0) {
+        if (res.projects.length === 0) {
           setSelectedProjectIdState(null);
         } else if (
           !selectedProjectId ||
-          !res.instances.find((p) => p.id === selectedProjectId)
+          !res.projects.find((p) => p.id === selectedProjectId)
         ) {
-          setSelectedProjectIdState(res.instances[0].id);
+          setSelectedProjectIdState(res.projects[0].id);
         }
       } else {
         setProjects([]);

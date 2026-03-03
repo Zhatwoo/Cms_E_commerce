@@ -1,5 +1,5 @@
 'use client';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Package,
@@ -178,6 +178,9 @@ export default function InventoryPage() {
     notes: getDefaultAdjustmentNote('IN'),
     error: null,
   });
+  const [importing, setImporting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const formatStat = (value: string | number) => (typeof value === 'number' ? String(value) : value);
   const stockValueLabel = useMemo(() => `$${(summary?.stockValue || 0).toLocaleString()}`, [summary?.stockValue]);
@@ -330,6 +333,74 @@ export default function InventoryPage() {
 
   const isAdjustingFromModal = Boolean(stockModal.product && adjustingId === stockModal.product.id);
   const modalOnHand = stockModal.product ? getStockNumbers(stockModal.product).onHand : 0;
+
+  const handleExport = useCallback(async () => {
+    setExporting(true);
+    try {
+      const res = await listInventory({ limit: 5000, search: search || undefined });
+      const data = Array.isArray(res.items) ? res.items : [];
+      if (data.length === 0) {
+        window.alert('No inventory to export.');
+        return;
+      }
+      const csv = productsToCsv(data);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `inventory-export-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Export failed');
+    } finally {
+      setExporting(false);
+    }
+  }, [search]);
+
+  const handleImport = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = '';
+      if (!file) return;
+
+      setImporting(true);
+      try {
+        const text = await file.text();
+        const rows = parseCsvToRows(text);
+        if (rows.length === 0) {
+          window.alert(
+            'No valid rows in CSV. Ensure file has a header with "sku" and optionally "onHandStock", "reservedStock", "lowStockThreshold".'
+          );
+          return;
+        }
+
+        const result = await importInventoryCsv({ rows });
+
+        if (result.updated && result.updated > 0) {
+          await loadData();
+        }
+
+        const msg =
+          result.errors && result.errors.length > 0
+            ? `${result.message}\n\nErrors: ${result.errors
+                .slice(0, 5)
+                .map((e) => `Row ${e.row} (${e.sku}): ${e.message}`)
+                .join('; ')}${result.errors.length > 5 ? ` ... and ${result.errors.length - 5} more` : ''}`
+            : result.message ?? `Updated ${result.updated ?? 0} product(s).`;
+        window.alert(msg);
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : 'Import failed');
+      } finally {
+        setImporting(false);
+      }
+    },
+    [loadData]
+  );
 
   return (
     <div className="space-y-6 md:space-y-8 max-w-full overflow-x-hidden">

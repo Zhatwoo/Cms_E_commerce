@@ -232,8 +232,8 @@ async function getBySubdomain(userId, subdomain) {
 }
 
 async function countWithSubdomain(userId) {
-  const snap = await getProjectsRef(userId).where('subdomain', '!=', null).get();
-  return snap.size;
+  const projects = await list(userId);
+  return projects.filter((p) => p.subdomain != null && String(p.subdomain).trim() !== '').length;
 }
 
 async function countAll() {
