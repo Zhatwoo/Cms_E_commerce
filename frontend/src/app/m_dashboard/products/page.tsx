@@ -112,7 +112,7 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, onToggleStatus
           </div>
           <div>
             <p className="text-xs mb-1" style={{ color: colors.text.muted }}>Stock</p>
-            <p className={`font-semibold text-sm ${product.stock === 0 ? 'text-red-500' : isLowStock(product) ? 'text-yellow-500' : 'text-green-500'}`}>
+            <p className={`font-semibold text-sm ${product.stock === 0 ? 'text-red-500' : isLowStock(product) ? 'text-orange-500' : 'text-green-500'}`}>
               {product.stock} Units
             </p>
           </div>
@@ -691,7 +691,16 @@ export default function ProductsPage() {
           { label: 'Active', value: stats.active },
           { label: 'Low stock', value: stats.lowStock },
           { label: 'Out of stock', value: stats.outOfStock },
-        ].map((item) => (
+        ].map((item) => {
+          const labelColor = item.label === 'Active'
+            ? '#16a34a'
+            : item.label === 'Low stock'
+              ? '#f97316'
+              : item.label === 'Out of stock'
+                ? '#ef4444'
+                : colors.text.muted;
+
+          return (
           <motion.div
             key={item.label}
             initial={{ opacity: 0, y: 8 }}
@@ -699,14 +708,14 @@ export default function ProductsPage() {
             className="rounded-xl border p-4"
             style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
           >
-            <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>
+            <p className="text-xs uppercase tracking-wide" style={{ color: labelColor }}>
               {item.label}
             </p>
             <p className="mt-1 text-2xl font-semibold" style={{ color: colors.text.primary }}>
               {item.value}
             </p>
           </motion.div>
-        ))}
+        )})}
       </section>
 
       {loadingProducts ? (

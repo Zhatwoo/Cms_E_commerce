@@ -82,7 +82,7 @@ export const FilesPanel = () => {
     nodes: state.nodes,
     selected: state.events.selected,
   }));
-  const activeTool = useCanvasTool();
+  const { activeTool } = useCanvasTool();
 
   const [isPending, startTransition] = useTransition();
 

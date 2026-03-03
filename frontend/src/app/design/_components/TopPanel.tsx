@@ -2,12 +2,13 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useEditor } from "@craftjs/core";
+import Link from "next/link";
 import {
+  ArrowLeft,
   ZoomIn,
   ZoomOut,
   RotateCw,
   Maximize2,
-  Plus,
   Tablet,
   Laptop,
   Monitor,
@@ -68,7 +69,6 @@ interface TopPanelProps {
   onScaleChange: (scale: number) => void;
   onRotateCanvas: () => void;
   onFitToCanvas: () => void;
-  onAddButton: () => void;
   canvasWidth?: number;
   canvasHeight?: number;
   onDevicePresetSelect?: (preset: DevicePreset) => void;
@@ -81,7 +81,6 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   onScaleChange,
   onRotateCanvas,
   onFitToCanvas,
-  onAddButton,
   canvasWidth = 1440,
   canvasHeight = 900,
   onDevicePresetSelect,
@@ -197,14 +196,14 @@ export const TopPanel: React.FC<TopPanelProps> = ({
       <div className="flex items-center justify-between px-4 py-2 h-12">
         {/* Left Section - Canvas Controls */}
         <div className="flex items-center gap-3">
-          {/* Add Button */}
-          <button
-            onClick={onAddButton}
-            className="p-2 rounded-lg bg-brand-medium-dark hover:bg-brand-medium transition-colors border border-white/10"
-            title="Add Component"
+          <Link
+            href="/m_dashboard"
+            className="px-3 py-2 rounded-lg bg-brand-medium-dark hover:bg-brand-medium transition-colors border border-white/10 inline-flex items-center gap-2"
+            title="Back to Dashboard"
           >
-            <Plus className="w-4 h-4 text-brand-light" />
-          </button>
+            <ArrowLeft className="w-4 h-4 text-brand-light" />
+            <span className="text-xs font-medium text-brand-light">Back</span>
+          </Link>
 
           {/* Zoom Out */}
           <button

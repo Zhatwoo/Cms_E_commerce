@@ -22,6 +22,9 @@ import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
 import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
 import { MarqueeSelectionHandler } from "./MarqueeSelectionHandler";
+import { BoxSelectionHandler } from "./BoxSelectionHandler";
+import { TextToolHandler } from "./TextToolHandler";
+import { ShapeToolHandler } from "./ShapeToolHandler";
 import { TransformModeProvider } from "./TransformModeContext";
 import { InlineTextEditProvider } from "./InlineTextEditContext";
 import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
@@ -76,6 +79,8 @@ const UI_STATE_KEY_PREFIX = "craftjs_editor_ui";
 // These must match the Viewport constants for proper page positioning
 const PAGE_GRID_ORIGIN_X = 30000;
 const PAGE_GRID_ORIGIN_Y = 30000;
+const PAGE_BASE_WIDTH = 1920;
+const PAGE_BASE_HEIGHT = 1200;
 
 const EMPTY_FRAME_DATA = JSON.stringify({
   ROOT: {
@@ -96,24 +101,12 @@ const EMPTY_FRAME_DATA = JSON.stringify({
       pageSlug: "page-0",
       canvasX: PAGE_GRID_ORIGIN_X,
       canvasY: PAGE_GRID_ORIGIN_Y,
-      width: "1920px",
       height: "1200px",
       background: "#ffffff"
     },
     displayName: "Page",
     custom: {},
     parent: "ROOT",
-    hidden: false,
-    nodes: ["container-1"],
-    linkedNodes: {},
-  },
-  "container-1": {
-    type: { resolvedName: "Container" },
-    isCanvas: true,
-    props: { padding: 40, background: "#ffffff" },
-    displayName: "Container",
-    custom: {},
-    parent: "page-1",
     hidden: false,
     nodes: [],
     linkedNodes: {},
@@ -206,6 +199,7 @@ const INFINITE_CANVAS_PADDING_PX = 100000;
 const LEFT_PANEL_DEFAULT_WIDTH = 320;
 const RIGHT_PANEL_DEFAULT_WIDTH = 420;
 const MIN_CANVAS_VIEWPORT_WIDTH = 760;
+const TOP_PANEL_HEIGHT_PX = 48;
 
 const isEditableTarget = (target: EventTarget | null) => {
   if (!target || !(target instanceof HTMLElement)) return false;
@@ -610,7 +604,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const containerRef = useRef<HTMLDivElement>(null);
   const horizontalScrollbarRef = useRef<HTMLDivElement>(null);
   const horizontalScrollbarInnerRef = useRef<HTMLDivElement>(null);
-  const previousScaleRef = useRef(DEFAULT_SCALE);
+  const previousScaleRef = useRef(1);
+  const zoomAnchorRef = useRef({ x: 0, y: 0, hasValue: false });
   const wheelZoomDeltaRef = useRef(0);
   const wheelZoomRafRef = useRef<number | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -647,6 +642,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     startX: number;
     startWidth: number;
   } | null>(null);
+  const [isPanelDragging, setIsPanelDragging] = useState(false);
 
   // Sync saveStatus to ref for safe use in beforeunload effect
   useEffect(() => {
@@ -656,10 +652,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const infiniteCanvasWidthVw = INFINITE_CANVAS_WIDTH_VW;
   const infiniteCanvasHeightVh = INFINITE_CANVAS_HEIGHT_VH;
   const infiniteCanvasPaddingPx = INFINITE_CANVAS_PADDING_PX;
-  const sidePanelCanvasGapPx = 24;
-  const leftCanvasInset = panelsReady && leftPanelOpen ? leftPanelWidth + sidePanelCanvasGapPx : 0;
-  const rightCanvasInset = panelsReady && rightPanelOpen ? rightPanelWidth + sidePanelCanvasGapPx : 0;
-  const canvasShiftX = Math.round((leftCanvasInset - rightCanvasInset) / 2);
+  const sidePanelCanvasGapPx = 0;
 
   // Per-project UI state key so zoom, panels, and last page persist across reloads
   const uiStateStorageKey = React.useMemo(
@@ -862,8 +855,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     const handleWheel = (e: WheelEvent) => {
       if (!(e.ctrlKey || e.metaKey)) return;
 
+      const targetEl = e.target instanceof HTMLElement ? e.target : null;
+      if (!targetEl || !targetEl.closest("[data-web-builder-root]")) return;
       if (isEditableTarget(e.target)) return;
-      if (e.target instanceof HTMLElement && e.target.closest("[data-panel]")) return;
 
       const container = containerRef.current;
       if (!container) return;
@@ -876,6 +870,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         e.clientY <= rect.bottom;
 
       if (!isInsideCanvas) return;
+
+      const anchorX = Math.min(container.clientWidth, Math.max(0, e.clientX - rect.left));
+      const anchorY = Math.min(container.clientHeight, Math.max(0, e.clientY - rect.top));
+      zoomAnchorRef.current = { x: anchorX, y: anchorY, hasValue: true };
 
       if (e.cancelable) {
         e.preventDefault();
@@ -925,7 +923,47 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     };
   }, []);
 
-  // Keep center point stationary while zooming, including rapid wheel bursts
+  // Prevent browser zoom shortcuts while in builder; use internal canvas zoom instead.
+  useEffect(() => {
+    const ZOOM_STEP = 0.1;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const ctrl = e.ctrlKey || e.metaKey;
+      if (!ctrl) return;
+
+      const targetEl = e.target instanceof HTMLElement ? e.target : null;
+      if (!targetEl || !targetEl.closest("[data-web-builder-root]")) return;
+      if (isEditableTarget(e.target)) return;
+
+      const key = e.key;
+      const isZoomIn = key === "+" || key === "=" || e.code === "NumpadAdd";
+      const isZoomOut = key === "-" || key === "_" || e.code === "NumpadSubtract";
+      const isZoomReset = key === "0" || e.code === "Digit0" || e.code === "Numpad0";
+
+      if (!isZoomIn && !isZoomOut && !isZoomReset) return;
+
+      if (e.cancelable) e.preventDefault();
+      e.stopPropagation();
+
+      if (isZoomReset) {
+        setScale(1);
+        return;
+      }
+
+      setScale((prevScale) => {
+        const safePrev = clampScale(prevScale, previousScaleRef.current || 1);
+        const nextScale = isZoomIn ? safePrev + ZOOM_STEP : safePrev - ZOOM_STEP;
+        return clampScale(nextScale, safePrev);
+      });
+    };
+
+    window.addEventListener("keydown", handleKeyDown, { capture: true });
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, { capture: true });
+    };
+  }, []);
+
+  // Keep mouse focus point stationary while zooming, including rapid wheel bursts
   useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) {
@@ -945,18 +983,24 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       return;
     }
 
-    const centerX = container.clientWidth / 2;
-    const centerY = container.clientHeight / 2;
-    const contentX = (container.scrollLeft + centerX) / prevScale;
-    const contentY = (container.scrollTop + centerY) / prevScale;
+    const fallbackX = container.clientWidth / 2;
+    const fallbackY = container.clientHeight / 2;
+    const anchorX = zoomAnchorRef.current.hasValue
+      ? Math.min(container.clientWidth, Math.max(0, zoomAnchorRef.current.x))
+      : fallbackX;
+    const anchorY = zoomAnchorRef.current.hasValue
+      ? Math.min(container.clientHeight, Math.max(0, zoomAnchorRef.current.y))
+      : fallbackY;
+    const contentX = (container.scrollLeft + anchorX) / prevScale;
+    const contentY = (container.scrollTop + anchorY) / prevScale;
 
     if (!Number.isFinite(contentX) || !Number.isFinite(contentY)) {
       previousScaleRef.current = nextScale;
       return;
     }
 
-    const nextScrollLeft = contentX * nextScale - centerX;
-    const nextScrollTop = contentY * nextScale - centerY;
+    const nextScrollLeft = contentX * nextScale - anchorX;
+    const nextScrollTop = contentY * nextScale - anchorY;
     const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
     const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
 
@@ -965,59 +1009,19 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     previousScaleRef.current = nextScale;
   }, [scale]);
 
-  // Center the canvas in the view - focus on first page element
+  // Center the viewport in the full infinite canvas area
   const centerCanvasInView = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    // Try to find the first Page element and center on it
-    const firstPage = container.querySelector("[data-page-node]") as HTMLElement | null;
+    const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
+    const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
 
-    if (firstPage) {
-      const containerRect = container.getBoundingClientRect();
-      const pageRect = firstPage.getBoundingClientRect();
+    const centerLeft = maxScrollLeft / 2;
+    const centerTop = maxScrollTop / 2;
 
-      // Calculate where the page center is in scroll coordinates
-      const pageCenterX = container.scrollLeft + (pageRect.left - containerRect.left) + pageRect.width / 2;
-      const pageCenterY = container.scrollTop + (pageRect.top - containerRect.top) + pageRect.height / 2;
-
-      const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
-      const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
-
-      const nextLeft = Math.min(maxScrollLeft, Math.max(0, pageCenterX - container.clientWidth / 2));
-      const nextTop = Math.min(maxScrollTop, Math.max(0, pageCenterY - container.clientHeight / 2));
-
-      container.scrollLeft = nextLeft;
-      container.scrollTop = nextTop;
-      return;
-    }
-
-    // Fallback: try viewport desktop
-    const desktopViewport = container.querySelector("[data-viewport-desktop]") as HTMLElement | null;
-
-    if (desktopViewport) {
-      const containerRect = container.getBoundingClientRect();
-      const viewportRect = desktopViewport.getBoundingClientRect();
-
-      const viewportCenterX = container.scrollLeft + (viewportRect.left - containerRect.left) + viewportRect.width / 2;
-      const viewportCenterY = container.scrollTop + (viewportRect.top - containerRect.top) + viewportRect.height / 2;
-
-      const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
-      const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
-
-      const nextLeft = Math.min(maxScrollLeft, Math.max(0, viewportCenterX - container.clientWidth / 2));
-      const nextTop = Math.min(maxScrollTop, Math.max(0, viewportCenterY - container.clientHeight / 2));
-
-      container.scrollLeft = nextLeft;
-      container.scrollTop = nextTop;
-      return;
-    }
-
-    // Ultimate fallback: center of scroll area
-    const fallbackLeft = (container.scrollWidth - container.clientWidth) / 2;
-    const fallbackTop = (container.scrollHeight - container.clientHeight) / 2;
-    container.scrollLeft = fallbackLeft;
-    container.scrollTop = fallbackTop;
+    container.scrollLeft = centerLeft;
+    container.scrollTop = centerTop;
   }, []);
 
   // Center immediately on first mount so default view starts at middle even before frame settles
@@ -1126,93 +1130,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     }, 100);
   }, [handleFitToCanvas]);
 
-  // Handle add button (open left panel)
-  const handleAddButton = useCallback(() => {
-    setLeftPanelOpen(true);
-  }, []);
-
-  const clampPanelWidthWithCanvasRoom = useCallback(
-    (side: "left" | "right", value: number) => {
-      if (typeof window === "undefined") return value;
-
-      const sideMin = side === "left" ? LEFT_PANEL_DEFAULT_WIDTH : 360;
-      const sideBaseMax = Math.max(sideMin, Math.min(820, Math.floor(window.innerWidth * 0.7)));
-
-      const otherPanelOccupied =
-        side === "left"
-          ? rightPanelOpen
-            ? rightPanelWidth + sidePanelCanvasGapPx
-            : 0
-          : leftPanelOpen
-            ? leftPanelWidth + sidePanelCanvasGapPx
-            : 0;
-
-      const thisPanelGap = sidePanelCanvasGapPx;
-      const maxAllowedByCanvas = Math.floor(
-        window.innerWidth - MIN_CANVAS_VIEWPORT_WIDTH - otherPanelOccupied - thisPanelGap
-      );
-
-      const sideMax = Math.max(sideMin, Math.min(sideBaseMax, maxAllowedByCanvas));
-      return Math.min(sideMax, Math.max(sideMin, value));
-    },
-    [leftPanelOpen, leftPanelWidth, rightPanelOpen, rightPanelWidth, sidePanelCanvasGapPx]
-  );
-
-  const startPanelDrag = useCallback(
-    (side: "left" | "right", event: React.MouseEvent<HTMLDivElement>) => {
-      if (event.button !== 0) return;
-
-      panelDragRef.current = {
-        side,
-        startX: event.clientX,
-        startWidth: side === "left" ? leftPanelWidth : rightPanelWidth,
-      };
-
-      document.body.style.userSelect = "none";
-      document.body.style.cursor = "ew-resize";
-
-      event.preventDefault();
-      event.stopPropagation();
-    },
-    [leftPanelWidth, rightPanelWidth]
-  );
-
-  useEffect(() => {
-    const handleMouseMove = (event: MouseEvent) => {
-      const drag = panelDragRef.current;
-      if (!drag) return;
-
-      const deltaX = event.clientX - drag.startX;
-      const nextWidth = drag.side === "left"
-        ? clampPanelWidthWithCanvasRoom("left", drag.startWidth + deltaX)
-        : clampPanelWidthWithCanvasRoom("right", drag.startWidth - deltaX);
-
-      if (drag.side === "left") {
-        setLeftPanelWidth(nextWidth);
-      } else {
-        setRightPanelWidth(nextWidth);
-      }
-    };
-
-    const stopPanelDrag = () => {
-      if (!panelDragRef.current) return;
-      panelDragRef.current = null;
-      document.body.style.userSelect = "";
-      document.body.style.cursor = "";
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", stopPanelDrag);
-
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", stopPanelDrag);
-      document.body.style.userSelect = "";
-      document.body.style.cursor = "";
-    };
-  }, [clampPanelWidthWithCanvasRoom]);
-
-  const isSpacePanActive = activeTool === "move" && isSpacePressed;
+  const isSpacePanActive = isSpacePressed;
   const canPanWithPointerDrag = activeTool === "hand" || isSpacePanActive;
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -1236,6 +1154,13 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const anchorX = Math.min(containerRef.current.clientWidth, Math.max(0, e.clientX - rect.left));
+      const anchorY = Math.min(containerRef.current.clientHeight, Math.max(0, e.clientY - rect.top));
+      zoomAnchorRef.current = { x: anchorX, y: anchorY, hasValue: true };
+    }
+
     if (isPanning && containerRef.current) {
       containerRef.current.scrollLeft -= e.movementX;
       containerRef.current.scrollTop -= e.movementY;
@@ -1249,9 +1174,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       if (isEditableTarget(event.target)) return;
 
       event.preventDefault();
-      if (activeTool === "move") {
-        setIsSpacePressed(true);
-      }
+      setIsSpacePressed(true);
     };
 
     const handleKeyUp = (event: KeyboardEvent) => {
@@ -1892,7 +1815,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   }, [initialJson]);
 
   return (
-    <div className="h-screen bg-brand-black text-brand-lighter overflow-hidden font-sans relative">
+    <div data-web-builder-root className="h-screen bg-brand-black text-brand-lighter overflow-hidden font-sans relative">
       <Editor
         resolver={resolver}
         indicator={{
@@ -1906,7 +1829,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       >
         <QueryStasher onQuery={(q) => { lastQueryRef.current = q; }} />
         <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
-          <CanvasToolProvider value={activeTool}>
+          <CanvasToolProvider value={activeTool} onToolChange={setActiveTool}>
             <TransformModeProvider>
               <InlineTextEditProvider>
                 <KeyboardShortcuts />
@@ -1915,6 +1838,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 <CanvasContextMenu />
                 <FigmaStyleDragHandler />
                 <NewPageDropPlacementHandler />
+                <BoxSelectionHandler />
+                <TextToolHandler />
+                <ShapeToolHandler />
                 <DoubleClickTransformHandler />
                 <PrototypeFlowLines />
                 {/* Top Panel */}
@@ -1924,7 +1850,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                     onScaleChange={handleScaleChange}
                     onRotateCanvas={handleRotateCanvas}
                     onFitToCanvas={handleFitToCanvas}
-                    onAddButton={handleAddButton}
                     canvasWidth={canvasWidth}
                     canvasHeight={canvasHeight}
                     onDevicePresetSelect={handleDevicePresetSelect}
@@ -1936,8 +1861,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 <div
                   ref={containerRef}
                   data-canvas-container
-                  className={`absolute inset-0 overflow-auto bg-brand-darker canvas-scroll-container ${canPanWithPointerDrag ? "canvas-hand-tool" : ""} ${canPanWithPointerDrag && isPanning ? "canvas-hand-panning" : ""}`}
+                  className={`absolute inset-0 overflow-auto bg-brand-darker canvas-scroll-container ${canPanWithPointerDrag ? "canvas-hand-tool" : ""} ${canPanWithPointerDrag && isPanning ? "canvas-hand-panning" : ""} ${isPanelDragging ? "transition-none" : "transition-[left,right] duration-300 ease-out"}`}
                   style={{
+                    top: `${TOP_PANEL_HEIGHT_PX}px`,
+                    left: panelsReady && leftPanelOpen ? `${leftPanelWidth}px` : "0px",
+                    right: panelsReady && rightPanelOpen ? `${rightPanelWidth}px` : "0px",
+                    bottom: "0px",
                     cursor:
                       canPanWithPointerDrag
                         ? isPanning
@@ -1957,8 +1886,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                       minWidth: `${infiniteCanvasWidthVw}vw`,
                       minHeight: `${infiniteCanvasHeightVh}vh`,
                       padding: `${infiniteCanvasPaddingPx}px`,
-                      transform: `translateX(${canvasShiftX}px)`,
-                      transition: "transform 140ms ease",
                     }}
                   >
                     <div
@@ -1982,7 +1909,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                     </div>
                   </div>
                 </div>
-                {/* Floating Panels */}
+                {/* Docked Panels */}
                 {/* Right Panel Reopen Fallback */}
                 {panelsReady && !rightPanelOpen && (
                   <button
@@ -1997,21 +1924,24 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 {/* Left Panel */}
                 {panelsReady && (
                   <div
-                    className="absolute top-14 left-4 z-50 h-[calc(100vh-6.5rem)] flex items-start pointer-events-none"
+                    className="absolute top-12 left-0 z-50 h-[calc(100vh-3rem)] flex items-start pointer-events-none"
                   >
                     <div
                       className="h-full flex items-start pointer-events-auto relative"
                     >
                       <div
                         onMouseDown={(event) => startPanelDrag("left", event)}
-                        className={`absolute top-0 -right-2 h-full w-3 cursor-ew-resize ${leftPanelOpen ? "pointer-events-auto" : "pointer-events-none"}`}
+                        className={`absolute top-0 -right-2 h-full w-4 cursor-ew-resize ${leftPanelOpen ? "pointer-events-auto" : "pointer-events-none"}`}
                         data-no-panel-drag="true"
                         aria-hidden
                       />
+                      {leftPanelOpen && (
+                        <div className="absolute top-0 right-0 h-full w-px bg-white/10 pointer-events-none" aria-hidden />
+                      )}
                       <div
-                        className={`h-full origin-left transition-[transform,opacity] duration-300 ease-out will-change-transform ${leftPanelOpen
-                          ? "translate-x-0 scale-100 opacity-100 pointer-events-auto"
-                          : "-translate-x-full scale-90 opacity-0 pointer-events-none"
+                        className={`h-full origin-left ${isPanelDragging ? "transition-none" : "transition-[transform,opacity,width] duration-300 ease-out"} will-change-transform ${leftPanelOpen
+                          ? "translate-x-0 opacity-100 pointer-events-auto"
+                          : "-translate-x-full opacity-0 pointer-events-none"
                           }`}
                       >
                         <LeftPanel
@@ -2022,7 +1952,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                       </div>
                       <button
                         onClick={() => setLeftPanelOpen((open) => !open)}
-                        className={`absolute left-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${leftPanelOpen ? "opacity-0 pointer-events-none scale-95" : "opacity-100 pointer-events-auto scale-100"
+                        className={`absolute left-4 top-2 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${leftPanelOpen ? "opacity-0 pointer-events-none scale-95" : "opacity-100 pointer-events-auto scale-100"
                           }`}
                         title={leftPanelOpen ? "Hide left panel" : "Show left panel"}
                       >
@@ -2034,21 +1964,24 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 {/* Right Panel */}
                 {panelsReady && (
                   <div
-                    className="absolute top-14 right-4 z-50 h-[calc(100vh-6.5rem)] flex items-start pointer-events-none"
+                    className="absolute top-12 right-0 z-50 h-[calc(100vh-3rem)] flex items-start pointer-events-none"
                   >
                     <div
                       className="h-full flex items-start justify-end pointer-events-auto relative"
                     >
                       <div
                         onMouseDown={(event) => startPanelDrag("right", event)}
-                        className={`absolute top-0 -left-2 h-full w-3 cursor-ew-resize ${rightPanelOpen ? "pointer-events-auto" : "pointer-events-none"}`}
+                        className={`absolute top-0 -left-2 h-full w-4 cursor-ew-resize ${rightPanelOpen ? "pointer-events-auto" : "pointer-events-none"}`}
                         data-no-panel-drag="true"
                         aria-hidden
                       />
+                      {rightPanelOpen && (
+                        <div className="absolute top-0 left-0 h-full w-px bg-white/10 pointer-events-none" aria-hidden />
+                      )}
                       <div
-                        className={`h-full origin-right transition-[transform,opacity] duration-300 ease-out will-change-transform ${rightPanelOpen
-                          ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
-                          : 'translate-x-full scale-90 opacity-0 pointer-events-none'
+                        className={`h-full origin-right ${isPanelDragging ? "transition-none" : "transition-[transform,opacity,width] duration-300 ease-out"} will-change-transform ${rightPanelOpen
+                          ? 'translate-x-0 opacity-100 pointer-events-auto'
+                          : 'translate-x-full opacity-0 pointer-events-none'
                           }`}
                       >
                         <RightPanel
