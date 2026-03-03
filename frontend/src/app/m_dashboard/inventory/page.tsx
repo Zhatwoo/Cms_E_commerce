@@ -1,5 +1,5 @@
 'use client';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Package,
@@ -17,13 +17,119 @@ import { useTheme } from '../components/context/theme-context';
 import {
   adjustInventoryStock,
   getInventorySummary,
+  importInventoryCsv,
   listInventory,
   listInventoryMovements,
   type ApiProduct,
+  type ImportInventoryRow,
   type InventoryMovement,
   type InventorySummary,
 } from '@/lib/api';
 import { useRouter } from 'next/navigation';
+
+const EXPORT_COLUMNS = ['name', 'sku', 'category', 'onHandStock', 'reservedStock', 'lowStockThreshold', 'status'] as const;
+
+function escapeCsvValue(val: string | number | undefined | null): string {
+  const s = String(val ?? '');
+  if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
+function productsToCsv(items: ApiProduct[]): string {
+  const header = EXPORT_COLUMNS.join(',');
+  const rows = items.map((p) => {
+    const onHand = p.onHandStock ?? p.stock ?? 0;
+    const reserved = p.reservedStock ?? 0;
+    const low = p.lowStockThreshold ?? 5;
+    return [
+      escapeCsvValue(p.name),
+      escapeCsvValue(p.sku),
+      escapeCsvValue(p.category),
+      escapeCsvValue(onHand),
+      escapeCsvValue(reserved),
+      escapeCsvValue(low),
+      escapeCsvValue(p.status),
+    ].join(',');
+  });
+  return [header, ...rows].join('\n');
+}
+
+function parseCsvToRows(text: string): ImportInventoryRow[] {
+  const lines = text.split(/\r?\n/).filter((line) => line.trim());
+  if (lines.length < 2) return [];
+
+  const headerCols = parseCsvLine(lines[0]).map((c) => c.trim().toLowerCase().replace(/_/g, ''));
+  const skuIdx = headerCols.findIndex((c) => c === 'sku');
+  const onHandIdx = headerCols.findIndex((c) =>
+    ['onhandstock', 'stock'].includes(c)
+  );
+  const reservedIdx = headerCols.findIndex((c) =>
+    ['reservedstock', 'reserved'].includes(c)
+  );
+  const lowIdx = headerCols.findIndex((c) =>
+    ['lowstockthreshold', 'lowthreshold'].includes(c)
+  );
+
+  const rows: ImportInventoryRow[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseCsvLine(lines[i]);
+    const sku = skuIdx >= 0 ? (cols[skuIdx] ?? '').trim() : '';
+    if (!sku) continue;
+
+    const row: ImportInventoryRow = { sku };
+    if (onHandIdx >= 0) {
+      const v = parseInt(String(cols[onHandIdx] ?? '0'), 10);
+      if (Number.isFinite(v)) row.onHandStock = Math.max(0, v);
+    }
+    if (reservedIdx >= 0) {
+      const v = parseInt(String(cols[reservedIdx] ?? '0'), 10);
+      if (Number.isFinite(v)) row.reservedStock = Math.max(0, v);
+    }
+    if (lowIdx >= 0) {
+      const v = parseInt(String(cols[lowIdx] ?? '5'), 10);
+      if (Number.isFinite(v)) row.lowStockThreshold = Math.max(0, v);
+    }
+    rows.push(row);
+  }
+  return rows;
+}
+
+function parseCsvLine(line: string): string[] {
+  const result: string[] = [];
+  let i = 0;
+  while (i < line.length) {
+    if (line[i] === '"') {
+      let cell = '';
+      i++;
+      while (i < line.length) {
+        if (line[i] === '"') {
+          if (line[i + 1] === '"') {
+            cell += '"';
+            i += 2;
+          } else {
+            i++;
+            break;
+          }
+        } else {
+          cell += line[i];
+          i++;
+        }
+      }
+      result.push(cell);
+    } else {
+      let cell = '';
+      while (i < line.length && line[i] !== ',') {
+        cell += line[i];
+        i++;
+      }
+      result.push(cell.trim());
+      if (line[i] === ',') i++;
+    }
+  }
+  return result;
+}
 
 type StockStatus = 'all' | 'in-stock' | 'low-stock' | 'out-of-stock';
 type StockAdjustmentType = 'IN' | 'OUT';
@@ -72,6 +178,9 @@ export default function InventoryPage() {
     notes: getDefaultAdjustmentNote('IN'),
     error: null,
   });
+  const [importing, setImporting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const formatStat = (value: string | number) => (typeof value === 'number' ? String(value) : value);
   const stockValueLabel = useMemo(() => `$${(summary?.stockValue || 0).toLocaleString()}`, [summary?.stockValue]);
@@ -225,6 +334,74 @@ export default function InventoryPage() {
   const isAdjustingFromModal = Boolean(stockModal.product && adjustingId === stockModal.product.id);
   const modalOnHand = stockModal.product ? getStockNumbers(stockModal.product).onHand : 0;
 
+  const handleExport = useCallback(async () => {
+    setExporting(true);
+    try {
+      const res = await listInventory({ limit: 5000, search: search || undefined });
+      const data = Array.isArray(res.items) ? res.items : [];
+      if (data.length === 0) {
+        window.alert('No inventory to export.');
+        return;
+      }
+      const csv = productsToCsv(data);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `inventory-export-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Export failed');
+    } finally {
+      setExporting(false);
+    }
+  }, [search]);
+
+  const handleImport = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = '';
+      if (!file) return;
+
+      setImporting(true);
+      try {
+        const text = await file.text();
+        const rows = parseCsvToRows(text);
+        if (rows.length === 0) {
+          window.alert(
+            'No valid rows in CSV. Ensure file has a header with "sku" and optionally "onHandStock", "reservedStock", "lowStockThreshold".'
+          );
+          return;
+        }
+
+        const result = await importInventoryCsv({ rows });
+
+        if (result.updated && result.updated > 0) {
+          await loadData();
+        }
+
+        const msg =
+          result.errors && result.errors.length > 0
+            ? `${result.message}\n\nErrors: ${result.errors
+                .slice(0, 5)
+                .map((e) => `Row ${e.row} (${e.sku}): ${e.message}`)
+                .join('; ')}${result.errors.length > 5 ? ` ... and ${result.errors.length - 5} more` : ''}`
+            : result.message ?? `Updated ${result.updated ?? 0} product(s).`;
+        window.alert(msg);
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : 'Import failed');
+      } finally {
+        setImporting(false);
+      }
+    },
+    [loadData]
+  );
+
   return (
     <div className="space-y-6 md:space-y-8 max-w-full overflow-x-hidden">
       {/* Header */}
@@ -238,23 +415,32 @@ export default function InventoryPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            className="hidden"
+            onChange={handleFileChange}
+          />
           <button
             type="button"
-            onClick={() => window.alert('CSV import endpoint is not yet wired in this build.')}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors hover:opacity-90"
+            onClick={handleImport}
+            disabled={importing}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors hover:opacity-90 disabled:opacity-50"
             style={{ borderColor: colors.border.default, color: colors.text.primary, backgroundColor: colors.bg.elevated }}
           >
             <Upload className="w-4 h-4" />
-            Import
+            {importing ? 'Importing...' : 'Import'}
           </button>
           <button
             type="button"
-            onClick={() => window.alert('CSV export endpoint is not yet wired in this build.')}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors hover:opacity-90"
+            onClick={handleExport}
+            disabled={exporting}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors hover:opacity-90 disabled:opacity-50"
             style={{ borderColor: colors.border.default, color: colors.text.primary, backgroundColor: colors.bg.elevated }}
           >
             <Download className="w-4 h-4" />
-            Export
+            {exporting ? 'Exporting...' : 'Export'}
           </button>
           <button
             type="button"

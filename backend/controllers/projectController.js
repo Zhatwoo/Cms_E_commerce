@@ -31,7 +31,7 @@ exports.list = async (req, res) => {
 exports.create = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { title, templateId, subdomain } = req.body;
+    const { title, templateId, subdomain, instanceId } = req.body || {};
 
     // Check subscription limits
     const user = await User.findById(userId);
@@ -59,7 +59,7 @@ exports.create = async (req, res) => {
     const project = await Project.create(userId, {
       title: title || 'Untitled Project',
       templateId: templateId || null,
-      instanceId: instanceId || null,
+      instanceId: (instanceId && String(instanceId).trim()) || null,
       subdomain: subdomain || null,
     });
     res.status(201).json({
@@ -68,9 +68,10 @@ exports.create = async (req, res) => {
       project,
     });
   } catch (error) {
+    console.error('[projectController.create]', error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: error.message || 'Server error',
       error: error.message,
     });
   }

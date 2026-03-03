@@ -757,6 +757,29 @@ export async function adjustInventoryStock(params: {
   });
 }
 
+export type ImportInventoryRow = {
+  sku: string;
+  onHandStock?: number;
+  reservedStock?: number;
+  lowStockThreshold?: number;
+};
+
+export type ImportInventoryResult = {
+  success: boolean;
+  updated?: number;
+  errors?: Array<{ row: number; sku: string; message: string }>;
+  message?: string;
+};
+
+export async function importInventoryCsv(params: {
+  rows: ImportInventoryRow[];
+}): Promise<ImportInventoryResult> {
+  return apiFetch<ImportInventoryResult>('/api/inventory/import', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
 // --- Orders ---
 
 export type ApiOrderItem = {
