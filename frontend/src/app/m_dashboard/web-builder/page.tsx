@@ -11,7 +11,9 @@ import { getLimits } from '@/lib/subscriptionLimits';
 import { useAlert } from '../components/context/alert-context';
 import { useProject } from '../components/context/project-context';
 import { DraftPreviewThumbnail } from '../components/projects/DraftPreviewThumbnail';
+import { PublishModal } from '../components/PublishModal';
 import { WebPreview } from '@/app/design/_lib/webRenderer';
+import { Upload } from 'lucide-react';
 
 // Template interface for DomeGallery compatibility
 interface GalleryTemplate {
@@ -365,6 +367,8 @@ export default function WebBuilderPage() {
   const [renameValue, setRenameValue] = useState('');
   const [sortOption, setSortOption] = useState<SortOptionId>('relevant');
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [publishModalProject, setPublishModalProject] = useState<Project | null>(null);
+  const [publishModalProject, setPublishModalProject] = useState<Project | null>(null);
 
   const visibleProjects = projects;
 
@@ -909,6 +913,23 @@ export default function WebBuilderPage() {
                       <p className="text-[9px] mt-0.5" style={{ color: colors.text.muted }}>
                         {p.status} · {p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : '—'}
                       </p>
+                      {p.status !== 'published' && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPublishModalProject(p);
+                          }}
+                          className="mt-2 w-full py-1.5 rounded-md text-[10px] font-medium flex items-center justify-center gap-1 transition-colors"
+                          style={{
+                            backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                            color: 'rgb(59, 130, 246)',
+                          }}
+                        >
+                          <Upload size={12} />
+                          Go live
+                        </button>
+                      )}
                     </div>
                   </motion.div>
                 ))}
@@ -1229,6 +1250,19 @@ export default function WebBuilderPage() {
           />
         )}
       </AnimatePresence>
+
+      {/* Publish Modal */}
+      <PublishModal
+        open={!!publishModalProject}
+        onClose={() => setPublishModalProject(null)}
+        onSuccess={(subdomain) => {
+          showAlert('Site published successfully! Visit it from My Sites.', 'Published');
+          refreshProjects();
+        }}
+        projectId={publishModalProject?.id ?? ''}
+        projectTitle={publishModalProject?.title ?? ''}
+        existingSubdomain={publishModalProject?.subdomain}
+      />
     </section>
   );
 }

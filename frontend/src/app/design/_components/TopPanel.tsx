@@ -2,18 +2,20 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useEditor } from "@craftjs/core";
+import Link from "next/link";
 import {
+  ArrowLeft,
   ZoomIn,
   ZoomOut,
   RotateCw,
   Maximize2,
-  Plus,
   Tablet,
   Laptop,
   Monitor,
   Smartphone,
   ChevronDown,
 } from "lucide-react";
+import { MIN_SCALE, MAX_SCALE, ZOOM_STEP, ZOOM_PRESETS } from "./zoomConstants";
 
 export type DevicePreset = {
   name: string;
@@ -59,16 +61,11 @@ const DEVICE_PRESETS: DevicePreset[] = [
   },
 ];
 
-const MIN_SCALE = 0.05;
-const MAX_SCALE = 3;
-const ZOOM_STEP = 0.15;
-
 interface TopPanelProps {
   scale: number;
   onScaleChange: (scale: number) => void;
   onRotateCanvas: () => void;
   onFitToCanvas: () => void;
-  onAddButton: () => void;
   canvasWidth?: number;
   canvasHeight?: number;
   onDevicePresetSelect?: (preset: DevicePreset) => void;
@@ -81,7 +78,6 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   onScaleChange,
   onRotateCanvas,
   onFitToCanvas,
-  onAddButton,
   canvasWidth = 1440,
   canvasHeight = 900,
   onDevicePresetSelect,
@@ -197,14 +193,14 @@ export const TopPanel: React.FC<TopPanelProps> = ({
       <div className="flex items-center justify-between px-4 py-2 h-12">
         {/* Left Section - Canvas Controls */}
         <div className="flex items-center gap-3">
-          {/* Add Button */}
-          <button
-            onClick={onAddButton}
-            className="p-2 rounded-lg bg-brand-medium-dark hover:bg-brand-medium transition-colors border border-white/10"
-            title="Add Component"
+          <Link
+            href="/m_dashboard"
+            className="px-3 py-2 rounded-lg bg-brand-medium-dark hover:bg-brand-medium transition-colors border border-white/10 inline-flex items-center gap-2"
+            title="Back to Dashboard"
           >
-            <Plus className="w-4 h-4 text-brand-light" />
-          </button>
+            <ArrowLeft className="w-4 h-4 text-brand-light" />
+            <span className="text-xs font-medium text-brand-light">Back</span>
+          </Link>
 
           {/* Zoom Out */}
           <button
@@ -264,6 +260,35 @@ export const TopPanel: React.FC<TopPanelProps> = ({
                 </div>
                 <div className="px-3 py-2 text-xs text-brand-lighter border-t border-white/10">
                   Zoom: {zoomPercentage}%
+                </div>
+                <div className="px-2 py-2 border-t border-white/10">
+                  <div className="px-2 py-1 text-xs text-brand-lighter mb-1">
+                    Quick zoom
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {ZOOM_PRESETS.map((presetScale) => {
+                      const pct = Math.round(presetScale * 100);
+                      const isActive =
+                        Math.round((Number.isFinite(scale) ? scale : 1) * 100) ===
+                        pct;
+                      return (
+                        <button
+                          key={pct}
+                          onClick={() => {
+                            onScaleChange(presetScale);
+                            setShowSizeDropdown(false);
+                          }}
+                          className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                            isActive
+                              ? "bg-brand-medium text-brand-light"
+                              : "bg-brand-medium-dark hover:bg-brand-medium text-brand-lighter"
+                          }`}
+                        >
+                          {pct}%
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}

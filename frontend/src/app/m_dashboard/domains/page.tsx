@@ -1,27 +1,29 @@
 'use client';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useTheme } from '../components/context/theme-context';
 import { useAuth } from '../components/context/auth-context';
 import { useProject } from '../components/context/project-context';
-import { listProjects, getSchedule, getPublishHistory, unpublishProject, type Project, type PublishHistoryEntry } from '@/lib/api';
+import { useAlert } from '../components/context/alert-context';
+import { listProjects, getSchedule, getPublishHistory, unpublishProject, updateDomainSubdomain, type Project, type PublishHistoryEntry } from '@/lib/api';
 import { subscribeUserProjectSubdomains, type ProjectSubdomainEntry } from '@/lib/firebase';
+import { PublishModal } from '../components/PublishModal';
 import {
   Globe,
   Plus,
   Search,
   ExternalLink,
   Copy,
-  Settings,
-  Trash2,
+  Pencil,
   Check,
-  AlertCircle,
   Clock,
-  TrendingUp,
   X,
   Calendar,
   FileText,
-  ArrowDownToLine
+  ArrowDownToLine,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'websitelink';
@@ -35,14 +37,13 @@ function toSubdomainSlug(subdomain: string): string {
 
 /**
  * Full URL to open the published site (subdomain-based, like Vercel).
- * In dev: http://subdomain.localhost:3000. In production: https://subdomain.websitelink (or your BASE_DOMAIN).
+ * In dev: http://localhost:3000/sites/subdomain. In production: https://subdomain.websitelink (or your BASE_DOMAIN).
  */
 function getSubdomainSiteUrl(subdomain: string, origin: string | null): string {
   const slug = toSubdomainSlug(subdomain);
   if (!slug) return '#';
   if (origin && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
-    const port = typeof window !== 'undefined' ? window.location.port || '3000' : '3000';
-    return `http://${slug}.localhost:${port}`;
+    return `${origin.replace(/\/$/, '')}/sites/${encodeURIComponent(slug)}`;
   }
   return `https://${slug}.${BASE_DOMAIN}`;
 }
@@ -51,7 +52,7 @@ function getSubdomainSiteUrl(subdomain: string, origin: string | null): string {
 function getSiteDisplayUrl(subdomain: string, origin: string | null): string {
   const slug = toSubdomainSlug(subdomain);
   if (origin && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
-    return `${slug}/${SITE_HOST}`;
+    return `${SITE_HOST}/sites/${slug}`;
   }
   return `${slug}.${BASE_DOMAIN}`;
 }
@@ -60,10 +61,20 @@ function isPublishedStatus(status?: string | null): boolean {
   return (status || '').trim().toLowerCase() === 'published';
 }
 
+const SUBDOMAIN_REGEX = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
+function validateSubdomain(value: string): string | null {
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return 'Subdomain is required';
+  if (trimmed.length > 63) return 'Subdomain must be 63 characters or less';
+  if (!SUBDOMAIN_REGEX.test(trimmed)) return 'Use only letters, numbers, and hyphens. No leading or trailing hyphens.';
+  return null;
+}
+
 export default function DomainsPage() {
   const { colors, theme } = useTheme();
   const { user, loading: authLoading } = useAuth();
   const { selectedProject } = useProject();
+  const { showAlert } = useAlert();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [subdomainsByProject, setSubdomainsByProject] = useState<Record<string, ProjectSubdomainEntry>>({});
@@ -121,6 +132,22 @@ export default function DomainsPage() {
   const [scheduleInfo, setScheduleInfo] = useState<{ scheduledAt: string; subdomain: string | null } | null>(null);
   const [publishHistory, setPublishHistory] = useState<PublishHistoryEntry[]>([]);
   const [unpublishingId, setUnpublishingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addModalProjectId, setAddModalProjectId] = useState('');
+  const [historyExpanded, setHistoryExpanded] = useState(false);
+  const [showEditSubdomainModal, setShowEditSubdomainModal] = useState(false);
+  const [editSubdomainValue, setEditSubdomainValue] = useState('');
+  const [editSubdomainError, setEditSubdomainError] = useState('');
+  const [updatingSubdomain, setUpdatingSubdomain] = useState(false);
+
+  const filteredDomains = searchQuery.trim()
+    ? domainsList.filter(
+        (d) =>
+          (d.project.title || '').toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+          (d.subdomain || '').toLowerCase().includes(searchQuery.trim().toLowerCase())
+      )
+    : domainsList;
 
   const handleUnpublish = async (projectId: string, e?: React.MouseEvent) => {
     e?.stopPropagation?.();
@@ -134,12 +161,78 @@ export default function DomainsPage() {
           const updated = res2.projects?.find((p) => p.id === projectId);
           setSelectedDomain(updated ? { project: updated, subdomain: selectedDomain.subdomain } : null);
         }
+        showAlert('Site taken offline. You can publish again anytime.', 'Take down');
+      } else {
+        showAlert(res.message || 'Failed to take down', 'Error');
       }
     } catch {
-      // silent fail; could add toast
+      showAlert('Failed to take down. Please try again.', 'Error');
     } finally {
       setUnpublishingId(null);
     }
+  };
+
+  const handleAddDomainClick = () => {
+    if (projects.length === 0) {
+      showAlert('Create a project first from the Web Builder, then publish it here.', 'No Projects');
+      return;
+    }
+    const draftProject = projects.find((p) => (p.status || '').toLowerCase() !== 'published') ?? projects[0];
+    setAddModalProjectId(draftProject?.id ?? projects[0]?.id ?? '');
+    setShowAddModal(true);
+  };
+
+  const refreshProjects = async () => {
+    const res = await listProjects();
+    if (res.success && res.projects) setProjects(res.projects);
+  };
+
+  const handleEditSubdomainClick = () => {
+    setEditSubdomainValue(selectedDomain?.subdomain ?? '');
+    setEditSubdomainError('');
+    setShowEditSubdomainModal(true);
+  };
+
+  const handleEditSubdomainConfirm = async () => {
+    if (!selectedDomain) return;
+    const err = validateSubdomain(editSubdomainValue);
+    if (err) {
+      setEditSubdomainError(err);
+      return;
+    }
+    const normalized = editSubdomainValue.trim().toLowerCase();
+    if (normalized === (selectedDomain.subdomain || '').trim().toLowerCase()) {
+      setShowEditSubdomainModal(false);
+      return;
+    }
+    setEditSubdomainError('');
+    setUpdatingSubdomain(true);
+    try {
+      const res = await updateDomainSubdomain(selectedDomain.project.id, normalized);
+      if (res.success) {
+        const res2 = await listProjects();
+        if (res2.success && res2.projects) setProjects(res2.projects);
+        const updated = res2.projects?.find((p) => p.id === selectedDomain.project.id);
+        setSelectedDomain(updated ? { project: updated, subdomain: normalized } : { ...selectedDomain, subdomain: normalized });
+        setShowEditSubdomainModal(false);
+        showAlert('Subdomain updated successfully.', 'Updated');
+      } else {
+        setEditSubdomainError(res.message || 'Update failed');
+      }
+    } catch (e) {
+      setEditSubdomainError(e instanceof Error ? e.message : 'Update failed');
+      showAlert('Failed to update subdomain.', 'Error');
+    } finally {
+      setUpdatingSubdomain(false);
+    }
+  };
+
+  const handleCopyUrl = () => {
+    if (!siteUrl) return;
+    navigator.clipboard.writeText(siteUrl).then(
+      () => showAlert('URL copied to clipboard', 'Copied'),
+      () => showAlert('Failed to copy URL', 'Error')
+    );
   };
 
   useEffect(() => {
@@ -161,7 +254,7 @@ export default function DomainsPage() {
     return () => { cancelled = true; };
   }, [selectedDomain?.project.id, selectedDomain?.project.status]);
 
-  const siteUrl = selectedDomain?.subdomain
+  const siteUrl = selectedDomain?.subdomain && isPublishedStatus(selectedDomain.project.status)
     ? getSubdomainSiteUrl(selectedDomain.subdomain, origin)
     : '';
 
@@ -209,7 +302,7 @@ export default function DomainsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.45 }}
               >
-                Domains
+                My Sites
               </motion.h1>
               <motion.p
                 className="mt-2 text-sm md:text-base"
@@ -218,14 +311,16 @@ export default function DomainsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.45, delay: 0.08 }}
               >
-                Manage and connect domains for your published sites
+                Manage and publish your websites
               </motion.p>
             </div>
             <button
+              type="button"
+              onClick={handleAddDomainClick}
               className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors shadow-sm"
             >
               <Plus className="w-4 h-4" />
-              Add Domain
+              Add site
             </button>
           </div>
         </div>
@@ -249,7 +344,7 @@ export default function DomainsPage() {
                   {stats.total}
                 </p>
                 <p className="text-sm" style={{ color: colors.text.muted }}>
-                  Total Domains
+                  Total Sites
                 </p>
               </div>
             </div>
@@ -311,35 +406,69 @@ export default function DomainsPage() {
           </div>
         ) : domainsList.length === 0 ? (
           <div
-            className="rounded-2xl border p-6 shadow-lg flex items-center justify-between transition-colors flex-1"
+            className="rounded-2xl border p-6 shadow-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 flex-1"
             style={{
               backgroundColor: colors.bg.card,
               borderColor: colors.border.faint,
             }}
           >
             <div>
-              <p className="text-sm font-medium" style={{ color: colors.text.primary }}>No domains connected yet</p>
+              <p className="text-sm font-medium" style={{ color: colors.text.primary }}>No sites yet</p>
               <p className="text-xs mt-1" style={{ color: colors.text.muted }}>
-                When you publish your website and set a subdomain on a project, it will appear here.
+                Publish your first website from the Web Builder or add one below.
               </p>
             </div>
-            <button
-              type="button"
-              className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
-              style={{
-                backgroundColor: colors.text.primary,
-                color: colors.bg.primary,
-              }}
-            >
-              Add domain
-            </button>
+            <div className="flex gap-2 shrink-0">
+              <Link
+                href="/m_dashboard/web-builder"
+                className="px-4 py-2 text-sm font-medium rounded-lg border transition-colors"
+                style={{
+                  borderColor: colors.border.faint,
+                  color: colors.text.primary,
+                }}
+              >
+                Go to Web Builder
+              </Link>
+              <button
+                type="button"
+                onClick={handleAddDomainClick}
+                className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+                style={{
+                  backgroundColor: colors.text.primary,
+                  color: colors.bg.primary,
+                }}
+              >
+                Add site
+              </button>
+            </div>
           </div>
         ) : (
           <>
             <div className="space-y-3 flex-1 min-w-0">
-              {domainsList.map(({ project, subdomain }) => (
-                (() => {
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: colors.text.muted }} />
+                <input
+                  type="text"
+                  placeholder="Search by title or subdomain..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 rounded-lg border text-sm"
+                  style={{
+                    backgroundColor: colors.bg.primary,
+                    borderColor: colors.border.faint,
+                    color: colors.text.primary,
+                  }}
+                />
+              </div>
+              {filteredDomains.length === 0 ? (
+                <p className="text-sm py-4 text-center" style={{ color: colors.text.muted }}>
+                  {searchQuery.trim() ? 'No domains match your search.' : 'No domains yet.'}
+                </p>
+              ) : (
+                filteredDomains.map(({ project, subdomain }) => {
                   const isPublished = isPublishedStatus(project.status);
+                  const canVisit = Boolean(subdomain && isPublished);
+                  const cardUrl = canVisit ? getSubdomainSiteUrl(subdomain as string, origin) : '';
                   return (
                 <div
                   key={project.id}
@@ -355,9 +484,28 @@ export default function DomainsPage() {
                 >
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate" style={{ color: colors.text.primary }}>{project.title}</p>
-                    <p className="text-xs mt-0.5 font-mono truncate" style={{ color: colors.text.secondary }}>
-                      {subdomain ? getSiteDisplayUrl(subdomain, origin) : 'Empty'}
-                    </p>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <p className="text-xs font-mono truncate" style={{ color: colors.text.secondary }}>
+                        {subdomain ? getSiteDisplayUrl(subdomain, origin) : 'Empty'}
+                      </p>
+                      {cardUrl && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigator.clipboard.writeText(cardUrl).then(
+                              () => showAlert('URL copied to clipboard', 'Copied'),
+                              () => showAlert('Failed to copy', 'Error')
+                            );
+                          }}
+                          className="p-0.5 rounded hover:opacity-80 shrink-0"
+                          style={{ color: colors.text.muted }}
+                          aria-label="Copy URL"
+                        >
+                          <Copy size={12} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span
@@ -370,8 +518,8 @@ export default function DomainsPage() {
                       {isPublished ? 'Published' : 'Draft'}
                     </span>
                     <a
-                      href={subdomain ? getSubdomainSiteUrl(subdomain, origin) : `/design?projectId=${project.id}`}
-                      target={subdomain ? "_blank" : "_self"}
+                      href={canVisit ? getSubdomainSiteUrl(subdomain as string, origin) : `/design?projectId=${project.id}`}
+                      target={canVisit ? "_blank" : "_self"}
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors shrink-0"
@@ -381,7 +529,7 @@ export default function DomainsPage() {
                       }}
                     >
                       <ExternalLink size={14} />
-                      {subdomain ? 'Continue to website' : 'Publish to go live'}
+                      {canVisit ? 'Visit' : 'Publish to go live'}
                     </a>
                     {isPublished && (
                       <button
@@ -402,8 +550,8 @@ export default function DomainsPage() {
                   </div>
                 </div>
                   );
-                })()
-              ))}
+                })
+              )}
             </div>
 
             {/* Right sidebar: website details + publish history */}
@@ -436,9 +584,22 @@ export default function DomainsPage() {
                     <p className="text-base font-medium" style={{ color: colors.text.primary }}>{selectedDomain.project.title}</p>
                   </div>
                   <div>
-                    <div className="flex items-center gap-2 text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>
-                      <Globe size={16} />
-                      Subdomain
+                    <div className="flex items-center justify-between gap-2 text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>
+                      <span className="flex items-center gap-2">
+                        <Globe size={16} />
+                        Subdomain
+                      </span>
+                      {selectedDomain.subdomain && (
+                        <button
+                          type="button"
+                          onClick={handleEditSubdomainClick}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded hover:opacity-80"
+                          style={{ color: colors.text.secondary }}
+                        >
+                          <Pencil size={12} />
+                          Edit
+                        </button>
+                      )}
                     </div>
                     <p className="text-sm font-mono" style={{ color: colors.text.primary }}>
                       {selectedDomain.subdomain
@@ -447,8 +608,20 @@ export default function DomainsPage() {
                     </p>
                   </div>
                   <div>
-                    <div className="flex items-center gap-2 text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>
+                    <div className="flex items-center justify-between gap-2 text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>
                       Link
+                      {siteUrl && (
+                        <button
+                          type="button"
+                          onClick={handleCopyUrl}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded hover:opacity-80"
+                          style={{ color: colors.text.secondary }}
+                          aria-label="Copy URL"
+                        >
+                          <Copy size={12} />
+                          Copy
+                        </button>
+                      )}
                     </div>
                     <a
                       href={siteUrl}
@@ -457,8 +630,8 @@ export default function DomainsPage() {
                       className="inline-flex items-center gap-1.5 text-sm font-medium break-all hover:underline"
                       style={{ color: colors.text.primary }}
                     >
-                      {siteUrl}
-                      <ExternalLink size={14} className="shrink-0" />
+                      {siteUrl || '—'}
+                      {siteUrl && <ExternalLink size={14} className="shrink-0" />}
                     </a>
                   </div>
                   <div>
@@ -509,10 +682,18 @@ export default function DomainsPage() {
                   )}
 
                   <div className="pt-3 border-t space-y-3" style={{ borderColor: colors.border.faint }}>
-                    <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: colors.text.primary }}>
+                    <button
+                      type="button"
+                      onClick={() => setHistoryExpanded(!historyExpanded)}
+                      className="flex items-center gap-2 text-sm font-semibold w-full text-left"
+                      style={{ color: colors.text.primary }}
+                    >
                       <Calendar size={16} />
                       Publish history
-                    </div>
+                      {historyExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
+                    {historyExpanded && (
+                    <>
                     <ul className="space-y-2 text-sm">
                       <li className="flex items-center justify-between gap-2">
                         <span style={{ color: colors.text.secondary }}>Status</span>
@@ -565,6 +746,8 @@ export default function DomainsPage() {
                         No upcoming scheduled publish.
                       </p>
                     )}
+                    </>
+                    )}
                   </div>
                 </div>
               </aside>
@@ -572,6 +755,83 @@ export default function DomainsPage() {
           </>
         )}
       </div>
+
+      {/* Add Site Modal (PublishModal) */}
+      <PublishModal
+        open={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSuccess={(subdomain) => {
+          showAlert('Site published successfully!', 'Published');
+          refreshProjects();
+          setShowAddModal(false);
+        }}
+        projectId={addModalProjectId}
+        projectTitle={projects.find((p) => p.id === addModalProjectId)?.title ?? ''}
+        existingSubdomain={projects.find((p) => p.id === addModalProjectId)?.subdomain}
+        projects={projects.length > 1 ? projects.map((p) => ({ id: p.id, title: p.title, subdomain: p.subdomain })) : undefined}
+        onProjectChange={projects.length > 1 ? (id) => setAddModalProjectId(id) : undefined}
+      />
+
+      {/* Edit Subdomain Modal */}
+      <AnimatePresence>
+        {showEditSubdomainModal && selectedDomain && (
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+            style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+            onClick={() => !updatingSubdomain && setShowEditSubdomainModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="rounded-2xl border p-6 w-full max-w-md shadow-xl"
+              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-semibold mb-4" style={{ color: colors.text.primary }}>Edit Subdomain</h3>
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>New subdomain</label>
+                <input
+                  type="text"
+                  placeholder="e.g. newsite"
+                  value={editSubdomainValue}
+                  onChange={(e) => {
+                    setEditSubdomainValue(e.target.value);
+                    setEditSubdomainError('');
+                  }}
+                  className="w-full px-3 py-2 rounded-lg border text-sm font-mono"
+                  style={{
+                    backgroundColor: colors.bg.primary,
+                    borderColor: editSubdomainError ? 'rgb(239,68,68)' : colors.border.faint,
+                    color: colors.text.primary,
+                  }}
+                />
+                {editSubdomainError && (
+                  <p className="text-xs mt-1" style={{ color: 'rgb(239,68,68)' }}>{editSubdomainError}</p>
+                )}
+              </div>
+              <div className="flex gap-2 mt-6">
+                <button
+                  type="button"
+                  onClick={() => !updatingSubdomain && setShowEditSubdomainModal(false)}
+                  className="flex-1 px-4 py-2 rounded-lg border text-sm font-medium"
+                  style={{ borderColor: colors.border.faint, color: colors.text.secondary }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleEditSubdomainConfirm}
+                  disabled={updatingSubdomain}
+                  className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium"
+                >
+                  {updatingSubdomain ? 'Updating…' : 'Save'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

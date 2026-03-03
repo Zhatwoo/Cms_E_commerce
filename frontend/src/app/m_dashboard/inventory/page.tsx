@@ -457,6 +457,13 @@ export default function InventoryPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {STAT_CARDS.map((card, idx) => {
           const Icon = card.icon;
+          const labelColor = card.id === 'low'
+            ? '#f97316'
+            : card.id === 'out'
+              ? '#ef4444'
+              : card.id === 'value'
+                ? '#16a34a'
+                : colors.text.muted;
           return (
             <motion.div
               key={card.id}
@@ -467,7 +474,7 @@ export default function InventoryPage() {
               style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium uppercase tracking-wider" style={{ color: colors.text.muted }}>
+                <span className="text-xs font-medium uppercase tracking-wider" style={{ color: labelColor }}>
                   {card.label}
                 </span>
                 <div
@@ -549,7 +556,7 @@ export default function InventoryPage() {
           <span>Product</span>
           <span>SKU</span>
           <span>Stock</span>
-          <span>Reserved</span>
+          <span>Pre Orders</span>
           <span>Status</span>
           <span className="text-right">Actions</span>
         </div>
@@ -592,7 +599,7 @@ export default function InventoryPage() {
             {filteredItems.map((product) => {
               const { onHand, reserved, lowThreshold } = getStockNumbers(product);
               const statusLabel = onHand <= 0 ? 'Out of stock' : onHand < lowThreshold ? 'Low stock' : 'In stock';
-              const statusColor = onHand <= 0 ? '#ef4444' : onHand < lowThreshold ? '#f59e0b' : '#10b981';
+              const statusColor = onHand <= 0 ? '#ef4444' : onHand < lowThreshold ? '#f97316' : '#16a34a';
               return (
                 <div
                   key={product.id}
@@ -672,26 +679,33 @@ export default function InventoryPage() {
           </div>
         ) : (
           <div className="space-y-2">
-            {movements.map((m) => (
-              <div
-                key={m.id}
-                className="flex items-center justify-between rounded-lg border px-3 py-2 text-xs"
-                style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}
-              >
-                <div>
-                  <div style={{ color: colors.text.primary }}>
-                    {m.productName || 'Product'} - {m.type}
+            {movements.map((m) => {
+              const isIn = String(m.type || '').toUpperCase() === 'IN';
+              const isOut = String(m.type || '').toUpperCase() === 'OUT';
+              const typeColor = isIn ? '#16a34a' : isOut ? '#ef4444' : colors.text.primary;
+              const quantityColor = m.quantity > 0 ? '#16a34a' : m.quantity < 0 ? '#ef4444' : colors.text.primary;
+
+              return (
+                <div
+                  key={m.id}
+                  className="flex items-center justify-between rounded-lg border px-3 py-2 text-xs"
+                  style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}
+                >
+                  <div>
+                    <div style={{ color: colors.text.primary }}>
+                      {m.productName || 'Product'} - <span style={{ color: typeColor }}>{m.type}</span>
+                    </div>
+                    <div style={{ color: colors.text.muted }}>
+                      {m.notes || 'Inventory movement'}
+                    </div>
                   </div>
-                  <div style={{ color: colors.text.muted }}>
-                    {m.notes || 'Inventory movement'}
+                  <div className="text-right">
+                    <div style={{ color: quantityColor }}>{m.quantity > 0 ? `+${m.quantity}` : m.quantity}</div>
+                    <div style={{ color: colors.text.muted }}>{m.createdAt ? new Date(m.createdAt).toLocaleString() : '-'}</div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div style={{ color: colors.text.primary }}>{m.quantity > 0 ? `+${m.quantity}` : m.quantity}</div>
-                  <div style={{ color: colors.text.muted }}>{m.createdAt ? new Date(m.createdAt).toLocaleString() : '-'}</div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -728,10 +742,13 @@ export default function InventoryPage() {
                 <button
                   type="button"
                   onClick={closeAllMovementsModal}
-                  className="px-3 py-1.5 rounded-lg border text-xs font-medium"
-                  style={{ borderColor: colors.border.default, color: colors.text.secondary }}
+                  className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-black/10 dark:hover:bg-white/10"
+                  style={{ color: colors.text.muted }}
+                  title="Close"
                 >
-                  Close
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
 
@@ -750,26 +767,33 @@ export default function InventoryPage() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {allMovements.map((m) => (
-                      <div
-                        key={m.id}
-                        className="flex items-center justify-between rounded-lg border px-3 py-2 text-xs"
-                        style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}
-                      >
-                        <div>
-                          <div style={{ color: colors.text.primary }}>
-                            {m.productName || 'Product'} - {m.type}
+                    {allMovements.map((m) => {
+                      const isIn = String(m.type || '').toUpperCase() === 'IN';
+                      const isOut = String(m.type || '').toUpperCase() === 'OUT';
+                      const typeColor = isIn ? '#16a34a' : isOut ? '#ef4444' : colors.text.primary;
+                      const quantityColor = m.quantity > 0 ? '#16a34a' : m.quantity < 0 ? '#ef4444' : colors.text.primary;
+
+                      return (
+                        <div
+                          key={m.id}
+                          className="flex items-center justify-between rounded-lg border px-3 py-2 text-xs"
+                          style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}
+                        >
+                          <div>
+                            <div style={{ color: colors.text.primary }}>
+                              {m.productName || 'Product'} - <span style={{ color: typeColor }}>{m.type}</span>
+                            </div>
+                            <div style={{ color: colors.text.muted }}>
+                              {m.notes || 'Inventory movement'}
+                            </div>
                           </div>
-                          <div style={{ color: colors.text.muted }}>
-                            {m.notes || 'Inventory movement'}
+                          <div className="text-right">
+                            <div style={{ color: quantityColor }}>{m.quantity > 0 ? `+${m.quantity}` : m.quantity}</div>
+                            <div style={{ color: colors.text.muted }}>{m.createdAt ? new Date(m.createdAt).toLocaleString() : '-'}</div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div style={{ color: colors.text.primary }}>{m.quantity > 0 ? `+${m.quantity}` : m.quantity}</div>
-                          <div style={{ color: colors.text.muted }}>{m.createdAt ? new Date(m.createdAt).toLocaleString() : '-'}</div>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
