@@ -275,9 +275,6 @@ exports.login = async (req, res) => {
       const { uid: restUid, error: signInError, rawError } = await firebaseSignIn(normEmail, password);
 
       if (signInError) {
-        if (process.env.NODE_ENV !== 'production') {
-          console.error('Login Firebase error:', rawError || signInError.message);
-        }
         const m = (signInError.message || '').toUpperCase();
         let msg = 'Invalid email or password.';
         if (signInError.message === 'MISSING_API_KEY' || (rawError && (rawError.message || '').includes('FIREBASE_API_KEY'))) {

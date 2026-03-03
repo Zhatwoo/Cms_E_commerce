@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useTheme } from '../components/context/theme-context';
 import { useAuth } from '../components/context/auth-context';
 import { useProject } from '../components/context/project-context';
-import { listProjects, getSchedule, getPublishHistory, type Project, type PublishHistoryEntry } from '@/lib/api';
+import { listProjects, getSchedule, getPublishHistory, unpublishProject, type Project, type PublishHistoryEntry } from '@/lib/api';
 import { subscribeUserProjectSubdomains, type ProjectSubdomainEntry } from '@/lib/firebase';
 import {
   Globe,
@@ -20,7 +20,8 @@ import {
   TrendingUp,
   X,
   Calendar,
-  FileText
+  FileText,
+  ArrowDownToLine
 } from 'lucide-react';
 
 const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'websitelink';
@@ -119,6 +120,27 @@ export default function DomainsPage() {
   const [selectedDomain, setSelectedDomain] = useState<DomainEntry | null>(null);
   const [scheduleInfo, setScheduleInfo] = useState<{ scheduledAt: string; subdomain: string | null } | null>(null);
   const [publishHistory, setPublishHistory] = useState<PublishHistoryEntry[]>([]);
+  const [unpublishingId, setUnpublishingId] = useState<string | null>(null);
+
+  const handleUnpublish = async (projectId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation?.();
+    setUnpublishingId(projectId);
+    try {
+      const res = await unpublishProject(projectId);
+      if (res.success) {
+        const res2 = await listProjects();
+        if (res2.success && res2.projects) setProjects(res2.projects);
+        if (selectedDomain?.project.id === projectId) {
+          const updated = res2.projects?.find((p) => p.id === projectId);
+          setSelectedDomain(updated ? { project: updated, subdomain: selectedDomain.subdomain } : null);
+        }
+      }
+    } catch {
+      // silent fail; could add toast
+    } finally {
+      setUnpublishingId(null);
+    }
+  };
 
   useEffect(() => {
     if (!selectedDomain?.project.id) {
@@ -137,7 +159,7 @@ export default function DomainsPage() {
       else if (!cancelled) setPublishHistory([]);
     });
     return () => { cancelled = true; };
-  }, [selectedDomain?.project.id]);
+  }, [selectedDomain?.project.id, selectedDomain?.project.status]);
 
   const siteUrl = selectedDomain?.subdomain
     ? getSubdomainSiteUrl(selectedDomain.subdomain, origin)
@@ -361,6 +383,22 @@ export default function DomainsPage() {
                       <ExternalLink size={14} />
                       {subdomain ? 'Continue to website' : 'Publish to go live'}
                     </a>
+                    {isPublished && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleUnpublish(project.id, e)}
+                        disabled={unpublishingId === project.id}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors shrink-0 border"
+                        style={{
+                          borderColor: 'rgba(239,68,68,0.5)',
+                          color: 'rgb(239,68,68)',
+                          backgroundColor: 'transparent',
+                        }}
+                      >
+                        <ArrowDownToLine size={14} />
+                        {unpublishingId === project.id ? 'Taking down…' : 'Take down'}
+                      </button>
+                    )}
                   </div>
                 </div>
                   );
@@ -425,15 +463,33 @@ export default function DomainsPage() {
                   </div>
                   <div>
                     <div className="text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>Status</div>
-                    <span
-                      className="text-xs px-2 py-1 rounded-full capitalize"
-                      style={{
-                        backgroundColor: selectedDomain.project.status === 'published' ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)',
-                        color: selectedDomain.project.status === 'published' ? 'rgb(22,163,74)' : 'rgb(180,83,9)',
-                      }}
-                    >
-                      {selectedDomain.project.status || 'draft'}
-                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className="text-xs px-2 py-1 rounded-full capitalize"
+                        style={{
+                          backgroundColor: selectedDomain.project.status === 'published' ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)',
+                          color: selectedDomain.project.status === 'published' ? 'rgb(22,163,74)' : 'rgb(180,83,9)',
+                        }}
+                      >
+                        {selectedDomain.project.status || 'draft'}
+                      </span>
+                      {isPublishedStatus(selectedDomain.project.status) && (
+                        <button
+                          type="button"
+                          onClick={() => handleUnpublish(selectedDomain.project.id)}
+                          disabled={unpublishingId === selectedDomain.project.id}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors"
+                          style={{
+                            borderColor: 'rgba(239,68,68,0.5)',
+                            color: 'rgb(239,68,68)',
+                            backgroundColor: 'transparent',
+                          }}
+                        >
+                          <ArrowDownToLine size={14} />
+                          {unpublishingId === selectedDomain.project.id ? 'Taking down…' : 'Take down'}
+                        </button>
+                      )}
+                    </div>
                   </div>
                   {selectedDomain.project.createdAt && (
                     <div>

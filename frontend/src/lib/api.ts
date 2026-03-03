@@ -395,6 +395,14 @@ export async function permanentDeleteProject(id: string): Promise<{ success: boo
   });
 }
 
+/** Unpublish (take down) a published project. Site will no longer be accessible until published again. */
+export async function unpublishProject(projectId: string): Promise<{ success: boolean; message?: string; data?: { subdomain?: string } }> {
+  return apiFetch<{ success: boolean; message?: string; data?: { subdomain?: string } }>('/api/domains/unpublish', {
+    method: 'POST',
+    body: JSON.stringify({ projectId }),
+  });
+}
+
 /** Publish current project from Preview: creates/updates domain and public lookup so /sites/:subdomain works. */
 export async function publishProject(
   projectId: string,
