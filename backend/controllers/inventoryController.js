@@ -180,3 +180,110 @@ exports.getMovements = async (req, res) => {
     });
   }
 };
+
+function toIntOrNull(value) {
+  if (value === undefined || value === null || value === '') return undefined;
+  const n = parseInt(value, 10);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+exports.importInventory = async (req, res) => {
+  try {
+    const { rows } = req.body || {};
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'rows array is required and must not be empty',
+        updated: 0,
+        errors: [],
+      });
+    }
+
+    const headerProjectId = String(req.headers['x-project-id'] || '').trim();
+    const scopedSubdomain = await resolveScopedSubdomain(req.user.id, null, headerProjectId);
+
+    const errors = [];
+    let updated = 0;
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const sku = row?.sku != null ? String(row.sku).trim() : '';
+      if (!sku) {
+        errors.push({ row: i + 1, sku: String(row?.sku ?? ''), message: 'SKU is required' });
+        continue;
+      }
+
+      const product = await Product.findBySkuForUser(sku, req.user.id, scopedSubdomain || undefined);
+      if (!product) {
+        errors.push({ row: i + 1, sku, message: 'Product not found' });
+        continue;
+      }
+
+      const updateData = {};
+      if (row.onHandStock !== undefined && row.onHandStock !== null && row.onHandStock !== '') {
+        const v = toIntOrNull(row.onHandStock);
+        if (v !== undefined) updateData.onHandStock = Math.max(0, v);
+      }
+      if (row.reservedStock !== undefined && row.reservedStock !== null && row.reservedStock !== '') {
+        const v = toIntOrNull(row.reservedStock);
+        if (v !== undefined) updateData.reservedStock = Math.max(0, v);
+      }
+      if (row.lowStockThreshold !== undefined && row.lowStockThreshold !== null && row.lowStockThreshold !== '') {
+        const v = toIntOrNull(row.lowStockThreshold);
+        if (v !== undefined) updateData.lowStockThreshold = Math.max(0, v);
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        continue;
+      }
+
+      const beforeOnHand = product.onHandStock ?? product.stock ?? 0;
+
+      const updatedProduct = await Product.updateForUser(product.id, req.user.id, updateData);
+      if (!updatedProduct) {
+        errors.push({ row: i + 1, sku, message: 'Update failed' });
+        continue;
+      }
+
+      updated += 1;
+
+      const afterOnHand = updatedProduct.onHandStock ?? updatedProduct.stock ?? 0;
+      const quantity = afterOnHand - beforeOnHand;
+      if (quantity !== 0) {
+        await InventoryMovement.create({
+          userId: req.user.id,
+          projectId: updatedProduct.projectId || null,
+          subdomain: updatedProduct.subdomain || null,
+          productId: updatedProduct.id,
+          productName: updatedProduct.name || null,
+          productSku: updatedProduct.sku || null,
+          type: 'ADJUST',
+          quantity,
+          beforeOnHand,
+          afterOnHand,
+          beforeReserved: product.reservedStock ?? null,
+          afterReserved: updatedProduct.reservedStock ?? null,
+          referenceType: 'csv_import',
+          referenceId: null,
+          actor: req.user?.email || req.user?.id || null,
+          notes: 'Bulk import from CSV',
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      updated,
+      errors: errors.length > 0 ? errors : undefined,
+      message: updated > 0 ? `Updated ${updated} product(s)` : errors.length === rows.length ? 'No products updated' : `Updated ${updated}, ${errors.length} row(s) had errors`,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+      error: error.message,
+      updated: 0,
+      errors: [],
+    });
+  }
+};

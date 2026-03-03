@@ -93,7 +93,11 @@ export const BoxSelectionHandler = () => {
       }
 
       startedOnEmptyRef.current = !nodeEl;
-      document.body.dataset[BOX_SELECTING_INTENT_FLAG] = "true";
+      // Only set box-select flags when starting on empty area so FigmaStyleDragHandler
+      // can drag nodes (including multi-drag) when starting on a node
+      if (startedOnEmptyRef.current) {
+        document.body.dataset[BOX_SELECTING_INTENT_FLAG] = "true";
+      }
       dragRef.current = {
         active: true,
         startedOnNode: !!nodeEl,
@@ -108,6 +112,8 @@ export const BoxSelectionHandler = () => {
     const handleMouseMove = (e: MouseEvent) => {
       const dragState = dragRef.current;
       if (!dragState || !dragState.active) return;
+      // Only show marquee when started on empty — when started on node, let drag handler work
+      if (!startedOnEmptyRef.current) return;
 
       dragState.currentX = e.clientX;
       dragState.currentY = e.clientY;
