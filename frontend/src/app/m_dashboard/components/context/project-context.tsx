@@ -48,7 +48,7 @@ export function ProjectProvider({ children }: ProviderProps) {
       return;
     }
     try {
-      const saved = window.localStorage.getItem(storageKey);
+      const saved = window.sessionStorage.getItem(storageKey);
       setSelectedProjectIdState(saved || null);
     } catch {
       setSelectedProjectIdState(null);
@@ -76,7 +76,7 @@ export function ProjectProvider({ children }: ProviderProps) {
         setSelectedProjectIdState(null);
         if (storageKey) {
           try {
-            window.localStorage.removeItem(storageKey);
+            window.sessionStorage.removeItem(storageKey);
           } catch {}
         }
       }
@@ -85,7 +85,7 @@ export function ProjectProvider({ children }: ProviderProps) {
       setSelectedProjectIdState(null);
       if (storageKey) {
         try {
-          window.localStorage.removeItem(storageKey);
+          window.sessionStorage.removeItem(storageKey);
         } catch {}
       }
     } finally {
@@ -110,8 +110,8 @@ export function ProjectProvider({ children }: ProviderProps) {
     setSelectedProjectIdState(id);
     if (storageKey) {
       try {
-        if (id) window.localStorage.setItem(storageKey, id);
-        else window.localStorage.removeItem(storageKey);
+        if (id) window.sessionStorage.setItem(storageKey, id);
+        else window.sessionStorage.removeItem(storageKey);
       } catch {}
     }
   };

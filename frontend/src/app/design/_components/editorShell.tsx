@@ -671,9 +671,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     if (errorCleanupDoneRef.current) return;
     errorCleanupDoneRef.current = true;
 
-    console.error('❌ Frame rendering failed. Cleaning up corrupted data...');
-
-    // Clear per-project storage keys (both localStorage and sessionStorage)
+    // Clear per-project storage keys (sessionStorage + legacy localStorage)
     const storageKey = getStorageKey(projectId);
     try {
       if (typeof window !== "undefined") {
@@ -698,9 +696,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     if (projectId) {
       try {
         await deleteDraft(projectId);
-        console.log('✅ Corrupted data cleared from database');
-      } catch (error) {
-        console.error('Failed to clear corrupted data:', error);
+      } catch {
+        // Ignore cleanup errors
       }
     }
 
@@ -829,7 +826,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       parsed.pages = (parsed.pages || []).filter((p: any) => p.id !== pageId);
       const updated = JSON.stringify(parsed);
       const storageKey = getStorageKey(projectId);
-      localStorage.setItem(storageKey, updated);
+      safeSessionSet(storageKey, updated);
       loadPages(updated);
       if (currentPageId === pageId && parsed.pages.length > 0) {
         setCurrentPageId(parsed.pages[0].id);
@@ -850,7 +847,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         page.name = newName;
         const updated = JSON.stringify(parsed);
         const storageKey = getStorageKey(projectId);
-        localStorage.setItem(storageKey, updated);
+        safeSessionSet(storageKey, updated);
         loadPages(updated);
         setInitialJson(updated);
       }
@@ -1345,6 +1342,23 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     };
   }, []);
 
+  // One-time migration: clear legacy draft data from localStorage (now using sessionStorage only)
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.localStorage) return;
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < window.localStorage.length; i++) {
+        const k = window.localStorage.key(i);
+        if (k && (k.startsWith(STORAGE_KEY_PREFIX) || k.startsWith("webbuilder_pages"))) {
+          keysToRemove.push(k);
+        }
+      }
+      keysToRemove.forEach((k) => window.localStorage.removeItem(k));
+    } catch {
+      // Ignore migration errors
+    }
+  }, []);
+
   // Restore saved editor state from database on mount
   useEffect(() => {
     if (!projectId) {
@@ -1355,16 +1369,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
     async function loadDraft() {
       try {
-        console.log('📥 loadDraft starting...', projectId);
-
         // Try sessionStorage per-project (no localStorage — auth/drafts in cookies or session only)
         const storageKey = getStorageKey(projectId);
         const sessionSaved = safeSessionGet(storageKey);
 
         // Try to load from database
-        console.log('📡 Calling getDraft()...');
         const result = await getDraft(projectId);
-        console.log('📡 getDraft result:', result);
 
         let contentToLoad: string | null = null;
 
@@ -1413,7 +1423,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         if (sessionSaved) {
           const normalized = normalizeToCraftJson(sessionSaved);
           if (normalized) {
-            console.log('✅ Loaded valid draft from session (this project)');
             contentToLoad = normalized;
             if (normalized !== sessionSaved) {
               safeSessionSet(storageKey, normalized);
@@ -1428,12 +1437,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         if (!contentToLoad && result.success && result.data && result.data.content) {
           const normalized = normalizeToCraftJson(result.data.content);
           if (normalized) {
-            try {
-              const parsed = JSON.parse(normalized);
-              console.log(`✅ Loaded valid draft from DB (${Object.keys(parsed).length} internal nodes)`);
-            } catch {
-              console.log('✅ Loaded valid draft from DB');
-            }
             contentToLoad = normalized;
             safeSessionSet(storageKey, normalized);
           } else {
@@ -1448,7 +1451,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           if (legacySaved) {
             const normalized = normalizeToCraftJson(legacySaved);
             if (normalized) {
-              console.log('✅ Loaded valid draft from legacy session key, syncing to project key');
               contentToLoad = normalized;
               safeSessionSet(storageKey, normalized);
               safeSessionRemove(STORAGE_KEY_PREFIX);
@@ -1456,10 +1458,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
               safeSessionRemove(STORAGE_KEY_PREFIX);
             }
           }
-        }
-
-        if (!contentToLoad) {
-          console.log('⚠️ No saved data found, expecting default');
         }
 
         setInitialJson(contentToLoad);
@@ -1476,12 +1474,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         }
 
         // IMPORTANT: Mark as ready immediately via Ref to avoid stale closures
-        // passing "undefined" to handleNodesChange
         isReadyRef.current = true;
-        console.log('✅ Editor marked as READY via Ref');
 
-      } catch (error) {
-        console.error('❌ loadDraft Unexpected Error:', error);
+      } catch {
         setInitialJson(null);
         isReadyRef.current = true; // Allow editing even if load failed
       }
