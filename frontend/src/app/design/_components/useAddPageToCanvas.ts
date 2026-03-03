@@ -12,8 +12,8 @@ function toPx(value: unknown, fallback: number): number {
   return fallback;
 }
 
-const VIEWPORT_CENTER_WIDTH = 20000;
-const VIEWPORT_CENTER_HEIGHT = 14000;
+const PAGE_GRID_ORIGIN_X = 100000;
+const PAGE_GRID_ORIGIN_Y = 100000;
 
 /**
  * Returns a function that adds a new Page node to the Viewport on the canvas via Craft.js.
@@ -70,11 +70,11 @@ export function useAddPageToCanvas(onPageAdded?: (id: string, name: string) => v
       const baseCanvasX =
         typeof templateProps?.canvasX === "number"
           ? templateProps.canvasX
-          : Math.round(VIEWPORT_CENTER_WIDTH / 2 - PAGE_WIDTH / 2);
+          : PAGE_GRID_ORIGIN_X;
       const baseCanvasY =
         typeof templateProps?.canvasY === "number"
           ? templateProps.canvasY
-          : Math.round(VIEWPORT_CENTER_HEIGHT / 2 - PAGE_HEIGHT / 2);
+          : PAGE_GRID_ORIGIN_Y;
 
       const col = pageCount % COLUMNS;
       const row = Math.floor(pageCount / COLUMNS);

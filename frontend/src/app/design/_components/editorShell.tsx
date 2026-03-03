@@ -635,7 +635,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [rightPanelTab, setRightPanelTab] = useState<TabId>("design");
   const [canvasWidth, setCanvasWidth] = useState(1440);
   const [canvasHeight, setCanvasHeight] = useState(900);
-  const [canvasRotation, setCanvasRotation] = useState(0);
   const [activeTool, setActiveTool] = useState<CanvasTool>("move");
   const [frameReady, setFrameReady] = useState(false);
   const [showDualView, setShowDualView] = useState(false);
@@ -1176,7 +1175,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
   // Handle canvas rotation
   const handleRotateCanvas = useCallback(() => {
-    setCanvasRotation((prev) => (prev + 90) % 360);
+    // Rotation is handled per-page in TopPanel; keep callback for API compatibility.
   }, []);
 
   // Handle fit to canvas: zoom so page fits with 10% margin, then center
@@ -1392,6 +1391,15 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
   // Restore saved editor state from database on mount
   useEffect(() => {
+    hasInitialCenteringRef.current = false;
+    hasAutoCenteredAfterFrameReadyRef.current = false;
+    manualCameraControlUntilRef.current = 0;
+    lastWheelZoomAtRef.current = 0;
+    wheelZoomAnchorRef.current = null;
+    wheelZoomingRef.current = false;
+    setFrameReady(false);
+    setPanelsReady(false);
+
     if (!projectId) {
       setInitialJson(null);
       isReadyRef.current = true;
@@ -1476,20 +1484,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           }
         }
 
-        // 3. Legacy: check unprefixed key (e.g. template loaded before navigation)
-        if (!contentToLoad && storageKey !== STORAGE_KEY_PREFIX) {
-          const legacySaved = safeSessionGet(STORAGE_KEY_PREFIX);
-          if (legacySaved) {
-            const normalized = normalizeToCraftJson(legacySaved);
-            if (normalized) {
-              contentToLoad = normalized;
-              safeSessionSet(storageKey, normalized);
-              safeSessionRemove(STORAGE_KEY_PREFIX);
-            } else {
-              safeSessionRemove(STORAGE_KEY_PREFIX);
-            }
-          }
-        }
+        // Legacy global fallback intentionally disabled to avoid cross-project draft bleed.
 
         setInitialJson(contentToLoad);
         if (contentToLoad) {
@@ -1660,7 +1655,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           try {
             const key = `${STORAGE_KEY_PREFIX}_${projectId}`;
             window.sessionStorage.setItem(key, toStore);
-            window.sessionStorage.setItem(STORAGE_KEY_PREFIX, toStore);
           } catch (e) {
             if (!isQuotaError(e)) console.warn("Auto-save: sessionStorage write failed", e);
           }
@@ -1957,6 +1951,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                     scale={scale}
                     onScaleChange={handleScaleChange}
                     onRotateCanvas={handleRotateCanvas}
+                    activePageId={currentPageId}
                     onFitToCanvas={handleFitToCanvas}
                     canvasWidth={canvasWidth}
                     canvasHeight={canvasHeight}
@@ -1995,10 +1990,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                       padding: `${INFINITE_CANVAS_PADDING_PX}px`,
                       boxSizing: "border-box",
                       transformOrigin: "top left",
-                      transform:
-                        canvasRotation !== 0
-                          ? `scale(${scale}) rotate(${canvasRotation}deg)`
-                          : `scale(${scale})`,
+                      transform: `scale(${scale})`,
                       willChange: "transform",
                     }}
                   >

@@ -210,6 +210,8 @@ export interface PageProps extends AnimatableProps, InteractableProps {
   width?: string;
   height?: string;
   background?: string;
+  /** Per-page rotation in degrees (used by top panel rotate action). */
+  pageRotation?: number;
   /** Whiteboard X position in px. */
   canvasX?: number;
   /** Whiteboard Y position in px. */
