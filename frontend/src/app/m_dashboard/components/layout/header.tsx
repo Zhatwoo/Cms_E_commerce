@@ -73,6 +73,8 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     const { user, setUser } = useAuth();
     const { projects, loading, selectedProjectId, setSelectedProjectId } = useProject();
     const { theme, toggleTheme, colors } = useTheme();
+    const { projects, loading, selectedProject, setSelectedProjectId } = useProject();
+    const selectedProjectId = selectedProject?.id ?? null;
     const [showMenu, setShowMenu] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const [showSwitchModal, setShowSwitchModal] = useState(false);

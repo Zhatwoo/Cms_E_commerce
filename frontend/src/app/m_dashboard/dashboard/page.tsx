@@ -404,14 +404,19 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                 <h3 className="text-xs sm:text-sm font-bold tracking-[0.18em] uppercase text-[#FFCE00]">Featured Templates</h3>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.38fr)_minmax(0,1fr)] gap-4 lg:gap-5">
-                <div className="relative rounded-[22px] overflow-hidden w-full h-[280px] sm:h-[360px] lg:h-[500px] group cursor-pointer hover:-translate-y-0.5 transition-transform">
+              <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-4 h-auto lg:h-[620px]">
+
+                {/* Left — large featured card */}
+                <div className="relative rounded-[22px] overflow-hidden h-[420px] lg:h-full group cursor-pointer hover:-translate-y-0.5 transition-transform">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src="/images/template-portfolio.jpg" alt="PC Website" className="template-pan-img" loading="lazy" />
+                  {/* gradient overlay */}
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0A0730]/95 via-[#0A0730]/40 to-transparent" />
+                  {/* floating text */}
                   <div className="absolute bottom-0 left-0 p-6 flex flex-col gap-2">
                     <span className="text-[10px] font-bold tracking-[0.22em] uppercase text-[#FFCE00]">Template</span>
-                    <h4 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight">PC Website</h4>
-                    <button type="button" className="mt-1 flex items-center gap-2 text-xs font-bold tracking-widest uppercase text-[#FFCE00] hover:gap-3 transition-all">
+                    <h4 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight">Fashion Website</h4>
+                    <button type="button" className="mt-1 flex items-center gap-2 text-xs font-bold tracking-widest uppercase text-[#FFCE00] group-hover:gap-3 transition-all duration-200">
                       Explore Collection
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
@@ -420,8 +425,12 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-rows-2 gap-4 lg:gap-5 w-full lg:h-[500px]">
-                  <div className="relative rounded-[22px] overflow-hidden w-full h-[220px] sm:h-[260px] lg:h-full group cursor-pointer hover:-translate-y-0.5 transition-transform">
+                {/* Right — 2 stacked cards */}
+                <div className="flex flex-col gap-4 h-full">
+
+                  {/* Top right */}
+                  <div className="relative rounded-[22px] overflow-hidden flex-1 group cursor-pointer hover:-translate-y-0.5 transition-transform min-h-[240px]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src="/images/template-saas.jpg" alt="Simple Website" className="template-pan-img-slow" loading="lazy" />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0A0730]/90 via-[#0A0730]/30 to-transparent" />
                     <div className="absolute bottom-0 left-0 p-5 flex flex-col gap-1">
@@ -430,7 +439,9 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                     </div>
                   </div>
 
-                  <div className="relative rounded-[22px] overflow-hidden w-full h-[220px] sm:h-[260px] lg:h-full group cursor-pointer hover:-translate-y-0.5 transition-transform">
+                  {/* Bottom right */}
+                  <div className="relative rounded-[22px] overflow-hidden flex-1 group cursor-pointer hover:-translate-y-0.5 transition-transform min-h-[240px]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src="/images/template-fashion.jpg" alt="Fashion Website" className="template-pan-img" loading="lazy" />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0A0730]/90 via-[#0A0730]/30 to-transparent" />
                     <div className="absolute bottom-0 left-0 p-5 flex flex-col gap-1">

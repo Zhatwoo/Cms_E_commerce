@@ -812,7 +812,11 @@ export default function WebBuilderPage() {
         </div>
 
         {activeTab === 'active' ? (
-          visibleProjects.length === 0 ? (
+          loading ? (
+            <div className="rounded-xl border p-12 text-center" style={{ borderColor: colors.border.faint }}>
+              <p className="text-sm" style={{ color: colors.text.muted }}>Loading projects…</p>
+            </div>
+          ) : visibleProjects.length === 0 ? (
             <div className="rounded-xl border border-dashed p-12 text-center" style={{ borderColor: colors.border.faint }}>
               <div className="space-y-2">
                 <p className="text-sm" style={{ color: colors.text.muted }}>No active projects yet.</p>

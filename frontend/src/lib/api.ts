@@ -322,6 +322,7 @@ export type Project = {
   id: string;
   title: string;
   status: string;
+  instanceId?: string | null;
   templateId?: string | null;
   subdomain?: string | null;
   thumbnail?: string | null;
