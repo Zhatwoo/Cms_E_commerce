@@ -2,9 +2,9 @@
 
 import React from "react";
 import { useEditor } from "@craftjs/core";
-import { MousePointer2, Hand, Maximize2, Undo2, Redo2 } from "lucide-react";
+import { MousePointer2, Hand, Maximize2, Undo2, Redo2, Type } from "lucide-react";
 
-export type CanvasTool = "move" | "hand";
+export type CanvasTool = "move" | "hand" | "text";
 
 interface BottomPanelProps {
   activeTool: CanvasTool;
@@ -77,8 +77,8 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
           type="button"
           onClick={() => onToolChange("move")}
           className={`h-9 w-9 grid place-items-center rounded-lg transition-colors ${activeTool === "move"
-              ? "bg-blue-500/25 text-blue-300"
-              : "text-white/70 hover:text-white hover:bg-white/[0.08]"
+            ? "bg-blue-500/25 text-blue-300"
+            : "text-white/70 hover:text-white hover:bg-white/[0.08]"
             }`}
           title="Move – Select and move elements"
         >
@@ -88,12 +88,23 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
           type="button"
           onClick={() => onToolChange("hand")}
           className={`h-9 w-9 grid place-items-center rounded-lg transition-colors ${activeTool === "hand"
-              ? "bg-blue-500/25 text-blue-300"
-              : "text-white/70 hover:text-white hover:bg-white/[0.08]"
+            ? "bg-blue-500/25 text-blue-300"
+            : "text-white/70 hover:text-white hover:bg-white/[0.08]"
             }`}
           title="Hand – Pan the canvas"
         >
           <Hand className="w-4 h-4" strokeWidth={1.8} />
+        </button>
+        <button
+          type="button"
+          onClick={() => onToolChange("text")}
+          className={`h-9 w-9 grid place-items-center rounded-lg transition-colors ${activeTool === "text"
+            ? "bg-blue-500/25 text-blue-300"
+            : "text-white/70 hover:text-white hover:bg-white/[0.08]"
+            }`}
+          title="Text – Click and drag to add text"
+        >
+          <Type className="w-4 h-4" strokeWidth={1.8} />
         </button>
         <div className="w-px h-5 bg-white/15 rounded-full mx-0.5" aria-hidden />
         <button
@@ -145,7 +156,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
       <div className="pointer-events-none flex items-center gap-2">
         {showHints && (
           <span className="pointer-events-auto rounded-full border border-white/10 bg-brand-dark/70 px-3 py-1 text-[10px] text-brand-light/85 backdrop-blur-sm">
-            G Move • H Hand • Hold Space to pan
+            G Move • H Hand • T Text • Hold Space to pan
           </span>
         )}
         {saveStatus !== "idle" && (

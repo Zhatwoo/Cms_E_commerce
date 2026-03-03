@@ -22,6 +22,7 @@ import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
 import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
 import { MarqueeSelectionHandler } from "./MarqueeSelectionHandler";
 import { BoxSelectionHandler } from "./BoxSelectionHandler";
+import { TextToolHandler } from "./TextToolHandler";
 import { TransformModeProvider } from "./TransformModeContext";
 import { InlineTextEditProvider } from "./InlineTextEditContext";
 import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
@@ -104,9 +105,6 @@ const EMPTY_FRAME_DATA = JSON.stringify({
     displayName: "Page",
     custom: {},
     parent: "ROOT",
-    hidden: false,
-    custom: {},
-    parent: "page-1",
     hidden: false,
     nodes: [],
     linkedNodes: {},
@@ -1832,6 +1830,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 <FigmaStyleDragHandler />
                 <NewPageDropPlacementHandler />
                 <BoxSelectionHandler />
+                <TextToolHandler />
                 <DoubleClickTransformHandler />
                 <PrototypeFlowLines />
                 {/* Top Panel */}
