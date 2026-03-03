@@ -21,7 +21,7 @@ import {
   FeaturedProduct,
   CategoriesCard,
   BrowseCategory,
-  ProductsOverview,
+   ProductsOverview,
   ProductDetailView,
   ProductDetailViewV2,
   ProductDetailViewV3,

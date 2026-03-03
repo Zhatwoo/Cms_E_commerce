@@ -1,5 +1,4 @@
 "use client";
-
 export { ProductCard } from "./productcard/productcard";
 export { ProductDetailView } from "./productcard/ProductDetailView";
 export { ProductDetailViewV2 } from "./productcard/ProductDetailViewV2";

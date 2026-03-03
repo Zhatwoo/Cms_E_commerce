@@ -306,4 +306,4 @@ export const ProductsOverview: TemplateEntry = {
 			)
 		)
 	),
-};
+}
