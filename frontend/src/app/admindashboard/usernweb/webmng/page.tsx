@@ -6,7 +6,7 @@ import { AdminSidebar } from '../../components/sidebar';
 import { AdminHeader } from '../../components/header';
 import { setClientDomainStatus } from '@/lib/api';
 
-const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'cms.com';
+const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'websitelink';
 
 function getViewWebsiteUrl(domainName: string): string {
   if (!domainName || domainName === '—') return '#';
@@ -85,6 +85,36 @@ function ManageWebsiteContent(): React.ReactElement {
     }
   }, [userId, id]);
 
+  const handleCopyUrl = useCallback(() => {
+    if (viewUrl && viewUrl !== '#') {
+      navigator.clipboard.writeText(viewUrl).then(
+        () => { setToast('URL copied to clipboard'); setTimeout(() => setToast(null), 2500); },
+        () => { setToast('Failed to copy URL'); setTimeout(() => setToast(null), 2500); }
+      );
+    }
+  }, [viewUrl]);
+
+  const handleFlag = useCallback(async () => {
+    if (!userId || !id) return;
+    setSuspending(true);
+    try {
+      const res = await setClientDomainStatus(userId, id, 'flagged');
+      if (res.success) {
+        setStatus('Flagged');
+        setToast('Website flagged.');
+        setTimeout(() => setToast(null), 3000);
+      } else {
+        setToast(res.message ?? 'Failed to flag');
+        setTimeout(() => setToast(null), 3000);
+      }
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : 'Failed to flag');
+      setTimeout(() => setToast(null), 3000);
+    } finally {
+      setSuspending(false);
+    }
+  }, [userId, id]);
+
   if (!id && !domainName) {
     return (
       <div className="min-h-screen bg-gray-50 flex">
@@ -129,7 +159,7 @@ function ManageWebsiteContent(): React.ReactElement {
                 <h1 className="text-3xl font-bold text-gray-900">Manage Website</h1>
                 <p className="text-gray-600 mt-1">{domainName || '—'}</p>
               </div>
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3">
                 <button
                   onClick={handleViewWebsite}
                   disabled={!viewUrl || viewUrl === '#'}
@@ -137,6 +167,22 @@ function ManageWebsiteContent(): React.ReactElement {
                 >
                   View Website
                 </button>
+                <button
+                  onClick={handleCopyUrl}
+                  disabled={!viewUrl || viewUrl === '#'}
+                  className="px-6 py-2.5 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-all font-medium"
+                >
+                  Copy URL
+                </button>
+                {(status.toLowerCase() !== 'flagged') && (
+                  <button
+                    onClick={handleFlag}
+                    disabled={suspending}
+                    className="px-6 py-2.5 bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200 disabled:opacity-50 transition-all font-medium"
+                  >
+                    Flag
+                  </button>
+                )}
                 {isSuspended ? (
                   <button
                     onClick={handleReactivate}
@@ -203,7 +249,7 @@ function ManageWebsiteContent(): React.ReactElement {
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                   <h2 className="text-xl font-bold text-gray-900 mb-6">Actions</h2>
                   <p className="text-sm text-gray-600 mb-4">
-                    Use &quot;View Website&quot; to open the published site in a new tab. Use &quot;Suspend&quot; to disable the site, or &quot;Reactivate&quot; to bring it back.
+                    Use &quot;View Website&quot; to open the site. &quot;Copy URL&quot; copies the link. &quot;Suspend&quot; disables the site; &quot;Reactivate&quot; brings it back. &quot;Flag&quot; marks for review.
                   </p>
                   <button
                     onClick={() => router.push('/admindashboard/usernweb')}

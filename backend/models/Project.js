@@ -79,10 +79,20 @@ async function moveToTrash(userId, projectId) {
 
   const data = snap.data();
 
-  // BLOCK DELETION IF LIVE/PUBLISHED
+  // If published, auto-unpublish first (takedown) so site goes offline, then proceed with trash
   const normalizedStatus = String(data.status || '').trim().toLowerCase();
   if (normalizedStatus === 'published' || normalizedStatus === 'live') {
-    throw new Error('This project is live/published and cannot be deleted. Please unpublish it first from Domain settings.');
+    await Domain.unpublishForClient(userId, projectId);
+    await update(userId, projectId, { status: 'draft' });
+    data.status = 'draft';
+    const rtdb = getRealtimeDb();
+    if (rtdb) {
+      try {
+        await rtdb.ref(`user/roles/client/${userId}/projects/${projectId}`).update({ status: 'draft' });
+      } catch (e) {
+        console.warn('moveToTrash: RTDB unpublish sync failed:', e.message);
+      }
+    }
   }
 
   // Mark with deletion timestamp and store in trash
@@ -105,8 +115,8 @@ async function moveToTrash(userId, projectId) {
     }
   }
 
-  // Deactivate domain records
-  await Domain.deleteByProjectId(userId, projectId);
+  // Move domain to trash (preserves for restore) instead of hard-delete
+  await Domain.moveToTrashByProjectId(userId, projectId);
 
   return { id: projectId, ...data };
 }
@@ -161,6 +171,22 @@ async function restore(userId, projectId) {
   await projectRef.set(data);
   // Remove from trash
   await trashRef.delete();
+
+  // Restore domain from domain_trash if any (domain stays draft)
+  await Domain.restoreFromTrashByProjectId(userId, projectId);
+
+  // Sync RTDB so frontend subscribeUserProjectSubdomains stays in sync
+  const rtdb = getRealtimeDb();
+  if (rtdb) {
+    try {
+      await rtdb.ref(`user/roles/client/${userId}/projects/${projectId}`).set({
+        subdomain: data.subdomain ?? null,
+        status: data.status ?? 'draft',
+      });
+    } catch (e) {
+      console.warn('restore: RTDB sync failed:', e.message);
+    }
+  }
 
   return { id: projectId, ...data };
 }

@@ -33,6 +33,7 @@ import { PrototypeTabProvider } from "./PrototypeTabContext";
 import { PrototypeFlowLines } from "./PrototypeFlowLines";
 import { NewPageDropPlacementHandler } from "./NewPageDropPlacementHandler";
 import { HeaderFooterDropPlacementHandler } from "./HeaderFooterDropPlacementHandler";
+import { ScrollToSelectedHandler } from "./ScrollToSelectedHandler";
 import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
@@ -41,6 +42,13 @@ import { Circle } from "../../_assets/shapes/circle/circle";
 import { Square } from "../../_assets/shapes/square/square";
 import { Triangle } from "../../_assets/shapes/triangle/triangle";
 import { CRAFT_RESOLVER } from "./craftResolver";
+import {
+  MIN_SCALE,
+  MAX_SCALE,
+  DEFAULT_SCALE,
+  ZOOM_STEP,
+  ZOOM_SENSITIVITY,
+} from "./zoomConstants";
 
 /**
  * React Error Boundary to catch rendering errors in Frame component
@@ -191,14 +199,12 @@ type EditorShellProps = {
 const MIN_SCALE = 0.05;
 const MAX_SCALE = 3;
 const DEFAULT_SCALE = 0.75;
-const ZOOM_BUTTON_STEP = 0.1;
 const ZOOM_SENSITIVITY = 0.003;
 const INFINITE_CANVAS_WIDTH_VW = 8000;
 const INFINITE_CANVAS_HEIGHT_VH = 8000;
 const INFINITE_CANVAS_PADDING_PX = 100000;
 const LEFT_PANEL_DEFAULT_WIDTH = 320;
-const RIGHT_PANEL_DEFAULT_WIDTH = 300;
-const RIGHT_PANEL_MIN_WIDTH = 300;
+const RIGHT_PANEL_DEFAULT_WIDTH = 420;
 const MIN_CANVAS_VIEWPORT_WIDTH = 760;
 const TOP_PANEL_HEIGHT_PX = 48;
 
@@ -603,21 +609,22 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [projectFiles, setProjectFiles] = useState<any[]>([]);
   const lastQueryRef = useRef<{ serialize: () => string } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const horizontalScrollbarRef = useRef<HTMLDivElement>(null);
-  const horizontalScrollbarInnerRef = useRef<HTMLDivElement>(null);
-  const previousScaleRef = useRef(1);
-  const zoomAnchorRef = useRef({ x: 0, y: 0, hasValue: false });
+  const cameraRef = useRef({ x: 0, y: 0 });
+  const [cameraVersion, setCameraVersion] = useState(0);
   const wheelZoomDeltaRef = useRef(0);
+  const wheelPanDeltaRef = useRef({ x: 0, y: 0 });
+  const wheelAnchorRef = useRef({ x: 0, y: 0 });
   const wheelZoomRafRef = useRef<number | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSnapshotRef = useRef<string | null>(null);
   const lastSavedRawRef = useRef<string | null>(null);
   const editorQueryRef = useRef<{ serialize: () => string } | null>(null);
-  const errorCleanupDoneRef = useRef(false); // Track if we've already cleaned up
-  const hasUserMovedCanvasRef = useRef(false);
+  const errorCleanupDoneRef = useRef(false);
   const [isPanning, setIsPanning] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [scale, setScale] = useState(DEFAULT_SCALE);
+  const scaleRef = useRef(scale);
+  scaleRef.current = scale;
   const [initialJson, setInitialJson] = useState<string | null | undefined>(undefined);
   const [panelsReady, setPanelsReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
@@ -644,12 +651,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     startWidth: number;
   } | null>(null);
   const [isPanelDragging, setIsPanelDragging] = useState(false);
-  const panelDragPointerXRef = useRef<number | null>(null);
-  const panelDragRafRef = useRef<number | null>(null);
-  const panPointerRef = useRef<{ x: number; y: number } | null>(null);
-  const activePanPointerIdRef = useRef<number | null>(null);
-  const zoomRecenterTimerRef = useRef<number | null>(null);
-  const isProgrammaticScrollRef = useRef(false);
 
   // Sync saveStatus to ref for safe use in beforeunload effect
   useEffect(() => {
@@ -660,37 +661,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const infiniteCanvasHeightVh = INFINITE_CANVAS_HEIGHT_VH;
   const infiniteCanvasPaddingPx = INFINITE_CANVAS_PADDING_PX;
   const sidePanelCanvasGapPx = 0;
-  const leftCanvasInsetPx = panelsReady && leftPanelOpen ? leftPanelWidth + sidePanelCanvasGapPx : 0;
-  const rightCanvasInsetPx = panelsReady && rightPanelOpen ? rightPanelWidth + sidePanelCanvasGapPx : 0;
-  const previousInsetsRef = useRef<{ left: number; right: number } | null>(null);
-
-  // Keep the same visual canvas position when panel insets change.
-  // Without this, closing/opening the left panel shifts the whole canvas with it.
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const prev = previousInsetsRef.current;
-    if (!prev) {
-      previousInsetsRef.current = { left: leftCanvasInsetPx, right: rightCanvasInsetPx };
-      return;
-    }
-
-    const deltaLeftInset = leftCanvasInsetPx - prev.left;
-    if (deltaLeftInset !== 0) {
-      const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
-      const nextScrollLeft = Math.min(maxScrollLeft, Math.max(0, container.scrollLeft + deltaLeftInset));
-      if (nextScrollLeft !== container.scrollLeft) {
-        isProgrammaticScrollRef.current = true;
-        container.scrollLeft = nextScrollLeft;
-        requestAnimationFrame(() => {
-          isProgrammaticScrollRef.current = false;
-        });
-      }
-    }
-
-    previousInsetsRef.current = { left: leftCanvasInsetPx, right: rightCanvasInsetPx };
-  }, [leftCanvasInsetPx, rightCanvasInsetPx]);
 
   // Per-project UI state key so zoom, panels, and last page persist across reloads
   const uiStateStorageKey = React.useMemo(
@@ -744,6 +714,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       if (!raw) return;
       const parsed = JSON.parse(raw) as {
         scale?: number;
+        cameraX?: number;
+        cameraY?: number;
         leftPanelOpen?: boolean;
         rightPanelOpen?: boolean;
         rightPanelTab?: TabId;
@@ -756,6 +728,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           const next = clampScale(parsed.scale, prev);
           return prev === next ? prev : next;
         });
+      }
+      if (typeof parsed.cameraX === "number" && typeof parsed.cameraY === "number") {
+        cameraRef.current = { x: parsed.cameraX, y: parsed.cameraY };
+        setCameraVersion((v) => v + 1);
       }
       if (typeof parsed.leftPanelOpen === "boolean") setLeftPanelOpen(parsed.leftPanelOpen);
       if (typeof parsed.rightPanelOpen === "boolean") setRightPanelOpen(parsed.rightPanelOpen);
@@ -770,8 +746,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   // Persist basic UI state so it survives full page refreshes and dev reloads
   useEffect(() => {
     if (typeof window === "undefined") return;
+    const cam = cameraRef.current;
     const payload = JSON.stringify({
       scale,
+      cameraX: cam.x,
+      cameraY: cam.y,
       leftPanelOpen,
       rightPanelOpen,
       rightPanelTab,
@@ -783,7 +762,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     } catch {
       // Ignore UI state persistence errors
     }
-  }, [scale, leftPanelOpen, rightPanelOpen, rightPanelTab, currentPageId, showDualView, uiStateStorageKey]);
+  }, [scale, cameraVersion, leftPanelOpen, rightPanelOpen, rightPanelTab, currentPageId, showDualView, uiStateStorageKey]);
 
   // Fail-safe: ensure right panel is visible at least once after panels mount.
   // Prevents stale hidden state from making the panel appear missing.
@@ -888,11 +867,51 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     }
   }, [initialJson, projectId, loadPages, showAlert]);
 
-  // Handle Zoom (always anchor to viewport center)
+  // Figma-style zoom: Ctrl+wheel zooms anchored to cursor; plain wheel pans. RAF batching for smooth zoom.
   useEffect(() => {
-    const handleWheel = (e: WheelEvent) => {
-      if (!(e.ctrlKey || e.metaKey)) return;
+    const applyWheelFrame = () => {
+      wheelZoomRafRef.current = null;
+      const zoomDelta = wheelZoomDeltaRef.current;
+      const panDelta = wheelPanDeltaRef.current;
+      wheelZoomDeltaRef.current = 0;
+      wheelPanDeltaRef.current = { x: 0, y: 0 };
 
+      const container = containerRef.current;
+      if (!container) return;
+
+      const cam = cameraRef.current;
+      let scaleUpdated = false;
+      const prevScale = scaleRef.current;
+
+      if (Math.abs(zoomDelta) >= 0.01) {
+        const zoomFactor = Math.exp(-zoomDelta * ZOOM_SENSITIVITY);
+        if (Number.isFinite(zoomFactor) && zoomFactor > 0) {
+          const prev = clampScale(prevScale, 1);
+          const newScale = clampScale(prev * zoomFactor, prev);
+          if (newScale !== prevScale) {
+            const mx = wheelAnchorRef.current.x;
+            const my = wheelAnchorRef.current.y;
+            const ratio = newScale / prevScale;
+            cam.x = mx - (mx - cam.x) * ratio;
+            cam.y = my - (my - cam.y) * ratio;
+            setScale(newScale);
+            scaleUpdated = true;
+          }
+        }
+      }
+
+      if (Math.abs(panDelta.x) >= 0.5 || Math.abs(panDelta.y) >= 0.5) {
+        cam.x -= panDelta.x;
+        cam.y -= panDelta.y;
+        setCameraVersion((v) => v + 1);
+      }
+
+      if (scaleUpdated) {
+        setCameraVersion((v) => v + 1);
+      }
+    };
+
+    const handleWheel = (e: WheelEvent) => {
       const targetEl = e.target instanceof HTMLElement ? e.target : null;
       if (!targetEl || !targetEl.closest("[data-web-builder-root]")) return;
       if (isEditableTarget(e.target)) return;
@@ -906,62 +925,89 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         e.clientX <= rect.right &&
         e.clientY >= rect.top &&
         e.clientY <= rect.bottom;
-
       if (!isInsideCanvas) return;
 
-      const anchorX = Math.min(container.clientWidth, Math.max(0, e.clientX - rect.left));
-      const anchorY = Math.min(container.clientHeight, Math.max(0, e.clientY - rect.top));
-      zoomAnchorRef.current = { x: anchorX, y: anchorY, hasValue: true };
-
-      if (e.cancelable) {
-        e.preventDefault();
-      }
+      if (e.cancelable) e.preventDefault();
       e.stopPropagation();
 
       let deltaY = e.deltaY;
+      let deltaX = e.deltaX;
       if (e.deltaMode === WheelEvent.DOM_DELTA_LINE) {
         deltaY *= 16;
+        deltaX *= 16;
       } else if (e.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
         deltaY *= container.clientHeight;
+        deltaX *= container.clientWidth;
       }
 
-      const normalizedDelta = Math.max(-240, Math.min(240, deltaY));
-      wheelZoomDeltaRef.current += normalizedDelta;
+      if (e.ctrlKey || e.metaKey) {
+        const normalizedDelta = Math.max(-240, Math.min(240, deltaY));
+        wheelZoomDeltaRef.current += normalizedDelta;
+        wheelAnchorRef.current = {
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top,
+        };
+      } else {
+        wheelPanDeltaRef.current.x += deltaX;
+        wheelPanDeltaRef.current.y += deltaY;
+      }
 
-      if (wheelZoomRafRef.current !== null) return;
-
-      wheelZoomRafRef.current = requestAnimationFrame(() => {
-        wheelZoomRafRef.current = null;
-        const frameDelta = wheelZoomDeltaRef.current;
-        wheelZoomDeltaRef.current = 0;
-
-        if (Math.abs(frameDelta) < 0.01) return;
-
-        setScale((prevScale) => {
-          const safePrev = clampScale(prevScale, previousScaleRef.current || 1);
-          const zoomFactor = Math.exp(-frameDelta * ZOOM_SENSITIVITY);
-          if (!Number.isFinite(zoomFactor) || zoomFactor <= 0) {
-            return safePrev;
-          }
-          const nextScale = safePrev * zoomFactor;
-          return clampScale(nextScale, safePrev);
-        });
-      });
+      if (wheelZoomRafRef.current === null) {
+        wheelZoomRafRef.current = requestAnimationFrame(applyWheelFrame);
+      }
     };
 
     window.addEventListener("wheel", handleWheel, { passive: false, capture: true });
-
     return () => {
+      window.removeEventListener("wheel", handleWheel, { capture: true });
       if (wheelZoomRafRef.current !== null) {
         cancelAnimationFrame(wheelZoomRafRef.current);
         wheelZoomRafRef.current = null;
       }
-      wheelZoomDeltaRef.current = 0;
-      window.removeEventListener("wheel", handleWheel, { capture: true });
     };
   }, []);
 
-  // Keep center point stationary while zooming, including rapid wheel bursts
+  // Prevent browser zoom shortcuts while in builder; use internal canvas zoom instead.
+  useEffect(() => {
+    const ZOOM_STEP = 0.1;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const ctrl = e.ctrlKey || e.metaKey;
+      if (!ctrl) return;
+
+      const targetEl = e.target instanceof HTMLElement ? e.target : null;
+      if (!targetEl || !targetEl.closest("[data-web-builder-root]")) return;
+      if (isEditableTarget(e.target)) return;
+
+      const key = e.key;
+      const isZoomIn = key === "+" || key === "=" || e.code === "NumpadAdd";
+      const isZoomOut = key === "-" || key === "_" || e.code === "NumpadSubtract";
+      const isZoomReset = key === "0" || e.code === "Digit0" || e.code === "Numpad0";
+
+      if (!isZoomIn && !isZoomOut && !isZoomReset) return;
+
+      if (e.cancelable) e.preventDefault();
+      e.stopPropagation();
+
+      if (isZoomReset) {
+        setScale(1);
+        return;
+      }
+
+      setScale((prevScale) => {
+        const safePrev = clampScale(prevScale, previousScaleRef.current || 1);
+        const nextScale = isZoomIn ? safePrev + ZOOM_STEP : safePrev - ZOOM_STEP;
+        return clampScale(nextScale, safePrev);
+      });
+    };
+
+    window.addEventListener("keydown", handleKeyDown, { capture: true });
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, { capture: true });
+    };
+  }, []);
+
+  // Keep mouse focus point stationary while zooming, including rapid wheel bursts
   useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) {
@@ -981,18 +1027,24 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       return;
     }
 
-    const centerX = container.clientWidth / 2;
-    const centerY = container.clientHeight / 2;
-    const contentX = (container.scrollLeft + centerX) / prevScale;
-    const contentY = (container.scrollTop + centerY) / prevScale;
+    const fallbackX = container.clientWidth / 2;
+    const fallbackY = container.clientHeight / 2;
+    const anchorX = zoomAnchorRef.current.hasValue
+      ? Math.min(container.clientWidth, Math.max(0, zoomAnchorRef.current.x))
+      : fallbackX;
+    const anchorY = zoomAnchorRef.current.hasValue
+      ? Math.min(container.clientHeight, Math.max(0, zoomAnchorRef.current.y))
+      : fallbackY;
+    const contentX = (container.scrollLeft + anchorX) / prevScale;
+    const contentY = (container.scrollTop + anchorY) / prevScale;
 
     if (!Number.isFinite(contentX) || !Number.isFinite(contentY)) {
       previousScaleRef.current = nextScale;
       return;
     }
 
-    const nextScrollLeft = contentX * nextScale - centerX;
-    const nextScrollTop = contentY * nextScale - centerY;
+    const nextScrollLeft = contentX * nextScale - anchorX;
+    const nextScrollTop = contentY * nextScale - anchorY;
     const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
     const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
 
@@ -1006,208 +1058,121 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     const container = containerRef.current;
     if (!container) return;
 
-    // Try to find the first real Page element and center on it
-    const firstPage = container.querySelector("[data-page-node='true'][data-node-id]") as HTMLElement | null;
-
-    if (firstPage) {
-      const containerRect = container.getBoundingClientRect();
-      const pageRect = firstPage.getBoundingClientRect();
-
-      // Calculate where the page center is in scroll coordinates
-      const pageCenterX = container.scrollLeft + (pageRect.left - containerRect.left) + pageRect.width / 2;
-      const pageCenterY = container.scrollTop + (pageRect.top - containerRect.top) + pageRect.height / 2;
-
     const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
     const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
 
-      const nextLeft = Math.min(maxScrollLeft, Math.max(0, pageCenterX - container.clientWidth / 2));
-      const nextTop = Math.min(maxScrollTop, Math.max(0, pageCenterY - container.clientHeight / 2));
+    const centerLeft = maxScrollLeft / 2;
+    const centerTop = maxScrollTop / 2;
 
-      container.scrollLeft = nextLeft;
-      container.scrollTop = nextTop;
-      return;
-    }
-
-    // Fallback: try viewport desktop
-    const desktopViewport = container.querySelector("[data-viewport-desktop]") as HTMLElement | null;
-
-    if (desktopViewport) {
-      const containerRect = container.getBoundingClientRect();
-      const viewportRect = desktopViewport.getBoundingClientRect();
-
-      const viewportCenterX = container.scrollLeft + (viewportRect.left - containerRect.left) + viewportRect.width / 2;
-      const viewportCenterY = container.scrollTop + (viewportRect.top - containerRect.top) + viewportRect.height / 2;
-
-      const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
-      const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
-
-      const nextLeft = Math.min(maxScrollLeft, Math.max(0, viewportCenterX - container.clientWidth / 2));
-      const nextTop = Math.min(maxScrollTop, Math.max(0, viewportCenterY - container.clientHeight / 2));
-
-      container.scrollLeft = nextLeft;
-      container.scrollTop = nextTop;
-      return;
-    }
-
-    // Ultimate fallback: center of scroll area
-    const fallbackLeft = (container.scrollWidth - container.clientWidth) / 2;
-    const fallbackTop = (container.scrollHeight - container.clientHeight) / 2;
-    container.scrollLeft = fallbackLeft;
-    container.scrollTop = fallbackTop;
+    container.scrollLeft = centerLeft;
+    container.scrollTop = centerTop;
   }, []);
 
-  // Center immediately on first mount so default view starts at middle even before frame settles
+  // Center immediately on first mount
   useLayoutEffect(() => {
     if (hasInitialCenteringRef.current) return;
+    const rafId = requestAnimationFrame(() => {
+      centerOnWorldPoint(
+        PAGE_GRID_ORIGIN_X + PAGE_BASE_WIDTH / 2,
+        PAGE_GRID_ORIGIN_Y + PAGE_BASE_HEIGHT / 2,
+      );
+      hasInitialCenteringRef.current = true;
+    });
+    return () => cancelAnimationFrame(rafId);
+  }, [centerOnWorldPoint]);
+
+  // Center canvas after refresh/load and keep centering while layout is still settling
+  useEffect(() => {
+    if (!frameReady) return;
 
     const container = containerRef.current;
     if (!container) return;
 
-    const rafId = requestAnimationFrame(() => {
-      centerCanvasInView();
-      hasInitialCenteringRef.current = true;
-    });
-
-    return () => cancelAnimationFrame(rafId);
-  }, [centerCanvasInView]);
-
-  // Center canvas after refresh/load with lightweight passes
-  useEffect(() => {
-    if (!frameReady) return;
-
+    centerCanvasInView();
     const rafId = requestAnimationFrame(centerCanvasInView);
-    const timeoutId = window.setTimeout(centerCanvasInView, 180);
+    const settleIntervalId = window.setInterval(centerCanvasInView, 120);
+    const t1 = window.setTimeout(centerCanvasInView, 300);
+    const t2 = window.setTimeout(centerCanvasInView, 700);
+    const t3 = window.setTimeout(centerCanvasInView, 1200);
+
+    const resizeObserver = new ResizeObserver(() => {
+      centerCanvasInView();
+    });
+    resizeObserver.observe(container);
+
+    const stopSettlingId = window.setTimeout(() => {
+      window.clearInterval(settleIntervalId);
+      resizeObserver.disconnect();
+    }, 2000);
 
     return () => {
       cancelAnimationFrame(rafId);
-      window.clearTimeout(timeoutId);
+      window.clearInterval(settleIntervalId);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+      window.clearTimeout(stopSettlingId);
+      resizeObserver.disconnect();
     };
   }, [frameReady, initialJson, centerCanvasInView]);
-
-  // Guard against canvas "disappearing" after zoom changes by re-centering
-  // when the first page is mostly outside the visible viewport.
-  useEffect(() => {
-    if (!frameReady) return;
-
-    const ensureCanvasVisible = () => {
-      const container = containerRef.current;
-      if (!container) return;
-
-      const desktopViewport = container.querySelector("[data-viewport-desktop]") as HTMLElement | null;
-      const firstPage =
-        (desktopViewport?.querySelector("[data-page-node='true'][data-node-id]") as HTMLElement | null) ??
-        (container.querySelector("[data-page-node='true'][data-node-id]") as HTMLElement | null);
-      if (!firstPage) {
-        centerCanvasInView();
-        return;
-      }
-
-      const containerRect = container.getBoundingClientRect();
-      const pageRect = firstPage.getBoundingClientRect();
-
-      const visibleWidth = Math.max(
-        0,
-        Math.min(containerRect.right, pageRect.right) - Math.max(containerRect.left, pageRect.left)
-      );
-      const visibleHeight = Math.max(
-        0,
-        Math.min(containerRect.bottom, pageRect.bottom) - Math.max(containerRect.top, pageRect.top)
-      );
-
-      const pageArea = Math.max(1, pageRect.width * pageRect.height);
-      const visibleArea = visibleWidth * visibleHeight;
-      const visibleRatio = visibleArea / pageArea;
-
-      // Recenter when page is lost or barely visible.
-      if (visibleWidth <= 1 || visibleHeight <= 1 || visibleRatio < 0.01) {
-        centerCanvasInView();
-      }
-    };
-
-    const rafId = requestAnimationFrame(ensureCanvasVisible);
-
-    return () => {
-      cancelAnimationFrame(rafId);
-    };
-  }, [scale, frameReady, centerCanvasInView]);
 
   // Handle canvas rotation
   const handleRotateCanvas = useCallback(() => {
     setCanvasRotation((prev) => (prev + 90) % 360);
   }, []);
 
-  // Handle fit to canvas
+  // Handle fit to canvas: zoom so page fits with 10% margin, then center
   const handleFitToCanvas = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    // Reset zoom to fit content
     const contentWidth = canvasWidth;
     const contentHeight = canvasHeight;
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
-
     if (
-      !Number.isFinite(contentWidth) ||
-      !Number.isFinite(contentHeight) ||
-      contentWidth <= 0 ||
-      contentHeight <= 0 ||
-      containerWidth <= 0 ||
-      containerHeight <= 0
-    ) {
-      setScale((prev) => clampScale(prev, 1));
-      return;
-    }
+      !Number.isFinite(contentWidth) || !Number.isFinite(contentHeight) ||
+      contentWidth <= 0 || contentHeight <= 0 ||
+      containerWidth <= 0 || containerHeight <= 0
+    ) return;
 
     const scaleX = (containerWidth * 0.9) / contentWidth;
     const scaleY = (containerHeight * 0.9) / contentHeight;
-    const newScale = Math.min(scaleX, scaleY, 1);
+    const newScale = clampScale(Math.min(scaleX, scaleY, 1), 1);
 
-    setScale(clampScale(newScale, 1));
+    const pageEl =
+      (currentPageId
+        ? container.querySelector<HTMLElement>(
+            `[data-viewport-desktop] [data-page-node="true"][data-node-id="${currentPageId}"]`
+          ) ?? container.querySelector<HTMLElement>(
+            `[data-page-node="true"][data-node-id="${currentPageId}"]`
+          )
+        : null) ??
+      container.querySelector<HTMLElement>('[data-viewport-desktop] [data-page-node="true"]') ??
+      container.querySelector<HTMLElement>('[data-page-node="true"]');
 
-    // Center on the first page
-    setTimeout(() => {
-      centerCanvasInView();
-    }, 100);
-  }, [canvasWidth, canvasHeight, centerCanvasInView]);
+    let worldCX = PAGE_GRID_ORIGIN_X + PAGE_BASE_WIDTH / 2;
+    let worldCY = PAGE_GRID_ORIGIN_Y + PAGE_BASE_HEIGHT / 2;
+
+    if (pageEl) {
+      const cam = cameraRef.current;
+      const contRect = container.getBoundingClientRect();
+      const pageRect = pageEl.getBoundingClientRect();
+      const pageCenterScreenX = pageRect.left + pageRect.width / 2 - contRect.left;
+      const pageCenterScreenY = pageRect.top + pageRect.height / 2 - contRect.top;
+      worldCX = (pageCenterScreenX - cam.x) / scale;
+      worldCY = (pageCenterScreenY - cam.y) / scale;
+    }
+
+    setScale(newScale);
+    centerOnWorldPoint(worldCX, worldCY, newScale);
+  }, [canvasWidth, canvasHeight, scale, currentPageId, centerOnWorldPoint]);
 
   const handleScaleChange = useCallback((nextScale: number) => {
     setScale((prevScale) => {
       const clampedScale = clampScale(nextScale, prevScale);
       return prevScale === clampedScale ? prevScale : clampedScale;
     });
-  }, []);
-
-  const handleZoomIn = useCallback(() => {
-    setScale((prevScale) => clampScale(prevScale + ZOOM_BUTTON_STEP, prevScale));
-    requestAnimationFrame(centerCanvasInView);
-    if (zoomRecenterTimerRef.current !== null) {
-      window.clearTimeout(zoomRecenterTimerRef.current);
-    }
-    zoomRecenterTimerRef.current = window.setTimeout(() => {
-      centerCanvasInView();
-      zoomRecenterTimerRef.current = null;
-    }, 120);
-  }, [centerCanvasInView]);
-
-  const handleZoomOut = useCallback(() => {
-    setScale((prevScale) => clampScale(prevScale - ZOOM_BUTTON_STEP, prevScale));
-    requestAnimationFrame(centerCanvasInView);
-    if (zoomRecenterTimerRef.current !== null) {
-      window.clearTimeout(zoomRecenterTimerRef.current);
-    }
-    zoomRecenterTimerRef.current = window.setTimeout(() => {
-      centerCanvasInView();
-      zoomRecenterTimerRef.current = null;
-    }, 120);
-  }, [centerCanvasInView]);
-
-  useEffect(() => {
-    return () => {
-      if (zoomRecenterTimerRef.current !== null) {
-        window.clearTimeout(zoomRecenterTimerRef.current);
-      }
-    };
   }, []);
 
   // Handle device preset selection - only width changes; preserve page height so it doesn't reset
@@ -1336,37 +1301,19 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     e.stopPropagation();
   };
 
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (isPanning && containerRef.current) {
-      if (activePanPointerIdRef.current !== null && e.pointerId !== activePanPointerIdRef.current) return;
-      const prev = panPointerRef.current;
-      if (!prev) {
-        panPointerRef.current = { x: e.clientX, y: e.clientY };
-        return;
-      }
-
-      const deltaX = e.clientX - prev.x;
-      const deltaY = e.clientY - prev.y;
-      containerRef.current.scrollLeft -= deltaX;
-      containerRef.current.scrollTop -= deltaY;
-      if (Math.abs(deltaX) > 0 || Math.abs(deltaY) > 0) {
-        hasUserMovedCanvasRef.current = true;
-      }
-      panPointerRef.current = { x: e.clientX, y: e.clientY };
-    }
-  };
-
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (activePanPointerIdRef.current !== null && e.pointerId !== activePanPointerIdRef.current) return;
-    stopPan();
-  };
-
-  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (activePanPointerIdRef.current !== null && e.pointerId !== activePanPointerIdRef.current) return;
-    stopPan();
+  const handleMouseUp = () => {
+    setIsPanning(false);
+    document.body.removeAttribute("data-canvas-pan");
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const anchorX = Math.min(containerRef.current.clientWidth, Math.max(0, e.clientX - rect.left));
+      const anchorY = Math.min(containerRef.current.clientHeight, Math.max(0, e.clientY - rect.top));
+      zoomAnchorRef.current = { x: anchorX, y: anchorY, hasValue: true };
+    }
+
     if (isPanning && containerRef.current) {
       containerRef.current.scrollLeft -= e.movementX;
       containerRef.current.scrollTop -= e.movementY;
@@ -2045,6 +1992,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 <KeyboardShortcuts />
                 <CanvasSelectionHandler />
                 <BoxSelectionHandler />
+                <ScrollToSelectedHandler />
                 <CanvasContextMenu />
                 <FigmaStyleDragHandler />
                 <NewPageDropPlacementHandler />
@@ -2068,11 +2016,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                     onDualViewToggle={() => setShowDualView((v) => !v)}
                   />
                 )}
-                {/* Canvas Area (Background) — when dual view: leave room for phone preview on the right */}
+                {/* Canvas Area — Figma-style: overflow hidden + camera transform */}
                 <div
                   ref={containerRef}
                   data-canvas-container
-                  className={`absolute inset-0 overflow-auto bg-brand-darker canvas-scroll-container ${canPanWithPointerDrag ? "canvas-hand-tool" : ""} ${canPanWithPointerDrag && isPanning ? "canvas-hand-panning" : ""} ${isPanelDragging ? "transition-none" : "transition-[left,right] duration-300 ease-out"}`}
+                  data-camera-v={cameraVersion}
+                  className={`absolute inset-0 overflow-hidden bg-brand-darker canvas-scroll-container ${canPanWithPointerDrag ? "canvas-hand-tool" : ""} ${canPanWithPointerDrag && isPanning ? "canvas-hand-panning" : ""} ${isPanelDragging ? "transition-none" : "transition-[left,right] duration-300 ease-out"}`}
                   style={{
                     top: `${TOP_PANEL_HEIGHT_PX}px`,
                     left: `${leftCanvasInsetPx}px`,
@@ -2091,34 +2040,25 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                   onPointerCancel={handlePointerCancel}
                   onScroll={handleCanvasScroll}
                 >
-                  {/* Inner Content - Infinite Canvas */}
                   <div
-                    className="flex items-center justify-center"
                     style={{
-                      minWidth: `${infiniteCanvasWidthVw}vw`,
-                      minHeight: `${infiniteCanvasHeightVh}vh`,
-                      padding: `${infiniteCanvasPaddingPx}px`,
+                      transformOrigin: "0 0",
+                      transform:
+                        canvasRotation !== 0
+                          ? `translate(${cameraRef.current.x}px, ${cameraRef.current.y}px) scale(${scale}) rotate(${canvasRotation}deg)`
+                          : `translate(${cameraRef.current.x}px, ${cameraRef.current.y}px) scale(${scale})`,
+                      willChange: "transform",
                     }}
                   >
-                    <div
-                      style={{
-                        transformOrigin: "top left",
-                        transform:
-                          canvasRotation !== 0
-                            ? `scale(${scale}) rotate(${canvasRotation}deg)`
-                            : `scale(${scale})`,
-                      }}
-                    >
-                      {initialJson === undefined ? null : (
-                        <SafeFrame
-                          data={validFrameData ?? initialJson}
-                          onError={handleFrameError}
-                          onFrameMounted={() => {
-                            setFrameReady((prev) => (prev ? prev : true));
-                          }}
-                        />
-                      )}
-                    </div>
+                    {initialJson === undefined ? null : (
+                      <SafeFrame
+                        data={validFrameData ?? initialJson}
+                        onError={handleFrameError}
+                        onFrameMounted={() => {
+                          setFrameReady((prev) => (prev ? prev : true));
+                        }}
+                      />
+                    )}
                   </div>
                 </div>
                 {/* Docked Panels */}

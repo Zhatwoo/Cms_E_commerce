@@ -15,6 +15,7 @@ import {
   Smartphone,
   ChevronDown,
 } from "lucide-react";
+import { MIN_SCALE, MAX_SCALE, ZOOM_STEP, ZOOM_PRESETS } from "./zoomConstants";
 
 export type DevicePreset = {
   name: string;
@@ -59,10 +60,6 @@ const DEVICE_PRESETS: DevicePreset[] = [
     icon: <Monitor className="w-4 h-4" />,
   },
 ];
-
-const MIN_SCALE = 0.05;
-const MAX_SCALE = 3;
-const ZOOM_STEP = 0.15;
 
 interface TopPanelProps {
   scale: number;
@@ -275,6 +272,35 @@ export const TopPanel: React.FC<TopPanelProps> = ({
                 </div>
                 <div className="px-3 py-2 text-xs text-brand-lighter border-t border-white/10">
                   Zoom: {zoomPercentage}%
+                </div>
+                <div className="px-2 py-2 border-t border-white/10">
+                  <div className="px-2 py-1 text-xs text-brand-lighter mb-1">
+                    Quick zoom
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {ZOOM_PRESETS.map((presetScale) => {
+                      const pct = Math.round(presetScale * 100);
+                      const isActive =
+                        Math.round((Number.isFinite(scale) ? scale : 1) * 100) ===
+                        pct;
+                      return (
+                        <button
+                          key={pct}
+                          onClick={() => {
+                            onScaleChange(presetScale);
+                            setShowSizeDropdown(false);
+                          }}
+                          className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                            isActive
+                              ? "bg-brand-medium text-brand-light"
+                              : "bg-brand-medium-dark hover:bg-brand-medium text-brand-lighter"
+                          }`}
+                        >
+                          {pct}%
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
