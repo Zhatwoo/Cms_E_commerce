@@ -1,11 +1,11 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useTheme } from '../context/theme-context';
 import { useAlert } from '../context/alert-context';
 import { useProject } from '../context/project-context';
-import { createProject, getStoredUser } from '@/lib/api';
+import { createProject, updateProject, deleteProject, getStoredUser } from '@/lib/api';
 import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
 import { DraftPreviewThumbnail } from '../projects/DraftPreviewThumbnail';
 
@@ -37,6 +37,9 @@ export function RecentProjects() {
   const [createTitle, setCreateTitle] = useState('');
   const [createSubdomain, setCreateSubdomain] = useState('');
   const [creating, setCreating] = useState(false);
+  const [projects, setProjects] = useState(contextProjects);
+  const [openMenuProjectId, setOpenMenuProjectId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 639px)');
@@ -71,6 +74,27 @@ export function RecentProjects() {
     const colors = ['#FF8A3D', '#9333EA', '#3B82F6', '#10B981', '#F59E0B'];
     return colors[idx % colors.length];
   };
+
+  useEffect(() => {
+    setProjects(contextProjects);
+  }, [contextProjects]);
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (!menuRef.current) return;
+      if (event.target instanceof Node && !menuRef.current.contains(event.target)) {
+        setOpenMenuProjectId(null);
+      }
+    };
+
+    if (openMenuProjectId) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [openMenuProjectId]);
 
   const handleCreateFromModal = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,13 +137,74 @@ export function RecentProjects() {
     }
   };
 
-  const visibleProjects = [...contextProjects]
-    .sort((a, b) => {
-      const dateA = new Date(a.updatedAt || a.createdAt || 0).getTime();
-      const dateB = new Date(b.updatedAt || b.createdAt || 0).getTime();
-      return dateB - dateA;
-    })
-    .slice(0, 3);
+  const visibleProjects = useMemo(
+    () =>
+      [...projects]
+        .sort((a, b) => {
+          const dateA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+          const dateB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+          return dateB - dateA;
+        })
+        .slice(0, 3),
+    [projects]
+  );
+
+  const handleEditProject = async (projectId: string, currentTitle?: string | null) => {
+    const nextTitle = window.prompt('Edit project title', (currentTitle || '').trim() || 'Untitled Project');
+    if (nextTitle === null) return;
+
+    const trimmedTitle = nextTitle.trim();
+    if (!trimmedTitle) {
+      showAlert('Project title cannot be empty.');
+      return;
+    }
+
+    try {
+      const res = await updateProject(projectId, { title: trimmedTitle });
+      if (!res.success) {
+        showAlert(res.message || 'Failed to update project.');
+        return;
+      }
+
+      setProjects((prev) =>
+        prev.map((project) =>
+          project.id === projectId
+            ? {
+                ...project,
+                title: res.project?.title || trimmedTitle,
+                updatedAt: res.project?.updatedAt || new Date().toISOString(),
+              }
+            : project
+        )
+      );
+      showAlert('Project updated.');
+    } catch {
+      showAlert('Failed to update project. Please try again.');
+    } finally {
+      setOpenMenuProjectId(null);
+    }
+  };
+
+  const handleDeleteProject = async (projectId: string, projectTitle?: string | null) => {
+    const confirmed = window.confirm(`Move "${projectTitle || 'Untitled Project'}" to trash?`);
+    if (!confirmed) return;
+
+    try {
+      const res = await deleteProject(projectId);
+      if (!res.success) {
+        showAlert(res.message || 'Failed to delete project.');
+        return;
+      }
+
+      setProjects((prev) => prev.filter((project) => project.id !== projectId));
+      showAlert('Project moved to trash.');
+    } catch {
+      showAlert('Failed to delete project. Please try again.');
+    } finally {
+      setOpenMenuProjectId(null);
+    }
+  };
+
   return (
     <div className="mb-8 md:mb-12 w-full min-w-0 max-w-full overflow-x-hidden">
       <div className="flex items-center justify-between mb-5 md:mb-6">
@@ -206,7 +291,7 @@ export function RecentProjects() {
           {visibleProjects.map((project, idx) => (
             <motion.div
               key={project.id}
-              className="cursor-pointer group/card flex-shrink-0 w-[calc(50%-8px)] sm:w-[calc(33.333%-11px)] md:w-[240px] lg:w-[240px]"
+              className="relative cursor-pointer group/card flex-shrink-0 w-[calc(50%-8px)] sm:w-[calc(33.333%-11px)] md:w-[240px] lg:w-[240px]"
               onClick={() => router.push(`/design?projectId=${project.id}`)}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -217,6 +302,65 @@ export function RecentProjects() {
                 damping: 15
               }}
             >
+              <div className="absolute right-2 top-2 z-20" ref={openMenuProjectId === project.id ? menuRef : null}>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpenMenuProjectId((prev) => (prev === project.id ? null : project.id));
+                  }}
+                  aria-label="Project actions"
+                  title="Project actions"
+                  className="h-8 w-8 rounded-md border flex items-center justify-center transition-colors"
+                  style={{
+                    borderColor: colors.border.faint,
+                    backgroundColor: colors.bg.card,
+                    color: colors.text.primary,
+                  }}
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <circle cx="12" cy="6" r="1.8" />
+                    <circle cx="12" cy="12" r="1.8" />
+                    <circle cx="12" cy="18" r="1.8" />
+                  </svg>
+                </button>
+
+                {openMenuProjectId === project.id && (
+                  <div
+                    className="absolute right-0 mt-1 w-36 rounded-lg border py-1 shadow-xl"
+                    style={{
+                      borderColor: colors.border.faint,
+                      backgroundColor: colors.bg.card,
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleEditProject(project.id, project.title)}
+                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:opacity-90"
+                      style={{ color: colors.text.primary }}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 3.487a1.875 1.875 0 1 1 2.652 2.652L8.25 17.403 4.5 18.75l1.347-3.75L16.862 3.487Z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 4.5l3.75 3.75" />
+                      </svg>
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteProject(project.id, project.title)}
+                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:opacity-90"
+                      style={{ color: '#f87171' }}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {/* Preview Thumbnail */}
               <div
                 className="relative rounded-lg overflow-hidden mb-3 transition-all group-hover/card:shadow-2xl h-[180px] w-full flex items-center justify-center"

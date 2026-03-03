@@ -99,10 +99,10 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
         <header
             className="sticky top-0 z-30 transition-all duration-300 border-0"
             style={{
-                background: scrolled ? 'rgba(0, 0, 54, 0.88)' : 'transparent',
-                backdropFilter: scrolled ? 'blur(14px)' : 'none',
-                WebkitBackdropFilter: scrolled ? 'blur(14px)' : 'none',
-                borderBottom: scrolled ? '1px solid rgba(255,255,255,0.07)' : 'none',
+                background: colors.bg.sidebar,
+                backdropFilter: 'blur(14px)',
+                WebkitBackdropFilter: 'blur(14px)',
+                borderBottom: '1px solid rgba(255,255,255,0.07)',
             }}
         >
             <div className="relative flex items-center justify-between px-4 sm:px-6" style={{ height: '84px' }}>
@@ -176,8 +176,8 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
 
                     <div className="relative flex items-center gap-3">
                         <div className="text-right hidden sm:block" style={{ fontFamily: 'var(--font-outfit), sans-serif' }}>
-                            <p className="text-sm font-medium" style={{ color: colors.text.primary }}>{userName || 'Finding Neo'}</p>
-                            <p className="text-xs" style={{ color: colors.text.muted }}>Website Owner</p>
+                            <p className="text-sm font-medium" style={{ color: '#FFFFFF' }}>{userName || 'Finding Neo'}</p>
+                            <p className="text-xs" style={{ color: '#8799C0' }}>Website Owner</p>
                         </div>
                         <div className="relative">
                             <button

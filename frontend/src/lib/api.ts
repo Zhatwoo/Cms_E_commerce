@@ -338,6 +338,7 @@ export async function listProjects(params?: { instanceId?: string }): Promise<{ 
 
 export async function createProject(params: {
   title?: string;
+  instanceId?: string;
   templateId?: string | null;
   subdomain?: string | null;
 }): Promise<{ success: boolean; project: Project; message?: string }> {

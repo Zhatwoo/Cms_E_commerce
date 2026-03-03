@@ -761,14 +761,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           name: p.name || `Page ${parsed.pages.indexOf(p) + 1}`,
         }));
         setPages(pageTabs);
-        if (pageTabs.length > 0 && !currentPageId) {
-          setCurrentPageId(pageTabs[0].id);
+        if (pageTabs.length > 0) {
+          setCurrentPageId((prev) => prev || pageTabs[0].id);
         }
       }
     } catch {
       // Silently fail for non-multipage documents
     }
-  }, [currentPageId]);
+  }, []);
 
   const handleAddPage = useCallback(() => {
     if (!initialJson) return;
@@ -1260,16 +1260,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
     async function loadDraft() {
       try {
-        console.log('📥 loadDraft starting...', projectId);
-
         // Try sessionStorage per-project (no localStorage — auth/drafts in cookies or session only)
         const storageKey = getStorageKey(projectId);
         const sessionSaved = safeSessionGet(storageKey);
 
         // Try to load from database
-        console.log('📡 Calling getDraft()...');
         const result = await getDraft(projectId);
-        console.log('📡 getDraft result:', result);
 
         let contentToLoad: string | null = null;
 
@@ -1318,7 +1314,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         if (sessionSaved) {
           const normalized = normalizeToCraftJson(sessionSaved);
           if (normalized) {
-            console.log('✅ Loaded valid draft from session (this project)');
             contentToLoad = normalized;
             if (normalized !== sessionSaved) {
               safeSessionSet(storageKey, normalized);
@@ -1333,12 +1328,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         if (!contentToLoad && result.success && result.data && result.data.content) {
           const normalized = normalizeToCraftJson(result.data.content);
           if (normalized) {
-            try {
-              const parsed = JSON.parse(normalized);
-              console.log(`✅ Loaded valid draft from DB (${Object.keys(parsed).length} internal nodes)`);
-            } catch {
-              console.log('✅ Loaded valid draft from DB');
-            }
             contentToLoad = normalized;
             safeSessionSet(storageKey, normalized);
           } else {
@@ -1353,7 +1342,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           if (legacySaved) {
             const normalized = normalizeToCraftJson(legacySaved);
             if (normalized) {
-              console.log('✅ Loaded valid draft from legacy session key, syncing to project key');
               contentToLoad = normalized;
               safeSessionSet(storageKey, normalized);
               safeSessionRemove(STORAGE_KEY_PREFIX);
@@ -1361,10 +1349,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
               safeSessionRemove(STORAGE_KEY_PREFIX);
             }
           }
-        }
-
-        if (!contentToLoad) {
-          console.log('⚠️ No saved data found, expecting default');
         }
 
         setInitialJson(contentToLoad);
@@ -1383,7 +1367,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         // IMPORTANT: Mark as ready immediately via Ref to avoid stale closures
         // passing "undefined" to handleNodesChange
         isReadyRef.current = true;
-        console.log('✅ Editor marked as READY via Ref');
 
       } catch (error) {
         console.error('❌ loadDraft Unexpected Error:', error);
@@ -1762,43 +1745,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     } catch {
       return null;
     }
-  }, [initialJson]);
-
-  // Debug: list resolver keys after mount (must run in useEffect to avoid setState-during-render)
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const t = setTimeout(() => {
-      try {
-        const res = resolverRef.current;
-        // eslint-disable-next-line no-console
-        console.log("[EditorShell] resolver keys:", Object.keys(res));
-        if (initialJson) {
-          const parsed = typeof initialJson === "string" ? JSON.parse(initialJson) : initialJson;
-          const nodeTypes = new Set<string>();
-          if (parsed && parsed.nodes) {
-            Object.values(parsed.nodes as Record<string, unknown>).forEach((n: unknown) => {
-              try {
-                const node = n as { data?: { displayName?: string; name?: string; type?: string | { name?: string } } };
-                const display = node?.data?.displayName ?? node?.data?.name ?? (typeof node?.data?.type === "string" ? node.data.type : node?.data?.type?.name);
-                if (display) nodeTypes.add(display);
-              } catch {
-                // ignore
-              }
-            });
-          }
-          const resolverKeys = Object.keys(res);
-          const missing = [...nodeTypes].filter((typeName) => !resolverKeys.includes(typeName) && !resolverKeys.includes((typeName || "").replace(/\s+/g, "")));
-          // eslint-disable-next-line no-console
-          console.log("[EditorShell] Serialized node types:", [...nodeTypes]);
-          // eslint-disable-next-line no-console
-          console.log("[EditorShell] Missing resolver types:", missing);
-        }
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.warn("[EditorShell] failed to parse initialJson for debug", err);
-      }
-    }, 50);
-    return () => clearTimeout(t);
   }, [initialJson]);
 
   return (

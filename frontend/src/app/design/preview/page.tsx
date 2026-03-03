@@ -364,8 +364,7 @@ function PreviewContent() {
         setShowSaveDialog(false);
         setTemplateName("");
         setTemplateDescription("");
-        // Navigate to web-builder page
-        router.push("/m_dashboard/web-builder");
+        router.push(projectId ? `/design?projectId=${projectId}` : "/design");
       } else {
         showAlert("Failed to save template. Please try again.");
       }

@@ -124,7 +124,6 @@ export async function getMyId(): Promise<void> {
  * Returns null if not authenticated - will fall back to localStorage
  */
 export async function getDraft(projectId: string): Promise<{ success: boolean; data?: any; error?: string }> {
-    await getMyId(); // Log UID for diagnostics
     try {
         const token = getAuthToken();
 
@@ -151,9 +150,6 @@ export async function getDraft(projectId: string): Promise<{ success: boolean; d
             return { success: true, data: null };
         }
 
-        if (data.data) {
-            console.log('✅ Loaded draft from Firebase database');
-        }
         return { success: true, data: data.data };
     } catch (error) {
         console.error('Get draft error:', error);

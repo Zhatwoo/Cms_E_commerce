@@ -1,7 +1,7 @@
 // eto yung main navigation ni user
 
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -37,7 +37,7 @@ type SidebarItem = {
 
 const navItems: SidebarItem[] = [
   { id: 'home', label: 'Home', icon: <HomeIcon />, href: '/m_dashboard' },
-  { id: 'web-builder', label: 'Web Builder', icon: <WebBuilderIcon />, href: '/m_dashboard/web-builder' },
+  { id: 'web-builder', label: 'Web Builder', icon: <WebBuilderIcon />, href: '/m_dashboard/projects' },
   { id: 'products', label: 'Products', icon: <ProductsIcon />, href: '/m_dashboard/products' },
   { id: 'orders', label: 'Orders', icon: <OrdersIcon />, href: '/m_dashboard/orders' },
   { id: 'analytics', label: 'Analytics', icon: <AnalyticsIcon />, href: '/m_dashboard/analytics' },
@@ -75,7 +75,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
   const COLLAPSED_WIDTH = 72;   // icon-only
   const EXPANDED_WIDTH = 280;  // full labels
 
-  const sidebarBg = '#000036';
+  const sidebarBg = colors.bg.sidebar;
   const accentYellow = (colors as { accent?: { yellow?: string } }).accent?.yellow ?? '#FFCE00';
   const sidebarStyle = {
     backgroundColor: sidebarBg,
@@ -93,7 +93,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
   };
 
   const itemHoverStyle = {
-    backgroundColor: 'rgba(92, 29, 143, 0.2)',
+    backgroundColor: theme === 'dark' ? 'rgba(92, 29, 143, 0.2)' : 'rgba(79, 70, 229, 0.08)',
     color: colors.text.primary,
   };
 
@@ -144,7 +144,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
                 item.id === 'home'
                   ? pathname === '/m_dashboard'
                   : item.id === 'web-builder'
-                    ? pathname.startsWith('/m_dashboard/web-builder')
+                    ? pathname.startsWith('/design') || pathname.startsWith('/m_dashboard/web-builder') || pathname.startsWith('/m_dashboard/projects')
                     : item.href
                       ? pathname === item.href
                       : false;
@@ -152,7 +152,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
             const content = (
               <div
                 className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg transition-colors`}
-                style={isActive ? { ...itemActiveStyle, color: '#FFFFFF' } : itemInactiveStyle}
+                style={isActive ? { ...itemActiveStyle, color: colors.text.primary } : itemInactiveStyle}
               >
                 <span className="flex h-6 w-6 items-center justify-center" style={{ opacity: isActive ? 1 : 0.5 }}>
                   {item.icon}
@@ -252,7 +252,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
               item.id === 'home'
                 ? pathname === '/m_dashboard'
                 : item.id === 'web-builder'
-                  ? pathname.startsWith('/m_dashboard/web-builder')
+                  ? pathname.startsWith('/design') || pathname.startsWith('/m_dashboard/web-builder') || pathname.startsWith('/m_dashboard/projects')
                   : item.href
                     ? pathname === item.href
                     : false;
@@ -266,12 +266,12 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
                 group relative flex items-center rounded-lg transition-all duration-200
                 w-full px-4 py-3
               `}
-              style={isActive ? { ...itemActiveStyle, color: '#F4F4F6' } : undefined}
+              style={isActive ? { ...itemActiveStyle, color: colors.text.primary } : undefined}
             >
               {/* Hover effect overlay */}
               {!isActive && (
                 <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                  style={{ backgroundColor: 'rgba(92, 29, 143, 0.2)' }}
+                  style={{ backgroundColor: itemHoverStyle.backgroundColor }}
                 />
               )}
 
@@ -294,7 +294,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
                     exit={{ opacity: 0, x: -12 }}
                     transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
                     className="relative z-10 ml-3 text-sm font-medium whitespace-nowrap"
-                    style={{ fontFamily: 'var(--font-outfit), sans-serif', color: isActive ? '#FFFFFF' : colors.text.muted }}
+                    style={{ fontFamily: 'var(--font-outfit), sans-serif', color: isActive ? colors.text.primary : colors.text.muted }}
                   >
                     {item.label}
                   </motion.span>

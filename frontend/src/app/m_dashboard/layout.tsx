@@ -81,8 +81,8 @@ function DashboardLayoutContent({
 
     if (loading || !user) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white flex items-center justify-center">
-                <p className="text-white/70">Loading...</p>
+            <div className="min-h-screen flex items-center justify-center" style={{ background: `linear-gradient(180deg, ${colors.bg.primary} 0%, ${colors.bg.primaryEnd} 100%)`, color: colors.text.primary }}>
+                <p style={{ color: colors.text.muted }}>Loading...</p>
             </div>
         );
     }
@@ -123,7 +123,7 @@ function DashboardLayoutContent({
             </div>
 
             {/* Main content area - ref: deep indigo/purple gradient (Color Palette) */}
-            <div ref={contentScrollRef} className="no-scrollbar flex min-w-0 flex-1 basis-0 flex-col h-screen overflow-y-auto overflow-x-hidden" style={{ background: 'linear-gradient(180deg, #1A1A4C 0%, #191E2D 100%)' }}>
+            <div ref={contentScrollRef} className="no-scrollbar flex min-w-0 flex-1 basis-0 flex-col h-screen overflow-y-auto overflow-x-hidden" style={{ background: `linear-gradient(180deg, ${colors.bg.primary} 0%, ${colors.bg.primaryEnd} 100%)` }}>
                 <div className="sticky top-0 z-50 shrink-0 bg-transparent">
                     <DashboardHeader onMenuToggle={() => setSidebarOpen(true)} />
                 </div>
