@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useEditor } from "@craftjs/core";
 import { selectedToIds } from "../_lib/canvasActions";
 
@@ -10,13 +10,18 @@ import { selectedToIds } from "../_lib/canvasActions";
  */
 export function ScrollToSelectedHandler() {
   const { selected } = useEditor((state) => ({ selected: state.events.selected }));
+  const lastCenteredNodeIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const ids = selectedToIds(selected);
-    if (ids.length === 0) return;
+    if (ids.length === 0) {
+      lastCenteredNodeIdRef.current = null;
+      return;
+    }
 
     const targetId = ids[0];
     if (!targetId) return;
+    if (lastCenteredNodeIdRef.current === targetId) return;
 
     const canvasContainer = document.querySelector("[data-canvas-container]") as HTMLElement | null;
     if (!canvasContainer) return;
@@ -29,6 +34,8 @@ export function ScrollToSelectedHandler() {
     canvasContainer.dispatchEvent(
       new CustomEvent("center-on-node", { detail: { nodeId: targetId } })
     );
+
+    lastCenteredNodeIdRef.current = targetId;
   }, [selected]);
 
   return null;
