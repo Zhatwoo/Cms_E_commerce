@@ -395,6 +395,17 @@ export async function permanentDeleteProject(id: string): Promise<{ success: boo
   });
 }
 
+/** Update subdomain for an existing published project. */
+export async function updateDomainSubdomain(
+  projectId: string,
+  subdomain: string
+): Promise<{ success: boolean; message?: string; data?: { subdomain?: string } }> {
+  return apiFetch<{ success: boolean; message?: string; data?: { subdomain?: string } }>('/api/domains/update-subdomain', {
+    method: 'POST',
+    body: JSON.stringify({ projectId, subdomain }),
+  });
+}
+
 /** Unpublish (take down) a published project. Site will no longer be accessible until published again. */
 export async function unpublishProject(projectId: string): Promise<{ success: boolean; message?: string; data?: { subdomain?: string } }> {
   return apiFetch<{ success: boolean; message?: string; data?: { subdomain?: string } }>('/api/domains/unpublish', {
