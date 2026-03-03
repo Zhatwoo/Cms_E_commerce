@@ -34,6 +34,7 @@ import { PrototypeFlowLines } from "./PrototypeFlowLines";
 import { NewPageDropPlacementHandler } from "./NewPageDropPlacementHandler";
 import { HeaderFooterDropPlacementHandler } from "./HeaderFooterDropPlacementHandler";
 import { ScrollToSelectedHandler } from "./ScrollToSelectedHandler";
+import { PageTrackingHandler, SET_CURRENT_PAGE } from "./PageTrackingHandler";
 import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
@@ -48,7 +49,6 @@ import {
   DEFAULT_SCALE,
   ZOOM_STEP,
   ZOOM_SENSITIVITY,
-  SMOOTH_LERP_FACTOR,
 } from "./zoomConstants";
 
 /**
@@ -84,9 +84,10 @@ class FrameErrorBoundary extends React.Component<
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 const UI_STATE_KEY_PREFIX = "craftjs_editor_ui";
 
-// These must match the Viewport constants for proper page positioning
-const PAGE_GRID_ORIGIN_X = 30000;
-const PAGE_GRID_ORIGIN_Y = 30000;
+// Must match Viewport.tsx for proper multipage positioning
+const VIEWPORT_EDGE_PADDING = 100000;
+const PAGE_GRID_ORIGIN_X = VIEWPORT_EDGE_PADDING;
+const PAGE_GRID_ORIGIN_Y = VIEWPORT_EDGE_PADDING;
 const PAGE_BASE_WIDTH = 1920;
 const PAGE_BASE_HEIGHT = 1200;
 
@@ -607,12 +608,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const containerRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef({ x: 0, y: 0 });
   const [cameraVersion, setCameraVersion] = useState(0);
-  const wheelZoomDeltaRef = useRef(0);
   const wheelPanDeltaRef = useRef({ x: 0, y: 0 });
-  const wheelAnchorRef = useRef({ x: 0, y: 0 });
   const wheelZoomRafRef = useRef<number | null>(null);
-  const smoothTargetRef = useRef<{ scale: number; camX: number; camY: number } | null>(null);
-  const smoothingRafRef = useRef<number | null>(null);
+  const lastMouseInCanvasRef = useRef<{ x: number; y: number } | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSnapshotRef = useRef<string | null>(null);
   const lastSavedRawRef = useRef<string | null>(null);
@@ -853,10 +851,20 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const handlePageAdded = useCallback((id: string, name: string) => {
     setPages((prev) => [...prev, { id, name }]);
     setCurrentPageId(id);
+    requestAnimationFrame(() => {
+      const container = containerRef.current;
+      if (container) {
+        container.dispatchEvent(new CustomEvent("center-on-node", { detail: { nodeId: id } }));
+      }
+    });
   }, []);
 
   const handleSelectPage = useCallback((pageId: string) => {
     setCurrentPageId(pageId);
+    const container = containerRef.current;
+    if (container) {
+      container.dispatchEvent(new CustomEvent("center-on-node", { detail: { nodeId: pageId } }));
+    }
   }, []);
 
   const handleDeletePage = useCallback((pageId: string) => {
@@ -897,91 +905,20 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     }
   }, [initialJson, projectId, loadPages, showAlert]);
 
-  // Figma-style zoom: Ctrl+wheel zooms anchored to cursor; plain wheel pans. RAF batching + exponential smoothing.
+  // Figma-style zoom: Ctrl+wheel zooms anchored to cursor (immediate, no batching = no glitch).
+  // Plain wheel pans (batched via RAF).
   useEffect(() => {
-    const SNAP_EPS = 0.0002;
-    const SNAP_CAM = 0.3;
-
-    const runSmoothingFrame = () => {
-      const target = smoothTargetRef.current;
-      if (!target) {
-        smoothingRafRef.current = null;
-        return;
-      }
-      const cam = cameraRef.current;
-      const curScale = scaleRef.current;
-      const newScale = curScale + (target.scale - curScale) * SMOOTH_LERP_FACTOR;
-      const newCamX = cam.x + (target.camX - cam.x) * SMOOTH_LERP_FACTOR;
-      const newCamY = cam.y + (target.camY - cam.y) * SMOOTH_LERP_FACTOR;
-
-      const scaleDone = Math.abs(newScale - target.scale) < SNAP_EPS;
-      const camDone =
-        Math.abs(newCamX - target.camX) < SNAP_CAM && Math.abs(newCamY - target.camY) < SNAP_CAM;
-
-      if (scaleDone && camDone) {
-        cam.x = target.camX;
-        cam.y = target.camY;
-        setScale(target.scale);
-        smoothTargetRef.current = null;
-        smoothingRafRef.current = null;
-      } else {
-        cam.x = newCamX;
-        cam.y = newCamY;
-        setScale(newScale);
-        smoothingRafRef.current = requestAnimationFrame(runSmoothingFrame);
-      }
-      setCameraVersion((v) => v + 1);
-    };
-
-    const applyWheelFrame = () => {
+    const applyPanFrame = () => {
       wheelZoomRafRef.current = null;
-      const zoomDelta = wheelZoomDeltaRef.current;
       const panDelta = wheelPanDeltaRef.current;
-      wheelZoomDeltaRef.current = 0;
       wheelPanDeltaRef.current = { x: 0, y: 0 };
 
-      const container = containerRef.current;
-      if (!container) return;
+      if (Math.abs(panDelta.x) < 0.5 && Math.abs(panDelta.y) < 0.5) return;
 
       const cam = cameraRef.current;
-      const prevTarget = smoothTargetRef.current;
-      let targetScale = prevTarget ? prevTarget.scale : scaleRef.current;
-      let targetCamX = prevTarget ? prevTarget.camX : cam.x;
-      let targetCamY = prevTarget ? prevTarget.camY : cam.y;
-
-      if (Math.abs(zoomDelta) >= 0.01) {
-        const zoomFactor = Math.exp(-zoomDelta * ZOOM_SENSITIVITY);
-        if (Number.isFinite(zoomFactor) && zoomFactor > 0) {
-          const prev = clampScale(targetScale, 1);
-          const next = clampScale(prev * zoomFactor, prev);
-          if (next !== prev) {
-            const mx = wheelAnchorRef.current.x;
-            const my = wheelAnchorRef.current.y;
-            const ratio = next / prev;
-            targetScale = next;
-            targetCamX = mx - (mx - targetCamX) * ratio;
-            targetCamY = my - (my - targetCamY) * ratio;
-          }
-        }
-      }
-
-      if (Math.abs(panDelta.x) >= 0.5 || Math.abs(panDelta.y) >= 0.5) {
-        targetCamX -= panDelta.x;
-        targetCamY -= panDelta.y;
-      }
-
-      const curScale = scaleRef.current;
-      const hasChange =
-        Math.abs(targetScale - curScale) >= SNAP_EPS ||
-        Math.abs(targetCamX - cam.x) >= SNAP_CAM ||
-        Math.abs(targetCamY - cam.y) >= SNAP_CAM;
-
-      if (hasChange) {
-        smoothTargetRef.current = { scale: targetScale, camX: targetCamX, camY: targetCamY };
-        if (smoothingRafRef.current === null) {
-          smoothingRafRef.current = requestAnimationFrame(runSmoothingFrame);
-        }
-      }
+      cam.x = Math.round(cam.x - panDelta.x);
+      cam.y = Math.round(cam.y - panDelta.y);
+      setCameraVersion((v) => v + 1);
     };
 
     const handleWheel = (e: WheelEvent) => {
@@ -993,15 +930,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       if (!container) return;
 
       const rect = container.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
       const isInsideCanvas =
-        e.clientX >= rect.left &&
-        e.clientX <= rect.right &&
-        e.clientY >= rect.top &&
-        e.clientY <= rect.bottom;
-      if (!isInsideCanvas) return;
-
-      if (e.cancelable) e.preventDefault();
-      e.stopPropagation();
+        mx >= 0 && mx <= rect.width && my >= 0 && my <= rect.height;
 
       let deltaY = e.deltaY;
       let deltaX = e.deltaX;
@@ -1014,37 +946,66 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       }
 
       if (e.ctrlKey || e.metaKey) {
-        const normalizedDelta = Math.max(-240, Math.min(240, deltaY));
-        wheelZoomDeltaRef.current += normalizedDelta;
-        wheelAnchorRef.current = {
-          x: e.clientX - rect.left,
-          y: e.clientY - rect.top,
-        };
+        if (!isInsideCanvas) return;
+        if (e.cancelable) e.preventDefault();
+        e.stopPropagation();
+
+        lastMouseInCanvasRef.current = { x: mx, y: my };
+
+        const zoomDelta = Math.max(-400, Math.min(400, deltaY));
+        const zoomFactor = Math.exp(-zoomDelta * ZOOM_SENSITIVITY);
+        if (!Number.isFinite(zoomFactor) || zoomFactor <= 0) return;
+
+        const cam = cameraRef.current;
+        const prev = clampScale(scaleRef.current, 1);
+        const next = clampScale(prev * zoomFactor, prev);
+        if (next === prev) return;
+
+        const ratio = next / prev;
+        const newCamX = Math.round(mx - (mx - cam.x) * ratio);
+        const newCamY = Math.round(my - (my - cam.y) * ratio);
+
+        cameraRef.current = { x: newCamX, y: newCamY };
+        setScale(next);
+        setCameraVersion((v) => v + 1);
       } else {
+        if (!isInsideCanvas) return;
+        if (e.cancelable) e.preventDefault();
+        e.stopPropagation();
+
         wheelPanDeltaRef.current.x += deltaX;
         wheelPanDeltaRef.current.y += deltaY;
-      }
 
-      if (wheelZoomRafRef.current === null) {
-        wheelZoomRafRef.current = requestAnimationFrame(applyWheelFrame);
+        if (wheelZoomRafRef.current === null) {
+          wheelZoomRafRef.current = requestAnimationFrame(applyPanFrame);
+        }
+      }
+    };
+
+    const trackMouseInCanvas = (e: MouseEvent) => {
+      const container = containerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      if (mx >= 0 && mx <= rect.width && my >= 0 && my <= rect.height) {
+        lastMouseInCanvasRef.current = { x: mx, y: my };
       }
     };
 
     window.addEventListener("wheel", handleWheel, { passive: false, capture: true });
+    document.addEventListener("mousemove", trackMouseInCanvas, { passive: true });
     return () => {
+      document.removeEventListener("mousemove", trackMouseInCanvas);
       window.removeEventListener("wheel", handleWheel, { capture: true });
       if (wheelZoomRafRef.current !== null) {
         cancelAnimationFrame(wheelZoomRafRef.current);
         wheelZoomRafRef.current = null;
       }
-      if (smoothingRafRef.current !== null) {
-        cancelAnimationFrame(smoothingRafRef.current);
-        smoothingRafRef.current = null;
-      }
     };
   }, []);
 
-  // Keyboard zoom: Ctrl+/Ctrl-/Ctrl+0 anchored to viewport center
+  // Keyboard zoom: Ctrl+/Ctrl-/Ctrl+0 anchored to mouse cursor (or viewport center if no cursor pos)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const ctrl = e.ctrlKey || e.metaKey;
@@ -1076,11 +1037,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       }
       if (newZoom === oldZoom) return;
 
-      const cx = container.clientWidth / 2;
-      const cy = container.clientHeight / 2;
       const ratio = newZoom / oldZoom;
-      const newCamX = cx - (cx - cam.x) * ratio;
-      const newCamY = cy - (cy - cam.y) * ratio;
+      const anchor = lastMouseInCanvasRef.current;
+      const cx = anchor ? anchor.x : container.clientWidth / 2;
+      const cy = anchor ? anchor.y : container.clientHeight / 2;
+      const newCamX = Math.round(cx - (cx - cam.x) * ratio);
+      const newCamY = Math.round(cy - (cy - cam.y) * ratio);
 
       cameraRef.current = { x: newCamX, y: newCamY };
       setScale(newZoom);
@@ -1184,7 +1146,17 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     };
 
     container.addEventListener("center-on-node", handleCenterOnNode);
-    return () => container.removeEventListener("center-on-node", handleCenterOnNode);
+
+    const handleSetCurrentPage = (e: Event) => {
+      const { pageId } = (e as CustomEvent<{ pageId: string }>).detail;
+      if (pageId) setCurrentPageId(pageId);
+    };
+    container.addEventListener(SET_CURRENT_PAGE, handleSetCurrentPage);
+
+    return () => {
+      container.removeEventListener("center-on-node", handleCenterOnNode);
+      container.removeEventListener(SET_CURRENT_PAGE, handleSetCurrentPage);
+    };
   }, [scale, centerOnWorldPoint]);
 
   // Handle canvas rotation
@@ -1192,52 +1164,68 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     setCanvasRotation((prev) => (prev + 90) % 360);
   }, []);
 
-  // Handle fit to canvas: zoom so page fits with 10% margin, then center
+  // Handle fit to canvas: zoom so content fits with 10% margin. Supports multipage viewport.
   const handleFitToCanvas = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const contentWidth = canvasWidth;
-    const contentHeight = canvasHeight;
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
-    if (
-      !Number.isFinite(contentWidth) || !Number.isFinite(contentHeight) ||
-      contentWidth <= 0 || contentHeight <= 0 ||
-      containerWidth <= 0 || containerHeight <= 0
-    ) return;
+    if (containerWidth <= 0 || containerHeight <= 0) return;
+
+    const cam = cameraRef.current;
+    const contRect = container.getBoundingClientRect();
+    const pageEls = container.querySelectorAll<HTMLElement>(
+      "[data-viewport-desktop] [data-page-node=\"true\"]"
+    );
+
+    let contentWidth: number;
+    let contentHeight: number;
+    let worldCX: number;
+    let worldCY: number;
+
+    if (pageEls.length > 0) {
+      let worldMinX = Infinity;
+      let worldMinY = Infinity;
+      let worldMaxX = -Infinity;
+      let worldMaxY = -Infinity;
+
+      for (const el of pageEls) {
+        const r = el.getBoundingClientRect();
+        const sx0 = r.left - contRect.left;
+        const sy0 = r.top - contRect.top;
+        const sx1 = r.right - contRect.left;
+        const sy1 = r.bottom - contRect.top;
+        const wx0 = (sx0 - cam.x) / scale;
+        const wy0 = (sy0 - cam.y) / scale;
+        const wx1 = (sx1 - cam.x) / scale;
+        const wy1 = (sy1 - cam.y) / scale;
+        worldMinX = Math.min(worldMinX, wx0, wx1);
+        worldMinY = Math.min(worldMinY, wy0, wy1);
+        worldMaxX = Math.max(worldMaxX, wx0, wx1);
+        worldMaxY = Math.max(worldMaxY, wy0, wy1);
+      }
+
+      contentWidth = Math.max(1, worldMaxX - worldMinX);
+      contentHeight = Math.max(1, worldMaxY - worldMinY);
+      worldCX = (worldMinX + worldMaxX) / 2;
+      worldCY = (worldMinY + worldMaxY) / 2;
+    } else {
+      contentWidth = canvasWidth;
+      contentHeight = canvasHeight;
+      worldCX = PAGE_GRID_ORIGIN_X + PAGE_BASE_WIDTH / 2;
+      worldCY = PAGE_GRID_ORIGIN_Y + PAGE_BASE_HEIGHT / 2;
+    }
+
+    if (!Number.isFinite(contentWidth) || !Number.isFinite(contentHeight) || contentWidth <= 0 || contentHeight <= 0) return;
 
     const scaleX = (containerWidth * 0.9) / contentWidth;
     const scaleY = (containerHeight * 0.9) / contentHeight;
     const newScale = clampScale(Math.min(scaleX, scaleY, 1), 1);
 
-    const pageEl =
-      (currentPageId
-        ? container.querySelector<HTMLElement>(
-            `[data-viewport-desktop] [data-page-node="true"][data-node-id="${currentPageId}"]`
-          ) ?? container.querySelector<HTMLElement>(
-            `[data-page-node="true"][data-node-id="${currentPageId}"]`
-          )
-        : null) ??
-      container.querySelector<HTMLElement>('[data-viewport-desktop] [data-page-node="true"]') ??
-      container.querySelector<HTMLElement>('[data-page-node="true"]');
-
-    let worldCX = PAGE_GRID_ORIGIN_X + PAGE_BASE_WIDTH / 2;
-    let worldCY = PAGE_GRID_ORIGIN_Y + PAGE_BASE_HEIGHT / 2;
-
-    if (pageEl) {
-      const cam = cameraRef.current;
-      const contRect = container.getBoundingClientRect();
-      const pageRect = pageEl.getBoundingClientRect();
-      const pageCenterScreenX = pageRect.left + pageRect.width / 2 - contRect.left;
-      const pageCenterScreenY = pageRect.top + pageRect.height / 2 - contRect.top;
-      worldCX = (pageCenterScreenX - cam.x) / scale;
-      worldCY = (pageCenterScreenY - cam.y) / scale;
-    }
-
     setScale(newScale);
     centerOnWorldPoint(worldCX, worldCY, newScale);
-  }, [canvasWidth, canvasHeight, scale, currentPageId, centerOnWorldPoint]);
+  }, [canvasWidth, canvasHeight, scale, centerOnWorldPoint]);
 
   const handleScaleChange = useCallback((nextScale: number) => {
     const container = containerRef.current;
@@ -1248,12 +1236,13 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     if (newZoom === oldZoom) return;
 
     const cam = cameraRef.current;
-    const cx = container.clientWidth / 2;
-    const cy = container.clientHeight / 2;
+    const anchor = lastMouseInCanvasRef.current;
+    const cx = anchor ? anchor.x : container.clientWidth / 2;
+    const cy = anchor ? anchor.y : container.clientHeight / 2;
     const ratio = newZoom / oldZoom;
     cameraRef.current = {
-      x: cx - (cx - cam.x) * ratio,
-      y: cy - (cy - cam.y) * ratio,
+      x: Math.round(cx - (cx - cam.x) * ratio),
+      y: Math.round(cy - (cy - cam.y) * ratio),
     };
     setScale(newZoom);
     setCameraVersion((v) => v + 1);
@@ -1271,14 +1260,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const isSpacePanActive = isSpacePressed;
   const canPanWithPointerDrag = activeTool === "hand" || isSpacePanActive;
 
+  // Figma-style: Hand tool or Space — always allow pan from anywhere (page, empty area, etc.)
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (canPanWithPointerDrag) {
-      const target = e.target as HTMLElement | null;
-      const nodeEl = target?.closest("[data-node-id]") as HTMLElement | null;
-      const nodeId = nodeEl?.getAttribute("data-node-id") ?? null;
-      if (nodeId && nodeId !== "ROOT" && nodeId !== "Viewport") {
-        return;
-      }
+    if (canPanWithPointerDrag && e.button === 0) {
       setIsPanning(true);
       document.body.dataset.canvasPan = "true";
       e.preventDefault();
@@ -1292,6 +1276,15 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
+    const container = containerRef.current;
+    if (container) {
+      const rect = container.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      if (mx >= 0 && mx <= rect.width && my >= 0 && my <= rect.height) {
+        lastMouseInCanvasRef.current = { x: mx, y: my };
+      }
+    }
     if (isPanning) {
       const cam = cameraRef.current;
       updateCamera(cam.x + e.movementX, cam.y + e.movementY);
@@ -1967,6 +1960,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 <CanvasSelectionHandler />
                 <BoxSelectionHandler />
                 <ScrollToSelectedHandler />
+                <PageTrackingHandler />
                 <CanvasContextMenu />
                 <FigmaStyleDragHandler />
                 <NewPageDropPlacementHandler />
@@ -2016,8 +2010,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                       transformOrigin: "0 0",
                       transform:
                         canvasRotation !== 0
-                          ? `translate(${cameraRef.current.x}px, ${cameraRef.current.y}px) scale(${scale}) rotate(${canvasRotation}deg)`
-                          : `translate(${cameraRef.current.x}px, ${cameraRef.current.y}px) scale(${scale})`,
+                          ? `translate3d(${Math.round(cameraRef.current.x)}px, ${Math.round(cameraRef.current.y)}px, 0) scale(${scale}) rotate(${canvasRotation}deg)`
+                          : `translate3d(${Math.round(cameraRef.current.x)}px, ${Math.round(cameraRef.current.y)}px, 0) scale(${scale})`,
                       willChange: "transform",
                     }}
                   >
