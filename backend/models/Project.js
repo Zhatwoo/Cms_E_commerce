@@ -14,10 +14,12 @@ function getTrashRef(userId) {
 async function create(userId, data) {
   const ref = getProjectsRef(userId);
   const subdomain = (data.subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || null;
+  const instanceId = (data.instanceId || '').toString().trim() || null;
   const doc = {
     title: data.title || 'Untitled Project',
     status: 'draft',
     template_id: data.templateId || null,
+    instance_id: instanceId,
     subdomain: subdomain || null,
     thumbnail: data.thumbnail || null,
     created_at: new Date(),
@@ -28,10 +30,17 @@ async function create(userId, data) {
   return docToObject(snap);
 }
 
-async function list(userId) {
+async function list(userId, options = {}) {
   const ref = getProjectsRef(userId);
   const snap = await ref.get();
-  const items = snap.docs.map(d => docToObject(d)).filter(x => x);
+  let items = snap.docs.map(d => docToObject(d)).filter(x => x);
+
+  // Filter by instanceId if provided
+  const instanceId = (options.instanceId || '').toString().trim() || null;
+  if (instanceId) {
+    items = items.filter(p => p.instanceId === instanceId);
+  }
+
   // Sort in JS instead of Firestore to avoid filtering out docs missing 'updated_at'
   return items.sort((a, b) => {
     const tA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
@@ -50,6 +59,7 @@ async function update(userId, projectId, data) {
   const updates = {};
   if (data.title !== undefined) updates.title = data.title;
   if (data.status !== undefined) updates.status = data.status;
+  if (data.instanceId !== undefined) updates.instance_id = (data.instanceId || '').toString().trim() || null;
   if (data.subdomain !== undefined) updates.subdomain = (data.subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || null;
   if (data.thumbnail !== undefined) updates.thumbnail = data.thumbnail || null;
   if (Object.keys(updates).length === 0) return get(userId, projectId);
@@ -69,24 +79,21 @@ async function moveToTrash(userId, projectId) {
 
   const data = snap.data();
 
-  // BLOCK DELETION IF PUBLISHED
-  if (data.status === 'published') {
-    throw new Error('This project is published and cannot be deleted. Please unpublish it first from Domain settings.');
+  // BLOCK DELETION IF LIVE/PUBLISHED
+  const normalizedStatus = String(data.status || '').trim().toLowerCase();
+  if (normalizedStatus === 'published' || normalizedStatus === 'live') {
+    throw new Error('This project is live/published and cannot be deleted. Please unpublish it first from Domain settings.');
   }
 
-  const path = `user/roles/client/${userId}/trash/${projectId}`;
-  console.log(`🗑️ Moving project to trash at: ${path}`);
   // Mark with deletion timestamp and store in trash
   await trashRef.set({
     ...data,
     deleted_at: new Date(),
     original_id: projectId
   });
-  console.log('✅ Document successfully written to trash.');
 
   // Remove from active projects
   await projectRef.delete();
-  console.log('✅ Document removed from active projects.');
 
   // Cleanup Realtime DB
   const rtdb = getRealtimeDb();
@@ -221,8 +228,8 @@ async function getBySubdomain(userId, subdomain) {
 }
 
 async function countWithSubdomain(userId) {
-  const snap = await getProjectsRef(userId).where('subdomain', '!=', null).get();
-  return snap.size;
+  const projects = await list(userId);
+  return projects.filter((p) => p.subdomain != null && String(p.subdomain).trim() !== '').length;
 }
 
 async function countAll() {

@@ -19,8 +19,12 @@ import { Button } from "../_designComponents/Button/Button";
 import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
+import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
 import { MarqueeSelectionHandler } from "./MarqueeSelectionHandler";
+import { BoxSelectionHandler } from "./BoxSelectionHandler";
+import { TextToolHandler } from "./TextToolHandler";
+import { ShapeToolHandler } from "./ShapeToolHandler";
 import { TransformModeProvider } from "./TransformModeContext";
 import { InlineTextEditProvider } from "./InlineTextEditContext";
 import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
@@ -75,6 +79,8 @@ const UI_STATE_KEY_PREFIX = "craftjs_editor_ui";
 // These must match the Viewport constants for proper page positioning
 const PAGE_GRID_ORIGIN_X = 30000;
 const PAGE_GRID_ORIGIN_Y = 30000;
+const PAGE_BASE_WIDTH = 1920;
+const PAGE_BASE_HEIGHT = 1200;
 
 const EMPTY_FRAME_DATA = JSON.stringify({
   ROOT: {
@@ -95,24 +101,12 @@ const EMPTY_FRAME_DATA = JSON.stringify({
       pageSlug: "page-0",
       canvasX: PAGE_GRID_ORIGIN_X,
       canvasY: PAGE_GRID_ORIGIN_Y,
-      width: "1920px",
       height: "1200px",
       background: "#ffffff"
     },
     displayName: "Page",
     custom: {},
     parent: "ROOT",
-    hidden: false,
-    nodes: ["container-1"],
-    linkedNodes: {},
-  },
-  "container-1": {
-    type: { resolvedName: "Container" },
-    isCanvas: true,
-    props: { padding: 40, background: "#ffffff" },
-    displayName: "Container",
-    custom: {},
-    parent: "page-1",
     hidden: false,
     nodes: [],
     linkedNodes: {},
@@ -612,7 +606,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const containerRef = useRef<HTMLDivElement>(null);
   const horizontalScrollbarRef = useRef<HTMLDivElement>(null);
   const horizontalScrollbarInnerRef = useRef<HTMLDivElement>(null);
-  const previousScaleRef = useRef(DEFAULT_SCALE);
+  const previousScaleRef = useRef(1);
+  const zoomAnchorRef = useRef({ x: 0, y: 0, hasValue: false });
   const wheelZoomDeltaRef = useRef(0);
   const wheelZoomRafRef = useRef<number | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -708,9 +703,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     if (errorCleanupDoneRef.current) return;
     errorCleanupDoneRef.current = true;
 
-    console.error('❌ Frame rendering failed. Cleaning up corrupted data...');
-
-    // Clear per-project storage keys (both localStorage and sessionStorage)
+    // Clear per-project storage keys (sessionStorage + legacy localStorage)
     const storageKey = getStorageKey(projectId);
     try {
       if (typeof window !== "undefined") {
@@ -735,9 +728,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     if (projectId) {
       try {
         await deleteDraft(projectId);
-        console.log('✅ Corrupted data cleared from database');
-      } catch (error) {
-        console.error('Failed to clear corrupted data:', error);
+      } catch {
+        // Ignore cleanup errors
       }
     }
 
@@ -866,7 +858,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       parsed.pages = (parsed.pages || []).filter((p: any) => p.id !== pageId);
       const updated = JSON.stringify(parsed);
       const storageKey = getStorageKey(projectId);
-      localStorage.setItem(storageKey, updated);
+      safeSessionSet(storageKey, updated);
       loadPages(updated);
       if (currentPageId === pageId && parsed.pages.length > 0) {
         setCurrentPageId(parsed.pages[0].id);
@@ -887,7 +879,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         page.name = newName;
         const updated = JSON.stringify(parsed);
         const storageKey = getStorageKey(projectId);
-        localStorage.setItem(storageKey, updated);
+        safeSessionSet(storageKey, updated);
         loadPages(updated);
         setInitialJson(updated);
       }
@@ -902,8 +894,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     const handleWheel = (e: WheelEvent) => {
       if (!(e.ctrlKey || e.metaKey)) return;
 
+      const targetEl = e.target instanceof HTMLElement ? e.target : null;
+      if (!targetEl || !targetEl.closest("[data-web-builder-root]")) return;
       if (isEditableTarget(e.target)) return;
-      if (e.target instanceof HTMLElement && e.target.closest("[data-panel]")) return;
 
       const container = containerRef.current;
       if (!container) return;
@@ -916,6 +909,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         e.clientY <= rect.bottom;
 
       if (!isInsideCanvas) return;
+
+      const anchorX = Math.min(container.clientWidth, Math.max(0, e.clientX - rect.left));
+      const anchorY = Math.min(container.clientHeight, Math.max(0, e.clientY - rect.top));
+      zoomAnchorRef.current = { x: anchorX, y: anchorY, hasValue: true };
 
       if (e.cancelable) {
         e.preventDefault();
@@ -965,32 +962,53 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     };
   }, []);
 
-  // Keep zoom state stable. Do not force scroll compensation here because
-  // transform-based scaling can desync from scroll metrics and cause canvas jumps.
+  // Keep center point stationary while zooming, including rapid wheel bursts
   useLayoutEffect(() => {
-    previousScaleRef.current = clampScale(scale, previousScaleRef.current || 1);
+    const container = containerRef.current;
+    if (!container) {
+      previousScaleRef.current = clampScale(scale, previousScaleRef.current || 1);
+      return;
+    }
+
+    const prevScale = clampScale(previousScaleRef.current, scale || 1);
+    const nextScale = clampScale(scale, prevScale);
+    if (prevScale === nextScale) {
+      previousScaleRef.current = nextScale;
+      return;
+    }
+
+    if (container.clientWidth <= 0 || container.clientHeight <= 0) {
+      previousScaleRef.current = nextScale;
+      return;
+    }
+
+    const centerX = container.clientWidth / 2;
+    const centerY = container.clientHeight / 2;
+    const contentX = (container.scrollLeft + centerX) / prevScale;
+    const contentY = (container.scrollTop + centerY) / prevScale;
+
+    if (!Number.isFinite(contentX) || !Number.isFinite(contentY)) {
+      previousScaleRef.current = nextScale;
+      return;
+    }
+
+    const nextScrollLeft = contentX * nextScale - centerX;
+    const nextScrollTop = contentY * nextScale - centerY;
+    const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
+    const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+
+    container.scrollLeft = Math.min(maxScrollLeft, Math.max(0, nextScrollLeft));
+    container.scrollTop = Math.min(maxScrollTop, Math.max(0, nextScrollTop));
+    previousScaleRef.current = nextScale;
   }, [scale]);
 
-  // Center the canvas in the view - focus on first page element
+  // Center the viewport in the full infinite canvas area
   const centerCanvasInView = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const applyProgrammaticScroll = (nextLeft: number, nextTop: number) => {
-      isProgrammaticScrollRef.current = true;
-      container.scrollLeft = nextLeft;
-      container.scrollTop = nextTop;
-      requestAnimationFrame(() => {
-        isProgrammaticScrollRef.current = false;
-      });
-    };
-
-    const desktopViewport = container.querySelector("[data-viewport-desktop]") as HTMLElement | null;
-
     // Try to find the first Page element and center on it
-    const firstPage =
-      (desktopViewport?.querySelector("[data-page-node='true']") as HTMLElement | null) ??
-      (container.querySelector("[data-page-node='true']") as HTMLElement | null);
+    const firstPage = container.querySelector("[data-page-node]") as HTMLElement | null;
 
     if (firstPage) {
       const containerRect = container.getBoundingClientRect();
@@ -1000,17 +1018,19 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       const pageCenterX = container.scrollLeft + (pageRect.left - containerRect.left) + pageRect.width / 2;
       const pageCenterY = container.scrollTop + (pageRect.top - containerRect.top) + pageRect.height / 2;
 
-      const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
-      const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+    const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
+    const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
 
       const nextLeft = Math.min(maxScrollLeft, Math.max(0, pageCenterX - container.clientWidth / 2));
       const nextTop = Math.min(maxScrollTop, Math.max(0, pageCenterY - container.clientHeight / 2));
 
-      applyProgrammaticScroll(nextLeft, nextTop);
+      container.scrollLeft = nextLeft;
+      container.scrollTop = nextTop;
       return;
     }
 
     // Fallback: try viewport desktop
+    const desktopViewport = container.querySelector("[data-viewport-desktop]") as HTMLElement | null;
 
     if (desktopViewport) {
       const containerRect = container.getBoundingClientRect();
@@ -1025,12 +1045,16 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       const nextLeft = Math.min(maxScrollLeft, Math.max(0, viewportCenterX - container.clientWidth / 2));
       const nextTop = Math.min(maxScrollTop, Math.max(0, viewportCenterY - container.clientHeight / 2));
 
-      applyProgrammaticScroll(nextLeft, nextTop);
+      container.scrollLeft = nextLeft;
+      container.scrollTop = nextTop;
       return;
     }
 
-    // No stable page target found yet; keep current viewport to avoid jumping into empty canvas.
-    return;
+    // Ultimate fallback: center of scroll area
+    const fallbackLeft = (container.scrollWidth - container.clientWidth) / 2;
+    const fallbackTop = (container.scrollHeight - container.clientHeight) / 2;
+    container.scrollLeft = fallbackLeft;
+    container.scrollTop = fallbackTop;
   }, []);
 
   // Center immediately on first mount so default view starts at middle even before frame settles
@@ -1205,7 +1229,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     (side: "left" | "right", value: number) => {
       if (typeof window === "undefined") return value;
 
-      const sideMin = side === "left" ? LEFT_PANEL_DEFAULT_WIDTH : RIGHT_PANEL_MIN_WIDTH;
+      const sideMin = side === "left" ? LEFT_PANEL_DEFAULT_WIDTH : 360;
       const sideBaseMax = Math.max(sideMin, Math.min(820, Math.floor(window.innerWidth * 0.7)));
 
       const otherPanelOccupied =
@@ -1253,37 +1277,21 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       const drag = panelDragRef.current;
       if (!drag) return;
 
-      panelDragPointerXRef.current = event.clientX;
-      if (panelDragRafRef.current !== null) return;
+      const deltaX = event.clientX - drag.startX;
+      const nextWidth = drag.side === "left"
+        ? clampPanelWidthWithCanvasRoom("left", drag.startWidth + deltaX)
+        : clampPanelWidthWithCanvasRoom("right", drag.startWidth - deltaX);
 
-      panelDragRafRef.current = requestAnimationFrame(() => {
-        panelDragRafRef.current = null;
-
-        const activeDrag = panelDragRef.current;
-        const pointerX = panelDragPointerXRef.current;
-        if (!activeDrag || pointerX === null) return;
-
-        const deltaX = pointerX - activeDrag.startX;
-        const nextWidth = activeDrag.side === "left"
-          ? clampPanelWidthWithCanvasRoom("left", activeDrag.startWidth + deltaX)
-          : clampPanelWidthWithCanvasRoom("right", activeDrag.startWidth - deltaX);
-
-        if (activeDrag.side === "left") {
-          setLeftPanelWidth((prev) => (prev === nextWidth ? prev : nextWidth));
-        } else {
-          setRightPanelWidth((prev) => (prev === nextWidth ? prev : nextWidth));
-        }
-      });
+      if (drag.side === "left") {
+        setLeftPanelWidth(nextWidth);
+      } else {
+        setRightPanelWidth(nextWidth);
+      }
     };
 
     const stopPanelDrag = () => {
       if (!panelDragRef.current) return;
       panelDragRef.current = null;
-      panelDragPointerXRef.current = null;
-      if (panelDragRafRef.current !== null) {
-        cancelAnimationFrame(panelDragRafRef.current);
-        panelDragRafRef.current = null;
-      }
       setIsPanelDragging(false);
       document.body.style.userSelect = "";
       document.body.style.cursor = "";
@@ -1295,11 +1303,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", stopPanelDrag);
-      panelDragPointerXRef.current = null;
-      if (panelDragRafRef.current !== null) {
-        cancelAnimationFrame(panelDragRafRef.current);
-        panelDragRafRef.current = null;
-      }
       document.body.style.userSelect = "";
       document.body.style.cursor = "";
     };
@@ -1364,48 +1367,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     stopPan();
   };
 
-  useEffect(() => {
-    if (!isPanning) return;
-
-    const handleWindowPointerMove = (event: PointerEvent) => {
-      if (activePanPointerIdRef.current !== null && event.pointerId !== activePanPointerIdRef.current) return;
-      const container = containerRef.current;
-      const prev = panPointerRef.current;
-      if (!container || !prev) {
-        panPointerRef.current = { x: event.clientX, y: event.clientY };
-        return;
-      }
-
-      const deltaX = event.clientX - prev.x;
-      const deltaY = event.clientY - prev.y;
-      container.scrollLeft -= deltaX;
-      container.scrollTop -= deltaY;
-      if (Math.abs(deltaX) > 0 || Math.abs(deltaY) > 0) {
-        hasUserMovedCanvasRef.current = true;
-      }
-      panPointerRef.current = { x: event.clientX, y: event.clientY };
-    };
-
-    const handleWindowPointerUp = (event: PointerEvent) => {
-      if (activePanPointerIdRef.current !== null && event.pointerId !== activePanPointerIdRef.current) return;
-      stopPan();
-    };
-
-    window.addEventListener("pointermove", handleWindowPointerMove);
-    window.addEventListener("pointerup", handleWindowPointerUp);
-    window.addEventListener("pointercancel", handleWindowPointerUp);
-
-    return () => {
-      window.removeEventListener("pointermove", handleWindowPointerMove);
-      window.removeEventListener("pointerup", handleWindowPointerUp);
-      window.removeEventListener("pointercancel", handleWindowPointerUp);
-    };
-  }, [isPanning, stopPan]);
-
-  const handleCanvasScroll = useCallback(() => {
-    if (isProgrammaticScrollRef.current) return;
-    hasUserMovedCanvasRef.current = true;
-  }, []);
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isPanning && containerRef.current) {
+      containerRef.current.scrollLeft -= e.movementX;
+      containerRef.current.scrollTop -= e.movementY;
+    }
+  };
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -1414,9 +1381,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       if (isEditableTarget(event.target)) return;
 
       event.preventDefault();
-      if (activeTool === "move") {
-        setIsSpacePressed(true);
-      }
+      setIsSpacePressed(true);
     };
 
     const handleKeyUp = (event: KeyboardEvent) => {
@@ -1506,6 +1471,23 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     };
   }, []);
 
+  // One-time migration: clear legacy draft data from localStorage (now using sessionStorage only)
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.localStorage) return;
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < window.localStorage.length; i++) {
+        const k = window.localStorage.key(i);
+        if (k && (k.startsWith(STORAGE_KEY_PREFIX) || k.startsWith("webbuilder_pages"))) {
+          keysToRemove.push(k);
+        }
+      }
+      keysToRemove.forEach((k) => window.localStorage.removeItem(k));
+    } catch {
+      // Ignore migration errors
+    }
+  }, []);
+
   // Restore saved editor state from database on mount
   useEffect(() => {
     if (!projectId) {
@@ -1516,16 +1498,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
     async function loadDraft() {
       try {
-        console.log('📥 loadDraft starting...', projectId);
-
         // Try sessionStorage per-project (no localStorage — auth/drafts in cookies or session only)
         const storageKey = getStorageKey(projectId);
         const sessionSaved = safeSessionGet(storageKey);
 
         // Try to load from database
-        console.log('📡 Calling getDraft()...');
         const result = await getDraft(projectId);
-        console.log('📡 getDraft result:', result);
 
         let contentToLoad: string | null = null;
 
@@ -1574,7 +1552,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         if (sessionSaved) {
           const normalized = normalizeToCraftJson(sessionSaved);
           if (normalized) {
-            console.log('✅ Loaded valid draft from session (this project)');
             contentToLoad = normalized;
             if (normalized !== sessionSaved) {
               safeSessionSet(storageKey, normalized);
@@ -1589,12 +1566,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         if (!contentToLoad && result.success && result.data && result.data.content) {
           const normalized = normalizeToCraftJson(result.data.content);
           if (normalized) {
-            try {
-              const parsed = JSON.parse(normalized);
-              console.log(`✅ Loaded valid draft from DB (${Object.keys(parsed).length} internal nodes)`);
-            } catch {
-              console.log('✅ Loaded valid draft from DB');
-            }
             contentToLoad = normalized;
             safeSessionSet(storageKey, normalized);
           } else {
@@ -1609,7 +1580,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           if (legacySaved) {
             const normalized = normalizeToCraftJson(legacySaved);
             if (normalized) {
-              console.log('✅ Loaded valid draft from legacy session key, syncing to project key');
               contentToLoad = normalized;
               safeSessionSet(storageKey, normalized);
               safeSessionRemove(STORAGE_KEY_PREFIX);
@@ -1617,10 +1587,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
               safeSessionRemove(STORAGE_KEY_PREFIX);
             }
           }
-        }
-
-        if (!contentToLoad) {
-          console.log('⚠️ No saved data found, expecting default');
         }
 
         setInitialJson(contentToLoad);
@@ -1637,12 +1603,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         }
 
         // IMPORTANT: Mark as ready immediately via Ref to avoid stale closures
-        // passing "undefined" to handleNodesChange
         isReadyRef.current = true;
-        console.log('✅ Editor marked as READY via Ref');
 
-      } catch (error) {
-        console.error('❌ loadDraft Unexpected Error:', error);
+      } catch {
         setInitialJson(null);
         isReadyRef.current = true; // Allow editing even if load failed
       }
@@ -2058,7 +2021,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   }, [initialJson]);
 
   return (
-    <div className="h-screen bg-brand-black text-brand-lighter overflow-hidden font-sans relative">
+    <div data-web-builder-root className="h-screen bg-brand-black text-brand-lighter overflow-hidden font-sans relative">
       <Editor
         resolver={resolver}
         indicator={{
@@ -2072,15 +2035,18 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       >
         <QueryStasher onQuery={(q) => { lastQueryRef.current = q; }} />
         <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
-          <CanvasToolProvider value={activeTool}>
+          <CanvasToolProvider value={activeTool} onToolChange={setActiveTool}>
             <TransformModeProvider>
               <InlineTextEditProvider>
                 <KeyboardShortcuts />
                 <CanvasSelectionHandler />
+                <BoxSelectionHandler />
                 <CanvasContextMenu />
                 <FigmaStyleDragHandler />
                 <NewPageDropPlacementHandler />
-                <MarqueeSelectionHandler />
+                <BoxSelectionHandler />
+                <TextToolHandler />
+                <ShapeToolHandler />
                 <DoubleClickTransformHandler />
                 <PrototypeFlowLines />
                 {/* Top Panel */}
@@ -2092,7 +2058,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                     onZoomOut={handleZoomOut}
                     onRotateCanvas={handleRotateCanvas}
                     onFitToCanvas={handleFitToCanvas}
-                    onAddButton={handleAddButton}
                     canvasWidth={canvasWidth}
                     canvasHeight={canvasHeight}
                     onDevicePresetSelect={handleDevicePresetSelect}

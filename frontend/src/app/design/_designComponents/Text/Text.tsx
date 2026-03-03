@@ -7,7 +7,7 @@ import type { TextProps } from "../../_types/components";
 export const Text = ({
   text,
   fontSize = 16,
-  fontFamily = "Inter",
+  fontFamily = "Outfit",
   fontWeight = "400",
   fontStyle = "normal",
   lineHeight = 1.5,
@@ -192,7 +192,7 @@ export const Text = ({
 export const TextDefaultProps: Partial<TextProps> = {
   text: "",
   fontSize: 16,
-  fontFamily: "Inter",
+  fontFamily: "Outfit",
   fontWeight: "400",
   fontStyle: "normal",
   lineHeight: 1.5,

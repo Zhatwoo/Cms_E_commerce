@@ -19,19 +19,12 @@
 }
 
 @keyframes marquee {
-  from {
-    transform: translateX(0);
-  }
-
-  to {
-    transform: translateX(-50%);
-  }
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
 }
-
 .animate-marquee {
   animation: marquee 40s linear infinite;
 }
-
 .pause-marquee:hover {
   animation-play-state: paused;
 }
@@ -44,20 +37,12 @@
 }
 
 @keyframes marquee {
-  from {
-    transform: translateX(0);
-  }
-
-  to {
-    transform: translateX(-50%);
-  }
-
-  /* because we doubled the items */
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }   /* because we doubled the items */
 }
 
 .animate-marquee {
-  animation: marquee 60s linear infinite;
-  /* adjust speed: 40s–80s is common */
+  animation: marquee 60s linear infinite;   /* adjust speed: 40s–80s is common */
 }
 
 .pause-marquee {
@@ -73,7 +58,6 @@
     opacity: 0;
     transform: translateY(-12px);
   }
-
   100% {
     opacity: 1;
     transform: translateY(0);
@@ -85,18 +69,71 @@
     opacity: 1;
     transform: translateY(0);
   }
-
   100% {
     opacity: 0;
     transform: translateY(-12px);
   }
 }
 
+/* ── Template preview card: slow top-to-bottom pan ── */
+/* Uses natural image height (height: auto) so the FULL image is rendered and panned */
+/* Big card (~733px wide, 560px tall): portrait images render ~1466px → pan -62% */
+@keyframes templatePanLg {
+  0%, 8%   { transform: translateY(0%); }
+  42%, 58% { transform: translateY(-62%); }
+  92%, 100%{ transform: translateY(0%); }
+}
+
+/* Small cards (~523px wide, ~272px tall): images render ~1050-1170px → pan -75% */
+@keyframes templatePanSm {
+  0%, 8%   { transform: translateY(0%); }
+  42%, 58% { transform: translateY(-75%); }
+  92%, 100%{ transform: translateY(0%); }
+}
+
+.template-pan-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  display: block;
+  animation: templatePanLg 9s ease-in-out infinite;
+}
+
+.template-pan-img-sm {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  display: block;
+  animation: templatePanSm 9s ease-in-out infinite;
+}
+
+.template-pan-img-slow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  display: block;
+  animation: templatePanLg 13s ease-in-out infinite;
+}
+
+.template-pan-img-delay {
+  animation-delay: 3s;
+}
+
+.template-pan-img-delay2 {
+  animation-delay: 6s;
+}
+
 .template-category-content {
   overflow: hidden;
   transition: max-height var(--dur-slow) var(--ease-smooth),
-    opacity var(--dur-slow) var(--ease-smooth),
-    transform var(--dur-slow) var(--ease-smooth);
+              opacity var(--dur-slow) var(--ease-smooth),
+              transform var(--dur-slow) var(--ease-smooth);
 }
 
 .template-category-content.open {
@@ -120,7 +157,6 @@
     opacity: 0;
     transform: translateY(-8px);
   }
-
   100% {
     opacity: 1;
     transform: translateY(0);
@@ -132,7 +168,6 @@
     opacity: 1;
     transform: translateY(0);
   }
-
   100% {
     opacity: 0;
     transform: translateY(-8px);
@@ -151,7 +186,7 @@
 .layer-children-container {
   overflow: hidden;
   transition: max-height var(--dur-medium) var(--ease-smooth),
-    opacity var(--dur-medium) var(--ease-smooth);
+              opacity var(--dur-medium) var(--ease-smooth);
 }
 
 .layer-children-container.expanded {
@@ -182,12 +217,10 @@
     transform: scale(1);
     box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
   }
-
   50% {
     transform: scale(1.1);
     box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3);
   }
-
   100% {
     transform: scale(1);
     box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
@@ -196,7 +229,7 @@
 
 .color-picker-button {
   transition: transform var(--dur-fast) var(--ease-smooth),
-    box-shadow var(--dur-fast) var(--ease-smooth);
+              box-shadow var(--dur-fast) var(--ease-smooth);
 }
 
 .color-picker-button:active {
@@ -205,7 +238,7 @@
 
 .color-picker-wrapper {
   transition: transform var(--dur-fast) var(--ease-smooth),
-    box-shadow var(--dur-fast) var(--ease-smooth);
+              box-shadow var(--dur-fast) var(--ease-smooth);
 }
 
 .color-picker-wrapper:has(input[type="color"]:focus) {
@@ -219,7 +252,6 @@
     opacity: 0;
     transform: translateY(-8px) scale(0.95);
   }
-
   100% {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -237,12 +269,10 @@
     transform: translateY(-10px) scale(0.95);
     max-height: 0;
   }
-
   50% {
     opacity: 0.8;
     transform: translateY(2px) scale(1.02);
   }
-
   100% {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -256,18 +286,19 @@
 }
 
 /* Global smoothing for Tailwind transition utilities */
-:where(.transition,
+:where(
+  .transition,
   .transition-all,
   .transition-colors,
   .transition-opacity,
   .transition-transform,
-  .transition-shadow) {
+  .transition-shadow
+) {
   transition-duration: var(--dur-medium);
   transition-timing-function: var(--ease-smooth);
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   *,
   *::before,
   *::after {
@@ -280,21 +311,18 @@
 
 /* Utility: hide scrollbar but keep scroll functionality */
 .no-scrollbar {
-  -ms-overflow-style: none;
-  /* IE and Edge */
-  scrollbar-width: none;
-  /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
 }
 
 .no-scrollbar::-webkit-scrollbar {
-  display: none;
-  /* Chrome, Safari, Opera */
+  display: none; /* Chrome, Safari, Opera */
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--ff-Outfit), Arial, Helvetica, sans-serif;
 }
 
 html.m-dashboard-scroll-lock,
@@ -314,7 +342,6 @@ body:has(.m-dashboard-shell) {
   outline: 2px solid #3b82f6 !important;
   /* Blue 500 */
   position: relative;
-  transition: none !important;
 }
 
 /* Hand tool: force hand cursor over entire canvas (including nodes) */
@@ -322,8 +349,82 @@ body:has(.m-dashboard-shell) {
 [data-canvas-container].canvas-hand-tool * {
   cursor: grab !important;
 }
-
 [data-canvas-container].canvas-hand-panning,
 [data-canvas-container].canvas-hand-panning * {
   cursor: grabbing !important;
+}
+
+@keyframes landingSnapIn {
+  0%,
+  20% {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.95);
+  }
+  30%,
+  80% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    border-color: #ffcc00;
+  }
+  90%,
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    border-color: rgba(90, 66, 191, 0.9);
+  }
+}
+
+@keyframes landingCursorPop {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) rotate(8deg) scale(1);
+  }
+  50% {
+    transform: translate(-50%, -50%) rotate(8deg) scale(1.08);
+  }
+}
+
+@keyframes landingCursorDrift {
+  0% {
+    transform: translate(-50%, -50%) translate(-34px, -10px) rotate(5deg) scale(1);
+  }
+  20% {
+    transform: translate(-50%, -50%) translate(-6px, -22px) rotate(10deg) scale(1.03);
+  }
+  40% {
+    transform: translate(-50%, -50%) translate(26px, -5px) rotate(7deg) scale(1.06);
+  }
+  60% {
+    transform: translate(-50%, -50%) translate(16px, 16px) rotate(11deg) scale(1.02);
+  }
+  80% {
+    transform: translate(-50%, -50%) translate(-20px, 12px) rotate(6deg) scale(1.04);
+  }
+  100% {
+    transform: translate(-50%, -50%) translate(-34px, -10px) rotate(5deg) scale(1);
+  }
+}
+
+.landing-snap-in {
+  animation: landingSnapIn 4s infinite;
+}
+
+.landing-cursor-pop {
+  animation: landingCursorDrift 3.2s cubic-bezier(0.25, 1, 0.3, 1) infinite;
+}
+
+.landing-cursor-drift {
+  animation: landingCursorDrift 3.2s cubic-bezier(0.25, 1, 0.3, 1) infinite;
+}
+
+.dark-input:-webkit-autofill,
+.dark-input:-webkit-autofill:hover,
+.dark-input:-webkit-autofill:focus,
+.dark-input:-webkit-autofill:active {
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: 0 0 0px 1000px rgba(16, 19, 29, 0.98) inset !important;
+  -webkit-box-shadow: 0 0 0px 1000px rgba(16, 19, 29, 0.98) inset !important;
+  caret-color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+  transition: background-color 9999s ease-out 0s;
 }

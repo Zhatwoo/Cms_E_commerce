@@ -48,9 +48,6 @@ function getAuthToken(): string | null {
 export async function autoSavePage(content: string, projectId: string): Promise<{ success: boolean; data?: any; error?: string }> {
     try {
         const token = getAuthToken();
-        await getMyId(); // Log UID for diagnostics
-
-        // console.log('🔍 Auto-save starting...');
 
         const headers: Record<string, string> = {
             'Content-Type': 'application/json'
@@ -80,7 +77,6 @@ export async function autoSavePage(content: string, projectId: string): Promise<
             return { success: false, error: data.message || 'Database save failed' };
         }
 
-        console.log('✅ Saved to Firebase database');
         return { success: true, data: data.data };
     } catch (error) {
         console.error('❌ Auto-save error:', error);
@@ -88,34 +84,20 @@ export async function autoSavePage(content: string, projectId: string): Promise<
     }
 }
 
-/**
- * Diagnostic: Get current user ID from server
- */
+/** Check auth status (no console logging of user data). */
 export async function getMyId(): Promise<void> {
     try {
         const token = getAuthToken();
         const headers: Record<string, string> = {};
         if (token) headers['Authorization'] = `Bearer ${token}`;
 
-        const response = await safeFetch(`${API_BASE_URL}/auth/me`, {
+        await safeFetch(`${API_BASE_URL}/auth/me`, {
             method: 'GET',
             headers,
             credentials: 'include'
         });
-
-        if (!response) {
-            console.warn('👤 Current User: NOT LOGGED IN (network unavailable)');
-            return;
-        }
-
-        if (response.ok) {
-            const data = await response.json();
-            console.log(`👤 Current User (via Cookie/Auth): ${data.user.id} (${data.user.email})`);
-        } else {
-            console.warn('👤 Current User: NOT LOGGED IN (or cookie missing)');
-        }
-    } catch (e) {
-        console.error('👤 Current User: Error checking auth', e);
+    } catch {
+        // Silent - no logging of auth state or user data
     }
 }
 
@@ -124,7 +106,6 @@ export async function getMyId(): Promise<void> {
  * Returns null if not authenticated - will fall back to localStorage
  */
 export async function getDraft(projectId: string): Promise<{ success: boolean; data?: any; error?: string }> {
-    await getMyId(); // Log UID for diagnostics
     try {
         const token = getAuthToken();
 
@@ -151,9 +132,6 @@ export async function getDraft(projectId: string): Promise<{ success: boolean; d
             return { success: true, data: null };
         }
 
-        if (data.data) {
-            console.log('✅ Loaded draft from Firebase database');
-        }
         return { success: true, data: data.data };
     } catch (error) {
         console.error('Get draft error:', error);
@@ -187,7 +165,6 @@ export async function deleteDraft(projectId: string): Promise<{ success: boolean
             return { success: false, error: data.message };
         }
 
-        console.log('✅ Deleted draft from Firebase database');
         return { success: true };
     } catch (error) {
         console.error('Delete draft error:', error);

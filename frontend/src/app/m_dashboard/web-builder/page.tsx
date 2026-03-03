@@ -5,7 +5,7 @@ import { useTheme } from '../components/context/theme-context';
 import { useRouter, useSearchParams } from 'next/navigation';
 import DomeGallery from '../components/templates/DomeGallery';
 import { templateService, Template as FullTemplate } from '@/lib/templateService';
-import { createProject, listProjects, updateProject, deleteProject, listTrashedProjects, restoreProject, permanentDeleteProject, getMyDomains, getStoredUser, type Project } from '@/lib/api';
+import { createProject, listProjects, updateProject, deleteProject, listTrashedProjects, restoreProject, getMyDomains, getStoredUser, type Project } from '@/lib/api';
 import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
 import { getLimits } from '@/lib/subscriptionLimits';
 import { useAlert } from '../components/context/alert-context';
@@ -346,7 +346,7 @@ export default function WebBuilderPage() {
   const { showAlert, showConfirm } = useAlert();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { selectedProject, setSelectedProjectId, projects: contextProjects, loading: projectsLoadingFromContext, refreshProjects } = useProject();
+  const { selectedProject, setSelectedProjectId, loading: projectsLoadingFromContext } = useProject();
   const [selectedCategory, setSelectedCategory] = useState('Type');
   const [previewTemplate, setPreviewTemplate] = useState<GalleryTemplate | null>(null);
   const [templates, setTemplates] = useState<GalleryTemplate[]>([]);
@@ -365,6 +365,21 @@ export default function WebBuilderPage() {
   const [activeTab, setActiveTab] = useState<'active' | 'trash'>('active');
   const [trashedProjects, setTrashedProjects] = useState<Project[]>([]);
   const [trashedProjectsLoading, setTrashedProjectsLoading] = useState(false);
+
+  const visibleProjects = projects;
+
+  const refreshProjects = async () => {
+    setProjectsLoading(true);
+    try {
+      const res = await listProjects();
+      if (res.success && res.projects) {
+        setProjects(res.projects);
+      }
+    } finally {
+      setProjectsLoading(false);
+    }
+  };
+
   // Load templates on mount
   useEffect(() => {
     const loadedTemplates = templateService.getTemplates();
@@ -373,14 +388,15 @@ export default function WebBuilderPage() {
     setLoading(false);
   }, []);
 
-  // Load user projects for this view (fallback to context projects if available)
+  // Load projects within selected instance only
   useEffect(() => {
     let cancelled = false;
-    if (contextProjects.length > 0) {
-      setProjects(contextProjects);
+    if (!selectedProject?.id) {
+      setProjects([]);
       setProjectsLoading(false);
       return;
     }
+    setProjectsLoading(true);
     listProjects()
       .then((res) => {
         if (!cancelled && res.success && res.projects) setProjects(res.projects);
@@ -388,7 +404,7 @@ export default function WebBuilderPage() {
       .catch(() => { })
       .finally(() => { if (!cancelled) setProjectsLoading(false); });
     return () => { cancelled = true; };
-  }, [contextProjects]);
+  }, [selectedProject?.id]);
 
   // Load trashed projects when tab changes
   useEffect(() => {
@@ -421,7 +437,7 @@ export default function WebBuilderPage() {
     setCreateModalOpen(true);
   };
 
-  // No "Choose a website to manage" modal: auto-select first project or open create modal
+  // In selected instance, open create modal when there are no projects yet.
   useEffect(() => {
     if (projectsLoading || projectsLoadingFromContext || isAutoCreate) return;
     if (selectedProject) return;
@@ -430,7 +446,7 @@ export default function WebBuilderPage() {
     } else {
       openCreateModal({ title: '' });
     }
-  }, [projectsLoading, projectsLoadingFromContext, isAutoCreate, selectedProject, projects, setSelectedProjectId]);
+  }, [projectsLoading, projectsLoadingFromContext, isAutoCreate, selectedProject?.id, projects, setSelectedProjectId]);
 
   const handleCreateSubmit = async (title: string, subdomain: string) => {
     try {
@@ -476,11 +492,6 @@ export default function WebBuilderPage() {
       const clientName = (user?.name || user?.username || 'client').trim() || 'client';
       ensureProjectStorageFolder(clientName, res.project.title || 'website').catch(() => { });
       setCreateModalOpen(false);
-      // Treat as a new website/instance only if we don't already have one selected
-      // or if we explicitly came from the "Create website" CTA.
-      if (!selectedProject || isAutoCreate) {
-        setSelectedProjectId(res.project.id);
-      }
       if (createModalTemplate) await templateService.loadTemplate(createModalTemplate.id.toString(), res.project.id);
       await refreshProjects();
       router.push(`/design?projectId=${res.project.id}`);
@@ -574,6 +585,8 @@ export default function WebBuilderPage() {
     setProjectMenuId(null);
     const confirmed = await showConfirm(`Move website "${p.title}" to trash? You can restore it later if you change your mind.`);
     if (!confirmed) return;
+    const confirmedAgain = await showConfirm(`Confirm delete: Move "${p.title}" to trash now?`);
+    if (!confirmedAgain) return;
     try {
       const res = await deleteProject(p.id);
       if (res.success) {
@@ -581,10 +594,11 @@ export default function WebBuilderPage() {
         await refreshProjects();
         // If we are on the active tab, we might want to refresh the notification or count
       } else {
-        showAlert('Failed to delete project.');
+        showAlert(res.message || 'Failed to delete project.');
       }
-    } catch (_) {
-      showAlert('Failed to delete project.');
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to delete project.';
+      showAlert(msg);
     }
   };
 
@@ -600,20 +614,6 @@ export default function WebBuilderPage() {
       }
     } catch (_) {
       showAlert('Failed to restore project.');
-    }
-  };
-
-  const handlePermanentDelete = async (p: Project) => {
-    const confirmed = await showConfirm(`Permanently delete "${p.title}"? This cannot be undone.`);
-    if (!confirmed) return;
-    try {
-      const res = await permanentDeleteProject(p.id);
-      if (res.success) {
-        setTrashedProjects((prev) => prev.filter((x) => x.id !== p.id));
-        showAlert(`Permanently deleted "${p.title}"`);
-      }
-    } catch (_) {
-      showAlert('Failed to delete project permanently.');
     }
   };
 
@@ -634,11 +634,11 @@ export default function WebBuilderPage() {
       return comparison;
     });
 
-  // While no project selected and not auto-create, show loading until we auto-select or open create modal
-  if (!selectedProject && !isAutoCreate && !createModalOpen) {
+  // While project list is loading, show loading placeholder.
+  if (projectsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]" style={{ color: colors.text.secondary }}>
-        <p className="text-sm">{projectsLoading || projectsLoadingFromContext ? 'Loading your websites…' : 'Opening Web Builder…'}</p>
+        <p className="text-sm">Loading your websites…</p>
       </div>
     );
   }
@@ -815,14 +815,9 @@ export default function WebBuilderPage() {
 
         {activeTab === 'active' ? (
           <>
-            {projectsLoading ? (
+            {loading ? (
               <div className="rounded-xl border p-12 text-center" style={{ borderColor: colors.border.faint }}>
-                <div className="space-y-3">
-                  <div className="flex justify-center">
-                    <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-                  </div>
-                  <p className="text-sm" style={{ color: colors.text.muted }}>Loading your projects…</p>
-                </div>
+                <p className="text-sm" style={{ color: colors.text.muted }}>Loading projects…</p>
               </div>
             ) : projects.length === 0 ? (
               <div className="rounded-xl border border-dashed p-12 text-center" style={{ borderColor: colors.border.faint }}>
@@ -987,18 +982,9 @@ export default function WebBuilderPage() {
                           >
                             Restore Project
                           </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handlePermanentDelete(p);
-                            }}
-                            className="p-1.5 rounded-md hover:bg-red-500/10 transition-colors group/del"
-                            title="Delete permanently"
-                          >
-                            <svg className="w-3.5 h-3.5 text-red-500 opacity-60 group-hover/del:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
+                          <span className="px-2 py-1.5 text-[10px] rounded-md border whitespace-nowrap" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
+                            Auto-delete after 30 days
+                          </span>
                         </div>
                       </div>
                     </motion.div>

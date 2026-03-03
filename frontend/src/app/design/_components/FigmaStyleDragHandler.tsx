@@ -194,7 +194,7 @@ export const FigmaStyleDragHandler = () => {
   const draggedDomsRef = useRef<HTMLElement[]>([]);
   const dropTargetHighlightRef = useRef<HTMLElement | null>(null);
   const insertIndicatorRef = useRef<HTMLElement | null>(null);
-  const activeTool = useCanvasTool();
+  const { activeTool } = useCanvasTool();
 
 
   const dragRef = useRef<{
@@ -356,8 +356,8 @@ export const FigmaStyleDragHandler = () => {
       if (document.body.dataset[BOX_SELECTING_FLAG] === "true") return;
       if (document.body.dataset[BOX_SELECTING_INTENT_FLAG] === "true") return;
 
-      // Hand tool: do not start dragging elements, let panning handle it
-      if (activeTool === "hand") return;
+      // Hand/Text tool: do not start dragging elements
+      if (activeTool === "hand" || activeTool === "text") return;
 
       if (target.closest("INPUT") || target.closest("TEXTAREA") || target.closest("SELECT") || target.closest("[contenteditable=true]")) return;
       if (document.body.dataset.spacePan === "true") return;
