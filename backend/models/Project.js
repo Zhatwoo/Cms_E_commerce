@@ -74,24 +74,21 @@ async function moveToTrash(userId, projectId) {
 
   const data = snap.data();
 
-  // BLOCK DELETION IF PUBLISHED
-  if (data.status === 'published') {
-    throw new Error('This project is published and cannot be deleted. Please unpublish it first from Domain settings.');
+  // BLOCK DELETION IF LIVE/PUBLISHED
+  const normalizedStatus = String(data.status || '').trim().toLowerCase();
+  if (normalizedStatus === 'published' || normalizedStatus === 'live') {
+    throw new Error('This project is live/published and cannot be deleted. Please unpublish it first from Domain settings.');
   }
 
-  const path = `user/roles/client/${userId}/trash/${projectId}`;
-  console.log(`🗑️ Moving project to trash at: ${path}`);
   // Mark with deletion timestamp and store in trash
   await trashRef.set({
     ...data,
     deleted_at: new Date(),
     original_id: projectId
   });
-  console.log('✅ Document successfully written to trash.');
 
   // Remove from active projects
   await projectRef.delete();
-  console.log('✅ Document removed from active projects.');
 
   // Cleanup Realtime DB
   const rtdb = getRealtimeDb();
@@ -226,8 +223,8 @@ async function getBySubdomain(userId, subdomain) {
 }
 
 async function countWithSubdomain(userId) {
-  const snap = await getProjectsRef(userId).where('subdomain', '!=', null).get();
-  return snap.size;
+  const projects = await list(userId);
+  return projects.filter((p) => p.subdomain != null && String(p.subdomain).trim() !== '').length;
 }
 
 async function countAll() {

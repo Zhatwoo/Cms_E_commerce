@@ -19,9 +19,9 @@ import { Button } from "../_designComponents/Button/Button";
 import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
+import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
 import { MarqueeSelectionHandler } from "./MarqueeSelectionHandler";
-import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import { TransformModeProvider } from "./TransformModeContext";
 import { InlineTextEditProvider } from "./InlineTextEditContext";
 import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
@@ -198,11 +198,15 @@ type EditorShellProps = {
 
 const MIN_SCALE = 0.05;
 const MAX_SCALE = 3;
-const DEFAULT_SCALE = 0.5;
+const DEFAULT_SCALE = 0.75;
 const ZOOM_SENSITIVITY = 0.003;
-const INFINITE_CANVAS_WIDTH_VW = 4000;
-const INFINITE_CANVAS_HEIGHT_VH = 4000;
-const INFINITE_CANVAS_PADDING_PX = 30000;
+const INFINITE_CANVAS_WIDTH_VW = 8000;
+const INFINITE_CANVAS_HEIGHT_VH = 8000;
+const INFINITE_CANVAS_PADDING_PX = 100000;
+const LEFT_PANEL_DEFAULT_WIDTH = 320;
+const RIGHT_PANEL_DEFAULT_WIDTH = 420;
+const MIN_CANVAS_VIEWPORT_WIDTH = 760;
+const TOP_PANEL_HEIGHT_PX = 48;
 
 const isEditableTarget = (target: EventTarget | null) => {
   if (!target || !(target instanceof HTMLElement)) return false;
@@ -607,7 +611,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const containerRef = useRef<HTMLDivElement>(null);
   const horizontalScrollbarRef = useRef<HTMLDivElement>(null);
   const horizontalScrollbarInnerRef = useRef<HTMLDivElement>(null);
-  const previousScaleRef = useRef(1);
+  const previousScaleRef = useRef(DEFAULT_SCALE);
   const wheelZoomDeltaRef = useRef(0);
   const wheelZoomRafRef = useRef<number | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -618,13 +622,15 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const hasUserMovedCanvasRef = useRef(false);
   const [isPanning, setIsPanning] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState(DEFAULT_SCALE);
   const [initialJson, setInitialJson] = useState<string | null | undefined>(undefined);
   const [panelsReady, setPanelsReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const [leftPanelWidth, setLeftPanelWidth] = useState(LEFT_PANEL_DEFAULT_WIDTH);
+  const [rightPanelWidth, setRightPanelWidth] = useState(RIGHT_PANEL_DEFAULT_WIDTH);
   const [rightPanelTab, setRightPanelTab] = useState<TabId>("design");
   const [canvasWidth, setCanvasWidth] = useState(1440);
   const [canvasHeight, setCanvasHeight] = useState(900);
@@ -637,6 +643,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const hasInitialCenteringRef = useRef(false);
   const hasForcedRightPanelOpenRef = useRef(false);
   const saveStatusRef = useRef(saveStatus);
+  const panelDragRef = useRef<{
+    side: "left" | "right";
+    startX: number;
+    startWidth: number;
+  } | null>(null);
+  const [isPanelDragging, setIsPanelDragging] = useState(false);
 
   // Sync saveStatus to ref for safe use in beforeunload effect
   useEffect(() => {
@@ -646,6 +658,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const infiniteCanvasWidthVw = INFINITE_CANVAS_WIDTH_VW;
   const infiniteCanvasHeightVh = INFINITE_CANVAS_HEIGHT_VH;
   const infiniteCanvasPaddingPx = INFINITE_CANVAS_PADDING_PX;
+  const sidePanelCanvasGapPx = 0;
 
   // Per-project UI state key so zoom, panels, and last page persist across reloads
   const uiStateStorageKey = React.useMemo(
@@ -657,9 +670,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     if (errorCleanupDoneRef.current) return;
     errorCleanupDoneRef.current = true;
 
-    console.error('❌ Frame rendering failed. Cleaning up corrupted data...');
-
-    // Clear per-project storage keys (both localStorage and sessionStorage)
+    // Clear per-project storage keys (sessionStorage + legacy localStorage)
     const storageKey = getStorageKey(projectId);
     try {
       if (typeof window !== "undefined") {
@@ -684,9 +695,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     if (projectId) {
       try {
         await deleteDraft(projectId);
-        console.log('✅ Corrupted data cleared from database');
-      } catch (error) {
-        console.error('Failed to clear corrupted data:', error);
+      } catch {
+        // Ignore cleanup errors
       }
     }
 
@@ -815,7 +825,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       parsed.pages = (parsed.pages || []).filter((p: any) => p.id !== pageId);
       const updated = JSON.stringify(parsed);
       const storageKey = getStorageKey(projectId);
-      localStorage.setItem(storageKey, updated);
+      safeSessionSet(storageKey, updated);
       loadPages(updated);
       if (currentPageId === pageId && parsed.pages.length > 0) {
         setCurrentPageId(parsed.pages[0].id);
@@ -836,7 +846,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         page.name = newName;
         const updated = JSON.stringify(parsed);
         const storageKey = getStorageKey(projectId);
-        localStorage.setItem(storageKey, updated);
+        safeSessionSet(storageKey, updated);
         loadPages(updated);
         setInitialJson(updated);
       }
@@ -1120,6 +1130,89 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     setLeftPanelOpen(true);
   }, []);
 
+  const clampPanelWidthWithCanvasRoom = useCallback(
+    (side: "left" | "right", value: number) => {
+      if (typeof window === "undefined") return value;
+
+      const sideMin = side === "left" ? LEFT_PANEL_DEFAULT_WIDTH : 360;
+      const sideBaseMax = Math.max(sideMin, Math.min(820, Math.floor(window.innerWidth * 0.7)));
+
+      const otherPanelOccupied =
+        side === "left"
+          ? rightPanelOpen
+            ? rightPanelWidth + sidePanelCanvasGapPx
+            : 0
+          : leftPanelOpen
+            ? leftPanelWidth + sidePanelCanvasGapPx
+            : 0;
+
+      const thisPanelGap = sidePanelCanvasGapPx;
+      const maxAllowedByCanvas = Math.floor(
+        window.innerWidth - MIN_CANVAS_VIEWPORT_WIDTH - otherPanelOccupied - thisPanelGap
+      );
+
+      const sideMax = Math.max(sideMin, Math.min(sideBaseMax, maxAllowedByCanvas));
+      return Math.min(sideMax, Math.max(sideMin, value));
+    },
+    [leftPanelOpen, leftPanelWidth, rightPanelOpen, rightPanelWidth, sidePanelCanvasGapPx]
+  );
+
+  const startPanelDrag = useCallback(
+    (side: "left" | "right", event: React.MouseEvent<HTMLDivElement>) => {
+      if (event.button !== 0) return;
+
+      panelDragRef.current = {
+        side,
+        startX: event.clientX,
+        startWidth: side === "left" ? leftPanelWidth : rightPanelWidth,
+      };
+      setIsPanelDragging(true);
+
+      document.body.style.userSelect = "none";
+      document.body.style.cursor = "ew-resize";
+
+      event.preventDefault();
+      event.stopPropagation();
+    },
+    [leftPanelWidth, rightPanelWidth]
+  );
+
+  useEffect(() => {
+    const handleMouseMove = (event: MouseEvent) => {
+      const drag = panelDragRef.current;
+      if (!drag) return;
+
+      const deltaX = event.clientX - drag.startX;
+      const nextWidth = drag.side === "left"
+        ? clampPanelWidthWithCanvasRoom("left", drag.startWidth + deltaX)
+        : clampPanelWidthWithCanvasRoom("right", drag.startWidth - deltaX);
+
+      if (drag.side === "left") {
+        setLeftPanelWidth(nextWidth);
+      } else {
+        setRightPanelWidth(nextWidth);
+      }
+    };
+
+    const stopPanelDrag = () => {
+      if (!panelDragRef.current) return;
+      panelDragRef.current = null;
+      setIsPanelDragging(false);
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", stopPanelDrag);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", stopPanelDrag);
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+    };
+  }, [clampPanelWidthWithCanvasRoom]);
+
   const isSpacePanActive = activeTool === "move" && isSpacePressed;
   const canPanWithPointerDrag = activeTool === "hand" || isSpacePanActive;
 
@@ -1250,6 +1343,23 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     };
   }, []);
 
+  // One-time migration: clear legacy draft data from localStorage (now using sessionStorage only)
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.localStorage) return;
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < window.localStorage.length; i++) {
+        const k = window.localStorage.key(i);
+        if (k && (k.startsWith(STORAGE_KEY_PREFIX) || k.startsWith("webbuilder_pages"))) {
+          keysToRemove.push(k);
+        }
+      }
+      keysToRemove.forEach((k) => window.localStorage.removeItem(k));
+    } catch {
+      // Ignore migration errors
+    }
+  }, []);
+
   // Restore saved editor state from database on mount
   useEffect(() => {
     if (!projectId) {
@@ -1260,16 +1370,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
     async function loadDraft() {
       try {
-        console.log('📥 loadDraft starting...', projectId);
-
         // Try sessionStorage per-project (no localStorage — auth/drafts in cookies or session only)
         const storageKey = getStorageKey(projectId);
         const sessionSaved = safeSessionGet(storageKey);
 
         // Try to load from database
-        console.log('📡 Calling getDraft()...');
         const result = await getDraft(projectId);
-        console.log('📡 getDraft result:', result);
 
         let contentToLoad: string | null = null;
 
@@ -1318,7 +1424,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         if (sessionSaved) {
           const normalized = normalizeToCraftJson(sessionSaved);
           if (normalized) {
-            console.log('✅ Loaded valid draft from session (this project)');
             contentToLoad = normalized;
             if (normalized !== sessionSaved) {
               safeSessionSet(storageKey, normalized);
@@ -1333,12 +1438,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         if (!contentToLoad && result.success && result.data && result.data.content) {
           const normalized = normalizeToCraftJson(result.data.content);
           if (normalized) {
-            try {
-              const parsed = JSON.parse(normalized);
-              console.log(`✅ Loaded valid draft from DB (${Object.keys(parsed).length} internal nodes)`);
-            } catch {
-              console.log('✅ Loaded valid draft from DB');
-            }
             contentToLoad = normalized;
             safeSessionSet(storageKey, normalized);
           } else {
@@ -1353,7 +1452,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           if (legacySaved) {
             const normalized = normalizeToCraftJson(legacySaved);
             if (normalized) {
-              console.log('✅ Loaded valid draft from legacy session key, syncing to project key');
               contentToLoad = normalized;
               safeSessionSet(storageKey, normalized);
               safeSessionRemove(STORAGE_KEY_PREFIX);
@@ -1361,10 +1459,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
               safeSessionRemove(STORAGE_KEY_PREFIX);
             }
           }
-        }
-
-        if (!contentToLoad) {
-          console.log('⚠️ No saved data found, expecting default');
         }
 
         setInitialJson(contentToLoad);
@@ -1381,12 +1475,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         }
 
         // IMPORTANT: Mark as ready immediately via Ref to avoid stale closures
-        // passing "undefined" to handleNodesChange
         isReadyRef.current = true;
-        console.log('✅ Editor marked as READY via Ref');
 
-      } catch (error) {
-        console.error('❌ loadDraft Unexpected Error:', error);
+      } catch {
         setInitialJson(null);
         isReadyRef.current = true; // Allow editing even if load failed
       }
@@ -1821,10 +1912,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
               <InlineTextEditProvider>
                 <KeyboardShortcuts />
                 <CanvasSelectionHandler />
+                <BoxSelectionHandler />
                 <CanvasContextMenu />
                 <FigmaStyleDragHandler />
                 <NewPageDropPlacementHandler />
-                <BoxSelectionHandler />
                 <DoubleClickTransformHandler />
                 <PrototypeFlowLines />
                 {/* Top Panel */}
@@ -1846,8 +1937,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 <div
                   ref={containerRef}
                   data-canvas-container
-                  className={`absolute inset-0 overflow-auto bg-brand-darker canvas-scroll-container ${canPanWithPointerDrag ? "canvas-hand-tool" : ""} ${canPanWithPointerDrag && isPanning ? "canvas-hand-panning" : ""}`}
+                  className={`absolute inset-0 overflow-auto bg-brand-darker canvas-scroll-container ${canPanWithPointerDrag ? "canvas-hand-tool" : ""} ${canPanWithPointerDrag && isPanning ? "canvas-hand-panning" : ""} ${isPanelDragging ? "transition-none" : "transition-[left,right] duration-300 ease-out"}`}
                   style={{
+                    top: `${TOP_PANEL_HEIGHT_PX}px`,
+                    left: panelsReady && leftPanelOpen ? `${leftPanelWidth}px` : "0px",
+                    right: panelsReady && rightPanelOpen ? `${rightPanelWidth}px` : "0px",
+                    bottom: "0px",
                     cursor:
                       canPanWithPointerDrag
                         ? isPanning
@@ -1867,25 +1962,30 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                       minWidth: `${infiniteCanvasWidthVw}vw`,
                       minHeight: `${infiniteCanvasHeightVh}vh`,
                       padding: `${infiniteCanvasPaddingPx}px`,
-                      transformOrigin: "top left",
-                      transform:
-                        canvasRotation !== 0
-                          ? `scale(${scale}) rotate(${canvasRotation}deg)`
-                          : `scale(${scale})`,
                     }}
                   >
-                    {initialJson === undefined ? null : (
-                      <SafeFrame
-                        data={validFrameData ?? initialJson}
-                        onError={handleFrameError}
-                        onFrameMounted={() => {
-                          setFrameReady((prev) => (prev ? prev : true));
-                        }}
-                      />
-                    )}
+                    <div
+                      style={{
+                        transformOrigin: "top left",
+                        transform:
+                          canvasRotation !== 0
+                            ? `scale(${scale}) rotate(${canvasRotation}deg)`
+                            : `scale(${scale})`,
+                      }}
+                    >
+                      {initialJson === undefined ? null : (
+                        <SafeFrame
+                          data={validFrameData ?? initialJson}
+                          onError={handleFrameError}
+                          onFrameMounted={() => {
+                            setFrameReady((prev) => (prev ? prev : true));
+                          }}
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
-                {/* Floating Panels */}
+                {/* Docked Panels */}
                 {/* Right Panel Reopen Fallback */}
                 {panelsReady && !rightPanelOpen && (
                   <button
@@ -1899,22 +1999,36 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 )}
                 {/* Left Panel */}
                 {panelsReady && (
-                  <div className="absolute top-14 left-4 z-50 h-[calc(100vh-6.5rem)] flex items-start pointer-events-none">
-                    <div className="h-full flex items-start pointer-events-auto">
+                  <div
+                    className="absolute top-12 left-0 z-50 h-[calc(100vh-3rem)] flex items-start pointer-events-none"
+                  >
+                    <div
+                      className="h-full flex items-start pointer-events-auto relative"
+                    >
                       <div
-                        className={`h-full origin-left transition-[transform,opacity] duration-300 ease-out will-change-transform ${leftPanelOpen
-                          ? "translate-x-0 scale-100 opacity-100 pointer-events-auto"
-                          : "-translate-x-full scale-90 opacity-0 pointer-events-none"
+                        onMouseDown={(event) => startPanelDrag("left", event)}
+                        className={`absolute top-0 -right-2 h-full w-4 cursor-ew-resize ${leftPanelOpen ? "pointer-events-auto" : "pointer-events-none"}`}
+                        data-no-panel-drag="true"
+                        aria-hidden
+                      />
+                      {leftPanelOpen && (
+                        <div className="absolute top-0 right-0 h-full w-px bg-white/10 pointer-events-none" aria-hidden />
+                      )}
+                      <div
+                        className={`h-full origin-left ${isPanelDragging ? "transition-none" : "transition-[transform,opacity,width] duration-300 ease-out"} will-change-transform ${leftPanelOpen
+                          ? "translate-x-0 opacity-100 pointer-events-auto"
+                          : "-translate-x-full opacity-0 pointer-events-none"
                           }`}
                       >
                         <LeftPanel
+                          width={leftPanelWidth}
                           frameReady={frameReady}
                           onToggle={() => setLeftPanelOpen(false)}
                         />
                       </div>
                       <button
                         onClick={() => setLeftPanelOpen((open) => !open)}
-                        className={`absolute left-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${leftPanelOpen ? "opacity-0 pointer-events-none scale-95" : "opacity-100 pointer-events-auto scale-100"
+                        className={`absolute left-4 top-2 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${leftPanelOpen ? "opacity-0 pointer-events-none scale-95" : "opacity-100 pointer-events-auto scale-100"
                           }`}
                         title={leftPanelOpen ? "Hide left panel" : "Show left panel"}
                       >
@@ -1925,16 +2039,30 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 )}
                 {/* Right Panel */}
                 {panelsReady && (
-                  <div className="absolute top-14 right-4 z-50 h-[calc(100vh-6.5rem)] flex items-start pointer-events-none">
-                    <div className="h-full flex items-start justify-end pointer-events-auto">
+                  <div
+                    className="absolute top-12 right-0 z-50 h-[calc(100vh-3rem)] flex items-start pointer-events-none"
+                  >
+                    <div
+                      className="h-full flex items-start justify-end pointer-events-auto relative"
+                    >
                       <div
-                        className={`h-full origin-right transition-[transform,opacity] duration-300 ease-out will-change-transform ${rightPanelOpen
-                          ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
-                          : 'translate-x-full scale-90 opacity-0 pointer-events-none'
+                        onMouseDown={(event) => startPanelDrag("right", event)}
+                        className={`absolute top-0 -left-2 h-full w-4 cursor-ew-resize ${rightPanelOpen ? "pointer-events-auto" : "pointer-events-none"}`}
+                        data-no-panel-drag="true"
+                        aria-hidden
+                      />
+                      {rightPanelOpen && (
+                        <div className="absolute top-0 left-0 h-full w-px bg-white/10 pointer-events-none" aria-hidden />
+                      )}
+                      <div
+                        className={`h-full origin-right ${isPanelDragging ? "transition-none" : "transition-[transform,opacity,width] duration-300 ease-out"} will-change-transform ${rightPanelOpen
+                          ? 'translate-x-0 opacity-100 pointer-events-auto'
+                          : 'translate-x-full opacity-0 pointer-events-none'
                           }`}
                       >
                         <RightPanel
                           projectId={projectId}
+                          width={rightPanelWidth}
                           activeTab={rightPanelTab}
                           setActiveTab={setRightPanelTab}
                           frameReady={frameReady}
@@ -1966,7 +2094,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                   />
                 )}
               </InlineTextEditProvider>
-            </TransformModeProvider>
+             </TransformModeProvider>
           </CanvasToolProvider>
         </PrototypeTabProvider>
       </Editor>

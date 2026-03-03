@@ -495,7 +495,7 @@ export default function SettingsPage() {
                                             <code 
                                                 className="flex-1 px-3 py-2 rounded border text-sm font-mono"
                                                 style={{ 
-                                                    backgroundColor: colors.bg.surface,
+                                                    backgroundColor: colors.bg.elevated,
                                                     borderColor: colors.border.faint,
                                                     color: colors.text.secondary
                                                 }}
@@ -529,7 +529,7 @@ export default function SettingsPage() {
                                             <code 
                                                 className="flex-1 px-3 py-2 rounded border text-sm font-mono"
                                                 style={{ 
-                                                    backgroundColor: colors.bg.surface,
+                                                    backgroundColor: colors.bg.elevated,
                                                     borderColor: colors.border.faint,
                                                     color: colors.text.secondary
                                                 }}

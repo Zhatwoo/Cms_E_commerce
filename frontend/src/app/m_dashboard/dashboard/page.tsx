@@ -76,7 +76,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
         cancelled = true;
       };
     }
-    listProjects({ instanceId: selectedProject.id })
+    listProjects()
       .then((res) => {
         if (!res.success || cancelled || !res.projects?.length) {
           setRecentProjects([]);

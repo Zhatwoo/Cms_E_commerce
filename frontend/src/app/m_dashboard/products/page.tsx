@@ -5,9 +5,22 @@ import { Plus } from 'lucide-react';
 import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
 import { useProject } from '../components/context/project-context';
-import { type Product } from '../lib/productsData';
+import { type Product, type ProductVariant } from '../lib/productsData';
 import { createProduct, deleteProduct, listProducts, updateProduct, type ApiProduct } from '@/lib/api';
 import ProductAddModal from './components/productAddModal';
+
+type ProductUpsertPayload = Omit<Parameters<typeof createProduct>[0], 'subdomain'>;
+const DEFAULT_LOW_STOCK_THRESHOLD = 5;
+
+function getLowStockThreshold(product: Product): number {
+  const threshold = Number(product.lowStockThreshold);
+  if (!Number.isFinite(threshold) || threshold < 0) return DEFAULT_LOW_STOCK_THRESHOLD;
+  return threshold;
+}
+
+function isLowStock(product: Product): boolean {
+  return product.stock > 0 && product.stock < getLowStockThreshold(product);
+}
 
 function isImageSource(value: string): boolean {
   const v = (value || '').trim();
@@ -99,8 +112,8 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, onToggleStatus
           </div>
           <div>
             <p className="text-xs mb-1" style={{ color: colors.text.muted }}>Stock</p>
-            <p className={`font-semibold text-sm ${product.stock === 0 ? 'text-red-500' : product.stock < 20 ? 'text-yellow-500' : 'text-green-500'}`}>
-              {product.stock} units
+            <p className={`font-semibold text-sm ${product.stock === 0 ? 'text-red-500' : isLowStock(product) ? 'text-yellow-500' : 'text-green-500'}`}>
+              {product.stock} Units
             </p>
           </div>
         </div>
@@ -333,9 +346,9 @@ function toDashboardProduct(product: ApiProduct): Product {
   const images = Array.isArray(product.images)
     ? product.images.filter((img): img is string => typeof img === 'string' && img.trim().length > 0)
     : [];
-  const variants = Array.isArray(product.variants)
+  const variants: ProductVariant[] = Array.isArray(product.variants)
     ? product.variants
-      .map((variant) => ({
+      .map((variant): ProductVariant => ({
         id: String(variant?.id || ''),
         name: String(variant?.name || ''),
         pricingMode: variant?.pricingMode === 'override' ? 'override' : 'modifier',
@@ -382,6 +395,7 @@ function toDashboardProduct(product: ApiProduct): Product {
     priceRangeMin,
     priceRangeMax,
     stock: typeof product.stock === 'number' ? product.stock : 0,
+    lowStockThreshold: typeof product.lowStockThreshold === 'number' ? product.lowStockThreshold : DEFAULT_LOW_STOCK_THRESHOLD,
     status: toDashboardStatus(product.status),
     image: images[0] || '[product]',
     images,
@@ -500,8 +514,8 @@ export default function ProductsPage() {
   const handleSaveProduct = async (productData: Partial<Product> & Record<string, unknown>): Promise<boolean> => {
     try {
       const rawVariants = Array.isArray(productData.variants) ? productData.variants : [];
-      const variants = rawVariants
-        .map((variant) => {
+      const variants: ProductVariant[] = rawVariants
+        .map((variant): ProductVariant => {
           const optionsRaw = Array.isArray((variant as { options?: unknown[] })?.options)
             ? (variant as { options: unknown[] }).options
             : [];
@@ -532,8 +546,14 @@ export default function ProductsPage() {
       const priceRangeMax = hasVariants
         ? Number(productData.priceRangeMax ?? finalPrice)
         : finalPrice;
+      const normalizedLowStockThreshold = Math.max(
+        0,
+        Number.isFinite(Number(productData.lowStockThreshold))
+          ? Number(productData.lowStockThreshold)
+          : DEFAULT_LOW_STOCK_THRESHOLD
+      );
 
-      const payload = {
+      const payload: ProductUpsertPayload = {
         name: String(productData.name || ''),
         sku: String(productData.sku || ''),
         category: String(productData.category || ''),
@@ -550,6 +570,7 @@ export default function ProductsPage() {
         priceRangeMin,
         priceRangeMax,
         stock: Number(productData.stock || 0),
+        lowStockThreshold: normalizedLowStockThreshold,
         status: toDashboardStatus(String(productData.status || 'draft')),
         images: Array.isArray(productData.images) ? (productData.images as string[]) : [],
       };
@@ -585,7 +606,7 @@ export default function ProductsPage() {
   const stats = {
     total: products.length,
     active: products.filter(p => p.status === 'active').length,
-    lowStock: products.filter(p => p.stock > 0 && p.stock < 20).length,
+    lowStock: products.filter((p) => isLowStock(p)).length,
     outOfStock: products.filter(p => p.stock === 0).length
   };
 

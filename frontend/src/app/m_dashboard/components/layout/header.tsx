@@ -3,7 +3,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { logout, type User } from '@/lib/api';
 import { useTheme } from '../context/theme-context';
 import { useAuth } from '../context/auth-context';
@@ -69,12 +69,9 @@ type DashboardHeaderProps = {
 
 export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     const router = useRouter();
-    const pathname = usePathname();
     const { user, setUser } = useAuth();
     const { projects, loading, selectedProjectId, setSelectedProjectId } = useProject();
     const { theme, toggleTheme, colors } = useTheme();
-    const { projects, loading, selectedProject, setSelectedProjectId } = useProject();
-    const selectedProjectId = selectedProject?.id ?? null;
     const [showMenu, setShowMenu] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const [showSwitchModal, setShowSwitchModal] = useState(false);
@@ -114,7 +111,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                     : 'none',
             }}
         >
-            <div className="relative flex items-center justify-between px-4 sm:px-6" style={{ height: '84px' }}>
+            <div className="flex items-center justify-between px-4 sm:px-6" style={{ height: '84px' }}>
                 <div className="flex items-center">
                     <button
                         type="button"
@@ -239,7 +236,6 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                     </div>
                 </div>
             </div>
-
             {showSwitchModal && (
                 <div
                     className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
