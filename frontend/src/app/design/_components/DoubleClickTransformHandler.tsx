@@ -15,7 +15,7 @@ export function DoubleClickTransformHandler() {
   const { actions, query } = useEditor();
   const { transformModeNodeId, setTransformModeNodeId } = useTransformMode();
   const { setEditingTextNodeId } = useInlineTextEdit();
-  const activeTool = useCanvasTool();
+  const { activeTool } = useCanvasTool();
 
   useEffect(() => {
     const selectedToIds = (selected: unknown): string[] => {

@@ -11,8 +11,8 @@ export type ShapeType = "Square" | "Circle" | "Triangle";
 interface BottomPanelProps {
   activeTool: CanvasTool;
   onToolChange: (tool: CanvasTool) => void;
-  selectedShape?: ShapeAsset;
-  onShapeChange?: (shape: ShapeAsset) => void;
+  selectedShape?: ShapeType;
+  onShapeChange?: (shape: ShapeType) => void;
   showHints?: boolean;
   saveStatus?: "idle" | "saving" | "saved" | "error";
   saveError?: string | null;
@@ -47,7 +47,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
   const canRedo = Boolean(actions?.history?.redo);
 
   React.useEffect(() => {
-    if (activeTool !== "shapes") {
+    if (activeTool !== "shape") {
       setIsShapesPickerOpen(false);
     }
   }, [activeTool]);
