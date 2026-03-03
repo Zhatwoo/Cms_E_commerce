@@ -368,7 +368,6 @@ export default function WebBuilderPage() {
   const [sortOption, setSortOption] = useState<SortOptionId>('relevant');
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [publishModalProject, setPublishModalProject] = useState<Project | null>(null);
-  const [publishModalProject, setPublishModalProject] = useState<Project | null>(null);
 
   const visibleProjects = projects;
 

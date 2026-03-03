@@ -45,6 +45,21 @@ const BellIcon = () => (
     </svg>
 );
 
+const ChevronDownIcon = () => (
+    <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        className="h-3 w-3"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+    >
+        <path d="M6 9l6 6 6-6" />
+    </svg>
+);
+
 const UserIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -195,25 +210,39 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                             <button
                                 type="button"
                                 onClick={() => setShowMenu((v) => !v)}
-                                className="h-10 w-10 rounded-full flex items-center justify-center shadow-sm hover:opacity-90 transition-opacity overflow-hidden"
+                                className="relative h-10 w-10 rounded-full flex items-center justify-center shadow-sm hover:opacity-90 transition-opacity overflow-visible"
                                 style={{
                                     background: 'linear-gradient(135deg, #FFCE00 0%, #A64CD9 50%, #5C1D8F 100%)',
                                     border: 'none',
                                     color: '#fff'
                                 }}
                                 aria-label="Profile menu"
+                                aria-expanded={showMenu}
                             >
-                                {avatarSrc && !avatarLoadFailed ? (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img
-                                        src={avatarSrc}
-                                        alt={userName || 'User avatar'}
-                                        className="h-full w-full object-cover"
-                                        onError={() => setAvatarLoadFailed(true)}
-                                    />
-                                ) : (
-                                    <UserIcon />
-                                )}
+                                <span className="h-full w-full rounded-full overflow-hidden flex items-center justify-center">
+                                    {avatarSrc && !avatarLoadFailed ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                            src={avatarSrc}
+                                            alt={userName || 'User avatar'}
+                                            className="h-full w-full object-cover"
+                                            onError={() => setAvatarLoadFailed(true)}
+                                        />
+                                    ) : (
+                                        <UserIcon />
+                                    )}
+                                </span>
+                                <span
+                                    className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full border flex items-center justify-center transition-transform"
+                                    style={{
+                                        backgroundColor: theme === 'dark' ? 'rgba(29, 29, 33, 0.98)' : 'rgba(255, 255, 255, 0.98)',
+                                        borderColor: colors.border.faint,
+                                        color: colors.text.secondary,
+                                        transform: showMenu ? 'rotate(180deg)' : 'rotate(0deg)',
+                                    }}
+                                >
+                                    <ChevronDownIcon />
+                                </span>
                             </button>
                             {showMenu && (
                                 <>
@@ -223,7 +252,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                                         onClick={() => setShowMenu(false)}
                                     />
                                     <div
-                                        className="absolute right-0 mt-2 w-48 rounded-xl border py-1 shadow-xl z-20 backdrop-blur-md"
+                                        className="absolute right-0 mt-2 w-48 rounded-2xl border py-1.5 shadow-xl z-20 backdrop-blur-md"
                                         style={{
                                             backgroundColor: theme === 'dark' ? 'rgba(29, 29, 33, 0.95)' : 'rgba(255, 255, 255, 0.95)',
                                             borderColor: colors.border.faint

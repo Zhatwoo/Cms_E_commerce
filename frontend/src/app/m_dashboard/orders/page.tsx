@@ -18,6 +18,19 @@ const CHECKOUT_TABS: { id: CheckoutTab; label: string }[] = [
   { id: 'completed', label: 'Completed' },
 ];
 
+const ORDER_CATEGORIES = [
+  { id: 'fashion-apparel', label: 'Fashion & Apparel', keywords: ['fashion', 'apparel', 'clothing', 'wear', 'shirt', 'dress', 'shoe', 'bag'] },
+  { id: 'electronics-tech', label: 'Electronics & Tech', keywords: ['electronics', 'tech', 'gadget', 'laptop', 'phone', 'tablet', 'headset', 'camera'] },
+  { id: 'home-living', label: 'Home & Living', keywords: ['home', 'living', 'furniture', 'kitchen', 'decor', 'bed', 'sofa', 'lamp'] },
+  { id: 'food-beverages', label: 'Food & Beverages', keywords: ['food', 'beverage', 'drink', 'snack', 'coffee', 'tea', 'milk', 'juice'] },
+  { id: 'beauty', label: 'Beauty', keywords: ['beauty', 'cosmetic', 'skincare', 'makeup', 'perfume', 'lotion', 'serum'] },
+  { id: 'kids-toys-hobbies', label: 'Kids, Toys & Hobbies', keywords: ['kids', 'toy', 'hobby', 'game', 'puzzle', 'doll', 'lego'] },
+  { id: 'pets', label: 'Pets', keywords: ['pet', 'dog', 'cat', 'aquarium', 'leash', 'petfood'] },
+  { id: 'automotive', label: 'Automotive', keywords: ['auto', 'automotive', 'car', 'motor', 'tire', 'engine', 'helmet'] },
+  { id: 'sports-fitness', label: 'Sports & Fitness', keywords: ['sports', 'fitness', 'gym', 'workout', 'running', 'yoga', 'dumbbell'] },
+  { id: 'creative-handmade', label: 'Creative & Handmade', keywords: ['creative', 'handmade', 'craft', 'art', 'custom', 'diy'] },
+] as const;
+
 function orderNumber(order: ApiOrder): string {
   return `ORD-${order.id.slice(-8).toUpperCase()}`;
 }
@@ -136,6 +149,7 @@ export default function OrdersPage() {
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
+    const selectedCategory = ORDER_CATEGORIES.find((category) => category.id === categoryFilter);
     return orders.filter((o) => {
       const num = orderNumber(o).toLowerCase();
       const buyer = String(o.shippingAddress && typeof o.shippingAddress === 'object' ? (o.shippingAddress as Record<string, unknown>).fullName || (o.shippingAddress as Record<string, unknown>).name || '' : '').toLowerCase();
@@ -147,8 +161,9 @@ export default function OrdersPage() {
       const matchesSearch = !query || num.includes(query) || buyer.includes(query) || itemText.includes(query);
       const tab = statusCategory(String(o.status || ''));
       const matchesTab = activeTab === 'all' || tab === activeTab;
-      const firstItemName = String(o.items?.[0]?.name || 'Uncategorized').toLowerCase();
-      const matchesCategory = categoryFilter === 'all' || firstItemName.includes(categoryFilter);
+      const matchesCategory =
+        categoryFilter === 'all' ||
+        (selectedCategory ? selectedCategory.keywords.some((keyword) => itemText.includes(keyword)) : false);
       return matchesSearch && matchesTab && matchesCategory;
     });
   }, [orders, search, activeTab, categoryFilter]);
@@ -161,15 +176,6 @@ export default function OrdersPage() {
     totalPages <= 6
       ? Array.from({ length: totalPages }, (_, idx) => idx + 1)
       : [1, 2, 3, 4, 5, 'ellipsis', totalPages];
-
-  const categories = useMemo(() => {
-    const options = new Set<string>();
-    orders.forEach((order) => {
-      const value = String(order.items?.[0]?.name || '').trim().toLowerCase();
-      if (value) options.add(value);
-    });
-    return Array.from(options).slice(0, 8);
-  }, [orders]);
 
   const handleStatusUpdate = useCallback(
     async (order: ApiOrder, nextStatus: string) => {
@@ -312,9 +318,9 @@ export default function OrdersPage() {
               style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.card, color: colors.text.primary }}
             >
               <option value="all">Category</option>
-              {categories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
+              {ORDER_CATEGORIES.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.label}
                 </option>
               ))}
             </select>
