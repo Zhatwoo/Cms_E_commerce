@@ -130,8 +130,7 @@ export default function ProfilePage() {
       const res = await uploadAvatarApi(file);
       if (res.success && res.url) {
         setAvatarUrl(res.url);
-        if (res.user) setUser(res.user);
-        setFeedback({ type: 'success', message: 'Avatar uploaded. Profile updated.' });
+        setFeedback({ type: 'success', message: 'Avatar uploaded. Click Save Changes to apply.' });
         setTimeout(() => setFeedback(null), 3000);
       } else {
         setFeedback({ type: 'error', message: res.message || 'Upload failed' });
