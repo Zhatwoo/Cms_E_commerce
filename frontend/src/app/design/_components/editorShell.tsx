@@ -606,6 +606,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const containerRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef({ x: 0, y: 0 });
   const [cameraVersion, setCameraVersion] = useState(0);
+  const wheelZoomDeltaRef = useRef(0);
+  const wheelPanDeltaRef = useRef({ x: 0, y: 0 });
+  const wheelAnchorRef = useRef({ x: 0, y: 0 });
+  const wheelZoomRafRef = useRef<number | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSnapshotRef = useRef<string | null>(null);
   const lastSavedRawRef = useRef<string | null>(null);
@@ -614,6 +618,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [isPanning, setIsPanning] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [scale, setScale] = useState(DEFAULT_SCALE);
+  const scaleRef = useRef(scale);
+  scaleRef.current = scale;
   const [initialJson, setInitialJson] = useState<string | null | undefined>(undefined);
   const [panelsReady, setPanelsReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
@@ -888,8 +894,50 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     }
   }, [initialJson, projectId, loadPages, showAlert]);
 
-  // Figma-style zoom: Ctrl+wheel zooms anchored to cursor position
+  // Figma-style zoom: Ctrl+wheel zooms anchored to cursor; plain wheel pans. RAF batching for smooth zoom.
   useEffect(() => {
+    const applyWheelFrame = () => {
+      wheelZoomRafRef.current = null;
+      const zoomDelta = wheelZoomDeltaRef.current;
+      const panDelta = wheelPanDeltaRef.current;
+      wheelZoomDeltaRef.current = 0;
+      wheelPanDeltaRef.current = { x: 0, y: 0 };
+
+      const container = containerRef.current;
+      if (!container) return;
+
+      const cam = cameraRef.current;
+      let scaleUpdated = false;
+      const prevScale = scaleRef.current;
+
+      if (Math.abs(zoomDelta) >= 0.01) {
+        const zoomFactor = Math.exp(-zoomDelta * ZOOM_SENSITIVITY);
+        if (Number.isFinite(zoomFactor) && zoomFactor > 0) {
+          const prev = clampScale(prevScale, 1);
+          const newScale = clampScale(prev * zoomFactor, prev);
+          if (newScale !== prevScale) {
+            const mx = wheelAnchorRef.current.x;
+            const my = wheelAnchorRef.current.y;
+            const ratio = newScale / prevScale;
+            cam.x = mx - (mx - cam.x) * ratio;
+            cam.y = my - (my - cam.y) * ratio;
+            setScale(newScale);
+            scaleUpdated = true;
+          }
+        }
+      }
+
+      if (Math.abs(panDelta.x) >= 0.5 || Math.abs(panDelta.y) >= 0.5) {
+        cam.x -= panDelta.x;
+        cam.y -= panDelta.y;
+        setCameraVersion((v) => v + 1);
+      }
+
+      if (scaleUpdated) {
+        setCameraVersion((v) => v + 1);
+      }
+    };
+
     const handleWheel = (e: WheelEvent) => {
       const targetEl = e.target instanceof HTMLElement ? e.target : null;
       if (!targetEl || !targetEl.closest("[data-web-builder-root]")) return;
@@ -921,33 +969,30 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
       if (e.ctrlKey || e.metaKey) {
         const normalizedDelta = Math.max(-240, Math.min(240, deltaY));
-        const cam = cameraRef.current;
-        const oldZoom = scale;
-        const zoomFactor = Math.exp(-normalizedDelta * ZOOM_SENSITIVITY);
-        if (!Number.isFinite(zoomFactor) || zoomFactor <= 0) return;
-        const newZoom = clampScale(oldZoom * zoomFactor, oldZoom);
-        if (newZoom === oldZoom) return;
-
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-        const ratio = newZoom / oldZoom;
-        const newCamX = mouseX - (mouseX - cam.x) * ratio;
-        const newCamY = mouseY - (mouseY - cam.y) * ratio;
-
-        cameraRef.current = { x: newCamX, y: newCamY };
-        setScale(newZoom);
-        setCameraVersion((v) => v + 1);
+        wheelZoomDeltaRef.current += normalizedDelta;
+        wheelAnchorRef.current = {
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top,
+        };
       } else {
-        const cam = cameraRef.current;
-        updateCamera(cam.x - deltaX, cam.y - deltaY);
+        wheelPanDeltaRef.current.x += deltaX;
+        wheelPanDeltaRef.current.y += deltaY;
+      }
+
+      if (wheelZoomRafRef.current === null) {
+        wheelZoomRafRef.current = requestAnimationFrame(applyWheelFrame);
       }
     };
 
     window.addEventListener("wheel", handleWheel, { passive: false, capture: true });
     return () => {
       window.removeEventListener("wheel", handleWheel, { capture: true });
+      if (wheelZoomRafRef.current !== null) {
+        cancelAnimationFrame(wheelZoomRafRef.current);
+        wheelZoomRafRef.current = null;
+      }
     };
-  }, [scale, updateCamera]);
+  }, []);
 
   // Keyboard zoom: Ctrl+/Ctrl-/Ctrl+0 anchored to viewport center
   useEffect(() => {
