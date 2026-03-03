@@ -65,12 +65,17 @@ export default function ProfilePage() {
   });
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
+  const [pendingAvatarPreviewUrl, setPendingAvatarPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (user) {
-      // Use avatar from backend if available, otherwise fallback to dicebear
-      setAvatarUrl(user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`);
+      if (!pendingAvatarFile) {
+        // Use avatar from backend if available, otherwise fallback to dicebear
+        setAvatarUrl(user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`);
+        setPendingAvatarPreviewUrl(null);
+      }
       setFormData({
         name: user.name || '',
         email: user.email || '',
@@ -79,7 +84,15 @@ export default function ProfilePage() {
         bio: 'Building the future of commerce. Love React, Three.js, and good coffee.'
       });
     }
-  }, [user]);
+  }, [user, pendingAvatarFile]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingAvatarPreviewUrl) {
+        URL.revokeObjectURL(pendingAvatarPreviewUrl);
+      }
+    };
+  }, [pendingAvatarPreviewUrl]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -88,13 +101,25 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     setIsLoading(true);
+    setAvatarUploading(Boolean(pendingAvatarFile));
 
     try {
+      let avatarToSave: string | undefined;
+
+      if (pendingAvatarFile) {
+        const uploadRes = await uploadAvatarApi(pendingAvatarFile);
+        if (!uploadRes.success || !uploadRes.url) {
+          throw new Error(uploadRes.message || 'Avatar upload failed');
+        }
+        avatarToSave = uploadRes.url;
+      } else {
+        avatarToSave =
+          avatarUrl?.startsWith('http') || avatarUrl?.startsWith('https')
+            ? avatarUrl
+            : undefined;
+      }
+
       // Send only Storage URL (never base64) so Firestore stores path/URL, not image data
-      const avatarToSave =
-        avatarUrl?.startsWith('http') || avatarUrl?.startsWith('https')
-          ? avatarUrl
-          : undefined;
       const res = await updateProfile({
         name: formData.name,
         ...(avatarToSave !== undefined && { avatar: avatarToSave })
@@ -102,6 +127,12 @@ export default function ProfilePage() {
 
       if (res.success && res.user) {
         setUser(res.user);
+        if (pendingAvatarPreviewUrl) {
+          URL.revokeObjectURL(pendingAvatarPreviewUrl);
+        }
+        setPendingAvatarPreviewUrl(null);
+        setPendingAvatarFile(null);
+        setAvatarUrl(res.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${res.user.email}`);
         setFeedback({ type: 'success', message: 'Profile updated successfully!' });
         setTimeout(() => setFeedback(null), 3000);
       } else {
@@ -113,6 +144,7 @@ export default function ProfilePage() {
       setFeedback({ type: 'error', message: error.message || 'Connection error' });
       setTimeout(() => setFeedback(null), 3000);
     }
+    setAvatarUploading(false);
     setIsLoading(false);
   };
 
@@ -124,24 +156,22 @@ export default function ProfilePage() {
       setTimeout(() => setFeedback(null), 3000);
       return;
     }
-    setAvatarUploading(true);
     setFeedback(null);
     try {
-      const res = await uploadAvatarApi(file);
-      if (res.success && res.url) {
-        setAvatarUrl(res.url);
-        setFeedback({ type: 'success', message: 'Avatar uploaded. Click Save Changes to apply.' });
-        setTimeout(() => setFeedback(null), 3000);
-      } else {
-        setFeedback({ type: 'error', message: res.message || 'Upload failed' });
-        setTimeout(() => setFeedback(null), 4000);
+      if (pendingAvatarPreviewUrl) {
+        URL.revokeObjectURL(pendingAvatarPreviewUrl);
       }
+      const previewUrl = URL.createObjectURL(file);
+      setPendingAvatarPreviewUrl(previewUrl);
+      setPendingAvatarFile(file);
+      setAvatarUrl(previewUrl);
+      setFeedback({ type: 'success', message: 'Avatar selected. Click Save Changes to apply.' });
+      setTimeout(() => setFeedback(null), 3000);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Upload failed';
       setFeedback({ type: 'error', message: msg });
       setTimeout(() => setFeedback(null), 4000);
     } finally {
-      setAvatarUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
