@@ -39,7 +39,7 @@ const DATA_SOURCES = [
 
 const EDITOR_COMPONENTS = ['Text', 'Image', 'Button', 'Video'];
 
-export function CentricTools({ isDarkMode = false }: { isDarkMode?: boolean }) {
+export function FindingNeoTools({ isDarkMode = false }: { isDarkMode?: boolean }) {
 
   /* ─── Section / wrapper tokens (respond to isDarkMode) ─── */
   const section = isDarkMode
@@ -106,11 +106,11 @@ export function CentricTools({ isDarkMode = false }: { isDarkMode?: boolean }) {
           <h2 className={`mt-5 text-[38px] font-black leading-[1.08] tracking-[-0.025em] sm:text-[48px] md:text-[60px] ${headText}`}>
             Build Your Website
             <br />
-            With Centric Exclusive Tools
+            With Finding Neo Exclusive Tools
           </h2>
 
           <p className={`mx-auto mt-5 max-w-[580px] text-sm leading-relaxed sm:text-[15px] ${desc}`}>
-            With Centric&apos;s exclusive tools, you can design, launch, and grow your
+            With Finding Neo&apos;s exclusive tools, you can design, launch, and grow your
             online store faster and smarter than ever before.
           </p>
         </Reveal>

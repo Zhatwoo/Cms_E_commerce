@@ -225,7 +225,7 @@ export function Hero({ isDarkMode = false }: { isDarkMode?: boolean }) {
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#ffcc00] opacity-75" />
             <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#ffcc00]" />
           </span>
-          Introducing Centric Web Builder
+          Introducing Finding Neo Web Builder
         </motion.span>
 
         {/* Headline */}
@@ -255,7 +255,7 @@ export function Hero({ isDarkMode = false }: { isDarkMode?: boolean }) {
           transition={{ duration: 0.75, delay: 0.14, ease: [0.16, 1, 0.3, 1] }}
           className="mt-6 max-w-xl text-sm leading-relaxed text-white/60 sm:text-base md:max-w-2xl md:text-lg xl:max-w-3xl"
         >
-          Centric is where teams design, manage, and publish stunning enterprise
+          Finding Neo is where teams design, manage, and publish stunning enterprise
           storefronts — without writing a single line of backend code.
         </motion.p>
 
@@ -304,7 +304,7 @@ export function Hero({ isDarkMode = false }: { isDarkMode?: boolean }) {
             <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
             <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
             <span className="mx-auto flex items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-3 py-0.5 text-[10px] text-white/40">
-              <span>⚡</span> centric.app/builder/project-frontend
+              <span>⚡</span> findingneo.app/builder/project-frontend
             </span>
           </div>
 

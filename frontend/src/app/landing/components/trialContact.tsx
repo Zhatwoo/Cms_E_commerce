@@ -146,7 +146,7 @@ export function TrialContact() {
             </h2>
 
             <p className="mx-auto mt-4 max-w-[580px] text-[clamp(0.8rem,1.2vw,0.9375rem)] leading-relaxed text-white/55">
-              Join over 4,000+ startups already scaling their architecture with Centric.
+              Join over 4,000+ startups already scaling their architecture with Finding Neo.
             </p>
 
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3 sm:gap-4">

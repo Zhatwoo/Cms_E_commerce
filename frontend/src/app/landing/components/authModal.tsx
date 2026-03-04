@@ -74,7 +74,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
       const data = await apiRegister({ name: name.trim() || email.split('@')[0], email, password });
       if (data.success) {
         if (typeof (data as { confirmUrl?: string }).confirmUrl === 'string') {
-          sessionStorage.setItem('centric_confirm_url', (data as { confirmUrl: string }).confirmUrl);
+          sessionStorage.setItem('finding_neo_confirm_url', (data as { confirmUrl: string }).confirmUrl);
         }
         onClose();
         router.push(`/auth/check-email?email=${encodeURIComponent(email)}`);
@@ -138,15 +138,15 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
                 >
                   <span className="grid h-7 w-7 place-items-center rounded-md bg-[#1a0a62] ring-1 ring-white/10">
                     <Image
-                      src="/img/centric-logo.svg"
-                      alt="Centric logo"
+                      src="/img/finding-neo-logo.svg"
+                      alt="Finding Neo logo"
                       width={20}
                       height={20}
                       className="h-5 w-5"
                       priority
                     />
                   </span>
-                  <span className="text-[1.9rem] font-semibold leading-none tracking-tight">Centric</span>
+                  <span className="text-[1.9rem] font-semibold leading-none tracking-tight">Finding Neo</span>
                 </Link>
                 <button
                   onClick={onClose}
@@ -257,7 +257,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
                 >
                   <h1 className="text-4xl font-black leading-none text-white">Create account</h1>
                   <p className="mt-3 text-base text-white/65">
-                    Get started with Centric. Fill in your details below.
+                    Get started with Finding Neo. Fill in your details below.
                   </p>
                   <form className="mt-8 space-y-5" onSubmit={handleRegister}>
                     {error && (

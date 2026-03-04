@@ -106,7 +106,7 @@ export function Footer({ isDarkMode = true }: { isDarkMode?: boolean }) {
             </h2>
 
             <p className={`mt-4 max-w-[480px] text-[clamp(0.8rem,1.1vw,0.9375rem)] leading-relaxed ${muted}`}>
-              Join 4,000+ businesses already building with Centric.
+              Join 4,000+ businesses already building with Finding Neo.
               No credit card required.
             </p>
           </div>
@@ -135,7 +135,7 @@ export function Footer({ isDarkMode = true }: { isDarkMode?: boolean }) {
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-full bg-[#a855f7] shadow-[0_0_8px_rgba(168,85,247,0.7)]" />
-                <span className={`text-[clamp(1.2rem,2vw,1.6rem)] font-black tracking-tight ${text}`}>Centric</span>
+                <span className={`text-[clamp(1.2rem,2vw,1.6rem)] font-black tracking-tight ${text}`}>Finding Neo</span>
               </div>
               <p className={`mt-4 text-[clamp(0.75rem,1vw,0.875rem)] leading-relaxed ${muted}`}>
                 We help businesses get online faster. Build, launch, and grow your store with our all-in-one platform.
@@ -209,8 +209,8 @@ export function Footer({ isDarkMode = true }: { isDarkMode?: boolean }) {
               </h3>
               <ul className="mt-4 space-y-3">
                 {[
-                  { label: 'hello@centric.com',   href: 'mailto:hello@centric.com' },
-                  { label: 'support@centric.com', href: 'mailto:support@centric.com' },
+                  { label: 'hello@findingneo.com',   href: 'mailto:hello@findingneo.com' },
+                  { label: 'support@findingneo.com', href: 'mailto:support@findingneo.com' },
                 ].map(({ label, href }) => (
                   <li key={href}>
                     <a
@@ -234,7 +234,7 @@ export function Footer({ isDarkMode = true }: { isDarkMode?: boolean }) {
         ════════════════════════════════════════ */}
         <div className={`flex flex-col items-center justify-between gap-3 border-t pb-8 pt-6 sm:flex-row ${divider}`}>
           <p className={`text-[clamp(0.7rem,0.85vw,0.8125rem)] font-medium ${subtle}`}>
-            © {year} Centric. All rights reserved.
+            © {year} Finding Neo. All rights reserved.
           </p>
         </div>
 

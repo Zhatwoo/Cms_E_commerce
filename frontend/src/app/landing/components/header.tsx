@@ -55,15 +55,15 @@ export function LandingHeader({ onAuthClick, isDarkMode = false, onThemeToggle, 
         >
           <Link href="/" className="flex shrink-0 items-center gap-2 text-white">
             <Image
-              src="/img/centric-logo.svg"
-              alt="Centric logo"
+              src="/img/finding-neo-logo.svg"
+              alt="Finding Neo logo"
               width={36}
               height={36}
               className="h-8 w-8 sm:h-9 sm:w-9"
               priority
             />
             <span className="text-[1.65rem] font-semibold leading-none tracking-tight sm:text-[1.9rem]">
-              Centric
+              Finding Neo
             </span>
           </Link>
 

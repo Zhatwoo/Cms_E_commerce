@@ -48,7 +48,7 @@ export function useLandingScroll() {
   return useContext(LandingScrollContext);
 }
 
-/** Gate progress (0–1) and scroll container ref; use in CommercePlatform / CentricTools. */
+/** Gate progress (0–1) and scroll container ref; use in CommercePlatform / FindingNeoTools. */
 export function useScrollGate() {
   const { gateProgress, scrollContainerRef } = useLandingScroll();
   return {
@@ -176,7 +176,7 @@ export function FrontLayerEntranceSpacer() {
   );
 }
 
-/** Wrapper for Pricing + Testimonials + Footer: fixed overlay, tumataas from below and overlaps entirely sa CentricTools. */
+/** Wrapper for Pricing + Testimonials + Footer: fixed overlay, tumataas from below and overlaps entirely sa FindingNeoTools. */
 export function FrontLayerWrapper({ children }: { children: React.ReactNode }) {
   const { frontLayerProgress } = useLandingScroll();
   const translateY = `${(1 - frontLayerProgress) * 100}vh`;
@@ -215,7 +215,7 @@ export function LandingScrollRoot({ children, headerSlot }: LandingScrollRootPro
 
   const isScrolled = scrollY > SCROLL_THRESHOLD_HEADER;
 
-  // Start overlay rising when gate progress >= 0.8 so no gap between CentricTools and Pricing
+  // Start overlay rising when gate progress >= 0.8 so no gap between FindingNeoTools and Pricing
   const frontFromGate =
     gateProgress >= 0.8 ? Math.min(1, (gateProgress - 0.8) / 0.2) : 0;
   const frontFromScroll =

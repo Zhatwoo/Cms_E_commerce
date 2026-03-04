@@ -36,7 +36,7 @@ const PLANS = [
     price: '0',
     period: '/first month',
     accent: 'violet',
-    description: 'Try Centric completely risk-free for 30 days.',
+    description: 'Try Finding Neo completely risk-free for 30 days.',
     features: [
       '1 Free Custom Domain',
       'Up to 100 Products',

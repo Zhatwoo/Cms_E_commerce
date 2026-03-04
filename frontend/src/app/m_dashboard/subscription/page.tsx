@@ -17,7 +17,7 @@ export default function SubscriptionPage() {
             name: 'Starter',
             price: '0',
             period: '/first month',
-            description: 'Try Centric completely risk-free for 30 days.',
+            description: 'Try Finding Neo completely risk-free for 30 days.',
             accent: 'violet',
             features: [
                 '1 Free Custom Domain',

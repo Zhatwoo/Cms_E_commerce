@@ -2,7 +2,7 @@ import { Outfit } from 'next/font/google';
 import { CommercePlatform } from './landing/components/commercePlatform';
 import { Footer } from './landing/components/footer';
 import { Hero } from './landing/components/hero';
-import { CentricTools } from './landing/components/mercatoTools';
+import { FindingNeoTools } from './landing/components/mercatoTools';
 import { Pricing } from './landing/components/pricing';
 import { TrialContact } from './landing/components/trialContact';
 import { LandingPageClient } from './landing/landingPageClient';
@@ -19,7 +19,7 @@ export default function Home() {
       <LandingPageClient>
         <Hero />
         <CommercePlatform />
-        <CentricTools />
+        <FindingNeoTools />
         <Pricing />
         <TrialContact />
         <Footer />

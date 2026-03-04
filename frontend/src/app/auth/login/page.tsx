@@ -51,15 +51,15 @@ export default function LoginPage() {
         >
           <span className="grid h-7 w-7 place-items-center rounded-md bg-[#1a0a62] ring-1 ring-white/10">
             <Image
-              src="/img/centric-logo.svg"
-              alt="Centric logo"
+              src="/img/finding-neo-logo.svg"
+              alt="Finding Neo logo"
               width={20}
               height={20}
               className="h-5 w-5"
               priority
             />
           </span>
-          <span className="text-[1.9rem] font-semibold leading-none tracking-tight">Centric</span>
+          <span className="text-[1.9rem] font-semibold leading-none tracking-tight">Finding Neo</span>
         </Link>
         <div className="relative overflow-hidden rounded-3xl border border-[#4f36b8]/55 bg-[#09022f]/95 p-8 shadow-[0_24px_80px_rgba(8,3,36,0.75)]">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(168,85,247,0.2),transparent_40%),radial-gradient(circle_at_85%_15%,rgba(255,204,0,0.09),transparent_35%)]" />
