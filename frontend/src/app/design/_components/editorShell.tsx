@@ -1203,48 +1203,48 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
-    if (
-      !Number.isFinite(contentWidth) || !Number.isFinite(contentHeight) ||
-      contentWidth <= 0 || contentHeight <= 0 ||
-      containerWidth <= 0 || containerHeight <= 0
-    ) return;
+    if (containerWidth <= 0 || containerHeight <= 0) return;
+
+    const pageEls = container.querySelectorAll<HTMLElement>("[data-viewport-desktop] [data-page-node=\"true\"]");
+    let contentWidth: number;
+    let contentHeight: number;
+    let worldCX: number;
+    let worldCY: number;
+
+    if (pageEls.length > 0) {
+      let minLeft = Infinity, minTop = Infinity, maxRight = -Infinity, maxBottom = -Infinity;
+      const contRect = container.getBoundingClientRect();
+      for (const el of pageEls) {
+        const r = el.getBoundingClientRect();
+        const left = container.scrollLeft + (r.left - contRect.left);
+        const top = container.scrollTop + (r.top - contRect.top);
+        minLeft = Math.min(minLeft, left);
+        minTop = Math.min(minTop, top);
+        maxRight = Math.max(maxRight, left + r.width);
+        maxBottom = Math.max(maxBottom, top + r.height);
+      }
+      contentWidth = Math.max(1, maxRight - minLeft);
+      contentHeight = Math.max(1, maxBottom - minTop);
+      const centerScrollX = (minLeft + maxRight) / 2;
+      const centerScrollY = (minTop + maxBottom) / 2;
+      worldCX = centerScrollX / scale;
+      worldCY = centerScrollY / scale;
+    } else {
+      contentWidth = canvasWidth;
+      contentHeight = canvasHeight;
+      worldCX = PAGE_GRID_ORIGIN_X + PAGE_BASE_WIDTH / 2;
+      worldCY = PAGE_GRID_ORIGIN_Y + PAGE_BASE_HEIGHT / 2;
+    }
+
+    if (!Number.isFinite(contentWidth) || !Number.isFinite(contentHeight) || contentWidth <= 0 || contentHeight <= 0) return;
 
     const scaleX = (containerWidth * 0.9) / contentWidth;
     const scaleY = (containerHeight * 0.9) / contentHeight;
     const newScale = clampScale(Math.min(scaleX, scaleY, 1), 1);
 
-    const pageEl =
-      (currentPageId
-        ? container.querySelector<HTMLElement>(
-          `[data-viewport-desktop] [data-page-node="true"][data-node-id="${currentPageId}"]`
-        ) ?? container.querySelector<HTMLElement>(
-          `[data-page-node="true"][data-node-id="${currentPageId}"]`
-        )
-        : null) ??
-      container.querySelector<HTMLElement>('[data-viewport-desktop] [data-page-node="true"]') ??
-      container.querySelector<HTMLElement>('[data-page-node="true"]');
-
-    let worldCX = PAGE_GRID_ORIGIN_X + PAGE_BASE_WIDTH / 2;
-    let worldCY = PAGE_GRID_ORIGIN_Y + PAGE_BASE_HEIGHT / 2;
-
-    if (pageEl) {
-      const contRect = container.getBoundingClientRect();
-      const pageRect = pageEl.getBoundingClientRect();
-      const pageCenterX = container.scrollLeft + (pageRect.left - contRect.left) + pageRect.width / 2;
-      const pageCenterY = container.scrollTop + (pageRect.top - contRect.top) + pageRect.height / 2;
-
-      setScale(newScale);
-      setTimeout(() => {
-        if (containerRef.current) {
-          containerRef.current.scrollLeft = pageCenterX - containerRef.current.clientWidth / 2;
-          containerRef.current.scrollTop = pageCenterY - containerRef.current.clientHeight / 2;
-        }
-      }, 1);
-    } else {
-      setScale(newScale);
-      centerOnWorldPoint(INFINITE_CANVAS_PADDING_PX + PAGE_BASE_WIDTH / 2, INFINITE_CANVAS_PADDING_PX + PAGE_BASE_HEIGHT / 2, newScale);
-    }
-  }, [canvasWidth, canvasHeight, scale, currentPageId, centerOnWorldPoint]);
+    setScale(newScale);
+    centerOnWorldPoint(worldCX, worldCY, newScale);
+  }, [canvasWidth, canvasHeight, scale, centerOnWorldPoint]);
 
   const handleScaleChange = useCallback((nextScale: number) => {
     setScale((prev) => clampScale(nextScale, prev));

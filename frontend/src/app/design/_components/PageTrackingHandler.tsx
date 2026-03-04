@@ -32,7 +32,7 @@ export function PageTrackingHandler() {
     let pageId: string | null = null;
 
     while (current) {
-      const node = nodesMap[current];
+      const node = nodesMap[current] as { data?: { displayName?: string; parent?: string } } | undefined;
       if (!node?.data) break;
       if (node.data.displayName === "Page") {
         pageId = current;
