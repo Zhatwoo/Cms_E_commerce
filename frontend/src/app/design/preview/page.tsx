@@ -3,9 +3,11 @@
 import React, { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload, Monitor, Tablet, Smartphone } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
+import { deserializeCleanToCraft } from "../_lib/serializer";
+import { parseContentToCleanDoc } from "../_lib/contentParser";
 import { autoSavePage, getDraft } from "../_lib/pageApi";
 import { WebPreview } from "../_lib/webRenderer";
+import { PREVIEW_MOBILE_BREAKPOINT } from "../_lib/viewportConstants";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 import { getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, getMyDomains, type Project } from "@/lib/api";
@@ -19,19 +21,6 @@ const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 
 type ViewMode = "Web-Preview" | "clean" | "raw";
 type PreviewViewport = "desktop" | "tablet" | "mobile";
-
-const toPxNumber = (value: unknown): number | undefined => {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value !== "string") return undefined;
-  const normalized = value.trim().toLowerCase();
-  if (!normalized) return undefined;
-  if (normalized.endsWith("px")) {
-    const parsed = Number(normalized.slice(0, -2));
-    return Number.isFinite(parsed) ? parsed : undefined;
-  }
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : undefined;
-};
 
 
 
@@ -61,7 +50,6 @@ function PreviewContent() {
   const [scheduledAt, setScheduledAt] = useState("");
   const [scheduleInfo, setScheduleInfo] = useState<{ scheduledAt: string; subdomain: string | null } | null>(null);
   const [scheduling, setScheduling] = useState(false);
-  const [mobileBreakpoint, setMobileBreakpoint] = useState(900);
   const [project, setProject] = useState<Project | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const thumbnailCaptureRef = useRef(false);
@@ -156,17 +144,7 @@ function PreviewContent() {
   // Compute clean document
   const cleanDoc = useMemo(() => {
     if (!rawJson) return null;
-    try {
-      const parsed = JSON.parse(rawJson);
-      // If it's already clean (BuilderDocument)
-      if (parsed.version !== undefined && parsed.pages && parsed.nodes) {
-        return parsed;
-      }
-      // Otherwise, it's raw Craft.js, serialize it
-      return serializeCraftToClean(rawJson);
-    } catch {
-      return null;
-    }
+    return parseContentToCleanDoc(rawJson);
   }, [rawJson]);
 
   const cleanJson = useMemo(
@@ -193,20 +171,6 @@ function PreviewContent() {
   }, [rawJson]);
 
   const activeJson = viewMode === "clean" ? cleanJson : viewMode === "raw" ? rawFormatted : null;
-
-  const desktopResponsiveViewportWidth = useMemo(() => {
-    if (!cleanDoc?.pages?.length) return undefined;
-
-    const targetSlug = initialPageSlug;
-    const targetPage = targetSlug
-      ? cleanDoc.pages.find((page, index) => {
-          const slug = (page.props?.pageSlug as string | undefined) || `page-${index}`;
-          return slug === targetSlug;
-        })
-      : cleanDoc.pages[0];
-
-    return toPxNumber(targetPage?.props?.width) ?? 1920;
-  }, [cleanDoc, initialPageSlug]);
 
   const capturePreviewThumbnail = async () => {
     if (thumbnailCaptureRef.current || !previewRef.current || !projectId) return;
@@ -666,12 +630,9 @@ function PreviewContent() {
                   doc={cleanDoc}
                   pageIndex={0}
                   initialPageSlug={initialPageSlug}
-                  mobileBreakpoint={mobileBreakpoint}
+                  mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
                   enableFormInputs
                   builderParityMode
-                  responsiveViewportWidth={
-                    previewViewport === "desktop" ? desktopResponsiveViewportWidth : undefined
-                  }
                   simulatedWidth={
                     previewViewport === "desktop"
                       ? undefined

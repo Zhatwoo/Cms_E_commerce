@@ -1,18 +1,18 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { getProjectBySubdomain } from '@/lib/api';
-import { getDraft } from '@/app/design/_lib/pageApi';
+import { apiFetch } from '@/lib/api';
 import { WebPreview } from '@/app/design/_lib/webRenderer';
-import { serializeCraftToClean } from '@/app/design/_lib/serializer';
+import { parseContentToCleanDoc } from '@/app/design/_lib/contentParser';
+import { PREVIEW_MOBILE_BREAKPOINT } from '@/app/design/_lib/viewportConstants';
+import type { BuilderDocument } from '@/app/design/_types/schema';
 
 export default function SubdomainSitePage() {
   const params = useParams();
   const subdomain = typeof params.subdomain === 'string' ? params.subdomain : null;
-  const [projectId, setProjectId] = useState<string | null>(null);
-  const [rawJson, setRawJson] = useState<string | null>(null);
+  const [cleanDoc, setCleanDoc] = useState<BuilderDocument | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -31,19 +31,20 @@ export default function SubdomainSitePage() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await getProjectBySubdomain(normalized);
+        const data = await apiFetch<{ success?: boolean; data?: { content?: unknown } }>(
+          `/api/public/sites/${encodeURIComponent(normalized)}?t=${Date.now()}`,
+          { method: 'GET' }
+        );
         if (cancelled) return;
-        if (!res.success || !res.project?.id) {
+        if (!data?.success) {
           setError(true);
           setLoading(false);
           return;
         }
-        setProjectId(res.project.id);
-        const result = await getDraft(res.project.id);
-        if (cancelled) return;
-        if (result.success && result.data?.content) {
-          const content = result.data.content;
-          setRawJson(typeof content === 'object' ? JSON.stringify(content) : content);
+        const content = data?.data?.content;
+        const parsed = parseContentToCleanDoc(content);
+        if (parsed) {
+          setCleanDoc(parsed);
         } else {
           setError(true);
         }
@@ -56,17 +57,6 @@ export default function SubdomainSitePage() {
     return () => { cancelled = true; };
   }, [subdomain]);
 
-  const cleanDoc = useMemo(() => {
-    if (!rawJson) return null;
-    try {
-      const parsed = JSON.parse(rawJson);
-      if (parsed.version !== undefined && parsed.pages && parsed.nodes) return parsed;
-      return serializeCraftToClean(rawJson);
-    } catch {
-      return null;
-    }
-  }, [rawJson]);
-
   if (!subdomain) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-100 text-zinc-700 gap-4 px-4">
@@ -76,7 +66,7 @@ export default function SubdomainSitePage() {
     );
   }
 
-  if (loading || !projectId) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="animate-spin rounded-full h-10 w-10 border-2 border-zinc-300 border-t-zinc-600" />
@@ -96,7 +86,7 @@ export default function SubdomainSitePage() {
 
   return (
     <div className="min-h-screen w-full bg-white">
-      <WebPreview doc={cleanDoc} pageIndex={0} mobileBreakpoint={900} enableFormInputs />
+      <WebPreview doc={cleanDoc} pageIndex={0} mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT} enableFormInputs builderParityMode />
     </div>
   );
 }

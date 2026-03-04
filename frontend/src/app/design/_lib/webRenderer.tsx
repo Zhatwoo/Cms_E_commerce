@@ -6,6 +6,7 @@ import type { AnimationConfig } from "../_types/animation";
 import type { Interaction, PrototypeConfig, TransitionType } from "../_types/prototype";
 import { AnimationWrapper, hasActiveAnimation } from "./animationEngine";
 import { getComponentDefaults } from "./serializer";
+import { PREVIEW_MOBILE_BREAKPOINT } from "./viewportConstants";
 import { Icon as DesignIcon } from "../_designComponents/Icon/Icon";
 
 /** When provided, the storefront can show real products and handle Add to Cart in place of static product cards. */
@@ -2327,7 +2328,7 @@ export function WebPreview({
   const frameStyles = resolvePageFrameStyles(width);
   const { ref, width: measuredWidth } = useContainerWidth(1000);
   const viewportWidth = simulatedWidth ?? responsiveViewportWidth ?? measuredWidth;
-  const effectiveMobileBreakpoint = mobileBreakpoint ?? 768;
+  const effectiveMobileBreakpoint = mobileBreakpoint ?? PREVIEW_MOBILE_BREAKPOINT;
   const isPhonePreview = viewportWidth <= effectiveMobileBreakpoint;
   const isDesktopMode = simulatedWidth === undefined && viewportWidth > effectiveMobileBreakpoint;
   const isNarrowBuilderPreview = builderParityMode && !isDesktopMode;
@@ -2416,7 +2417,7 @@ export function WebPreview({
           opacity: 1;
         }
         /* Responsive preview styles */
-        @media (max-width: 900px) {
+        @media (max-width: ${PREVIEW_MOBILE_BREAKPOINT}px) {
           .responsive-preview {
             width: 100vw !important;
             min-width: 0 !important;
@@ -2547,7 +2548,7 @@ export function LiveSite({
   pageIndex = 0,
   storeContext,
   initialPageSlug,
-  mobileBreakpoint = 480,
+  mobileBreakpoint = PREVIEW_MOBILE_BREAKPOINT,
   enableFormInputs = false,
 }: {
   doc: BuilderDocument;
