@@ -1,12 +1,13 @@
 // eto yung main navigation ni user
 
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../context/theme-context';
 import { useProject } from '../context/project-context';
+import { useNavigationLoading } from '../context/navigation-loading-context';
 const HomeIcon = () => <img src="/icons/home.png" alt="Home" className="h-5 w-5 object-contain" />;
 const WebBuilderIcon = () => <img src="/icons/monitor.png" alt="Web Builder" className="h-5 w-5 object-contain" />;
 const DomainsIcon = () => <img src="/icons/globe.png" alt="Domains" className="h-5 w-5 object-contain" />;
@@ -22,13 +23,13 @@ const CloseIcon = () => (
 );
 
 const InventoryIcon = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[22px] w-[22px] text-[#7D78C9]" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
     <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
   </svg>
 );
 
 const SubscriptionIcon = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[22px] w-[22px] text-[#7D78C9]" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="5" width="20" height="14" rx="2" />
     <line x1="2" y1="10" x2="22" y2="10" />
   </svg>
@@ -64,6 +65,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
   const router = useRouter();
   const { colors, theme } = useTheme();
   const { selectedProject, setSelectedProjectId } = useProject();
+  const { startNavigation } = useNavigationLoading();
   const hasSelectedWebsite = !!selectedProject;
 
   const handleHomeClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
@@ -74,7 +76,16 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
       return;
     }
 
-    router.push('/m_dashboard', { scroll: true });
+    startNavigation();
+    onClose?.();
+  };
+
+  const handleNavItemClick = (href?: string) => {
+    if (!href || href === pathname) {
+      onClose?.();
+      return;
+    }
+    startNavigation();
     onClose?.();
   };
 
@@ -175,7 +186,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
                   key={item.id}
                   href={item.href}
                   className="block"
-                  onClick={item.id === 'home' ? handleHomeClick : onClose}
+                  onClick={item.id === 'home' ? handleHomeClick : () => handleNavItemClick(item.href)}
                 >
                   {content}
                 </Link>
@@ -196,6 +207,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
             <button
               type="button"
               onClick={() => {
+                startNavigation();
                 setSelectedProjectId(null);
                 router.push('/m_dashboard/instances');
                 onClose?.();
@@ -212,6 +224,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
             </button>
           </div>
         )}
+
       </aside>
     );
   }
@@ -272,7 +285,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
               <Link
                 key={item.id}
                 href={item.href ?? '#'}
-                onClick={item.id === 'home' ? handleHomeClick : undefined}
+                onClick={item.id === 'home' ? handleHomeClick : () => handleNavItemClick(item.href)}
                 className={`
                 group relative flex items-center rounded-lg transition-all duration-200
                 w-full px-4 py-3
@@ -329,6 +342,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
           <button
             type="button"
             onClick={() => {
+              startNavigation();
               setSelectedProjectId(null);
               router.push('/m_dashboard/instances');
             }}

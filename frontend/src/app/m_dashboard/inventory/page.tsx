@@ -181,6 +181,11 @@ export default function InventoryPage() {
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const primaryActionStyle = {
+    backgroundColor: colors.accent.purple,
+    color: colors.text.primary,
+    boxShadow: theme === 'dark' ? '0 10px 24px rgba(92,29,143,0.32)' : '0 8px 18px rgba(107,45,192,0.22)',
+  };
 
   const formatStat = (value: string | number) => (typeof value === 'number' ? String(value) : value);
   const stockValueLabel = useMemo(() => `$${(summary?.stockValue || 0).toLocaleString()}`, [summary?.stockValue]);
@@ -405,64 +410,89 @@ export default function InventoryPage() {
   return (
     <div className="space-y-6 md:space-y-8 max-w-full overflow-x-hidden">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight" style={{ color: colors.text.primary }}>
-            Inventory Management
-          </h1>
-          <p className="text-sm mt-1" style={{ color: colors.text.secondary }}>
-            Track stock levels, movements, and alerts across your catalog.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv"
-            className="hidden"
-            onChange={handleFileChange}
+      <section
+        className="rounded-2xl border p-5 md:p-6"
+        style={{
+          backgroundColor: colors.bg.card,
+          borderColor: colors.border.faint,
+          boxShadow: theme === 'dark'
+            ? 'inset 0 1px 0 rgba(255,255,255,0.06), 0 20px 50px rgba(2,6,23,0.55)'
+            : 'inset 0 1px 0 rgba(255,255,255,0.8), 0 12px 30px rgba(15,23,42,0.12)',
+        }}
+      >
+        <div className="relative">
+          <div
+            className="absolute -inset-x-6 -inset-y-4 rounded-3xl opacity-70 blur-2xl"
+            style={{
+              background: theme === 'dark'
+                ? 'radial-gradient(60% 60% at 20% 20%, rgba(99,102,241,0.2), transparent 60%), radial-gradient(55% 55% at 80% 20%, rgba(14,165,233,0.16), transparent 60%), radial-gradient(50% 50% at 40% 80%, rgba(16,185,129,0.14), transparent 60%)'
+                : 'radial-gradient(60% 60% at 20% 20%, rgba(99,102,241,0.14), transparent 60%), radial-gradient(55% 55% at 80% 20%, rgba(14,165,233,0.12), transparent 60%), radial-gradient(50% 50% at 40% 80%, rgba(16,185,129,0.1), transparent 60%)',
+            }}
           />
-          <button
-            type="button"
-            onClick={handleImport}
-            disabled={importing}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors hover:opacity-90 disabled:opacity-50"
-            style={{ borderColor: colors.border.default, color: colors.text.primary, backgroundColor: colors.bg.elevated }}
-          >
-            <Upload className="w-4 h-4" />
-            {importing ? 'Importing...' : 'Import'}
-          </button>
-          <button
-            type="button"
-            onClick={handleExport}
-            disabled={exporting}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors hover:opacity-90 disabled:opacity-50"
-            style={{ borderColor: colors.border.default, color: colors.text.primary, backgroundColor: colors.bg.elevated }}
-          >
-            <Download className="w-4 h-4" />
-            {exporting ? 'Exporting...' : 'Export'}
-          </button>
-          <button
-            type="button"
-            onClick={() => router.push('/m_dashboard/products')}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20"
-          >
-            <Plus className="w-4 h-4" />
-            Add Product
-          </button>
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] mb-2" style={{ color: colors.text.muted }}>
+                Dashboard Insights
+              </p>
+              <h1 className="text-3xl font-bold tracking-tight bg-clip-text text-transparent" style={{ backgroundImage: theme === 'dark' ? 'linear-gradient(180deg, #ffffff 25%, #9ca3af 100%)' : 'linear-gradient(180deg, #111827 25%, #4b5563 100%)' }}>
+                Inventory
+              </h1>
+              <p className="text-sm mt-2" style={{ color: colors.text.secondary }}>
+                Track stock levels, movements, and alerts across your catalog.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              <button
+                type="button"
+                onClick={handleImport}
+                disabled={importing}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors hover:opacity-90 disabled:opacity-50"
+                style={{ borderColor: colors.border.default, color: colors.text.primary, backgroundColor: colors.bg.elevated }}
+              >
+                <Upload className="w-4 h-4" />
+                {importing ? 'Importing...' : 'Import'}
+              </button>
+              <button
+                type="button"
+                onClick={handleExport}
+                disabled={exporting}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors hover:opacity-90 disabled:opacity-50"
+                style={{ borderColor: colors.border.default, color: colors.text.primary, backgroundColor: colors.bg.elevated }}
+              >
+                <Download className="w-4 h-4" />
+                {exporting ? 'Exporting...' : 'Export'}
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push('/m_dashboard/products')}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
+                style={primaryActionStyle}
+              >
+                <Plus className="w-4 h-4" />
+                Add Product
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {STAT_CARDS.map((card, idx) => {
           const Icon = card.icon;
           const labelColor = card.id === 'low'
-            ? '#f97316'
+            ? colors.status.warning
             : card.id === 'out'
-              ? '#ef4444'
+              ? colors.status.error
               : card.id === 'value'
-                ? '#16a34a'
+                ? colors.status.good
                 : colors.text.muted;
           return (
             <motion.div
@@ -512,7 +542,7 @@ export default function InventoryPage() {
             placeholder="Search by name, SKU, or category..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-lg border bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="w-full pl-10 pr-4 py-2 rounded-lg border bg-transparent text-sm focus:outline-none"
             style={{ borderColor: colors.border.default, color: colors.text.primary }}
           />
         </div>
@@ -524,8 +554,8 @@ export default function InventoryPage() {
               className="px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors capitalize"
               style={{
                 borderColor: statusFilter === status ? 'transparent' : colors.border.default,
-                backgroundColor: statusFilter === status ? (theme === 'dark' ? 'rgba(59,130,246,0.2)' : 'rgba(59,130,246,0.1)') : 'transparent',
-                color: statusFilter === status ? colors.status.info : colors.text.secondary,
+                backgroundColor: statusFilter === status ? `${colors.accent.purple}2A` : 'transparent',
+                color: statusFilter === status ? colors.text.primary : colors.text.secondary,
               }}
             >
               {status === 'all' ? 'All' : status.replace('-', ' ')}
@@ -566,7 +596,7 @@ export default function InventoryPage() {
             Loading inventory...
           </div>
         ) : error ? (
-          <div className="py-16 text-center text-sm" style={{ color: '#ef4444' }}>
+          <div className="py-16 text-center text-sm" style={{ color: colors.status.error }}>
             {error}
           </div>
         ) : filteredItems.length === 0 ? (
@@ -588,7 +618,8 @@ export default function InventoryPage() {
             <button
               type="button"
               onClick={() => router.push('/m_dashboard/products')}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
+              style={primaryActionStyle}
             >
               <Plus className="w-4 h-4" />
               Add Your First Product
@@ -599,7 +630,7 @@ export default function InventoryPage() {
             {filteredItems.map((product) => {
               const { onHand, reserved, lowThreshold } = getStockNumbers(product);
               const statusLabel = onHand <= 0 ? 'Out of stock' : onHand < lowThreshold ? 'Low stock' : 'In stock';
-              const statusColor = onHand <= 0 ? '#ef4444' : onHand < lowThreshold ? '#f97316' : '#16a34a';
+              const statusColor = onHand <= 0 ? colors.status.error : onHand < lowThreshold ? colors.status.warning : colors.status.good;
               return (
                 <div
                   key={product.id}
@@ -682,8 +713,8 @@ export default function InventoryPage() {
             {movements.map((m) => {
               const isIn = String(m.type || '').toUpperCase() === 'IN';
               const isOut = String(m.type || '').toUpperCase() === 'OUT';
-              const typeColor = isIn ? '#16a34a' : isOut ? '#ef4444' : colors.text.primary;
-              const quantityColor = m.quantity > 0 ? '#16a34a' : m.quantity < 0 ? '#ef4444' : colors.text.primary;
+              const typeColor = isIn ? colors.status.good : isOut ? colors.status.error : colors.text.primary;
+              const quantityColor = m.quantity > 0 ? colors.status.good : m.quantity < 0 ? colors.status.error : colors.text.primary;
 
               return (
                 <div
@@ -758,7 +789,7 @@ export default function InventoryPage() {
                     Loading movement history...
                   </div>
                 ) : allMovementsError ? (
-                  <div className="py-8 text-center text-sm" style={{ color: '#ef4444' }}>
+                  <div className="py-8 text-center text-sm" style={{ color: colors.status.error }}>
                     {allMovementsError}
                   </div>
                 ) : allMovements.length === 0 ? (
@@ -770,8 +801,8 @@ export default function InventoryPage() {
                     {allMovements.map((m) => {
                       const isIn = String(m.type || '').toUpperCase() === 'IN';
                       const isOut = String(m.type || '').toUpperCase() === 'OUT';
-                      const typeColor = isIn ? '#16a34a' : isOut ? '#ef4444' : colors.text.primary;
-                      const quantityColor = m.quantity > 0 ? '#16a34a' : m.quantity < 0 ? '#ef4444' : colors.text.primary;
+                      const typeColor = isIn ? colors.status.good : isOut ? colors.status.error : colors.text.primary;
+                      const quantityColor = m.quantity > 0 ? colors.status.good : m.quantity < 0 ? colors.status.error : colors.text.primary;
 
                       return (
                         <div
@@ -853,7 +884,7 @@ export default function InventoryPage() {
                         error: null,
                       }))
                     }
-                    className="w-full rounded-lg border px-3 py-2.5 text-sm bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                    className="w-full rounded-lg border px-3 py-2.5 text-sm bg-transparent focus:outline-none"
                     style={{ borderColor: colors.border.default, color: colors.text.primary }}
                     placeholder="Enter quantity"
                   />
@@ -872,14 +903,14 @@ export default function InventoryPage() {
                         notes: e.target.value,
                       }))
                     }
-                    className="w-full rounded-lg border px-3 py-2.5 text-sm bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"
+                    className="w-full rounded-lg border px-3 py-2.5 text-sm bg-transparent focus:outline-none resize-none"
                     style={{ borderColor: colors.border.default, color: colors.text.primary }}
                     placeholder="Reason for this adjustment"
                   />
                 </div>
 
                 {stockModal.error && (
-                  <p className="text-sm" style={{ color: '#ef4444' }}>
+                  <p className="text-sm" style={{ color: colors.status.error }}>
                     {stockModal.error}
                   </p>
                 )}
@@ -897,7 +928,8 @@ export default function InventoryPage() {
                   <button
                     type="submit"
                     disabled={isAdjustingFromModal}
-                    className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors bg-blue-600 hover:bg-blue-700 disabled:opacity-60"
+                    className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-60"
+                    style={primaryActionStyle}
                   >
                     {isAdjustingFromModal
                       ? 'Saving...'

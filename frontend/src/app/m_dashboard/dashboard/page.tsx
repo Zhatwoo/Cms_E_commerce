@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { listProjects, type Project } from '@/lib/api';
 import { DraftPreviewThumbnail } from '../components/projects/DraftPreviewThumbnail';
 import { useProject } from '../components/context/project-context';
+import { useNavigationLoading } from '../components/context/navigation-loading-context';
 
 const INDUSTRIES = [
   { label: 'Fashion &\nApparel', img: '/images/industries/Fashion & Apparel.png', bg: 'linear-gradient(135deg,#3A006D 0%,#1A1A6E 100%)' },
@@ -57,6 +58,7 @@ function toWorkspaceLabel(project?: Project | null) {
 export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const router = useRouter();
   const { selectedProject } = useProject();
+  const { startNavigation } = useNavigationLoading();
   const [activeTab, setActiveTab] = useState<HeroTab>('designs');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -169,6 +171,11 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
     );
   };
 
+  const navigateWithLoader = (href: string) => {
+    startNavigation();
+    router.push(href);
+  };
+
   return (
     <section className="relative min-h-[calc(100vh-176px)] px-3 py-3 sm:px-5 sm:py-4 lg:px-[100px] [font-family:var(--font-outfit),sans-serif]">
       <div className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full blur-3xl opacity-25 bg-[#5C1D8F]" />
@@ -177,7 +184,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
 
       <div className="relative z-10 mx-auto w-full max-w-none flex flex-col gap-10">
         <div className="flex flex-col items-center text-center gap-6 pt-1">
-          <h1 className="text-4xl sm:text-6xl lg:text-[76px] font-extrabold leading-[1.06] tracking-tight max-w-5xl [font-family:var(--font-outfit),sans-serif] bg-[linear-gradient(90deg,rgba(255,255,255,1)_0%,rgba(255,255,255,0.81)_15%,rgba(216,157,255,0.63)_31%,rgba(167,139,250,1)_54%,rgba(217,173,143,0.89)_82%,rgba(255,242,191,0.78)_88%,rgba(255,255,255,0.81)_97%)] bg-clip-text text-transparent">
+          <h1 className="text-4xl sm:text-6xl lg:text-[76px] font-extrabold leading-[1.06] tracking-tight max-w-5xl [font-family:var(--font-outfit),sans-serif] bg-gradient-to-r from-[#8b3dff] via-[#c026d3] to-[#f5c400] bg-clip-text text-transparent">
             <span className="block">What website will</span>
             <span className="block">you build?</span>
           </h1>
@@ -231,8 +238,8 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                 <button
                   type="button"
                   onClick={() => {
-                    if (featuredProject?.id) router.push(`/design?projectId=${featuredProject.id}`);
-                    else router.push('/m_dashboard/web-builder');
+                    if (featuredProject?.id) navigateWithLoader(`/design?projectId=${featuredProject.id}`);
+                    else navigateWithLoader('/m_dashboard/web-builder');
                   }}
                   className="rounded-full px-10 py-3 text-base font-bold transition-transform hover:-translate-y-0.5 bg-[#FFCE00] text-[#121241] shadow-[0_0_28px_rgba(255,206,0,0.35)]"
                 >
@@ -271,8 +278,8 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                 <button
                   type="button"
                   onClick={() => {
-                    if (featuredProject?.id) router.push(`/design?projectId=${featuredProject.id}`);
-                    else router.push('/m_dashboard/web-builder');
+                    if (featuredProject?.id) navigateWithLoader(`/design?projectId=${featuredProject.id}`);
+                    else navigateWithLoader('/m_dashboard/web-builder');
                   }}
                   aria-label={featuredProject?.title ? `Open featured project ${featuredProject.title}` : 'Open featured project'}
                   title={featuredProject?.title ? `Open featured project ${featuredProject.title}` : 'Open featured project'}
@@ -313,7 +320,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
                 <button
                   type="button"
-                  onClick={() => router.push('/m_dashboard/web-builder')}
+                  onClick={() => navigateWithLoader('/m_dashboard/web-builder')}
                   className="rounded-[26px] border border-dashed border-[#2D3A90] bg-[#12145A]/80 p-4 sm:p-5 text-left min-h-[240px] sm:min-h-[260px] flex flex-col items-center justify-center gap-5"
                 >
                   <span className="h-14 w-14 rounded-2xl bg-[#FFCE00] flex items-center justify-center">
@@ -328,7 +335,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                   <button
                     key={project.id}
                     type="button"
-                    onClick={() => router.push(`/design?projectId=${project.id}`)}
+                    onClick={() => navigateWithLoader(`/design?projectId=${project.id}`)}
                     className="rounded-[26px] border border-[#2D3A90] bg-[#12145A]/80 overflow-hidden text-left hover:translate-y-[-1px] transition-transform"
                   >
                     <div className="w-full aspect-[16/10] overflow-hidden border-b border-[#2D3A90] bg-[#0E0D3D]">

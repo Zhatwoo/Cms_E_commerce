@@ -126,6 +126,11 @@ export default function DomainsPage() {
     active: domainsList.filter(d => (d.project.status || '').trim().toLowerCase() === 'published').length,
     draft: domainsList.filter(d => (d.project.status || '').trim().toLowerCase() !== 'published').length,
   };
+  const primaryActionStyle = {
+    backgroundColor: colors.accent.purple,
+    color: colors.text.primary,
+    boxShadow: theme === 'dark' ? '0 10px 24px rgba(92,29,143,0.32)' : '0 8px 18px rgba(107,45,192,0.22)',
+  };
 
   type DomainEntry = { project: Project; subdomain: string | null };
   const [selectedDomain, setSelectedDomain] = useState<DomainEntry | null>(null);
@@ -317,7 +322,8 @@ export default function DomainsPage() {
             <button
               type="button"
               onClick={handleAddDomainClick}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors shadow-sm"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-opacity hover:opacity-90"
+              style={primaryActionStyle}
             >
               <Plus className="w-4 h-4" />
               Add site
@@ -336,8 +342,8 @@ export default function DomainsPage() {
             style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
           >
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <Globe className="w-5 h-5 text-blue-600" />
+              <div className="p-2 rounded-lg" style={{ backgroundColor: `${colors.accent.purple}20` }}>
+                <Globe className="w-5 h-5" style={{ color: colors.accent.purple }} />
               </div>
               <div>
                 <p className="text-2xl font-bold" style={{ color: colors.text.primary }}>
@@ -358,8 +364,8 @@ export default function DomainsPage() {
             style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
           >
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-500/10">
-                <Check className="w-5 h-5 text-green-600" />
+              <div className="p-2 rounded-lg" style={{ backgroundColor: `${colors.status.good}20` }}>
+                <Check className="w-5 h-5" style={{ color: colors.status.good }} />
               </div>
               <div>
                 <p className="text-2xl font-bold" style={{ color: colors.text.primary }}>
@@ -380,8 +386,8 @@ export default function DomainsPage() {
             style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
           >
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-red-500/10">
-                <Clock className="w-5 h-5 text-red-500" />
+              <div className="p-2 rounded-lg" style={{ backgroundColor: `${colors.status.warning}20` }}>
+                <Clock className="w-5 h-5" style={{ color: colors.status.warning }} />
               </div>
               <div>
                 <p className="text-2xl font-bold" style={{ color: colors.text.primary }}>
@@ -432,11 +438,8 @@ export default function DomainsPage() {
               <button
                 type="button"
                 onClick={handleAddDomainClick}
-                className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
-                style={{
-                  backgroundColor: colors.text.primary,
-                  color: colors.bg.primary,
-                }}
+                className="px-4 py-2 text-sm font-medium rounded-lg transition-opacity hover:opacity-90"
+                style={primaryActionStyle}
               >
                 Add site
               </button>
@@ -511,8 +514,8 @@ export default function DomainsPage() {
                     <span
                       className="text-xs px-2 py-1 rounded-full capitalize"
                       style={{
-                        backgroundColor: isPublished ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)',
-                        color: isPublished ? 'rgb(22,163,74)' : 'rgb(220,38,38)',
+                        backgroundColor: isPublished ? `${colors.status.good}22` : `${colors.status.warning}22`,
+                        color: isPublished ? colors.status.good : colors.status.warning,
                       }}
                     >
                       {isPublished ? 'Published' : 'Draft'}
@@ -522,11 +525,8 @@ export default function DomainsPage() {
                       target={canVisit ? "_blank" : "_self"}
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors shrink-0"
-                      style={{
-                        backgroundColor: colors.text.primary,
-                        color: colors.bg.primary,
-                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-opacity hover:opacity-90 shrink-0"
+                      style={primaryActionStyle}
                     >
                       <ExternalLink size={14} />
                       {canVisit ? 'Visit' : 'Publish to go live'}
@@ -538,8 +538,8 @@ export default function DomainsPage() {
                         disabled={unpublishingId === project.id}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors shrink-0 border"
                         style={{
-                          borderColor: 'rgba(239,68,68,0.5)',
-                          color: 'rgb(239,68,68)',
+                          borderColor: `${colors.status.error}66`,
+                          color: colors.status.error,
                           backgroundColor: 'transparent',
                         }}
                       >
@@ -640,8 +640,8 @@ export default function DomainsPage() {
                       <span
                         className="text-xs px-2 py-1 rounded-full capitalize"
                         style={{
-                          backgroundColor: selectedDomain.project.status === 'published' ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)',
-                          color: selectedDomain.project.status === 'published' ? 'rgb(22,163,74)' : 'rgb(180,83,9)',
+                          backgroundColor: selectedDomain.project.status === 'published' ? `${colors.status.good}22` : `${colors.status.warning}22`,
+                          color: selectedDomain.project.status === 'published' ? colors.status.good : colors.status.warning,
                         }}
                       >
                         {selectedDomain.project.status || 'draft'}
@@ -653,8 +653,8 @@ export default function DomainsPage() {
                           disabled={unpublishingId === selectedDomain.project.id}
                           className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors"
                           style={{
-                            borderColor: 'rgba(239,68,68,0.5)',
-                            color: 'rgb(239,68,68)',
+                            borderColor: `${colors.status.error}66`,
+                            color: colors.status.error,
                             backgroundColor: 'transparent',
                           }}
                         >
@@ -700,8 +700,8 @@ export default function DomainsPage() {
                         <span
                           className="capitalize px-2 py-0.5 rounded text-xs font-medium"
                           style={{
-                            backgroundColor: isPublishedStatus(selectedDomain.project.status) ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)',
-                            color: isPublishedStatus(selectedDomain.project.status) ? 'rgb(22,163,74)' : 'rgb(220,38,38)',
+                            backgroundColor: isPublishedStatus(selectedDomain.project.status) ? `${colors.status.good}22` : `${colors.status.warning}22`,
+                            color: isPublishedStatus(selectedDomain.project.status) ? colors.status.good : colors.status.warning,
                           }}
                         >
                           {isPublishedStatus(selectedDomain.project.status) ? 'Published' : 'Draft'}
@@ -802,12 +802,12 @@ export default function DomainsPage() {
                   className="w-full px-3 py-2 rounded-lg border text-sm font-mono"
                   style={{
                     backgroundColor: colors.bg.primary,
-                    borderColor: editSubdomainError ? 'rgb(239,68,68)' : colors.border.faint,
+                    borderColor: editSubdomainError ? colors.status.error : colors.border.faint,
                     color: colors.text.primary,
                   }}
                 />
                 {editSubdomainError && (
-                  <p className="text-xs mt-1" style={{ color: 'rgb(239,68,68)' }}>{editSubdomainError}</p>
+                  <p className="text-xs mt-1" style={{ color: colors.status.error }}>{editSubdomainError}</p>
                 )}
               </div>
               <div className="flex gap-2 mt-6">
@@ -823,7 +823,8 @@ export default function DomainsPage() {
                   type="button"
                   onClick={handleEditSubdomainConfirm}
                   disabled={updatingSubdomain}
-                  className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium"
+                  className="flex-1 px-4 py-2 rounded-lg disabled:opacity-50 text-sm font-medium transition-opacity hover:opacity-90"
+                  style={primaryActionStyle}
                 >
                   {updatingSubdomain ? 'Updating…' : 'Save'}
                 </button>

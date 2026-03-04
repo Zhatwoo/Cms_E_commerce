@@ -1,852 +1,1608 @@
 'use client';
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTheme } from '../components/context/theme-context';
-import { X, TrendingUp, TrendingDown, ShoppingCart, CreditCard, CheckCircle, AlertCircle, ArrowRight, Package } from 'lucide-react';
+import { useProject } from '../components/context/project-context';
+import {
+  getInventorySummary,
+  listMyOrders,
+  listProducts,
+  type ApiOrder,
+  type ApiProduct,
+  type InventorySummary,
+} from '@/lib/api';
+import { AreaChart } from '../components/analytics/AreaChart';
 
-interface CheckoutStep {
-    step: string;
-    visitors: number;
-    dropOff: number;
-    dropOffRate: number;
-    avgTimeSpent: string;
-}
+type PeriodKey = '7D' | '30D' | '90D' | '180D';
 
-interface CheckoutData {
-    totalInitiated: number;
-    totalCompleted: number;
-    conversionRate: number;
-    abandonmentRate: number;
-    avgOrderValue: number;
-    recoveredCarts: number;
-    growth: number;
-    steps: CheckoutStep[];
-    paymentMethods: Array<{ method: string; count: number; percentage: number }>;
-    abandonReasons: Array<{ reason: string; percentage: number }>;
-    hourlyCheckouts: Array<{ hour: string; completed: number; abandoned: number }>;
-}
-
-interface AnalyticsData {
-    revenue: {
-        total: number;
-        growth: number;
-        monthly: Array<{ month: string; revenue: number }>;
-    };
-    orders: {
-        total: number;
-        growth: number;
-        status: {
-            pending: number;
-            processing: number;
-            shipped: number;
-            delivered: number;
-            cancelled: number;
-        };
-    };
-    customers: {
-        total: number;
-        new: number;
-        returning: number;
-        growth: number;
-    };
-    products: {
-        total: number;
-        topSelling: Array<{ name: string; sales: number; revenue: number }>;
-        lowStock: number;
-    };
-    traffic: {
-        total: number;
-        unique: number;
-        bounce: number;
-        sources: Array<{ source: string; visitors: number; percentage: number }>;
-    };
-    checkouts: CheckoutData;
-}
-
-const emptyAnalyticsData: AnalyticsData = {
-    revenue: { total: 0, growth: 0, monthly: [] },
-    orders: {
-        total: 0, growth: 0,
-        status: { pending: 0, processing: 0, shipped: 0, delivered: 0, cancelled: 0 }
-    },
-    customers: { total: 0, new: 0, returning: 0, growth: 0 },
-    products: { total: 0, topSelling: [], lowStock: 0 },
-    traffic: { total: 0, unique: 0, bounce: 0, sources: [] },
-    checkouts: {
-        totalInitiated: 0,
-        totalCompleted: 0,
-        conversionRate: 0,
-        abandonmentRate: 0,
-        avgOrderValue: 0,
-        recoveredCarts: 0,
-        growth: 0,
-        steps: [
-            { step: 'Cart View', visitors: 0, dropOff: 0, dropOffRate: 0, avgTimeSpent: '0s' },
-            { step: 'Contact Info', visitors: 0, dropOff: 0, dropOffRate: 0, avgTimeSpent: '0s' },
-            { step: 'Shipping', visitors: 0, dropOff: 0, dropOffRate: 0, avgTimeSpent: '0s' },
-            { step: 'Payment', visitors: 0, dropOff: 0, dropOffRate: 0, avgTimeSpent: '0s' },
-            { step: 'Confirmation', visitors: 0, dropOff: 0, dropOffRate: 0, avgTimeSpent: '0s' },
-        ],
-        paymentMethods: [],
-        abandonReasons: [],
-        hourlyCheckouts: [],
-    }
+const PERIOD_DAYS: Record<PeriodKey, number> = {
+  '7D': 7,
+  '30D': 30,
+  '90D': 90,
+  '180D': 180,
 };
 
-import { AreaChart } from '../components/analytics/AreaChart';
-import { FunnelChart } from '../components/analytics/FunnelChart';
-import { MetricCard } from '../components/analytics/MetricCard';
-import { RadialProgressChart } from '../components/analytics/RadialProgressChart';
+const SECTION_TABS = ['OVERVIEW', 'SALES TREND', 'PURCHASE SUCCESS', 'CATEGORY SALES', 'SALES HISTORY'] as const;
+type SectionTab = (typeof SECTION_TABS)[number];
 
-type ModalType = 'revenue' | 'orders' | 'customers' | 'traffic' | 'newCustomers' | 'returningCustomers' | 'uniqueVisitors' | 'bounceRate' | 'checkouts' | 'checkoutConversion' | 'checkoutAbandonment' | 'recoveredCarts';
-
-interface MetricDetails {
-    title: string;
-    value: string;
-    growth: number;
-    icon: React.ReactNode;
-    details: { label: string; value: string | number }[];
-    chart?: React.ReactNode;
+function formatPeso(value: number) {
+  return `₱${Number(value || 0).toLocaleString()}`;
 }
 
-// ─── Checkout Funnel Step Bar ───────────────────────────────────────────────
-function CheckoutFunnelBar({ steps, colors, theme }: { steps: CheckoutStep[]; colors: any; theme: string }) {
-    const maxVisitors = steps[0]?.visitors || 1;
-    const stepColors = ['#6366f1', '#8b5cf6', '#a855f7', '#ec4899', '#10b981'];
-
-    if (steps.every(s => s.visitors === 0)) {
-        return (
-            <div className="h-[180px] rounded-xl border flex items-center justify-center text-sm"
-                style={{ borderColor: colors.border.faint, color: colors.text.muted, backgroundColor: colors.bg.elevated }}>
-                No checkout data yet for this period.
-            </div>
-        );
-    }
-
-    return (
-        <div className="space-y-3">
-            {steps.map((step, i) => {
-                const widthPct = maxVisitors > 0 ? (step.visitors / maxVisitors) * 100 : 0;
-                return (
-                    <div key={i}>
-                        <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-medium" style={{ color: colors.text.secondary }}>{step.step}</span>
-                            <div className="flex items-center gap-3">
-                                <span className="text-xs" style={{ color: colors.text.muted }}>{step.avgTimeSpent}</span>
-                                {step.dropOffRate > 0 && (
-                                    <span className="text-xs font-medium" style={{ color: '#ef4444' }}>
-                                        -{step.dropOffRate}%
-                                    </span>
-                                )}
-                                <span className="text-xs font-semibold w-12 text-right" style={{ color: colors.text.primary }}>
-                                    {step.visitors.toLocaleString()}
-                                </span>
-                            </div>
-                        </div>
-                        <div className="relative h-7 rounded-md overflow-hidden" style={{ backgroundColor: colors.bg.elevated }}>
-                            <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${widthPct}%` }}
-                                transition={{ duration: 0.7, delay: i * 0.1, ease: 'easeOut' }}
-                                className="absolute inset-y-0 left-0 rounded-md flex items-center px-2"
-                                style={{ backgroundColor: stepColors[i] + '30', borderLeft: `3px solid ${stepColors[i]}` }}
-                            />
-                        </div>
-                    </div>
-                );
-            })}
-        </div>
-    );
+function formatOrderId(id: string) {
+  return `#${id.slice(-8).toUpperCase()}`;
 }
 
-// ─── Payment Methods Bar ────────────────────────────────────────────────────
-function PaymentMethodsChart({ methods, colors }: { methods: CheckoutData['paymentMethods']; colors: any }) {
-    const methodColors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
-
-    if (methods.length === 0) {
-        return (
-            <div className="h-[80px] rounded-xl border flex items-center justify-center text-sm"
-                style={{ borderColor: colors.border.faint, color: colors.text.muted, backgroundColor: colors.bg.elevated }}>
-                No payment data available yet.
-            </div>
-        );
-    }
-
-    return (
-        <div className="space-y-2.5">
-            {methods.map((m, i) => (
-                <div key={i} className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: methodColors[i % methodColors.length] }} />
-                    <div className="flex-1">
-                        <div className="flex justify-between mb-1">
-                            <span className="text-xs font-medium" style={{ color: colors.text.secondary }}>{m.method}</span>
-                            <span className="text-xs" style={{ color: colors.text.muted }}>{m.percentage}%</span>
-                        </div>
-                        <div className="w-full h-1.5 rounded-full" style={{ backgroundColor: colors.border.faint }}>
-                            <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${m.percentage}%` }}
-                                transition={{ duration: 0.6, delay: i * 0.08 }}
-                                className="h-1.5 rounded-full"
-                                style={{ backgroundColor: methodColors[i % methodColors.length] }}
-                            />
-                        </div>
-                    </div>
-                    <span className="text-xs w-8 text-right font-medium" style={{ color: colors.text.primary }}>{m.count}</span>
-                </div>
-            ))}
-        </div>
-    );
+function toBuyerName(order: ApiOrder) {
+  const address = order.shippingAddress;
+  if (!address || typeof address !== 'object') return 'Unknown Buyer';
+  const source = address as Record<string, unknown>;
+  const fullName = typeof source.fullName === 'string' ? source.fullName.trim() : '';
+  const name = typeof source.name === 'string' ? source.name.trim() : '';
+  return fullName || name || 'Unknown Buyer';
 }
 
-// ─── Hourly Checkout Heatmap ────────────────────────────────────────────────
-function HourlyChart({ hourly, colors, theme }: { hourly: CheckoutData['hourlyCheckouts']; colors: any; theme: string }) {
-    if (hourly.length === 0) {
-        return (
-            <div className="h-[80px] rounded-xl border flex items-center justify-center text-sm"
-                style={{ borderColor: colors.border.faint, color: colors.text.muted, backgroundColor: colors.bg.elevated }}>
-                No hourly data available yet.
-            </div>
-        );
-    }
-    const maxVal = Math.max(...hourly.map(h => h.completed + h.abandoned), 1);
-    return (
-        <div className="flex items-end gap-1 h-16">
-            {hourly.map((h, i) => {
-                const total = h.completed + h.abandoned;
-                const heightPct = (total / maxVal) * 100;
-                const completedPct = total > 0 ? (h.completed / total) * 100 : 0;
-                return (
-                    <div key={i} className="flex-1 flex flex-col items-center gap-0.5 group relative">
-                        <div className="w-full rounded-sm overflow-hidden flex flex-col-reverse" style={{ height: `${Math.max(heightPct, 4)}%`, minHeight: 4, backgroundColor: colors.bg.elevated }}>
-                            <motion.div
-                                initial={{ height: 0 }}
-                                animate={{ height: `${completedPct}%` }}
-                                transition={{ duration: 0.5, delay: i * 0.02 }}
-                                className="w-full bg-emerald-500 rounded-sm"
-                            />
-                        </div>
-                        {i % 4 === 0 && (
-                            <span className="text-[9px]" style={{ color: colors.text.muted }}>{h.hour}</span>
-                        )}
-                    </div>
-                );
-            })}
-        </div>
-    );
+function toMonthKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
-// ─── Abandon Reasons ────────────────────────────────────────────────────────
-function AbandonReasons({ reasons, colors }: { reasons: CheckoutData['abandonReasons']; colors: any }) {
-    if (reasons.length === 0) {
-        return (
-            <div className="h-[80px] rounded-xl border flex items-center justify-center text-sm"
-                style={{ borderColor: colors.border.faint, color: colors.text.muted, backgroundColor: colors.bg.elevated }}>
-                No abandonment data yet.
-            </div>
-        );
-    }
-    return (
-        <div className="space-y-2">
-            {reasons.map((r, i) => (
-                <div key={i} className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full flex-shrink-0 bg-red-400" />
-                    <span className="flex-1 text-xs" style={{ color: colors.text.secondary }}>{r.reason}</span>
-                    <span className="text-xs font-semibold" style={{ color: '#ef4444' }}>{r.percentage}%</span>
-                </div>
-            ))}
-        </div>
-    );
+function toMonthLabel(date: Date) {
+  return date.toLocaleString('en-US', { month: 'short' });
+}
+
+function toTitleCase(label: string) {
+  return label
+    .toLowerCase()
+    .split(' ')
+    .map((part) => (part ? part[0].toUpperCase() + part.slice(1) : part))
+    .join(' ');
+}
+
+function normalizeCategory(value: unknown) {
+  const raw = typeof value === 'string' ? value.trim() : '';
+  if (!raw || raw === '-' || raw === '—') return 'Uncategorized';
+  return raw;
+}
+
+function toInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return 'U';
+  if (parts.length === 1) return parts[0][0]?.toUpperCase() || 'U';
+  return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
+}
+
+function statusPill(status: string) {
+  const normalized = status.toLowerCase();
+  if (normalized === 'delivered' || normalized === 'paid') {
+    return { label: 'Successful', bg: '#16a34a22', color: '#22c55e' };
+  }
+  if (normalized === 'pending' || normalized === 'processing') {
+    return { label: 'Pending', bg: '#f59e0b22', color: '#fbbf24' };
+  }
+  if (normalized === 'shipped') {
+    return { label: 'In Transit', bg: '#3b82f622', color: '#60a5fa' };
+  }
+  return { label: status || 'Unknown', bg: '#64748b22', color: '#94a3b8' };
+}
+
+function isSuccessfulStatus(status: string) {
+  const normalized = status.toLowerCase();
+  return normalized === 'paid' || normalized === 'shipped' || normalized === 'delivered';
+}
+
+function isFailedStatus(status: string) {
+  const normalized = status.toLowerCase();
+  return normalized === 'cancelled' || normalized === 'returned';
+}
+
+function percentDelta(current: number, previous: number) {
+  if (previous <= 0) return current > 0 ? 100 : 0;
+  return ((current - previous) / previous) * 100;
+}
+
+function buildLinePath(values: number[], width: number, height: number, padX: number, padY: number, maxValue: number) {
+  if (!values.length) return '';
+  const chartW = width - padX * 2;
+  const chartH = height - padY * 2;
+  const safeMax = Math.max(maxValue, 1);
+  const points = values.map((value, idx) => {
+    const x = padX + (idx / Math.max(values.length - 1, 1)) * chartW;
+    const y = height - padY - (value / safeMax) * chartH;
+    return { x, y };
+  });
+
+  let d = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const p0 = points[i === 0 ? i : i - 1];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2] || p2;
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
+  }
+  return d;
 }
 
 export default function AnalyticsPage() {
-    const { colors, theme } = useTheme();
-    const [selectedPeriod, setSelectedPeriod] = useState('6M');
-    const [openModal, setOpenModal] = useState<ModalType | null>(null);
-    const data = emptyAnalyticsData;
+  const { colors } = useTheme();
+  const { selectedProject } = useProject();
 
-    const periods = ['1D', '1W', '1M', '3M', '6M', '1Y'];
-    const safePercent = (value: number, totalValue: number) => (totalValue > 0 ? Math.round((value / totalValue) * 100) : 0);
+  const [period, setPeriod] = useState<PeriodKey>('30D');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [activeSectionTab, setActiveSectionTab] = useState<SectionTab>('OVERVIEW');
 
-    const revenueChartData = data.revenue.monthly;
-    const orderStatusData = [
-        { label: 'Pending', value: data.orders.status.pending, percentage: safePercent(data.orders.status.pending, data.orders.total) },
-        { label: 'Processing', value: data.orders.status.processing, percentage: safePercent(data.orders.status.processing, data.orders.total) },
-        { label: 'Shipped', value: data.orders.status.shipped, percentage: safePercent(data.orders.status.shipped, data.orders.total) },
-        { label: 'Delivered', value: data.orders.status.delivered, percentage: safePercent(data.orders.status.delivered, data.orders.total) },
-        { label: 'Cancelled', value: data.orders.status.cancelled, percentage: safePercent(data.orders.status.cancelled, data.orders.total) }
-    ];
+  const [orders, setOrders] = useState<ApiOrder[]>([]);
+  const [products, setProducts] = useState<ApiProduct[]>([]);
+  const [inventorySummary, setInventorySummary] = useState<InventorySummary | null>(null);
+  const sectionTabRefs = useRef<Record<SectionTab, HTMLButtonElement | null>>({
+    OVERVIEW: null,
+    'SALES TREND': null,
+    'PURCHASE SUCCESS': null,
+    'CATEGORY SALES': null,
+    'SALES HISTORY': null,
+  });
+  const [sectionIndicator, setSectionIndicator] = useState({ left: 0, width: 0, ready: false });
 
-    const hasRevenueData = revenueChartData.length > 0;
-    const hasProducts = data.products.topSelling.length > 0;
-    const hasTrafficSources = data.traffic.sources.length > 0;
-    const statusColors = ['#f59e0b', '#3b82f6', '#8b5cf6', '#10b981', '#ef4444'];
+  useEffect(() => {
+    let cancelled = false;
 
-    const revenueIcon = (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-    );
-    const ordersIcon = (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-        </svg>
-    );
-    const customersIcon = (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-        </svg>
-    );
-    const trafficIcon = (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-        </svg>
-    );
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const orderPromise = listMyOrders({
+          page: 1,
+          limit: 500,
+          projectId: selectedProject?.id,
+        });
 
-    const modalDetails: Record<ModalType, MetricDetails | null> = {
-        revenue: {
-            title: 'Total Revenue', value: `$${data.revenue.total.toLocaleString()}`, growth: data.revenue.growth, icon: revenueIcon,
-            details: [
-                { label: 'Average Order Value', value: data.revenue.total > 0 ? `$${(data.revenue.total / Math.max(data.orders.total, 1)).toFixed(2)}` : '$0.00' },
-                { label: 'Monthly Average', value: data.revenue.monthly.length > 0 ? `$${(data.revenue.total / data.revenue.monthly.length).toFixed(2)}` : '$0.00' },
-                { label: 'Best Month', value: data.revenue.monthly.length > 0 ? `$${Math.max(...data.revenue.monthly.map(m => m.revenue)).toLocaleString()}` : '$0' },
-                { label: 'Period', value: selectedPeriod }
-            ],
-        },
-        orders: {
-            title: 'Total Orders', value: data.orders.total.toLocaleString(), growth: data.orders.growth, icon: ordersIcon,
-            details: [
-                { label: 'Pending', value: data.orders.status.pending },
-                { label: 'Processing', value: data.orders.status.processing },
-                { label: 'Shipped', value: data.orders.status.shipped },
-                { label: 'Delivered', value: data.orders.status.delivered },
-                { label: 'Cancelled', value: data.orders.status.cancelled },
-                { label: 'Completion Rate', value: data.orders.total > 0 ? `${((data.orders.status.delivered / data.orders.total) * 100).toFixed(1)}%` : '0%' }
-            ],
-        },
-        customers: {
-            title: 'Total Customers', value: data.customers.total.toLocaleString(), growth: data.customers.growth, icon: customersIcon,
-            details: [
-                { label: 'New Customers', value: data.customers.new },
-                { label: 'Returning Customers', value: data.customers.returning },
-                { label: 'Retention Rate', value: data.customers.total > 0 ? `${((data.customers.returning / data.customers.total) * 100).toFixed(1)}%` : '0%' },
-                { label: 'Average Customer Value', value: data.customers.total > 0 ? `$${(data.revenue.total / data.customers.total).toFixed(2)}` : '$0.00' }
-            ],
-        },
-        traffic: {
-            title: 'Total Traffic', value: data.traffic.total.toLocaleString(), growth: 0, icon: trafficIcon,
-            details: [
-                { label: 'Unique Visitors', value: data.traffic.unique.toLocaleString() },
-                { label: 'Bounce Rate', value: `${data.traffic.bounce}%` },
-                { label: 'Avg. Session Duration', value: '2m 34s' },
-                { label: 'Pages per Session', value: '3.2' }
-            ],
-        },
-        newCustomers: {
-            title: 'New Customers', value: data.customers.new.toLocaleString(), growth: 0, icon: customersIcon,
-            details: [
-                { label: 'This Period', value: data.customers.new },
-                { label: 'Percentage of Total', value: data.customers.total > 0 ? `${((data.customers.new / data.customers.total) * 100).toFixed(1)}%` : '0%' },
-                { label: 'Conversion Rate', value: data.traffic.total > 0 ? `${((data.customers.new / data.traffic.total) * 100).toFixed(2)}%` : '0%' },
-                { label: 'Avg. Acquisition Cost', value: '$0.00' }
-            ],
-        },
-        returningCustomers: {
-            title: 'Returning Customers', value: data.customers.returning.toLocaleString(), growth: 0, icon: customersIcon,
-            details: [
-                { label: 'Returning Count', value: data.customers.returning },
-                { label: 'Retention Rate', value: data.customers.total > 0 ? `${((data.customers.returning / data.customers.total) * 100).toFixed(1)}%` : '0%' },
-                { label: 'Repeat Purchase Rate', value: '0%' },
-                { label: 'Avg. Customer Lifetime Value', value: '$0.00' }
-            ],
-        },
-        uniqueVisitors: {
-            title: 'Unique Visitors', value: data.traffic.unique.toLocaleString(), growth: 0, icon: trafficIcon,
-            details: [
-                { label: 'Total Visitors', value: data.traffic.total.toLocaleString() },
-                { label: 'Total vs Unique', value: data.traffic.unique > 0 ? `${((data.traffic.total / data.traffic.unique) * 100).toFixed(1)}%` : '0%' },
-                { label: 'Returning Visitor %', value: '0%' },
-                { label: 'New Visitor %', value: '100%' }
-            ],
-        },
-        bounceRate: {
-            title: 'Bounce Rate', value: `${data.traffic.bounce}%`, growth: 0, icon: trafficIcon,
-            details: [
-                { label: 'Bounce Rate', value: `${data.traffic.bounce}%` },
-                { label: 'Bounced Visitors', value: data.traffic.total > 0 ? Math.round((data.traffic.total * data.traffic.bounce) / 100) : 0 },
-                { label: 'Engaged Visitors', value: data.traffic.total > 0 ? Math.round(data.traffic.total * (100 - data.traffic.bounce) / 100) : 0 },
-                { label: 'Top Bounce Page', value: '/home' }
-            ],
-        },
-        checkouts: {
-            title: 'Total Checkouts', value: data.checkouts.totalInitiated.toLocaleString(), growth: data.checkouts.growth, icon: <ShoppingCart className="w-6 h-6" />,
-            details: [
-                { label: 'Completed', value: data.checkouts.totalCompleted },
-                { label: 'Abandoned', value: data.checkouts.totalInitiated - data.checkouts.totalCompleted },
-                { label: 'Conversion Rate', value: `${data.checkouts.conversionRate}%` },
-                { label: 'Abandonment Rate', value: `${data.checkouts.abandonmentRate}%` },
-                { label: 'Avg Order Value', value: `$${data.checkouts.avgOrderValue.toFixed(2)}` },
-                { label: 'Recovered Carts', value: data.checkouts.recoveredCarts }
-            ],
-        },
-        checkoutConversion: {
-            title: 'Checkout Conversion', value: `${data.checkouts.conversionRate}%`, growth: 0, icon: <CheckCircle className="w-6 h-6" />,
-            details: [
-                { label: 'Initiated', value: data.checkouts.totalInitiated },
-                { label: 'Completed', value: data.checkouts.totalCompleted },
-                { label: 'Lost Revenue Est.', value: '$0.00' },
-                { label: 'Industry Avg', value: '~35%' }
-            ],
-        },
-        checkoutAbandonment: {
-            title: 'Cart Abandonment', value: `${data.checkouts.abandonmentRate}%`, growth: 0, icon: <AlertCircle className="w-6 h-6" />,
-            details: [
-                { label: 'Abandoned Carts', value: data.checkouts.totalInitiated - data.checkouts.totalCompleted },
-                { label: 'Abandonment Rate', value: `${data.checkouts.abandonmentRate}%` },
-                { label: 'Top Drop-off Step', value: 'Payment' },
-                { label: 'Recoverable Revenue', value: '$0.00' }
-            ],
-        },
-        recoveredCarts: {
-            title: 'Recovered Carts', value: data.checkouts.recoveredCarts.toLocaleString(), growth: 0, icon: <Package className="w-6 h-6" />,
-            details: [
-                { label: 'Recovered Count', value: data.checkouts.recoveredCarts },
-                { label: 'Recovery Rate', value: data.checkouts.totalInitiated > 0 ? `${((data.checkouts.recoveredCarts / data.checkouts.totalInitiated) * 100).toFixed(1)}%` : '0%' },
-                { label: 'Revenue Recovered', value: `$${(data.checkouts.recoveredCarts * data.checkouts.avgOrderValue).toFixed(2)}` },
-                { label: 'Avg Recovery Time', value: '4h 12m' }
-            ],
-        },
+        const productPromise = listProducts({
+          page: 1,
+          limit: 500,
+          subdomain: selectedProject?.subdomain || undefined,
+        });
+
+        const inventoryPromise = getInventorySummary({
+          subdomain: selectedProject?.subdomain || undefined,
+        }).catch(() => ({ success: false as const, data: null }));
+
+        const [ordersRes, productsRes, inventoryRes] = await Promise.all([
+          orderPromise,
+          productPromise,
+          inventoryPromise,
+        ]);
+
+        if (cancelled) return;
+
+        setOrders(Array.isArray(ordersRes.items) ? ordersRes.items : []);
+        setProducts(Array.isArray(productsRes.items) ? productsRes.items : []);
+        setInventorySummary(inventoryRes && 'data' in inventoryRes ? inventoryRes.data : null);
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load analytics');
+          setOrders([]);
+          setProducts([]);
+          setInventorySummary(null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     };
 
-    return (
-        <div className="space-y-8">
-            {/* Header */}
-            <section
-                className="rounded-2xl border p-5 md:p-6"
-                style={{
-                    backgroundColor: colors.bg.card,
-                    borderColor: colors.border.faint,
-                    boxShadow: theme === 'dark'
-                        ? 'inset 0 1px 0 rgba(255,255,255,0.06), 0 20px 50px rgba(2,6,23,0.55)'
-                        : 'inset 0 1px 0 rgba(255,255,255,0.8), 0 12px 30px rgba(15,23,42,0.12)',
-                }}
-            >
-                <div className="relative">
-                    <div
-                        className="absolute -inset-x-6 -inset-y-4 rounded-3xl opacity-70 blur-2xl"
-                        style={{
-                            background: theme === 'dark'
-                                ? 'radial-gradient(60% 60% at 20% 20%, rgba(99,102,241,0.2), transparent 60%), radial-gradient(55% 55% at 80% 20%, rgba(14,165,233,0.16), transparent 60%), radial-gradient(50% 50% at 40% 80%, rgba(16,185,129,0.14), transparent 60%)'
-                                : 'radial-gradient(60% 60% at 20% 20%, rgba(99,102,241,0.14), transparent 60%), radial-gradient(55% 55% at 80% 20%, rgba(14,165,233,0.12), transparent 60%), radial-gradient(50% 50% at 40% 80%, rgba(16,185,129,0.1), transparent 60%)'
-                        }}
-                    />
-                    <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                        <div>
-                            <motion.p className="text-xs uppercase tracking-[0.2em] mb-2" style={{ color: colors.text.muted }}
-                                initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-                                Dashboard Insights
-                            </motion.p>
-                            <motion.h1 className="text-3xl font-bold tracking-tight bg-clip-text text-transparent"
-                                style={{ backgroundImage: theme === 'dark' ? 'linear-gradient(180deg, #ffffff 25%, #9ca3af 100%)' : 'linear-gradient(180deg, #111827 25%, #4b5563 100%)' }}
-                                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
-                                Analytics
-                            </motion.h1>
-                            <motion.p className="mt-2 text-sm md:text-base" style={{ color: colors.text.secondary }}
-                                initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.08 }}>
-                                Track your business performance and customer behavior by time range.
-                            </motion.p>
-                        </div>
-                        <div className="inline-flex flex-wrap items-center gap-2 rounded-xl border p-1" style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}>
-                            {periods.map(period => (
-                                <button key={period} onClick={() => setSelectedPeriod(period)}
-                                    className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
-                                    style={{ backgroundColor: selectedPeriod === period ? '#3b82f6' : 'transparent', color: selectedPeriod === period ? '#ffffff' : colors.text.secondary }}>
-                                    {period}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </section>
+    load();
 
-            {/* Key Metrics */}
-            <section className="space-y-4">
-                <h2 className="text-lg font-semibold" style={{ color: colors.text.primary }}>Overview</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {[
-                        { modal: 'revenue' as ModalType, title: 'Total Revenue', value: `$${data.revenue.total.toLocaleString()}`, growth: data.revenue.growth, icon: revenueIcon, color: '#10b981' },
-                        { modal: 'orders' as ModalType, title: 'Total Orders', value: data.orders.total.toLocaleString(), growth: data.orders.growth, icon: ordersIcon, color: '#3b82f6' },
-                        { modal: 'customers' as ModalType, title: 'Total Customers', value: data.customers.total.toLocaleString(), growth: data.customers.growth, icon: customersIcon, color: '#8b5cf6' },
-                        { modal: 'traffic' as ModalType, title: 'Total Traffic', value: data.traffic.total.toLocaleString(), growth: undefined, icon: trafficIcon, color: '#f59e0b' },
-                    ].map((item, i) => (
-                        <motion.div key={item.modal} onClick={() => setOpenModal(item.modal)} className="cursor-pointer"
-                            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.05 }}>
-                            <MetricCard title={item.title} value={item.value} growth={item.growth} icon={item.icon} color={item.color} colors={colors} />
-                        </motion.div>
-                    ))}
-                </div>
-            </section>
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedProject?.id, selectedProject?.subdomain]);
 
-            {/* ─── CHECKOUT TRACKING SECTION ─────────────────────────────────────── */}
-            <section className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h2 className="text-lg font-semibold" style={{ color: colors.text.primary }}>Buyer Checkouts</h2>
-                        <p className="text-xs mt-0.5" style={{ color: colors.text.muted }}>Track checkout flow, abandonment, and payment behavior</p>
-                    </div>
-                    <span className="text-xs px-2.5 py-1 rounded-full border font-medium"
-                        style={{ color: colors.text.secondary, borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}>
-                        {selectedPeriod}
-                    </span>
-                </div>
+  const filteredOrders = useMemo(() => {
+    const now = Date.now();
+    const maxAgeMs = PERIOD_DAYS[period] * 24 * 60 * 60 * 1000;
 
-                {/* Checkout KPI Cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    {[
-                        {
-                            modal: 'checkouts' as ModalType,
-                            label: 'Checkouts Initiated',
-                            value: data.checkouts.totalInitiated.toLocaleString(),
-                            sub: `${data.checkouts.totalCompleted} completed`,
-                            icon: <ShoppingCart className="w-4 h-4" />,
-                            color: '#6366f1',
-                            growth: data.checkouts.growth,
-                        },
-                        {
-                            modal: 'checkoutConversion' as ModalType,
-                            label: 'Conversion Rate',
-                            value: `${data.checkouts.conversionRate}%`,
-                            sub: 'Of initiated checkouts',
-                            icon: <CheckCircle className="w-4 h-4" />,
-                            color: '#10b981',
-                            growth: null,
-                        },
-                        {
-                            modal: 'checkoutAbandonment' as ModalType,
-                            label: 'Abandonment Rate',
-                            value: `${data.checkouts.abandonmentRate}%`,
-                            sub: `${data.checkouts.totalInitiated - data.checkouts.totalCompleted} carts lost`,
-                            icon: <AlertCircle className="w-4 h-4" />,
-                            color: '#ef4444',
-                            growth: null,
-                        },
-                        {
-                            modal: 'recoveredCarts' as ModalType,
-                            label: 'Recovered Carts',
-                            value: data.checkouts.recoveredCarts.toLocaleString(),
-                            sub: `$${(data.checkouts.recoveredCarts * data.checkouts.avgOrderValue).toFixed(0)} recovered`,
-                            icon: <Package className="w-4 h-4" />,
-                            color: '#f59e0b',
-                            growth: null,
-                        },
-                    ].map((item, i) => (
-                        <motion.div key={item.modal} onClick={() => setOpenModal(item.modal)} className="cursor-pointer"
-                            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.06 }}>
-                            <div className="rounded-xl border p-4 transition-all hover:scale-[1.01]"
-                                style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, boxShadow: theme === 'dark' ? '0 4px 20px rgba(2,6,23,0.25)' : '0 2px 10px rgba(0,0,0,0.06)' }}>
-                                <div className="flex items-center justify-between mb-3">
-                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: item.color + '20', color: item.color }}>
-                                        {item.icon}
-                                    </div>
-                                    {item.growth !== null && item.growth !== undefined && (
-                                        <span className="text-xs font-medium flex items-center gap-1"
-                                            style={{ color: item.growth >= 0 ? '#10b981' : '#ef4444' }}>
-                                            {item.growth >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                                            {Math.abs(item.growth)}%
-                                        </span>
-                                    )}
-                                </div>
-                                <p className="text-2xl font-bold" style={{ color: colors.text.primary }}>{item.value}</p>
-                                <p className="text-xs mt-1" style={{ color: colors.text.muted }}>{item.label}</p>
-                                <p className="text-xs mt-0.5 font-medium" style={{ color: item.color + 'cc' }}>{item.sub}</p>
-                            </div>
-                        </motion.div>
-                    ))}
-                </div>
+    return orders.filter((order) => {
+      if (!order.createdAt) return false;
+      const timestamp = new Date(order.createdAt).getTime();
+      if (Number.isNaN(timestamp)) return false;
+      const withinWindow = now - timestamp <= maxAgeMs;
+      if (!withinWindow) return false;
+      if (!search.trim()) return true;
 
-                {/* Checkout Funnel + Payment Methods + Abandon Reasons */}
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                    {/* Checkout Funnel Steps */}
-                    <motion.div className="xl:col-span-2 rounded-2xl border p-6"
-                        initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-                        style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, boxShadow: theme === 'dark' ? '0 10px 40px rgba(2,6,23,0.3)' : '0 4px 16px rgba(0,0,0,0.08)' }}>
-                        <div className="flex items-center justify-between mb-5">
-                            <div>
-                                <h3 className="text-base font-semibold" style={{ color: colors.text.primary }}>Checkout Funnel</h3>
-                                <p className="text-xs mt-0.5" style={{ color: colors.text.muted }}>Step-by-step buyer drop-off analysis</p>
-                            </div>
-                            <div className="flex items-center gap-4 text-xs" style={{ color: colors.text.muted }}>
-                                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-indigo-500 inline-block" /> Visitors</span>
-                                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-400 inline-block" /> Drop-off</span>
-                            </div>
-                        </div>
-                        <CheckoutFunnelBar steps={data.checkouts.steps} colors={colors} theme={theme} />
+      const q = search.trim().toLowerCase();
+      const buyer = toBuyerName(order).toLowerCase();
+      const status = String(order.status || '').toLowerCase();
+      const id = formatOrderId(order.id).toLowerCase();
+      return buyer.includes(q) || status.includes(q) || id.includes(q);
+    });
+  }, [orders, period, search]);
 
-                        {/* Step connector arrows */}
-                        <div className="flex items-center justify-center gap-2 mt-4">
-                            {data.checkouts.steps.map((step, i) => (
-                                <React.Fragment key={i}>
-                                    <span className="text-xs px-2 py-0.5 rounded-md font-medium" style={{ backgroundColor: colors.bg.elevated, color: colors.text.muted }}>{step.step}</span>
-                                    {i < data.checkouts.steps.length - 1 && (
-                                        <ArrowRight className="w-3 h-3 flex-shrink-0" style={{ color: colors.text.muted }} />
-                                    )}
-                                </React.Fragment>
-                            ))}
-                        </div>
-                    </motion.div>
+  const analytics = useMemo(() => {
+    const totalOrders = filteredOrders.length;
+    const totalRevenue = filteredOrders.reduce((sum, order) => sum + Number(order.total || 0), 0);
+    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
-                    {/* Payment Methods + Abandon Reasons stacked */}
-                    <div className="space-y-4">
-                        <motion.div className="rounded-2xl border p-5"
-                            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
-                            style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, boxShadow: theme === 'dark' ? '0 10px 40px rgba(2,6,23,0.3)' : '0 4px 16px rgba(0,0,0,0.08)' }}>
-                            <div className="flex items-center gap-2 mb-4">
-                                <CreditCard className="w-4 h-4" style={{ color: '#3b82f6' }} />
-                                <h3 className="text-sm font-semibold" style={{ color: colors.text.primary }}>Payment Methods</h3>
-                            </div>
-                            <PaymentMethodsChart methods={data.checkouts.paymentMethods} colors={colors} />
-                        </motion.div>
+    const completedOrders = filteredOrders.filter((order) => {
+      const s = String(order.status || '').toLowerCase();
+      return s === 'paid' || s === 'shipped' || s === 'delivered';
+    }).length;
 
-                        <motion.div className="rounded-2xl border p-5"
-                            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
-                            style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, boxShadow: theme === 'dark' ? '0 10px 40px rgba(2,6,23,0.3)' : '0 4px 16px rgba(0,0,0,0.08)' }}>
-                            <div className="flex items-center gap-2 mb-4">
-                                <AlertCircle className="w-4 h-4" style={{ color: '#ef4444' }} />
-                                <h3 className="text-sm font-semibold" style={{ color: colors.text.primary }}>Abandon Reasons</h3>
-                            </div>
-                            <AbandonReasons reasons={data.checkouts.abandonReasons} colors={colors} />
-                        </motion.div>
-                    </div>
-                </div>
+    const pendingOrders = filteredOrders.filter((order) => {
+      const s = String(order.status || '').toLowerCase();
+      return s === 'pending' || s === 'processing';
+    }).length;
 
-                {/* Hourly Checkout Activity */}
-                <motion.div className="rounded-2xl border p-6"
-                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
-                    style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, boxShadow: theme === 'dark' ? '0 10px 40px rgba(2,6,23,0.3)' : '0 4px 16px rgba(0,0,0,0.08)' }}>
-                    <div className="flex items-center justify-between mb-4">
-                        <div>
-                            <h3 className="text-base font-semibold" style={{ color: colors.text.primary }}>Checkout Activity by Hour</h3>
-                            <p className="text-xs mt-0.5" style={{ color: colors.text.muted }}>Green = completed, total bar = all initiated</p>
-                        </div>
-                        <div className="flex items-center gap-3 text-xs" style={{ color: colors.text.muted }}>
-                            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm bg-emerald-500 inline-block" /> Completed</span>
-                            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: colors.bg.elevated, border: `1px solid ${colors.border.faint}` }} /> Total</span>
-                        </div>
-                    </div>
-                    <HourlyChart hourly={data.checkouts.hourlyCheckouts} colors={colors} theme={theme} />
-                </motion.div>
-            </section>
+    const completionRate = totalOrders > 0 ? (completedOrders / totalOrders) * 100 : 0;
 
-            {/* Charts Row */}
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-                    className="rounded-2xl border p-6"
-                    style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, boxShadow: theme === 'dark' ? '0 10px 40px rgba(2,6,23,0.3)' : '0 4px 16px rgba(0,0,0,0.08)' }}>
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-base font-semibold" style={{ color: colors.text.primary }}>Revenue Trend</h3>
-                        <span className="text-xs px-2 py-1 rounded-md" style={{ color: colors.text.muted, backgroundColor: colors.bg.elevated }}>{selectedPeriod}</span>
-                    </div>
-                    {hasRevenueData ? (
-                        <AreaChart data={revenueChartData} color="#3b82f6" colors={colors} />
-                    ) : (
-                        <div className="h-[250px] rounded-xl border flex items-center justify-center text-sm"
-                            style={{ borderColor: colors.border.faint, color: colors.text.muted, backgroundColor: colors.bg.elevated }}>
-                            No revenue data yet for this period.
-                        </div>
-                    )}
-                </motion.div>
+    const monthMap = new Map<string, number>();
+    filteredOrders.forEach((order) => {
+      if (!order.createdAt) return;
+      const date = new Date(order.createdAt);
+      if (Number.isNaN(date.getTime())) return;
+      const key = toMonthKey(date);
+      monthMap.set(key, (monthMap.get(key) || 0) + Number(order.total || 0));
+    });
 
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-                    className="rounded-2xl border p-6"
-                    style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, boxShadow: theme === 'dark' ? '0 10px 40px rgba(2,6,23,0.3)' : '0 4px 16px rgba(0,0,0,0.08)' }}>
-                    <h3 className="text-base font-semibold mb-6" style={{ color: colors.text.primary }}>Order Status</h3>
-                    <RadialProgressChart data={orderStatusData} colors={statusColors} themeColors={colors} />
-                </motion.div>
+    const revenueTrend = Array.from(monthMap.entries())
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .slice(-6)
+      .map(([key, revenue]) => {
+        const [year, month] = key.split('-').map(Number);
+        const date = new Date(year, (month || 1) - 1, 1);
+        return { month: toMonthLabel(date), revenue };
+      });
 
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
-                    className="rounded-2xl border p-6"
-                    style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, boxShadow: theme === 'dark' ? '0 10px 40px rgba(2,6,23,0.3)' : '0 4px 16px rgba(0,0,0,0.08)' }}>
-                    <h3 className="text-base font-semibold mb-6" style={{ color: colors.text.primary }}>Customer Journey</h3>
-                    <FunnelChart colors={colors} />
-                </motion.div>
-            </div>
+    const topPerformanceMap = new Map<string, { name: string; units: number; revenue: number }>();
+    filteredOrders.forEach((order) => {
+      const buyer = toBuyerName(order);
+      const existing = topPerformanceMap.get(buyer) || { name: buyer, units: 0, revenue: 0 };
+      const units = Array.isArray(order.items)
+        ? order.items.reduce((s, item) => s + Number(item.quantity || 0), 0)
+        : 0;
+      existing.units += units;
+      existing.revenue += Number(order.total || 0);
+      topPerformanceMap.set(buyer, existing);
+    });
 
-            {/* Tables Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
-                    className="rounded-2xl border p-6"
-                    style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, boxShadow: theme === 'dark' ? '0 10px 40px rgba(2,6,23,0.3)' : '0 4px 16px rgba(0,0,0,0.08)' }}>
-                    <h3 className="text-base font-semibold mb-6" style={{ color: colors.text.primary }}>Top Selling Products</h3>
-                    {hasProducts ? (
-                        <div className="space-y-3">
-                            {data.products.topSelling.map((product, index) => (
-                                <div key={index} className="flex items-center justify-between py-2" style={{ borderColor: colors.border.faint }}>
-                                    <div className="flex-1">
-                                        <p className="text-sm font-medium line-clamp-1" style={{ color: colors.text.primary }}>{product.name}</p>
-                                        <p className="text-xs" style={{ color: colors.text.muted }}>{product.sales} units sold</p>
-                                    </div>
-                                    <p className="text-sm font-semibold" style={{ color: colors.text.primary }}>${product.revenue.toLocaleString()}</p>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="h-[120px] rounded-xl border flex items-center justify-center text-sm"
-                            style={{ borderColor: colors.border.faint, color: colors.text.muted, backgroundColor: colors.bg.elevated }}>
-                            No product sales data available yet.
-                        </div>
-                    )}
-                </motion.div>
+    const topPerformance = Array.from(topPerformanceMap.values())
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
 
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}
-                    className="rounded-2xl border p-6"
-                    style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, boxShadow: theme === 'dark' ? '0 10px 40px rgba(2,6,23,0.3)' : '0 4px 16px rgba(0,0,0,0.08)' }}>
-                    <h3 className="text-base font-semibold mb-6" style={{ color: colors.text.primary }}>Traffic Sources</h3>
-                    {hasTrafficSources ? (
-                        <div className="space-y-3">
-                            {data.traffic.sources.map((source, index) => (
-                                <div key={index} className="flex items-center justify-between">
-                                    <div className="flex-1">
-                                        <div className="flex items-center justify-between mb-1">
-                                            <p className="text-sm font-medium" style={{ color: colors.text.primary }}>{source.source}</p>
-                                            <span className="text-sm" style={{ color: colors.text.secondary }}>{source.percentage}%</span>
-                                        </div>
-                                        <div className="w-full rounded-full h-2" style={{ backgroundColor: colors.border.faint }}>
-                                            <div className="h-2 rounded-full transition-all duration-500"
-                                                style={{ width: `${source.percentage}%`, backgroundColor: ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444'][index] }} />
-                                        </div>
-                                        <p className="text-xs mt-1" style={{ color: colors.text.muted }}>{source.visitors.toLocaleString()} visitors</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="h-[120px] rounded-xl border flex items-center justify-center text-sm"
-                            style={{ borderColor: colors.border.faint, color: colors.text.muted, backgroundColor: colors.bg.elevated }}>
-                            No traffic source data available yet.
-                        </div>
-                    )}
-                </motion.div>
-            </div>
+    const productCategoryById = new Map<string, string>();
+    products.forEach((product) => {
+      if (!product.id) return;
+      const category = normalizeCategory(product.category);
+      productCategoryById.set(product.id, category);
+    });
 
-            {/* Additional Insights */}
-            <section className="space-y-4">
-                <h2 className="text-lg font-semibold" style={{ color: colors.text.primary }}>Additional Insights</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {[
-                        { modal: 'newCustomers' as ModalType, value: data.customers.new, label: 'New Customers', delay: 0.65 },
-                        { modal: 'returningCustomers' as ModalType, value: data.customers.returning, label: 'Returning Customers', delay: 0.7 },
-                        { modal: 'uniqueVisitors' as ModalType, value: data.traffic.unique.toLocaleString(), label: 'Unique Visitors', delay: 0.75 },
-                        { modal: 'bounceRate' as ModalType, value: `${data.traffic.bounce}%`, label: 'Bounce Rate', delay: 0.8 },
-                    ].map(item => (
-                        <div key={item.modal} onClick={() => setOpenModal(item.modal)} className="cursor-pointer">
-                            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: item.delay }}
-                                className="rounded-xl border p-4 text-center transition-all"
-                                style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, boxShadow: theme === 'dark' ? '0 10px 40px rgba(2,6,23,0.3)' : '0 4px 16px rgba(0,0,0,0.08)' }}>
-                                <p className="text-2xl font-bold" style={{ color: colors.text.primary }}>{item.value}</p>
-                                <p className="text-xs mt-1" style={{ color: colors.text.muted }}>{item.label}</p>
-                            </motion.div>
-                        </div>
-                    ))}
-                </div>
-            </section>
+    const categoryRevenue = new Map<string, number>();
+    filteredOrders.forEach((order) => {
+      (order.items || []).forEach((item) => {
+        const productId = item.productId || '';
+        const category = productCategoryById.get(productId) || 'Uncategorized';
+        const lineAmount = Number(item.price || 0) * Number(item.quantity || 0);
+        categoryRevenue.set(category, (categoryRevenue.get(category) || 0) + lineAmount);
+      });
+    });
 
-            {/* Modal */}
-            <AnimatePresence>
-                {openModal && modalDetails[openModal] && (
-                    <>
-                        <motion.div onClick={() => setOpenModal(null)}
-                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="fixed inset-0 bg-black/50 z-50" />
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-                            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl rounded-2xl border p-8 z-50 max-h-[85vh] overflow-y-auto"
-                            style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
-                            <div className="flex items-start justify-between mb-6">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center"
-                                        style={{
-                                            backgroundColor:
-                                                openModal === 'revenue' ? '#10b98120' :
-                                                openModal === 'orders' ? '#3b82f620' :
-                                                (openModal === 'customers' || openModal === 'newCustomers' || openModal === 'returningCustomers') ? '#8b5cf620' :
-                                                (openModal === 'checkouts' || openModal === 'checkoutConversion') ? '#6366f120' :
-                                                (openModal === 'checkoutAbandonment') ? '#ef444420' :
-                                                (openModal === 'recoveredCarts') ? '#f59e0b20' :
-                                                '#f59e0b20'
-                                        }}>
-                                        <div style={{
-                                            color:
-                                                openModal === 'revenue' ? '#10b981' :
-                                                openModal === 'orders' ? '#3b82f6' :
-                                                (openModal === 'customers' || openModal === 'newCustomers' || openModal === 'returningCustomers') ? '#8b5cf6' :
-                                                (openModal === 'checkouts' || openModal === 'checkoutConversion') ? '#6366f1' :
-                                                (openModal === 'checkoutAbandonment') ? '#ef4444' :
-                                                (openModal === 'recoveredCarts') ? '#f59e0b' :
-                                                '#f59e0b'
-                                        }}>
-                                            {modalDetails[openModal]?.icon}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <h2 className="text-2xl font-bold" style={{ color: colors.text.primary }}>{modalDetails[openModal]?.title}</h2>
-                                        <p className="text-sm mt-1" style={{ color: colors.text.muted }}>Detailed breakdown and analysis</p>
-                                    </div>
-                                </div>
-                                <button onClick={() => setOpenModal(null)} className="p-2 rounded-lg hover:bg-opacity-50 transition-colors" style={{ backgroundColor: colors.bg.elevated }}>
-                                    <X className="w-5 h-5" style={{ color: colors.text.secondary }} />
-                                </button>
-                            </div>
+    const categoryRows = Array.from(categoryRevenue.entries())
+      .map(([category, value]) => ({ category, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 3);
 
-                            <div className="mb-8 p-6 rounded-xl border" style={{ backgroundColor: colors.bg.elevated, borderColor: colors.border.faint }}>
-                                <p className="text-sm mb-2" style={{ color: colors.text.muted }}>Current Value</p>
-                                <p className="text-4xl font-bold" style={{ color: colors.text.primary }}>{modalDetails[openModal]?.value}</p>
-                                {modalDetails[openModal]?.growth !== undefined && modalDetails[openModal]?.growth !== 0 && (
-                                    <div className="flex items-center gap-2 mt-3">
-                                        <div className="flex items-center gap-1 text-sm font-medium"
-                                            style={{ color: modalDetails[openModal]!.growth >= 0 ? '#10b981' : '#ef4444' }}>
-                                            {modalDetails[openModal]!.growth >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                                            {Math.abs(modalDetails[openModal]!.growth)}% from last period
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
+    const totalCategoryValue = categoryRows.reduce((s, row) => s + row.value, 0);
+    const donutStops = categoryRows.length
+      ? (() => {
+          const palette = ['#AA62FF', '#15E4C3', '#FFCF25'];
+          let start = 0;
+          return categoryRows.map((row, idx) => {
+            const pct = totalCategoryValue > 0 ? (row.value / totalCategoryValue) * 100 : 0;
+            const stop = {
+              color: palette[idx % palette.length],
+              from: start,
+              to: start + pct,
+            };
+            start += pct;
+            return stop;
+          });
+        })()
+      : [];
 
-                            <div className="mb-6">
-                                <h3 className="text-lg font-semibold mb-4" style={{ color: colors.text.primary }}>Detailed Breakdown</h3>
-                                <div className="grid grid-cols-2 gap-4">
-                                    {modalDetails[openModal]?.details.map((detail, idx) => (
-                                        <div key={idx} className="p-4 rounded-lg border"
-                                            style={{ backgroundColor: colors.bg.elevated, borderColor: colors.border.faint }}>
-                                            <p className="text-sm mb-1" style={{ color: colors.text.muted }}>{detail.label}</p>
-                                            <p className="text-lg font-bold" style={{ color: colors.text.primary }}>{detail.value}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+    const donutGradient = donutStops.length
+      ? `conic-gradient(${donutStops
+          .map((stop) => `${stop.color} ${stop.from}% ${stop.to}%`)
+          .join(', ')})`
+      : undefined;
 
-                            {/* Checkout modal: also show funnel steps inline */}
-                            {openModal === 'checkouts' && (
-                                <div className="mb-6">
-                                    <h3 className="text-base font-semibold mb-3" style={{ color: colors.text.primary }}>Funnel Steps</h3>
-                                    <CheckoutFunnelBar steps={data.checkouts.steps} colors={colors} theme={theme} />
-                                </div>
-                            )}
+    const recentTransactions = [...filteredOrders]
+      .sort((a, b) => {
+        const aTime = new Date(a.createdAt || 0).getTime();
+        const bTime = new Date(b.createdAt || 0).getTime();
+        return bTime - aTime;
+      })
+      .slice(0, 7);
 
-                            <div className="flex gap-3 justify-end pt-6 border-t" style={{ borderColor: colors.border.faint }}>
-                                <button onClick={() => setOpenModal(null)} className="px-6 py-2.5 rounded-lg border hover:bg-opacity-50 transition-colors font-medium"
-                                    style={{ borderColor: colors.border.faint, color: colors.text.primary }}>
-                                    Close
-                                </button>
-                                <button className="px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors">
-                                    Export Report
-                                </button>
-                            </div>
-                        </motion.div>
-                    </>
-                )}
-            </AnimatePresence>
+    return {
+      totalOrders,
+      totalRevenue,
+      avgOrderValue,
+      completionRate,
+      completedOrders,
+      pendingOrders,
+      revenueTrend,
+      topPerformance,
+      categoryRows,
+      donutGradient,
+      recentTransactions,
+    };
+  }, [filteredOrders, products]);
+
+  const kpiCards = [
+    { label: 'Revenue', value: formatPeso(analytics.totalRevenue) },
+    { label: 'Net Profit', value: formatPeso(Math.max(0, analytics.totalRevenue * 0.32)) },
+    { label: 'Orders', value: analytics.totalOrders.toLocaleString() },
+    { label: 'Completion', value: `${analytics.completionRate.toFixed(1)}%` },
+    { label: 'Avg. Value', value: formatPeso(analytics.avgOrderValue) },
+  ];
+
+  const salesTrendData = useMemo(() => {
+    const dailyRevenueMap = new Map<string, { date: Date; revenue: number }>();
+
+    filteredOrders.forEach((order) => {
+      if (!order.createdAt) return;
+      const date = new Date(order.createdAt);
+      if (Number.isNaN(date.getTime())) return;
+      const dayKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+      const existing = dailyRevenueMap.get(dayKey) || { date, revenue: 0 };
+      existing.revenue += Number(order.total || 0);
+      dailyRevenueMap.set(dayKey, existing);
+    });
+
+    const dailyRows = Array.from(dailyRevenueMap.values()).sort((a, b) => b.date.getTime() - a.date.getTime());
+
+    const peakDays = [...dailyRows]
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5)
+      .map((item) => ({
+        dateLabel: item.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        revenue: item.revenue,
+      }));
+
+    const slowDays = [...dailyRows]
+      .filter((item) => item.revenue > 0)
+      .sort((a, b) => a.revenue - b.revenue)
+      .slice(0, 5)
+      .map((item) => ({
+        dateLabel: item.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        revenue: item.revenue,
+      }));
+
+    const monthlyGrowth = analytics.revenueTrend
+      .slice(-3)
+      .map((item) => ({
+        label: item.month,
+        value: item.revenue,
+      }));
+
+    const maxMonthlyValue = Math.max(...monthlyGrowth.map((row) => row.value), 1);
+
+    const categoryPerformance = analytics.categoryRows.map((row) => ({
+      label: row.category,
+      value: row.value,
+    }));
+    const maxCategoryValue = Math.max(...categoryPerformance.map((row) => row.value), 1);
+
+    return {
+      peakDays,
+      slowDays,
+      monthlyGrowth,
+      maxMonthlyValue,
+      categoryPerformance,
+      maxCategoryValue,
+    };
+  }, [analytics.revenueTrend, analytics.categoryRows, filteredOrders]);
+
+  const purchaseSuccessData = useMemo(() => {
+    const now = Date.now();
+    const periodMs = PERIOD_DAYS[period] * 24 * 60 * 60 * 1000;
+
+    const matchesSearch = (order: ApiOrder) => {
+      if (!search.trim()) return true;
+      const q = search.trim().toLowerCase();
+      const buyer = toBuyerName(order).toLowerCase();
+      const status = String(order.status || '').toLowerCase();
+      const id = formatOrderId(order.id).toLowerCase();
+      return buyer.includes(q) || status.includes(q) || id.includes(q);
+    };
+
+    const currentOrders = orders.filter((order) => {
+      if (!order.createdAt) return false;
+      const t = new Date(order.createdAt).getTime();
+      if (Number.isNaN(t)) return false;
+      return now - t <= periodMs && matchesSearch(order);
+    });
+
+    const previousOrders = orders.filter((order) => {
+      if (!order.createdAt) return false;
+      const t = new Date(order.createdAt).getTime();
+      if (Number.isNaN(t)) return false;
+      const diff = now - t;
+      return diff > periodMs && diff <= periodMs * 2 && matchesSearch(order);
+    });
+
+    const summarize = (source: ApiOrder[]) => {
+      const total = source.length;
+      const successful = source.filter((order) => isSuccessfulStatus(String(order.status || '')));
+      const failed = source.filter((order) => isFailedStatus(String(order.status || '')));
+      const cancelled = source.filter((order) => String(order.status || '').toLowerCase() === 'cancelled');
+      const returned = source.filter((order) => String(order.status || '').toLowerCase() === 'returned');
+
+      const successRevenue = successful.reduce((sum, order) => sum + Number(order.total || 0), 0);
+      const successRate = total > 0 ? (successful.length / total) * 100 : 0;
+      const avgSuccessfulOrder = successful.length > 0 ? successRevenue / successful.length : 0;
+
+      return {
+        total,
+        successfulCount: successful.length,
+        failedCount: failed.length,
+        cancelledCount: cancelled.length,
+        returnedCount: returned.length,
+        successRevenue,
+        successRate,
+        avgSuccessfulOrder,
+      };
+    };
+
+    const current = summarize(currentOrders);
+    const previous = summarize(previousOrders);
+
+    const monthMap = new Map<string, number>();
+    currentOrders
+      .filter((order) => isSuccessfulStatus(String(order.status || '')))
+      .forEach((order) => {
+        if (!order.createdAt) return;
+        const d = new Date(order.createdAt);
+        if (Number.isNaN(d.getTime())) return;
+        const key = toMonthKey(d);
+        monthMap.set(key, (monthMap.get(key) || 0) + Number(order.total || 0));
+      });
+
+    const trend = Array.from(monthMap.entries())
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .slice(-6)
+      .map(([key, revenue]) => {
+        const [year, month] = key.split('-').map(Number);
+        const date = new Date(year, (month || 1) - 1, 1);
+        return { month: toMonthLabel(date), revenue };
+      });
+
+    return {
+      ...current,
+      trend,
+      successRateDelta: percentDelta(current.successRate, previous.successRate),
+      successRevenueDelta: percentDelta(current.successRevenue, previous.successRevenue),
+      successOrdersDelta: percentDelta(current.successfulCount, previous.successfulCount),
+      avgOrderDelta: percentDelta(current.avgSuccessfulOrder, previous.avgSuccessfulOrder),
+    };
+  }, [orders, period, search]);
+
+  const categorySalesData = useMemo(() => {
+    const now = Date.now();
+    const periodMs = PERIOD_DAYS[period] * 24 * 60 * 60 * 1000;
+
+    const matchesSearch = (order: ApiOrder) => {
+      if (!search.trim()) return true;
+      const q = search.trim().toLowerCase();
+      const buyer = toBuyerName(order).toLowerCase();
+      const status = String(order.status || '').toLowerCase();
+      const id = formatOrderId(order.id).toLowerCase();
+      return buyer.includes(q) || status.includes(q) || id.includes(q);
+    };
+
+    const inCurrentWindow = (order: ApiOrder) => {
+      if (!order.createdAt) return false;
+      const t = new Date(order.createdAt).getTime();
+      if (Number.isNaN(t)) return false;
+      return now - t <= periodMs;
+    };
+
+    const inPreviousWindow = (order: ApiOrder) => {
+      if (!order.createdAt) return false;
+      const t = new Date(order.createdAt).getTime();
+      if (Number.isNaN(t)) return false;
+      const diff = now - t;
+      return diff > periodMs && diff <= periodMs * 2;
+    };
+
+    const currentOrders = orders.filter((order) => inCurrentWindow(order) && matchesSearch(order));
+    const previousOrders = orders.filter((order) => inPreviousWindow(order) && matchesSearch(order));
+
+    const categoryByProductId = new Map<string, string>();
+    const productNameById = new Map<string, string>();
+    products.forEach((product) => {
+      if (!product.id) return;
+      categoryByProductId.set(product.id, normalizeCategory(product.category));
+      productNameById.set(product.id, String(product.name || 'Unnamed Product'));
+    });
+
+    const summarizeByCategory = (source: ApiOrder[]) => {
+      const map = new Map<string, { revenue: number; sales: number }>();
+      source.forEach((order) => {
+        (order.items || []).forEach((item) => {
+          const category = categoryByProductId.get(item.productId || '') || 'Uncategorized';
+          const qty = Number(item.quantity || 0);
+          const lineRevenue = qty * Number(item.price || 0);
+          const existing = map.get(category) || { revenue: 0, sales: 0 };
+          existing.revenue += lineRevenue;
+          existing.sales += qty;
+          map.set(category, existing);
+        });
+      });
+      return map;
+    };
+
+    const summarizeByProduct = (source: ApiOrder[]) => {
+      const map = new Map<string, { name: string; revenue: number; sales: number }>();
+      source.forEach((order) => {
+        (order.items || []).forEach((item) => {
+          const key = item.productId || item.name || 'unknown-product';
+          const qty = Number(item.quantity || 0);
+          const lineRevenue = qty * Number(item.price || 0);
+          const displayName = productNameById.get(item.productId || '') || item.name || 'Unnamed Product';
+          const existing = map.get(key) || { name: displayName, revenue: 0, sales: 0 };
+          existing.revenue += lineRevenue;
+          existing.sales += qty;
+          map.set(key, existing);
+        });
+      });
+      return map;
+    };
+
+    const currentCategoryMap = summarizeByCategory(currentOrders);
+    const previousCategoryMap = summarizeByCategory(previousOrders);
+    const currentProductMap = summarizeByProduct(currentOrders);
+    const previousProductMap = summarizeByProduct(previousOrders);
+
+    const categoryRows = Array.from(currentCategoryMap.entries())
+      .map(([category, stats]) => {
+        const prevRevenue = previousCategoryMap.get(category)?.revenue || 0;
+        return {
+          category,
+          revenue: stats.revenue,
+          sales: stats.sales,
+          growth: percentDelta(stats.revenue, prevRevenue),
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue);
+
+    const topCategories = categoryRows.slice(0, 6);
+
+    const topSellingProducts = Array.from(currentProductMap.entries())
+      .map(([key, stats]) => {
+        const prevRevenue = previousProductMap.get(key)?.revenue || 0;
+        return {
+          product: stats.name,
+          sales: stats.sales,
+          revenue: stats.revenue,
+          growth: percentDelta(stats.revenue, prevRevenue),
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 6);
+
+    const totalRevenue = categoryRows.reduce((sum, row) => sum + row.revenue, 0);
+    const totalOrders = currentOrders.length;
+    const prevTotalRevenue = previousOrders.reduce((sum, order) => sum + Number(order.total || 0), 0);
+
+    const donutRows = categoryRows.slice(0, 3);
+    const donutTotal = donutRows.reduce((sum, row) => sum + row.revenue, 0);
+    const donutPalette = ['#12E2C8', '#AA62FF', '#FFCF25'];
+    let start = 0;
+    const donutStops = donutRows.map((row, idx) => {
+      const pct = donutTotal > 0 ? (row.revenue / donutTotal) * 100 : 0;
+      const stop = { color: donutPalette[idx % donutPalette.length], from: start, to: start + pct };
+      start += pct;
+      return stop;
+    });
+    const donutGradient = donutStops.length
+      ? `conic-gradient(${donutStops.map((stop) => `${stop.color} ${stop.from}% ${stop.to}%`).join(', ')})`
+      : undefined;
+
+    const topTrendCategories = categoryRows.slice(0, 4).map((row) => row.category);
+    const monthKeyMap = new Map<string, { key: string; label: string; date: Date }>();
+    currentOrders.forEach((order) => {
+      if (!order.createdAt) return;
+      const date = new Date(order.createdAt);
+      if (Number.isNaN(date.getTime())) return;
+      const key = toMonthKey(date);
+      monthKeyMap.set(key, { key, label: toMonthLabel(date), date });
+    });
+    const months = Array.from(monthKeyMap.values())
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+      .slice(-6);
+
+    const categoryMonthlyMap = new Map<string, Map<string, number>>();
+    currentOrders.forEach((order) => {
+      if (!order.createdAt) return;
+      const date = new Date(order.createdAt);
+      if (Number.isNaN(date.getTime())) return;
+      const monthKey = toMonthKey(date);
+      (order.items || []).forEach((item) => {
+        const category = categoryByProductId.get(item.productId || '') || 'Uncategorized';
+        if (!topTrendCategories.includes(category)) return;
+        const lineRevenue = Number(item.quantity || 0) * Number(item.price || 0);
+        const categoryMap = categoryMonthlyMap.get(category) || new Map<string, number>();
+        categoryMap.set(monthKey, (categoryMap.get(monthKey) || 0) + lineRevenue);
+        categoryMonthlyMap.set(category, categoryMap);
+      });
+    });
+
+    const linePalette = ['#3B82F6', '#22C55E', '#A855F7', '#FACC15'];
+    const trendSeries = topTrendCategories.map((category, idx) => {
+      const monthRevenue = categoryMonthlyMap.get(category) || new Map<string, number>();
+      const values = months.map((month) => monthRevenue.get(month.key) || 0);
+      return {
+        label: category,
+        color: linePalette[idx % linePalette.length],
+        values,
+      };
+    });
+    const trendMax = Math.max(1, ...trendSeries.flatMap((series) => series.values));
+
+    return {
+      totalRevenue,
+      totalOrders,
+      topCategory: categoryRows[0]?.category || 'Uncategorized',
+      growthRate: percentDelta(totalRevenue, prevTotalRevenue),
+      donutRows,
+      donutGradient,
+      topCategories,
+      topSellingProducts,
+      trendMonths: months.map((month) => month.label),
+      trendSeries,
+      trendMax,
+    };
+  }, [orders, products, period, search]);
+
+  const salesHistoryData = useMemo(() => {
+    const sortedOrders = [...filteredOrders].sort((a, b) => {
+      const aTime = new Date(a.createdAt || 0).getTime();
+      const bTime = new Date(b.createdAt || 0).getTime();
+      return bTime - aTime;
+    });
+
+    const successfulOrders = sortedOrders.filter((order) => isSuccessfulStatus(String(order.status || ''))).length;
+    const totalRevenue = sortedOrders.reduce((sum, order) => sum + Number(order.total || 0), 0);
+    const completionRate = sortedOrders.length > 0 ? (successfulOrders / sortedOrders.length) * 100 : 0;
+
+    const categoryByProductId = new Map<string, string>();
+    products.forEach((product) => {
+      if (!product.id) return;
+      categoryByProductId.set(product.id, normalizeCategory(product.category));
+    });
+
+    const categoryRevenueMap = new Map<string, number>();
+    sortedOrders.forEach((order) => {
+      (order.items || []).forEach((item) => {
+        const category = categoryByProductId.get(item.productId || '') || 'Uncategorized';
+        const lineRevenue = Number(item.quantity || 0) * Number(item.price || 0);
+        categoryRevenueMap.set(category, (categoryRevenueMap.get(category) || 0) + lineRevenue);
+      });
+    });
+
+    const topCategoryRow = Array.from(categoryRevenueMap.entries())
+      .map(([category, revenue]) => ({ category, revenue }))
+      .sort((a, b) => b.revenue - a.revenue)[0];
+
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - PERIOD_DAYS[period] + 1);
+    const dateRangeLabel = `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+
+    return {
+      rows: sortedOrders,
+      totalRevenue,
+      totalOrders: sortedOrders.length,
+      completionRate,
+      topCategory: topCategoryRow?.category || 'Uncategorized',
+      topCategoryRevenue: topCategoryRow?.revenue || 0,
+      dateRangeLabel,
+    };
+  }, [filteredOrders, products, period]);
+
+  const updateSectionIndicator = useCallback(() => {
+    const activeEl = sectionTabRefs.current[activeSectionTab];
+    if (!activeEl) return;
+    setSectionIndicator({
+      left: activeEl.offsetLeft,
+      width: activeEl.offsetWidth,
+      ready: true,
+    });
+  }, [activeSectionTab]);
+
+  useLayoutEffect(() => {
+    updateSectionIndicator();
+  }, [updateSectionIndicator, activeSectionTab]);
+
+  useEffect(() => {
+    window.addEventListener('resize', updateSectionIndicator);
+    return () => window.removeEventListener('resize', updateSectionIndicator);
+  }, [updateSectionIndicator]);
+
+  return (
+    <div className="relative mx-auto w-full max-w-[1240px] 2xl:max-w-[1320px] px-1 sm:px-2 [font-family:var(--font-outfit),sans-serif]">
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute left-1/2 top-[90px] h-[480px] w-[480px] -translate-x-1/2 rounded-full opacity-25 blur-3xl" style={{ backgroundColor: colors.accent.purpleDeep }} />
+      </div>
+
+      <section className="mb-6 text-center">
+        <h1 className="text-[42px] sm:text-[56px] lg:text-[74px] 2xl:text-[82px] font-extrabold leading-[0.98] tracking-tight">
+          <span className="block text-white">Analytics</span>
+          <span
+            className="block text-transparent bg-clip-text"
+            style={{ backgroundImage: 'linear-gradient(90deg, #7E22CE 0%, #B7675A 50%, #FFD700 100%)' }}
+          >
+            {toTitleCase(activeSectionTab)}
+          </span>
+        </h1>
+
+        <div className="mt-5 sm:mt-6 flex justify-center">
+          <div className="relative inline-flex items-center gap-x-4 sm:gap-x-6 lg:gap-x-8 text-[9px] sm:text-[10px] lg:text-[11px] font-bold uppercase tracking-[0.12em] sm:tracking-[0.14em]">
+            {SECTION_TABS.map((tab) => {
+              const isActive = activeSectionTab === tab;
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  ref={(el) => {
+                    sectionTabRefs.current[tab] = el;
+                  }}
+                  onClick={() => setActiveSectionTab(tab)}
+                  className="relative whitespace-nowrap px-1 pb-2 transition-colors duration-200"
+                  style={{ color: isActive ? colors.accent.yellow : colors.text.muted }}
+                >
+                  {tab}
+                </button>
+              );
+            })}
+            <span
+              className="pointer-events-none absolute bottom-[-3px] h-[3px] rounded-full transition-all duration-300 ease-out"
+              style={{
+                left: sectionIndicator.left,
+                width: sectionIndicator.width,
+                opacity: sectionIndicator.ready ? 1 : 0,
+                background: 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)',
+                boxShadow: '0 0 12px rgba(177, 59, 255, 0.35)',
+              }}
+            />
+          </div>
         </div>
-    );
+
+        <div className="mx-auto mt-4 sm:mt-5 flex w-full max-w-[860px] flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
+          <div
+            className="flex-1 rounded-2xl border px-4 py-3 flex items-center gap-2"
+            style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+          >
+            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" style={{ color: colors.accent.yellow }}>
+              <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="1.8" />
+            </svg>
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search orders or buyers"
+              className="w-full bg-transparent text-sm outline-none"
+              style={{ color: colors.text.primary }}
+            />
+          </div>
+
+          <button
+            type="button"
+            className="rounded-xl w-full sm:w-auto min-w-[112px] px-5 py-3 text-xs font-bold flex items-center justify-center gap-2"
+            style={{ backgroundColor: '#B14CFF', color: '#fff' }}
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 3v12m0 0l-4-4m4 4l4-4" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Export
+          </button>
+        </div>
+      </section>
+
+      {error && (
+        <div className="mb-4 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: '#ef4444', color: '#fecaca' }}>
+          {error}
+        </div>
+      )}
+
+      {activeSectionTab === 'OVERVIEW' ? (
+      <>
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-5">
+        {kpiCards.map((card) => (
+          <div
+            key={card.label}
+            className="rounded-2xl border px-4 py-3 lg:py-3.5 min-h-[88px]"
+            style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+          >
+            <p className="text-[10px] uppercase tracking-[0.14em]" style={{ color: colors.text.muted }}>{card.label}</p>
+            <p className="mt-1 text-[24px] lg:text-[26px] 2xl:text-[28px] leading-none font-extrabold" style={{ color: colors.text.primary }}>{loading ? '—' : card.value}</p>
+          </div>
+        ))}
+      </section>
+
+      <section className="grid grid-cols-1 lg:grid-cols-[1.55fr_1fr] gap-4 mb-4">
+        <div className="rounded-[28px] border p-5 lg:p-6" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+          <div className="mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <h2 className="text-sm font-semibold" style={{ color: colors.text.primary }}>Revenue Trend</h2>
+            <div className="rounded-lg border p-1 flex items-center gap-1" style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}>
+              {(Object.keys(PERIOD_DAYS) as PeriodKey[]).map((key) => {
+                const active = key === period;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setPeriod(key)}
+                    className="rounded-md px-2.5 py-1 text-[10px] font-semibold"
+                    style={{
+                      color: active ? '#fff' : colors.text.muted,
+                      backgroundColor: active ? '#A54BFA' : 'transparent',
+                    }}
+                  >
+                    {key}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {analytics.revenueTrend.length > 0 ? (
+            <AreaChart data={analytics.revenueTrend} color={colors.accent.purple} colors={colors} />
+          ) : (
+            <div className="h-[260px] rounded-xl border flex items-center justify-center text-sm" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
+              No revenue trend yet.
+            </div>
+          )}
+
+          <div className="mt-4 grid grid-cols-3 gap-4 text-xs lg:text-sm">
+            <div>
+              <p style={{ color: colors.text.muted }}>Revenue</p>
+              <p className="text-lg lg:text-xl font-extrabold" style={{ color: colors.text.primary }}>{formatPeso(analytics.totalRevenue)}</p>
+            </div>
+            <div>
+              <p style={{ color: colors.text.muted }}>Orders</p>
+              <p className="text-lg lg:text-xl font-extrabold" style={{ color: colors.text.primary }}>{analytics.totalOrders}</p>
+            </div>
+            <div>
+              <p style={{ color: colors.text.muted }}>Avg. Order</p>
+              <p className="text-lg lg:text-xl font-extrabold" style={{ color: colors.text.primary }}>{formatPeso(analytics.avgOrderValue)}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-[28px] border p-5 lg:p-6" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+          <h2 className="mb-4 text-sm font-semibold" style={{ color: colors.text.primary }}>Top Performance</h2>
+
+          {analytics.topPerformance.length === 0 ? (
+            <div className="h-[320px] rounded-xl border flex items-center justify-center text-sm" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
+              No buyer performance data yet.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {analytics.topPerformance.map((entry) => (
+                <div key={entry.name} className="flex items-center justify-between">
+                  <div className="min-w-0 flex items-center gap-3">
+                    <span className="h-10 w-10 rounded-full flex items-center justify-center text-[11px] font-bold"
+                      style={{ backgroundColor: '#E9EAF0', color: '#111827' }}>
+                      {toInitials(entry.name)}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold" style={{ color: colors.text.primary }}>{entry.name}</p>
+                      <p className="text-[11px]" style={{ color: colors.text.muted }}>{entry.units} Units</p>
+                    </div>
+                  </div>
+                  <p className="text-sm font-extrabold" style={{ color: colors.accent.yellow }}>{formatPeso(entry.revenue)}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="grid grid-cols-1 lg:grid-cols-[1fr_1.8fr] gap-4 pb-3">
+        <div className="rounded-[28px] border p-5 lg:p-6" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+          <h2 className="mb-4 text-sm font-semibold" style={{ color: colors.text.primary }}>Sales by Category</h2>
+
+          {analytics.categoryRows.length === 0 ? (
+            <div className="h-[220px] rounded-xl border flex items-center justify-center text-sm" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
+              No category sales data yet.
+            </div>
+          ) : (
+            <>
+              <div className="mx-auto mb-4 h-[170px] w-[170px] rounded-full p-8" style={{ background: analytics.donutGradient }}>
+                <div className="h-full w-full rounded-full" style={{ backgroundColor: colors.bg.primary }} />
+              </div>
+
+              <div className="space-y-2">
+                {analytics.categoryRows.map((row, idx) => {
+                  const dotColors = ['#AA62FF', '#15E4C3', '#FFCF25'];
+                  return (
+                    <div key={row.category} className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: dotColors[idx % dotColors.length] }} />
+                        <span className="truncate" style={{ color: colors.text.secondary }}>{row.category}</span>
+                      </div>
+                      <span className="font-semibold" style={{ color: colors.text.primary }}>{formatPeso(row.value)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="rounded-[28px] border p-5 lg:p-6" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-semibold" style={{ color: colors.text.primary }}>Recent Transactions</h2>
+            <span className="text-xs font-semibold" style={{ color: colors.accent.purple }}>View All</span>
+          </div>
+
+          {analytics.recentTransactions.length === 0 ? (
+            <div className="h-[220px] rounded-xl border flex items-center justify-center text-sm" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
+              No transactions in this period.
+            </div>
+          ) : (
+            <>
+            <div className="sm:hidden space-y-2.5">
+              {analytics.recentTransactions.map((order) => {
+                const pill = statusPill(String(order.status || ''));
+                return (
+                  <div key={order.id} className="rounded-xl border p-3" style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold" style={{ color: colors.accent.yellow }}>{formatOrderId(order.id)}</p>
+                        <p className="text-sm font-semibold mt-1" style={{ color: colors.text.primary }}>{toBuyerName(order)}</p>
+                      </div>
+                      <span className="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                        style={{ backgroundColor: pill.bg, color: pill.color }}>
+                        {pill.label}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-xs" style={{ color: colors.text.muted }}>
+                      <span>{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '—'}</span>
+                      <span className="font-bold" style={{ color: colors.text.primary }}>{formatPeso(order.total || 0)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full min-w-[620px] text-sm">
+                <thead>
+                  <tr className="text-left border-b" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
+                    <th className="py-2 pr-3 font-medium">ORDER ID</th>
+                    <th className="py-2 pr-3 font-medium">BUYER</th>
+                    <th className="py-2 pr-3 font-medium">STATUS</th>
+                    <th className="py-2 pr-3 font-medium">DATE</th>
+                    <th className="py-2 text-right font-medium">TOTAL</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {analytics.recentTransactions.map((order) => {
+                    const pill = statusPill(String(order.status || ''));
+                    return (
+                    <tr key={order.id} className="border-b" style={{ borderColor: colors.border.faint }}>
+                      <td className="py-3 pr-3 font-semibold" style={{ color: colors.accent.yellow }}>{formatOrderId(order.id)}</td>
+                      <td className="py-3 pr-3" style={{ color: colors.text.primary }}>{toBuyerName(order)}</td>
+                      <td className="py-3 pr-3">
+                        <span
+                          className="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                          style={{
+                            backgroundColor: pill.bg,
+                            color: pill.color,
+                          }}
+                        >
+                          {pill.label}
+                        </span>
+                      </td>
+                      <td className="py-3 pr-3" style={{ color: colors.text.secondary }}>{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '—'}</td>
+                      <td className="py-3 text-right font-bold" style={{ color: colors.text.primary }}>{formatPeso(order.total || 0)}</td>
+                    </tr>
+                  )})}
+                </tbody>
+              </table>
+            </div>
+            </>
+          )}
+        </div>
+      </section>
+
+      <section className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+        <div className="rounded-xl border px-3 py-2" style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.card }}>
+          <p style={{ color: colors.text.muted }}>Pending</p>
+          <p className="text-lg font-extrabold" style={{ color: colors.text.primary }}>{analytics.pendingOrders}</p>
+        </div>
+        <div className="rounded-xl border px-3 py-2" style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.card }}>
+          <p style={{ color: colors.text.muted }}>Completed</p>
+          <p className="text-lg font-extrabold" style={{ color: colors.text.primary }}>{analytics.completedOrders}</p>
+        </div>
+        <div className="rounded-xl border px-3 py-2" style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.card }}>
+          <p style={{ color: colors.text.muted }}>Products</p>
+          <p className="text-lg font-extrabold" style={{ color: colors.text.primary }}>{products.length}</p>
+        </div>
+        <div className="rounded-xl border px-3 py-2" style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.card }}>
+          <p style={{ color: colors.text.muted }}>Low Stock</p>
+          <p className="text-lg font-extrabold" style={{ color: colors.text.primary }}>{inventorySummary?.lowStock ?? 0}</p>
+        </div>
+      </section>
+      </>
+      ) : activeSectionTab === 'SALES TREND' ? (
+      <>
+        <section className="grid grid-cols-1 lg:grid-cols-[1.55fr_1fr] gap-4 mb-4">
+          <div className="rounded-[28px] border p-5 lg:p-6" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+            <div className="mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <h2 className="text-sm font-semibold" style={{ color: colors.text.primary }}>Revenue Trend</h2>
+              <div className="rounded-lg border p-1 flex items-center gap-1" style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}>
+                {(Object.keys(PERIOD_DAYS) as PeriodKey[]).map((key) => {
+                  const active = key === period;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setPeriod(key)}
+                      className="rounded-md px-2.5 py-1 text-[10px] font-semibold"
+                      style={{
+                        color: active ? '#fff' : colors.text.muted,
+                        backgroundColor: active ? '#A54BFA' : 'transparent',
+                      }}
+                    >
+                      {key}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {analytics.revenueTrend.length > 0 ? (
+              <AreaChart data={analytics.revenueTrend} color={colors.accent.purple} colors={colors} />
+            ) : (
+              <div className="h-[260px] rounded-xl border flex items-center justify-center text-sm" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
+                No revenue trend yet.
+              </div>
+            )}
+
+            <div className="mt-4 grid grid-cols-3 gap-4 text-xs lg:text-sm">
+              <div>
+                <p style={{ color: colors.text.muted }}>Revenue</p>
+                <p className="text-lg lg:text-xl font-extrabold" style={{ color: colors.text.primary }}>{formatPeso(analytics.totalRevenue)}</p>
+              </div>
+              <div>
+                <p style={{ color: colors.text.muted }}>Orders</p>
+                <p className="text-lg lg:text-xl font-extrabold" style={{ color: colors.text.primary }}>{analytics.totalOrders}</p>
+              </div>
+              <div>
+                <p style={{ color: colors.text.muted }}>Avg. Order</p>
+                <p className="text-lg lg:text-xl font-extrabold" style={{ color: colors.text.primary }}>{formatPeso(analytics.avgOrderValue)}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <div className="rounded-[28px] border p-5" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold" style={{ color: colors.text.primary }}>Peak Days</h3>
+                <span className="text-xs font-semibold" style={{ color: colors.accent.purple }}>View All</span>
+              </div>
+              {salesTrendData.peakDays.length === 0 ? (
+                <div className="h-[120px] rounded-xl border flex items-center justify-center text-sm" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
+                  No daily sales yet.
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {salesTrendData.peakDays.map((row, idx) => (
+                    <div key={`${row.dateLabel}-peak`} className="flex items-center justify-between text-xs">
+                      <div className="min-w-0">
+                        <p className="font-semibold" style={{ color: colors.text.primary }}>{idx + 1}. {row.dateLabel}</p>
+                      </div>
+                      <p className="font-extrabold" style={{ color: colors.accent.yellow }}>{formatPeso(row.revenue)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-[28px] border p-5" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold" style={{ color: colors.text.primary }}>Slow Days</h3>
+                <span className="text-xs font-semibold" style={{ color: colors.accent.purple }}>View All</span>
+              </div>
+              {salesTrendData.slowDays.length === 0 ? (
+                <div className="h-[120px] rounded-xl border flex items-center justify-center text-sm" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
+                  No slow-day data yet.
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {salesTrendData.slowDays.map((row, idx) => (
+                    <div key={`${row.dateLabel}-slow`} className="flex items-center justify-between text-xs">
+                      <div className="min-w-0">
+                        <p className="font-semibold" style={{ color: colors.text.primary }}>{idx + 1}. {row.dateLabel}</p>
+                      </div>
+                      <p className="font-extrabold" style={{ color: colors.accent.yellow }}>{formatPeso(row.revenue)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 pb-3">
+          <div className="rounded-[28px] border p-5" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-sm font-semibold" style={{ color: colors.text.primary }}>Monthly Growth</h3>
+              <span className="text-xs font-semibold" style={{ color: colors.accent.purple }}>View All</span>
+            </div>
+            {salesTrendData.monthlyGrowth.length === 0 ? (
+              <div className="h-[130px] rounded-xl border flex items-center justify-center text-sm" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
+                No monthly growth yet.
+              </div>
+            ) : (
+              <div className="space-y-3.5">
+                {salesTrendData.monthlyGrowth.map((row, idx) => (
+                  <div key={`${row.label}-${idx}`}>
+                    <div className="mb-1.5 flex items-center justify-between text-xs">
+                      <span style={{ color: colors.text.secondary }}>{row.label}</span>
+                      <span className="font-semibold" style={{ color: colors.text.primary }}>{formatPeso(row.value)}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: colors.bg.elevated }}>
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${Math.max(6, (row.value / salesTrendData.maxMonthlyValue) * 100)}%`,
+                          backgroundColor: idx % 2 === 0 ? '#15E4C3' : '#AA62FF',
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-[28px] border p-5" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-sm font-semibold" style={{ color: colors.text.primary }}>Category Performance</h3>
+              <span className="text-xs font-semibold" style={{ color: colors.accent.purple }}>View All</span>
+            </div>
+            {salesTrendData.categoryPerformance.length === 0 ? (
+              <div className="h-[130px] rounded-xl border flex items-center justify-center text-sm" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
+                No category performance yet.
+              </div>
+            ) : (
+              <div className="space-y-3.5">
+                {salesTrendData.categoryPerformance.map((row, idx) => (
+                  <div key={row.label}>
+                    <div className="mb-1.5 flex items-center justify-between text-xs">
+                      <span style={{ color: colors.text.secondary }}>{row.label}</span>
+                      <span className="font-semibold" style={{ color: colors.text.primary }}>{formatPeso(row.value)}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: colors.bg.elevated }}>
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${Math.max(6, (row.value / salesTrendData.maxCategoryValue) * 100)}%`,
+                          backgroundColor: idx % 2 === 0 ? '#AA62FF' : '#15E4C3',
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      </>
+      ) : activeSectionTab === 'PURCHASE SUCCESS' ? (
+      <>
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-5">
+          {[
+            { label: 'Success Rate', value: `${purchaseSuccessData.successRate.toFixed(1)}%`, dot: '#FFCE00' },
+            { label: 'Successful Orders', value: purchaseSuccessData.successfulCount.toLocaleString(), dot: '#22c55e' },
+            { label: 'Failed Orders', value: purchaseSuccessData.failedCount.toLocaleString(), dot: '#a855f7' },
+            { label: 'Cancelled Orders', value: purchaseSuccessData.cancelledCount.toLocaleString(), dot: '#f43f5e' },
+            { label: 'Returned Orders', value: purchaseSuccessData.returnedCount.toLocaleString(), dot: '#60a5fa' },
+          ].map((card) => (
+            <div
+              key={card.label}
+              className="rounded-2xl border px-4 py-3 lg:py-3.5 min-h-[88px]"
+              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+            >
+              <p className="text-[10px] uppercase tracking-[0.14em]" style={{ color: colors.text.muted }}>{card.label}</p>
+              <p className="mt-1 text-[24px] lg:text-[26px] 2xl:text-[28px] leading-none font-extrabold" style={{ color: colors.text.primary }}>{loading ? '—' : card.value}</p>
+            </div>
+          ))}
+        </section>
+
+        <section className="rounded-[28px] border p-5 lg:p-6 mb-4" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+          <div className="mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold" style={{ color: colors.text.primary }}>Purchase Success Rate</h2>
+              <span className="text-[10px]" style={{ color: colors.text.muted }}>Last {PERIOD_DAYS[period]} days</span>
+            </div>
+            <div className="rounded-lg border p-1 flex items-center gap-1" style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}>
+              {(Object.keys(PERIOD_DAYS) as PeriodKey[]).map((key) => {
+                const active = key === period;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setPeriod(key)}
+                    className="rounded-md px-2.5 py-1 text-[10px] font-semibold"
+                    style={{
+                      color: active ? '#fff' : colors.text.muted,
+                      backgroundColor: active ? '#A54BFA' : 'transparent',
+                    }}
+                  >
+                    {key}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {purchaseSuccessData.trend.length > 0 ? (
+            <AreaChart data={purchaseSuccessData.trend} color={colors.accent.purple} colors={colors} />
+          ) : (
+            <div className="h-[260px] rounded-xl border flex items-center justify-center text-sm" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
+              No successful-order trend yet.
+            </div>
+          )}
+
+          <div className="mt-4 grid grid-cols-3 gap-4 text-xs lg:text-sm">
+            <div>
+              <p style={{ color: colors.text.muted }}>Revenue</p>
+              <div className="flex items-center gap-2">
+                <p className="text-lg lg:text-xl font-extrabold" style={{ color: colors.text.primary }}>{formatPeso(purchaseSuccessData.successRevenue)}</p>
+                <span className="text-[11px] font-semibold" style={{ color: purchaseSuccessData.successRevenueDelta >= 0 ? '#22c55e' : '#f87171' }}>
+                  {purchaseSuccessData.successRevenueDelta >= 0 ? '+' : ''}{purchaseSuccessData.successRevenueDelta.toFixed(1)}%
+                </span>
+              </div>
+            </div>
+            <div>
+              <p style={{ color: colors.text.muted }}>Orders</p>
+              <div className="flex items-center gap-2">
+                <p className="text-lg lg:text-xl font-extrabold" style={{ color: colors.text.primary }}>{purchaseSuccessData.successfulCount.toLocaleString()}</p>
+                <span className="text-[11px] font-semibold" style={{ color: purchaseSuccessData.successOrdersDelta >= 0 ? '#22c55e' : '#f87171' }}>
+                  {purchaseSuccessData.successOrdersDelta >= 0 ? '+' : ''}{purchaseSuccessData.successOrdersDelta.toFixed(1)}%
+                </span>
+              </div>
+            </div>
+            <div>
+              <p style={{ color: colors.text.muted }}>Avg. Order</p>
+              <div className="flex items-center gap-2">
+                <p className="text-lg lg:text-xl font-extrabold" style={{ color: colors.text.primary }}>{formatPeso(purchaseSuccessData.avgSuccessfulOrder)}</p>
+                <span className="text-[11px] font-semibold" style={{ color: purchaseSuccessData.avgOrderDelta >= 0 ? '#22c55e' : '#f87171' }}>
+                  {purchaseSuccessData.avgOrderDelta >= 0 ? '+' : ''}{purchaseSuccessData.avgOrderDelta.toFixed(1)}%
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </>
+      ) : activeSectionTab === 'CATEGORY SALES' ? (
+      <>
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+          {[
+            { label: 'Total Revenue', value: formatPeso(categorySalesData.totalRevenue) },
+            { label: 'Total Orders', value: categorySalesData.totalOrders.toLocaleString() },
+            { label: 'Top Category', value: categorySalesData.topCategory },
+            { label: 'Growth Rate', value: `${categorySalesData.growthRate.toFixed(1)}%` },
+          ].map((card) => (
+            <div key={card.label} className="rounded-2xl border px-4 py-3 lg:py-3.5 min-h-[88px]" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+              <p className="text-[10px] uppercase tracking-[0.14em]" style={{ color: colors.text.muted }}>{card.label}</p>
+              <p className="mt-1 text-[24px] lg:text-[26px] leading-none font-extrabold" style={{ color: colors.text.primary }}>{loading ? '—' : card.value}</p>
+            </div>
+          ))}
+        </section>
+
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+          <div className="rounded-[28px] border p-5 lg:p-6" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+            <h2 className="mb-4 text-sm font-semibold" style={{ color: colors.text.primary }}>Sales Distribution</h2>
+            {categorySalesData.donutRows.length === 0 ? (
+              <div className="h-[220px] rounded-xl border flex items-center justify-center text-sm" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
+                No category distribution data yet.
+              </div>
+            ) : (
+              <div className="grid grid-cols-[180px_1fr] gap-4 items-center">
+                <div className="relative mx-auto h-[170px] w-[170px] rounded-full p-8" style={{ background: categorySalesData.donutGradient }}>
+                  <div className="h-full w-full rounded-full flex items-center justify-center text-center" style={{ backgroundColor: colors.bg.primary }}>
+                    <div>
+                      <p className="text-[10px] uppercase" style={{ color: colors.text.muted }}>Total Revenue</p>
+                      <p className="text-xl font-extrabold" style={{ color: colors.text.primary }}>{formatPeso(categorySalesData.totalRevenue)}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {categorySalesData.donutRows.map((row, idx) => {
+                    const palette = ['#12E2C8', '#AA62FF', '#FFCF25'];
+                    const pct = categorySalesData.totalRevenue > 0 ? (row.revenue / categorySalesData.totalRevenue) * 100 : 0;
+                    return (
+                      <div key={row.category} className="flex items-center justify-between text-xs gap-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: palette[idx % palette.length] }} />
+                          <span className="truncate" style={{ color: colors.text.secondary }}>{row.category}</span>
+                        </div>
+                        <span className="font-semibold" style={{ color: colors.accent.yellow }}>{pct.toFixed(1)}%</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-[28px] border p-5 lg:p-6" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+            <h2 className="mb-4 text-sm font-semibold" style={{ color: colors.text.primary }}>Revenue Trend</h2>
+            {categorySalesData.trendSeries.length === 0 || categorySalesData.trendMonths.length === 0 ? (
+              <div className="h-[220px] rounded-xl border flex items-center justify-center text-sm" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
+                No category trend data yet.
+              </div>
+            ) : (
+              <div>
+                <svg viewBox="0 0 620 240" className="w-full h-[220px]">
+                  {[0.25, 0.5, 0.75].map((tick) => (
+                    <line key={tick} x1="24" y1={220 - tick * 180} x2="596" y2={220 - tick * 180} stroke={colors.border.faint} strokeOpacity="0.35" />
+                  ))}
+
+                  {categorySalesData.trendSeries.map((series) => {
+                    const d = buildLinePath(series.values, 620, 240, 24, 20, categorySalesData.trendMax);
+                    if (!d) return null;
+                    return <path key={series.label} d={d} fill="none" stroke={series.color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity="0.95" />;
+                  })}
+
+                  {categorySalesData.trendSeries[0]?.values.length ? (() => {
+                    const values = categorySalesData.trendSeries[0].values;
+                    const last = values[values.length - 1];
+                    const x = 24 + ((values.length - 1) / Math.max(values.length - 1, 1)) * (620 - 48);
+                    const y = 240 - 20 - (last / Math.max(categorySalesData.trendMax, 1)) * (240 - 40);
+                    return <circle cx={x} cy={y} r="6" fill="#fff" />;
+                  })() : null}
+                </svg>
+
+                <div className="mt-2 flex flex-wrap gap-4 text-[10px]">
+                  {categorySalesData.trendSeries.map((series) => (
+                    <span key={`legend-${series.label}`} className="flex items-center gap-1.5" style={{ color: colors.text.secondary }}>
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: series.color }} />
+                      {series.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="grid grid-cols-1 lg:grid-cols-[1.25fr_1fr] gap-4 pb-3">
+          <div className="rounded-[28px] border p-5 lg:p-6" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-sm font-semibold" style={{ color: colors.text.primary }}>Top Categories</h3>
+              <span className="text-xs font-semibold" style={{ color: colors.accent.purple }}>View All</span>
+            </div>
+            {categorySalesData.topCategories.length === 0 ? (
+              <div className="h-[220px] rounded-xl border flex items-center justify-center text-sm" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
+                No category ranking yet.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[620px] text-sm">
+                  <thead>
+                    <tr className="text-left border-b" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
+                      <th className="py-2 pr-3 font-medium">RANK</th>
+                      <th className="py-2 pr-3 font-medium">CATEGORY</th>
+                      <th className="py-2 pr-3 font-medium">REVENUE</th>
+                      <th className="py-2 pr-3 font-medium">ORDERS</th>
+                      <th className="py-2 text-right font-medium">GROWTH</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {categorySalesData.topCategories.map((row, idx) => (
+                      <tr key={row.category} className="border-b" style={{ borderColor: colors.border.faint }}>
+                        <td className="py-3 pr-3" style={{ color: colors.text.secondary }}>#{idx + 1}</td>
+                        <td className="py-3 pr-3 font-semibold" style={{ color: colors.text.primary }}>{row.category}</td>
+                        <td className="py-3 pr-3" style={{ color: colors.text.primary }}>{formatPeso(row.revenue)}</td>
+                        <td className="py-3 pr-3" style={{ color: colors.text.primary }}>{row.sales.toLocaleString()}</td>
+                        <td className="py-3 text-right font-semibold" style={{ color: row.growth >= 0 ? '#22c55e' : '#f87171' }}>
+                          {row.growth >= 0 ? '+' : ''}{row.growth.toFixed(1)}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-[28px] border p-5 lg:p-6" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-sm font-semibold" style={{ color: colors.text.primary }}>Top Selling Products</h3>
+              <span className="text-xs font-semibold" style={{ color: colors.accent.purple }}>View All</span>
+            </div>
+            {categorySalesData.topSellingProducts.length === 0 ? (
+              <div className="h-[220px] rounded-xl border flex items-center justify-center text-sm" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
+                No product sales yet.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[520px] text-sm">
+                  <thead>
+                    <tr className="text-left border-b" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
+                      <th className="py-2 pr-3 font-medium">PRODUCT</th>
+                      <th className="py-2 pr-3 font-medium">SALES</th>
+                      <th className="py-2 pr-3 font-medium">REVENUE</th>
+                      <th className="py-2 text-right font-medium">GROWTH</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {categorySalesData.topSellingProducts.map((row) => (
+                      <tr key={row.product} className="border-b" style={{ borderColor: colors.border.faint }}>
+                        <td className="py-3 pr-3 font-semibold" style={{ color: colors.text.primary }}>{row.product}</td>
+                        <td className="py-3 pr-3" style={{ color: colors.text.primary }}>{row.sales.toLocaleString()}</td>
+                        <td className="py-3 pr-3" style={{ color: colors.text.primary }}>{formatPeso(row.revenue)}</td>
+                        <td className="py-3 text-right font-semibold" style={{ color: row.growth >= 0 ? '#22c55e' : '#f87171' }}>
+                          {row.growth >= 0 ? '+' : ''}{row.growth.toFixed(1)}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </section>
+      </>
+      ) : activeSectionTab === 'SALES HISTORY' ? (
+      <>
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+          {[
+            { label: 'Total Revenue', value: formatPeso(salesHistoryData.totalRevenue) },
+            { label: 'Total Orders', value: salesHistoryData.totalOrders.toLocaleString() },
+            { label: 'Top Category', value: salesHistoryData.topCategory },
+            { label: 'Completion Rate', value: `${salesHistoryData.completionRate.toFixed(1)}%` },
+          ].map((card) => (
+            <div
+              key={card.label}
+              className="rounded-2xl border px-4 py-3 lg:py-3.5 min-h-[88px]"
+              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+            >
+              <p className="text-[10px] uppercase tracking-[0.14em]" style={{ color: colors.text.muted }}>{card.label}</p>
+              <p className="mt-1 text-[24px] lg:text-[26px] leading-none font-extrabold" style={{ color: loading ? colors.text.muted : colors.text.primary }}>
+                {loading ? '—' : card.value}
+              </p>
+            </div>
+          ))}
+        </section>
+
+        <section className="rounded-[28px] border p-5 lg:p-6 pb-4" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+          <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <h2 className="text-sm font-semibold" style={{ color: colors.text.primary }}>Order History</h2>
+            <div className="flex items-center gap-2 text-[11px]">
+              <span className="rounded-lg border px-2.5 py-1.5 font-semibold" style={{ borderColor: colors.border.faint, color: colors.text.secondary, backgroundColor: colors.bg.elevated }}>
+                All Orders
+              </span>
+              <span className="rounded-lg border px-2.5 py-1.5 font-semibold" style={{ borderColor: colors.border.faint, color: colors.text.secondary, backgroundColor: colors.bg.elevated }}>
+                {salesHistoryData.dateRangeLabel}
+              </span>
+            </div>
+          </div>
+
+          {salesHistoryData.rows.length === 0 ? (
+            <div className="h-[220px] rounded-xl border flex items-center justify-center text-sm" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
+              No orders found for this period.
+            </div>
+          ) : (
+            <>
+              <div className="sm:hidden space-y-2.5">
+                {salesHistoryData.rows.slice(0, 12).map((order) => {
+                  const pill = statusPill(String(order.status || ''));
+                  const paymentSource = typeof order.shippingAddress === 'object' && order.shippingAddress
+                    ? (order.shippingAddress as Record<string, unknown>)
+                    : null;
+                  const paymentMethodRaw =
+                    (typeof paymentSource?.paymentMethod === 'string' && paymentSource.paymentMethod) ||
+                    (typeof paymentSource?.payment_method === 'string' && paymentSource.payment_method) ||
+                    (typeof paymentSource?.paymentOption === 'string' && paymentSource.paymentOption) ||
+                    (typeof paymentSource?.payment_option === 'string' && paymentSource.payment_option) ||
+                    (typeof paymentSource?.method === 'string' && paymentSource.method) ||
+                    'Cash On Delivery';
+                  const paymentMethod = toTitleCase(paymentMethodRaw);
+
+                  return (
+                    <div key={order.id} className="rounded-xl border p-3" style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-semibold" style={{ color: colors.accent.yellow }}>{formatOrderId(order.id)}</p>
+                          <p className="text-sm font-semibold mt-1" style={{ color: colors.text.primary }}>{toBuyerName(order)}</p>
+                        </div>
+                        <span className="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ backgroundColor: pill.bg, color: pill.color }}>
+                          {pill.label}
+                        </span>
+                      </div>
+                      <div className="mt-2 flex items-center justify-between text-xs" style={{ color: colors.text.muted }}>
+                        <span>{order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '—'}</span>
+                        <span className="font-bold" style={{ color: colors.text.primary }}>{formatPeso(order.total || 0)}</span>
+                      </div>
+                      <div className="mt-2 inline-flex rounded-md px-2.5 py-1 text-[10px] font-semibold" style={{ backgroundColor: '#FFCF25', color: '#18181b' }}>
+                        {paymentMethod}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full min-w-[900px] text-sm">
+                  <thead>
+                    <tr className="text-left border-b" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
+                      <th className="py-2.5 pr-3 font-medium">ORDER ID</th>
+                      <th className="py-2.5 pr-3 font-medium">DATE</th>
+                      <th className="py-2.5 pr-3 font-medium">CUSTOMER</th>
+                      <th className="py-2.5 pr-3 font-medium">STATUS</th>
+                      <th className="py-2.5 pr-3 font-medium">PAYMENT METHOD</th>
+                      <th className="py-2.5 text-right font-medium">TOTAL</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {salesHistoryData.rows.map((order) => {
+                      const pill = statusPill(String(order.status || ''));
+                      const paymentSource = typeof order.shippingAddress === 'object' && order.shippingAddress
+                        ? (order.shippingAddress as Record<string, unknown>)
+                        : null;
+                      const paymentMethodRaw =
+                        (typeof paymentSource?.paymentMethod === 'string' && paymentSource.paymentMethod) ||
+                        (typeof paymentSource?.payment_method === 'string' && paymentSource.payment_method) ||
+                        (typeof paymentSource?.paymentOption === 'string' && paymentSource.paymentOption) ||
+                        (typeof paymentSource?.payment_option === 'string' && paymentSource.payment_option) ||
+                        (typeof paymentSource?.method === 'string' && paymentSource.method) ||
+                        'Cash On Delivery';
+                      const paymentMethod = toTitleCase(paymentMethodRaw);
+
+                      return (
+                        <tr key={order.id} className="border-b" style={{ borderColor: colors.border.faint }}>
+                          <td className="py-3 pr-3 font-semibold" style={{ color: colors.accent.yellow }}>{formatOrderId(order.id)}</td>
+                          <td className="py-3 pr-3" style={{ color: colors.text.secondary }}>
+                            {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '—'}
+                          </td>
+                          <td className="py-3 pr-3" style={{ color: colors.text.primary }}>{toBuyerName(order)}</td>
+                          <td className="py-3 pr-3">
+                            <span className="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ backgroundColor: pill.bg, color: pill.color }}>
+                              {pill.label}
+                            </span>
+                          </td>
+                          <td className="py-3 pr-3">
+                            <span className="inline-flex rounded-md px-2.5 py-1 text-[10px] font-semibold" style={{ backgroundColor: '#FFCF25', color: '#18181b' }}>
+                              {paymentMethod}
+                            </span>
+                          </td>
+                          <td className="py-3 text-right font-bold" style={{ color: colors.text.primary }}>{formatPeso(order.total || 0)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </section>
+      </>
+      ) : (
+      <section className="rounded-[24px] border p-6 text-center" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+        <p style={{ color: colors.text.muted }}>This section is ready for the next real-data view.</p>
+      </section>
+      )}
+    </div>
+  );
 }

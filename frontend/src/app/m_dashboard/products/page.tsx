@@ -34,6 +34,22 @@ function isImageSource(value: string): boolean {
 
 type ThemeColors = ReturnType<typeof useTheme>['colors'];
 
+function productStatusStyles(status: Product['status'], colors: ThemeColors) {
+  if (status === 'active') {
+    return { backgroundColor: `${colors.status.good}22`, color: colors.status.good };
+  }
+  if (status === 'inactive') {
+    return { backgroundColor: `${colors.status.error}22`, color: colors.status.error };
+  }
+  return { backgroundColor: `${colors.status.warning}22`, color: colors.status.warning };
+}
+
+function stockColor(product: Product, colors: ThemeColors) {
+  if (product.stock === 0) return colors.status.error;
+  if (isLowStock(product)) return colors.status.warning;
+  return colors.status.good;
+}
+
 const ProductCard = ({ product, colors, onView, onEdit, onDelete, onToggleStatus }: {
   product: Product;
   colors: ThemeColors;
@@ -89,10 +105,7 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, onToggleStatus
               SKU: {product.sku}
             </p>
           </div>
-          <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${product.status === 'active' ? 'bg-green-100 text-green-800' :
-            product.status === 'inactive' ? 'bg-red-100 text-red-800' :
-              'bg-gray-100 text-gray-800'
-            }`}>
+          <span className="ml-2 px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap" style={productStatusStyles(product.status, colors)}>
             {product.status}
           </span>
         </div>
@@ -112,7 +125,7 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, onToggleStatus
           </div>
           <div>
             <p className="text-xs mb-1" style={{ color: colors.text.muted }}>Stock</p>
-            <p className={`font-semibold text-sm ${product.stock === 0 ? 'text-red-500' : isLowStock(product) ? 'text-orange-500' : 'text-green-500'}`}>
+            <p className="font-semibold text-sm" style={{ color: stockColor(product, colors) }}>
               {product.stock} Units
             </p>
           </div>
@@ -129,8 +142,10 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, onToggleStatus
         <div className="flex gap-2 mt-auto justify-end">
           <button
             onClick={() => onView(product)}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center justify-center"
-            style={{ color: colors.text.muted }}
+            className="p-2 rounded-lg transition-colors flex items-center justify-center"
+            style={{ color: colors.text.muted, backgroundColor: 'transparent' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = colors.bg.elevated; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
             title="View details"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -140,8 +155,10 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, onToggleStatus
           </button>
           <button
             onClick={() => onEdit(product)}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center justify-center"
-            style={{ color: colors.text.muted }}
+            className="p-2 rounded-lg transition-colors flex items-center justify-center"
+            style={{ color: colors.text.muted, backgroundColor: 'transparent' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = colors.bg.elevated; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -149,8 +166,10 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, onToggleStatus
           </button>
           <button
             onClick={() => onToggleStatus(product)}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center justify-center"
-            style={{ color: colors.text.muted }}
+            className="p-2 rounded-lg transition-colors flex items-center justify-center"
+            style={{ color: colors.text.muted, backgroundColor: 'transparent' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = colors.bg.elevated; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
@@ -158,7 +177,10 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, onToggleStatus
           </button>
           <button
             onClick={() => onDelete(product)}
-            className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-red-500 flex items-center justify-center"
+            className="p-2 rounded-lg transition-colors flex items-center justify-center"
+            style={{ color: colors.status.error, backgroundColor: 'transparent' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = `${colors.status.error}18`; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -275,7 +297,7 @@ const ProductDetailsModal = ({ product, onClose, colors }: {
                       onClick={() => setCurrentImage(idx)}
                       className="w-14 h-14 rounded-lg overflow-hidden border flex-shrink-0"
                       style={{
-                        borderColor: idx === currentImage ? '#3b82f6' : colors.border.faint,
+                        borderColor: idx === currentImage ? colors.accent.purple : colors.border.faint,
                         backgroundColor: colors.bg.elevated,
                       }}
                     >
@@ -611,6 +633,11 @@ export default function ProductsPage() {
   };
 
   const hasProducts = products.length > 0;
+  const primaryActionStyle = {
+    backgroundColor: colors.accent.purple,
+    color: colors.text.primary,
+    boxShadow: theme === 'dark' ? '0 10px 24px rgba(92,29,143,0.32)' : '0 8px 18px rgba(107,45,192,0.22)',
+  };
 
   return (
     <div className="space-y-6">
@@ -676,7 +703,8 @@ export default function ProductsPage() {
             <button
               onClick={() => setShowAddModal(true)}
               disabled={!canAddProducts}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-white font-medium transition-colors shadow-sm ${canAddProducts ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-400 cursor-not-allowed'}`}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-opacity ${canAddProducts ? 'hover:opacity-90' : 'cursor-not-allowed opacity-55'}`}
+              style={primaryActionStyle}
             >
               <Plus className="w-4 h-4" />
               Add Product
@@ -693,11 +721,11 @@ export default function ProductsPage() {
           { label: 'Out of stock', value: stats.outOfStock },
         ].map((item) => {
           const labelColor = item.label === 'Active'
-            ? '#16a34a'
+            ? colors.status.good
             : item.label === 'Low stock'
-              ? '#f97316'
+              ? colors.status.warning
               : item.label === 'Out of stock'
-                ? '#ef4444'
+                ? colors.status.error
                 : colors.text.muted;
 
           return (
@@ -855,7 +883,8 @@ export default function ProductsPage() {
             type="button"
             onClick={() => setShowAddModal(true)}
             disabled={!canAddProducts}
-            className={`mt-6 mx-auto px-4 py-2.5 rounded-lg text-white font-medium transition-colors shadow-sm ${canAddProducts ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-400 cursor-not-allowed'}`}
+            className={`mt-6 mx-auto px-4 py-2.5 rounded-lg font-medium transition-opacity ${canAddProducts ? 'hover:opacity-90' : 'cursor-not-allowed opacity-55'}`}
+            style={primaryActionStyle}
           >
             {canAddProducts ? 'Add your first product' : 'Publish website first'}
           </button>

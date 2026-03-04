@@ -377,10 +377,10 @@ export default function ProfilePage() {
                 )}
 
                 {/* Profile Header */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 pb-8 border-b"
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 pb-8 border-b"
                   style={{ borderColor: colors.border.faint }}
                 >
-                  <div className="relative group">
+                  <div className="relative shrink-0">
                     <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-violet-500 to-fuchsia-500 p-[2px]">
                       <div className="w-full h-full rounded-full flex items-center justify-center overflow-hidden"
                         style={{ backgroundColor: colors.bg.dark }}
@@ -391,45 +391,6 @@ export default function ProfilePage() {
                           className="w-full h-full object-cover"
                         />
                       </div>
-                    </div>
-
-                    <div className="absolute bottom-0 right-0 flex items-center gap-2 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all">
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={avatarUploading}
-                        title="Upload photo"
-                        className="p-2 rounded-full border shadow-lg disabled:opacity-70"
-                        style={{
-                          backgroundColor: colors.bg.elevated,
-                          borderColor: colors.border.default,
-                          color: colors.text.secondary
-                        }}
-                      >
-                        {avatarUploading ? (
-                          <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin block" />
-                        ) : (
-                          <CameraIcon />
-                        )}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={openCamera}
-                        disabled={avatarUploading}
-                        title="Take photo"
-                        className="p-2 rounded-full border shadow-lg disabled:opacity-70"
-                        style={{
-                          backgroundColor: colors.bg.elevated,
-                          borderColor: colors.border.default,
-                          color: colors.text.secondary
-                        }}
-                      >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                          <rect x="3" y="7" width="15" height="13" rx="2" />
-                          <path d="M18 10l3-2v8l-3-2" />
-                        </svg>
-                      </button>
                     </div>
 
                     <input
@@ -458,6 +419,47 @@ export default function ProfilePage() {
                       <span className="text-xs" style={{ color: colors.text.subtle }}>
                         Member since {user?.createdAt ? new Date(user.createdAt).getFullYear() : '—'}
                       </span>
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={avatarUploading}
+                        title="Upload image"
+                        className="px-3 py-2 rounded-lg border shadow-lg disabled:opacity-70 inline-flex items-center gap-2 text-xs font-semibold"
+                        style={{
+                          backgroundColor: colors.bg.elevated,
+                          borderColor: colors.border.default,
+                          color: colors.text.secondary
+                        }}
+                      >
+                        {avatarUploading ? (
+                          <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin block" />
+                        ) : (
+                          <CameraIcon />
+                        )}
+                        Upload Image
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={openCamera}
+                        disabled={avatarUploading}
+                        title="Take picture"
+                        className="px-3 py-2 rounded-lg border shadow-lg disabled:opacity-70 inline-flex items-center gap-2 text-xs font-semibold"
+                        style={{
+                          backgroundColor: colors.bg.elevated,
+                          borderColor: colors.border.default,
+                          color: colors.text.secondary
+                        }}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                          <rect x="3" y="7" width="15" height="13" rx="2" />
+                          <path d="M18 10l3-2v8l-3-2" />
+                        </svg>
+                        Take Picture
+                      </button>
                     </div>
                   </div>
                 </div>

@@ -7,6 +7,7 @@ import { ThemeProvider, useTheme } from './components/context/theme-context';
 import { AuthProvider, useAuth } from './components/context/auth-context';
 import { AlertProvider } from './components/context/alert-context';
 import { ProjectProvider, useProject } from './components/context/project-context';
+import { NavigationLoadingProvider } from './components/context/navigation-loading-context';
 
 function DashboardLayoutContent({
     children,
@@ -75,7 +76,13 @@ function DashboardLayoutContent({
     if (loading || !user) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white flex items-center justify-center">
-                <p className="text-white/70">Loading...</p>
+                <div className="flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-6 py-5 backdrop-blur-sm">
+                    <img src="/images/logo.svg" alt="Logo" className="h-10 w-auto" />
+                    <div className="flex items-center gap-2 text-white/80">
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#FFCE00] border-t-transparent" />
+                        <p>Loading...</p>
+                    </div>
+                </div>
             </div>
         );
     }
@@ -142,7 +149,9 @@ export default function MDashboardLayout({
             <AlertProvider>
                 <AuthProvider>
                     <ProjectProvider>
-                        <DashboardLayoutContent>{children}</DashboardLayoutContent>
+                        <NavigationLoadingProvider>
+                            <DashboardLayoutContent>{children}</DashboardLayoutContent>
+                        </NavigationLoadingProvider>
                     </ProjectProvider>
                 </AuthProvider>
             </AlertProvider>
