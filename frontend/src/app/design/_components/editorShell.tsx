@@ -239,8 +239,6 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
   try {
     const parsed = JSON.parse(jsonString);
 
-    console.log('🔍 Validation: Starting with', Object.keys(parsed).length, 'nodes');
-
     // Must have ROOT
     if (!parsed || !parsed.ROOT) {
       console.error('❌ Validation failed: Missing ROOT node');
@@ -266,14 +264,12 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
 
       // Must be an object
       if (!node || typeof node !== 'object') {
-        console.warn(`⚠️ Node ${id} is not an object:`, typeof node);
         invalidNodes.push(id);
         return false;
       }
 
       // Must have type property
       if (!node.type) {
-        console.warn(`⚠️ Node ${id} is missing 'type' property`);
         invalidNodes.push(id);
         return false;
       }
@@ -289,19 +285,12 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
 
       // Must have nodes array (even if empty)
       if (!Array.isArray(node.nodes)) {
-        console.warn(`⚠️ Node ${id} is missing 'nodes' array`);
         // Try to fix it
         node.nodes = [];
       }
 
       return true;
     }));
-
-    if (invalidNodes.length > 0) {
-      console.warn(`⚠️ Found ${invalidNodes.length} invalid nodes:`, invalidNodes);
-    }
-
-    console.log(`🔍 Validation: Found ${validNodeIds.size} valid nodes out of ${allNodeIds.length} total`);
 
     // If too many invalid nodes, abort
     if (invalidNodes.length > allNodeIds.length * 0.5) {
@@ -325,7 +314,6 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
         const originalLength = node.nodes.length;
         node.nodes = node.nodes.filter((childId: string) => {
           if (!validNodeIds.has(childId)) {
-            console.warn(`⚠️ Removing invalid reference: ${nodeId} -> ${childId}`);
             hasInvalidRefs = true;
             removedRefsCount++;
             return false;
@@ -334,7 +322,7 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
         });
 
         if (node.nodes.length !== originalLength) {
-          console.log(`🔧 Cleaned ${nodeId}: ${originalLength} -> ${node.nodes.length} children`);
+          hasInvalidRefs = true;
         }
 
         // Recursively clean children
@@ -345,7 +333,6 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
       if (node.linkedNodes && typeof node.linkedNodes === 'object') {
         for (const [key, linkedId] of Object.entries(node.linkedNodes)) {
           if (typeof linkedId === 'string' && !validNodeIds.has(linkedId)) {
-            console.warn(`⚠️ Removing invalid linkedNode: ${nodeId}.${key} -> ${linkedId}`);
             delete node.linkedNodes[key];
             hasInvalidRefs = true;
             removedRefsCount++;
@@ -356,10 +343,6 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
 
     // Start validation from ROOT
     cleanNodeRefs('ROOT');
-
-    if (hasInvalidRefs) {
-      console.log(`🔧 Data cleaned - removed ${removedRefsCount} invalid references`);
-    }
 
     // Remove invalid nodes from the parsed object
     invalidNodes.forEach(id => {
@@ -384,7 +367,10 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
     });
 
     const finalJson = JSON.stringify(parsed);
-    console.log(`✅ Validation complete. Final data has ${Object.keys(parsed).length} nodes`);
+
+    if (hasInvalidRefs && removedRefsCount > 0) {
+      console.warn(`Editor data cleaned: removed ${removedRefsCount} invalid references.`);
+    }
 
     return { valid: true, data: finalJson };
   } catch (error) {
@@ -396,16 +382,24 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
 // Suppress known @craftjs/core React 19 compatibility warnings.
 // Safe to remove once craftjs releases a stable React 19 compatible version (0.3.x+).
 if (typeof window !== "undefined") {
-  const _origConsoleError = console.error.bind(console);
-  console.error = (...args: unknown[]) => {
-    if (typeof args[0] === "string") {
-      // React 19 removed element.ref access — craftjs still uses old API internally
-      if (args[0].includes("Accessing element.ref was removed")) return;
-      // craftjs store updates trigger setState during Frame render in React 19 concurrent mode
-      if (args[0].includes("Cannot update a component") && args[0].includes("while rendering a different component")) return;
-    }
-    _origConsoleError(...args);
+  const win = window as Window & {
+    __craftConsoleErrorPatched__?: boolean;
+    __craftOriginalConsoleError__?: typeof console.error;
   };
+  if (!win.__craftConsoleErrorPatched__) {
+    const originalError = win.__craftOriginalConsoleError__ ?? console.error.bind(console);
+    win.__craftOriginalConsoleError__ = originalError;
+    console.error = (...args: unknown[]) => {
+      if (typeof args[0] === "string") {
+        // React 19 removed element.ref access — craftjs still uses old API internally
+        if (args[0].includes("Accessing element.ref was removed")) return;
+        // craftjs store updates trigger setState during Frame render in React 19 concurrent mode
+        if (args[0].includes("Cannot update a component") && args[0].includes("while rendering a different component")) return;
+      }
+      originalError(...args);
+    };
+    win.__craftConsoleErrorPatched__ = true;
+  }
 }
 
 /**
@@ -468,6 +462,7 @@ const SafeFrame = ({
   const [frameDataToShow, setFrameDataToShow] = useState<string | null>(null);
   const [hasErrorBoundaryError, setHasErrorBoundaryError] = useState(false);
   const mountedSignalSentRef = useRef(false);
+  const validationCacheRef = useRef<{ input: string; output: string | null; valid: boolean } | null>(null);
 
   useEffect(() => {
     setFrameDataToShow(null);
@@ -480,18 +475,30 @@ const SafeFrame = ({
 
     // Validate and prepare data for rendering
     if (data) {
-      console.log('🔍 SafeFrame: Validating data before render...');
-      const validation = validateCraftData(data);
-
-      if (validation.valid && validation.data) {
-        console.log('✅ SafeFrame: Data is valid, preparing to render');
-        setRenderData(validation.data);
+      const cached = validationCacheRef.current;
+      if (cached && cached.input === data) {
+        if (cached.valid && cached.output) {
+          setRenderData(cached.output);
+        } else {
+          setRenderData(null);
+          onError?.();
+        }
       } else {
-        console.error('❌ SafeFrame: Data validation failed, using empty canvas');
-        setRenderData(null);
-        onError?.();
+        const validation = validateCraftData(data);
+        validationCacheRef.current = {
+          input: data,
+          output: validation.data ?? null,
+          valid: Boolean(validation.valid && validation.data),
+        };
+        if (validation.valid && validation.data) {
+          setRenderData(validation.data);
+        } else {
+          setRenderData(null);
+          onError?.();
+        }
       }
     } else {
+      validationCacheRef.current = null;
       setRenderData(null);
     }
 
