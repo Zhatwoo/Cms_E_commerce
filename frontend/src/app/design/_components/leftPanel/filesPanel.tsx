@@ -599,7 +599,17 @@ export const FilesPanel = () => {
                 actions.selectNode(nodeId);
                 // Scroll canvas to center the selected node, accounting for zoom/transform
                 try {
-                  const dom = query.node(nodeId).get()?.dom ?? null;
+                  const selectedNode = query.node(nodeId).get();
+                  const selectedDisplayName = selectedNode?.data?.displayName ?? "";
+                  let dom = selectedNode?.dom ?? null;
+
+                  if (selectedDisplayName === "Viewport") {
+                    const firstPageDom = document.querySelector<HTMLElement>("[data-viewport-desktop] [data-page-node='true']");
+                    if (firstPageDom) {
+                      dom = firstPageDom;
+                    }
+                  }
+
                   if (dom) {
                     const container = document.querySelector("[data-canvas-container]") as HTMLElement | null;
                     if (container) {
