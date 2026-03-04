@@ -1,5 +1,4 @@
 "use client";
-
 export { ProductCard } from "./productcard/productcard";
 export { ProductDetailView } from "./productcard/ProductDetailView";
 export { ProductDetailViewV2 } from "./productcard/ProductDetailViewV2";
@@ -10,4 +9,5 @@ export { ProductDescription } from "./ProductDescription/ProductDescription";
 export { FeaturedProduct } from "./FeaturedProduct/FeaturedProduct";
 export { CategoriesCard } from "./CategoriesCard/CategoriesCard";
 export { BrowseCategory } from "./BrowseCategory/BrowseCategory";
+export { ProductsOverview } from "./DiscoverProducts/productsOverview";
 

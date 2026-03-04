@@ -30,7 +30,7 @@ export default function InstancesPage() {
     e.preventDefault();
     try {
       setCreating(true);
-      const cleanTitle = title.trim() || 'Untitled Project';
+      const cleanTitle = title.trim() || 'Untitled Website Instance';
       const cleanSubdomain = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
 
       const res = await createProject({
@@ -69,7 +69,7 @@ export default function InstancesPage() {
 
     try {
       setUpdating(true);
-      const cleanTitle = title.trim() || 'Untitled Project';
+      const cleanTitle = title.trim() || 'Untitled Website Instance';
       const cleanSubdomain = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
 
       const res = await updateProject(editingInstanceId, {

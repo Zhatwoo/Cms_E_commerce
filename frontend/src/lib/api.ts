@@ -288,7 +288,7 @@ export async function updateProfile(data: {
   });
 }
 
-/** Upload avatar via backend: file is saved in Storage only (Clients/{uid}/avatar.ext). Backend returns URL and updated user. */
+/** Upload avatar via backend: file is saved in Storage only at Clients/profile_picture/{username}/profile-{uid}. */
 export async function uploadAvatarApi(
   file: File
 ): Promise<{ success: boolean; message?: string; url?: string; user?: User }> {
@@ -322,6 +322,7 @@ export type Project = {
   id: string;
   title: string;
   status: string;
+  instanceId?: string | null;
   templateId?: string | null;
   subdomain?: string | null;
   thumbnail?: string | null;
@@ -331,9 +332,26 @@ export type Project = {
   daysLeft?: number;
 };
 
-export async function listProjects(params?: { instanceId?: string }): Promise<{ success: boolean; projects: Project[] }> {
-  const qs = params?.instanceId ? `?instanceId=${encodeURIComponent(params.instanceId)}` : '';
-  return apiFetch<{ success: boolean; projects: Project[] }>(`/api/projects${qs}`);
+export type Instance = {
+  id: string;
+  title: string;
+  status: string;
+  subdomain?: string | null;
+  thumbnail?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export async function listProjects(params?: { instanceId?: string | null }): Promise<{ success: boolean; projects: Project[] }> {
+  const query = new URLSearchParams();
+  if (params?.instanceId) query.set('instanceId', params.instanceId);
+  const qs = query.toString();
+  const path = qs ? `/api/projects?${qs}` : '/api/projects';
+  return apiFetch<{ success: boolean; projects: Project[] }>(path);
+}
+
+export async function listInstances(): Promise<{ success: boolean; instances: Instance[] }> {
+  return apiFetch<{ success: boolean; instances: Instance[] }>('/api/instances');
 }
 
 export async function createProject(params: {
@@ -341,8 +359,19 @@ export async function createProject(params: {
   instanceId?: string;
   templateId?: string | null;
   subdomain?: string | null;
+  instanceId?: string | null;
 }): Promise<{ success: boolean; project: Project; message?: string }> {
   return apiFetch<{ success: boolean; project: Project; message?: string }>('/api/projects', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export async function createInstance(params: {
+  title?: string;
+  subdomain?: string | null;
+}): Promise<{ success: boolean; instance?: Instance; message?: string }> {
+  return apiFetch<{ success: boolean; instance?: Instance; message?: string }>('/api/instances', {
     method: 'POST',
     body: JSON.stringify(params),
   });
@@ -372,9 +401,25 @@ export async function updateProject(
   });
 }
 
+export async function updateInstance(
+  id: string,
+  params: { title?: string; subdomain?: string | null }
+): Promise<{ success: boolean; instance?: Instance; message?: string }> {
+  return apiFetch<{ success: boolean; instance?: Instance; message?: string }>(`/api/instances/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(params),
+  });
+}
+
 /** Move project to trash instead of deleting permanently. */
 export async function deleteProject(id: string): Promise<{ success: boolean; message?: string; daysLeft?: number; retentionDays?: number }> {
   return apiFetch<{ success: boolean; message?: string; daysLeft?: number; retentionDays?: number }>(`/api/projects/${id}`, { method: 'DELETE' });
+}
+
+export async function deleteInstance(id: string): Promise<{ success: boolean; message?: string }> {
+  return apiFetch<{ success: boolean; message?: string }>(`/api/instances/${id}`, {
+    method: 'DELETE',
+  });
 }
 
 /** List all projects currently in the trash for the user. */
@@ -453,47 +498,6 @@ export async function getPublishHistory(projectId: string): Promise<{ success: b
   return apiFetch<{ success: boolean; data?: { history: PublishHistoryEntry[] } }>(
     `/api/domains/publish-history?projectId=${encodeURIComponent(projectId)}`
   );
-}
-
-// --- Instances (website instances owned by a client user) ---
-
-export type Instance = {
-  id: string;
-  title: string;
-  status: string;
-  subdomain?: string | null;
-  created_at?: string;
-  updated_at?: string;
-};
-
-export async function listInstances(): Promise<{ success: boolean; instances: Instance[] }> {
-  return apiFetch<{ success: boolean; instances: Instance[] }>('/api/instances');
-}
-
-export async function createInstance(params: {
-  title?: string;
-  subdomain?: string;
-}): Promise<{ success: boolean; message?: string; instance?: Instance }> {
-  return apiFetch<{ success: boolean; message?: string; instance?: Instance }>('/api/instances', {
-    method: 'POST',
-    body: JSON.stringify(params),
-  });
-}
-
-export async function updateInstance(
-  id: string,
-  params: { title?: string; subdomain?: string }
-): Promise<{ success: boolean; message?: string; instance?: Instance }> {
-  return apiFetch<{ success: boolean; message?: string; instance?: Instance }>(`/api/instances/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(params),
-  });
-}
-
-export async function deleteInstance(id: string): Promise<{ success: boolean; message?: string }> {
-  return apiFetch<{ success: boolean; message?: string }>(`/api/instances/${id}`, {
-    method: 'DELETE',
-  });
 }
 
 // --- Products (stored per published_subdomains/{subdomain}/products) ---

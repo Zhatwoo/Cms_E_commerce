@@ -18,16 +18,16 @@ import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
 
 const INDUSTRIES = [
-  { label: 'Fashion &\nApparel',      img: '/images/industries/Fashion & Apparel.png',    bg: 'linear-gradient(135deg,#3A006D 0%,#1A1A6E 100%)' },
-  { label: 'Electronics\n& Tech',     img: '/images/industries/Electronics & Tech.png',    bg: 'linear-gradient(135deg,#1A1A6E 0%,#0E2060 100%)' },
-  { label: 'Home &\nLiving',          img: '/images/industries/Home & Living.png',          bg: 'linear-gradient(135deg,#0E2060 0%,#2B0E7A 100%)' },
-  { label: 'Food &\nBeverage',        img: '/images/industries/Food & Beverage.png',        bg: 'linear-gradient(135deg,#3F1080 0%,#1A1A6E 100%)' },
-  { label: 'Beauty',                  img: '/images/industries/Beauty.png',                 bg: 'linear-gradient(135deg,#4A0E8A 0%,#3A006D 100%)' },
-  { label: 'Kids, Toys\n& Hobbies',  img: '/images/industries/Kids, Toys & Hobbies.png',  bg: 'linear-gradient(135deg,#2B0E7A 0%,#0E2060 100%)' },
-  { label: 'Pets',                    img: '/images/industries/Pets.png',                   bg: 'linear-gradient(135deg,#1D2B8A 0%,#3A006D 100%)' },
-  { label: 'Automotive',              img: '/images/industries/Automotive.png',             bg: 'linear-gradient(135deg,#0E0B3D 0%,#1A1A6E 100%)' },
-  { label: 'Sports &\nFitness',       img: '/images/industries/Sports & Fitness.png',       bg: 'linear-gradient(135deg,#2D0080 0%,#1D2B8A 100%)' },
-  { label: 'Creative &\nHandmade',    img: '/images/industries/Creative & Handmade.png',    bg: 'linear-gradient(135deg,#3A1070 0%,#0E2060 100%)' },
+  { label: 'Fashion &\nApparel', img: '/images/industries/Fashion & Apparel.png', bg: 'linear-gradient(135deg,#3A006D 0%,#1A1A6E 100%)' },
+  { label: 'Electronics\n& Tech', img: '/images/industries/Electronics & Tech.png', bg: 'linear-gradient(135deg,#1A1A6E 0%,#0E2060 100%)' },
+  { label: 'Home &\nLiving', img: '/images/industries/Home & Living.png', bg: 'linear-gradient(135deg,#0E2060 0%,#2B0E7A 100%)' },
+  { label: 'Food &\nBeverage', img: '/images/industries/Food & Beverage.png', bg: 'linear-gradient(135deg,#3F1080 0%,#1A1A6E 100%)' },
+  { label: 'Beauty', img: '/images/industries/Beauty.png', bg: 'linear-gradient(135deg,#4A0E8A 0%,#3A006D 100%)' },
+  { label: 'Kids, Toys\n& Hobbies', img: '/images/industries/Kids, Toys & Hobbies.png', bg: 'linear-gradient(135deg,#2B0E7A 0%,#0E2060 100%)' },
+  { label: 'Pets', img: '/images/industries/Pets.png', bg: 'linear-gradient(135deg,#1D2B8A 0%,#3A006D 100%)' },
+  { label: 'Automotive', img: '/images/industries/Automotive.png', bg: 'linear-gradient(135deg,#0E0B3D 0%,#1A1A6E 100%)' },
+  { label: 'Sports &\nFitness', img: '/images/industries/Sports & Fitness.png', bg: 'linear-gradient(135deg,#2D0080 0%,#1D2B8A 100%)' },
+  { label: 'Creative &\nHandmade', img: '/images/industries/Creative & Handmade.png', bg: 'linear-gradient(135deg,#3A1070 0%,#0E2060 100%)' },
 ] as const;
 
 type HeroTab = 'designs' | 'templates';
@@ -94,7 +94,9 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
       setAllProjects([]);
       setRecentProjects([]);
       setLoading(false);
-      return () => { cancelled = true; };
+      return () => {
+        cancelled = true;
+      };
     }
     listProjects()
       .then((res) => {
@@ -123,7 +125,9 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [selectedProject?.id]);
 
   useEffect(() => {
@@ -341,7 +345,6 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
     );
   };
 
-  /* Reference: deep indigo/purple bg with subtle gradient */
   return (
     <section className="relative min-h-[calc(100vh-176px)] px-3 py-3 sm:px-5 sm:py-4 lg:px-[100px] [font-family:var(--font-outfit),sans-serif]">
       <div className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full blur-3xl opacity-25 bg-[#5C1D8F]" />
@@ -434,7 +437,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                   {loading
                     ? 'Loading your latest project...'
                     : featuredProject
-                      ? `${featuredProject.title || 'Untitled website'} – ${formatLastEdited(featuredProject.updatedAt || featuredProject.createdAt)}. Continue building your responsive hero section and component library.`
+                      ? `${featuredProject.title || 'Untitled website'} — ${formatLastEdited(featuredProject.updatedAt || featuredProject.createdAt)}. Continue building your responsive hero section and component library.`
                       : `${userName}, create your first project to start building your website.`}
                 </p>
                 <button
@@ -487,20 +490,20 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                   title={featuredProject?.title ? `Open featured project ${featuredProject.title}` : 'Open featured project'}
                   className="w-full block rounded-xl mt-3 overflow-hidden border border-[rgba(147,145,212,0.2)] bg-[#0E0D3D]"
                 >
-                <div className="w-full aspect-[16/9]">
-                  <div className="relative h-full w-full overflow-hidden">
-                    <div
-                      onTransitionEnd={handleTrackTransitionEnd}
-                      className={`flex h-full w-full ${getTrackTranslateClass()} ${isSliderTransitionEnabled ? 'transition-transform duration-500 ease-out' : ''}`}
-                    >
-                      {carouselProjects.map((project, idx) => (
-                        <div key={`${project.id}-${idx}`} className="h-full w-full shrink-0 grow-0 basis-full">
-                          {renderProjectPreview(project)}
-                        </div>
-                      ))}
+                  <div className="w-full aspect-[16/9]">
+                    <div className="relative h-full w-full overflow-hidden">
+                      <div
+                        onTransitionEnd={handleTrackTransitionEnd}
+                        className={`flex h-full w-full ${getTrackTranslateClass()} ${isSliderTransitionEnabled ? 'transition-transform duration-500 ease-out' : ''}`}
+                      >
+                        {carouselProjects.map((project, idx) => (
+                          <div key={`${project.id}-${idx}`} className="h-full w-full shrink-0 grow-0 basis-full">
+                            {renderProjectPreview(project)}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
                 </button>
               </div>
             </div>
@@ -728,6 +731,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
             </section>
           </motion.div>
         ) : (
+<<<<<<< HEAD
           /* ── TEMPLATES TAB ──────────────────────────────────────── */
           <motion.div
             key="templates-tab"
@@ -737,6 +741,9 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
             transition={{ duration: 0.22, ease: 'easeOut' }}
           >
             {/* Browse by Industry */}
+=======
+          <>
+>>>>>>> 9b70934bfaeb6624b5e362f8f5d0f1f945ad5043
             <section className="mx-auto w-full max-w-none pt-2">
               <div className="mb-5">
                 <h3 className="text-xs sm:text-sm font-bold tracking-[0.18em] uppercase text-[#FFCE00]">Browse by Industry</h3>
@@ -753,8 +760,6 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                       boxShadow: '0 4px 18px rgba(0,0,0,0.32)',
                     }}
                   >
-                    {/* Image — floats large at the right, slightly overflowing bottom */}
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={industry.img}
                       alt={industry.label.replace('\n', ' ')}
@@ -763,10 +768,8 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                       loading="lazy"
                     />
 
-                    {/* Subtle gradient fade so text stays readable */}
                     <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-transparent" />
 
-                    {/* Text label — left half, centered */}
                     <div className="absolute inset-y-0 left-0 w-[55%] flex items-center justify-center px-4 pl-6 z-10">
                       <span className="text-base sm:text-lg font-extrabold text-white leading-snug whitespace-pre-line text-center drop-shadow-sm">
                         {industry.label}
@@ -786,20 +789,20 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
               </div>
             </section>
 
-            {/* Featured Templates */}
             <section className="mx-auto w-full max-w-none pt-2">
               <div className="mb-5">
                 <h3 className="text-xs sm:text-sm font-bold tracking-[0.18em] uppercase text-[#FFCE00]">Featured Templates</h3>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-4 h-auto lg:h-[560px]">
+              <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-4 h-auto lg:h-[620px]">
 
-                {/* Left — big Fashion Website card */}
-                <div className="group relative rounded-2xl overflow-hidden cursor-pointer hover:-translate-y-1 transition-transform duration-200 h-[380px] lg:h-full">
+                {/* Left — large featured card */}
+                <div className="relative rounded-[22px] overflow-hidden h-[420px] lg:h-full group cursor-pointer hover:-translate-y-0.5 transition-transform">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/images/template-fashion.jpg" alt="Fashion Website" className="template-pan-img" loading="lazy" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0A0730]/95 via-[#0A0730]/30 to-transparent" />
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-white/5 to-transparent" />
+                  <img src="/images/template-portfolio.jpg" alt="PC Website" className="template-pan-img" loading="lazy" />
+                  {/* gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0A0730]/95 via-[#0A0730]/40 to-transparent" />
+                  {/* floating text */}
                   <div className="absolute bottom-0 left-0 p-6 flex flex-col gap-2">
                     <span className="text-[10px] font-bold tracking-[0.22em] uppercase text-[#FFCE00]">Template</span>
                     <h4 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight">Fashion Website</h4>
@@ -812,33 +815,30 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                   </div>
                 </div>
 
-                {/* Right — Simple Website (top) + PC Website (bottom) */}
+                {/* Right — 2 stacked cards */}
                 <div className="flex flex-col gap-4 h-full">
 
-                  {/* Simple Website */}
-                  <div className="group relative rounded-2xl overflow-hidden cursor-pointer hover:-translate-y-1 transition-transform duration-200 flex-1 min-h-[260px]">
+                  {/* Top right */}
+                  <div className="relative rounded-[22px] overflow-hidden flex-1 group cursor-pointer hover:-translate-y-0.5 transition-transform min-h-[240px]">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/images/template-saas.jpg" alt="Simple Website" className="template-pan-img-sm template-pan-img-delay" loading="lazy" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0A0730]/90 via-[#0A0730]/25 to-transparent" />
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-white/5 to-transparent" />
-                    <div className="absolute bottom-0 left-0 p-4 flex flex-col gap-1">
-                      <span className="text-[9px] font-bold tracking-[0.2em] uppercase text-[#FFCE00]">Template</span>
-                      <h4 className="text-lg font-extrabold text-white leading-tight">Simple Website</h4>
+                    <img src="/images/template-saas.jpg" alt="Simple Website" className="template-pan-img-slow" loading="lazy" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0A0730]/90 via-[#0A0730]/30 to-transparent" />
+                    <div className="absolute bottom-0 left-0 p-5 flex flex-col gap-1">
+                      <span className="text-[10px] font-bold tracking-[0.22em] uppercase text-[#FFCE00]">Template</span>
+                      <h4 className="text-xl font-extrabold text-white leading-tight">Simple Website</h4>
                     </div>
                   </div>
 
-                  {/* PC Website */}
-                  <div className="group relative rounded-2xl overflow-hidden cursor-pointer hover:-translate-y-1 transition-transform duration-200 flex-1 min-h-[260px]">
+                  {/* Bottom right */}
+                  <div className="relative rounded-[22px] overflow-hidden flex-1 group cursor-pointer hover:-translate-y-0.5 transition-transform min-h-[240px]">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/images/template-portfolio.jpg" alt="PC Website" className="template-pan-img-sm template-pan-img-delay2" loading="lazy" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0A0730]/90 via-[#0A0730]/25 to-transparent" />
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-white/5 to-transparent" />
-                    <div className="absolute bottom-0 left-0 p-4 flex flex-col gap-1">
-                      <span className="text-[9px] font-bold tracking-[0.2em] uppercase text-[#FFCE00]">Template</span>
-                      <h4 className="text-lg font-extrabold text-white leading-tight">PC Website</h4>
+                    <img src="/images/template-fashion.jpg" alt="Fashion Website" className="template-pan-img" loading="lazy" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0A0730]/90 via-[#0A0730]/30 to-transparent" />
+                    <div className="absolute bottom-0 left-0 p-5 flex flex-col gap-1">
+                      <span className="text-[10px] font-bold tracking-[0.22em] uppercase text-[#FFCE00]">Template</span>
+                      <h4 className="text-xl font-extrabold text-white leading-tight">Fashion Website</h4>
                     </div>
                   </div>
-
                 </div>
               </div>
             </section>
@@ -847,6 +847,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
         </AnimatePresence>
       </div>
 
+<<<<<<< HEAD
       {renamingProject && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => {
           if (actioningProjectId === renamingProject.id) return;
@@ -899,6 +900,27 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
           </div>
         </div>
       )}
+=======
+      <style jsx>{`
+        .template-pan-img,
+        .template-pan-img-slow {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          transform: scale(1.02);
+          transition: transform 8s ease;
+        }
+
+        .template-pan-img-slow {
+          transition-duration: 12s;
+        }
+
+        .group:hover .template-pan-img,
+        .group:hover .template-pan-img-slow {
+          transform: scale(1.08);
+        }
+      `}</style>
+>>>>>>> 9b70934bfaeb6624b5e362f8f5d0f1f945ad5043
     </section>
   );
 }

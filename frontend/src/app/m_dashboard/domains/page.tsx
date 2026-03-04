@@ -26,6 +26,8 @@ import {
   ChevronUp,
 } from 'lucide-react';
 
+import { getSubdomainSiteUrl } from '@/lib/siteUrls';
+
 const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'websitelink';
 /** Host for subdomain display (e.g. panes/localhost:3000 or panes.websitelink) */
 const SITE_HOST = process.env.NEXT_PUBLIC_SITE_HOST ?? 'localhost:3000';
@@ -33,20 +35,6 @@ const SITE_HOST = process.env.NEXT_PUBLIC_SITE_HOST ?? 'localhost:3000';
 /** Normalized subdomain slug for URLs. */
 function toSubdomainSlug(subdomain: string): string {
   return subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || '';
-}
-
-/**
- * Full URL to open the published site (subdomain-based, like Vercel).
- * In dev: http://subdomain.localhost:3000. In production: https://subdomain.websitelink (or your BASE_DOMAIN).
- */
-function getSubdomainSiteUrl(subdomain: string, origin: string | null): string {
-  const slug = toSubdomainSlug(subdomain);
-  if (!slug) return '#';
-  if (origin && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
-    const port = typeof window !== 'undefined' ? window.location.port || '3000' : '3000';
-    return `http://${slug}.localhost:${port}`;
-  }
-  return `https://${slug}.${BASE_DOMAIN}`;
 }
 
 /** Display URL: subdomain/host format e.g. panes/localhost:3000, or subdomain.base in production */
@@ -255,7 +243,7 @@ export default function DomainsPage() {
     return () => { cancelled = true; };
   }, [selectedDomain?.project.id, selectedDomain?.project.status]);
 
-  const siteUrl = selectedDomain?.subdomain
+  const siteUrl = selectedDomain?.subdomain && isPublishedStatus(selectedDomain.project.status)
     ? getSubdomainSiteUrl(selectedDomain.subdomain, origin)
     : '';
 
@@ -468,7 +456,8 @@ export default function DomainsPage() {
               ) : (
                 filteredDomains.map(({ project, subdomain }) => {
                   const isPublished = isPublishedStatus(project.status);
-                  const cardUrl = subdomain ? getSubdomainSiteUrl(subdomain, origin) : '';
+                  const canVisit = Boolean(subdomain && isPublished);
+                  const cardUrl = canVisit ? getSubdomainSiteUrl(subdomain as string, origin) : '';
                   return (
                 <div
                   key={project.id}
@@ -518,8 +507,8 @@ export default function DomainsPage() {
                       {isPublished ? 'Published' : 'Draft'}
                     </span>
                     <a
-                      href={subdomain ? getSubdomainSiteUrl(subdomain, origin) : `/design?projectId=${project.id}`}
-                      target={subdomain ? "_blank" : "_self"}
+                      href={canVisit ? getSubdomainSiteUrl(subdomain as string, origin) : `/design?projectId=${project.id}`}
+                      target={canVisit ? "_blank" : "_self"}
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors shrink-0"
@@ -529,7 +518,7 @@ export default function DomainsPage() {
                       }}
                     >
                       <ExternalLink size={14} />
-                      {subdomain ? 'Visit' : 'Publish to go live'}
+                      {canVisit ? 'Visit' : 'Publish to go live'}
                     </a>
                     {isPublished && (
                       <button

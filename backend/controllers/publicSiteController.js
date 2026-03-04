@@ -4,6 +4,10 @@ const Product = require('../models/Product');
 
 exports.getBySubdomain = async (req, res) => {
   try {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.set('Surrogate-Control', 'no-store');
     const subdomain = (req.params.subdomain || '').toString().trim();
     if (!subdomain) {
       return res.status(400).json({ success: false, message: 'Subdomain is required' });
@@ -32,6 +36,10 @@ exports.getBySubdomain = async (req, res) => {
 // Public: list products for storefront (published/active only)
 exports.getProducts = async (req, res) => {
   try {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.set('Surrogate-Control', 'no-store');
     const subdomain = (req.params.subdomain || '').toString().trim();
     if (!subdomain) {
       return res.status(400).json({ success: false, message: 'Subdomain is required' });

@@ -9,9 +9,9 @@ import { WebPreview } from "../_lib/webRenderer";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 import { getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, getMyDomains, type Project } from "@/lib/api";
+import { getSubdomainSiteUrl } from "@/lib/siteUrls";
 import { getLimits } from "@/lib/subscriptionLimits";
 import { uploadClientFile } from "@/lib/firebaseStorage";
-import { createPortal } from "react-dom";
 import html2canvas from "html2canvas";
 //vdxvx
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
@@ -20,62 +20,18 @@ const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 type ViewMode = "Web-Preview" | "clean" | "raw";
 type PreviewViewport = "desktop" | "tablet" | "mobile";
 
-function PreviewIframe({ children, width, height = "80vh", isDesktop = false }: { children: React.ReactNode; width: string | number; height?: string | number; isDesktop?: boolean }) {
-  const [mountNode, setMountNode] = useState<HTMLElement | null>(null);
-  const iframeRef = React.useRef<HTMLIFrameElement>(null);
-
-  React.useEffect(() => {
-    const iframe = iframeRef.current;
-    if (!iframe) return;
-
-    const handleLoad = () => {
-      const doc = iframe.contentDocument;
-      if (doc && doc.head && doc.body) {
-        const root = doc.getElementById("preview-root");
-        if (root) setMountNode(root);
-      }
-    };
-
-    iframe.addEventListener("load", handleLoad);
-    // If already loaded (e.g. from cache or srcDoc fast load)
-    if (iframe.contentDocument?.readyState === "complete" || iframe.contentDocument?.body) {
-      handleLoad();
-    }
-
-    return () => iframe.removeEventListener("load", handleLoad);
-  }, []);
-
-  // Responsive: set width based on device
-  let responsiveWidth = width;
-  if (width === "responsive") {
-    // fallback: 100vw for desktop, 768px for tablet, 390px for mobile
-    responsiveWidth = "100vw";
-  } else if (typeof width === "number") {
-    // Convert number to pixel value
-    responsiveWidth = `${width}px`;
+const toPxNumber = (value: unknown): number | undefined => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return undefined;
+  if (normalized.endsWith("px")) {
+    const parsed = Number(normalized.slice(0, -2));
+    return Number.isFinite(parsed) ? parsed : undefined;
   }
-
-  return (
-    <>
-      <iframe
-        ref={iframeRef}
-        style={{
-          width: responsiveWidth,
-          height,
-          transition: "width 0.3s ease",
-          borderRadius: isDesktop ? 0 : undefined,
-          border: isDesktop ? "none" : undefined,
-        }}
-        className={isDesktop ? "bg-white min-h-full" : "rounded-xl border border-white/10 bg-white min-h-full"}
-        srcDoc={`<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1'/><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet"/><style>*,*::before,*::after{box-sizing:border-box;}body{margin:0;font-family:'Outfit',sans-serif;}</style></head><body><div id='preview-root'></div></body></html>`}
-        sandbox="allow-scripts allow-same-origin"
-        tabIndex={-1}
-        aria-hidden
-      />
-      {mountNode && createPortal(children, mountNode)}
-    </>
-  );
-}
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
 
 
 
@@ -237,12 +193,20 @@ function PreviewContent() {
   }, [rawJson]);
 
   const activeJson = viewMode === "clean" ? cleanJson : viewMode === "raw" ? rawFormatted : null;
-  const viewportClass =
-    previewViewport === "desktop"
-      ? "w-[1200px]"
-      : previewViewport === "tablet"
-        ? "w-[768px]"
-        : "w-[390px]";
+
+  const desktopResponsiveViewportWidth = useMemo(() => {
+    if (!cleanDoc?.pages?.length) return undefined;
+
+    const targetSlug = initialPageSlug;
+    const targetPage = targetSlug
+      ? cleanDoc.pages.find((page, index) => {
+          const slug = (page.props?.pageSlug as string | undefined) || `page-${index}`;
+          return slug === targetSlug;
+        })
+      : cleanDoc.pages[0];
+
+    return toPxNumber(targetPage?.props?.width) ?? 1920;
+  }, [cleanDoc, initialPageSlug]);
 
   const capturePreviewThumbnail = async () => {
     if (thumbnailCaptureRef.current || !previewRef.current || !projectId) return;
@@ -403,6 +367,16 @@ function PreviewContent() {
     setScheduledAt(tomorrow.toISOString().slice(0, 16));
   };
 
+  const isPlanLimitError = (message: string) => {
+    const lower = message.toLowerCase();
+    return (
+      lower.includes("limit reached") ||
+      lower.includes("free plan") ||
+      lower.includes("allows up to") ||
+      lower.includes("upgrade your subscription")
+    );
+  };
+
   const handlePublishConfirm = async () => {
     const domain = publishDomainName.trim().toLowerCase();
     if (!domain) {
@@ -441,8 +415,14 @@ function PreviewContent() {
         }
       }
     } catch (error) {
-      console.error("Publish error:", error);
-      showAlert(error instanceof Error ? error.message : "Publish failed.");
+      const message = error instanceof Error ? error.message : "Publish failed.";
+      if (isPlanLimitError(message)) {
+        setPublishDomainError(message);
+        showAlert(message);
+      } else {
+        console.error("Publish error:", error);
+        showAlert(message);
+      }
     } finally {
       setPublishing(false);
     }
@@ -483,8 +463,14 @@ function PreviewContent() {
         showAlert(res.message || "Schedule failed.");
       }
     } catch (error) {
-      console.error("Schedule error:", error);
-      showAlert(error instanceof Error ? error.message : "Schedule failed.");
+      const message = error instanceof Error ? error.message : "Schedule failed.";
+      if (isPlanLimitError(message)) {
+        setPublishDomainError(message);
+        showAlert(message);
+      } else {
+        console.error("Schedule error:", error);
+        showAlert(message);
+      }
     } finally {
       setScheduling(false);
     }
@@ -661,16 +647,19 @@ function PreviewContent() {
         ) : viewMode === "Web-Preview" ? (
           <div className="flex justify-center py-6 h-full">
             {cleanDoc ? (
-              <PreviewIframe
-                width={
-                  previewViewport === "desktop"
-                    ? "100%"
-                    : previewViewport === "tablet"
-                      ? 768
-                      : 390
+              <div
+                ref={previewRef}
+                className={`bg-white transition-[width] duration-300 ease-out ${previewViewport === "desktop"
+                    ? "w-full min-h-[calc(100vh-200px)]"
+                    : "min-h-[calc(100vh-200px)] rounded-xl border border-white/10 overflow-hidden"
+                  }`}
+                style={
+                  previewViewport === "tablet"
+                    ? { width: 768, maxWidth: "100%" }
+                    : previewViewport === "mobile"
+                      ? { width: 390, maxWidth: "100%" }
+                      : undefined
                 }
-                height="calc(100vh - 200px)"
-                isDesktop={previewViewport === "desktop"}
               >
                 <WebPreview
                   doc={cleanDoc}
@@ -678,6 +667,10 @@ function PreviewContent() {
                   initialPageSlug={initialPageSlug}
                   mobileBreakpoint={mobileBreakpoint}
                   enableFormInputs
+                  builderParityMode
+                  responsiveViewportWidth={
+                    previewViewport === "desktop" ? desktopResponsiveViewportWidth : undefined
+                  }
                   simulatedWidth={
                     previewViewport === "desktop"
                       ? undefined
@@ -686,7 +679,7 @@ function PreviewContent() {
                         : 390
                   }
                 />
-              </PreviewIframe>
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center min-h-96 text-zinc-500 p-8 border border-white/10 rounded-xl">
                 <p className="text-base mb-1">No page data</p>
@@ -815,7 +808,11 @@ function PreviewContent() {
           <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md">
             <h2 className="text-xl font-semibold text-white mb-2">Published successfully</h2>
             <p className="text-sm text-zinc-400 mb-1">Do you want to open your website now?</p>
-            <p className="text-xs text-zinc-500 mb-5">/sites/{publishedSubdomain}</p>
+            <p className="text-xs text-zinc-500 mb-5">
+              {typeof window !== 'undefined'
+                ? getSubdomainSiteUrl(publishedSubdomain, window.location.origin).replace(/^https?:\/\//, '')
+                : `${publishedSubdomain}.localhost`}
+            </p>
 
             <div className="flex justify-end gap-3">
               <button
@@ -834,7 +831,8 @@ function PreviewContent() {
                   const target = publishedSubdomain;
                   setShowPublishedSuccessModal(false);
                   setPublishedSubdomain(null);
-                  router.push(`/sites/${encodeURIComponent(target)}`);
+                  const url = getSubdomainSiteUrl(target, typeof window !== 'undefined' ? window.location.origin : null);
+                  if (url !== '#') window.location.href = url;
                 }}
                 className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
               >

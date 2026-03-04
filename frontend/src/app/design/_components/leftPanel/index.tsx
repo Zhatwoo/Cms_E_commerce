@@ -23,8 +23,9 @@ import { TemplatePanel } from "./templatePanel";
 import { deleteDraft } from "../../_lib/pageApi";
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
-const PAGE_GRID_ORIGIN_X = 30000;
-const PAGE_GRID_ORIGIN_Y = 30000;
+const VIEWPORT_EDGE_PADDING = 100000;
+const PAGE_GRID_ORIGIN_X = VIEWPORT_EDGE_PADDING;
+const PAGE_GRID_ORIGIN_Y = VIEWPORT_EDGE_PADDING;
 
 const EMPTY_CANVAS_DATA = JSON.stringify({
   ROOT: {
