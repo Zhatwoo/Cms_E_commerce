@@ -203,8 +203,11 @@ const INFINITE_CANVAS_HEIGHT_VH = 8000;
 const INFINITE_CANVAS_PADDING_PX = 100000;
 const LEFT_PANEL_DEFAULT_WIDTH = 320;
 const RIGHT_PANEL_DEFAULT_WIDTH = 420;
+const MIN_PANEL_WIDTH = 240;
+const MAX_PANEL_WIDTH = 560;
 const MIN_CANVAS_VIEWPORT_WIDTH = 760;
 const TOP_PANEL_HEIGHT_PX = 48;
+const CAMERA_COORD_LIMIT = 2_000_000;
 
 const isEditableTarget = (target: EventTarget | null) => {
   if (!target || !(target instanceof HTMLElement)) return false;
@@ -655,6 +658,15 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     startWidth: number;
   } | null>(null);
   const [isPanelDragging, setIsPanelDragging] = useState(false);
+  const [cameraVersion, setCameraVersion] = useState(0);
+  const cameraRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const mousePosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const wheelPanDeltaRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const wheelAnchorRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const hasUserMovedCanvasRef = useRef(false);
+  const isProgrammaticScrollRef = useRef(false);
+  const panPointerRef = useRef<{ x: number; y: number } | null>(null);
+  const activePanPointerIdRef = useRef<number | null>(null);
 
   const updateCamera = useCallback((x: number, y: number) => {
     cameraRef.current.x = x;
@@ -986,6 +998,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         x: e.clientX - rect.left,
         y: e.clientY - rect.top,
       };
+      wheelAnchorRef.current = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      };
       lastWheelZoomAtRef.current = Date.now();
       manualCameraControlUntilRef.current = Date.now() + 5000;
 
@@ -1072,11 +1088,15 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       if (e.cancelable) e.preventDefault();
       e.stopPropagation();
 
-      if (isZoomReset) {
-        newZoom = 1;
-      } else {
-        newZoom = clampScale(isZoomIn ? oldZoom + ZOOM_STEP : oldZoom - ZOOM_STEP, oldZoom);
-      }
+      const container = containerRef.current;
+      if (!container) return;
+
+      const cam = cameraRef.current;
+      const oldZoom = clampScale(scale, 1);
+      const newZoom = isZoomReset
+        ? 1
+        : clampScale(isZoomIn ? oldZoom + ZOOM_STEP : oldZoom - ZOOM_STEP, oldZoom);
+
       if (newZoom === oldZoom) return;
 
       const cx = container.clientWidth / 2;
@@ -1099,7 +1119,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const centerOnWorldPoint = useCallback((worldX: number, worldY: number, targetScale?: number) => {
     const container = containerRef.current;
     if (!container) return;
-    const z = zoom ?? scale;
+    const z = targetScale ?? scale;
     const vw = container.clientWidth / 2;
     const vh = container.clientHeight / 2;
     updateCamera(vw - worldX * z, vh - worldY * z);
@@ -1258,6 +1278,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     setCameraVersion((v) => v + 1);
   }, [scale]);
 
+  const handleZoomIn = useCallback(() => {
+    handleScaleChange(scale + ZOOM_STEP);
+  }, [scale, handleScaleChange]);
+
+  const handleZoomOut = useCallback(() => {
+    handleScaleChange(scale - ZOOM_STEP);
+  }, [scale, handleScaleChange]);
+
   // Handle device preset selection - only width changes; preserve page height so it doesn't reset
   const handleDevicePresetSelect = useCallback((preset: DevicePreset) => {
     setCanvasWidth(preset.width);
@@ -1270,14 +1298,34 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const isSpacePanActive = isSpacePressed;
   const canPanWithPointerDrag = activeTool === "hand" || isSpacePanActive;
 
+  const stopPan = useCallback(() => {
+    setIsPanning(false);
+    activePanPointerIdRef.current = null;
+    panPointerRef.current = null;
+    document.body.removeAttribute("data-canvas-pan");
+  }, []);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!canPanWithPointerDrag) return;
+
+    activePanPointerIdRef.current = e.pointerId;
+    panPointerRef.current = { x: e.clientX, y: e.clientY };
+    setIsPanning(true);
+    document.body.dataset.canvasPan = "true";
+    hasUserMovedCanvasRef.current = true;
+
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Ignore capture failures
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
   const handleMouseDown = (e: React.MouseEvent) => {
     if (canPanWithPointerDrag) {
-      const target = e.target as HTMLElement | null;
-      const nodeEl = target?.closest("[data-node-id]") as HTMLElement | null;
-      const nodeId = nodeEl?.getAttribute("data-node-id") ?? null;
-      if (nodeId && nodeId !== "ROOT" && nodeId !== "Viewport") {
-        return;
-      }
       setIsPanning(true);
       document.body.dataset.canvasPan = "true";
       e.preventDefault();
@@ -1286,8 +1334,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   };
 
   const handleMouseUp = () => {
-    setIsPanning(false);
-    document.body.removeAttribute("data-canvas-pan");
+    stopPan();
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -2058,7 +2105,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                       padding: `${INFINITE_CANVAS_PADDING_PX}px`,
                       boxSizing: "border-box",
                       transformOrigin: "top left",
-                      transform: `scale(${scale})`,
+                      transform: `translate3d(${cameraRef.current.x}px, ${cameraRef.current.y}px, 0) scale(${scale})`,
                       willChange: "transform",
                     }}
                   >
