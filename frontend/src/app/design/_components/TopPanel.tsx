@@ -16,6 +16,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { MIN_SCALE, MAX_SCALE, ZOOM_STEP, ZOOM_PRESETS } from "./zoomConstants";
+import { selectedToIds } from "../_lib/canvasActions";
 
 export type DevicePreset = {
   name: string;
@@ -67,6 +68,7 @@ interface TopPanelProps {
   onZoomIn?: () => void;
   onZoomOut?: () => void;
   onRotateCanvas: () => void;
+  activePageId?: string | null;
   onFitToCanvas: () => void;
   canvasWidth?: number;
   canvasHeight?: number;
@@ -81,6 +83,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   onZoomIn,
   onZoomOut,
   onRotateCanvas,
+  activePageId,
   onFitToCanvas,
   canvasWidth = 1440,
   canvasHeight = 900,
@@ -92,7 +95,6 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   const [showSizeDropdown, setShowSizeDropdown] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<DevicePreset | null>(null);
 
-  const [canvasRotation, setCanvasRotation] = useState(0);
   const sizeDropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdowns on outside click
@@ -141,8 +143,63 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   };
 
   const handleRotateCanvas = () => {
-    const newRotation = (canvasRotation + 90) % 360;
-    setCanvasRotation(newRotation);
+    try {
+      const state = query.getState();
+      const nodes = state.nodes ?? {};
+
+      const findPageAncestor = (nodeId: string | null | undefined): string | null => {
+        if (!nodeId) return null;
+        let cursor: string | null = nodeId;
+        const seen = new Set<string>();
+
+        while (cursor && !seen.has(cursor)) {
+          seen.add(cursor);
+          const node = nodes[cursor] as { data?: { displayName?: string; parent?: string }; parent?: string } | undefined;
+          if (!node) return null;
+          if (node?.data?.displayName === "Page") return cursor;
+
+          const parentId =
+            (typeof node?.data?.parent === "string" ? node.data.parent : null) ??
+            (typeof node?.parent === "string" ? node.parent : null);
+          cursor = parentId;
+        }
+
+        return null;
+      };
+
+      let targetPageId: string | null = null;
+
+      const selectedIds = selectedToIds(state?.events?.selected);
+      for (const id of selectedIds) {
+        const pageId = findPageAncestor(id);
+        if (pageId) {
+          targetPageId = pageId;
+          break;
+        }
+      }
+
+      if (!targetPageId) {
+        const activePage = findPageAncestor(activePageId ?? null);
+        if (activePage) targetPageId = activePage;
+      }
+
+      if (!targetPageId) {
+        const firstPageEntry = Object.entries(nodes).find(([, node]: any) => node?.data?.displayName === "Page");
+        targetPageId = firstPageEntry ? firstPageEntry[0] : null;
+      }
+
+      if (!targetPageId) return;
+
+      actions.setProp(targetPageId, (props: Record<string, unknown>) => {
+        const current = typeof props.pageRotation === "number" && Number.isFinite(props.pageRotation)
+          ? props.pageRotation
+          : 0;
+        props.pageRotation = (current + 90) % 360;
+      });
+    } catch (error) {
+      console.error("Failed to rotate active page:", error);
+    }
+
     onRotateCanvas();
   };
 

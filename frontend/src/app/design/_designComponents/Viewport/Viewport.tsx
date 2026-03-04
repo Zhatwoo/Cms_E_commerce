@@ -440,20 +440,11 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       event.stopPropagation();
       actions.selectNode(nodeId);
 
-      const desktopNodeEl = desktopRoot.querySelector<HTMLElement>(`[data-node-id="${nodeId}"]`);
       const canvasContainer = desktopRoot.closest("[data-canvas-container]") as HTMLElement | null;
-      if (desktopNodeEl && canvasContainer) {
-        const containerRect = canvasContainer.getBoundingClientRect();
-        const nodeRect = desktopNodeEl.getBoundingClientRect();
-        const centerX = nodeRect.left + nodeRect.width / 2;
-        const centerY = nodeRect.top + nodeRect.height / 2;
-        const targetScrollLeft = canvasContainer.scrollLeft + (centerX - (containerRect.left + containerRect.width / 2));
-        const targetScrollTop = canvasContainer.scrollTop + (centerY - (containerRect.top + containerRect.height / 2));
-        canvasContainer.scrollTo({
-          left: Math.max(0, targetScrollLeft),
-          top: Math.max(0, targetScrollTop),
-          behavior: "smooth",
-        });
+      if (canvasContainer) {
+        canvasContainer.dispatchEvent(
+          new CustomEvent("center-on-node", { detail: { nodeId } })
+        );
       }
 
       queueRender();
@@ -512,5 +503,10 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
 
 
 Viewport.craft = {
-  displayName: "Viewport"
+  displayName: "Viewport",
+  rules: {
+    canMoveIn: (incomingNodes: Node[]) => {
+      return incomingNodes.every((node) => node?.data?.displayName === "Page");
+    },
+  },
 };
