@@ -48,7 +48,7 @@ function toNumber(value: unknown, fallback: number): number {
   return fallback;
 }
 
-function shouldRenderNodeAtWidth(props: Record<string, unknown>, viewportWidth: number, defaultBreakpoint: number = 900): boolean {
+function shouldRenderNodeAtWidth(props: Record<string, unknown>, viewportWidth: number, defaultBreakpoint: number = PREVIEW_MOBILE_BREAKPOINT): boolean {
   const breakpoint = toNumber(props.mobileBreakpoint, defaultBreakpoint);
   const isMobile = viewportWidth <= breakpoint;
   const showOn = (props.showOn as string | undefined)?.toLowerCase();
@@ -76,7 +76,7 @@ function isCollapsibleOpen(
   const controlled = interactionState[key];
   if (typeof controlled === "boolean") return controlled;
 
-  const breakpoint = toNumber(props.mobileBreakpoint, 900);
+  const breakpoint = toNumber(props.mobileBreakpoint, PREVIEW_MOBILE_BREAKPOINT);
   const isMobile = viewportWidth <= breakpoint;
   if (typeof props.defaultOpen === "boolean") return props.defaultOpen;
   if (isMobile && typeof props.defaultOpenMobile === "boolean") return props.defaultOpenMobile;
@@ -403,39 +403,43 @@ const frameResponsiveStyles = (
         from { opacity: 0.96; transform: translateY(4px); }
         to { opacity: 1; transform: translateY(0); }
       }
-      @container (max-width: 640px) {\r
-        /* Only stack top-level layout rows, not inner UI rows nested inside columns */\r
-        .frame-responsive-inner.frame-fluid > [data-layout="row"],\r
-        .frame-responsive-inner.frame-fluid > * > [data-layout="row"] {\r
-          flex-direction: column !important;\r
-          align-items: stretch !important;\r
-        }\r
-        .frame-responsive-inner.frame-fluid > [data-layout="row"] > *,\r
-        .frame-responsive-inner.frame-fluid > * > [data-layout="row"] > * {\r
-          width: 100% !important;\r
-          max-width: 100% !important;\r
-          min-width: 0 !important;\r
-        }\r
-\r
-        /* Auto-reflow positioned elements (e.g. side labels/text) so they stack on mobile */\r
-        .frame-responsive-inner.frame-fluid [data-node-id][style*="position: absolute"],\r
-        .frame-responsive-inner.frame-fluid [data-node-id][style*="position:absolute"],\r
-        .frame-responsive-inner.frame-fluid [data-node-id][style*="position: fixed"],\r
-        .frame-responsive-inner.frame-fluid [data-node-id][style*="position:fixed"] {\r
-          position: relative !important;\r
-          left: auto !important;\r
-          right: auto !important;\r
-          top: auto !important;\r
-          bottom: auto !important;\r
-          width: 100% !important;\r
-          max-width: 100% !important;\r
-          min-width: 0 !important;\r
-          margin-left: 0 !important;\r
-          margin-right: 0 !important;\r
-          transform: none !important;\r
-          animation: responsive-reflow-in 180ms ease;\r
-        }\r
-      }\r
+      @container (max-width: 640px) {
+        /* Only stack top-level layout rows, not inner UI rows nested inside columns */
+        .frame-responsive-inner.frame-fluid > [data-layout="row"],
+        .frame-responsive-inner.frame-fluid > * > [data-layout="row"] {
+          flex-direction: column !important;
+          align-items: stretch !important;
+        }
+        .frame-responsive-inner.frame-fluid > [data-layout="row"] > *,
+        .frame-responsive-inner.frame-fluid > * > [data-layout="row"] > * {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+        }
+
+        .frame-responsive-inner.frame-fluid [data-mobile-font-scale="true"] {
+          font-size: calc(var(--mobile-source-font-size, 16px) * 0.62) !important;
+        }
+
+        /* Auto-reflow positioned elements (e.g. side labels/text) so they stack on mobile */
+        .frame-responsive-inner.frame-fluid [data-node-id][data-mobile-overflow="true"][style*="position: absolute"],
+        .frame-responsive-inner.frame-fluid [data-node-id][data-mobile-overflow="true"][style*="position:absolute"],
+        .frame-responsive-inner.frame-fluid [data-node-id][data-mobile-overflow="true"][style*="position: fixed"],
+        .frame-responsive-inner.frame-fluid [data-node-id][data-mobile-overflow="true"][style*="position:fixed"] {
+          position: relative !important;
+          left: auto !important;
+          right: auto !important;
+          top: auto !important;
+          bottom: auto !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+          margin-left: 0 !important;
+          margin-right: 0 !important;
+          transform: none !important;
+          animation: responsive-reflow-in 180ms ease;
+        }
+      }
       @container (max-width: 400px) {\r
         .frame-responsive-inner.frame-fluid > [data-layout="row"],\r
         .frame-responsive-inner.frame-fluid > * > [data-layout="row"] { gap: 12px !important; }\r
@@ -445,11 +449,12 @@ const frameResponsiveStyles = (
 );
 
 /** Responsive Navigation Component - converts nav bars to hamburger menu on mobile */
-function ResponsiveNav({ children, containerStyle, onClick, className }: {
+function ResponsiveNav({ children, containerStyle, onClick, className, dataMobileOverflow }: {
   children: React.ReactNode;
   containerStyle: React.CSSProperties;
   onClick?: () => void;
   className?: string;
+  dataMobileOverflow?: "true";
 }) {
   const [isOpen, setIsOpen] = React.useState(false);
   const navRef = React.useRef<HTMLDivElement>(null);
@@ -471,6 +476,7 @@ function ResponsiveNav({ children, containerStyle, onClick, className }: {
     <div
       ref={navRef}
       data-nav-container
+      data-mobile-overflow={dataMobileOverflow}
       className={className}
       style={{ ...containerStyle, position: "relative" }}
       onClick={onClick}
@@ -1028,7 +1034,7 @@ function normalizePreviewWidth(
 
   if (!Number.isFinite(viewportWidth) || viewportWidth <= 0) return typeof widthValue === "string" ? widthValue : undefined;
 
-  const breakpoint = toNumber(mobileBreakpoint, 900);
+  const breakpoint = toNumber(mobileBreakpoint, PREVIEW_MOBILE_BREAKPOINT);
   const isNarrowPreview = viewportWidth <= breakpoint;
   if (!isNarrowPreview) return typeof widthValue === "string" ? widthValue : undefined;
 
@@ -1054,7 +1060,13 @@ function normalizePreviewWidth(
 function normalizeLayoutWidthForNarrow(
   widthValue: unknown,
   isNarrow: boolean,
+  builderParityMode?: boolean,
 ): string | undefined {
+  if (builderParityMode) {
+    if (typeof widthValue === "number") return `${widthValue}px`;
+    return typeof widthValue === "string" ? widthValue : undefined;
+  }
+
   if (!isNarrow) {
     if (typeof widthValue === "number") return `${widthValue}px`;
     return typeof widthValue === "string" ? widthValue : undefined;
@@ -1081,7 +1093,13 @@ function normalizeLayoutWidthForNarrow(
 function normalizeLayoutHeightForNarrow(
   heightValue: unknown,
   isNarrow: boolean,
+  builderParityMode?: boolean,
 ): string | undefined {
+  if (builderParityMode) {
+    if (typeof heightValue === "number") return `${heightValue}px`;
+    return typeof heightValue === "string" ? heightValue : undefined;
+  }
+
   if (typeof heightValue !== "string") return undefined;
   if (!isNarrow) return heightValue;
 
@@ -1107,16 +1125,49 @@ function isNarrowResponsivePreview(
 ): boolean {
   if (builderParityMode) return false;
   if (!Number.isFinite(viewportWidth) || viewportWidth <= 0) return false;
-  const breakpoint = toNumber(mobileBreakpoint, 900);
+  const breakpoint = toNumber(mobileBreakpoint, PREVIEW_MOBILE_BREAKPOINT);
   return viewportWidth <= breakpoint;
+}
+
+function parsePixelValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
+  if (!normalized.endsWith("px")) return null;
+  const parsed = Number(normalized.slice(0, -2));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function isLikelyOverflowingNarrowViewport(props: Record<string, unknown>, viewportWidth: number): boolean {
+  if (!Number.isFinite(viewportWidth) || viewportWidth <= 0) return false;
+
+  const tolerance = 8;
+  const widthPx = parsePixelValue(props.width);
+  const leftPx = parsePixelValue(props.left);
+  const rightPx = parsePixelValue(props.right);
+
+  if (widthPx !== null && widthPx > viewportWidth) return true;
+  if (leftPx !== null && (leftPx < 0 || leftPx > tolerance)) return true;
+  if (rightPx !== null && (rightPx < 0 || rightPx > tolerance)) return true;
+  if (widthPx !== null && leftPx !== null && leftPx + widthPx > viewportWidth + tolerance) return true;
+  if (widthPx !== null && rightPx !== null && rightPx + widthPx > viewportWidth + tolerance) return true;
+
+  return false;
 }
 
 function normalizeResponsivePosition(
   position: React.CSSProperties["position"] | undefined,
   isNarrow: boolean,
+  props: Record<string, unknown>,
+  viewportWidth: number,
+  builderParityMode?: boolean,
 ): React.CSSProperties["position"] | undefined {
+  if (builderParityMode) return position;
   if (!isNarrow) return position;
-  if (position === "absolute" || position === "fixed") return "relative";
+  if (position === "absolute" || position === "fixed") {
+    if (isLikelyOverflowingNarrowViewport(props, viewportWidth)) return "relative";
+  }
   return position;
 }
 
@@ -1373,6 +1424,7 @@ function RenderNode({
         const normalizedSlotWidth = normalizeLayoutWidthForNarrow(
           normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint),
           isNarrowPreview,
+          builderParityMode,
         );
         const rawSlotWidth = (props.width as string | undefined)?.trim() || "";
         const slotWidthPx = rawSlotWidth.toLowerCase().endsWith("px")
@@ -1499,12 +1551,17 @@ function RenderNode({
       const normalizedWidth = normalizeLayoutWidthForNarrow(
         normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint),
         isNarrowPreview,
+        builderParityMode,
       );
-      const normalizedHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview);
+      const normalizedHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
       const normalizedPosition = normalizeResponsivePosition(
         props.position as React.CSSProperties["position"] | undefined,
         isNarrowPreview,
+        props,
+        viewportWidth,
+        builderParityMode,
       );
+      const mobileOverflowLikely = !builderParityMode && isNarrowPreview && isLikelyOverflowingNarrowViewport(props, viewportWidth);
 
       const containerStyle: React.CSSProperties = {
         backgroundColor: props.background as string,
@@ -1560,11 +1617,13 @@ function RenderNode({
           containerStyle={containerStyle}
           onClick={interactiveClick}
           className={((props.customClassName as string) || "").trim() || undefined}
+          dataMobileOverflow={mobileOverflowLikely ? "true" : undefined}
         >
           {children}
         </ResponsiveNav>
       ) : (
         <div
+          data-mobile-overflow={mobileOverflowLikely ? "true" : undefined}
           className={((props.customClassName as string) || "").trim() || undefined}
           style={containerStyle}
           onClick={interactiveClick}
@@ -1596,8 +1655,9 @@ function RenderNode({
       const normalizedWidth = normalizeLayoutWidthForNarrow(
         normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint),
         isNarrowPreview,
+        builderParityMode,
       );
-      const normalizedHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview);
+      const normalizedHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
       return wrap(
         <section
           {...(isHeaderAsset ? { "data-header": "true" } : {})}
@@ -1664,8 +1724,9 @@ function RenderNode({
       const normalizedWidth = normalizeLayoutWidthForNarrow(
         normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint),
         isNarrowPreview,
+        builderParityMode,
       );
-      const normalizedMinH = normalizeLayoutHeightForNarrow(minH, isNarrowPreview) ?? minH;
+      const normalizedMinH = normalizeLayoutHeightForNarrow(minH, isNarrowPreview, builderParityMode) ?? minH;
       return wrap(
         <ResponsiveFrameWrapper
           referenceWidth={refW}
@@ -1704,8 +1765,9 @@ function RenderNode({
       const normalizedWidth = normalizeLayoutWidthForNarrow(
         normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint),
         isNarrowPreview,
+        builderParityMode,
       );
-      const normalizedHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview);
+      const normalizedHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
       const isNavRow = isNavContainer(node, nodes, props);
       const rowStyle: React.CSSProperties = {
         backgroundColor: props.background as string,
@@ -1771,8 +1833,9 @@ function RenderNode({
       const normalizedWidth = normalizeLayoutWidthForNarrow(
         normalizePreviewWidth(w, viewportWidth, builderParityMode, mobileBreakpoint),
         isNarrowPreview,
+        builderParityMode,
       );
-      const normalizedHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview);
+      const normalizedHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
       const colBw = (props.borderWidth ?? 0) as number;
       const colBorderDecl = colBw > 0 ? `${colBw}px ${props.borderStyle} ${props.borderColor}` : undefined;
       const colStrokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
@@ -1824,8 +1887,11 @@ function RenderNode({
       const pl = (props.paddingLeft ?? p) as number;
       const pr = (props.paddingRight ?? p) as number;
       const textContent = (props.text != null && props.text !== "") ? String(props.text) : ((DEFAULTS["Text"]?.text as string) ?? "Edit me!");
-      const normalizedTextWidth = normalizeLayoutWidthForNarrow(props.width, isNarrowPreview);
-      const normalizedTextHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview);
+      const normalizedTextWidth = normalizeLayoutWidthForNarrow(props.width, isNarrowPreview, builderParityMode);
+      const normalizedTextHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
+      const rawTextFontSize = parsePixelValue(props.fontSize) ?? toNumber(props.fontSize, toNumber(DEFAULTS["Text"]?.fontSize, 16));
+      const shouldScaleTextFont = !builderParityMode && isNarrowPreview && rawTextFontSize > 30;
+      const textOverflowLikely = !builderParityMode && isNarrowPreview && isLikelyOverflowingNarrowViewport(props, viewportWidth);
       const rot = toNumber(props.rotation, 0);
       const flipH = props.flipHorizontal === true;
       const flipV = props.flipVertical === true;
@@ -1840,7 +1906,7 @@ function RenderNode({
         textAlign: props.textAlign as React.CSSProperties["textAlign"],
         textTransform: props.textTransform as React.CSSProperties["textTransform"],
         color: (props.color as string) || "#000000",
-        position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview),
+        position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
         display: ((props.display as React.CSSProperties["display"]) || "block"),
         zIndex: (props.zIndex as number | undefined) ?? 2,
         top: isNarrowPreview ? undefined : (props.position !== "static" ? (props.top as React.CSSProperties["top"]) : undefined),
@@ -1863,6 +1929,7 @@ function RenderNode({
         whiteSpace: "pre-wrap",
         overflowWrap: "break-word",
         wordBreak: "normal",
+        "--mobile-source-font-size": `${rawTextFontSize}px`,
       };
 
       if (allowPreviewInput) {
@@ -1883,6 +1950,8 @@ function RenderNode({
             defaultValue=""
             placeholder={textContent}
             aria-label={textContent}
+            data-mobile-font-scale={shouldScaleTextFont ? "true" : undefined}
+            data-mobile-overflow={textOverflowLikely ? "true" : undefined}
             className={`preview-input ${((props.customClassName as string) || "").trim()}`.trim() || undefined}
             style={previewInputStyle}
           />,
@@ -1892,6 +1961,8 @@ function RenderNode({
 
       return wrap(
         <div
+          data-mobile-font-scale={shouldScaleTextFont ? "true" : undefined}
+          data-mobile-overflow={textOverflowLikely ? "true" : undefined}
           className={((props.customClassName as string) || "").trim() || undefined}
           style={textStyle}
           onClick={interactiveClick}
@@ -1906,8 +1977,8 @@ function RenderNode({
       const imgFlipH = props.flipHorizontal === true;
       const imgFlipV = props.flipVertical === true;
       const imgTransform = [imgRot ? `rotate(${imgRot}deg)` : null, imgFlipH ? "scaleX(-1)" : null, imgFlipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
-      const normalizedImageWidth = normalizeLayoutWidthForNarrow(props.width, isNarrowPreview);
-      const normalizedImageHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview);
+      const normalizedImageWidth = normalizeLayoutWidthForNarrow(props.width, isNarrowPreview, builderParityMode);
+      const normalizedImageHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
       return wrap(
         <img
           src={(props.src as string) || "https://placehold.co/600x400?text=Image"}
@@ -1942,8 +2013,9 @@ function RenderNode({
       const width = normalizeLayoutWidthForNarrow(
         normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint) || (props.width as string) || "auto",
         isNarrowPreview,
+        builderParityMode,
       ) || "auto";
-      const height = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview) || (props.height as string) || "auto";
+      const height = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode) || (props.height as string) || "auto";
       const isPercentWidth = typeof width === "string" && width.includes("%");
       const p = typeof props.padding === "number" ? props.padding : 0;
       const pt = toNumber(props.paddingTop ?? p, 10);
@@ -1965,8 +2037,11 @@ function RenderNode({
       const btnFlipH = props.flipHorizontal === true;
       const btnFlipV = props.flipVertical === true;
       const btnTransform = [btnRot ? `rotate(${btnRot}deg)` : null, btnFlipH ? "scaleX(-1)" : null, btnFlipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
+      const rawButtonFontSize = parsePixelValue(props.fontSize) ?? toNumber(props.fontSize, toNumber(DEFAULTS["Button"]?.fontSize, 14));
+      const shouldScaleButtonFont = !builderParityMode && isNarrowPreview && rawButtonFontSize > 30;
       const content = (
         <span
+          data-mobile-font-scale={shouldScaleButtonFont ? "true" : undefined}
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
             backgroundColor: bg,
@@ -1991,6 +2066,7 @@ function RenderNode({
             transform: btnTransform,
             transformOrigin: "center center",
             minWidth: isNarrowPreview ? 0 : undefined,
+            "--mobile-source-font-size": `${rawButtonFontSize}px`,
           }}
           onClick={interactiveClick}
         >
@@ -2045,7 +2121,7 @@ function RenderNode({
       return wrap(
         <hr
           style={{
-            width: normalizeLayoutWidthForNarrow((props.width as string) || "100%", isNarrowPreview) || "100%",
+            width: normalizeLayoutWidthForNarrow((props.width as string) || "100%", isNarrowPreview, builderParityMode) || "100%",
             border: "none",
             borderTop: `${props.thickness}px ${props.dividerStyle} ${props.color}`,
             marginTop: px(props.marginTop),
@@ -2061,8 +2137,8 @@ function RenderNode({
             iconType={props.iconType as string}
             size={toNumber(props.size, 24)}
             color={props.color as string}
-            width={normalizeLayoutWidthForNarrow(props.width as string, isNarrowPreview)}
-            height={normalizeLayoutHeightForNarrow(props.height as string, isNarrowPreview)}
+            width={normalizeLayoutWidthForNarrow(props.width as string, isNarrowPreview, builderParityMode)}
+            height={normalizeLayoutHeightForNarrow(props.height as string, isNarrowPreview, builderParityMode)}
             margin={toNumber(props.margin, 0)}
             marginTop={toNumber(props.marginTop, 0)}
             marginRight={toNumber(props.marginRight, 0)}
@@ -2093,8 +2169,8 @@ function RenderNode({
       const pb = toNumber(props.paddingBottom ?? p, 0);
       const pl = toNumber(props.paddingLeft ?? p, 0);
       const fill = (props.background as string) || (props.color as string) || "#999999";
-      const w = normalizeLayoutWidthForNarrow((props.width as string) || "200px", isNarrowPreview) || "200px";
-      const h = normalizeLayoutHeightForNarrow((props.height as string) || "200px", isNarrowPreview) || "200px";
+      const w = normalizeLayoutWidthForNarrow((props.width as string) || "200px", isNarrowPreview, builderParityMode) || "200px";
+      const h = normalizeLayoutHeightForNarrow((props.height as string) || "200px", isNarrowPreview, builderParityMode) || "200px";
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
       const bw = toNumber(props.borderWidth, 0);
