@@ -396,6 +396,8 @@ if (typeof window !== "undefined") {
       if (args[0].includes("Accessing element.ref was removed")) return;
       // craftjs store updates trigger setState during Frame render in React 19 concurrent mode
       if (args[0].includes("Cannot update a component") && args[0].includes("while rendering a different component")) return;
+      // html2canvas logs when external images (e.g. Unsplash) fail CORS during canvas capture — non-critical
+      if (args[0].includes("Error loading image")) return;
     }
     _origConsoleError(...args);
   };

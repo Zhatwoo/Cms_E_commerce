@@ -268,15 +268,23 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                     WORKSPACE // {toWorkspaceLabel(featuredProject)}
                   </span>
                 </div>
-                <button
-                  type="button"
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => {
                     if (featuredProject?.id) router.push(`/design?projectId=${featuredProject.id}`);
                     else router.push('/m_dashboard/web-builder');
                   }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      if (featuredProject?.id) router.push(`/design?projectId=${featuredProject.id}`);
+                      else router.push('/m_dashboard/web-builder');
+                    }
+                  }}
                   aria-label={featuredProject?.title ? `Open featured project ${featuredProject.title}` : 'Open featured project'}
                   title={featuredProject?.title ? `Open featured project ${featuredProject.title}` : 'Open featured project'}
-                  className="w-full block rounded-xl mt-3 overflow-hidden border border-[rgba(147,145,212,0.2)] bg-[#0E0D3D]"
+                  className="w-full block rounded-xl mt-3 overflow-hidden border border-[rgba(147,145,212,0.2)] bg-[#0E0D3D] cursor-pointer"
                 >
                   <div className="w-full aspect-[16/9]">
                     <div className="relative h-full w-full overflow-hidden">
@@ -292,7 +300,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                       </div>
                     </div>
                   </div>
-                </button>
+                </div>
               </div>
             </div>
 
@@ -325,11 +333,18 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                 </button>
 
                 {otherProjects.map((project) => (
-                  <button
+                  <div
                     key={project.id}
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                     onClick={() => router.push(`/design?projectId=${project.id}`)}
-                    className="rounded-[26px] border border-[#2D3A90] bg-[#12145A]/80 overflow-hidden text-left hover:translate-y-[-1px] transition-transform"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        router.push(`/design?projectId=${project.id}`);
+                      }
+                    }}
+                    className="rounded-[26px] border border-[#2D3A90] bg-[#12145A]/80 overflow-hidden text-left hover:translate-y-[-1px] transition-transform cursor-pointer"
                   >
                     <div className="w-full aspect-[16/10] overflow-hidden border-b border-[#2D3A90] bg-[#0E0D3D]">
                       {project.thumbnail ? (
@@ -347,7 +362,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                       <p className="text-2xl font-extrabold text-white leading-tight truncate">{project.title || 'Untitled Project'}</p>
                       <p className="text-xs text-[#8A8FC4] mt-1 truncate">{formatEditedDate(project.updatedAt || project.createdAt)}</p>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             </section>
