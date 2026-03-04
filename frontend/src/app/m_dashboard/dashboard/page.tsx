@@ -290,7 +290,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                   }
                   aria-label={featuredProject?.title ? `Open featured project ${featuredProject.title}` : 'Open featured project'}
                   title={featuredProject?.title ? `Open featured project ${featuredProject.title}` : 'Open featured project'}
-                  className="w-full block rounded-xl mt-3 overflow-hidden border border-[rgba(147,145,212,0.2)] bg-[#0E0D3D]"
+                  className="w-full block rounded-xl mt-3 overflow-hidden border border-[rgba(147,145,212,0.2)] bg-[#0E0D3D] cursor-pointer"
                 >
                   <div className="w-full aspect-[16/9]">
                     <div className="relative h-full w-full overflow-hidden">

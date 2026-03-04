@@ -2,7 +2,7 @@
 const { auth } = require('../config/firebase');
 const PasswordReset = require('../models/PasswordReset');
 const { sendVerificationEmail } = require('../utils/emailService');
-const { uploadAvatar, slugPathSegment } = require('../utils/storageHelpers');
+const { uploadAvatar, slugPathSegment, deleteAvatarByUrlForUser, getStoragePathFromUrl } = require('../utils/storageHelpers');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
@@ -457,7 +457,9 @@ exports.updateProfile = async (req, res) => {
 };
 
 /**
- * Upload avatar: multipart file -> Storage at Clients/{uid}/avatar.{ext} -> save URL in Firestore.
+ * Upload avatar: multipart file -> Storage at
+ * Clients/profile_picture/{username}/profile-{uid} -> save URL in Firestore.
+ * Replacing avatar keeps only one stored profile image per user.
  * @route POST /api/auth/avatar
  * @access Private
  */
@@ -472,10 +474,17 @@ exports.uploadAvatar = async (req, res) => {
       return res.status(400).json({ success: false, message: 'File must be an image.' });
     }
     const user = await User.get(uid);
-    const slug = slugPathSegment(user?.displayName || user?.username || user?.email || uid);
-    const folderName = `${slug}-${uid}`;
-    const url = await uploadAvatar(req.file.buffer, uid, mimeType, folderName);
+    const fallbackUsername = typeof user?.email === 'string' ? user.email.split('@')[0] : '';
+    const usernameSegment = slugPathSegment(user?.username || fallbackUsername || user?.displayName || uid);
+    const previousAvatarUrl = typeof user?.avatar === 'string' ? user.avatar : '';
+    const url = await uploadAvatar(req.file.buffer, uid, mimeType, usernameSegment);
     await User.update(uid, { avatar: url });
+    if (previousAvatarUrl && previousAvatarUrl !== url) {
+      // Deterministic avatar path means old/new URLs can differ only by token while pointing to same object.
+      // Skip delete when both URLs resolve to the same storage object to avoid deleting the freshly uploaded file.
+      const newAvatarPath = getStoragePathFromUrl(url);
+      await deleteAvatarByUrlForUser(previousAvatarUrl, uid, { skipObjectPath: newAvatarPath || '' });
+    }
     const updatedUser = await User.get(uid);
     res.status(200).json({
       success: true,
