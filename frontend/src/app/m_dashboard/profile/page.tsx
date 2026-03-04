@@ -422,13 +422,13 @@ export default function ProfilePage() {
                       </div>
                     </div>
 
-                    <div className="absolute bottom-0 right-0 flex items-center gap-2 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all">
+                    <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={avatarUploading}
                         title="Upload photo"
-                        className="p-2 rounded-full border shadow-lg disabled:opacity-70"
+                        className="w-9 h-9 rounded-full border shadow-lg disabled:opacity-70 flex items-center justify-center"
                         style={{
                           backgroundColor: colors.bg.elevated,
                           borderColor: colors.border.default,
@@ -447,7 +447,7 @@ export default function ProfilePage() {
                         onClick={openCamera}
                         disabled={avatarUploading}
                         title="Take photo"
-                        className="p-2 rounded-full border shadow-lg disabled:opacity-70"
+                        className="w-9 h-9 rounded-full border shadow-lg disabled:opacity-70 flex items-center justify-center"
                         style={{
                           backgroundColor: colors.bg.elevated,
                           borderColor: colors.border.default,
