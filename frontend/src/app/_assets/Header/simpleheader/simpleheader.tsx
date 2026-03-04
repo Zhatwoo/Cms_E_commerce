@@ -77,25 +77,25 @@ export const SimpleHeader: TemplateEntry = {
           },
           React.createElement(Text as any, {
             text: "Home",
-            fontSize: 14,
+            fontSize: 24,
             fontWeight: "500",
             color: "#374151",
           }),
           React.createElement(Text as any, {
             text: "About",
-            fontSize: 14,
+            fontSize: 24,
             fontWeight: "500",
             color: "#374151",
           }),
           React.createElement(Text as any, {
             text: "Services",
-            fontSize: 14,
+            fontSize: 24,
             fontWeight: "500",
             color: "#374151",
           }),
           React.createElement(Text as any, {
             text: "Contact",
-            fontSize: 14,
+            fontSize: 24,
             fontWeight: "500",
             color: "#374151",
           })
