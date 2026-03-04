@@ -13,46 +13,8 @@ export const EffectsGroup = ({
   setProp
 }: EffectsGroupProps) => {
 
-  const opacityPct = Math.round(opacity * 100);
-  const setOpacityFromPct = (pct: number) => {
-    const v = Math.max(0, Math.min(100, pct)) / 100;
-    setProp((props) => { props.opacity = v; });
-  };
-
   return (
     <div className="flex flex-col gap-4">
-      {/* Opacity: % input + slider */}
-      <div className="flex flex-col gap-1">
-        <div className="flex justify-between items-center gap-2">
-          <label className="text-[12px] text-brand-lighter font-base">Opacity</label>
-          <div className="flex items-center bg-brand-medium-dark rounded-lg px-2 border border-brand-medium/30 w-20">
-            <input
-              type="text"
-              value={opacityPct}
-              onChange={(e) => {
-                const v = parseInt(e.target.value, 10);
-                if (!isNaN(v)) setOpacityFromPct(v);
-              }}
-              onBlur={(e) => {
-                const v = parseInt(e.target.value, 10);
-                setOpacityFromPct(isNaN(v) ? opacityPct : v);
-              }}
-              className="w-full bg-transparent text-xs text-brand-lighter p-1 focus:outline-none text-right"
-            />
-            <span className="text-[10px] text-brand-medium">%</span>
-          </div>
-        </div>
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          value={opacity}
-          onChange={(e) => setProp((props) => { props.opacity = Number(e.target.value); })}
-          className="w-full accent-brand-light"
-        />
-      </div>
-
       {/* Overflow & Cursor */}
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
