@@ -967,7 +967,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       wheelZoomDeltaRef.current = 0;
       window.removeEventListener("wheel", handleWheel, { capture: true });
     };
-  }, []);
+  }, [scale, updateCamera]);
 
   // Update mouse position for anchoring
   useEffect(() => {

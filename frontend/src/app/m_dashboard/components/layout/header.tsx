@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { logout } from '@/lib/api';
+import { getApiUrl, logout } from '@/lib/api';
 import { useTheme } from '../context/theme-context';
 import { useAuth } from '../context/auth-context';
 import { useProject } from '../context/project-context';
@@ -95,6 +95,16 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     const userName = user?.name || user?.email || '';
     const avatarSrc = user?.avatar || (user?.email ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user.email)}` : '');
 
+    const resolveAvatarUrl = (raw?: string): string => {
+        const value = String(raw || '').trim();
+        if (!value) return '';
+        if (/^(https?:|data:|blob:)/i.test(value)) return value;
+        if (value.startsWith('/')) return `${getApiUrl()}${value}`;
+        return value;
+    };
+
+    const avatarSrc = resolveAvatarUrl(user?.avatar);
+
     useEffect(() => {
         const onScroll = () => setScrolled(window.scrollY > 10);
         window.addEventListener('scroll', onScroll, { passive: true });
@@ -103,7 +113,8 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
 
     useEffect(() => {
         setAvatarLoadFailed(false);
-    }, [avatarSrc]);
+    }, [user?.avatar]);
+
     const unreadCount = NOTIFICATIONS.filter((n) => n.unread).length;
 
     const handleLogout = async () => {
@@ -219,30 +230,16 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                                 aria-label="Profile menu"
                                 aria-expanded={showMenu}
                             >
-                                <span className="h-full w-full rounded-full overflow-hidden flex items-center justify-center">
-                                    {avatarSrc && !avatarLoadFailed ? (
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        <img
-                                            src={avatarSrc}
-                                            alt={userName || 'User avatar'}
-                                            className="h-full w-full object-cover"
-                                            onError={() => setAvatarLoadFailed(true)}
-                                        />
-                                    ) : (
-                                        <UserIcon />
-                                    )}
-                                </span>
-                                <span
-                                    className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full border flex items-center justify-center transition-transform"
-                                    style={{
-                                        backgroundColor: theme === 'dark' ? 'rgba(29, 29, 33, 0.98)' : 'rgba(255, 255, 255, 0.98)',
-                                        borderColor: colors.border.faint,
-                                        color: colors.text.secondary,
-                                        transform: showMenu ? 'rotate(180deg)' : 'rotate(0deg)',
-                                    }}
-                                >
-                                    <ChevronDownIcon />
-                                </span>
+                                {avatarSrc && !avatarLoadFailed ? (
+                                    <img
+                                        src={avatarSrc}
+                                        alt={userName || 'User avatar'}
+                                        className="h-full w-full object-cover"
+                                        onError={() => setAvatarLoadFailed(true)}
+                                    />
+                                ) : (
+                                    <UserIcon />
+                                )}
                             </button>
                             {showMenu && (
                                 <>
