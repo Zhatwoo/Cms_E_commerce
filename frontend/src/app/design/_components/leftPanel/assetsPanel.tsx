@@ -5,18 +5,6 @@ import { Editor, Frame, useEditor } from "@craftjs/core";
 import { ChevronLeft, ChevronRight, Layout, Star, FileText, CreditCard, FormInput, PanelBottom, Smile, Shapes as ShapesIcon } from "lucide-react";
 import { GROUPED_TEMPLATES } from "../../../_assets";
 import { CRAFT_RESOLVER } from "../craftResolver";
-
-const ASSET_ICONS: Record<string, React.ReactNode> = {
-  Header: <Layout className="w-5 h-5" />,
-  Hero: <Star className="w-5 h-5" />,
-  Content: <FileText className="w-5 h-5" />,
-  Cards: <CreditCard className="w-5 h-5" />,
-  Forms: <FormInput className="w-5 h-5" />,
-  Footer: <PanelBottom className="w-5 h-5" />,
-  Icons: <Smile className="w-5 h-5" />,
-  Shapes: <ShapesIcon className="w-5 h-5" />,
-};
-
 type AssetItem = {
   label: string;
   description?: string;
@@ -24,6 +12,29 @@ type AssetItem = {
   element: React.ReactElement;
   category: string;
 };
+
+class AssetPreviewErrorBoundary extends React.Component<
+  { fallback: React.ReactNode; children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { fallback: React.ReactNode; children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch() {
+    // Prevent one bad asset preview from blocking later assets in the list.
+  }
+
+  render() {
+    if (this.state.hasError) return this.props.fallback;
+    return this.props.children;
+  }
+}
 
 const DESKTOP_PREVIEW_WIDTH = 1440;
 const MAX_PREVIEW_HEIGHT = 180;
@@ -260,32 +271,35 @@ export const AssetsPanel = () => {
                       }}
                       className={`group bg-brand-white/5 p-3 rounded-xl hover:bg-brand-white/10 transition-all border cursor-move shadow-sm ${isSelected ? "border-brand-light bg-brand-white/10" : "border-brand-medium/30"
                         }`}
-                    >
-                      <div className="flex flex-col gap-2">
-                        {!iconFolder && (
-                          <div className="text-xs text-brand-white font-semibold leading-tight line-clamp-1">
-                            {item?.label ?? ""}
+                      >
+                        <div className="flex flex-col gap-2">
+                          {!iconFolder && (
+                            <div className="flex items-center justify-between gap-2 mb-1">
+                              <div className="text-sm text-brand-white font-medium leading-tight line-clamp-1">
+                                {item?.label ?? ""}
+                              </div>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-center">
+                            <AssetLivePreview
+                              item={item}
+                              previewMode={iconFolder ? "icon" : shapeFolder ? "shape" : "full"}
+                            />
                           </div>
-                        )}
-                        <div className="flex items-center justify-center">
-                          <AssetLivePreview
-                            item={item}
-                            previewMode={iconFolder ? "icon" : shapeFolder ? "shape" : "full"}
-                          />
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="rounded-xl border border-dashed border-white/10 bg-brand-white/5 p-8 text-center text-xs text-brand-light/50">
-                Select a category to view assets.
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-sm border border-white/10 bg-transparent p-4 text-center text-xs text-brand-light/65">
+                  Select a category.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
