@@ -34,6 +34,7 @@ import { PrototypeFlowLines } from "./PrototypeFlowLines";
 import { NewPageDropPlacementHandler } from "./NewPageDropPlacementHandler";
 import { HeaderFooterDropPlacementHandler } from "./HeaderFooterDropPlacementHandler";
 import { ScrollToSelectedHandler } from "./ScrollToSelectedHandler";
+import { PageTrackingHandler, SET_CURRENT_PAGE } from "./PageTrackingHandler";
 import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
@@ -48,7 +49,6 @@ import {
   DEFAULT_SCALE,
   ZOOM_STEP,
   ZOOM_SENSITIVITY,
-  SMOOTH_LERP_FACTOR,
 } from "./zoomConstants";
 
 /**
@@ -84,9 +84,10 @@ class FrameErrorBoundary extends React.Component<
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 const UI_STATE_KEY_PREFIX = "craftjs_editor_ui";
 
-// These must match the Viewport constants for proper page positioning
-const PAGE_GRID_ORIGIN_X = 30000;
-const PAGE_GRID_ORIGIN_Y = 30000;
+// Must match Viewport.tsx for proper multipage positioning
+const VIEWPORT_EDGE_PADDING = 100000;
+const PAGE_GRID_ORIGIN_X = VIEWPORT_EDGE_PADDING;
+const PAGE_GRID_ORIGIN_Y = VIEWPORT_EDGE_PADDING;
 const PAGE_BASE_WIDTH = 1920;
 const PAGE_BASE_HEIGHT = 1200;
 
@@ -840,10 +841,20 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const handlePageAdded = useCallback((id: string, name: string) => {
     setPages((prev) => [...prev, { id, name }]);
     setCurrentPageId(id);
+    requestAnimationFrame(() => {
+      const container = containerRef.current;
+      if (container) {
+        container.dispatchEvent(new CustomEvent("center-on-node", { detail: { nodeId: id } }));
+      }
+    });
   }, []);
 
   const handleSelectPage = useCallback((pageId: string) => {
     setCurrentPageId(pageId);
+    const container = containerRef.current;
+    if (container) {
+      container.dispatchEvent(new CustomEvent("center-on-node", { detail: { nodeId: pageId } }));
+    }
   }, []);
 
   const handleDeletePage = useCallback((pageId: string) => {
@@ -901,6 +912,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       if (!container) return;
 
       const rect = container.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
       const isInsideCanvas =
         e.clientX >= rect.left &&
         e.clientX <= rect.right &&
@@ -967,7 +980,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       wheelZoomDeltaRef.current = 0;
       window.removeEventListener("wheel", handleWheel, { capture: true });
     };
-  }, [scale, updateCamera]);
+  }, [scale]);
 
   // Update mouse position for anchoring
   useEffect(() => {
@@ -1183,13 +1196,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     // Rotation is handled per-page in TopPanel; keep callback for API compatibility.
   }, []);
 
-  // Handle fit to canvas: zoom so page fits with 10% margin, then center
+  // Handle fit to canvas: zoom so content fits with 10% margin. Supports multipage viewport.
   const handleFitToCanvas = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const contentWidth = canvasWidth;
-    const contentHeight = canvasHeight;
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
     if (
@@ -1251,14 +1262,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const isSpacePanActive = isSpacePressed;
   const canPanWithPointerDrag = activeTool === "hand" || isSpacePanActive;
 
+  // Figma-style: Hand tool or Space — always allow pan from anywhere (page, empty area, etc.)
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (canPanWithPointerDrag) {
-      const target = e.target as HTMLElement | null;
-      const nodeEl = target?.closest("[data-node-id]") as HTMLElement | null;
-      const nodeId = nodeEl?.getAttribute("data-node-id") ?? null;
-      if (nodeId && nodeId !== "ROOT" && nodeId !== "Viewport") {
-        return;
-      }
+    if (canPanWithPointerDrag && e.button === 0) {
       setIsPanning(true);
       document.body.dataset.canvasPan = "true";
       e.preventDefault();
@@ -1943,6 +1949,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 <CanvasSelectionHandler />
                 <BoxSelectionHandler />
                 <ScrollToSelectedHandler />
+                <PageTrackingHandler />
                 <CanvasContextMenu />
                 <FigmaStyleDragHandler />
                 <NewPageDropPlacementHandler />
