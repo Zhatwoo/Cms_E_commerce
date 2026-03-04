@@ -5,6 +5,7 @@ import { Editor, Frame, useEditor } from "@craftjs/core";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { GROUPED_TEMPLATES } from "../../../_assets";
 import { CRAFT_RESOLVER } from "../craftResolver";
+
 type AssetItem = {
   label: string;
   description?: string;
@@ -12,6 +13,29 @@ type AssetItem = {
   element: React.ReactElement;
   category: string;
 };
+
+class AssetPreviewErrorBoundary extends React.Component<
+  { fallback: React.ReactNode; children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { fallback: React.ReactNode; children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch() {
+    // Prevent one bad asset preview from blocking later assets in the list.
+  }
+
+  render() {
+    if (this.state.hasError) return this.props.fallback;
+    return this.props.children;
+  }
+}
 
 const DESKTOP_PREVIEW_WIDTH = 1440;
 const MAX_PREVIEW_HEIGHT = 180;
@@ -249,10 +273,18 @@ export const AssetsPanel = () => {
                             </div>
                           )}
                           <div className="flex items-center justify-center">
-                            <AssetLivePreview
-                              item={item}
-                              previewMode={iconFolder ? "icon" : shapeFolder ? "shape" : "full"}
-                            />
+                            <AssetPreviewErrorBoundary
+                              fallback={
+                                <div className="h-20 w-full rounded-lg border border-dashed border-brand-medium/50 bg-brand-medium/10 flex items-center justify-center text-[11px] text-brand-light/70">
+                                  Preview unavailable
+                                </div>
+                              }
+                            >
+                              <AssetLivePreview
+                                item={item}
+                                previewMode={iconFolder ? "icon" : shapeFolder ? "shape" : "full"}
+                              />
+                            </AssetPreviewErrorBoundary>
                           </div>
                         </div>
                       </div>
