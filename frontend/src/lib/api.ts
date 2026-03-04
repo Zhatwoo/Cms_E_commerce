@@ -288,7 +288,7 @@ export async function updateProfile(data: {
   });
 }
 
-/** Upload avatar via backend: file is saved in Storage only (Clients/{uid}/avatar.ext). Backend returns URL and updated user. */
+/** Upload avatar via backend: file is saved in Storage only at Clients/profile_picture/{username}/profile-{uid}. */
 export async function uploadAvatarApi(
   file: File
 ): Promise<{ success: boolean; message?: string; url?: string; user?: User }> {
@@ -497,6 +497,61 @@ export async function getPublishHistory(projectId: string): Promise<{ success: b
   return apiFetch<{ success: boolean; data?: { history: PublishHistoryEntry[] } }>(
     `/api/domains/publish-history?projectId=${encodeURIComponent(projectId)}`
   );
+}
+
+// --- Custom Domains ---
+
+export type CustomDomainEntry = {
+  id: string;
+  domain: string;
+  subdomain?: string;
+  projectId?: string;
+  projectTitle?: string;
+  status?: string;
+  domainStatus: 'pending' | 'verified' | 'error';
+  verifiedAt?: string | null;
+};
+
+export type DnsInstructions = {
+  message: string;
+  optionA: { type: string; host: string; value: string; description: string };
+  optionB: { type: string; host: string; value: string; description: string };
+};
+
+/** List all custom domains for the current user. */
+export async function listCustomDomains(): Promise<{ success: boolean; data: CustomDomainEntry[] }> {
+  return apiFetch<{ success: boolean; data: CustomDomainEntry[] }>('/api/domains/custom');
+}
+
+/** Connect a custom domain to a published project. */
+export async function addCustomDomain(
+  projectId: string,
+  domain: string
+): Promise<{ success: boolean; message?: string; data?: { domain: string; status: string }; dnsInstructions?: DnsInstructions }> {
+  return apiFetch('/api/domains/custom', {
+    method: 'POST',
+    body: JSON.stringify({ projectId, domain }),
+  });
+}
+
+/** Verify DNS records for a custom domain. */
+export async function verifyCustomDomain(
+  projectId: string
+): Promise<{ success: boolean; message?: string; data?: { domain: string; status: string; details: string } }> {
+  return apiFetch('/api/domains/custom/verify', {
+    method: 'POST',
+    body: JSON.stringify({ projectId }),
+  });
+}
+
+/** Remove a custom domain from a project. */
+export async function removeCustomDomain(
+  projectId: string
+): Promise<{ success: boolean; message?: string }> {
+  return apiFetch('/api/domains/custom', {
+    method: 'DELETE',
+    body: JSON.stringify({ projectId }),
+  });
 }
 
 // --- Products (stored per published_subdomains/{subdomain}/products) ---
