@@ -256,7 +256,9 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
         createdAt: editingProduct?.createdAt || new Date().toISOString(),
       }));
       if (saved === false) return;
-      showAlert(`Product ${editingProduct ? 'updated' : 'added'} successfully!`, 'success');
+      if (editingProduct) {
+        showAlert('Product updated successfully!', 'success');
+      }
       onClose();
     } catch (error) {
       showAlert(error instanceof Error ? error.message : 'Failed to save product', 'error');
@@ -578,8 +580,32 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                   <div>
                     <label className={lCls} style={{ color: colors.text.muted }}>Category</label>
                     <select value={fd.category} onChange={e => set('category', e.target.value)} className={iCls} style={iSt}>
-                      <option value="">Select…</option>
-                      {['Electronics', 'Clothing', 'Books', 'Home', 'Sports'].map(c => (
+                      <option value="" disabled hidden>Select Category</option>
+                      {[
+                        'Mobile & Gadgets',
+                        'Computers & Accessories',
+                        'Home & Living',
+                        'Health & Personal Care',
+                        'Beauty & Fragrances',
+                        'Babies & Kids',
+                        'Toys, Games & Collectibles',
+                        'Women’s Apparel',
+                        'Men’s Apparel',
+                        'Muslim Fashion',
+                        'Women’s Bags',
+                        'Men’s Bags',
+                        'Women’s Shoes',
+                        'Men’s Shoes',
+                        'Watches',
+                        'Fashion Accessories',
+                        'Sports & Outdoor',
+                        'Automotive',
+                        'Books & Stationery',
+                        'Pet Care',
+                        'Cameras & Drones',
+                        'Gaming & Consoles',
+                        'Digital Products',
+                      ].map(c => (
                         <option key={c} value={c}>{c}</option>
                       ))}
                     </select>

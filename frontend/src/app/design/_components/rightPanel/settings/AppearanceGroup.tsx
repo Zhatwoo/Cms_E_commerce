@@ -103,7 +103,7 @@ export const AppearanceGroup = ({
           <Plus size={12} className="text-brand-lighter hover:text-brand-lighter cursor-pointer" />
         </div>
         {/* Color Input */}
-        <div className="flex items-center gap-4 bg-brand-medium-dark rounded-lg px-2.5 py-1 color-picker-wrapper">
+        <div className="flex items-center gap-4 bg-brand-medium-dark rounded-lg px-2.5 py-1 color-picker-wrapper rightpanel-color-picker">
           <input
             type="color"
             value={background}
@@ -113,7 +113,7 @@ export const AppearanceGroup = ({
           <ColorInput
             value={background || "transparent"}
             onChange={(val) => setProp((props) => { props.background = val; })}
-            className="flex-1"
+            className="flex-1 min-w-0"
           />
         </div>
       </div>
@@ -218,7 +218,7 @@ export const AppearanceGroup = ({
                 {/* Overlay Color */}
                 <div className="flex flex-col gap-1">
                   <span className="text-[10px] text-brand-light">Overlay</span>
-                  <div className="flex items-center gap-4 bg-brand-medium-dark rounded-lg px-2.5 py-1 color-picker-wrapper">
+                  <div className="flex items-center gap-4 bg-brand-medium-dark rounded-lg px-2.5 py-1 color-picker-wrapper rightpanel-color-picker">
                     <input
                       type="color"
                       value={backgroundOverlay || "#000000"}
@@ -228,7 +228,7 @@ export const AppearanceGroup = ({
                     <ColorInput
                       value={backgroundOverlay || "transparent"}
                       onChange={(val) => setProp((props) => { props.backgroundOverlay = val; })}
-                      className="flex-1"
+                      className="flex-1 min-w-0"
                     />
                   </div>
                 </div>
@@ -243,7 +243,7 @@ export const AppearanceGroup = ({
         <label className="text-[12px] text-brand-lighter font-base">Stroke</label>
         <div className="flex gap-2">
           {/* Color Input */}
-          <div className="flex-1 flex items-center gap-4 bg-brand-medium-dark rounded-lg px-2.5 appearance-none color-picker-wrapper">
+          <div className="flex-1 flex items-center gap-4 bg-brand-medium-dark rounded-lg px-2.5 appearance-none color-picker-wrapper rightpanel-color-picker">
             <input
               type="color"
               value={borderColor}
@@ -253,7 +253,7 @@ export const AppearanceGroup = ({
             <ColorInput
               value={borderColor}
               onChange={(val) => setProp((props) => { props.borderColor = val; })}
-              className="flex-1"
+              className="flex-1 min-w-0"
             />
           </div>
           {/* Thickness Input */}

@@ -503,5 +503,10 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
 
 
 Viewport.craft = {
-  displayName: "Viewport"
+  displayName: "Viewport",
+  rules: {
+    canMoveIn: (incomingNodes: Node[]) => {
+      return incomingNodes.every((node) => node?.data?.displayName === "Page");
+    },
+  },
 };

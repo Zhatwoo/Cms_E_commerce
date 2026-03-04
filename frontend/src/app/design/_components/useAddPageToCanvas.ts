@@ -12,8 +12,22 @@ function toPx(value: unknown, fallback: number): number {
   return fallback;
 }
 
-const VIEWPORT_CENTER_WIDTH = 20000;
-const VIEWPORT_CENTER_HEIGHT = 14000;
+const PAGE_GRID_ORIGIN_X = 100000;
+const PAGE_GRID_ORIGIN_Y = 100000;
+
+type AddNodeTreeInput = {
+  rootNodeId: string;
+  nodes: Record<string, {
+    type: { resolvedName: string };
+    isCanvas: boolean;
+    props: Record<string, unknown>;
+    displayName: string;
+    nodes: string[];
+    linkedNodes: Record<string, string>;
+    custom: Record<string, unknown>;
+    hidden: boolean;
+  }>;
+};
 
 /**
  * Returns a function that adds a new Page node to the Viewport on the canvas via Craft.js.
@@ -70,18 +84,18 @@ export function useAddPageToCanvas(onPageAdded?: (id: string, name: string) => v
       const baseCanvasX =
         typeof templateProps?.canvasX === "number"
           ? templateProps.canvasX
-          : Math.round(VIEWPORT_CENTER_WIDTH / 2 - PAGE_WIDTH / 2);
+          : PAGE_GRID_ORIGIN_X;
       const baseCanvasY =
         typeof templateProps?.canvasY === "number"
           ? templateProps.canvasY
-          : Math.round(VIEWPORT_CENTER_HEIGHT / 2 - PAGE_HEIGHT / 2);
+          : PAGE_GRID_ORIGIN_Y;
 
       const col = pageCount % COLUMNS;
       const row = Math.floor(pageCount / COLUMNS);
       const canvasX = baseCanvasX + col * (PAGE_WIDTH + PAGE_GAP_X);
       const canvasY = baseCanvasY + row * (PAGE_HEIGHT + PAGE_GAP_Y);
 
-      const tree = {
+      const tree: AddNodeTreeInput = {
         rootNodeId: pageId,
         nodes: {
           [pageId]: {
@@ -103,7 +117,8 @@ export function useAddPageToCanvas(onPageAdded?: (id: string, name: string) => v
           },
         },
       };
-      (actions as { addNodeTree?: (tree: any, parentId: string) => void }).addNodeTree?.(tree, viewportId);
+      (actions as unknown as { addNodeTree?: (tree: AddNodeTreeInput, parentId?: string, index?: number) => void })
+        .addNodeTree?.(tree, viewportId);
       onPageAdded?.(pageId, pageName);
     } catch (e) {
       console.error("Add page to canvas failed:", e);

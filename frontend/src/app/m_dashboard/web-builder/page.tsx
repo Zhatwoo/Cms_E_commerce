@@ -355,6 +355,9 @@ export default function WebBuilderPage() {
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'active' | 'trash'>('active');
+  const [trashedProjects, setTrashedProjects] = useState<Project[]>([]);
+  const [trashedProjectsLoading, setTrashedProjectsLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createModalTitle, setCreateModalTitle] = useState('');
@@ -364,9 +367,6 @@ export default function WebBuilderPage() {
   const [renameValue, setRenameValue] = useState('');
   const [sortOption, setSortOption] = useState<SortOptionId>('relevant');
   const [showSortMenu, setShowSortMenu] = useState(false);
-  const [activeTab, setActiveTab] = useState<'active' | 'trash'>('active');
-  const [trashedProjects, setTrashedProjects] = useState<Project[]>([]);
-  const [trashedProjectsLoading, setTrashedProjectsLoading] = useState(false);
   const [publishModalProject, setPublishModalProject] = useState<Project | null>(null);
 
   const visibleProjects = projects;
@@ -817,21 +817,20 @@ export default function WebBuilderPage() {
         </div>
 
         {activeTab === 'active' ? (
-          <>
-            {loading ? (
-              <div className="rounded-xl border p-12 text-center" style={{ borderColor: colors.border.faint }}>
-                <p className="text-sm" style={{ color: colors.text.muted }}>Loading projects…</p>
+          loading ? (
+            <div className="rounded-xl border p-12 text-center" style={{ borderColor: colors.border.faint }}>
+              <p className="text-sm" style={{ color: colors.text.muted }}>Loading projects…</p>
+            </div>
+          ) : visibleProjects.length === 0 ? (
+            <div className="rounded-xl border border-dashed p-12 text-center" style={{ borderColor: colors.border.faint }}>
+              <div className="space-y-2">
+                <p className="text-sm" style={{ color: colors.text.muted }}>No active projects yet.</p>
+                <button onClick={handleStartBlank} className="text-sm font-medium hover:underline" style={{ color: colors.status.info }}>Create your first project →</button>
               </div>
-            ) : projects.length === 0 ? (
-              <div className="rounded-xl border border-dashed p-12 text-center" style={{ borderColor: colors.border.faint }}>
-                <div className="space-y-2">
-                  <p className="text-sm" style={{ color: colors.text.muted }}>No active projects yet.</p>
-                  <button onClick={handleStartBlank} className="text-sm font-medium hover:underline" style={{ color: colors.status.info }}>Create your first project →</button>
-                </div>
-              </div>
-            ) : (
+            </div>
+          ) : (
               <div className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
-                {projects.map((p) => (
+                {visibleProjects.map((p) => (
                   <motion.div
                     key={p.id}
                     className="relative min-w-0 rounded-lg border overflow-hidden cursor-pointer hover:border-opacity-80 transition-colors"
@@ -934,8 +933,7 @@ export default function WebBuilderPage() {
                   </motion.div>
                 ))}
               </div>
-            )}
-          </>
+            )
         ) : (
           <>
             {trashedProjectsLoading ? (
