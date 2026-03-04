@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useStorefront } from './StorefrontContext';
-import { CheckoutModal } from './CheckoutModal';
+import { CheckoutModal } from '@/app/sites/_storefront/CheckoutModal';
 
 export function CartDrawer() {
   const {
@@ -18,7 +18,6 @@ export function CartDrawer() {
   const [selectedById, setSelectedById] = useState<Record<string, boolean>>({});
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [submittingCheckout, setSubmittingCheckout] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
   const [confirmDeleteIds, setConfirmDeleteIds] = useState<string[] | null>(null);
 
   useEffect(() => {
@@ -68,7 +67,6 @@ export function CartDrawer() {
       return;
     }
     removeManyFromCart(ids);
-    setNotice(null);
   };
 
   const confirmRemoveMany = () => {
@@ -79,7 +77,6 @@ export function CartDrawer() {
     }
     removeManyFromCart(ids);
     setConfirmDeleteIds(null);
-    setNotice(null);
   };
 
   const handleCheckoutConfirm = async () => {
@@ -88,7 +85,6 @@ export function CartDrawer() {
       await new Promise((resolve) => setTimeout(resolve, 500));
       removeManyFromCart(selectedItems.map((item) => item.id));
       setCheckoutOpen(false);
-      setNotice('Checkout submitted successfully.');
     } finally {
       setSubmittingCheckout(false);
     }
@@ -145,12 +141,6 @@ export function CartDrawer() {
                   Remove selected
                 </button>
               </div>
-
-              {notice ? (
-                <div className="mb-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-                  {notice}
-                </div>
-              ) : null}
 
               <ul className="space-y-4">
               {cart.map((item) => (
