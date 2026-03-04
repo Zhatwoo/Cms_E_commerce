@@ -142,7 +142,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
 
         while (cursor && !seen.has(cursor)) {
           seen.add(cursor);
-          const node = nodes[cursor];
+          const node = nodes[cursor] as { data?: { displayName?: string; parent?: string }; parent?: string } | undefined;
           if (!node) return null;
           if (node?.data?.displayName === "Page") return cursor;
 

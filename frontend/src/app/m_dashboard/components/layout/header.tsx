@@ -93,7 +93,6 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     const [scrolled, setScrolled] = useState(false);
     const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
     const userName = user?.name || user?.email || '';
-    const avatarSrc = user?.avatar || (user?.email ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user.email)}` : '');
 
     const resolveAvatarUrl = (raw?: string): string => {
         const value = String(raw || '').trim();
@@ -103,7 +102,11 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
         return value;
     };
 
-    const avatarSrc = resolveAvatarUrl(user?.avatar);
+    const avatarSrc = user?.avatar
+        ? resolveAvatarUrl(user.avatar)
+        : user?.email
+            ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user.email)}`
+            : '';
 
     useEffect(() => {
         const onScroll = () => setScrolled(window.scrollY > 10);
