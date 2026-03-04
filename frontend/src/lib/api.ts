@@ -288,7 +288,7 @@ export async function updateProfile(data: {
   });
 }
 
-/** Upload avatar via backend: file is saved in Storage only (Clients/{uid}/avatar.ext). Backend returns URL and updated user. */
+/** Upload avatar via backend: file is saved in Storage only at Clients/profile_picture/{username}/profile-{uid}. */
 export async function uploadAvatarApi(
   file: File
 ): Promise<{ success: boolean; message?: string; url?: string; user?: User }> {

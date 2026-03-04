@@ -15,10 +15,11 @@ import {
 const STORAGE_PREFIX = 'Clients/';
 
 /**
- * Upload avatar to Storage at Clients/{clientUid}/avatar.{ext}.
+ * Upload avatar to Storage at Clients/profile_picture/{username}/profile-{uid}.
+ * Deterministic path keeps one avatar object per user (overwrite on change).
  * Returns the download URL. Save only this URL in Firestore (avatar_url), not base64.
  */
-export async function uploadClientAvatar(file: File, clientUid: string): Promise<string> {
+export async function uploadClientAvatar(file: File, clientUid: string, username?: string): Promise<string> {
   const storage = getFirebaseStorage();
   if (!storage) {
     throw new Error(
@@ -26,9 +27,8 @@ export async function uploadClientAvatar(file: File, clientUid: string): Promise
     );
   }
   await ensureFirebaseAuthForStorage();
-  const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
-  const safeExt = /^[a-z0-9]+$/.test(ext) ? ext : 'png';
-  const path = `${STORAGE_PREFIX}${clientUid}/avatar.${safeExt}`;
+  const segment = slugPathSegment(username || clientUid);
+  const path = `${STORAGE_PREFIX}profile_picture/${segment}/profile-${clientUid}`;
   const ref = storageRef(storage, path);
   await uploadBytes(ref, file, { contentType: file.type });
   return getDownloadURL(ref);
