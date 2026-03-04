@@ -80,6 +80,7 @@ export const THEMES = {
 };
 
 type Theme = 'dark' | 'light';
+
 type ThemeContextType = {
   theme: Theme;
   toggleTheme: (e?: React.MouseEvent) => void;

@@ -3,16 +3,18 @@
  * Used by KeyboardShortcuts and filesPanel for Figma-like UX.
  */
 
+import type { NodeSelector } from "@craftjs/core";
+
 /** Minimal query/actions types to avoid @craftjs/core internal type dependency */
 type EditorQuery = {
   serialize: () => string;
-  getState: () => any;
-  node: (id: string) => any;
+  getState: () => { nodes: Record<string, any>; events?: { selected?: unknown } };
+  node: (id: string) => { get: () => { data?: { parent?: string | null; displayName?: string } } | null; isDeletable: () => boolean };
 };
 type EditorActions = {
   deserialize: (json: string) => void;
-  selectNode: (id?: any) => void;
-  delete: (id: any) => void;
+  selectNode: (nodeIdSelector?: NodeSelector) => void;
+  delete: (id: string | string[]) => void;
   move?: (nodeId: string, parentId: string, index: number) => void;
 };
 
@@ -278,7 +280,7 @@ export function cutSelection(
       deletable.push(id);
     }
     if (deletable.length > 0) actions.delete(deletable.length === 1 ? deletable[0] : deletable);
-    actions.selectNode(null);
+    actions.selectNode();
   } catch (e) {
     console.warn("cutSelection failed:", e);
   }
