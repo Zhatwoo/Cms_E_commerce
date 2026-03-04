@@ -373,13 +373,13 @@ export async function updateProject(
 }
 
 /** Move project to trash instead of deleting permanently. */
-export async function deleteProject(id: string): Promise<{ success: boolean; message?: string }> {
-  return apiFetch<{ success: boolean; message?: string }>(`/api/projects/${id}`, { method: 'DELETE' });
+export async function deleteProject(id: string): Promise<{ success: boolean; message?: string; daysLeft?: number; retentionDays?: number }> {
+  return apiFetch<{ success: boolean; message?: string; daysLeft?: number; retentionDays?: number }>(`/api/projects/${id}`, { method: 'DELETE' });
 }
 
 /** List all projects currently in the trash for the user. */
-export async function listTrashedProjects(): Promise<{ success: boolean; projects: Project[] }> {
-  return apiFetch<{ success: boolean; projects: Project[] }>('/api/projects/trash');
+export async function listTrashedProjects(): Promise<{ success: boolean; projects: Project[]; retentionDays?: number }> {
+  return apiFetch<{ success: boolean; projects: Project[]; retentionDays?: number }>('/api/projects/trash');
 }
 
 /** Restore a project from the trash back to the active list. */

@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Domain = require('../models/Domain');
 const { deleteProjectStorageFolder } = require('../utils/storageHelpers');
 const { getLimits } = require('../utils/subscriptionLimits');
+const { getTrashRetentionDays } = require('../utils/trashConfig');
 
 // @desc    List current user's projects
 // @route   GET /api/projects
@@ -172,9 +173,11 @@ exports.listTrash = async (req, res) => {
   try {
     const userId = req.user.id;
     const projects = await Project.listTrash(userId);
+    const retentionDays = getTrashRetentionDays();
     res.status(200).json({
       success: true,
       projects,
+      retentionDays,
     });
   } catch (error) {
     res.status(500).json({
@@ -194,7 +197,7 @@ exports.restore = async (req, res) => {
     const project = await Project.restore(userId, req.params.id);
     res.status(200).json({
       success: true,
-      message: 'Project restored from trash',
+      message: 'Project restored as draft. Publish again to make the website live.',
       project,
     });
   } catch (error) {
@@ -212,6 +215,7 @@ exports.restore = async (req, res) => {
 exports.delete = async (req, res) => {
   try {
     const userId = req.user.id;
+    const retentionDays = getTrashRetentionDays();
     const existing = await Project.get(userId, req.params.id);
     if (!existing) {
       return res.status(404).json({
@@ -238,7 +242,9 @@ exports.delete = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Project moved to trash',
+      message: `Project moved to trash. ${retentionDays} day(s) left before auto-delete.`,
+      daysLeft: retentionDays,
+      retentionDays,
     });
   } catch (error) {
     const msg = String(error?.message || '').toLowerCase();
@@ -260,8 +266,9 @@ exports.delete = async (req, res) => {
 // @route   DELETE /api/projects/:id/permanent
 // @access  Private
 exports.permanentDelete = async (req, res) => {
+  const retentionDays = getTrashRetentionDays();
   return res.status(403).json({
     success: false,
-    message: 'Manual permanent delete is disabled. Projects are automatically purged 30 days after being moved to trash.',
+    message: `Manual permanent delete is disabled. Projects are automatically purged ${retentionDays} day(s) after being moved to trash.`,
   });
 };

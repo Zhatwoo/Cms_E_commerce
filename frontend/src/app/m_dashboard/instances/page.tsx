@@ -20,6 +20,7 @@ export default function InstancesPage() {
   const [creating, setCreating] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [deletingInstanceId, setDeletingInstanceId] = useState<string | null>(null);
+
   const handleChooseProject = (project: Project) => {
     setSelectedProjectId(project.id);
     router.push('/m_dashboard');

@@ -145,9 +145,20 @@ async function restoreFromTrashByProjectId(userId, projectId) {
   delete data.deleted_at;
   delete data.original_id;
 
+  // Restored projects must come back offline; user should explicitly publish again.
+  data.status = 'draft';
+
   const domainsRef = getDomainsRef(userId).doc(domainId);
-  await domainsRef.set(data);
-  await doc.ref.delete();
+  const subdomain = (data.subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+
+  const batch = db.batch();
+  batch.set(domainsRef, data);
+  // Safety: remove stale public lookup if any exists.
+  if (subdomain) {
+    batch.delete(getPublishedSubdomainsRef().doc(subdomain));
+  }
+  batch.delete(doc.ref);
+  await batch.commit();
 }
 
 /** Delete domain_trash entries for a project (for permanentDelete / cleanup). */
@@ -468,7 +479,7 @@ async function unpublishForClient(userId, projectId) {
     updated_at: now,
     publish_history,
   });
-  batch.update(publishedRef, {
+  batch.set(publishedRef, {
     status: 'draft',
     updated_at: now,
   }, { merge: true });

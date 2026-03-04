@@ -70,7 +70,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const router = useRouter();
   const { selectedProject } = useProject();
   const { theme } = useTheme();
-  const { showAlert } = useAlert();
+  const { showAlert, showConfirm } = useAlert();
   const [activeTab, setActiveTab] = useState<HeroTab>('designs');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -82,6 +82,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const [projectTab, setProjectTab] = useState<ProjectTab>('active');
   const [trashLoading, setTrashLoading] = useState(false);
   const [trashedProjects, setTrashedProjects] = useState<Project[]>([]);
+  const [trashRetentionDays, setTrashRetentionDays] = useState(30);
   const [actioningProjectId, setActioningProjectId] = useState<string | null>(null);
   const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
   const [renamingProject, setRenamingProject] = useState<Project | null>(null);
@@ -142,6 +143,9 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
         if (cancelled) return;
         if (res.success && res.projects) {
           setTrashedProjects(res.projects);
+          if (Number.isFinite(res.retentionDays) && Number(res.retentionDays) > 0) {
+            setTrashRetentionDays(Number(res.retentionDays));
+          }
           return;
         }
         setTrashedProjects([]);
@@ -285,7 +289,14 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   };
 
   const handleDeleteActiveProject = async (project: Project) => {
-    const confirmed = window.confirm(`Move "${project.title || 'Untitled Project'}" to trash?`);
+    const normalizedStatus = String(project.status || '').trim().toLowerCase();
+    if (normalizedStatus === 'published' || normalizedStatus === 'live') {
+      showAlert('This project is live. Take down (unpublish) the website first before moving it to trash.');
+      setOpenProjectMenuId(null);
+      return;
+    }
+
+    const confirmed = await showConfirm(`Move "${project.title || 'Untitled Project'}" to trash?`);
     if (!confirmed) return;
 
     try {
@@ -297,8 +308,9 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
       const sorted = sortProjectsByUpdated(filtered);
       setAllProjects(sorted);
       setRecentProjects(sorted.slice(0, 3));
-    } catch {
-      showAlert('Backend is unreachable. Start the backend server and ensure API URL/port is correct.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to move project to trash.';
+      showAlert(message);
     } finally {
       setActioningProjectId(null);
       setOpenProjectMenuId(null);
@@ -605,13 +617,14 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                                   e.stopPropagation();
                                   handleDeleteActiveProject(project);
                                 }}
-                                disabled={actioningProjectId === project.id}
-                                className="w-full px-3 py-2 text-left text-sm text-red-300 flex items-center gap-2 hover:bg-red-500/10 disabled:opacity-50"
+                                disabled={actioningProjectId === project.id || String(project.status || '').trim().toLowerCase() === 'published' || String(project.status || '').trim().toLowerCase() === 'live'}
+                                className="w-full px-3 py-2 text-left text-sm text-red-300 flex items-center gap-2 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                                title={String(project.status || '').trim().toLowerCase() === 'published' || String(project.status || '').trim().toLowerCase() === 'live' ? 'Take down (unpublish) this website first' : 'Move to trash'}
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                 </svg>
-                                Delete
+                                {String(project.status || '').trim().toLowerCase() === 'published' || String(project.status || '').trim().toLowerCase() === 'live' ? 'Take down first' : 'Delete'}
                               </button>
                             </div>
                           )}
@@ -647,49 +660,68 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                     <p className="text-sm text-[#8A8FC4]">Trash is empty.</p>
-                    <p className="text-xs text-[#6B6FA0]">Deleted projects appear here for 30 days before being purged.</p>
+                    <p className="text-xs text-[#6B6FA0]">Deleted projects appear here for {trashRetentionDays} days before being purged.</p>
                   </div>
                 ) : (
                   <>
-                    {visibleTrashProjects.map((project) => (
-                      <div
-                        key={project.id}
-                        className="rounded-[26px] border border-[#2D3A90] bg-[#12145A]/80 overflow-hidden text-left"
-                      >
-                        <div className="w-full aspect-[16/10] overflow-hidden border-b border-[#2D3A90] bg-[#0E0D3D] grayscale">
-                          <DraftPreviewThumbnail
-                            projectId={project.id}
-                            borderColor="rgba(45,58,144,0.9)"
-                            bgColor="#120F46"
-                            className="w-full h-full !aspect-[16/10] !rounded-none"
-                          />
-                        </div>
-                        <div className="px-4 py-3.5 space-y-3">
-                          <div>
-                            <p className="text-2xl font-extrabold text-white leading-tight truncate">{project.title || 'Untitled Project'}</p>
-                            <p className="text-xs text-[#8A8FC4] mt-1 truncate">In trash</p>
+                    {visibleTrashProjects.map((project) => {
+                      const daysLeft = Number.isFinite(project.daysLeft)
+                        ? Number(project.daysLeft)
+                        : (project.deletedAt
+                            ? Math.max(
+                                1,
+                                Math.ceil(
+                                  (trashRetentionDays * 24 * 60 * 60 * 1000
+                                    - (Date.now() - new Date(project.deletedAt).getTime()))
+                                  / (24 * 60 * 60 * 1000)
+                                )
+                              )
+                            : null);
+
+                      return (
+                        <div
+                          key={project.id}
+                          className="rounded-[26px] border border-[#2D3A90] bg-[#12145A]/80 overflow-hidden text-left"
+                        >
+                          <div className="w-full aspect-[16/10] overflow-hidden border-b border-[#2D3A90] bg-[#0E0D3D] grayscale">
+                            <DraftPreviewThumbnail
+                              projectId={project.id}
+                              borderColor="rgba(45,58,144,0.9)"
+                              bgColor="#120F46"
+                              className="w-full h-full !aspect-[16/10] !rounded-none"
+                            />
                           </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleRestoreProject(project.id)}
-                              disabled={actioningProjectId === project.id}
-                              className="px-2.5 py-1.5 rounded-md text-xs font-medium text-white border border-[#3E4AA3] hover:bg-[#2D3A90]/40 disabled:opacity-50"
-                            >
-                              Restore
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handlePermanentDeleteProject(project.id, project.title)}
-                              disabled={actioningProjectId === project.id}
-                              className="px-2.5 py-1.5 rounded-md text-xs font-medium text-red-300 border border-red-500/40 hover:bg-red-500/10 disabled:opacity-50"
-                            >
-                              Delete forever
-                            </button>
+                          <div className="px-4 py-3.5 space-y-3">
+                            <div>
+                              <p className="text-2xl font-extrabold text-white leading-tight truncate">{project.title || 'Untitled Project'}</p>
+                              <p className="text-xs text-[#8A8FC4] mt-1 truncate">
+                                {daysLeft == null
+                                  ? 'Days remaining unavailable'
+                                  : `${daysLeft} day${daysLeft === 1 ? '' : 's'} remaining in trash`}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleRestoreProject(project.id)}
+                                disabled={actioningProjectId === project.id}
+                                className="px-2.5 py-1.5 rounded-md text-xs font-medium text-white border border-[#3E4AA3] hover:bg-[#2D3A90]/40 disabled:opacity-50"
+                              >
+                                Restore
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handlePermanentDeleteProject(project.id, project.title)}
+                                disabled={actioningProjectId === project.id}
+                                className="px-2.5 py-1.5 rounded-md text-xs font-medium text-red-300 border border-red-500/40 hover:bg-red-500/10 disabled:opacity-50"
+                              >
+                                Delete forever
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </>
                 )}
               </div>

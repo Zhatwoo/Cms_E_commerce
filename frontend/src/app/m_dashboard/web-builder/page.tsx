@@ -367,6 +367,7 @@ export default function WebBuilderPage() {
   const [activeTab, setActiveTab] = useState<'active' | 'trash'>('active');
   const [trashedProjects, setTrashedProjects] = useState<Project[]>([]);
   const [trashedProjectsLoading, setTrashedProjectsLoading] = useState(false);
+  const [trashRetentionDays, setTrashRetentionDays] = useState(30);
   const [publishModalProject, setPublishModalProject] = useState<Project | null>(null);
 
   const visibleProjects = projects;
@@ -415,7 +416,12 @@ export default function WebBuilderPage() {
       setTrashedProjectsLoading(true);
       listTrashedProjects()
         .then((res) => {
-          if (res.success && res.projects) setTrashedProjects(res.projects);
+          if (res.success && res.projects) {
+            setTrashedProjects(res.projects);
+            if (Number.isFinite(res.retentionDays) && Number(res.retentionDays) > 0) {
+              setTrashRetentionDays(Number(res.retentionDays));
+            }
+          }
         })
         .finally(() => setTrashedProjectsLoading(false));
     }
@@ -593,6 +599,12 @@ export default function WebBuilderPage() {
     try {
       const res = await deleteProject(p.id);
       if (res.success) {
+        const daysLeft = Number.isFinite(res.daysLeft) ? Number(res.daysLeft) : null;
+        if (daysLeft && daysLeft > 0) {
+          showAlert(`Moved "${p.title}" to trash. ${daysLeft} day(s) left before auto-delete.`);
+        } else {
+          showAlert(res.message || `Moved "${p.title}" to trash.`);
+        }
         setProjects((prev) => prev.filter((x) => x.id !== p.id));
         await refreshProjects();
         // If we are on the active tab, we might want to refresh the notification or count
@@ -946,7 +958,7 @@ export default function WebBuilderPage() {
               <div className="rounded-xl border p-12 text-center border-dashed" style={{ borderColor: colors.border.faint }}>
                 <div className="space-y-1">
                   <p className="text-sm" style={{ color: colors.text.muted }}>Trash is empty.</p>
-                  <p className="text-xs" style={{ color: colors.text.secondary }}>Deleted projects appear here for 30 days before being purged.</p>
+                  <p className="text-xs" style={{ color: colors.text.secondary }}>Deleted projects appear here for {trashRetentionDays} days before being purged.</p>
                 </div>
               </div>
             ) : (
@@ -958,8 +970,8 @@ export default function WebBuilderPage() {
                     const deletedDate = new Date(p.deletedAt);
                     const now = new Date();
                     const ageMs = now.getTime() - deletedDate.getTime();
-                    const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
-                    const msLeft = thirtyDaysInMs - ageMs;
+                    const retentionMs = trashRetentionDays * 24 * 60 * 60 * 1000;
+                    const msLeft = retentionMs - ageMs;
                     daysLeft = Math.max(1, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
                   }
 
@@ -984,7 +996,7 @@ export default function WebBuilderPage() {
                         <div>
                           <h3 className="font-medium truncate text-[11px]" style={{ color: colors.text.primary }}>{p.title}</h3>
                           <p className="text-[10px] text-red-500 font-medium">
-                            Restorable for {daysLeft ?? '—'} {daysLeft === 1 ? 'day' : 'days'}
+                            {daysLeft ?? '—'}/{trashRetentionDays} days remaining in trash
                           </p>
                         </div>
                         <div className="flex gap-1.5 relative z-10">
@@ -1003,7 +1015,7 @@ export default function WebBuilderPage() {
                             Restore Project
                           </button>
                           <span className="px-2 py-1.5 text-[10px] rounded-md border whitespace-nowrap" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
-                            Auto-delete after 30 days
+                            Auto-delete after {trashRetentionDays} days
                           </span>
                         </div>
                       </div>
