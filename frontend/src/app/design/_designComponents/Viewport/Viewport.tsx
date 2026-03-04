@@ -235,13 +235,29 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       }
     });
 
+    const desktopRoot = desktopCanvasRef.current;
+    let domMaxRight = 0;
+    let domMaxBottom = 0;
+
+    if (desktopRoot) {
+      const rootRect = desktopRoot.getBoundingClientRect();
+      const nodeEls = Array.from(desktopRoot.querySelectorAll<HTMLElement>("[data-node-id]"));
+      for (const el of nodeEls) {
+        const rect = el.getBoundingClientRect();
+        const right = rect.right - rootRect.left;
+        const bottom = rect.bottom - rootRect.top;
+        if (Number.isFinite(right)) domMaxRight = Math.max(domMaxRight, right);
+        if (Number.isFinite(bottom)) domMaxBottom = Math.max(domMaxBottom, bottom);
+      }
+    }
+
     const dynamicMinWidth = Math.max(
       VIEWPORT_BASE_MIN_WIDTH,
-      Math.ceil(maxRight + VIEWPORT_EDGE_PADDING + MOBILE_PREVIEW_SAFE_WIDTH)
+      Math.ceil(Math.max(maxRight, domMaxRight) + VIEWPORT_EDGE_PADDING + MOBILE_PREVIEW_SAFE_WIDTH)
     );
     const dynamicMinHeight = Math.max(
       VIEWPORT_BASE_MIN_HEIGHT,
-      Math.ceil(maxBottom + VIEWPORT_EDGE_PADDING)
+      Math.ceil(Math.max(maxBottom, domMaxBottom) + VIEWPORT_EDGE_PADDING)
     );
 
     setViewportSize((prev) => {
@@ -424,20 +440,11 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       event.stopPropagation();
       actions.selectNode(nodeId);
 
-      const desktopNodeEl = desktopRoot.querySelector<HTMLElement>(`[data-node-id="${nodeId}"]`);
       const canvasContainer = desktopRoot.closest("[data-canvas-container]") as HTMLElement | null;
-      if (desktopNodeEl && canvasContainer) {
-        const containerRect = canvasContainer.getBoundingClientRect();
-        const nodeRect = desktopNodeEl.getBoundingClientRect();
-        const centerX = nodeRect.left + nodeRect.width / 2;
-        const centerY = nodeRect.top + nodeRect.height / 2;
-        const targetScrollLeft = canvasContainer.scrollLeft + (centerX - (containerRect.left + containerRect.width / 2));
-        const targetScrollTop = canvasContainer.scrollTop + (centerY - (containerRect.top + containerRect.height / 2));
-        canvasContainer.scrollTo({
-          left: Math.max(0, targetScrollLeft),
-          top: Math.max(0, targetScrollTop),
-          behavior: "smooth",
-        });
+      if (canvasContainer) {
+        canvasContainer.dispatchEvent(
+          new CustomEvent("center-on-node", { detail: { nodeId } })
+        );
       }
 
       queueRender();
@@ -496,5 +503,10 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
 
 
 Viewport.craft = {
-  displayName: "Viewport"
+  displayName: "Viewport",
+  rules: {
+    canMoveIn: (incomingNodes: Node[]) => {
+      return incomingNodes.every((node) => node?.data?.displayName === "Page");
+    },
+  },
 };

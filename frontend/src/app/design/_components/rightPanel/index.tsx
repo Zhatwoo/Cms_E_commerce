@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useEditor } from "@craftjs/core";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Lock, LockOpen, Play, Code2, GripVertical, X, Terminal, Palette, MousePointer2, Sparkles } from "lucide-react";
+import { Eye, EyeOff, Lock, LockOpen, Play, Code2, X, Terminal, Palette, MousePointer2, Sparkles } from "lucide-react";
 import { serializeCraftToClean } from "../../_lib/serializer";
 import { autoSavePage } from "../../_lib/pageApi";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
@@ -29,11 +29,11 @@ const TABS: Tab[] = [
 ];
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
-const RIGHT_PANEL_DEFAULT_WIDTH = 420;
-const RIGHT_PANEL_MIN_WIDTH = RIGHT_PANEL_DEFAULT_WIDTH;
+const RIGHT_PANEL_DEFAULT_WIDTH = 300;
 
 interface RightPanelProps {
   projectId: string;
+  width?: number;
   activeTab?: TabId;
   setActiveTab?: (tab: TabId) => void;
   /** When false, RightPanelInner is not mounted to avoid Craft.js setState-during-render. Set by EditorShell after Frame has committed. */
@@ -47,22 +47,15 @@ interface RightPanelProps {
 // Inner panel that subscribes to Craft editor.
 // Mounted lazily by RightPanel to avoid "setState during render" warnings
 // when Frame is rendering initial data.
-const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: setControlledTab, onClose, files, onFilesChange }: RightPanelProps) => {
+const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeTab: controlledTab, setActiveTab: setControlledTab, onClose, files, onFilesChange }: RightPanelProps) => {
   const { user } = useAuth();
   const { showAlert } = useAlert();
   const [internalTab, setInternalTab] = useState<TabId>("design");
   const activeTab = controlledTab ?? internalTab;
   const setActiveTab = setControlledTab ?? setInternalTab;
   const [isPreviewing, setIsPreviewing] = useState(false);
-  const [panelWidth, setPanelWidth] = useState(RIGHT_PANEL_DEFAULT_WIDTH); // Default width
-  const [isResizing, setIsResizing] = useState(false);
-  const [startX, setStartX] = useState(0);
-  const [startWidth, setStartWidth] = useState(RIGHT_PANEL_DEFAULT_WIDTH);
-  const resizeRafRef = useRef<number | null>(null);
-  const pendingWidthRef = useRef<number>(RIGHT_PANEL_DEFAULT_WIDTH);
   const router = useRouter();
   const panelRef = useRef<HTMLDivElement>(null);
-  const resizeRef = useRef<HTMLDivElement>(null);
 
   const { actions } = useEditor();
   const { selectedIds, primary, query } = useEditor((state) => {
@@ -159,100 +152,17 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
     return () => panel.removeEventListener("wheel", handleWheelCapture, { capture: true });
   }, []);
 
-  // Handle panel resizing
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing) return;
-      const deltaX = startX - e.clientX; // Positive when dragging left (increase width)
-      const newWidth = startWidth + deltaX;
-      // Min width is locked to default so panel cannot be resized smaller
-      const constrainedWidth = Math.max(RIGHT_PANEL_MIN_WIDTH, Math.min(newWidth, window.innerWidth * 0.7));
-
-      pendingWidthRef.current = constrainedWidth;
-      if (resizeRafRef.current !== null) return;
-
-      resizeRafRef.current = requestAnimationFrame(() => {
-        resizeRafRef.current = null;
-        setPanelWidth((prev) => (Math.abs(prev - pendingWidthRef.current) < 0.2 ? prev : pendingWidthRef.current));
-      });
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-    };
-
-    if (isResizing) {
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
-      document.body.style.userSelect = "none";
-      document.body.style.cursor = "col-resize";
-      // Add visual feedback to the panel during resize
-      if (panelRef.current) {
-        panelRef.current.style.transition = 'opacity 120ms ease';
-        panelRef.current.style.opacity = '0.9';
-      }
-      return () => {
-        document.removeEventListener("mousemove", handleMouseMove);
-        document.removeEventListener("mouseup", handleMouseUp);
-        if (resizeRafRef.current !== null) {
-          cancelAnimationFrame(resizeRafRef.current);
-          resizeRafRef.current = null;
-        }
-        document.body.style.userSelect = "auto";
-        document.body.style.cursor = "auto";
-        // Restore panel styling
-        if (panelRef.current) {
-          panelRef.current.style.transition = 'width 160ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease';
-          panelRef.current.style.opacity = '';
-        }
-      };
-    }
-  }, [isResizing, startX, startWidth]);
-
-  useEffect(() => {
-    return () => {
-      if (resizeRafRef.current !== null) {
-        cancelAnimationFrame(resizeRafRef.current);
-        resizeRafRef.current = null;
-      }
-    };
-  }, []);
-
   return (
     <div data-panel="right" className="flex h-full relative">
-      {/* Resize Handle */}
-      <div
-        ref={resizeRef}
-        onMouseDown={(e) => {
-          e.preventDefault();
-          setStartX(e.clientX);
-          setStartWidth(panelWidth);
-          pendingWidthRef.current = panelWidth;
-          setIsResizing(true);
-        }}
-        className={`${isResizing ? 'w-2 bg-blue-500/70' : 'w-3 bg-brand-medium/20 hover:bg-blue-500/40'
-          } cursor-col-resize transition-all duration-200 group relative flex items-center justify-center select-none z-10`}
-        title="Drag to resize panel"
-      >
-        {/* Visual grip indicator */}
-        <div className={`flex flex-col gap-0.5 transition-opacity duration-200 ${isResizing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-          }`}>
-          <div className="w-0.5 h-1 bg-brand-light/60 rounded-full"></div>
-          <div className="w-0.5 h-1 bg-brand-light/60 rounded-full"></div>
-          <div className="w-0.5 h-1 bg-brand-light/60 rounded-full"></div>
-        </div>
-      </div>
-
       <div
         ref={panelRef}
         data-panel="configs"
-        className="bg-brand-darker/75 backdrop-blur-lg rounded-3xl h-full shadow-2xl border border-white/10 transition-all duration-300 overflow-hidden flex flex-col"
+        className="bg-brand-darker h-full border-l border-white/10 transition-[width,transform,opacity] duration-300 ease-out overflow-hidden flex flex-col"
         style={{
-          width: `${panelWidth}px`,
-          boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)",
+          width: `${width}px`,
         }}
       >
-        <div className="h-full p-6 flex flex-col min-h-0">
+        <div className="h-full p-4 flex flex-col min-h-0">
           <div className="flex items-center justify-between mb-6 gap-2">
             <h3 className="text-brand-lighter font-bold text-lg">Configs</h3>
             <div className="flex items-center gap-1">
@@ -277,7 +187,7 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
             </div>
           </div>
 
-          <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="editor-panel-scroll flex-1 min-h-0 overflow-y-auto">
             {/* Main conditional rendering */}
             {selectedIds.length > 0 ? (
               <div className={activeTab === "code" ? "h-full min-h-0 flex flex-col" : undefined}>
@@ -343,7 +253,7 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
                               }
                               setActiveTab(tab.id);
                             }}
-                            className={`relative z-10 w-full px-2 py-2.5 rounded-xl transition-all duration-300 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap flex items-center justify-center gap-1 ${activeTab === tab.id
+                            className={`relative z-10 w-full px-1.5 py-2.5 rounded-xl transition-all duration-300 text-[10px] font-semibold tracking-normal whitespace-nowrap flex items-center justify-center gap-1 ${activeTab === tab.id
                               ? "text-white"
                               : isRestricted ? "text-white/20 hover:text-white/40" : "text-white/40 hover:text-white/60"
                               }`}
@@ -423,8 +333,8 @@ export const RightPanel: React.FC<RightPanelProps> = (props) => {
     return (
       <div
         data-panel="configs"
-        className="bg-brand-darker/75 backdrop-blur-lg rounded-3xl p-6 h-full shadow-2xl overflow-y-auto border border-white/10 transition-shadow duration-300 flex items-center justify-center text-xs text-brand-light/60"
-        style={{ width: `${RIGHT_PANEL_MIN_WIDTH}px`, boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)" }}
+        className="bg-brand-darker p-4 h-full overflow-y-auto border-l border-white/10 transition-[width,opacity] duration-300 ease-out flex items-center justify-center text-xs text-brand-light/60"
+        style={{ width: `${props.width ?? RIGHT_PANEL_DEFAULT_WIDTH}px` }}
       >
         Loading inspector…
       </div>

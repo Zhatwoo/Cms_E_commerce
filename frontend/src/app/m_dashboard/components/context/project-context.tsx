@@ -9,6 +9,7 @@ import React, {
   useState,
 } from 'react';
 import { listProjects, setActiveProjectId, type Project } from '@/lib/api';
+import { useAuth } from './auth-context';
 
 type ProjectContextType = {
   projects: Project[];
@@ -35,9 +36,24 @@ type ProviderProps = {
 };
 
 export function ProjectProvider({ children }: ProviderProps) {
+  const { user } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProjectId, setSelectedProjectIdState] = useState<string | null>(null);
+  const storageKey = user?.id ? `md_selected_instance_${user.id}` : null;
+
+  useEffect(() => {
+    if (!storageKey) {
+      setSelectedProjectIdState(null);
+      return;
+    }
+    try {
+      const saved = window.sessionStorage.getItem(storageKey);
+      setSelectedProjectIdState(saved || null);
+    } catch {
+      setSelectedProjectIdState(null);
+    }
+  }, [storageKey]);
 
   const fetchProjects = useCallback(async () => {
     setLoading(true);
@@ -58,22 +74,32 @@ export function ProjectProvider({ children }: ProviderProps) {
       } else {
         setProjects([]);
         setSelectedProjectIdState(null);
+        if (storageKey) {
+          try {
+            window.sessionStorage.removeItem(storageKey);
+          } catch {}
+        }
       }
     } catch {
       setProjects([]);
       setSelectedProjectIdState(null);
+      if (storageKey) {
+        try {
+          window.sessionStorage.removeItem(storageKey);
+        } catch {}
+      }
     } finally {
       setLoading(false);
     }
-  }, [selectedProjectId]);
+  }, [selectedProjectId, storageKey]);
 
   useEffect(() => {
     void fetchProjects();
   }, [fetchProjects]);
 
   useEffect(() => {
-    setActiveProjectId(selectedProjectId);
-  }, [selectedProjectId]);
+    setActiveProjectId(null);
+  }, []);
 
   const selectedProject = useMemo(
     () => projects.find((p) => p.id === selectedProjectId) ?? null,
@@ -82,6 +108,12 @@ export function ProjectProvider({ children }: ProviderProps) {
 
   const handleSetSelectedProjectId = (id: string | null) => {
     setSelectedProjectIdState(id);
+    if (storageKey) {
+      try {
+        if (id) window.sessionStorage.setItem(storageKey, id);
+        else window.sessionStorage.removeItem(storageKey);
+      } catch {}
+    }
   };
 
   const value: ProjectContextType = {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { AlignLeft, AlignCenter, AlignRight, AlignJustify, Italic, Bold } from "lucide-react";
 import { NumericInput } from "./inputs/NumericInput";
-import { ColorInput } from "./inputs/ColorInput";
+import { ColorPicker } from "./inputs/ColorPicker";
 import type { TypographyProps, SetProp } from "../../../_types/components";
 
 interface TypographyGroupProps extends TypographyProps {
@@ -9,7 +9,7 @@ interface TypographyGroupProps extends TypographyProps {
 }
 
 const FONT_OPTIONS = [
-  "Inter",
+  "Outfit",
   "Roboto",
   "Open Sans",
   "Poppins",
@@ -28,7 +28,7 @@ const FONT_OPTIONS = [
 ];
 
 export const TypographyGroup = ({
-  fontFamily = "Inter",
+  fontFamily = "Outfit",
   fontWeight = "400",
   fontStyle = "normal",
   fontSize = 16,
@@ -223,19 +223,10 @@ export const TypographyGroup = ({
       {/* Color */}
       <div className="flex flex-col gap-1">
         <label className="text-[10px] text-brand-lighter">Color</label>
-        <div className="flex items-center gap-2 bg-brand-medium-dark rounded-lg p-1">
-          <input
-            type="color"
-            value={color}
-            onChange={(e) => setProp((props) => { props.color = e.target.value; })}
-            className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0"
-          />
-          <ColorInput
-            value={color}
-            onChange={(val) => setProp((props) => { props.color = val; })}
-            className="flex-1"
-          />
-        </div>
+        <ColorPicker
+          value={color || "#ffffff"}
+          onChange={(val) => setProp((props) => { props.color = val; })}
+        />
       </div>
     </div>
   );

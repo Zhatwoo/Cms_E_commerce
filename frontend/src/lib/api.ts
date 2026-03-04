@@ -288,7 +288,7 @@ export async function updateProfile(data: {
   });
 }
 
-/** Upload avatar via backend: file is saved in Storage only (Clients/{uid}/avatar.ext). Backend returns URL and updated user. */
+/** Upload avatar via backend: file is saved in Storage only at Clients/profile_picture/{username}/profile-{uid}. */
 export async function uploadAvatarApi(
   file: File
 ): Promise<{ success: boolean; message?: string; url?: string; user?: User }> {
@@ -322,6 +322,7 @@ export type Project = {
   id: string;
   title: string;
   status: string;
+  instanceId?: string | null;
   templateId?: string | null;
   subdomain?: string | null;
   thumbnail?: string | null;
@@ -331,16 +332,45 @@ export type Project = {
   daysLeft?: number;
 };
 
-export async function listProjects(): Promise<{ success: boolean; projects: Project[] }> {
-  return apiFetch<{ success: boolean; projects: Project[] }>('/api/projects');
+export type Instance = {
+  id: string;
+  title: string;
+  status: string;
+  subdomain?: string | null;
+  thumbnail?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export async function listProjects(params?: { instanceId?: string | null }): Promise<{ success: boolean; projects: Project[] }> {
+  const query = new URLSearchParams();
+  if (params?.instanceId) query.set('instanceId', params.instanceId);
+  const qs = query.toString();
+  const path = qs ? `/api/projects?${qs}` : '/api/projects';
+  return apiFetch<{ success: boolean; projects: Project[] }>(path);
+}
+
+export async function listInstances(): Promise<{ success: boolean; instances: Instance[] }> {
+  return apiFetch<{ success: boolean; instances: Instance[] }>('/api/instances');
 }
 
 export async function createProject(params: {
   title?: string;
   templateId?: string | null;
   subdomain?: string | null;
+  instanceId?: string | null;
 }): Promise<{ success: boolean; project: Project; message?: string }> {
   return apiFetch<{ success: boolean; project: Project; message?: string }>('/api/projects', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export async function createInstance(params: {
+  title?: string;
+  subdomain?: string | null;
+}): Promise<{ success: boolean; instance?: Instance; message?: string }> {
+  return apiFetch<{ success: boolean; instance?: Instance; message?: string }>('/api/instances', {
     method: 'POST',
     body: JSON.stringify(params),
   });
@@ -370,9 +400,25 @@ export async function updateProject(
   });
 }
 
+export async function updateInstance(
+  id: string,
+  params: { title?: string; subdomain?: string | null }
+): Promise<{ success: boolean; instance?: Instance; message?: string }> {
+  return apiFetch<{ success: boolean; instance?: Instance; message?: string }>(`/api/instances/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(params),
+  });
+}
+
 /** Move project to trash instead of deleting permanently. */
 export async function deleteProject(id: string): Promise<{ success: boolean; message?: string }> {
   return apiFetch<{ success: boolean; message?: string }>(`/api/projects/${id}`, { method: 'DELETE' });
+}
+
+export async function deleteInstance(id: string): Promise<{ success: boolean; message?: string }> {
+  return apiFetch<{ success: boolean; message?: string }>(`/api/instances/${id}`, {
+    method: 'DELETE',
+  });
 }
 
 /** List all projects currently in the trash for the user. */
@@ -391,6 +437,25 @@ export async function restoreProject(id: string): Promise<{ success: boolean; pr
 export async function permanentDeleteProject(id: string): Promise<{ success: boolean; message?: string }> {
   return apiFetch<{ success: boolean; message?: string }>(`/api/projects/${id}/permanent`, {
     method: 'DELETE',
+  });
+}
+
+/** Update subdomain for an existing published project. */
+export async function updateDomainSubdomain(
+  projectId: string,
+  subdomain: string
+): Promise<{ success: boolean; message?: string; data?: { subdomain?: string } }> {
+  return apiFetch<{ success: boolean; message?: string; data?: { subdomain?: string } }>('/api/domains/update-subdomain', {
+    method: 'POST',
+    body: JSON.stringify({ projectId, subdomain }),
+  });
+}
+
+/** Unpublish (take down) a published project. Site will no longer be accessible until published again. */
+export async function unpublishProject(projectId: string): Promise<{ success: boolean; message?: string; data?: { subdomain?: string } }> {
+  return apiFetch<{ success: boolean; message?: string; data?: { subdomain?: string } }>('/api/domains/unpublish', {
+    method: 'POST',
+    body: JSON.stringify({ projectId }),
   });
 }
 
@@ -466,6 +531,10 @@ export type ApiProduct = {
   images?: string[];
   status?: string;
   stock?: number | null;
+  onHandStock?: number | null;
+  reservedStock?: number;
+  availableStock?: number | null;
+  lowStockThreshold?: number;
   subdomain?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -554,6 +623,7 @@ export async function createProduct(params: {
   images?: string[];
   status?: string;
   stock?: number | null;
+  lowStockThreshold?: number;
 }): Promise<{ success: boolean; message?: string; data?: ApiProduct }> {
   return apiFetch<{ success: boolean; message?: string; data?: ApiProduct }>('/api/products', {
     method: 'POST',
@@ -592,6 +662,7 @@ export async function updateProduct(
     images?: string[];
     status?: string;
     stock?: number | null;
+    lowStockThreshold?: number;
   }
 ): Promise<{ success: boolean; message?: string; data?: ApiProduct }> {
   return apiFetch<{ success: boolean; message?: string; data?: ApiProduct }>(`/api/products/${id}`, {
@@ -603,6 +674,215 @@ export async function updateProduct(
 export async function deleteProduct(id: string): Promise<{ success: boolean; message?: string }> {
   return apiFetch<{ success: boolean; message?: string }>(`/api/products/${id}`, {
     method: 'DELETE',
+  });
+}
+
+// --- Inventory ---
+
+export type InventorySummary = {
+  totalProducts: number;
+  totalOnHand: number;
+  totalReserved: number;
+  totalAvailable: number;
+  lowStock: number;
+  outOfStock: number;
+  stockValue: number;
+};
+
+export type InventoryMovement = {
+  id: string;
+  userId?: string | null;
+  projectId?: string | null;
+  subdomain?: string | null;
+  productId?: string | null;
+  productName?: string | null;
+  productSku?: string | null;
+  type: 'IN' | 'OUT' | 'ADJUST' | 'RESERVE' | 'RELEASE' | string;
+  quantity: number;
+  beforeOnHand?: number | null;
+  afterOnHand?: number | null;
+  beforeReserved?: number | null;
+  afterReserved?: number | null;
+  referenceType?: string | null;
+  referenceId?: string | null;
+  actor?: string | null;
+  notes?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export async function listInventory(params?: {
+  subdomain?: string;
+  status?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}): Promise<{ success: boolean; items: ApiProduct[]; total: number; page: number; totalPages: number }> {
+  const query = new URLSearchParams();
+  if (params?.subdomain) query.set('subdomain', params.subdomain);
+  if (params?.status) query.set('status', params.status);
+  if (params?.search) query.set('search', params.search);
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.limit) query.set('limit', String(params.limit));
+  const qs = query.toString();
+  return apiFetch<{ success: boolean; items: ApiProduct[]; total: number; page: number; totalPages: number }>(
+    qs ? `/api/inventory?${qs}` : '/api/inventory'
+  );
+}
+
+export async function getInventorySummary(params?: {
+  subdomain?: string;
+  status?: string;
+  search?: string;
+}): Promise<{ success: boolean; data: InventorySummary }> {
+  const query = new URLSearchParams();
+  if (params?.subdomain) query.set('subdomain', params.subdomain);
+  if (params?.status) query.set('status', params.status);
+  if (params?.search) query.set('search', params.search);
+  const qs = query.toString();
+  return apiFetch<{ success: boolean; data: InventorySummary }>(
+    qs ? `/api/inventory/summary?${qs}` : '/api/inventory/summary'
+  );
+}
+
+export async function listInventoryMovements(params?: {
+  productId?: string;
+  type?: string;
+  subdomain?: string;
+  projectId?: string;
+  limit?: number;
+}): Promise<{ success: boolean; items: InventoryMovement[] }> {
+  const query = new URLSearchParams();
+  if (params?.productId) query.set('productId', params.productId);
+  if (params?.type) query.set('type', params.type);
+  if (params?.subdomain) query.set('subdomain', params.subdomain);
+  if (params?.projectId) query.set('projectId', params.projectId);
+  if (params?.limit) query.set('limit', String(params.limit));
+  const qs = query.toString();
+  return apiFetch<{ success: boolean; items: InventoryMovement[] }>(
+    qs ? `/api/inventory/movements?${qs}` : '/api/inventory/movements'
+  );
+}
+
+export async function adjustInventoryStock(params: {
+  productId: string;
+  quantity?: number;
+  movementType?: 'IN' | 'OUT' | 'ADJUST';
+  notes?: string;
+  referenceType?: string;
+  referenceId?: string;
+  setOnHandStock?: number;
+  setReservedStock?: number;
+}): Promise<{ success: boolean; message?: string; data?: ApiProduct }> {
+  return apiFetch<{ success: boolean; message?: string; data?: ApiProduct }>('/api/inventory/adjust', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export type ImportInventoryRow = {
+  sku: string;
+  onHandStock?: number;
+  reservedStock?: number;
+  lowStockThreshold?: number;
+};
+
+export type ImportInventoryResult = {
+  success: boolean;
+  updated?: number;
+  errors?: Array<{ row: number; sku: string; message: string }>;
+  message?: string;
+};
+
+export async function importInventoryCsv(params: {
+  rows: ImportInventoryRow[];
+}): Promise<ImportInventoryResult> {
+  return apiFetch<ImportInventoryResult>('/api/inventory/import', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+// --- Orders ---
+
+export type ApiOrderItem = {
+  id?: string;
+  productId?: string;
+  sku?: string;
+  name?: string;
+  quantity: number;
+  price: number;
+};
+
+export type ApiOrder = {
+  id: string;
+  userId: string;
+  projectId?: string | null;
+  items: ApiOrderItem[];
+  total: number;
+  status: 'Pending' | 'Processing' | 'Paid' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Returned' | string;
+  shippingAddress?: Record<string, unknown> | null;
+  inventoryState?: {
+    reservedApplied?: boolean;
+    deductedApplied?: boolean;
+    reserved_applied?: boolean;
+    deducted_applied?: boolean;
+  } | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export async function createOrder(params: {
+  items: ApiOrderItem[];
+  total?: number;
+  shippingAddress?: Record<string, unknown> | null;
+  projectId?: string;
+}): Promise<{ success: boolean; message?: string; data?: ApiOrder }> {
+  return apiFetch<{ success: boolean; message?: string; data?: ApiOrder }>('/api/orders', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export async function listMyOrders(params?: {
+  page?: number;
+  limit?: number;
+  projectId?: string;
+}): Promise<{ success: boolean; items: ApiOrder[]; total: number; page: number; totalPages: number }> {
+  const query = new URLSearchParams();
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.limit) query.set('limit', String(params.limit));
+  if (params?.projectId) query.set('projectId', params.projectId);
+  const qs = query.toString();
+  return apiFetch<{ success: boolean; items: ApiOrder[]; total: number; page: number; totalPages: number }>(
+    qs ? `/api/orders/my?${qs}` : '/api/orders/my'
+  );
+}
+
+export async function listAllOrders(params?: {
+  page?: number;
+  limit?: number;
+  status?: string;
+  userId?: string;
+}): Promise<{ success: boolean; items: ApiOrder[]; total: number; page: number; totalPages: number }> {
+  const query = new URLSearchParams();
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.limit) query.set('limit', String(params.limit));
+  if (params?.status) query.set('status', params.status);
+  if (params?.userId) query.set('userId', params.userId);
+  const qs = query.toString();
+  return apiFetch<{ success: boolean; items: ApiOrder[]; total: number; page: number; totalPages: number }>(
+    qs ? `/api/orders?${qs}` : '/api/orders'
+  );
+}
+
+export async function updateOrderStatus(
+  id: string,
+  status: 'Pending' | 'Processing' | 'Paid' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Returned'
+): Promise<{ success: boolean; message?: string; data?: ApiOrder }> {
+  return apiFetch<{ success: boolean; message?: string; data?: ApiOrder }>(`/api/orders/${id}/status`, {
+    method: 'PUT',
+    body: JSON.stringify({ status }),
   });
 }
 

@@ -101,7 +101,7 @@ app.use(cors({
     return cb(null, false);
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-project-id']
 }));
 app.use(cookieParser());
@@ -148,10 +148,12 @@ const pageRoutes = require('./routes/pageRoutes');
 const postRoutes = require('./routes/postRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const productRoutes = require('./routes/productRoutes');
+const inventoryRoutes = require('./routes/inventoryRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const templateRoutes = require('./routes/templateRoutes');
 const domainRoutes = require('./routes/domainRoutes');
 const projectRoutes = require('./routes/projectRoutes');
+const instanceRoutes = require('./routes/instanceRoutes');
 
 // Routes – public site by subdomain must be reachable
 app.use('/api/public', publicSiteRoutes);
@@ -161,10 +163,12 @@ app.use('/api/pages', pageRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/inventory', inventoryRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/domains', domainRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/instances', instanceRoutes);
 
 // Home route
 app.get('/', (req, res) => {
@@ -223,6 +227,12 @@ app.get('/', (req, res) => {
         getAll: 'GET /api/orders (admin)',
         getOne: 'GET /api/orders/:id (protected)',
         updateStatus: 'PUT /api/orders/:id/status (admin)'
+      },
+      inventory: {
+        getItems: 'GET /api/inventory (protected)',
+        getSummary: 'GET /api/inventory/summary (protected)',
+        getMovements: 'GET /api/inventory/movements (protected)',
+        adjust: 'POST /api/inventory/adjust (protected)'
       },
       templates: {
         getAll: 'GET /api/templates',
@@ -285,7 +295,7 @@ function onListenSuccess(port) {
   console.log(`🔑 Login API key: ${hasLoginKey ? 'set' : 'MISSING — set FIREBASE_API_KEY in .env'}`);
   console.log('========================================');
   console.log('📝 API: /api/auth | /api/users | /api/pages | /api/posts');
-  console.log('       /api/dashboard | /api/products | /api/orders');
+  console.log('       /api/dashboard | /api/products | /api/inventory | /api/orders');
   console.log('       /api/templates | /api/domains | /api/projects');
   console.log('========================================');
 }

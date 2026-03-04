@@ -8,6 +8,6 @@ router.post('/', protect, create);
 router.get('/my', protect, getMyOrders);
 router.get('/', protect, admin, getAll);
 router.get('/:id', protect, getOne);
-router.put('/:id/status', protect, admin, updateStatus);
+router.put('/:id/status', protect, updateStatus);
 
 module.exports = router;

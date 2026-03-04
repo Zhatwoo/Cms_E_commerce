@@ -1,13 +1,32 @@
 'use client';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus } from 'lucide-react';
+import { CheckCircle, Plus } from 'lucide-react';
 import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
 import { useProject } from '../components/context/project-context';
-import { type Product } from '../lib/productsData';
+import { type Product, type ProductVariant } from '../lib/productsData';
 import { createProduct, deleteProduct, listProducts, updateProduct, type ApiProduct } from '@/lib/api';
 import ProductAddModal from './components/productAddModal';
+
+type ProductUpsertPayload = Omit<Parameters<typeof createProduct>[0], 'subdomain'>;
+const DEFAULT_LOW_STOCK_THRESHOLD = 5;
+
+type ProductPopupState = {
+  open: boolean;
+  message: string;
+  tone: 'success' | 'error';
+};
+
+function getLowStockThreshold(product: Product): number {
+  const threshold = Number(product.lowStockThreshold);
+  if (!Number.isFinite(threshold) || threshold < 0) return DEFAULT_LOW_STOCK_THRESHOLD;
+  return threshold;
+}
+
+function isLowStock(product: Product): boolean {
+  return product.stock > 0 && product.stock < getLowStockThreshold(product);
+}
 
 function isImageSource(value: string): boolean {
   const v = (value || '').trim();
@@ -21,21 +40,24 @@ function isImageSource(value: string): boolean {
 
 type ThemeColors = ReturnType<typeof useTheme>['colors'];
 
-const ProductCard = ({ product, colors, onView, onEdit, onDelete, onToggleStatus }: {
+const ProductCard = ({ product, colors, onView, onEdit, onDelete, onToggleStatus, isTransitioningOut }: {
   product: Product;
   colors: ThemeColors;
   onView: (product: Product) => void;
   onEdit: (product: Product) => void;
   onDelete: (product: Product) => void;
   onToggleStatus: (product: Product) => void;
+  isTransitioningOut?: boolean;
 }) => {
   const imageValue = String(product.image || '').trim();
   const showImage = isImageSource(imageValue);
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: isTransitioningOut ? 0 : 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.12, ease: 'easeOut' }}
       className="border overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col h-full"
       style={{
         backgroundColor: colors.bg.card,
@@ -99,8 +121,8 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, onToggleStatus
           </div>
           <div>
             <p className="text-xs mb-1" style={{ color: colors.text.muted }}>Stock</p>
-            <p className={`font-semibold text-sm ${product.stock === 0 ? 'text-red-500' : product.stock < 20 ? 'text-yellow-500' : 'text-green-500'}`}>
-              {product.stock} units
+            <p className={`font-semibold text-sm ${product.stock === 0 ? 'text-red-500' : isLowStock(product) ? 'text-orange-500' : 'text-green-500'}`}>
+              {product.stock} Units
             </p>
           </div>
         </div>
@@ -193,10 +215,10 @@ const ProductDetailsModal = ({ product, onClose, colors }: {
     >
       <div className="absolute inset-0 flex items-center justify-center p-4 md:p-8">
         <motion.div
-          initial={{ opacity: 0, scale: 0.96, y: 14 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.96, y: 14 }}
-          transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
           className="w-full max-w-4xl rounded-2xl border overflow-hidden"
           style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
           onClick={(e) => e.stopPropagation()}
@@ -206,11 +228,11 @@ const ProductDetailsModal = ({ product, onClose, colors }: {
             <button
               type="button"
               onClick={onClose}
-              className="w-8 h-8 rounded-lg border flex items-center justify-center"
-              style={{ borderColor: colors.border.faint, color: colors.text.muted }}
+              className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-black/10 dark:hover:bg-white/10"
+              style={{ color: colors.text.muted }}
               title="Close"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -333,9 +355,9 @@ function toDashboardProduct(product: ApiProduct): Product {
   const images = Array.isArray(product.images)
     ? product.images.filter((img): img is string => typeof img === 'string' && img.trim().length > 0)
     : [];
-  const variants = Array.isArray(product.variants)
+  const variants: ProductVariant[] = Array.isArray(product.variants)
     ? product.variants
-      .map((variant) => ({
+      .map((variant): ProductVariant => ({
         id: String(variant?.id || ''),
         name: String(variant?.name || ''),
         pricingMode: variant?.pricingMode === 'override' ? 'override' : 'modifier',
@@ -382,6 +404,7 @@ function toDashboardProduct(product: ApiProduct): Product {
     priceRangeMin,
     priceRangeMax,
     stock: typeof product.stock === 'number' ? product.stock : 0,
+    lowStockThreshold: typeof product.lowStockThreshold === 'number' ? product.lowStockThreshold : DEFAULT_LOW_STOCK_THRESHOLD,
     status: toDashboardStatus(product.status),
     image: images[0] || '[product]',
     images,
@@ -417,6 +440,34 @@ export default function ProductsPage() {
   const [viewingProduct, setViewingProduct] = useState<Product | undefined>();
   const [perPage, setPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [transitioningInactiveId, setTransitioningInactiveId] = useState<string | null>(null);
+  const [productPopup, setProductPopup] = useState<ProductPopupState>({
+    open: false,
+    message: '',
+    tone: 'success',
+  });
+  const productPopupTimerRef = useRef<number | null>(null);
+
+  const showProductPopup = useCallback((message: string, tone: 'success' | 'error' = 'success') => {
+    if (productPopupTimerRef.current) {
+      window.clearTimeout(productPopupTimerRef.current);
+    }
+
+    setProductPopup({ open: true, message, tone });
+
+    productPopupTimerRef.current = window.setTimeout(() => {
+      setProductPopup((prev) => ({ ...prev, open: false }));
+      productPopupTimerRef.current = null;
+    }, 3000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (productPopupTimerRef.current) {
+        window.clearTimeout(productPopupTimerRef.current);
+      }
+    };
+  }, []);
 
   const loadProducts = useCallback(async () => {
     setLoadingProducts(true);
@@ -457,14 +508,22 @@ export default function ProductsPage() {
     return matchesSearch && matchesCategory;
   });
 
-  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / perPage));
+  const statusRank = (status: Product['status']) => {
+    if (status === 'active') return 0;
+    if (status === 'inactive') return 2;
+    return 1;
+  };
+
+  const sortedFilteredProducts = [...filteredProducts].sort((a, b) => statusRank(a.status) - statusRank(b.status));
+
+  const totalPages = Math.max(1, Math.ceil(sortedFilteredProducts.length / perPage));
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages);
   }, [totalPages, currentPage]);
 
   const startIndex = (currentPage - 1) * perPage;
   const endIndex = startIndex + perPage;
-  const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
+  const paginatedProducts = sortedFilteredProducts.slice(startIndex, endIndex);
 
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
@@ -489,19 +548,32 @@ export default function ProductsPage() {
 
   const handleToggleStatus = async (product: Product) => {
     const newStatus = product.status === 'active' ? 'inactive' : 'active';
+    const shouldFadeOut = newStatus === 'inactive';
+    if (shouldFadeOut) {
+      setTransitioningInactiveId(product.id);
+    }
     try {
       await updateProduct(product.id, { status: newStatus });
-      setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, status: newStatus } : p)));
+      if (shouldFadeOut) {
+        window.setTimeout(() => {
+          setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, status: newStatus } : p)));
+          setTransitioningInactiveId(null);
+        }, 130);
+      } else {
+        setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, status: newStatus } : p)));
+      }
     } catch (error) {
+      setTransitioningInactiveId(null);
       showAlert(error instanceof Error ? error.message : 'Failed to update status', 'error');
     }
   };
 
   const handleSaveProduct = async (productData: Partial<Product> & Record<string, unknown>): Promise<boolean> => {
     try {
+      let shouldShowAddedPopup = false;
       const rawVariants = Array.isArray(productData.variants) ? productData.variants : [];
-      const variants = rawVariants
-        .map((variant) => {
+      const variants: ProductVariant[] = rawVariants
+        .map((variant): ProductVariant => {
           const optionsRaw = Array.isArray((variant as { options?: unknown[] })?.options)
             ? (variant as { options: unknown[] }).options
             : [];
@@ -532,8 +604,14 @@ export default function ProductsPage() {
       const priceRangeMax = hasVariants
         ? Number(productData.priceRangeMax ?? finalPrice)
         : finalPrice;
+      const normalizedLowStockThreshold = Math.max(
+        0,
+        Number.isFinite(Number(productData.lowStockThreshold))
+          ? Number(productData.lowStockThreshold)
+          : DEFAULT_LOW_STOCK_THRESHOLD
+      );
 
-      const payload = {
+      const payload: ProductUpsertPayload = {
         name: String(productData.name || ''),
         sku: String(productData.sku || ''),
         category: String(productData.category || ''),
@@ -550,6 +628,7 @@ export default function ProductsPage() {
         priceRangeMin,
         priceRangeMax,
         stock: Number(productData.stock || 0),
+        lowStockThreshold: normalizedLowStockThreshold,
         status: toDashboardStatus(String(productData.status || 'draft')),
         images: Array.isArray(productData.images) ? (productData.images as string[]) : [],
       };
@@ -570,11 +649,15 @@ export default function ProductsPage() {
           ...payload,
           slug: payload.name.toLowerCase().replace(/\s+/g, '-'),
         });
+        shouldShowAddedPopup = true;
       }
 
       await loadProducts();
       setShowAddModal(false);
       setEditingProduct(undefined);
+      if (shouldShowAddedPopup) {
+        showProductPopup('Product added successfully!', 'success');
+      }
       return true;
     } catch (error) {
       showAlert(error instanceof Error ? error.message : 'Failed to save product', 'error');
@@ -585,7 +668,7 @@ export default function ProductsPage() {
   const stats = {
     total: products.length,
     active: products.filter(p => p.status === 'active').length,
-    lowStock: products.filter(p => p.stock > 0 && p.stock < 20).length,
+    lowStock: products.filter((p) => isLowStock(p)).length,
     outOfStock: products.filter(p => p.stock === 0).length
   };
 
@@ -593,6 +676,40 @@ export default function ProductsPage() {
 
   return (
     <div className="space-y-6">
+      <AnimatePresence>
+        {productPopup.open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[1200] flex items-center justify-center p-4"
+            style={{ backgroundColor: 'rgba(0, 0, 0, 0.35)', backdropFilter: 'blur(4px)' }}
+          >
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="w-auto max-w-sm rounded-xl border px-4 py-3 shadow-xl"
+              style={{
+                backgroundColor: colors.bg.card,
+                borderColor: colors.border.faint,
+              }}
+            >
+              <p className="text-sm text-center" style={{ color: productPopup.tone === 'success' ? '#ffffff' : '#ef4444' }}>
+                {productPopup.message}
+              </p>
+              {productPopup.tone === 'success' && (
+                <div className="mt-2 flex justify-center">
+                  <CheckCircle className="w-5 h-5" style={{ color: '#22c55e' }} />
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <section
         className="rounded-2xl border p-5 md:p-6"
@@ -618,8 +735,8 @@ export default function ProductsPage() {
               <motion.p
                 className="text-xs uppercase tracking-[0.2em] mb-2"
                 style={{ color: colors.text.muted }}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
                 transition={{ duration: 0.4 }}
               >
                 Dashboard Insights
@@ -631,8 +748,8 @@ export default function ProductsPage() {
                     ? 'linear-gradient(180deg, #ffffff 25%, #9ca3af 100%)'
                     : 'linear-gradient(180deg, #111827 25%, #4b5563 100%)'
                 }}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
                 transition={{ duration: 0.45 }}
               >
                 Products
@@ -640,8 +757,8 @@ export default function ProductsPage() {
               <motion.p
                 className="mt-2 text-sm md:text-base"
                 style={{ color: colors.text.secondary }}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
                 transition={{ duration: 0.45, delay: 0.08 }}
               >
                 Manage your product inventory and listings
@@ -670,22 +787,31 @@ export default function ProductsPage() {
           { label: 'Active', value: stats.active },
           { label: 'Low stock', value: stats.lowStock },
           { label: 'Out of stock', value: stats.outOfStock },
-        ].map((item) => (
+        ].map((item) => {
+          const labelColor = item.label === 'Active'
+            ? '#16a34a'
+            : item.label === 'Low stock'
+              ? '#f97316'
+              : item.label === 'Out of stock'
+                ? '#ef4444'
+                : colors.text.muted;
+
+          return (
           <motion.div
             key={item.label}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             className="rounded-xl border p-4"
             style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
           >
-            <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>
+            <p className="text-xs uppercase tracking-wide" style={{ color: labelColor }}>
               {item.label}
             </p>
             <p className="mt-1 text-2xl font-semibold" style={{ color: colors.text.primary }}>
               {item.value}
             </p>
           </motion.div>
-        ))}
+        )})}
       </section>
 
       {loadingProducts ? (
@@ -744,22 +870,25 @@ export default function ProductsPage() {
           {filteredProducts.length > 0 ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5 lg:gap-6">
-                {paginatedProducts.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    colors={colors}
-                    onView={handleView}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                    onToggleStatus={handleToggleStatus}
-                  />
-                ))}
+                <AnimatePresence>
+                  {paginatedProducts.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      colors={colors}
+                      onView={handleView}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                      onToggleStatus={handleToggleStatus}
+                      isTransitioningOut={transitioningInactiveId === product.id}
+                    />
+                  ))}
+                </AnimatePresence>
               </div>
 
               <div className="flex items-center justify-between gap-4 mt-4">
                 <div style={{ color: colors.text.muted }}>
-                  Showing {(filteredProducts.length === 0) ? 0 : (startIndex + 1)} - {Math.min(endIndex, filteredProducts.length)} of {filteredProducts.length}
+                  Showing {(sortedFilteredProducts.length === 0) ? 0 : (startIndex + 1)} - {Math.min(endIndex, sortedFilteredProducts.length)} of {sortedFilteredProducts.length}
                 </div>
                 <div className="flex items-center gap-2">
                   <button

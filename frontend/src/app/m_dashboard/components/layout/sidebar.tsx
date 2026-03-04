@@ -7,99 +7,23 @@ import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../context/theme-context';
 import { useProject } from '../context/project-context';
-const HomeIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    aria-hidden="true"
-    className="h-5 w-5"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-    <polyline points="9 22 9 12 15 12 15 22" />
-  </svg>
-);
-
-const WebBuilderIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    aria-hidden="true"
-    className="h-5 w-5"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-    <line x1="8" y1="21" x2="16" y2="21" />
-    <line x1="12" y1="17" x2="12" y2="21" />
-  </svg>
-);
-
-const DomainsIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    aria-hidden="true"
-    className="h-5 w-5"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <circle cx="12" cy="12" r="10" />
-    <line x1="2" y1="12" x2="22" y2="12" />
-    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-  </svg>
-);
-
-const SettingsIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    aria-hidden="true"
-    className="h-5 w-5"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <circle cx="12" cy="12" r="3" />
-    <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24" />
-  </svg>
-);
-
-const ProductsIcon = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-    <line x1="3" y1="6" x2="21" y2="6" />
-    <path d="M16 10a4 4 0 0 1-8 0" />
-  </svg>
-);
-
-const OrdersIcon = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="9" cy="21" r="1" />
-    <circle cx="20" cy="21" r="1" />
-    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-  </svg>
-);
-
-const AnalyticsIcon = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="18" y1="20" x2="18" y2="10" />
-    <line x1="12" y1="20" x2="12" y2="4" />
-    <line x1="6" y1="20" x2="6" y2="14" />
-  </svg>
-);
+const HomeIcon = () => <img src="/icons/home.png" alt="Home" className="h-5 w-5 object-contain" />;
+const WebBuilderIcon = () => <img src="/icons/monitor.png" alt="Web Builder" className="h-5 w-5 object-contain" />;
+const DomainsIcon = () => <img src="/icons/globe.png" alt="Domains" className="h-5 w-5 object-contain" />;
+const SettingsIcon = () => <img src="/icons/settings.png" alt="Settings" className="h-5 w-5 object-contain" />;
+const ProductsIcon = () => <img src="/icons/shopping-bag.png" alt="Products" className="h-5 w-5 object-contain" />;
+const OrdersIcon = () => <img src="/icons/shopping-cart.png" alt="Orders" className="h-5 w-5 object-contain" />;
+const AnalyticsIcon = () => <img src="/icons/bar-chart.png" alt="Analytics" className="h-5 w-5 object-contain" />;
 
 const CloseIcon = () => (
   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+  </svg>
+);
+
+const InventoryIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
   </svg>
 );
 
@@ -121,6 +45,7 @@ const navItems: SidebarItem[] = [
   { id: 'home', label: 'Home', icon: <HomeIcon />, href: '/m_dashboard' },
   { id: 'web-builder', label: 'Web Builder', icon: <WebBuilderIcon />, href: '/m_dashboard/web-builder' },
   { id: 'products', label: 'Products', icon: <ProductsIcon />, href: '/m_dashboard/products' },
+  { id: 'inventory', label: 'Inventory', icon: <InventoryIcon />, href: '/m_dashboard/inventory' },
   { id: 'orders', label: 'Orders', icon: <OrdersIcon />, href: '/m_dashboard/orders' },
   { id: 'analytics', label: 'Analytics', icon: <AnalyticsIcon />, href: '/m_dashboard/analytics' },
   { id: 'domains', label: 'Domains', icon: <DomainsIcon />, href: '/m_dashboard/domains' },
@@ -138,8 +63,8 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
   const pathname = usePathname();
   const router = useRouter();
   const { colors, theme } = useTheme();
-  const { selectedProject } = useProject();
-  const hasSelectedWebsite = Boolean(selectedProject);
+  const { selectedProject, setSelectedProjectId } = useProject();
+  const hasSelectedWebsite = !!selectedProject;
 
   const handleHomeClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     if (pathname === '/m_dashboard') {
@@ -157,24 +82,25 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
   const COLLAPSED_WIDTH = 72;   // icon-only
   const EXPANDED_WIDTH = 280;  // full labels
 
+  const sidebarBg = '#000036';
+  const accentYellow = (colors as { accent?: { yellow?: string } }).accent?.yellow ?? '#FFCE00';
   const sidebarStyle = {
-    backgroundImage: undefined,
-    backgroundColor: theme === 'light' ? '#FFFFFF' : 'rgba(0,0,0,0.8)',
+    backgroundColor: sidebarBg,
     borderColor: colors.border.faint,
-    color: colors.text.primary,
+    color: colors.text.muted,
   };
 
   const itemActiveStyle = {
-    backgroundColor: theme === 'dark' ? 'rgba(31, 41, 55, 0.7)' : colors.bg.primary, // gray-800/70 or primary
+    backgroundColor: 'transparent',
     color: colors.text.primary,
   };
 
   const itemInactiveStyle = {
-    color: colors.text.secondary,
+    color: colors.text.muted,
   };
 
   const itemHoverStyle = {
-    backgroundColor: theme === 'dark' ? 'rgba(31, 41, 55, 0.4)' : colors.bg.primary,
+    backgroundColor: 'rgba(92, 29, 143, 0.2)',
     color: colors.text.primary,
   };
 
@@ -191,17 +117,11 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
 
         {/* Mobile header with close */}
         <div
-          className="flex items-center justify-between px-6 shrink-0 border-b transition-colors duration-300"
+          className="flex items-center justify-between px-6 shrink-0 transition-colors duration-300"
           style={{ borderColor: colors.border.faint, height: '85px', paddingTop: '4px' }}
         >
           <div className="flex items-center gap-3">
-            <div
-              className="h-9 w-9 rounded-xl flex items-center justify-center font-bold shadow-sm"
-              style={{ backgroundColor: colors.bg.elevated, color: colors.text.primary }}
-            >
-              L
-            </div>
-
+            <img src="/images/logo.svg" alt="Logo" className="h-9 w-auto" />
           </div>
           <button
             onClick={onClose}
@@ -220,7 +140,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
               // Before a website/instance is selected, hide builder & commerce-specific items
               if (
                 !hasSelectedWebsite &&
-                ['web-builder', 'products', 'orders', 'analytics', 'domains', 'subscription', 'settings'].includes(item.id)
+                ['web-builder', 'products', 'inventory', 'orders', 'analytics', 'domains', 'subscription', 'settings'].includes(item.id)
               ) {
                 return false;
               }
@@ -232,21 +152,23 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
                   ? pathname === '/m_dashboard'
                   : item.id === 'web-builder'
                     ? pathname.startsWith('/m_dashboard/web-builder')
-                    : item.href
-                      ? pathname === item.href
-                      : false;
+                    : item.id === 'inventory'
+                      ? pathname.startsWith('/m_dashboard/inventory')
+                      : item.href
+                        ? pathname === item.href
+                        : false;
 
-              const content = (
-                <div
-                  className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg transition-colors`}
-                  style={isActive ? itemActiveStyle : { ...itemInactiveStyle, ...{ ':hover': itemHoverStyle } }}
-                >
-                  <span className="flex h-6 w-6 items-center justify-center" style={{ color: isActive ? colors.text.primary : colors.text.muted }}>
-                    {item.icon}
-                  </span>
-                  <span className="text-sm font-medium">{item.label}</span>
-                </div>
-              );
+            const content = (
+              <div
+                className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg transition-colors`}
+                style={isActive ? { ...itemActiveStyle, color: '#FFFFFF' } : itemInactiveStyle}
+              >
+                <span className="flex h-6 w-6 items-center justify-center" style={{ opacity: isActive ? 1 : 0.5 }}>
+                  {item.icon}
+                </span>
+                <span className="text-sm font-medium" style={{ fontFamily: 'var(--font-outfit), sans-serif' }}>{item.label}</span>
+              </div>
+            );
 
               return item.href ? (
                 <Link
@@ -268,6 +190,28 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
               );
             })}
         </nav>
+
+        {selectedProject && (
+          <div className="px-3 pb-4 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedProjectId(null);
+                router.push('/m_dashboard/instances');
+                onClose?.();
+              }}
+              className="w-full rounded-xl border px-3 py-2 text-left transition-colors hover:opacity-95"
+              style={{ borderColor: colors.border.faint, color: colors.text.secondary, backgroundColor: colors.bg.elevated }}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate text-sm" style={{ color: colors.text.primary }}>{selectedProject.title || 'Untitled website'}</span>
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ backgroundColor: sidebarBg, color: colors.text.muted }}>
+                  Switch
+                </span>
+              </div>
+            </button>
+          </div>
+        )}
       </aside>
     );
   }
@@ -277,9 +221,9 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
     <motion.aside
       className="hidden lg:flex lg:flex-col lg:h-screen lg:sticky lg:top-0 overflow-hidden z-20 backdrop-blur-xl border-r transition-colors duration-300"
       style={{
-        backgroundColor: theme === 'dark' ? 'rgba(0, 0, 0, 0.5)' : '#FFFFFF',
+        backgroundColor: sidebarBg,
         borderColor: colors.border.faint,
-        color: colors.text.primary
+        color: colors.text.muted
       }}
       initial={false}
       animate={{ width: isHovered ? EXPANDED_WIDTH : COLLAPSED_WIDTH }}
@@ -292,17 +236,12 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Brand header – centered always */}
+      {/* Brand header – logo */}
       <div
-        className="flex items-center justify-center shrink-0 border-b transition-colors duration-300"
+        className="flex items-center justify-center shrink-0 transition-colors duration-300"
         style={{ borderColor: colors.border.faint, height: '85px', paddingTop: '4px' }}
       >
-        <div
-          className="h-9 w-9 rounded-xl flex items-center justify-center font-bold shadow-sm transition-colors duration-300"
-          style={{ backgroundColor: colors.bg.elevated, color: colors.text.primary }}
-        >
-          L
-        </div>
+        <img src="/images/logo.svg" alt="Logo" className="h-9 w-auto max-w-[48px]" />
       </div>
 
       {/* Navigation */}
@@ -311,7 +250,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
           .filter((item) => {
             if (
               !hasSelectedWebsite &&
-              ['web-builder', 'products', 'orders', 'analytics', 'domains', 'subscription', 'settings'].includes(item.id)
+              ['web-builder', 'products', 'inventory', 'orders', 'analytics', 'domains', 'subscription', 'settings'].includes(item.id)
             ) {
               return false;
             }
@@ -323,9 +262,11 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
                 ? pathname === '/m_dashboard'
                 : item.id === 'web-builder'
                   ? pathname.startsWith('/m_dashboard/web-builder')
-                  : item.href
-                    ? pathname === item.href
-                    : false;
+                  : item.id === 'inventory'
+                    ? pathname.startsWith('/m_dashboard/inventory')
+                    : item.href
+                      ? pathname === item.href
+                      : false;
 
             return (
               <Link
@@ -336,52 +277,93 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
                 group relative flex items-center rounded-lg transition-all duration-200
                 w-full px-4 py-3
               `}
-                style={isActive ? itemActiveStyle : undefined}
-              >
-                {/* Hover effect overlay */}
-                {!isActive && (
-                  <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                    style={{ backgroundColor: colors.bg.elevated }}
-                  />
-                )}
+              style={isActive ? { ...itemActiveStyle, color: '#F4F4F6' } : undefined}
+            >
+              {/* Hover effect overlay */}
+              {!isActive && (
+                <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                  style={{ backgroundColor: 'rgba(92, 29, 143, 0.2)' }}
+                />
+              )}
 
-                {/* Fixed icon position */}
-                <div className="relative z-10 w-12 flex items-center justify-center shrink-0">
-                  <span
-                    className="flex h-6 w-6 items-center justify-center transition-colors"
-                    style={{ color: isActive ? colors.text.primary : colors.text.muted }} // Use muted for inactive icons
+              {/* Fixed icon position */}
+              <div className="relative z-10 w-12 flex items-center justify-center shrink-0">
+                <span
+                  className="flex h-6 w-6 items-center justify-center transition-colors"
+                  style={{ opacity: isActive ? 1 : 0.5 }}
+                >
+                  {item.icon}
+                </span>
+              </div>
+
+              {/* Label slide-in */}
+              <AnimatePresence>
+                {isHovered && (
+                  <motion.span
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -12 }}
+                    transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                    className="relative z-10 ml-3 text-sm font-medium whitespace-nowrap"
+                    style={{ fontFamily: 'var(--font-outfit), sans-serif', color: isActive ? '#FFFFFF' : colors.text.muted }}
                   >
-                    {item.icon}
-                  </span>
-                </div>
-
-                {/* Label slide-in */}
-                <AnimatePresence>
-                  {isHovered && (
-                    <motion.span
-                      initial={{ opacity: 0, x: -12 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -12 }}
-                      transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-                      className="relative z-10 ml-3 text-sm font-medium whitespace-nowrap"
-                      style={{ color: isActive ? colors.text.primary : colors.text.secondary }}
-                    >
-                      {item.label}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-
-                {/* Active indicator when collapsed */}
-                {isActive && !isHovered && (
-                  <div
-                    className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full"
-                    style={{ backgroundColor: colors.status.info }}
-                  />
+                    {item.label}
+                  </motion.span>
                 )}
-              </Link>
-            );
-          })}
+              </AnimatePresence>
+
+              {/* Active indicator when collapsed */}
+              {isActive && !isHovered && (
+                <div
+                  className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full"
+                  style={{ backgroundColor: accentYellow }}
+                />
+              )}
+            </Link>
+          );
+        })}
       </nav>
+
+      {selectedProject && (
+        <div className="px-3 pb-3 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedProjectId(null);
+              router.push('/m_dashboard/instances');
+            }}
+            className="w-full rounded-xl border px-3 py-2 text-left transition-colors hover:opacity-95"
+            style={{ borderColor: colors.border.faint, color: colors.text.secondary, backgroundColor: colors.bg.elevated }}
+          >
+            <AnimatePresence>
+              {isHovered ? (
+                <motion.div
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -8 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex items-center justify-between gap-2"
+                >
+                  <span className="truncate text-sm" style={{ color: colors.text.primary }}>{selectedProject.title || 'Untitled website'}</span>
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ backgroundColor: sidebarBg, color: colors.text.muted }}>
+                    Switch
+                  </span>
+                </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex items-center justify-center"
+                >
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: accentYellow }} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </button>
+        </div>
+      )}
 
       <div
         className="border-t py-4 text-xs shrink-0 flex justify-center transition-colors duration-300"

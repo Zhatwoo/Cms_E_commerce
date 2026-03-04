@@ -1,21 +1,56 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getApiUrl } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 import { WebPreview } from '@/app/design/_lib/webRenderer';
 import { serializeCraftToClean } from '@/app/design/_lib/serializer';
+import type { BuilderDocument } from '@/app/design/_types/schema';
 
 const RESERVED_SUBDOMAINS = new Set([
   'site', 'm_dashboard', 'design', 'auth', 'admindashboard', 'landing', 'templates',
   'api', '_next', 'favicon.ico', 'admin', 'login', 'register', 'signup',
 ]);
 
+function parsePublishedContentToCleanDoc(content: unknown): BuilderDocument | null {
+  if (content == null) return null;
+
+  try {
+    let normalized: unknown = content;
+
+    for (let i = 0; i < 2; i += 1) {
+      if (typeof normalized !== 'string') break;
+      const trimmed = normalized.trim();
+      if (!trimmed) return null;
+      try {
+        normalized = JSON.parse(trimmed);
+      } catch {
+        break;
+      }
+    }
+
+    if (
+      normalized &&
+      typeof normalized === 'object' &&
+      'version' in normalized &&
+      'pages' in normalized &&
+      'nodes' in normalized
+    ) {
+      return normalized as BuilderDocument;
+    }
+
+    const raw = typeof normalized === 'string' ? normalized : JSON.stringify(normalized);
+    return serializeCraftToClean(raw);
+  } catch {
+    return null;
+  }
+}
+
 export default function SubdomainSitePage() {
   const params = useParams();
   const subdomain = typeof params.subdomain === 'string' ? params.subdomain : null;
-  const [rawJson, setRawJson] = useState<string | null>(null);
+  const [cleanDoc, setCleanDoc] = useState<BuilderDocument | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -34,21 +69,20 @@ export default function SubdomainSitePage() {
     let cancelled = false;
     (async () => {
       try {
-        const base = getApiUrl();
-        const res = await fetch(`${base}/api/public/sites/${encodeURIComponent(normalized)}`, {
-          credentials: 'omit',
-        });
-        const data = await res.json().catch(() => ({} as Record<string, unknown>));
+        const data = await apiFetch<{ success?: boolean; data?: { content?: unknown } }>(
+          `/api/public/sites/${encodeURIComponent(normalized)}?t=${Date.now()}`,
+          { method: 'GET' }
+        );
         if (cancelled) return;
-        if (!res.ok || !(data as { success?: boolean }).success) {
+        if (!data?.success) {
           setError(true);
           setLoading(false);
           return;
         }
-        const content = (data as { data?: { content?: unknown } }).data?.content;
-        if (content) {
-          const serializedContent = typeof content === 'object' ? JSON.stringify(content) : String(content);
-          setRawJson(serializedContent);
+        const content = data?.data?.content;
+        const parsed = parsePublishedContentToCleanDoc(content);
+        if (parsed) {
+          setCleanDoc(parsed);
         } else {
           setError(true);
         }
@@ -60,17 +94,6 @@ export default function SubdomainSitePage() {
     })();
     return () => { cancelled = true; };
   }, [subdomain]);
-
-  const cleanDoc = useMemo(() => {
-    if (!rawJson) return null;
-    try {
-      const parsed = JSON.parse(rawJson);
-      if (parsed.version !== undefined && parsed.pages && parsed.nodes) return parsed;
-      return serializeCraftToClean(rawJson);
-    } catch {
-      return null;
-    }
-  }, [rawJson]);
 
   if (!subdomain) {
     notFound();

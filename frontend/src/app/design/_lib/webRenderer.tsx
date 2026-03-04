@@ -5,6 +5,7 @@ import type { BuilderDocument, CleanNode, ComponentType } from "../_types/schema
 import type { AnimationConfig } from "../_types/animation";
 import type { Interaction, PrototypeConfig, TransitionType } from "../_types/prototype";
 import { AnimationWrapper, hasActiveAnimation } from "./animationEngine";
+import { getComponentDefaults } from "./serializer";
 import { Icon as DesignIcon } from "../_designComponents/Icon/Icon";
 
 /** When provided, the storefront can show real products and handle Add to Cart in place of static product cards. */
@@ -203,8 +204,8 @@ const frameResponsiveStyles = (
         width: 100%;
       }
       
-      /* Mobile breakpoint - hamburger on right, dropdown on right */
-      @media (max-width: 768px) {
+      /* Mobile + tablet breakpoint - hamburger on right, dropdown on right */
+      @media (max-width: 1024px) {
         .frame-responsive-inner [data-nav-container] .nav-hamburger {
           display: flex !important;
           order: 999 !important;
@@ -443,10 +444,11 @@ const frameResponsiveStyles = (
 );
 
 /** Responsive Navigation Component - converts nav bars to hamburger menu on mobile */
-function ResponsiveNav({ children, containerStyle, onClick }: {
+function ResponsiveNav({ children, containerStyle, onClick, className }: {
   children: React.ReactNode;
   containerStyle: React.CSSProperties;
   onClick?: () => void;
+  className?: string;
 }) {
   const [isOpen, setIsOpen] = React.useState(false);
   const navRef = React.useRef<HTMLDivElement>(null);
@@ -468,6 +470,7 @@ function ResponsiveNav({ children, containerStyle, onClick }: {
     <div
       ref={navRef}
       data-nav-container
+      className={className}
       style={{ ...containerStyle, position: "relative" }}
       onClick={onClick}
     >
@@ -506,6 +509,15 @@ function ResponsiveNav({ children, containerStyle, onClick }: {
 /** Same as Frame: hamburger dropdown only on Header assets (data-header, class "header", or role="banner"). */
 function enhanceNavInPreview(innerEl: HTMLElement | null) {
   if (!innerEl) return;
+  const looksLikeMenuLabel = (text: string): boolean => {
+    const normalized = text.trim().toLowerCase();
+    if (!normalized) return false;
+    if (normalized.length > 28) return false;
+    if (/[0-9]/.test(normalized)) return false;
+    const words = normalized.split(/\s+/).filter(Boolean);
+    if (words.length > 3) return false;
+    return true;
+  };
   const isHeaderAsset = (el: HTMLElement): boolean => {
     const tag = el.tagName.toLowerCase();
     if (el.getAttribute("data-header") !== null) return true;
@@ -519,12 +531,31 @@ function enhanceNavInPreview(innerEl: HTMLElement | null) {
   const enhance = (container: HTMLElement): boolean => {
     if (container.hasAttribute("data-nav-enhanced")) return false;
     const existing = Array.from(container.children).filter((c) => !(c as HTMLElement).classList.contains("nav-hamburger"));
+    if (existing.length < 2) return false;
     const navChildren: Element[] = [];
     for (const c of existing) {
       const el = c as HTMLElement;
       if (el.tagName === "UL" || el.querySelector("ul")) navChildren.push(c);
     }
-    const toDrop = navChildren.length > 0 ? navChildren : existing.length > 1 ? existing.slice(1) : [];
+
+    const textLikeChildren = existing.filter((c) => {
+      const el = c as HTMLElement;
+      if (el.querySelector("img, video, iframe, input, textarea, form")) return false;
+      const hasInteractive = Boolean(el.querySelector("a, button, [role='button']"));
+      const text = (el.textContent || "").trim();
+      if (!text) return false;
+      return hasInteractive || looksLikeMenuLabel(text);
+    });
+
+    const toDrop =
+      navChildren.length > 0
+        ? navChildren
+        : textLikeChildren.length >= 2
+          ? textLikeChildren
+          : existing.length > 1
+            ? existing.slice(1)
+            : [];
+
     const menuWrapper = document.createElement("div");
     menuWrapper.className = "nav-menu";
     toDrop.forEach((c) => menuWrapper.appendChild(c));
@@ -722,7 +753,7 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
   Text: {
     text: "Edit me!",
     fontSize: 16,
-    fontFamily: "Inter",
+    fontFamily: "Outfit",
     fontWeight: "400",
     lineHeight: 1.5,
     letterSpacing: 0,
@@ -760,7 +791,7 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
     variant: "primary",
     fontSize: 14,
     fontWeight: "500",
-    fontFamily: "Inter",
+    fontFamily: "Outfit",
     borderRadius: 8,
     width: "auto",
     height: "auto",
@@ -864,7 +895,7 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
   Frame: {
     referenceWidth: 1440,
     referenceHeight: 900,
-    fitMode: "contain",
+    fitMode: "fluid",
     width: "100%",
     minHeight: "400px",
     height: "400px",
@@ -972,13 +1003,115 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
 };
 
 function mergeProps(type: string, props: Record<string, unknown>): Record<string, unknown> {
-  return { ...(DEFAULTS[type] ?? {}), ...props };
+  const sharedDefaults = getComponentDefaults(type);
+  const fallbackDefaults = DEFAULTS[type] ?? {};
+  const baseDefaults = Object.keys(sharedDefaults).length > 0 ? sharedDefaults : fallbackDefaults;
+  return { ...baseDefaults, ...props };
 }
 
 function px(v: unknown): string {
   if (typeof v === "number") return `${v}px`;
   if (typeof v === "string") return v;
   return "0";
+}
+
+function normalizePreviewWidth(
+  widthValue: unknown,
+  viewportWidth: number,
+  builderParityMode?: boolean,
+  mobileBreakpoint?: number,
+): string | undefined {
+  if (!Number.isFinite(viewportWidth) || viewportWidth <= 0) return typeof widthValue === "string" ? widthValue : undefined;
+
+  const breakpoint = toNumber(mobileBreakpoint, 900);
+  const isNarrowPreview = viewportWidth <= breakpoint;
+  if (!isNarrowPreview) return typeof widthValue === "string" ? widthValue : undefined;
+
+  if (typeof widthValue === "number") {
+    return widthValue > viewportWidth ? "100%" : `${widthValue}px`;
+  }
+
+  if (typeof widthValue !== "string") return undefined;
+  const normalized = widthValue.trim().toLowerCase();
+  if (!normalized) return widthValue;
+  if (normalized === "auto" || normalized.includes("%") || normalized.includes("vw") || normalized.startsWith("clamp(") || normalized.startsWith("min(") || normalized.startsWith("max(")) {
+    return widthValue;
+  }
+
+  if (normalized.endsWith("px")) {
+    const parsed = Number(normalized.slice(0, -2));
+    if (Number.isFinite(parsed) && parsed > viewportWidth) return "100%";
+  }
+
+  return widthValue;
+}
+
+function normalizeLayoutWidthForNarrow(
+  widthValue: unknown,
+  isNarrow: boolean,
+): string | undefined {
+  if (!isNarrow) {
+    if (typeof widthValue === "number") return `${widthValue}px`;
+    return typeof widthValue === "string" ? widthValue : undefined;
+  }
+
+  if (typeof widthValue === "number") return "100%";
+  if (typeof widthValue !== "string") return undefined;
+
+  const normalized = widthValue.trim().toLowerCase();
+  if (!normalized || normalized === "auto") return widthValue;
+  if (
+    normalized.includes("%") ||
+    normalized.includes("vw") ||
+    normalized.startsWith("clamp(") ||
+    normalized.startsWith("min(") ||
+    normalized.startsWith("max(")
+  ) {
+    return widthValue;
+  }
+
+  return "100%";
+}
+
+function normalizeLayoutHeightForNarrow(
+  heightValue: unknown,
+  isNarrow: boolean,
+): string | undefined {
+  if (typeof heightValue !== "string") return undefined;
+  if (!isNarrow) return heightValue;
+
+  const normalized = heightValue.trim().toLowerCase();
+  if (!normalized || normalized === "auto") return heightValue;
+  if (
+    normalized.includes("%") ||
+    normalized.includes("vh") ||
+    normalized.startsWith("clamp(") ||
+    normalized.startsWith("min(") ||
+    normalized.startsWith("max(")
+  ) {
+    return heightValue;
+  }
+
+  return "auto";
+}
+
+function isNarrowResponsivePreview(
+  viewportWidth: number,
+  builderParityMode?: boolean,
+  mobileBreakpoint?: number,
+): boolean {
+  if (!Number.isFinite(viewportWidth) || viewportWidth <= 0) return false;
+  const breakpoint = toNumber(mobileBreakpoint, 900);
+  return viewportWidth <= breakpoint;
+}
+
+function normalizeResponsivePosition(
+  position: React.CSSProperties["position"] | undefined,
+  isNarrow: boolean,
+): React.CSSProperties["position"] | undefined {
+  if (!isNarrow) return position;
+  if (position === "absolute" || position === "fixed") return "relative";
+  return position;
 }
 
 function resolvePageFrameStyles(pageWidth: string): Pick<React.CSSProperties, "width" | "maxWidth"> {
@@ -1025,6 +1158,18 @@ function isNavContainer(
   nodes: Record<string, CleanNode>,
   props: Record<string, unknown>
 ): boolean {
+  const looksLikeNavLabel = (value: unknown): boolean => {
+    if (typeof value !== "string") return false;
+    const text = value.trim();
+    if (!text) return false;
+    if (text.length > 24) return false;
+    const normalized = text.toLowerCase();
+    if (normalized === "logo" || normalized === "brand") return false;
+    const words = text.split(/\s+/).filter(Boolean);
+    if (words.length > 3) return false;
+    return true;
+  };
+
   const flexDirection = props.flexDirection as string;
   const isHorizontal = flexDirection === "row" || flexDirection === undefined;
   const childIds = node.children ?? [];
@@ -1034,22 +1179,23 @@ function isNavContainer(
   for (const childId of childIds) {
     const child = nodes[childId];
     if (!child) continue;
-    const childType = child.type as string;
+    const childType = String(child.type || "").toLowerCase();
     const childProps = child.props ?? {};
+    const hasExplicitLink = Boolean(childProps.link || childProps.href);
+    const isTextNavCandidate = childType === "text" && (hasExplicitLink || looksLikeNavLabel(childProps.text));
 
     // Count buttons, links, or text elements that could be nav items
     if (
-      childType === "Button" ||
       childType === "button" ||
-      (childType === "Text" && (childProps.link || childProps.href)) ||
-      (childType === "Container" && isNavContainer(child, nodes, childProps))
+      isTextNavCandidate ||
+      (childType === "container" && isNavContainer(child, nodes, childProps))
     ) {
       navItemCount++;
     }
   }
 
-  // Consider it a nav if horizontal layout with 2+ nav-like items
-  return isHorizontal && navItemCount >= 2;
+  // Consider it a nav if horizontal with 2+ items, or any layout with 3+ menu-like items.
+  return (isHorizontal && navItemCount >= 2) || navItemCount >= 3;
 }
 
 function wrapWithPrototype(
@@ -1118,6 +1264,7 @@ function RenderNode({
   onPrototypeAction,
   mobileBreakpoint,
   enableFormInputs,
+  builderParityMode,
 }: {
   node: CleanNode;
   nodes: Record<string, CleanNode>;
@@ -1132,21 +1279,32 @@ function RenderNode({
   onPrototypeAction?: (interaction: Interaction) => void;
   mobileBreakpoint?: number;
   enableFormInputs?: boolean;
+  builderParityMode?: boolean;
 }): React.ReactElement {
-  // Craft.js resolver uses lowercase keys (text, circle, etc.); normalize for switch/mergeProps
+  // Normalize legacy lowercase node types so published and preview payloads render identically.
   const rawType = node.type as string;
-  const type = (
-    rawType === "text" ? "Text"
-      : rawType === "circle" ? "Circle"
-        : rawType === "square" ? "Square"
-          : rawType === "triangle" ? "Triangle"
-            : rawType
-  ) as ComponentType;
+  const normalizedTypeMap: Record<string, ComponentType> = {
+    text: "Text",
+    container: "Container",
+    section: "Section",
+    frame: "Frame",
+    row: "Row",
+    column: "Column",
+    image: "Image",
+    button: "Button",
+    divider: "Divider",
+    icon: "Icon",
+    circle: "Circle",
+    square: "Square",
+    triangle: "Triangle",
+  };
+  const type = (normalizedTypeMap[rawType.toLowerCase()] ?? rawType) as ComponentType;
   const props = mergeProps(type, node.props) as Record<string, unknown>;
-  if (!shouldRenderNodeAtWidth(props, viewportWidth, mobileBreakpoint)) {
+  const isNarrowPreview = isNarrowResponsivePreview(viewportWidth, builderParityMode, mobileBreakpoint);
+  if (!builderParityMode && !shouldRenderNodeAtWidth(props, viewportWidth, mobileBreakpoint)) {
     return <></>;
   }
-  if (!isCollapsibleOpen(props, viewportWidth, interactionState, availableTriggerTargets)) {
+  if (!builderParityMode && !isCollapsibleOpen(props, viewportWidth, interactionState, availableTriggerTargets)) {
     return <></>;
   }
   const allowPreviewInput = Boolean(enableFormInputs && props.previewEditable === true);
@@ -1175,6 +1333,7 @@ function RenderNode({
         onPrototypeAction={onPrototypeAction}
         mobileBreakpoint={mobileBreakpoint}
         enableFormInputs={enableFormInputs}
+        builderParityMode={builderParityMode}
       />
     );
   });
@@ -1208,6 +1367,7 @@ function RenderNode({
         return (
           <div
             id="products"
+            className={((props.customClassName as string) || "").trim() || undefined}
             style={{
               backgroundColor: props.background as string,
               padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
@@ -1312,6 +1472,15 @@ function RenderNode({
       const overlay = props.backgroundOverlay as string;
       const displayVal = (props.display as React.CSSProperties["display"]) ?? "flex";
       const isNav = isNavContainer(node, nodes, props);
+      const normalizedWidth = normalizeLayoutWidthForNarrow(
+        normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint),
+        isNarrowPreview,
+      );
+      const normalizedHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview);
+      const normalizedPosition = normalizeResponsivePosition(
+        props.position as React.CSSProperties["position"] | undefined,
+        isNarrowPreview,
+      );
 
       const containerStyle: React.CSSProperties = {
         backgroundColor: props.background as string,
@@ -1325,8 +1494,10 @@ function RenderNode({
         backgroundRepeat: bgImage ? (props.backgroundRepeat as string) : undefined,
         padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
         margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
-        width: props.width as string,
-        height: (props.height as string) ?? "auto",
+        width: normalizedWidth ?? (props.width as string),
+        maxWidth: isNarrowPreview ? "100%" : undefined,
+        minWidth: isNarrowPreview ? 0 : undefined,
+        height: normalizedHeight ?? (props.height as string) ?? "auto",
         minHeight: !hasRenderableChildren ? "50px" : undefined,
         borderRadius: `${br}px`,
         ...(strokePlacement === "outside" && borderDecl
@@ -1334,9 +1505,13 @@ function RenderNode({
           : borderDecl
             ? { border: borderDecl }
             : {}),
-        position: props.position as React.CSSProperties["position"],
+        position: normalizedPosition,
         display: displayVal,
-        flexDirection: displayVal === "flex" ? (props.flexDirection as React.CSSProperties["flexDirection"]) : undefined,
+        flexDirection: displayVal === "flex"
+          ? (isNarrowPreview
+              ? ((props.flexDirection as React.CSSProperties["flexDirection"]) === "row" ? "column" : (props.flexDirection as React.CSSProperties["flexDirection"]))
+              : (props.flexDirection as React.CSSProperties["flexDirection"]))
+          : undefined,
         flexWrap: displayVal === "flex" ? (props.flexWrap as React.CSSProperties["flexWrap"]) : undefined,
         alignItems: displayVal === "flex" || displayVal === "grid" ? (props.alignItems as string) : undefined,
         justifyContent: displayVal === "flex" || displayVal === "grid" ? (props.justifyContent as string) : undefined,
@@ -1347,16 +1522,28 @@ function RenderNode({
         rowGap: displayVal === "grid" ? px(props.gridRowGap ?? props.gridGap) : undefined,
         boxShadow: props.boxShadow as string,
         opacity: props.opacity as number,
-        overflow: props.overflow as string,
+        overflow: isNarrowPreview ? "hidden" : (props.overflow as string),
         cursor: interactiveClick ? "pointer" : (props.cursor as string),
+        top: isNarrowPreview ? undefined : (props.top as React.CSSProperties["top"]),
+        right: isNarrowPreview ? undefined : (props.right as React.CSSProperties["right"]),
+        bottom: isNarrowPreview ? undefined : (props.bottom as React.CSSProperties["bottom"]),
+        left: isNarrowPreview ? undefined : (props.left as React.CSSProperties["left"]),
       };
 
       const containerContent = isNav ? (
-        <ResponsiveNav containerStyle={containerStyle} onClick={interactiveClick}>
+        <ResponsiveNav
+          containerStyle={containerStyle}
+          onClick={interactiveClick}
+          className={((props.customClassName as string) || "").trim() || undefined}
+        >
           {children}
         </ResponsiveNav>
       ) : (
-        <div style={containerStyle} onClick={interactiveClick}>
+        <div
+          className={((props.customClassName as string) || "").trim() || undefined}
+          style={containerStyle}
+          onClick={interactiveClick}
+        >
           {children}
         </div>
       );
@@ -1381,9 +1568,15 @@ function RenderNode({
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
       const isHeaderAsset = nodeId != null && /header/i.test(nodeId);
+      const normalizedWidth = normalizeLayoutWidthForNarrow(
+        normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint),
+        isNarrowPreview,
+      );
+      const normalizedHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview);
       return wrap(
         <section
           {...(isHeaderAsset ? { "data-header": "true" } : {})}
+          className={((props.customClassName as string) || "").trim() || undefined}
           style={{
             backgroundColor: props.background as string,
             backgroundImage: bgImage
@@ -1396,8 +1589,10 @@ function RenderNode({
             backgroundRepeat: bgImage ? (props.backgroundRepeat as string) : undefined,
             padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
             margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
-            width: props.width as string,
-            height: props.height as string,
+            width: normalizedWidth ?? (props.width as string),
+            maxWidth: isNarrowPreview ? "100%" : undefined,
+            minWidth: isNarrowPreview ? 0 : undefined,
+            height: normalizedHeight ?? (props.height as string),
             borderRadius: px(props.borderRadius),
             ...(sectionStrokePlacement === "outside" && sectionBorderDecl
               ? { border: "none", outline: sectionBorderDecl, outlineOffset: 0 }
@@ -1405,14 +1600,18 @@ function RenderNode({
                 ? { border: sectionBorderDecl }
                 : {}),
             display: "flex",
-            flexDirection: props.flexDirection as React.CSSProperties["flexDirection"],
+            flexDirection: isNarrowPreview
+              ? ((props.flexDirection as React.CSSProperties["flexDirection"]) === "row"
+                  ? "column"
+                  : (props.flexDirection as React.CSSProperties["flexDirection"]))
+              : (props.flexDirection as React.CSSProperties["flexDirection"]),
             flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
             alignItems: props.alignItems as string,
             justifyContent: props.justifyContent as string,
             gap: px(props.gap),
             boxShadow: props.boxShadow as string,
             opacity: props.opacity as number,
-            overflow: props.overflow as string,
+            overflow: isNarrowPreview ? "hidden" : (props.overflow as string),
             cursor: interactiveClick ? "pointer" : undefined,
           }}
           onClick={interactiveClick}
@@ -1435,9 +1634,13 @@ function RenderNode({
       const mb = (props.marginBottom ?? m) as number;
       const refW = Math.max(320, (props.referenceWidth as number) ?? 1440);
       const refH = Math.max(200, (props.referenceHeight as number) ?? 900);
-      const propsFit = (props.fitMode as "contain" | "cover" | "width" | "fluid") ?? "contain";
-      const fit = viewportWidth <= 768 ? "fluid" : propsFit;
+      const fit = "fluid";
       const minH = (props.minHeight as string) ?? (props.height as string) ?? "400px";
+      const normalizedWidth = normalizeLayoutWidthForNarrow(
+        normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint),
+        isNarrowPreview,
+      );
+      const normalizedMinH = normalizeLayoutHeightForNarrow(minH, isNarrowPreview) ?? minH;
       return wrap(
         <ResponsiveFrameWrapper
           referenceWidth={refW}
@@ -1446,8 +1649,9 @@ function RenderNode({
           outerStyle={{
             padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
             margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
-            width: (props.width as string) ?? "100%",
-            minHeight: minH,
+            width: normalizedWidth ?? (props.width as string) ?? "100%",
+            maxWidth: isNarrowPreview ? "100%" : undefined,
+            minHeight: normalizedMinH,
             boxSizing: "border-box",
           }}
         >
@@ -1472,38 +1676,59 @@ function RenderNode({
       const rowBw = (props.borderWidth ?? 0) as number;
       const rowBorderDecl = rowBw > 0 ? `${rowBw}px ${props.borderStyle} ${props.borderColor}` : undefined;
       const rowStrokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
-      return wrap(
+      const normalizedWidth = normalizeLayoutWidthForNarrow(
+        normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint),
+        isNarrowPreview,
+      );
+      const normalizedHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview);
+      const isNavRow = isNavContainer(node, nodes, props);
+      const rowStyle: React.CSSProperties = {
+        backgroundColor: props.background as string,
+        padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
+        margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
+        width: normalizedWidth ?? (props.width as string),
+        maxWidth: isNarrowPreview ? "100%" : undefined,
+        minWidth: isNarrowPreview ? 0 : undefined,
+        height: normalizedHeight ?? (props.height as string),
+        borderRadius: px(props.borderRadius),
+        ...(rowStrokePlacement === "outside" && rowBorderDecl
+          ? { border: "none", outline: rowBorderDecl, outlineOffset: 0 }
+          : rowBorderDecl
+            ? { border: rowBorderDecl }
+            : {}),
+        display: "flex",
+        flexDirection: isNavRow ? "row" : (isNarrowPreview && flexDir === "row" ? "column" : flexDir),
+        flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
+        alignItems: props.alignItems as string,
+        justifyContent: props.justifyContent as string,
+        gap: px(props.gap),
+        boxShadow: props.boxShadow as string,
+        opacity: props.opacity as number,
+        overflow: isNavRow ? "visible" : (isNarrowPreview ? "hidden" : (props.overflow as string)),
+        cursor: interactiveClick ? "pointer" : undefined,
+      };
+
+      const rowContent = isNavRow ? (
+        <ResponsiveNav
+          containerStyle={rowStyle}
+          onClick={interactiveClick}
+          className={((props.customClassName as string) || "").trim() || undefined}
+        >
+          {children}
+        </ResponsiveNav>
+      ) : (
         <div
           data-layout="row"
           {...(isHeaderRow ? { "data-header": "true" } : {})}
-          style={{
-            backgroundColor: props.background as string,
-            padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
-            margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
-            width: props.width as string,
-            height: props.height as string,
-            borderRadius: px(props.borderRadius),
-            ...(rowStrokePlacement === "outside" && rowBorderDecl
-              ? { border: "none", outline: rowBorderDecl, outlineOffset: 0 }
-              : rowBorderDecl
-                ? { border: rowBorderDecl }
-                : {}),
-            display: "flex",
-            flexDirection: flexDir,
-            flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
-            alignItems: props.alignItems as string,
-            justifyContent: props.justifyContent as string,
-            gap: px(props.gap),
-            boxShadow: props.boxShadow as string,
-            opacity: props.opacity as number,
-            overflow: props.overflow as string,
-            cursor: interactiveClick ? "pointer" : undefined,
-          }}
+          className={((props.customClassName as string) || "").trim() || undefined}
+          style={rowStyle}
           onClick={interactiveClick}
         >
           {children}
         </div>
       );
+
+      return wrap(rowContent);
     }
 
     case "Column": {
@@ -1518,18 +1743,26 @@ function RenderNode({
       const mt = (props.marginTop ?? m) as number;
       const mb = (props.marginBottom ?? m) as number;
       const w = props.width as string;
+      const normalizedWidth = normalizeLayoutWidthForNarrow(
+        normalizePreviewWidth(w, viewportWidth, builderParityMode, mobileBreakpoint),
+        isNarrowPreview,
+      );
+      const normalizedHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview);
       const colBw = (props.borderWidth ?? 0) as number;
       const colBorderDecl = colBw > 0 ? `${colBw}px ${props.borderStyle} ${props.borderColor}` : undefined;
       const colStrokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
       return wrap(
         <div
+          className={((props.customClassName as string) || "").trim() || undefined}
           style={{
-            flex: w === "auto" ? 1 : undefined,
-            width: w !== "auto" ? w : undefined,
+            flex: (normalizedWidth ?? w) === "auto" ? 1 : undefined,
+            width: (normalizedWidth ?? w) !== "auto" ? (normalizedWidth ?? w) : undefined,
+            maxWidth: isNarrowPreview ? "100%" : undefined,
+            minWidth: 0,
             backgroundColor: props.background as string,
             padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
             margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
-            height: props.height as string,
+            height: normalizedHeight ?? (props.height as string),
             borderRadius: px(props.borderRadius),
             ...(colStrokePlacement === "outside" && colBorderDecl
               ? { border: "none", outline: colBorderDecl, outlineOffset: 0 }
@@ -1544,7 +1777,7 @@ function RenderNode({
             gap: px(props.gap),
             boxShadow: props.boxShadow as string,
             opacity: props.opacity as number,
-            overflow: props.overflow as string,
+            overflow: isNarrowPreview ? "hidden" : (props.overflow as string),
             cursor: interactiveClick ? "pointer" : undefined,
           }}
           onClick={interactiveClick}
@@ -1566,19 +1799,35 @@ function RenderNode({
       const pl = (props.paddingLeft ?? p) as number;
       const pr = (props.paddingRight ?? p) as number;
       const textContent = (props.text != null && props.text !== "") ? String(props.text) : ((DEFAULTS["Text"]?.text as string) ?? "Edit me!");
+      const normalizedTextWidth = normalizeLayoutWidthForNarrow(props.width, isNarrowPreview);
+      const normalizedTextHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview);
       const rot = toNumber(props.rotation, 0);
       const flipH = props.flipHorizontal === true;
       const flipV = props.flipVertical === true;
       const textTransformStyle = [rot ? `rotate(${rot}deg)` : null, flipH ? "scaleX(-1)" : null, flipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
       const textStyle: React.CSSProperties = {
         fontSize: px(props.fontSize),
-        fontFamily: (props.fontFamily as string) || "Inter",
+        fontFamily: (props.fontFamily as string) || "Outfit",
         fontWeight: props.fontWeight as string,
+        fontStyle: (props.fontStyle as string) || "normal",
         lineHeight: props.lineHeight as number,
         letterSpacing: px(props.letterSpacing),
         textAlign: props.textAlign as React.CSSProperties["textAlign"],
         textTransform: props.textTransform as React.CSSProperties["textTransform"],
         color: (props.color as string) || "#000000",
+        position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview),
+        display: ((props.display as React.CSSProperties["display"]) || "block"),
+        zIndex: (props.zIndex as number | undefined) ?? 2,
+        top: isNarrowPreview ? undefined : (props.position !== "static" ? (props.top as React.CSSProperties["top"]) : undefined),
+        right: isNarrowPreview ? undefined : (props.position !== "static" ? (props.right as React.CSSProperties["right"]) : undefined),
+        bottom: isNarrowPreview ? undefined : (props.position !== "static" ? (props.bottom as React.CSSProperties["bottom"]) : undefined),
+        left: isNarrowPreview ? undefined : (props.position !== "static" ? (props.left as React.CSSProperties["left"]) : undefined),
+        width: normalizedTextWidth ?? (props.width as string | undefined),
+        height: normalizedTextHeight ?? (props.height as string | undefined),
+        minHeight: "1em",
+        overflow: props.height ? "hidden" : undefined,
+        maxWidth: "100%",
+        minWidth: 0,
         margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
         padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
         opacity: props.opacity as number,
@@ -1609,7 +1858,7 @@ function RenderNode({
             defaultValue=""
             placeholder={textContent}
             aria-label={textContent}
-            className="preview-input"
+            className={`preview-input ${((props.customClassName as string) || "").trim()}`.trim() || undefined}
             style={previewInputStyle}
           />,
           animation
@@ -1617,7 +1866,11 @@ function RenderNode({
       }
 
       return wrap(
-        <div style={textStyle} onClick={interactiveClick}>
+        <div
+          className={((props.customClassName as string) || "").trim() || undefined}
+          style={textStyle}
+          onClick={interactiveClick}
+        >
           {textContent}
         </div>
       );
@@ -1628,13 +1881,17 @@ function RenderNode({
       const imgFlipH = props.flipHorizontal === true;
       const imgFlipV = props.flipVertical === true;
       const imgTransform = [imgRot ? `rotate(${imgRot}deg)` : null, imgFlipH ? "scaleX(-1)" : null, imgFlipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
+      const normalizedImageWidth = normalizeLayoutWidthForNarrow(props.width, isNarrowPreview);
+      const normalizedImageHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview);
       return wrap(
         <img
           src={(props.src as string) || "https://placehold.co/600x400?text=Image"}
           alt={(props.alt as string) || "Image"}
+          className={((props.customClassName as string) || "").trim() || undefined}
           style={{
-            width: props.width as string,
-            height: props.height as string,
+            width: normalizedImageWidth ?? (props.width as string),
+            height: normalizedImageHeight ?? (props.height as string),
+            maxWidth: "100%",
             objectFit: props.objectFit as React.CSSProperties["objectFit"],
             borderRadius: px(props.borderRadius),
             padding: px(props.padding),
@@ -1657,8 +1914,11 @@ function RenderNode({
       const borderWidth = (props.borderWidth as number) ?? style.borderWidth;
       const borderStyle = ((props.borderStyle as string) || "solid");
       const resolvedBorderStyle = borderWidth > 0 ? borderStyle : "none";
-      const width = (props.width as string) || "auto";
-      const height = (props.height as string) || "auto";
+      const width = normalizeLayoutWidthForNarrow(
+        normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint) || (props.width as string) || "auto",
+        isNarrowPreview,
+      ) || "auto";
+      const height = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview) || (props.height as string) || "auto";
       const isPercentWidth = typeof width === "string" && width.includes("%");
       const p = typeof props.padding === "number" ? props.padding : 0;
       const pt = toNumber(props.paddingTop ?? p, 10);
@@ -1682,17 +1942,19 @@ function RenderNode({
       const btnTransform = [btnRot ? `rotate(${btnRot}deg)` : null, btnFlipH ? "scaleX(-1)" : null, btnFlipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
       const content = (
         <span
+          className={((props.customClassName as string) || "").trim() || undefined}
           style={{
             backgroundColor: bg,
             color,
             fontSize: px(props.fontSize),
             fontWeight: props.fontWeight as string,
-            fontFamily: (props.fontFamily as string) || "Inter",
+            fontFamily: (props.fontFamily as string) || "Outfit",
             borderRadius: px(props.borderRadius),
             border: `${borderWidth}px ${resolvedBorderStyle} ${borderColor}`,
             padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
             margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
             width: isPercentWidth ? "100%" : width,
+            maxWidth: isNarrowPreview ? "100%" : undefined,
             height: height,
             boxSizing: "border-box",
             opacity: props.opacity as number,
@@ -1703,6 +1965,7 @@ function RenderNode({
             cursor: interactiveClick ? "pointer" : undefined,
             transform: btnTransform,
             transformOrigin: "center center",
+            minWidth: isNarrowPreview ? 0 : undefined,
           }}
           onClick={interactiveClick}
         >
@@ -1727,8 +1990,8 @@ function RenderNode({
             }}
             style={{
               all: "unset",
-              display: isPercentWidth ? "block" : "inline-block",
-              width: isPercentWidth ? width : undefined,
+              display: isPercentWidth || isNarrowPreview ? "block" : "inline-block",
+              width: isPercentWidth || isNarrowPreview ? width : undefined,
               cursor: "pointer",
             }}
           >
@@ -1742,8 +2005,8 @@ function RenderNode({
             href={link}
             style={{
               textDecoration: "none",
-              display: isPercentWidth ? "block" : "inline-block",
-              width: isPercentWidth ? width : undefined,
+              display: isPercentWidth || isNarrowPreview ? "block" : "inline-block",
+              width: isPercentWidth || isNarrowPreview ? width : undefined,
             }}
           >
             {content}
@@ -1757,7 +2020,7 @@ function RenderNode({
       return wrap(
         <hr
           style={{
-            width: (props.width as string) || "100%",
+            width: normalizeLayoutWidthForNarrow((props.width as string) || "100%", isNarrowPreview) || "100%",
             border: "none",
             borderTop: `${props.thickness}px ${props.dividerStyle} ${props.color}`,
             marginTop: px(props.marginTop),
@@ -1773,8 +2036,8 @@ function RenderNode({
             iconType={props.iconType as string}
             size={toNumber(props.size, 24)}
             color={props.color as string}
-            width={props.width as string}
-            height={props.height as string}
+            width={normalizeLayoutWidthForNarrow(props.width as string, isNarrowPreview)}
+            height={normalizeLayoutHeightForNarrow(props.height as string, isNarrowPreview)}
             margin={toNumber(props.margin, 0)}
             marginTop={toNumber(props.marginTop, 0)}
             marginRight={toNumber(props.marginRight, 0)}
@@ -1805,8 +2068,8 @@ function RenderNode({
       const pb = toNumber(props.paddingBottom ?? p, 0);
       const pl = toNumber(props.paddingLeft ?? p, 0);
       const fill = (props.background as string) || (props.color as string) || "#999999";
-      const w = (props.width as string) || "200px";
-      const h = (props.height as string) || "200px";
+      const w = normalizeLayoutWidthForNarrow((props.width as string) || "200px", isNarrowPreview) || "200px";
+      const h = normalizeLayoutHeightForNarrow((props.height as string) || "200px", isNarrowPreview) || "200px";
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
       const bw = toNumber(props.borderWidth, 0);
@@ -1971,8 +2234,10 @@ export function WebPreview({
   initialPageSlug,
   storeContext,
   simulatedWidth,
+  responsiveViewportWidth,
   mobileBreakpoint,
   enableFormInputs = false,
+  builderParityMode = false,
 }: {
   doc: BuilderDocument;
   pageIndex?: number;
@@ -1980,8 +2245,12 @@ export function WebPreview({
   initialPageSlug?: string;
   storeContext?: StoreContext | null;
   simulatedWidth?: number;
+  /** Optional viewport width used only for responsive visibility/breakpoint logic. */
+  responsiveViewportWidth?: number;
   mobileBreakpoint?: number;
   enableFormInputs?: boolean;
+  /** When true, keep nodes visible like the editor canvas (skip showOn/collapsible filtering). */
+  builderParityMode?: boolean;
 }): React.ReactElement {
   const safePages = doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page));
   const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
@@ -2054,12 +2323,15 @@ export function WebPreview({
   const width = (pageProps.width as string) || "1920px";
   const background = (pageProps.background as string) || "#ffffff";
   const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
+  const pageRotation = toNumber(pageProps.pageRotation, 0);
   const frameStyles = resolvePageFrameStyles(width);
   const { ref, width: measuredWidth } = useContainerWidth(1000);
-  const viewportWidth = simulatedWidth ?? measuredWidth;
+  const viewportWidth = simulatedWidth ?? responsiveViewportWidth ?? measuredWidth;
   const effectiveMobileBreakpoint = mobileBreakpoint ?? 768;
   const isPhonePreview = viewportWidth <= effectiveMobileBreakpoint;
-  const isDesktopMode = simulatedWidth === undefined;
+  const isDesktopMode = simulatedWidth === undefined && viewportWidth > effectiveMobileBreakpoint;
+  const isNarrowBuilderPreview = builderParityMode && !isDesktopMode;
+  const isNarrowViewport = !isDesktopMode;
   const mobileWrapperRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     if (!isDesktopMode && mobileWrapperRef.current) {
@@ -2115,6 +2387,7 @@ export function WebPreview({
             onPrototypeAction={onPrototypeAction}
             mobileBreakpoint={mobileBreakpoint}
             enableFormInputs={enableFormInputs}
+            builderParityMode={builderParityMode}
           />
         );
       })}
@@ -2154,19 +2427,90 @@ export function WebPreview({
             padding: 0 !important;
           }
         }
+
+        .builder-parity-narrow,
+        .builder-parity-narrow *,
+        .responsive-narrow,
+        .responsive-narrow * {
+          box-sizing: border-box !important;
+        }
+
+        .builder-parity-narrow [style*="width"],
+        .responsive-narrow [style*="width"],
+        .builder-parity-narrow section,
+        .responsive-narrow section,
+        .builder-parity-narrow article,
+        .responsive-narrow article,
+        .builder-parity-narrow main,
+        .responsive-narrow main,
+        .builder-parity-narrow aside,
+        .responsive-narrow aside,
+        .builder-parity-narrow [data-layout],
+        .responsive-narrow [data-layout],
+        .builder-parity-narrow .frame-responsive-inner > *,
+        .responsive-narrow .frame-responsive-inner > * {
+          max-width: 100% !important;
+          min-width: 0 !important;
+          align-self: stretch !important;
+        }
+
+        .builder-parity-narrow .frame-responsive-inner > div,
+        .responsive-narrow .frame-responsive-inner > div,
+        .builder-parity-narrow .frame-responsive-inner > section,
+        .responsive-narrow .frame-responsive-inner > section,
+        .builder-parity-narrow [data-layout="row"],
+        .responsive-narrow [data-layout="row"],
+        .builder-parity-narrow [data-layout="column"],
+        .responsive-narrow [data-layout="column"],
+        .builder-parity-narrow div[style*="width:"][style*="px"],
+        .responsive-narrow div[style*="width:"][style*="px"] {
+          width: 100% !important;
+        }
+
+        .builder-parity-narrow [style*="position:absolute"],
+        .responsive-narrow [style*="position:absolute"],
+        .builder-parity-narrow [style*="position: absolute"],
+        .responsive-narrow [style*="position: absolute"],
+        .builder-parity-narrow [style*="position:fixed"],
+        .responsive-narrow [style*="position:fixed"],
+        .builder-parity-narrow [style*="position: fixed"],
+        .responsive-narrow [style*="position: fixed"] {
+          position: relative !important;
+          top: auto !important;
+          right: auto !important;
+          bottom: auto !important;
+          left: auto !important;
+          transform: none !important;
+        }
+
+        .builder-parity-narrow input,
+        .responsive-narrow input,
+        .builder-parity-narrow textarea,
+        .responsive-narrow textarea,
+        .builder-parity-narrow select,
+        .responsive-narrow select,
+        .builder-parity-narrow .preview-input,
+        .responsive-narrow .preview-input,
+        .builder-parity-narrow button,
+        .responsive-narrow button {
+          width: 100% !important;
+          max-width: 100% !important;
+        }
       `}</style>
       {!isDesktopMode && frameResponsiveStyles}
       <div
         key={currentPageSlug}
-        className="responsive-preview"
+        className={`responsive-preview ${isNarrowBuilderPreview ? "builder-parity-narrow" : ""} ${isNarrowViewport ? "responsive-narrow" : ""}`.trim()}
         style={{
           width: isDesktopMode ? "100%" : width,
           minHeight,
           backgroundColor: background,
-          margin: isDesktopMode ? 0 : "0 auto",
+          margin: "0 auto",
           boxShadow: isDesktopMode ? "none" : "0 25px 50px -12px rgba(0,0,0,0.25)",
           borderRadius: isDesktopMode ? 0 : 8,
           overflow: "hidden",
+          transform: pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
+          transformOrigin: "center center",
           ...transitionStyle,
           ...(!isDesktopMode ? { containerType: "inline-size" as const } : {}),
         }}
@@ -2204,6 +2548,7 @@ export function LiveSite({
   storeContext,
   initialPageSlug,
   mobileBreakpoint = 480,
+  enableFormInputs = false,
 }: {
   doc: BuilderDocument;
   pageIndex?: number;
@@ -2212,6 +2557,7 @@ export function LiveSite({
   initialPageSlug?: string;
   /** Width threshold (px) before switching to mobile frame behavior. */
   mobileBreakpoint?: number;
+  enableFormInputs?: boolean;
 }): React.ReactElement {
   const safePages = doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page));
   const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
@@ -2245,7 +2591,10 @@ export function LiveSite({
   }
 
   const pageProps = mergeProps("Page", currentPage.props) as Record<string, unknown>;
+  const width = (pageProps.width as string) || "1920px";
+  const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
   const background = (pageProps.background as string) || "#ffffff";
+  const pageRotation = toNumber(pageProps.pageRotation, 0);
   const { ref, width: viewportWidth } = useContainerWidth();
   const isPhoneSize = viewportWidth <= mobileBreakpoint;
   const liveSiteWrapperRef = React.useRef<HTMLDivElement>(null);
@@ -2338,6 +2687,7 @@ export function LiveSite({
             storeContext={storeContext}
             nodeId={id}
             onPrototypeAction={onPrototypeAction}
+            enableFormInputs={enableFormInputs}
           />
         );
       })}
@@ -2360,9 +2710,13 @@ export function LiveSite({
         key={currentPageSlug}
         ref={ref}
         style={{
-          width: "100%",
-          minHeight: "100vh",
+          width: isPhoneSize ? "100%" : width,
+          maxWidth: isPhoneSize ? "100%" : undefined,
+          minHeight,
           backgroundColor: background,
+          margin: isPhoneSize ? 0 : "0 auto",
+          transform: pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
+          transformOrigin: "center center",
           ...transitionStyle,
         }}
       >

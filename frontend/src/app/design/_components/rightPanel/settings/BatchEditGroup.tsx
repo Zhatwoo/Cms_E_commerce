@@ -3,7 +3,7 @@
 import React from "react";
 import { useEditor } from "@craftjs/core";
 import { DesignSection } from "./DesignSection";
-import { ColorInput } from "./inputs/ColorInput";
+import { ColorPicker } from "./inputs/ColorPicker";
 
 const labelClass = "text-[12px] text-brand-lighter font-base";
 const inputClass = "w-full bg-brand-medium-dark rounded-md text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none";
@@ -121,19 +121,10 @@ export const BatchEditGroup = ({ selectedIds }: BatchEditGroupProps) => {
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <label className={labelClass}>Background</label>
-            <div className="flex items-center gap-2 bg-brand-medium-dark rounded-lg px-2.5 py-1.5">
-              <input
-                type="color"
-                value={background === "transparent" ? "#000000" : background}
-                onChange={(e) => applyToAll((p) => { p.background = e.target.value; })}
-                className="w-7 h-6 rounded cursor-pointer border-none bg-transparent"
-              />
-              <ColorInput
-                value={background || "transparent"}
-                onChange={(val) => applyToAll((p) => { p.background = val; })}
-                className="flex-1"
-              />
-            </div>
+            <ColorPicker
+              value={background || "transparent"}
+              onChange={(val) => applyToAll((p) => { p.background = val; })}
+            />
           </div>
           <div className="flex flex-col gap-1">
             <div className="flex justify-between">
@@ -159,24 +150,6 @@ export const BatchEditGroup = ({ selectedIds }: BatchEditGroupProps) => {
               className={sliderClass}
             />
           </div>
-        </div>
-      </DesignSection>
-
-      <DesignSection title="Effects">
-        <div className="flex flex-col gap-1">
-          <div className="flex justify-between">
-            <label className={labelClass}>Opacity</label>
-            <span className="text-[10px] text-brand-light">{Math.round(opacity * 100)}%</span>
-          </div>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={opacity}
-            onChange={(e) => applyToAll((p) => { p.opacity = Number(e.target.value); })}
-            className={sliderClass}
-          />
         </div>
       </DesignSection>
     </div>
