@@ -260,32 +260,10 @@ export const ProductsOverview: TemplateEntry = {
 				paddingBottom: 56,
 				paddingLeft: 12,
 				paddingRight: 12,
-				justifyContent: "space-between",
+				justifyContent: "center",
 				alignItems: "center",
 				gap: 18,
 			},
-			React.createElement(
-				Element as any,
-				{
-					is: Container as any,
-					canvas: true,
-					background: "#2f3035",
-					width: 50,
-					height: 104,
-					padding: 0,
-					alignItems: "center",
-					justifyContent: "center",
-					gap: 0,
-				},
-				React.createElement(Text as any, {
-					text: "❮",
-					fontSize: 40,
-					fontWeight: "500",
-					color: "#ffffff",
-					lineHeight: 1,
-				})
-			),
-
 			React.createElement(
 				Element as any,
 				{
@@ -334,28 +312,6 @@ export const ProductsOverview: TemplateEntry = {
 					createDiscoverProductCard(),
 					createDiscoverProductCard()
 				)
-			),
-
-			React.createElement(
-				Element as any,
-				{
-					is: Container as any,
-					canvas: true,
-					background: "#2f3035",
-					width: 50,
-					height: 104,
-					padding: 0,
-					alignItems: "center",
-					justifyContent: "center",
-					gap: 0,
-				},
-				React.createElement(Text as any, {
-					text: "❯",
-					fontSize: 40,
-					fontWeight: "500",
-					color: "#ffffff",
-					lineHeight: 1,
-				})
 			)
 		)
 	),
