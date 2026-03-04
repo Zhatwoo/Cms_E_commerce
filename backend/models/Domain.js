@@ -332,6 +332,42 @@ async function findBySubdomain(subdomain) {
   };
 }
 
+/** Resolve published site by custom domain using collectionGroup query for efficiency. */
+async function findByCustomDomain(domain) {
+  const normalized = (domain || '').toString().trim().toLowerCase();
+  if (!normalized) return null;
+
+  try {
+    const groupSnap = await db.collectionGroup('domains')
+      .where('domain', '==', normalized)
+      .where('status', '==', 'published')
+      .limit(1)
+      .get();
+
+    if (!groupSnap.empty) {
+      const doc = groupSnap.docs[0];
+      const data = docToObject(doc);
+      // Extract userId from the document path
+      const pathParts = doc.ref.path.split('/');
+      const clientIdx = pathParts.indexOf('client');
+      const userId = clientIdx >= 0 && clientIdx + 1 < pathParts.length ? pathParts[clientIdx + 1] : data.userId;
+
+      return {
+        id: data.id || doc.id,
+        projectId: data.projectId,
+        userId: userId,
+        subdomain: data.subdomain,
+        projectTitle: data.projectTitle,
+        status: data.status,
+        publishedContent: data.publishedContent ?? data.published_content ?? null,
+      };
+    }
+  } catch (e) {
+    console.warn('findByCustomDomain failed:', e.message);
+  }
+  return null;
+}
+
 /** List domains for a client at user/roles/client/{userId}/domains (for sync/publish). */
 async function listByClient(userId) {
   const ref = getDomainsRef(userId).orderBy('updated_at', 'desc');
@@ -343,6 +379,13 @@ async function listByClient(userId) {
 async function get(userId, domainId) {
   const snap = await getDomainsRef(userId).doc(domainId).get();
   return docToObject(snap);
+}
+
+/** Find domain by project_id in user/roles/client/{userId}/domains. */
+async function findByProjectId(userId, projectId) {
+  const snap = await getDomainsRef(userId).where('project_id', '==', projectId).limit(1).get();
+  if (snap.empty) return null;
+  return docToObject(snap.docs[0]);
 }
 
 /** Create a domain doc at user/roles/client/{userId}/domains (published site). */
@@ -378,6 +421,9 @@ async function updateForClient(userId, domainId, data) {
   if (data.projectTitle !== undefined) updates.project_title = data.projectTitle;
   if (data.subdomain !== undefined) updates.subdomain = (data.subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || null;
   if (data.status !== undefined) updates.status = data.status;
+  if (data.domain !== undefined) updates.domain = data.domain;
+  if (data.domainStatus !== undefined) updates.domain_status = data.domainStatus;
+  if (data.verifiedAt !== undefined) updates.verified_at = data.verifiedAt;
   if (data.publishedContent !== undefined) updates.published_content = data.publishedContent;
   if (data.scheduledPublishAt !== undefined) updates.scheduled_publish_at = data.scheduledPublishAt;
   if (data.scheduledPublishedContent !== undefined) updates.scheduled_published_content = data.scheduledPublishedContent;
@@ -629,6 +675,7 @@ module.exports = {
   updateSubdomainForClient,
   setSubdomainLookup,
   findBySubdomain,
+  findByCustomDomain,
   listAllFromPublishedSubdomains,
   listByClient,
   get,

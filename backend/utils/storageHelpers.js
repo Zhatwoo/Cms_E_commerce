@@ -8,22 +8,22 @@ const STORAGE_PREFIX = 'Clients/';
 const PRODUCT_IMAGE_PREFIX = 'Products_img/';
 
 /**
- * Upload avatar to Storage at Clients/{folderName}/avatar.{ext}.
- * Use folderName = usernameSlug-uid so Firebase Console shows username for easier search.
+ * Upload avatar to Storage at:
+ * Clients/profile_picture/{usernameSlug}/profile-{uid}
+ * Uses a deterministic object name (no extension) so updates replace the same file.
  * @param {Buffer} buffer - File buffer
  * @param {string} clientUid - Firebase Auth UID (user id)
  * @param {string} mimeType - e.g. image/png
- * @param {string} [folderName] - Optional. If set, use as folder (e.g. "neo-dela-torre-uid"); else clientUid
+ * @param {string} [usernameSlug] - Optional username slug folder; falls back to clientUid
  * @returns {Promise<string>} Public download URL
  */
-async function uploadAvatar(buffer, clientUid, mimeType = 'image/png', folderName = null) {
+async function uploadAvatar(buffer, clientUid, mimeType = 'image/png', usernameSlug = null) {
   const bucket = getStorageBucket();
   if (!bucket) {
     throw new Error('Firebase Storage bucket not configured. Set FIREBASE_STORAGE_BUCKET in backend .env');
   }
-  const ext = mimeType === 'image/jpeg' || mimeType === 'image/jpg' ? 'jpg' : 'png';
-  const segment = (folderName && String(folderName).trim()) ? String(folderName).trim() : clientUid;
-  const path = `${STORAGE_PREFIX}${segment}/avatar.${ext}`;
+  const segment = slugPathSegment(usernameSlug || clientUid);
+  const path = `${STORAGE_PREFIX}profile_picture/${segment}/profile-${clientUid}`;
   const token = crypto.randomUUID();
   const file = bucket.file(path);
   await file.save(buffer, {
@@ -181,6 +181,54 @@ function extractStoragePathFromUrl(url, bucketName) {
   return null;
 }
 
+function escapeForRegex(value) {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function isOwnedAvatarStoragePath(objectPath, uid) {
+  if (!objectPath || !uid) return false;
+  const safeUid = escapeForRegex(uid);
+  // Legacy format: Clients/{slug-uid}/avatar.ext
+  const legacyPattern = new RegExp(`^${STORAGE_PREFIX}[^/]*-${safeUid}/avatar\\.[^/]+$`);
+  // New format: Clients/profile_picture/{username}/profile-{uid}
+  const currentPattern = new RegExp(`^${STORAGE_PREFIX}profile_picture/[^/]+/profile-${safeUid}(?:\\.[^/]+)?$`);
+  return legacyPattern.test(objectPath) || currentPattern.test(objectPath);
+}
+
+/**
+ * Deletes previous avatar object only if the URL resolves to an avatar path owned by this uid.
+ * Returns summary and never throws.
+ */
+async function deleteAvatarByUrlForUser(url, uid, { skipObjectPath = '' } = {}) {
+  const bucket = getStorageBucket();
+  if (!bucket || !url || !uid) return { deleted: 0, skipped: 1 };
+
+  const objectPath = extractStoragePathFromUrl(url, bucket.name);
+  if (!objectPath || !isOwnedAvatarStoragePath(objectPath, uid)) {
+    return { deleted: 0, skipped: 1 };
+  }
+  if (skipObjectPath && objectPath === skipObjectPath) {
+    return { deleted: 0, skipped: 1 };
+  }
+
+  try {
+    await bucket.file(objectPath).delete();
+    return { deleted: 1, skipped: 0 };
+  } catch (err) {
+    const code = err && typeof err === 'object' ? err.code : undefined;
+    if (code !== 404) {
+      console.warn('[storageHelpers] deleteAvatarByUrlForUser failed:', objectPath, err.message);
+    }
+    return { deleted: 0, skipped: 1 };
+  }
+}
+
+function getStoragePathFromUrl(url) {
+  const bucket = getStorageBucket();
+  const bucketName = bucket ? bucket.name : undefined;
+  return extractStoragePathFromUrl(url, bucketName);
+}
+
 /**
  * Delete storage objects by their public URL(s). Ignores non-bucket/non-storage URLs.
  * Returns deletion summary and never throws.
@@ -234,4 +282,6 @@ module.exports = {
   uploadAvatar,
   uploadProductImage,
   deleteStorageFilesByUrls,
+  deleteAvatarByUrlForUser,
+  getStoragePathFromUrl,
 };

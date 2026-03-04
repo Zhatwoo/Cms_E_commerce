@@ -34,7 +34,6 @@ import { PrototypeFlowLines } from "./PrototypeFlowLines";
 import { NewPageDropPlacementHandler } from "./NewPageDropPlacementHandler";
 import { HeaderFooterDropPlacementHandler } from "./HeaderFooterDropPlacementHandler";
 import { ScrollToSelectedHandler } from "./ScrollToSelectedHandler";
-import { PageTrackingHandler, SET_CURRENT_PAGE } from "./PageTrackingHandler";
 import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
@@ -49,6 +48,7 @@ import {
   DEFAULT_SCALE,
   ZOOM_STEP,
   ZOOM_SENSITIVITY,
+  SMOOTH_LERP_FACTOR,
 } from "./zoomConstants";
 
 /**
@@ -82,12 +82,12 @@ class FrameErrorBoundary extends React.Component<
 }
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
+const PERSISTENT_STORAGE_KEY_PREFIX = "craftjs_preview_persist";
 const UI_STATE_KEY_PREFIX = "craftjs_editor_ui";
 
-// Must match Viewport.tsx for proper multipage positioning
-const VIEWPORT_EDGE_PADDING = 100000;
-const PAGE_GRID_ORIGIN_X = VIEWPORT_EDGE_PADDING;
-const PAGE_GRID_ORIGIN_Y = VIEWPORT_EDGE_PADDING;
+// These must match the Viewport constants for proper page positioning
+const PAGE_GRID_ORIGIN_X = 30000;
+const PAGE_GRID_ORIGIN_Y = 30000;
 const PAGE_BASE_WIDTH = 1920;
 const PAGE_BASE_HEIGHT = 1200;
 
@@ -153,6 +153,10 @@ function getStorageKey(projectId: string) {
   return `${STORAGE_KEY_PREFIX}_${projectId}`;
 }
 
+function getPersistentStorageKey(projectId: string) {
+  return `${PERSISTENT_STORAGE_KEY_PREFIX}_${projectId}`;
+}
+
 function isQuotaError(error: unknown): boolean {
   return (
     error instanceof DOMException &&
@@ -186,6 +190,35 @@ function safeSessionRemove(key: string): void {
   try {
     if (typeof window === "undefined" || !window.sessionStorage) return;
     window.sessionStorage.removeItem(key);
+  } catch {
+    // Ignore errors when removing
+  }
+}
+
+function safeLocalGet(key: string): string | null {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return null;
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeLocalSet(key: string, value: string): void {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return;
+    window.localStorage.setItem(key, value);
+  } catch (error) {
+    if (isQuotaError(error)) {
+      console.warn("LocalStorage quota exceeded, skipping save:", key);
+    }
+  }
+}
+
+function safeLocalRemove(key: string): void {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return;
+    window.localStorage.removeItem(key);
   } catch {
     // Ignore errors when removing
   }
@@ -233,8 +266,6 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
   try {
     const parsed = JSON.parse(jsonString);
 
-    console.log('🔍 Validation: Starting with', Object.keys(parsed).length, 'nodes');
-
     // Must have ROOT
     if (!parsed || !parsed.ROOT) {
       console.error('❌ Validation failed: Missing ROOT node');
@@ -260,14 +291,12 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
 
       // Must be an object
       if (!node || typeof node !== 'object') {
-        console.warn(`⚠️ Node ${id} is not an object:`, typeof node);
         invalidNodes.push(id);
         return false;
       }
 
       // Must have type property
       if (!node.type) {
-        console.warn(`⚠️ Node ${id} is missing 'type' property`);
         invalidNodes.push(id);
         return false;
       }
@@ -283,19 +312,12 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
 
       // Must have nodes array (even if empty)
       if (!Array.isArray(node.nodes)) {
-        console.warn(`⚠️ Node ${id} is missing 'nodes' array`);
         // Try to fix it
         node.nodes = [];
       }
 
       return true;
     }));
-
-    if (invalidNodes.length > 0) {
-      console.warn(`⚠️ Found ${invalidNodes.length} invalid nodes:`, invalidNodes);
-    }
-
-    console.log(`🔍 Validation: Found ${validNodeIds.size} valid nodes out of ${allNodeIds.length} total`);
 
     // If too many invalid nodes, abort
     if (invalidNodes.length > allNodeIds.length * 0.5) {
@@ -319,7 +341,6 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
         const originalLength = node.nodes.length;
         node.nodes = node.nodes.filter((childId: string) => {
           if (!validNodeIds.has(childId)) {
-            console.warn(`⚠️ Removing invalid reference: ${nodeId} -> ${childId}`);
             hasInvalidRefs = true;
             removedRefsCount++;
             return false;
@@ -328,7 +349,7 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
         });
 
         if (node.nodes.length !== originalLength) {
-          console.log(`🔧 Cleaned ${nodeId}: ${originalLength} -> ${node.nodes.length} children`);
+          hasInvalidRefs = true;
         }
 
         // Recursively clean children
@@ -339,7 +360,6 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
       if (node.linkedNodes && typeof node.linkedNodes === 'object') {
         for (const [key, linkedId] of Object.entries(node.linkedNodes)) {
           if (typeof linkedId === 'string' && !validNodeIds.has(linkedId)) {
-            console.warn(`⚠️ Removing invalid linkedNode: ${nodeId}.${key} -> ${linkedId}`);
             delete node.linkedNodes[key];
             hasInvalidRefs = true;
             removedRefsCount++;
@@ -350,10 +370,6 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
 
     // Start validation from ROOT
     cleanNodeRefs('ROOT');
-
-    if (hasInvalidRefs) {
-      console.log(`🔧 Data cleaned - removed ${removedRefsCount} invalid references`);
-    }
 
     // Remove invalid nodes from the parsed object
     invalidNodes.forEach(id => {
@@ -378,7 +394,10 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
     });
 
     const finalJson = JSON.stringify(parsed);
-    console.log(`✅ Validation complete. Final data has ${Object.keys(parsed).length} nodes`);
+
+    if (hasInvalidRefs && removedRefsCount > 0) {
+      console.warn(`Editor data cleaned: removed ${removedRefsCount} invalid references.`);
+    }
 
     return { valid: true, data: finalJson };
   } catch (error) {
@@ -387,19 +406,44 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
   }
 }
 
+function prepareFrameData(jsonString: string): { valid: boolean; data?: string } {
+  if (jsonString.length > 300_000) {
+    return { valid: true, data: jsonString };
+  }
+
+  try {
+    const parsed = JSON.parse(jsonString);
+    if (parsed && parsed.ROOT && Array.isArray(parsed.ROOT.nodes)) {
+      return { valid: true, data: jsonString };
+    }
+  } catch {
+    // Fall through to deep validator for salvage/fallback behavior.
+  }
+
+  return validateCraftData(jsonString);
+}
+
 // Suppress known @craftjs/core React 19 compatibility warnings.
 // Safe to remove once craftjs releases a stable React 19 compatible version (0.3.x+).
 if (typeof window !== "undefined") {
-  const _origConsoleError = console.error.bind(console);
-  console.error = (...args: unknown[]) => {
-    if (typeof args[0] === "string") {
-      // React 19 removed element.ref access — craftjs still uses old API internally
-      if (args[0].includes("Accessing element.ref was removed")) return;
-      // craftjs store updates trigger setState during Frame render in React 19 concurrent mode
-      if (args[0].includes("Cannot update a component") && args[0].includes("while rendering a different component")) return;
-    }
-    _origConsoleError(...args);
+  const win = window as Window & {
+    __craftConsoleErrorPatched__?: boolean;
+    __craftOriginalConsoleError__?: typeof console.error;
   };
+  if (!win.__craftConsoleErrorPatched__) {
+    const originalError = win.__craftOriginalConsoleError__ ?? console.error.bind(console);
+    win.__craftOriginalConsoleError__ = originalError;
+    console.error = (...args: unknown[]) => {
+      if (typeof args[0] === "string") {
+        // React 19 removed element.ref access — craftjs still uses old API internally
+        if (args[0].includes("Accessing element.ref was removed")) return;
+        // craftjs store updates trigger setState during Frame render in React 19 concurrent mode
+        if (args[0].includes("Cannot update a component") && args[0].includes("while rendering a different component")) return;
+      }
+      originalError(...args);
+    };
+    win.__craftConsoleErrorPatched__ = true;
+  }
 }
 
 /**
@@ -462,6 +506,7 @@ const SafeFrame = ({
   const [frameDataToShow, setFrameDataToShow] = useState<string | null>(null);
   const [hasErrorBoundaryError, setHasErrorBoundaryError] = useState(false);
   const mountedSignalSentRef = useRef(false);
+  const validationCacheRef = useRef<{ input: string; output: string | null; valid: boolean } | null>(null);
 
   useEffect(() => {
     setFrameDataToShow(null);
@@ -474,18 +519,30 @@ const SafeFrame = ({
 
     // Validate and prepare data for rendering
     if (data) {
-      console.log('🔍 SafeFrame: Validating data before render...');
-      const validation = validateCraftData(data);
-
-      if (validation.valid && validation.data) {
-        console.log('✅ SafeFrame: Data is valid, preparing to render');
-        setRenderData(validation.data);
+      const cached = validationCacheRef.current;
+      if (cached && cached.input === data) {
+        if (cached.valid && cached.output) {
+          setRenderData(cached.output);
+        } else {
+          setRenderData(null);
+          onError?.();
+        }
       } else {
-        console.error('❌ SafeFrame: Data validation failed, using empty canvas');
-        setRenderData(null);
-        onError?.();
+        const validation = prepareFrameData(data);
+        validationCacheRef.current = {
+          input: data,
+          output: validation.data ?? null,
+          valid: Boolean(validation.valid && validation.data),
+        };
+        if (validation.valid && validation.data) {
+          setRenderData(validation.data);
+        } else {
+          setRenderData(null);
+          onError?.();
+        }
       }
     } else {
+      validationCacheRef.current = null;
       setRenderData(null);
     }
 
@@ -497,7 +554,7 @@ const SafeFrame = ({
       setIsReady(true);
     };
     const id = requestAnimationFrame(markReady);
-    const fallback = window.setTimeout(markReady, 260);
+    const fallback = window.setTimeout(markReady, 80);
     return () => {
       cancelAnimationFrame(id);
       window.clearTimeout(fallback);
@@ -515,7 +572,7 @@ const SafeFrame = ({
       setCanRenderFrame(true);
     };
     const id = requestAnimationFrame(allowRender);
-    const fallback = window.setTimeout(allowRender, 260);
+    const fallback = window.setTimeout(allowRender, 80);
     return () => {
       cancelAnimationFrame(id);
       window.clearTimeout(fallback);
@@ -725,6 +782,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       } catch {
         // Ignore cleanup errors
       }
+
+      safeLocalRemove(getPersistentStorageKey(projectId));
     }
 
     // Reset to empty canvas
@@ -841,20 +900,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const handlePageAdded = useCallback((id: string, name: string) => {
     setPages((prev) => [...prev, { id, name }]);
     setCurrentPageId(id);
-    requestAnimationFrame(() => {
-      const container = containerRef.current;
-      if (container) {
-        container.dispatchEvent(new CustomEvent("center-on-node", { detail: { nodeId: id } }));
-      }
-    });
   }, []);
 
   const handleSelectPage = useCallback((pageId: string) => {
     setCurrentPageId(pageId);
-    const container = containerRef.current;
-    if (container) {
-      container.dispatchEvent(new CustomEvent("center-on-node", { detail: { nodeId: pageId } }));
-    }
   }, []);
 
   const handleDeletePage = useCallback((pageId: string) => {
@@ -912,8 +961,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       if (!container) return;
 
       const rect = container.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
       const isInsideCanvas =
         e.clientX >= rect.left &&
         e.clientX <= rect.right &&
@@ -980,7 +1027,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       wheelZoomDeltaRef.current = 0;
       window.removeEventListener("wheel", handleWheel, { capture: true });
     };
-  }, [scale]);
+  }, []);
 
   // Update mouse position for anchoring
   useEffect(() => {
@@ -1178,13 +1225,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       const nodeCenterX = container.scrollLeft + (nodeRect.left - contRect.left) + nodeRect.width / 2;
       const nodeCenterY = container.scrollTop + (nodeRect.top - contRect.top) + nodeRect.height / 2;
 
-      const targetLeft = nodeCenterX - container.clientWidth / 2;
-      const targetTop = nodeCenterY - container.clientHeight / 2;
-      container.scrollTo({
-        left: targetLeft,
-        top: targetTop,
-        behavior: "smooth",
-      });
+      container.scrollLeft = nodeCenterX - container.clientWidth / 2;
+      container.scrollTop = nodeCenterY - container.clientHeight / 2;
     };
 
     container.addEventListener("center-on-node", handleCenterOnNode);
@@ -1196,55 +1238,57 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     // Rotation is handled per-page in TopPanel; keep callback for API compatibility.
   }, []);
 
-  // Handle fit to canvas: zoom so content fits with 10% margin. Supports multipage viewport.
+  // Handle fit to canvas: zoom so page fits with 10% margin, then center
   const handleFitToCanvas = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
 
+    const contentWidth = canvasWidth;
+    const contentHeight = canvasHeight;
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
-    if (containerWidth <= 0 || containerHeight <= 0) return;
-
-    const pageEls = container.querySelectorAll<HTMLElement>("[data-viewport-desktop] [data-page-node=\"true\"]");
-    let contentWidth: number;
-    let contentHeight: number;
-    let worldCX: number;
-    let worldCY: number;
-
-    if (pageEls.length > 0) {
-      let minLeft = Infinity, minTop = Infinity, maxRight = -Infinity, maxBottom = -Infinity;
-      const contRect = container.getBoundingClientRect();
-      for (const el of pageEls) {
-        const r = el.getBoundingClientRect();
-        const left = container.scrollLeft + (r.left - contRect.left);
-        const top = container.scrollTop + (r.top - contRect.top);
-        minLeft = Math.min(minLeft, left);
-        minTop = Math.min(minTop, top);
-        maxRight = Math.max(maxRight, left + r.width);
-        maxBottom = Math.max(maxBottom, top + r.height);
-      }
-      contentWidth = Math.max(1, maxRight - minLeft);
-      contentHeight = Math.max(1, maxBottom - minTop);
-      const centerScrollX = (minLeft + maxRight) / 2;
-      const centerScrollY = (minTop + maxBottom) / 2;
-      worldCX = centerScrollX / scale;
-      worldCY = centerScrollY / scale;
-    } else {
-      contentWidth = canvasWidth;
-      contentHeight = canvasHeight;
-      worldCX = PAGE_GRID_ORIGIN_X + PAGE_BASE_WIDTH / 2;
-      worldCY = PAGE_GRID_ORIGIN_Y + PAGE_BASE_HEIGHT / 2;
-    }
-
-    if (!Number.isFinite(contentWidth) || !Number.isFinite(contentHeight) || contentWidth <= 0 || contentHeight <= 0) return;
+    if (
+      !Number.isFinite(contentWidth) || !Number.isFinite(contentHeight) ||
+      contentWidth <= 0 || contentHeight <= 0 ||
+      containerWidth <= 0 || containerHeight <= 0
+    ) return;
 
     const scaleX = (containerWidth * 0.9) / contentWidth;
     const scaleY = (containerHeight * 0.9) / contentHeight;
     const newScale = clampScale(Math.min(scaleX, scaleY, 1), 1);
 
-    setScale(newScale);
-    centerOnWorldPoint(worldCX, worldCY, newScale);
-  }, [canvasWidth, canvasHeight, scale, centerOnWorldPoint]);
+    const pageEl =
+      (currentPageId
+        ? container.querySelector<HTMLElement>(
+          `[data-viewport-desktop] [data-page-node="true"][data-node-id="${currentPageId}"]`
+        ) ?? container.querySelector<HTMLElement>(
+          `[data-page-node="true"][data-node-id="${currentPageId}"]`
+        )
+        : null) ??
+      container.querySelector<HTMLElement>('[data-viewport-desktop] [data-page-node="true"]') ??
+      container.querySelector<HTMLElement>('[data-page-node="true"]');
+
+    let worldCX = PAGE_GRID_ORIGIN_X + PAGE_BASE_WIDTH / 2;
+    let worldCY = PAGE_GRID_ORIGIN_Y + PAGE_BASE_HEIGHT / 2;
+
+    if (pageEl) {
+      const contRect = container.getBoundingClientRect();
+      const pageRect = pageEl.getBoundingClientRect();
+      const pageCenterX = container.scrollLeft + (pageRect.left - contRect.left) + pageRect.width / 2;
+      const pageCenterY = container.scrollTop + (pageRect.top - contRect.top) + pageRect.height / 2;
+
+      setScale(newScale);
+      setTimeout(() => {
+        if (containerRef.current) {
+          containerRef.current.scrollLeft = pageCenterX - containerRef.current.clientWidth / 2;
+          containerRef.current.scrollTop = pageCenterY - containerRef.current.clientHeight / 2;
+        }
+      }, 1);
+    } else {
+      setScale(newScale);
+      centerOnWorldPoint(INFINITE_CANVAS_PADDING_PX + PAGE_BASE_WIDTH / 2, INFINITE_CANVAS_PADDING_PX + PAGE_BASE_HEIGHT / 2, newScale);
+    }
+  }, [canvasWidth, canvasHeight, scale, currentPageId, centerOnWorldPoint]);
 
   const handleScaleChange = useCallback((nextScale: number) => {
     setScale((prev) => clampScale(nextScale, prev));
@@ -1262,9 +1306,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const isSpacePanActive = isSpacePressed;
   const canPanWithPointerDrag = activeTool === "hand" || isSpacePanActive;
 
-  // Figma-style: Hand tool or Space — always allow pan from anywhere (page, empty area, etc.)
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (canPanWithPointerDrag && e.button === 0) {
+    if (canPanWithPointerDrag) {
+      const target = e.target as HTMLElement | null;
+      const nodeEl = target?.closest("[data-node-id]") as HTMLElement | null;
+      const nodeId = nodeEl?.getAttribute("data-node-id") ?? null;
+      if (nodeId && nodeId !== "ROOT" && nodeId !== "Viewport") {
+        return;
+      }
       setIsPanning(true);
       document.body.dataset.canvasPan = "true";
       e.preventDefault();
@@ -1422,45 +1471,60 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         // Try sessionStorage per-project (no localStorage — auth/drafts in cookies or session only)
         const storageKey = getStorageKey(projectId);
         const sessionSaved = safeSessionGet(storageKey);
-
-        // Try to load from database
-        const result = await getDraft(projectId);
+        const persistentKey = getPersistentStorageKey(projectId);
+        const persistentSaved = safeLocalGet(persistentKey);
 
         let contentToLoad: string | null = null;
+
+        const applyLoadedContent = (content: string | null) => {
+          setInitialJson(content);
+          if (!content) return;
+          loadPages(content);
+          try {
+            const parsed = JSON.parse(content);
+            if (parsed.files) {
+              setProjectFiles(parsed.files);
+            }
+          } catch (e) {
+            console.warn('Failed to parse files from initialJson', e);
+          }
+        };
 
         const normalizeToCraftJson = (input: unknown): string | null => {
           try {
             if (input == null) return null;
-
-            let content: string;
-
             if (typeof input === "string") {
-              content = input;
-            } else if (
-              typeof input === "object" &&
-              (input as { version?: unknown; pages?: unknown; nodes?: unknown }).version !== undefined &&
-              Array.isArray((input as { pages?: unknown[] }).pages) &&
-              typeof (input as { nodes?: unknown }).nodes === "object"
-            ) {
-              content = deserializeCleanToCraft(input as Parameters<typeof deserializeCleanToCraft>[0]);
-            } else {
-              content = JSON.stringify(input);
+              const parsed = JSON.parse(input);
+              if (parsed && parsed.ROOT && Array.isArray(parsed.ROOT.nodes)) {
+                return input;
+              }
+              if (
+                parsed &&
+                parsed.version !== undefined &&
+                Array.isArray(parsed.pages) &&
+                parsed.nodes &&
+                typeof parsed.nodes === "object"
+              ) {
+                return deserializeCleanToCraft(parsed as Parameters<typeof deserializeCleanToCraft>[0]);
+              }
+              return null;
             }
 
-            const parsedMaybeClean = JSON.parse(content);
-            if (
-              parsedMaybeClean &&
-              parsedMaybeClean.version !== undefined &&
-              Array.isArray(parsedMaybeClean.pages) &&
-              parsedMaybeClean.nodes &&
-              typeof parsedMaybeClean.nodes === "object"
-            ) {
-              content = deserializeCleanToCraft(parsedMaybeClean);
-            }
+            if (typeof input === "object") {
+              const obj = input as {
+                ROOT?: { nodes?: unknown[] };
+                version?: unknown;
+                pages?: unknown[];
+                nodes?: unknown;
+              };
 
-            const parsedCraft = JSON.parse(content);
-            if (parsedCraft && parsedCraft.ROOT && Array.isArray(parsedCraft.ROOT.nodes)) {
-              return content;
+              if (obj.ROOT && Array.isArray(obj.ROOT.nodes)) {
+                return JSON.stringify(obj);
+              }
+
+              if (obj.version !== undefined && Array.isArray(obj.pages) && obj.nodes && typeof obj.nodes === "object") {
+                return deserializeCleanToCraft(obj as Parameters<typeof deserializeCleanToCraft>[0]);
+              }
             }
 
             return null;
@@ -1470,6 +1534,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         };
 
         // 1. Check sessionStorage first to preserve latest unsaved/preview snapshot
+        // Apply immediately so existing projects open without waiting for DB/network.
         if (sessionSaved) {
           const normalized = normalizeToCraftJson(sessionSaved);
           if (normalized) {
@@ -1477,18 +1542,40 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
             if (normalized !== sessionSaved) {
               safeSessionSet(storageKey, normalized);
             }
+            safeLocalSet(persistentKey, normalized);
+            applyLoadedContent(contentToLoad);
           } else {
             console.warn('⚠️ Invalid draft structure in session. Clearing session cache for this project.');
             safeSessionRemove(storageKey);
           }
         }
 
-        // 2. Check Database (fallback)
+        // 2. Check persistent local cache when session cache is unavailable
+        if (!contentToLoad && persistentSaved) {
+          const normalized = normalizeToCraftJson(persistentSaved);
+          if (normalized) {
+            contentToLoad = normalized;
+            safeSessionSet(storageKey, normalized);
+            if (normalized !== persistentSaved) {
+              safeLocalSet(persistentKey, normalized);
+            }
+            applyLoadedContent(contentToLoad);
+          } else {
+            safeLocalRemove(persistentKey);
+          }
+        }
+
+        // 3. Try to load from database
+        const result = await getDraft(projectId);
+
+        // 4. Check Database (fallback)
         if (!contentToLoad && result.success && result.data && result.data.content) {
           const normalized = normalizeToCraftJson(result.data.content);
           if (normalized) {
             contentToLoad = normalized;
             safeSessionSet(storageKey, normalized);
+            safeLocalSet(persistentKey, normalized);
+            applyLoadedContent(contentToLoad);
           } else {
             console.warn('⚠️ Invalid draft structure in DB. Clearing invalid draft...');
             await deleteDraft(projectId);
@@ -1497,17 +1584,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
         // Legacy global fallback intentionally disabled to avoid cross-project draft bleed.
 
-        setInitialJson(contentToLoad);
-        if (contentToLoad) {
-          loadPages(contentToLoad);
-          try {
-            const parsed = JSON.parse(contentToLoad);
-            if (parsed.files) {
-              setProjectFiles(parsed.files);
-            }
-          } catch (e) {
-            console.warn('Failed to parse files from initialJson', e);
-          }
+        if (!contentToLoad) {
+          applyLoadedContent(null);
         }
 
         // IMPORTANT: Mark as ready immediately via Ref to avoid stale closures
@@ -1669,6 +1747,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           } catch (e) {
             if (!isQuotaError(e)) console.warn("Auto-save: sessionStorage write failed", e);
           }
+        }
+
+        if (projectId) {
+          safeLocalSet(getPersistentStorageKey(projectId), toStore);
         }
 
         if (snapshot) lastSnapshotRef.current = snapshot;
@@ -1841,8 +1923,18 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const validFrameData = React.useMemo(() => {
     if (initialJson === undefined || initialJson === null || initialJson === "") return null;
     try {
+      if (typeof initialJson === "string" && initialJson.length > 300_000) {
+        return initialJson;
+      }
+
       const parsed = typeof initialJson === "string" ? JSON.parse(initialJson) : initialJson;
       if (!parsed || typeof parsed !== "object" || !parsed.ROOT || !Array.isArray(parsed.ROOT?.nodes)) return null;
+
+      const parsedKeys = Object.keys(parsed as Record<string, unknown>);
+      if (parsedKeys.length > 1200 && typeof initialJson === "string") {
+        return initialJson;
+      }
+
       const resolverKeys = Object.keys(resolverRef.current);
       const keys = new Set(resolverKeys);
 
@@ -1890,43 +1982,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     }
   }, [initialJson]);
 
-  // Debug: list resolver keys after mount (must run in useEffect to avoid setState-during-render)
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const t = setTimeout(() => {
-      try {
-        const res = resolverRef.current;
-        // eslint-disable-next-line no-console
-        console.log("[EditorShell] resolver keys:", Object.keys(res));
-        if (initialJson) {
-          const parsed = typeof initialJson === "string" ? JSON.parse(initialJson) : initialJson;
-          const nodeTypes = new Set<string>();
-          if (parsed && parsed.nodes) {
-            Object.values(parsed.nodes as Record<string, unknown>).forEach((n: unknown) => {
-              try {
-                const node = n as { data?: { displayName?: string; name?: string; type?: string | { name?: string } } };
-                const display = node?.data?.displayName ?? node?.data?.name ?? (typeof node?.data?.type === "string" ? node.data.type : node?.data?.type?.name);
-                if (display) nodeTypes.add(display);
-              } catch {
-                // ignore
-              }
-            });
-          }
-          const resolverKeys = Object.keys(res);
-          const missing = [...nodeTypes].filter((typeName) => !resolverKeys.includes(typeName) && !resolverKeys.includes((typeName || "").replace(/\s+/g, "")));
-          // eslint-disable-next-line no-console
-          console.log("[EditorShell] Serialized node types:", [...nodeTypes]);
-          // eslint-disable-next-line no-console
-          console.log("[EditorShell] Missing resolver types:", missing);
-        }
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.warn("[EditorShell] failed to parse initialJson for debug", err);
-      }
-    }, 50);
-    return () => clearTimeout(t);
-  }, [initialJson]);
-
   return (
     <div data-web-builder-root className="h-screen bg-brand-black text-brand-lighter overflow-hidden font-sans relative">
       <Editor
@@ -1949,7 +2004,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 <CanvasSelectionHandler />
                 <BoxSelectionHandler />
                 <ScrollToSelectedHandler />
-                <PageTrackingHandler />
                 <CanvasContextMenu />
                 <FigmaStyleDragHandler />
                 <NewPageDropPlacementHandler />
@@ -1994,6 +2048,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                   onMouseLeave={handleMouseUp}
                   onMouseMove={handleMouseMove}
                 >
+                  {initialJson === undefined && (
+                    <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center text-brand-light/80">
+                      Opening project...
+                    </div>
+                  )}
                   <div
                     className="flex items-start justify-start relative"
                     style={{

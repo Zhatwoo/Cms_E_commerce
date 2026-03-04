@@ -2,47 +2,58 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useEditor } from "@craftjs/core";
-import { X, Smartphone, Move, Minus, ChevronDown, Monitor } from "lucide-react";
+import { X, Smartphone, Move, Minus, ChevronDown, Tablet } from "lucide-react";
 
-// Phone device presets with realistic screen dimensions
-interface PhonePreset {
+interface DevicePreset {
   name: string;
   brand: string;
+  deviceType: "phone" | "tablet";
   width: number;
   height: number;
 }
 
-const PHONE_PRESETS: PhonePreset[] = [
+const PHONE_PRESETS: DevicePreset[] = [
   // Apple iPhones
-  { name: "iPhone 15 Pro Max", brand: "Apple", width: 430, height: 932 },
-  { name: "iPhone 15 Pro", brand: "Apple", width: 393, height: 852 },
-  { name: "iPhone 15", brand: "Apple", width: 393, height: 852 },
-  { name: "iPhone 14 Pro Max", brand: "Apple", width: 430, height: 932 },
-  { name: "iPhone 14 Pro", brand: "Apple", width: 393, height: 852 },
-  { name: "iPhone 14", brand: "Apple", width: 390, height: 844 },
-  { name: "iPhone SE", brand: "Apple", width: 375, height: 667 },
-  { name: "iPhone 12 Mini", brand: "Apple", width: 375, height: 812 },
+  { name: "iPhone 15 Pro Max", brand: "Apple", deviceType: "phone", width: 430, height: 932 },
+  { name: "iPhone 15 Pro", brand: "Apple", deviceType: "phone", width: 393, height: 852 },
+  { name: "iPhone 15", brand: "Apple", deviceType: "phone", width: 393, height: 852 },
+  { name: "iPhone 14 Pro Max", brand: "Apple", deviceType: "phone", width: 430, height: 932 },
+  { name: "iPhone 14 Pro", brand: "Apple", deviceType: "phone", width: 393, height: 852 },
+  { name: "iPhone 14", brand: "Apple", deviceType: "phone", width: 390, height: 844 },
+  { name: "iPhone SE", brand: "Apple", deviceType: "phone", width: 375, height: 667 },
+  { name: "iPhone 12 Mini", brand: "Apple", deviceType: "phone", width: 375, height: 812 },
 
   // Samsung Galaxy
-  { name: "Galaxy S24 Ultra", brand: "Samsung", width: 412, height: 915 },
-  { name: "Galaxy S24+", brand: "Samsung", width: 412, height: 915 },
-  { name: "Galaxy S24", brand: "Samsung", width: 360, height: 780 },
-  { name: "Galaxy S23 Ultra", brand: "Samsung", width: 412, height: 915 },
-  { name: "Galaxy Z Fold 5", brand: "Samsung", width: 373, height: 841 },
-  { name: "Galaxy Z Flip 5", brand: "Samsung", width: 412, height: 919 },
-  { name: "Galaxy A54", brand: "Samsung", width: 412, height: 915 },
+  { name: "Galaxy S24 Ultra", brand: "Samsung", deviceType: "phone", width: 412, height: 915 },
+  { name: "Galaxy S24+", brand: "Samsung", deviceType: "phone", width: 412, height: 915 },
+  { name: "Galaxy S24", brand: "Samsung", deviceType: "phone", width: 360, height: 780 },
+  { name: "Galaxy S23 Ultra", brand: "Samsung", deviceType: "phone", width: 412, height: 915 },
+  { name: "Galaxy Z Fold 5", brand: "Samsung", deviceType: "phone", width: 373, height: 841 },
+  { name: "Galaxy Z Flip 5", brand: "Samsung", deviceType: "phone", width: 412, height: 919 },
+  { name: "Galaxy A54", brand: "Samsung", deviceType: "phone", width: 412, height: 915 },
 
   // Google Pixel
-  { name: "Pixel 8 Pro", brand: "Google", width: 412, height: 892 },
-  { name: "Pixel 8", brand: "Google", width: 412, height: 892 },
-  { name: "Pixel 7 Pro", brand: "Google", width: 412, height: 892 },
-  { name: "Pixel 7", brand: "Google", width: 412, height: 915 },
+  { name: "Pixel 8 Pro", brand: "Google", deviceType: "phone", width: 412, height: 892 },
+  { name: "Pixel 8", brand: "Google", deviceType: "phone", width: 412, height: 892 },
+  { name: "Pixel 7 Pro", brand: "Google", deviceType: "phone", width: 412, height: 892 },
+  { name: "Pixel 7", brand: "Google", deviceType: "phone", width: 412, height: 915 },
 
   // Other Popular
-  { name: "OnePlus 12", brand: "OnePlus", width: 412, height: 915 },
-  { name: "Xiaomi 14 Pro", brand: "Xiaomi", width: 412, height: 915 },
+  { name: "OnePlus 12", brand: "OnePlus", deviceType: "phone", width: 412, height: 915 },
+  { name: "Xiaomi 14 Pro", brand: "Xiaomi", deviceType: "phone", width: 412, height: 915 },
 ];
 
+const TABLET_PRESETS: DevicePreset[] = [
+  { name: "iPad Mini", brand: "Apple", deviceType: "tablet", width: 768, height: 1024 },
+  { name: "iPad Air", brand: "Apple", deviceType: "tablet", width: 820, height: 1180 },
+  { name: "iPad Pro 11\"", brand: "Apple", deviceType: "tablet", width: 834, height: 1194 },
+  { name: "iPad Pro 12.9\"", brand: "Apple", deviceType: "tablet", width: 1024, height: 1366 },
+  { name: "Galaxy Tab S9", brand: "Samsung", deviceType: "tablet", width: 800, height: 1280 },
+  { name: "Galaxy Tab S9+", brand: "Samsung", deviceType: "tablet", width: 900, height: 1440 },
+  { name: "Pixel Tablet", brand: "Google", deviceType: "tablet", width: 800, height: 1280 },
+];
+
+const DEVICE_PRESETS: DevicePreset[] = [...PHONE_PRESETS, ...TABLET_PRESETS];
 const DEFAULT_DEVICE = PHONE_PRESETS[2]; // iPhone 15
 
 const MOBILE_SIDE_GUTTER = 14;
@@ -330,7 +341,7 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
   const [isMinimized, setIsMinimized] = useState(false);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [showPageDropdown, setShowPageDropdown] = useState(false);
-  const [selectedDevice, setSelectedDevice] = useState<PhonePreset>(DEFAULT_DEVICE);
+  const [selectedDevice, setSelectedDevice] = useState<DevicePreset>(DEFAULT_DEVICE);
   const [showDeviceDropdown, setShowDeviceDropdown] = useState(false);
 
   // Initialize position to bottom-right corner
@@ -697,11 +708,11 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
   const selectedPage = pages.find(p => p.id === selectedPageId);
 
   // Group devices by brand for the dropdown
-  const devicesByBrand = PHONE_PRESETS.reduce((acc, device) => {
+  const devicesByBrand = DEVICE_PRESETS.reduce((acc, device) => {
     if (!acc[device.brand]) acc[device.brand] = [];
     acc[device.brand].push(device);
     return acc;
-  }, {} as Record<string, PhonePreset[]>);
+  }, {} as Record<string, DevicePreset[]>);
 
   return (
     <div
@@ -723,8 +734,12 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
       >
         <div className="flex items-center gap-2">
           <Move className="w-4 h-4 text-brand-light/50" />
-          <Smartphone className="w-4 h-4 text-blue-400" />
-          <span className="text-sm font-medium text-brand-lighter">Mobile Preview</span>
+          {selectedDevice.deviceType === "tablet" ? (
+            <Tablet className="w-4 h-4 text-blue-400" />
+          ) : (
+            <Smartphone className="w-4 h-4 text-blue-400" />
+          )}
+          <span className="text-sm font-medium text-brand-lighter">Device Preview</span>
         </div>
         <div className="flex items-center gap-1">
           <button
@@ -754,7 +769,11 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
                 className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-brand-medium-dark/50 hover:bg-brand-medium/30 transition-colors text-sm text-brand-lighter cursor-pointer"
               >
                 <div className="flex items-center gap-2">
-                  <Monitor className="w-4 h-4 text-blue-400" />
+                  {selectedDevice.deviceType === "tablet" ? (
+                    <Tablet className="w-4 h-4 text-blue-400" />
+                  ) : (
+                    <Smartphone className="w-4 h-4 text-blue-400" />
+                  )}
                   <span className="truncate">{selectedDevice.name}</span>
                   <span className="text-xs text-brand-light/50">
                     {selectedDevice.width}×{selectedDevice.height}
@@ -781,7 +800,14 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
                             : "text-brand-lighter hover:bg-brand-medium/30"
                             }`}
                         >
-                          <span>{device.name}</span>
+                          <span className="inline-flex items-center gap-2">
+                            {device.deviceType === "tablet" ? (
+                              <Tablet className="w-3.5 h-3.5" />
+                            ) : (
+                              <Smartphone className="w-3.5 h-3.5" />
+                            )}
+                            {device.name}
+                          </span>
                           <span className="text-xs text-brand-light/50">
                             {device.width}×{device.height}
                           </span>
