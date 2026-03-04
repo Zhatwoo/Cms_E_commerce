@@ -43,7 +43,7 @@ const responsiveAssetStyles = (
       .frame-responsive-inner [data-responsive-asset] {
         max-width: 100%;
         height: auto;
-        object-fit: contain;
+        object-fit: cover;
       }
       .frame-responsive-inner table { width: 100%; max-width: 100%; }
       

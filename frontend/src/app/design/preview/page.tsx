@@ -265,7 +265,7 @@ function PreviewContent() {
   }, [rawJson]);
 
   const activeJson = viewMode === "clean" ? cleanJson : viewMode === "raw" ? rawFormatted : null;
-  const useBuilderParityMode = viewMode === "Web-Preview" && previewViewport === "desktop";
+  const useBuilderParityMode = false;
 
   const capturePreviewThumbnail = async () => {
     if (thumbnailCaptureRef.current || !previewRef.current || !projectId) return;
@@ -637,36 +637,36 @@ function PreviewContent() {
             </div>
 
             <div className="flex items-center bg-[#111] rounded-lg border border-white/10 p-1">
-            <button
-              onClick={() => setViewMode("Web-Preview")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "Web-Preview"
-                ? "bg-white/10 text-brand-lighter"
-                : "text-zinc-500 hover:text-zinc-300"
-                }`}
-            >
-              <Globe size={14} />
-              Web-Preview
-            </button>
-            <button
-              onClick={() => setViewMode("clean")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "clean"
-                ? "bg-white/10 text-brand-lighter"
-                : "text-zinc-500 hover:text-zinc-300"
-                }`}
-            >
-              <Layers size={14} />
-              Clean
-            </button>
-            <button
-              onClick={() => setViewMode("raw")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "raw"
-                ? "bg-white/10 text-brand-lighter"
-                : "text-zinc-500 hover:text-zinc-300"
-                }`}
-            >
-              <Braces size={14} />
-              Raw (Craft.js)
-            </button>
+              <button
+                onClick={() => setViewMode("Web-Preview")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "Web-Preview"
+                  ? "bg-white/10 text-brand-lighter"
+                  : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+              >
+                <Globe size={14} />
+                Web-Preview
+              </button>
+              <button
+                onClick={() => setViewMode("clean")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "clean"
+                  ? "bg-white/10 text-brand-lighter"
+                  : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+              >
+                <Layers size={14} />
+                Clean
+              </button>
+              <button
+                onClick={() => setViewMode("raw")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "raw"
+                  ? "bg-white/10 text-brand-lighter"
+                  : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+              >
+                <Braces size={14} />
+                Raw (Craft.js)
+              </button>
             </div>
           </div>
 
@@ -724,17 +724,17 @@ function PreviewContent() {
               <div
                 ref={previewRef}
                 className={`bg-white transition-[width] duration-300 ease-out ${previewViewport === "desktop"
-                    ? "min-h-[calc(100vh-200px)] mx-auto"
-                    : "min-h-[calc(100vh-200px)] rounded-xl border border-white/10 overflow-hidden"
+                  ? "min-h-[calc(100vh-200px)] mx-auto"
+                  : "min-h-[calc(100vh-200px)] rounded-xl border border-white/10 overflow-hidden"
                   }`}
                 style={
                   previewViewport === "desktop"
                     ? desktopPreviewStyle
                     : previewViewport === "tablet"
-                    ? { width: 768, maxWidth: "100%" }
-                    : previewViewport === "mobile"
-                      ? { width: 390, maxWidth: "100%" }
-                      : undefined
+                      ? { width: 768, maxWidth: "100%" }
+                      : previewViewport === "mobile"
+                        ? { width: 390, maxWidth: "100%" }
+                        : undefined
                 }
               >
                 <WebPreview

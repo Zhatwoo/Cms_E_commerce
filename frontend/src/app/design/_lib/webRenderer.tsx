@@ -6,7 +6,7 @@ import type { AnimationConfig } from "../_types/animation";
 import type { Interaction, PrototypeConfig, TransitionType } from "../_types/prototype";
 import { AnimationWrapper, hasActiveAnimation } from "./animationEngine";
 import { getComponentDefaults } from "./serializer";
-import { PREVIEW_MOBILE_BREAKPOINT } from "./viewportConstants";
+import { PREVIEW_MOBILE_BREAKPOINT } from "@/app/design/_lib/viewportConstants";
 import { Icon as DesignIcon } from "../_designComponents/Icon/Icon";
 
 /** When provided, the storefront can show real products and handle Add to Cart in place of static product cards. */
@@ -136,7 +136,7 @@ const frameResponsiveStyles = (
       .frame-responsive-inner [data-responsive-asset] {
         max-width: 100%;
         height: auto;
-        object-fit: contain;
+        object-fit: cover;
       }
       .frame-responsive-inner table { width: 100%; max-width: 100%; }
       
@@ -206,7 +206,7 @@ const frameResponsiveStyles = (
       }
       
       /* Mobile + tablet breakpoint - hamburger on right, dropdown on right */
-      @media (max-width: 1024px) {
+      @container (max-width: 1024px) {
         .frame-responsive-inner [data-nav-container] .nav-hamburger {
           display: flex !important;
           order: 999 !important;
@@ -381,11 +381,13 @@ const frameResponsiveStyles = (
         max-width: 100% !important;
         height: auto !important;
         display: block !important;
-        object-fit: contain;
+        object-fit: cover;
       }
       .frame-responsive-inner.frame-fluid [data-node-id] {
         max-width: 100% !important;
         min-width: 0;
+        overflow-wrap: break-word;
+        word-break: break-word;
         transition:
           width 180ms ease,
           max-width 180ms ease,
@@ -399,33 +401,114 @@ const frameResponsiveStyles = (
           opacity 180ms ease;
       }
 
+      .frame-responsive-inner.frame-fluid [data-fluid-text="true"],
+      .frame-responsive-inner.frame-fluid [data-fluid-button="true"],
+      .frame-responsive-inner.frame-fluid [data-fluid-media="true"],
+      .frame-responsive-inner.frame-fluid [data-fluid-icon="true"] {
+        max-width: 100% !important;
+        overflow-wrap: break-word;
+        word-break: break-word;
+      }
+
+      .frame-responsive-inner.frame-fluid [data-fluid-media="true"] {
+        object-fit: cover !important;
+        width: 100%;
+        height: auto;
+        max-width: 100% !important;
+        aspect-ratio: var(--media-aspect-ratio, auto);
+      }
+
+      .frame-responsive-inner.frame-fluid [data-fluid-space="true"] {
+        max-width: 100% !important;
+      }
+
+      .frame-responsive-inner.frame-fluid [data-fluid-grid="true"] {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)) !important;
+      }
+
       @keyframes responsive-reflow-in {
         from { opacity: 0.96; transform: translateY(4px); }
         to { opacity: 1; transform: translateY(0); }
       }
+      @container (max-width: 960px) {
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-text="true"] {
+          font-size: clamp(12px, var(--fluid-font-cqw, 3.2cqw), var(--fluid-font-max, 48px)) !important;
+        }
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-space="true"] {
+          padding-top: clamp(4px, 1.4cqw, 18px) !important;
+          padding-bottom: clamp(4px, 1.4cqw, 18px) !important;
+          column-gap: clamp(8px, 2.2cqw, 24px) !important;
+          row-gap: clamp(8px, 2.2cqw, 24px) !important;
+        }
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-button="true"] {
+          padding-left: clamp(10px, 2.2cqw, 24px) !important;
+          padding-right: clamp(10px, 2.2cqw, 24px) !important;
+          gap: clamp(6px, 1.6cqw, 14px) !important;
+        }
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-icon="true"] {
+          width: clamp(14px, 3.4cqw, var(--fluid-icon-max, 28px)) !important;
+          height: clamp(14px, 3.4cqw, var(--fluid-icon-max, 28px)) !important;
+        }
+      }
+      @container (max-width: 900px) {
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-grid="true"] {
+          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
+      }
       @container (max-width: 640px) {
         /* Only stack top-level layout rows, not inner UI rows nested inside columns */
-        .frame-responsive-inner.frame-fluid > [data-layout="row"],
-        .frame-responsive-inner.frame-fluid > * > [data-layout="row"] {
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) > [data-layout="row"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) > * > [data-layout="row"] {
           flex-direction: column !important;
           align-items: stretch !important;
         }
-        .frame-responsive-inner.frame-fluid > [data-layout="row"] > *,
-        .frame-responsive-inner.frame-fluid > * > [data-layout="row"] > * {
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) > [data-layout="row"] > *,
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) > * > [data-layout="row"] > * {
           width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
         }
 
-        .frame-responsive-inner.frame-fluid [data-mobile-font-scale="true"] {
-          font-size: calc(var(--mobile-source-font-size, 16px) * 0.62) !important;
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-mobile-font-scale="true"] {
+          font-size: clamp(14px, 5cqw, var(--mobile-source-font-size, 48px)) !important;
+        }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-space="true"] {
+          padding-left: clamp(8px, 3cqw, 24px) !important;
+          padding-right: clamp(8px, 3cqw, 24px) !important;
+          margin-left: clamp(0px, 1.2cqw, 12px) !important;
+          margin-right: clamp(0px, 1.2cqw, 12px) !important;
+        }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-button="true"] {
+          display: flex !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          justify-content: center !important;
+        }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-nav-container] a,
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-nav-container] button {
+          padding-left: clamp(10px, 3cqw, 20px) !important;
+          padding-right: clamp(10px, 3cqw, 20px) !important;
+          padding-top: clamp(8px, 2.2cqw, 14px) !important;
+          padding-bottom: clamp(8px, 2.2cqw, 14px) !important;
+        }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-media="true"] {
+          width: 100% !important;
+          max-width: 100% !important;
+        }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-grid="true"] {
+          grid-template-columns: minmax(0, 1fr) !important;
         }
 
         /* Auto-reflow positioned elements (e.g. side labels/text) so they stack on mobile */
-        .frame-responsive-inner.frame-fluid [data-node-id][data-mobile-overflow="true"][style*="position: absolute"],
-        .frame-responsive-inner.frame-fluid [data-node-id][data-mobile-overflow="true"][style*="position:absolute"],
-        .frame-responsive-inner.frame-fluid [data-node-id][data-mobile-overflow="true"][style*="position: fixed"],
-        .frame-responsive-inner.frame-fluid [data-node-id][data-mobile-overflow="true"][style*="position:fixed"] {
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][data-mobile-overflow="true"][style*="position: absolute"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][data-mobile-overflow="true"][style*="position:absolute"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][data-mobile-overflow="true"][style*="position: fixed"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][data-mobile-overflow="true"][style*="position:fixed"] {
           position: relative !important;
           left: auto !important;
           right: auto !important;
@@ -440,9 +523,20 @@ const frameResponsiveStyles = (
           animation: responsive-reflow-in 180ms ease;
         }
       }
-      @container (max-width: 400px) {\r
-        .frame-responsive-inner.frame-fluid > [data-layout="row"],\r
-        .frame-responsive-inner.frame-fluid > * > [data-layout="row"] { gap: 12px !important; }\r
+      @container (max-width: 400px) {
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) > [data-layout="row"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) > * > [data-layout="row"] { gap: clamp(6px, 2cqw, 12px) !important; }
+      }
+      @container (max-width: ${PREVIEW_MOBILE_BREAKPOINT}px) {
+        .frame-responsive-inner.frame-fluid img,
+        .frame-responsive-inner.frame-fluid video,
+        .frame-responsive-inner.frame-fluid iframe,
+        .frame-responsive-inner.frame-fluid [data-responsive-asset] {
+          width: 100% !important;
+          max-width: 100% !important;
+          object-fit: cover !important;
+          height: auto !important;
+        }
       }
     `,
   }} />
@@ -476,6 +570,7 @@ function ResponsiveNav({ children, containerStyle, onClick, className, dataMobil
     <div
       ref={navRef}
       data-nav-container
+      data-fluid-space="true"
       data-mobile-overflow={dataMobileOverflow}
       className={className}
       style={{ ...containerStyle, position: "relative" }}
@@ -1022,100 +1117,55 @@ function px(v: unknown): string {
   return "0";
 }
 
+function fluidSpace(
+  value: unknown,
+  minFloor = 0,
+  ratio = 0.45,
+  cqw = 2.2,
+): string {
+  const n = typeof value === "number" ? value : parsePixelValue(value);
+  if (n === null || !Number.isFinite(n) || n <= 0) return `${minFloor}px`;
+  const min = Math.max(minFloor, Math.round(n * ratio));
+  return `clamp(${min}px, ${cqw}cqw, ${n}px)`;
+}
+
+function fluidFont(maxPx: number, minFloor = 12, cqw = 3.2): string {
+  const safeMax = Number.isFinite(maxPx) && maxPx > 0 ? maxPx : minFloor;
+  const min = Math.max(minFloor, Math.round(safeMax * 0.58));
+  return `clamp(${min}px, ${cqw}cqw, ${safeMax}px)`;
+}
+
 function normalizePreviewWidth(
   widthValue: unknown,
-  viewportWidth: number,
+  _viewportWidth: number,
   builderParityMode?: boolean,
-  mobileBreakpoint?: number,
+  _mobileBreakpoint?: number,
 ): string | undefined {
-  if (builderParityMode) {
-    return typeof widthValue === "string" ? widthValue : undefined;
-  }
-
-  if (!Number.isFinite(viewportWidth) || viewportWidth <= 0) return typeof widthValue === "string" ? widthValue : undefined;
-
-  const breakpoint = toNumber(mobileBreakpoint, PREVIEW_MOBILE_BREAKPOINT);
-  const isNarrowPreview = viewportWidth <= breakpoint;
-  if (!isNarrowPreview) return typeof widthValue === "string" ? widthValue : undefined;
-
   if (typeof widthValue === "number") {
-    return widthValue > viewportWidth ? "100%" : `${widthValue}px`;
+    return `${widthValue}px`;
   }
-
-  if (typeof widthValue !== "string") return undefined;
-  const normalized = widthValue.trim().toLowerCase();
-  if (!normalized) return widthValue;
-  if (normalized === "auto" || normalized.includes("%") || normalized.includes("vw") || normalized.startsWith("clamp(") || normalized.startsWith("min(") || normalized.startsWith("max(")) {
-    return widthValue;
-  }
-
-  if (normalized.endsWith("px")) {
-    const parsed = Number(normalized.slice(0, -2));
-    if (Number.isFinite(parsed) && parsed > viewportWidth) return "100%";
-  }
-
-  return widthValue;
+  if (typeof widthValue === "string") return widthValue;
+  return builderParityMode ? undefined : undefined;
 }
 
 function normalizeLayoutWidthForNarrow(
   widthValue: unknown,
-  isNarrow: boolean,
-  builderParityMode?: boolean,
+  _isNarrow: boolean,
+  _builderParityMode?: boolean,
 ): string | undefined {
-  if (builderParityMode) {
-    if (typeof widthValue === "number") return `${widthValue}px`;
-    return typeof widthValue === "string" ? widthValue : undefined;
-  }
-
-  if (!isNarrow) {
-    if (typeof widthValue === "number") return `${widthValue}px`;
-    return typeof widthValue === "string" ? widthValue : undefined;
-  }
-
-  if (typeof widthValue === "number") return "100%";
-  if (typeof widthValue !== "string") return undefined;
-
-  const normalized = widthValue.trim().toLowerCase();
-  if (!normalized || normalized === "auto") return widthValue;
-  if (
-    normalized.includes("%") ||
-    normalized.includes("vw") ||
-    normalized.startsWith("clamp(") ||
-    normalized.startsWith("min(") ||
-    normalized.startsWith("max(")
-  ) {
-    return widthValue;
-  }
-
-  return "100%";
+  if (typeof widthValue === "number") return `${widthValue}px`;
+  if (typeof widthValue === "string") return widthValue;
+  return undefined;
 }
 
 function normalizeLayoutHeightForNarrow(
   heightValue: unknown,
-  isNarrow: boolean,
-  builderParityMode?: boolean,
+  _isNarrow: boolean,
+  _builderParityMode?: boolean,
 ): string | undefined {
-  if (builderParityMode) {
-    if (typeof heightValue === "number") return `${heightValue}px`;
-    return typeof heightValue === "string" ? heightValue : undefined;
-  }
-
-  if (typeof heightValue !== "string") return undefined;
-  if (!isNarrow) return heightValue;
-
-  const normalized = heightValue.trim().toLowerCase();
-  if (!normalized || normalized === "auto") return heightValue;
-  if (
-    normalized.includes("%") ||
-    normalized.includes("vh") ||
-    normalized.startsWith("clamp(") ||
-    normalized.startsWith("min(") ||
-    normalized.startsWith("max(")
-  ) {
-    return heightValue;
-  }
-
-  return "auto";
+  if (typeof heightValue === "number") return `${heightValue}px`;
+  if (typeof heightValue === "string") return heightValue;
+  return undefined;
 }
 
 function isNarrowResponsivePreview(
@@ -1573,8 +1623,8 @@ function RenderNode({
         backgroundSize: bgImage ? (props.backgroundSize as string) : undefined,
         backgroundPosition: bgImage ? (props.backgroundPosition as string) : undefined,
         backgroundRepeat: bgImage ? (props.backgroundRepeat as string) : undefined,
-        padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
-        margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
+        padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
+        margin: `${fluidSpace(mt, 0, 0.35, 1.4)} ${fluidSpace(mr, 0, 0.35, 1.4)} ${fluidSpace(mb, 0, 0.35, 1.4)} ${fluidSpace(ml, 0, 0.35, 1.4)}`,
         width: normalizedWidth ?? (props.width as string),
         maxWidth: normalizedPosition === "static" ? "100%" : (isNarrowPreview ? "100%" : undefined),
         minWidth: normalizedPosition === "static" ? 0 : (isNarrowPreview ? 0 : undefined),
@@ -1589,27 +1639,23 @@ function RenderNode({
             : {}),
         position: normalizedPosition,
         display: displayVal,
-        flexDirection: displayVal === "flex"
-          ? (isNarrowPreview
-              ? ((props.flexDirection as React.CSSProperties["flexDirection"]) === "row" ? "column" : (props.flexDirection as React.CSSProperties["flexDirection"]))
-              : (props.flexDirection as React.CSSProperties["flexDirection"]))
-          : undefined,
+        flexDirection: displayVal === "flex" ? (props.flexDirection as React.CSSProperties["flexDirection"]) : undefined,
         flexWrap: displayVal === "flex" ? (props.flexWrap as React.CSSProperties["flexWrap"]) : undefined,
         alignItems: displayVal === "flex" || displayVal === "grid" ? (props.alignItems as string) : undefined,
         justifyContent: displayVal === "flex" || displayVal === "grid" ? (props.justifyContent as string) : undefined,
-        gap: displayVal === "flex" ? px(props.gap) : undefined,
+        gap: displayVal === "flex" ? fluidSpace(props.gap, 0, 0.4, 1.8) : undefined,
         gridTemplateColumns: displayVal === "grid" ? (props.gridTemplateColumns as string) : undefined,
         gridTemplateRows: displayVal === "grid" ? (props.gridTemplateRows as string) : undefined,
-        columnGap: displayVal === "grid" ? px(props.gridColumnGap ?? props.gridGap) : undefined,
-        rowGap: displayVal === "grid" ? px(props.gridRowGap ?? props.gridGap) : undefined,
+        columnGap: displayVal === "grid" ? fluidSpace(props.gridColumnGap ?? props.gridGap, 0, 0.4, 1.8) : undefined,
+        rowGap: displayVal === "grid" ? fluidSpace(props.gridRowGap ?? props.gridGap, 0, 0.4, 1.8) : undefined,
         boxShadow: props.boxShadow as string,
         opacity: props.opacity as number,
-        overflow: isNarrowPreview ? "hidden" : (props.overflow as string),
+        overflow: props.overflow as string,
         cursor: interactiveClick ? "pointer" : (props.cursor as string),
-        top: isNarrowPreview ? undefined : (props.top as React.CSSProperties["top"]),
-        right: isNarrowPreview ? undefined : (props.right as React.CSSProperties["right"]),
-        bottom: isNarrowPreview ? undefined : (props.bottom as React.CSSProperties["bottom"]),
-        left: isNarrowPreview ? undefined : (props.left as React.CSSProperties["left"]),
+        top: props.top as React.CSSProperties["top"],
+        right: props.right as React.CSSProperties["right"],
+        bottom: props.bottom as React.CSSProperties["bottom"],
+        left: props.left as React.CSSProperties["left"],
       };
 
       const containerContent = isNav ? (
@@ -1624,6 +1670,9 @@ function RenderNode({
       ) : (
         <div
           data-mobile-overflow={mobileOverflowLikely ? "true" : undefined}
+          data-fluid-space="true"
+          data-fluid-grid={displayVal === "grid" ? "true" : undefined}
+          data-layout={displayVal === "flex" ? ((props.flexDirection as string) === "row" ? "row" : "column") : undefined}
           className={((props.customClassName as string) || "").trim() || undefined}
           style={containerStyle}
           onClick={interactiveClick}
@@ -1660,6 +1709,8 @@ function RenderNode({
       const normalizedHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
       return wrap(
         <section
+          data-fluid-space="true"
+          data-layout={(props.flexDirection as string) === "row" ? "row" : "column"}
           {...(isHeaderAsset ? { "data-header": "true" } : {})}
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
@@ -1672,12 +1723,13 @@ function RenderNode({
             backgroundSize: bgImage ? (props.backgroundSize as string) : undefined,
             backgroundPosition: bgImage ? (props.backgroundPosition as string) : undefined,
             backgroundRepeat: bgImage ? (props.backgroundRepeat as string) : undefined,
-            padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
-            margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
+            padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
+            margin: `${fluidSpace(mt, 0, 0.35, 1.4)} ${fluidSpace(mr, 0, 0.35, 1.4)} ${fluidSpace(mb, 0, 0.35, 1.4)} ${fluidSpace(ml, 0, 0.35, 1.4)}`,
             width: normalizedWidth ?? (props.width as string),
             maxWidth: isNarrowPreview ? "100%" : undefined,
             minWidth: isNarrowPreview ? 0 : undefined,
             height: normalizedHeight ?? (props.height as string),
+            containerType: "inline-size",
             borderRadius: px(props.borderRadius),
             ...(sectionStrokePlacement === "outside" && sectionBorderDecl
               ? { border: "none", outline: sectionBorderDecl, outlineOffset: 0 }
@@ -1685,18 +1737,14 @@ function RenderNode({
                 ? { border: sectionBorderDecl }
                 : {}),
             display: "flex",
-            flexDirection: isNarrowPreview
-              ? ((props.flexDirection as React.CSSProperties["flexDirection"]) === "row"
-                  ? "column"
-                  : (props.flexDirection as React.CSSProperties["flexDirection"]))
-              : (props.flexDirection as React.CSSProperties["flexDirection"]),
+            flexDirection: props.flexDirection as React.CSSProperties["flexDirection"],
             flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
             alignItems: props.alignItems as string,
             justifyContent: props.justifyContent as string,
-            gap: px(props.gap),
+            gap: fluidSpace(props.gap, 0, 0.4, 1.8),
             boxShadow: props.boxShadow as string,
             opacity: props.opacity as number,
-            overflow: isNarrowPreview ? "hidden" : (props.overflow as string),
+            overflow: props.overflow as string,
             cursor: interactiveClick ? "pointer" : undefined,
           }}
           onClick={interactiveClick}
@@ -1771,8 +1819,8 @@ function RenderNode({
       const isNavRow = isNavContainer(node, nodes, props);
       const rowStyle: React.CSSProperties = {
         backgroundColor: props.background as string,
-        padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
-        margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
+        padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
+        margin: `${fluidSpace(mt, 0, 0.35, 1.4)} ${fluidSpace(mr, 0, 0.35, 1.4)} ${fluidSpace(mb, 0, 0.35, 1.4)} ${fluidSpace(ml, 0, 0.35, 1.4)}`,
         width: normalizedWidth ?? (props.width as string),
         maxWidth: isNarrowPreview ? "100%" : undefined,
         minWidth: isNarrowPreview ? 0 : undefined,
@@ -1784,14 +1832,14 @@ function RenderNode({
             ? { border: rowBorderDecl }
             : {}),
         display: "flex",
-        flexDirection: isNavRow ? "row" : (isNarrowPreview && flexDir === "row" ? "column" : flexDir),
+        flexDirection: isNavRow ? "row" : flexDir,
         flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
         alignItems: props.alignItems as string,
         justifyContent: props.justifyContent as string,
-        gap: px(props.gap),
+        gap: fluidSpace(props.gap, 0, 0.4, 1.8),
         boxShadow: props.boxShadow as string,
         opacity: props.opacity as number,
-        overflow: isNavRow ? "visible" : (isNarrowPreview ? "hidden" : (props.overflow as string)),
+        overflow: isNavRow ? "visible" : (props.overflow as string),
         cursor: interactiveClick ? "pointer" : undefined,
       };
 
@@ -1806,6 +1854,7 @@ function RenderNode({
       ) : (
         <div
           data-layout="row"
+          data-fluid-space="true"
           {...(isHeaderRow ? { "data-header": "true" } : {})}
           className={((props.customClassName as string) || "").trim() || undefined}
           style={rowStyle}
@@ -1841,15 +1890,18 @@ function RenderNode({
       const colStrokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
       return wrap(
         <div
+          data-fluid-space="true"
+          data-layout={(props.flexDirection as string) === "row" ? "row" : "column"}
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
             flex: (normalizedWidth ?? w) === "auto" ? 1 : undefined,
             width: (normalizedWidth ?? w) !== "auto" ? (normalizedWidth ?? w) : undefined,
             maxWidth: isNarrowPreview ? "100%" : undefined,
             minWidth: 0,
+            containerType: "inline-size",
             backgroundColor: props.background as string,
-            padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
-            margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
+            padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
+            margin: `${fluidSpace(mt, 0, 0.35, 1.4)} ${fluidSpace(mr, 0, 0.35, 1.4)} ${fluidSpace(mb, 0, 0.35, 1.4)} ${fluidSpace(ml, 0, 0.35, 1.4)}`,
             height: normalizedHeight ?? (props.height as string),
             borderRadius: px(props.borderRadius),
             ...(colStrokePlacement === "outside" && colBorderDecl
@@ -1862,10 +1914,10 @@ function RenderNode({
             flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
             alignItems: props.alignItems as string,
             justifyContent: props.justifyContent as string,
-            gap: px(props.gap),
+            gap: fluidSpace(props.gap, 0, 0.4, 1.8),
             boxShadow: props.boxShadow as string,
             opacity: props.opacity as number,
-            overflow: isNarrowPreview ? "hidden" : (props.overflow as string),
+            overflow: props.overflow as string,
             cursor: interactiveClick ? "pointer" : undefined,
           }}
           onClick={interactiveClick}
@@ -1897,7 +1949,7 @@ function RenderNode({
       const flipV = props.flipVertical === true;
       const textTransformStyle = [rot ? `rotate(${rot}deg)` : null, flipH ? "scaleX(-1)" : null, flipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
       const textStyle: React.CSSProperties = {
-        fontSize: px(props.fontSize),
+        fontSize: fluidFont(rawTextFontSize, 12, 3.2),
         fontFamily: (props.fontFamily as string) || "Outfit",
         fontWeight: props.fontWeight as string,
         fontStyle: (props.fontStyle as string) || "normal",
@@ -1919,8 +1971,8 @@ function RenderNode({
         overflow: props.height ? "hidden" : undefined,
         maxWidth: "100%",
         minWidth: 0,
-        margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
-        padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
+        margin: `${fluidSpace(mt, 0, 0.35, 1.4)} ${fluidSpace(mr, 0, 0.35, 1.4)} ${fluidSpace(mb, 0, 0.35, 1.4)} ${fluidSpace(ml, 0, 0.35, 1.4)}`,
+        padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
         opacity: props.opacity as number,
         boxShadow: props.boxShadow as string,
         cursor: allowPreviewInput ? "text" : (interactiveClick ? "pointer" : undefined),
@@ -1929,7 +1981,9 @@ function RenderNode({
         whiteSpace: "pre-wrap",
         overflowWrap: "break-word",
         wordBreak: "normal",
-        "--mobile-source-font-size": `${rawTextFontSize}px`,
+        ["--fluid-font-cqw" as any]: "3.2cqw",
+        ["--mobile-source-font-size" as any]: `${rawTextFontSize}px`,
+        ["--fluid-font-max" as any]: `${rawTextFontSize}px`,
       };
 
       if (allowPreviewInput) {
@@ -1950,6 +2004,8 @@ function RenderNode({
             defaultValue=""
             placeholder={textContent}
             aria-label={textContent}
+            data-fluid-space="true"
+            data-fluid-text="true"
             data-mobile-font-scale={shouldScaleTextFont ? "true" : undefined}
             data-mobile-overflow={textOverflowLikely ? "true" : undefined}
             className={`preview-input ${((props.customClassName as string) || "").trim()}`.trim() || undefined}
@@ -1961,6 +2017,8 @@ function RenderNode({
 
       return wrap(
         <div
+          data-fluid-space="true"
+          data-fluid-text="true"
           data-mobile-font-scale={shouldScaleTextFont ? "true" : undefined}
           data-mobile-overflow={textOverflowLikely ? "true" : undefined}
           className={((props.customClassName as string) || "").trim() || undefined}
@@ -1979,19 +2037,26 @@ function RenderNode({
       const imgTransform = [imgRot ? `rotate(${imgRot}deg)` : null, imgFlipH ? "scaleX(-1)" : null, imgFlipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
       const normalizedImageWidth = normalizeLayoutWidthForNarrow(props.width, isNarrowPreview, builderParityMode);
       const normalizedImageHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
+      const imageWidthPx = parsePixelValue(props.width);
+      const imageHeightPx = parsePixelValue(props.height);
+      const mediaAspectRatio = imageWidthPx && imageHeightPx ? `${imageWidthPx} / ${imageHeightPx}` : undefined;
       return wrap(
         <img
           src={(props.src as string) || "https://placehold.co/600x400?text=Image"}
           alt={(props.alt as string) || "Image"}
+          data-fluid-space="true"
+          data-fluid-media="true"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
             width: normalizedImageWidth ?? (props.width as string),
             height: normalizedImageHeight ?? (props.height as string),
             maxWidth: "100%",
-            objectFit: props.objectFit as React.CSSProperties["objectFit"],
+            objectFit: ((props.objectFit as React.CSSProperties["objectFit"]) || "cover"),
+            aspectRatio: mediaAspectRatio,
+            ["--media-aspect-ratio" as any]: mediaAspectRatio,
             borderRadius: px(props.borderRadius),
-            padding: px(props.padding),
-            margin: px(props.margin),
+            padding: fluidSpace(props.padding),
+            margin: fluidSpace(props.margin, 0, 0.35, 1.4),
             opacity: props.opacity as number,
             boxShadow: props.boxShadow as string,
             transform: imgTransform,
@@ -2041,18 +2106,21 @@ function RenderNode({
       const shouldScaleButtonFont = !builderParityMode && isNarrowPreview && rawButtonFontSize > 30;
       const content = (
         <span
+          data-fluid-space="true"
+          data-fluid-button="true"
+          data-fluid-text="true"
           data-mobile-font-scale={shouldScaleButtonFont ? "true" : undefined}
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
             backgroundColor: bg,
             color,
-            fontSize: px(props.fontSize),
+            fontSize: fluidFont(rawButtonFontSize, 12, 3),
             fontWeight: props.fontWeight as string,
             fontFamily: (props.fontFamily as string) || "Outfit",
             borderRadius: px(props.borderRadius),
             border: `${borderWidth}px ${resolvedBorderStyle} ${borderColor}`,
-            padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
-            margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
+            padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
+            margin: `${fluidSpace(mt, 0, 0.35, 1.4)} ${fluidSpace(mr, 0, 0.35, 1.4)} ${fluidSpace(mb, 0, 0.35, 1.4)} ${fluidSpace(ml, 0, 0.35, 1.4)}`,
             width: isPercentWidth ? "100%" : width,
             maxWidth: isNarrowPreview ? "100%" : undefined,
             height: height,
@@ -2066,7 +2134,9 @@ function RenderNode({
             transform: btnTransform,
             transformOrigin: "center center",
             minWidth: isNarrowPreview ? 0 : undefined,
-            "--mobile-source-font-size": `${rawButtonFontSize}px`,
+            ["--fluid-font-cqw" as any]: "3cqw",
+            ["--mobile-source-font-size" as any]: `${rawButtonFontSize}px`,
+            ["--fluid-font-max" as any]: `${rawButtonFontSize}px`,
           }}
           onClick={interactiveClick}
         >
@@ -2080,6 +2150,7 @@ function RenderNode({
         return wrap(
           <button
             type="button"
+            data-fluid-space="true"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -2104,6 +2175,7 @@ function RenderNode({
         return wrap(
           <a
             href={link}
+            data-fluid-space="true"
             style={{
               textDecoration: "none",
               display: isPercentWidth || isNarrowPreview ? "block" : "inline-block",
@@ -2130,15 +2202,27 @@ function RenderNode({
         />
       );
 
-    case "Icon":
+    case "Icon": {
+      const iconSize = toNumber(props.size, 24);
+      const normalizedIconWidth = normalizeLayoutWidthForNarrow(props.width as string, isNarrowPreview, builderParityMode);
+      const normalizedIconHeight = normalizeLayoutHeightForNarrow(props.height as string, isNarrowPreview, builderParityMode);
+      const fluidIconBox = `clamp(14px, 3.4cqw, ${iconSize}px)`;
       return wrap(
-        <div onClick={interactiveClick}>
+        <div
+          data-fluid-space="true"
+          data-fluid-icon="true"
+          onClick={interactiveClick}
+          style={{
+            ["--fluid-icon-max" as any]: `${iconSize}px`,
+            maxWidth: "100%",
+          }}
+        >
           <DesignIcon
             iconType={props.iconType as string}
-            size={toNumber(props.size, 24)}
+            size={iconSize}
             color={props.color as string}
-            width={normalizeLayoutWidthForNarrow(props.width as string, isNarrowPreview, builderParityMode)}
-            height={normalizeLayoutHeightForNarrow(props.height as string, isNarrowPreview, builderParityMode)}
+            width={normalizedIconWidth ?? ((props.width as string) || fluidIconBox)}
+            height={normalizedIconHeight ?? ((props.height as string) || fluidIconBox)}
             margin={toNumber(props.margin, 0)}
             marginTop={toNumber(props.marginTop, 0)}
             marginRight={toNumber(props.marginRight, 0)}
@@ -2154,6 +2238,7 @@ function RenderNode({
           />
         </div>
       );
+    }
 
     case "Circle":
     case "Square":
@@ -2516,86 +2601,23 @@ export function WebPreview({
           color: var(--placeholder-color, #94a3b8);
           opacity: 1;
         }
-        /* Responsive preview styles */
-        @media (max-width: ${PREVIEW_MOBILE_BREAKPOINT}px) {
+        .responsive-preview,
+        .responsive-preview * {
+          box-sizing: border-box;
+        }
+        .responsive-preview {
+          container-type: inline-size;
+        }
+        @container (max-width: ${PREVIEW_MOBILE_BREAKPOINT}px) {
           .responsive-preview {
-            width: 100vw !important;
+            width: 100% !important;
             min-width: 0 !important;
-            max-width: 100vw !important;
+            max-width: 100% !important;
             border-radius: 0 !important;
             margin: 0 !important;
             box-shadow: none !important;
             padding: 0 !important;
           }
-        }
-
-        .builder-parity-narrow,
-        .builder-parity-narrow *,
-        .responsive-narrow,
-        .responsive-narrow * {
-          box-sizing: border-box !important;
-        }
-
-        .builder-parity-narrow [style*="width"],
-        .responsive-narrow [style*="width"],
-        .builder-parity-narrow section,
-        .responsive-narrow section,
-        .builder-parity-narrow article,
-        .responsive-narrow article,
-        .builder-parity-narrow main,
-        .responsive-narrow main,
-        .builder-parity-narrow aside,
-        .responsive-narrow aside,
-        .builder-parity-narrow [data-layout],
-        .responsive-narrow [data-layout],
-        .builder-parity-narrow .frame-responsive-inner > *,
-        .responsive-narrow .frame-responsive-inner > * {
-          max-width: 100% !important;
-          min-width: 0 !important;
-          align-self: stretch !important;
-        }
-
-        .builder-parity-narrow .frame-responsive-inner > div,
-        .responsive-narrow .frame-responsive-inner > div,
-        .builder-parity-narrow .frame-responsive-inner > section,
-        .responsive-narrow .frame-responsive-inner > section,
-        .builder-parity-narrow [data-layout="row"],
-        .responsive-narrow [data-layout="row"],
-        .builder-parity-narrow [data-layout="column"],
-        .responsive-narrow [data-layout="column"],
-        .builder-parity-narrow div[style*="width:"][style*="px"],
-        .responsive-narrow div[style*="width:"][style*="px"] {
-          width: 100% !important;
-        }
-
-        .builder-parity-narrow [style*="position:absolute"],
-        .responsive-narrow [style*="position:absolute"],
-        .builder-parity-narrow [style*="position: absolute"],
-        .responsive-narrow [style*="position: absolute"],
-        .builder-parity-narrow [style*="position:fixed"],
-        .responsive-narrow [style*="position:fixed"],
-        .builder-parity-narrow [style*="position: fixed"],
-        .responsive-narrow [style*="position: fixed"] {
-          position: relative !important;
-          top: auto !important;
-          right: auto !important;
-          bottom: auto !important;
-          left: auto !important;
-          transform: none !important;
-        }
-
-        .builder-parity-narrow input,
-        .responsive-narrow input,
-        .builder-parity-narrow textarea,
-        .responsive-narrow textarea,
-        .builder-parity-narrow select,
-        .responsive-narrow select,
-        .builder-parity-narrow .preview-input,
-        .responsive-narrow .preview-input,
-        .builder-parity-narrow button,
-        .responsive-narrow button {
-          width: 100% !important;
-          max-width: 100% !important;
         }
       `}</style>
       {!isDesktopMode && frameResponsiveStyles}
@@ -2621,7 +2643,7 @@ export function WebPreview({
         {!isDesktopMode ? (
           <div
             ref={mobileWrapperRef}
-            className={`frame-responsive-inner frame-fluid${isPhonePreview ? " frame-mobile" : ""}`}
+            className={`frame-responsive-inner frame-fluid${isPhonePreview ? " frame-mobile" : ""}${isNarrowBuilderPreview ? " builder-parity-narrow" : ""}`}
             style={{
               width: "100%",
               minHeight: "100%",
