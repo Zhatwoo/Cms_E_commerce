@@ -14,7 +14,7 @@ function DashboardLayoutContent({
     children: React.ReactNode;
 }) {
     const { user, loading } = useAuth();
-    const { selectedProject } = useProject();
+    const { selectedProject, projects, loading: projectLoading } = useProject();
     const router = useRouter();
     const pathname = usePathname();
     const { colors } = useTheme();
@@ -27,20 +27,17 @@ function DashboardLayoutContent({
         }
     }, [loading, user, router]);
 
-    // If user is authenticated but no website/instance is selected yet,
-    // send them to the main dashboard page to choose a website first,
-    // but allow access to builder/domains so they can create their first site.
+    // Only send users to instances page when they truly have no projects.
+    // If projects exist but selection is not yet hydrated, avoid forcing a prompt flow.
     useEffect(() => {
-        if (!loading && user && !selectedProject) {
-            const isDashboardRoot = pathname === '/m_dashboard';
-            const isBuilder = pathname.startsWith('/m_dashboard/web-builder');
-            const isDomains = pathname.startsWith('/m_dashboard/domains');
+        if (!loading && !projectLoading && user && !selectedProject && projects.length === 0) {
+            const isInstancesPage = pathname.startsWith('/m_dashboard/instances');
             const isInDashboard = pathname.startsWith('/m_dashboard');
-            if (isInDashboard && !isDashboardRoot && !isBuilder && !isDomains) {
-                router.replace('/m_dashboard');
+            if (isInDashboard && !isInstancesPage) {
+                router.replace('/m_dashboard/instances');
             }
         }
-    }, [loading, user, selectedProject, pathname, router]);
+    }, [loading, projectLoading, user, selectedProject, projects.length, pathname, router]);
 
     useEffect(() => {
         if (pathname === '/m_dashboard') {
@@ -118,17 +115,18 @@ function DashboardLayoutContent({
                 <DashboardSidebar />
             </div>
 
-            {/* Main content area */}
-            <div ref={contentScrollRef} className="no-scrollbar flex min-w-0 flex-1 basis-0 flex-col h-screen overflow-y-auto overflow-x-hidden">
-                <div className="sticky top-0 z-50 shrink-0" style={{ backgroundColor: colors.bg.primary }}>
+            {/* Main content area - ref: deep indigo/purple gradient (Color Palette) */}
+            <div
+                ref={contentScrollRef}
+                className="no-scrollbar flex min-w-0 flex-1 basis-0 flex-col h-screen overflow-y-auto overflow-x-hidden"
+                style={{ background: `linear-gradient(180deg, ${colors.bg.primary} 0%, ${colors.bg.primaryEnd} 100%)` }}
+            >
+                <div className="sticky top-0 z-50 shrink-0 bg-transparent">
                     <DashboardHeader onMenuToggle={() => setSidebarOpen(true)} />
                 </div>
                 <main className="flex-1 min-w-0 max-w-full overflow-x-hidden px-4 sm:px-6 pt-5 sm:pt-7 pb-4 sm:pb-6">
                     {children}
                 </main>
-                <footer className="py-4 text-xs shrink-0 flex justify-center transition-colors duration-300" style={{ color: colors.text.muted }}>
-                    Thanks for using our platform ✨
-                </footer>
             </div>
         </div>
     );

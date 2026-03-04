@@ -147,10 +147,6 @@ function getProjectPageRef(userId, projectId, pageId) {
 
 async function savePageData(userId, projectId, pageId, content) {
   const ref = getProjectPageRef(userId, projectId, pageId);
-  const fullPath = ref.path;
-
-  console.log(`💾 savePageData: Saving to path: ${fullPath} (userId: ${userId}, projectId: ${projectId})`);
-
   let dataToSave = content;
 
   // Robust JSON parsing
@@ -163,7 +159,6 @@ async function savePageData(userId, projectId, pageId, content) {
       if (typeof dataToSave === 'string') {
         dataToSave = JSON.parse(dataToSave);
       }
-      console.log('✅ Content successfully parsed to Object');
     } catch (e) {
       console.warn('⚠️ JSON parsing failed, saving as raw string/content:', e.message);
       dataToSave = content;
@@ -178,8 +173,6 @@ async function savePageData(userId, projectId, pageId, content) {
   // Remove { merge: true } to ensure the 'page' Map is completely replaced
   // rather than merged, which allows deletions to be reflected in Firestore.
   await ref.set(docData);
-  const nodeCount = dataToSave?.nodes ? Object.keys(dataToSave.nodes).length : 'N/A';
-  console.log(`🎯 Firestore .set (overwrite) successful. Nodes saved: ${nodeCount}`);
 
   const snap = await ref.get();
   return docToObject(snap);
@@ -187,7 +180,6 @@ async function savePageData(userId, projectId, pageId, content) {
 
 async function getPageData(userId, projectId, pageId) {
   const ref = getProjectPageRef(userId, projectId, pageId);
-  console.log(`📡 getPageData: Reading from path: ${ref.path}`);
   const snap = await ref.get();
 
   if (!snap.exists) return null;

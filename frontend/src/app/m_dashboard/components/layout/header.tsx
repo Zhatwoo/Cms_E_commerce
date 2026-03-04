@@ -1,13 +1,14 @@
 // wala header lang, laman lang neto is yung user name, profile, notif, dito ren pala nilagay yung theme toggle
 
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { logout, type User } from '@/lib/api';
+import { useRouter } from 'next/navigation';
+import { getApiUrl, logout } from '@/lib/api';
 import { useTheme } from '../context/theme-context';
 import { useAuth } from '../context/auth-context';
 import { useProject } from '../context/project-context';
+
 const SunIcon = () => (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="5" />
@@ -44,6 +45,21 @@ const BellIcon = () => (
     </svg>
 );
 
+const ChevronDownIcon = () => (
+    <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        className="h-3 w-3"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+    >
+        <path d="M6 9l6 6 6-6" />
+    </svg>
+);
+
 const UserIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -68,15 +84,37 @@ type DashboardHeaderProps = {
 
 export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     const router = useRouter();
-    const pathname = usePathname();
     const { user, setUser } = useAuth();
+    const { projects, loading, selectedProjectId, setSelectedProjectId } = useProject();
     const { theme, toggleTheme, colors } = useTheme();
     const [showMenu, setShowMenu] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const [showSwitchModal, setShowSwitchModal] = useState(false);
-    const { selectedProject, selectedProjectId, setSelectedProjectId, projects, loading } = useProject();
-    const showProjectSwitch = pathname === '/m_dashboard/products' || pathname === '/m_dashboard/orders';
+    const [scrolled, setScrolled] = useState(false);
+    const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
     const userName = user?.name || user?.email || '';
+    const avatarSrc = user?.avatar || (user?.email ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user.email)}` : '');
+
+    const resolveAvatarUrl = (raw?: string): string => {
+        const value = String(raw || '').trim();
+        if (!value) return '';
+        if (/^(https?:|data:|blob:)/i.test(value)) return value;
+        if (value.startsWith('/')) return `${getApiUrl()}${value}`;
+        return value;
+    };
+
+    const avatarSrc = resolveAvatarUrl(user?.avatar);
+
+    useEffect(() => {
+        const onScroll = () => setScrolled(window.scrollY > 10);
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
+
+    useEffect(() => {
+        setAvatarLoadFailed(false);
+    }, [user?.avatar]);
+
     const unreadCount = NOTIFICATIONS.filter((n) => n.unread).length;
 
     const handleLogout = async () => {
@@ -89,13 +127,23 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
 
     return (
         <header
-            className="border-b transition-colors duration-300"
-            style={{ 
-                borderColor: colors.border.faint,
-                backgroundColor: colors.bg.primary
+            className="sticky top-0 z-30 transition-all duration-300 border-0"
+            style={{
+                background: scrolled
+                    ? theme === 'dark'
+                        ? 'rgba(0, 0, 54, 0.88)'
+                        : 'rgba(240, 242, 245, 0.88)'
+                    : 'transparent',
+                backdropFilter: scrolled ? 'blur(14px)' : 'none',
+                WebkitBackdropFilter: scrolled ? 'blur(14px)' : 'none',
+                borderBottom: scrolled
+                    ? theme === 'dark'
+                        ? '1px solid rgba(255,255,255,0.07)'
+                        : '1px solid rgba(15,23,42,0.08)'
+                    : 'none',
             }}
         >
-            <div className="relative flex items-center justify-between px-4 sm:px-6" style={{ height: '84px' }}>
+            <div className="flex items-center justify-between px-4 sm:px-6" style={{ height: '84px' }}>
                 <div className="flex items-center">
                     <button
                         type="button"
@@ -111,29 +159,6 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                 </div>
 
                 <div className="flex-1" />
-
-                <div className="hidden sm:flex absolute left-1/2 -translate-x-1/2 items-center pointer-events-none">
-                    {showProjectSwitch && selectedProject && (
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setShowSwitchModal(true);
-                            }}
-                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors hover:bg-black/5 dark:hover:bg-white/10 pointer-events-auto"
-                            style={{ borderColor: colors.border.faint, color: colors.text.secondary }}
-                        >
-                            <span className="truncate max-w-[220px]">
-                                {selectedProject.title || 'Untitled website'}
-                            </span>
-                            <span
-                                className="text-[10px] px-2 py-0.5 rounded-full"
-                                style={{ backgroundColor: colors.bg.elevated, color: colors.text.muted }}
-                            >
-                                Switch
-                            </span>
-                        </button>
-                    )}
-                </div>
 
                 <div className="flex items-center gap-4">
                     <button
@@ -188,23 +213,33 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                     </div>
 
                     <div className="relative flex items-center gap-3">
-                        <div className="text-right hidden sm:block">
-                            <p className="text-sm font-medium" style={{ color: colors.text.primary }}>{userName || 'User'}</p>
+                        <div className="text-right hidden sm:block" style={{ fontFamily: 'var(--font-outfit), sans-serif' }}>
+                            <p className="text-sm font-medium" style={{ color: colors.text.primary }}>{userName || 'Finding Neo'}</p>
                             <p className="text-xs" style={{ color: colors.text.muted }}>Website Owner</p>
                         </div>
                         <div className="relative">
                             <button
                                 type="button"
                                 onClick={() => setShowMenu((v) => !v)}
-                                className="h-10 w-10 rounded-full border flex items-center justify-center shadow-sm hover:opacity-80 transition-opacity"
+                                className="relative h-10 w-10 rounded-full flex items-center justify-center shadow-sm hover:opacity-90 transition-opacity overflow-visible"
                                 style={{
-                                    backgroundColor: colors.bg.elevated,
-                                    borderColor: colors.border.faint,
-                                    color: colors.text.secondary
+                                    background: 'linear-gradient(135deg, #FFCE00 0%, #A64CD9 50%, #5C1D8F 100%)',
+                                    border: 'none',
+                                    color: '#fff'
                                 }}
                                 aria-label="Profile menu"
+                                aria-expanded={showMenu}
                             >
-                                <UserIcon />
+                                {avatarSrc && !avatarLoadFailed ? (
+                                    <img
+                                        src={avatarSrc}
+                                        alt={userName || 'User avatar'}
+                                        className="h-full w-full object-cover"
+                                        onError={() => setAvatarLoadFailed(true)}
+                                    />
+                                ) : (
+                                    <UserIcon />
+                                )}
                             </button>
                             {showMenu && (
                                 <>
@@ -214,7 +249,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                                         onClick={() => setShowMenu(false)}
                                     />
                                     <div
-                                        className="absolute right-0 mt-2 w-48 rounded-xl border py-1 shadow-xl z-20 backdrop-blur-md"
+                                        className="absolute right-0 mt-2 w-48 rounded-2xl border py-1.5 shadow-xl z-20 backdrop-blur-md"
                                         style={{
                                             backgroundColor: theme === 'dark' ? 'rgba(29, 29, 33, 0.95)' : 'rgba(255, 255, 255, 0.95)',
                                             borderColor: colors.border.faint
@@ -243,7 +278,6 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                     </div>
                 </div>
             </div>
-
             {showSwitchModal && (
                 <div
                     className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
@@ -256,20 +290,20 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                     >
                         <div>
                             <h2 className="text-lg font-semibold" style={{ color: colors.text.primary }}>
-                                Switch project
+                                Switch website instance
                             </h2>
                             <p className="text-sm" style={{ color: colors.text.muted }}>
-                                Choose a project to continue.
+                                Choose an instance to continue.
                             </p>
                         </div>
 
                         {loading ? (
                             <div className="rounded-lg border px-4 py-3 text-sm" style={{ borderColor: colors.border.faint, color: colors.text.secondary }}>
-                                Loading your projects…
+                                Loading your instances…
                             </div>
                         ) : projects.length === 0 ? (
                             <div className="rounded-lg border px-4 py-3 text-sm" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
-                                No projects available.
+                                No instances available.
                             </div>
                         ) : (
                             <div className="space-y-2 max-h-72 overflow-y-auto">

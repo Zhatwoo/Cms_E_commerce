@@ -7,9 +7,9 @@ const PAGE_BASE_HEIGHT = 1200;
 const PAGE_GAP_X = 220;
 const PAGE_GAP_Y = 220;
 const PAGE_COLUMNS = 3;
-const VIEWPORT_BASE_MIN_WIDTH = 80000;
-const VIEWPORT_BASE_MIN_HEIGHT = 80000;
-const VIEWPORT_EDGE_PADDING = 30000;
+const VIEWPORT_BASE_MIN_WIDTH = 240000;
+const VIEWPORT_BASE_MIN_HEIGHT = 240000;
+const VIEWPORT_EDGE_PADDING = 100000;
 const PAGE_GRID_ORIGIN_X = VIEWPORT_EDGE_PADDING;
 const PAGE_GRID_ORIGIN_Y = VIEWPORT_EDGE_PADDING;
 // Extra space for mobile previews beside each page
@@ -235,13 +235,29 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
       }
     });
 
+    const desktopRoot = desktopCanvasRef.current;
+    let domMaxRight = 0;
+    let domMaxBottom = 0;
+
+    if (desktopRoot) {
+      const rootRect = desktopRoot.getBoundingClientRect();
+      const nodeEls = Array.from(desktopRoot.querySelectorAll<HTMLElement>("[data-node-id]"));
+      for (const el of nodeEls) {
+        const rect = el.getBoundingClientRect();
+        const right = rect.right - rootRect.left;
+        const bottom = rect.bottom - rootRect.top;
+        if (Number.isFinite(right)) domMaxRight = Math.max(domMaxRight, right);
+        if (Number.isFinite(bottom)) domMaxBottom = Math.max(domMaxBottom, bottom);
+      }
+    }
+
     const dynamicMinWidth = Math.max(
       VIEWPORT_BASE_MIN_WIDTH,
-      Math.ceil(maxRight + VIEWPORT_EDGE_PADDING + MOBILE_PREVIEW_SAFE_WIDTH)
+      Math.ceil(Math.max(maxRight, domMaxRight) + VIEWPORT_EDGE_PADDING + MOBILE_PREVIEW_SAFE_WIDTH)
     );
     const dynamicMinHeight = Math.max(
       VIEWPORT_BASE_MIN_HEIGHT,
-      Math.ceil(maxBottom + VIEWPORT_EDGE_PADDING)
+      Math.ceil(Math.max(maxBottom, domMaxBottom) + VIEWPORT_EDGE_PADDING)
     );
 
     setViewportSize((prev) => {
@@ -496,5 +512,10 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
 
 
 Viewport.craft = {
-  displayName: "Viewport"
+  displayName: "Viewport",
+  rules: {
+    canMoveIn: (incomingNodes: Node[]) => {
+      return incomingNodes.every((node) => node?.data?.displayName === "Page");
+    },
+  },
 };

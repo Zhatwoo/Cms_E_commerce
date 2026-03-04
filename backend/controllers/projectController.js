@@ -10,7 +10,8 @@ const { getLimits } = require('../utils/subscriptionLimits');
 exports.list = async (req, res) => {
   try {
     const userId = req.user.id;
-    const projects = await Project.list(userId);
+    const instanceId = (req.query.instanceId || '').toString().trim() || null;
+    const projects = await Project.list(userId, { instanceId });
     res.status(200).json({
       success: true,
       projects,
@@ -30,7 +31,7 @@ exports.list = async (req, res) => {
 exports.create = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { title, templateId, subdomain } = req.body;
+    const { title, templateId, subdomain, instanceId } = req.body || {};
 
     // Check subscription limits
     const user = await User.findById(userId);
@@ -58,6 +59,7 @@ exports.create = async (req, res) => {
     const project = await Project.create(userId, {
       title: title || 'Untitled Project',
       templateId: templateId || null,
+      instanceId: (instanceId && String(instanceId).trim()) || null,
       subdomain: subdomain || null,
     });
     res.status(201).json({
@@ -66,9 +68,10 @@ exports.create = async (req, res) => {
       project,
     });
   } catch (error) {
+    console.error('[projectController.create]', error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: error.message || 'Server error',
       error: error.message,
     });
   }
@@ -140,10 +143,11 @@ exports.update = async (req, res) => {
         message: 'Project not found',
       });
     }
-    const { title, status, thumbnail } = req.body;
+    const { title, status, thumbnail, instanceId } = req.body;
     const project = await Project.update(userId, req.params.id, {
       ...(title !== undefined && { title }),
       ...(status !== undefined && { status }),
+      ...(instanceId !== undefined && { instanceId }),
       ...(thumbnail !== undefined && { thumbnail }),
     });
     res.status(200).json({
@@ -236,6 +240,13 @@ exports.delete = async (req, res) => {
       message: 'Project moved to trash',
     });
   } catch (error) {
+    const msg = String(error?.message || '').toLowerCase();
+    if (msg.includes('cannot be deleted') || msg.includes('unpublish')) {
+      return res.status(409).json({
+        success: false,
+        message: error.message,
+      });
+    }
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -248,45 +259,8 @@ exports.delete = async (req, res) => {
 // @route   DELETE /api/projects/:id/permanent
 // @access  Private
 exports.permanentDelete = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const existingInTrash = await Project.getTrashRef(userId).doc(req.params.id).get();
-    const existingInProjects = await Project.get(userId, req.params.id);
-
-    if (!existingInTrash.exists && !existingInProjects) {
-      return res.status(404).json({
-        success: false,
-        message: 'Project not found in trash or active projects',
-      });
-    }
-
-    const projectData = existingInTrash.exists ? existingInTrash.data() : existingInProjects;
-    const title = projectData.title || 'Untitled';
-
-    await Project.permanentDelete(userId, req.params.id);
-
-    // Storage cleanup
-    const clientName = req.user.name || 'client';
-    let clientNameForStorage = clientName;
-    try {
-      const user = await User.get(userId);
-      if (user) {
-        clientNameForStorage = (user.displayName || user.username || user.email || clientName).trim() || clientName;
-      }
-    } catch {
-      // ignore
-    }
-    await deleteProjectStorageFolder(clientNameForStorage, title);
-
-    res.status(200).json({
-      success: true,
-      message: 'Project permanently deleted',
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message,
-    });
-  }
+  return res.status(403).json({
+    success: false,
+    message: 'Manual permanent delete is disabled. Projects are automatically purged 30 days after being moved to trash.',
+  });
 };

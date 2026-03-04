@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useEditor } from "@craftjs/core";
 import { useTransformMode } from "./TransformModeContext";
 import { useInlineTextEdit } from "./InlineTextEditContext";
+import { useCanvasTool } from "./CanvasToolContext";
 
 /**
  * Double-click on a component/asset → enter transform mode (resize from corners + rotate).
@@ -14,17 +15,55 @@ export function DoubleClickTransformHandler() {
   const { actions, query } = useEditor();
   const { transformModeNodeId, setTransformModeNodeId } = useTransformMode();
   const { setEditingTextNodeId } = useInlineTextEdit();
+  const { activeTool } = useCanvasTool();
 
   useEffect(() => {
+    const selectedToIds = (selected: unknown): string[] => {
+      if (Array.isArray(selected)) return selected.filter((id): id is string => typeof id === "string");
+      if (selected instanceof Set) return Array.from(selected).filter((id): id is string => typeof id === "string");
+      if (selected && typeof selected === "object") return Object.keys(selected as Record<string, unknown>);
+      return [];
+    };
+
     const handleDblClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
-      if (target.closest("[data-panel]")) return;
+      const onResizeOverlay = target.closest("[data-panel='resize-overlay']");
+      if (target.closest("[data-panel]") && !onResizeOverlay) return;
+      if (onResizeOverlay) {
+        try {
+          const state = query.getState();
+          const selectedIds = selectedToIds(state.events.selected).filter((id) => id && id !== "ROOT");
+          if (selectedIds.length === 1) {
+            const selectedId = selectedIds[0]!;
+            const displayName = query.node(selectedId).get()?.data?.displayName as string | undefined;
+            if (displayName === "Text") {
+              actions.selectNode(selectedId);
+              setEditingTextNodeId(selectedId);
+              setTransformModeNodeId(null);
+              return;
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+
       const nodeEl = target.closest("[data-node-id]") as HTMLElement | null;
       const nodeId = nodeEl?.getAttribute("data-node-id") ?? null;
       if (nodeId && nodeId !== "ROOT") {
         try {
           const displayName = query.node(nodeId).get()?.data?.displayName as string | undefined;
+
+          if (activeTool === "text") {
+            if (displayName === "Text") {
+              actions.selectNode(nodeId);
+              setEditingTextNodeId(nodeId);
+            }
+            setTransformModeNodeId(null);
+            return;
+          }
+
           if (displayName === "Text") {
             actions.selectNode(nodeId);
             setEditingTextNodeId(nodeId);
@@ -49,7 +88,9 @@ export function DoubleClickTransformHandler() {
       if (onOverlay || clickedNodeId === transformModeNodeId) return;
       setTransformModeNodeId(null);
       if (!target.closest("[data-inline-text-edit]")) {
-        setEditingTextNodeId(null);
+        requestAnimationFrame(() => {
+          setEditingTextNodeId(null);
+        });
       }
     };
 
@@ -59,7 +100,7 @@ export function DoubleClickTransformHandler() {
       document.removeEventListener("dblclick", handleDblClick, true);
       document.removeEventListener("mousedown", handleMouseDown, true);
     };
-  }, [actions, query, transformModeNodeId, setTransformModeNodeId, setEditingTextNodeId]);
+  }, [activeTool, actions, query, transformModeNodeId, setTransformModeNodeId, setEditingTextNodeId]);
 
   return null;
 }

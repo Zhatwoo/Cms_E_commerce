@@ -33,7 +33,7 @@ function rectsIntersect(a: Rect, b: Rect): boolean {
 
 export const MarqueeSelectionHandler = () => {
   const { actions, query } = useEditor();
-  const activeTool = useCanvasTool();
+  const { activeTool } = useCanvasTool();
 
   const [marqueeRect, setMarqueeRect] = useState<MarqueeRect | null>(null);
 
@@ -77,7 +77,7 @@ export const MarqueeSelectionHandler = () => {
       if (!target.closest("[data-canvas-container]")) return;
       if (document.body.dataset.spacePan === "true") return;
       if (document.body.dataset.canvasPan === "true") return;
-      if (activeToolRef.current === "hand") return;
+      if (activeToolRef.current === "hand" || activeToolRef.current === "text") return;
 
       const nodeEl = target.closest("[data-node-id]") as HTMLElement | null;
       if (nodeEl) {
@@ -221,22 +221,22 @@ export const MarqueeSelectionHandler = () => {
 
   return typeof document !== "undefined"
     ? ReactDOM.createPortal(
-        <div
-          data-panel="marquee"
-          style={{
-            position: "fixed",
-            left: marqueeRect.left,
-            top: marqueeRect.top,
-            width: marqueeRect.width,
-            height: marqueeRect.height,
-            border: "2px solid #3b82f6",
-            backgroundColor: "rgba(59, 130, 246, 0.08)",
-            pointerEvents: "none",
-            zIndex: 10000,
-            borderRadius: 2,
-          }}
-        />,
-        document.body
-      )
+      <div
+        data-panel="marquee"
+        style={{
+          position: "fixed",
+          left: marqueeRect.left,
+          top: marqueeRect.top,
+          width: marqueeRect.width,
+          height: marqueeRect.height,
+          border: "2px solid #3b82f6",
+          backgroundColor: "rgba(59, 130, 246, 0.08)",
+          pointerEvents: "none",
+          zIndex: 10000,
+          borderRadius: 2,
+        }}
+      />,
+      document.body
+    )
     : null;
 };

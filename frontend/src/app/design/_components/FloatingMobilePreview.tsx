@@ -609,21 +609,12 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
       event.stopPropagation();
       actions.selectNode(nodeId);
 
-      // Scroll to the selected element on the desktop canvas
-      const desktopNodeEl = document.querySelector<HTMLElement>(`[data-viewport-desktop] [data-node-id="${nodeId}"]`);
+      // Center the camera on the selected element on the desktop canvas
       const canvasContainer = document.querySelector("[data-canvas-container]") as HTMLElement | null;
-      if (desktopNodeEl && canvasContainer) {
-        const containerRect = canvasContainer.getBoundingClientRect();
-        const nodeRect = desktopNodeEl.getBoundingClientRect();
-        const centerX = nodeRect.left + nodeRect.width / 2;
-        const centerY = nodeRect.top + nodeRect.height / 2;
-        const targetScrollLeft = canvasContainer.scrollLeft + (centerX - (containerRect.left + containerRect.width / 2));
-        const targetScrollTop = canvasContainer.scrollTop + (centerY - (containerRect.top + containerRect.height / 2));
-        canvasContainer.scrollTo({
-          left: Math.max(0, targetScrollLeft),
-          top: Math.max(0, targetScrollTop),
-          behavior: "smooth",
-        });
+      if (canvasContainer) {
+        canvasContainer.dispatchEvent(
+          new CustomEvent("center-on-node", { detail: { nodeId } })
+        );
       }
 
       queueRender();

@@ -67,6 +67,7 @@ export function LandingPageClient({ children }: { children: React.ReactNode }) {
 
   const setThemeState = (next: boolean) => {
     window.localStorage.setItem(LANDING_THEME_KEY, next ? 'dark' : 'light');
+    setIsDarkMode(next);
     window.dispatchEvent(new Event(THEME_EVENT_NAME));
   };
 

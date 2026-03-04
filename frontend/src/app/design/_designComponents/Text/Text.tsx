@@ -36,6 +36,7 @@ export const Text = ({
   paddingRight,
   opacity = 1,
   boxShadow = "none",
+  isCodeBlock = false,
   rotation = 0,
   flipHorizontal = false,
   flipVertical = false,
@@ -45,6 +46,12 @@ export const Text = ({
   const { editingTextNodeId, setEditingTextNodeId } = useInlineTextEdit();
   const isEditing = editingTextNodeId === id;
   const editRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (isCodeBlock && isEditing) {
+      setEditingTextNodeId(null);
+    }
+  }, [isCodeBlock, isEditing, setEditingTextNodeId]);
 
   useEffect(() => {
     if (isEditing && editRef.current) {
@@ -116,9 +123,13 @@ export const Text = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (!isCodeBlock && e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       editRef.current?.blur();
+    }
+    if (isCodeBlock && e.key === "Tab") {
+      e.preventDefault();
+      document.execCommand("insertText", false, "  ");
     }
     if (e.key === "Escape") {
       e.preventDefault();
@@ -132,13 +143,9 @@ export const Text = ({
     <div
       data-node-id={id}
       onDoubleClick={(e) => {
+        if (isCodeBlock) return;
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
         e.stopPropagation();
-        setEditingTextNodeId(id);
-      }}
-      onClick={(e) => {
-        if (isEditing) return;
-        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
         setEditingTextNodeId(id);
       }}
       ref={(ref) => {
@@ -149,7 +156,7 @@ export const Text = ({
         }
         connect(drag(ref));
       }}
-      className={`hover:outline hover:outline-blue-500 ${isEditing ? "cursor-text" : "cursor-pointer"} ${customClassName}`}
+      className={`hover:outline hover:outline-blue-500 ${isCodeBlock ? "cursor-default" : isEditing ? "cursor-text" : "cursor-pointer"} ${customClassName}`}
       style={baseStyle}
     >
       {isEditing ? (

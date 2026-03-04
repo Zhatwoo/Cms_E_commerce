@@ -7,7 +7,7 @@ import { useCanvasTool } from "./CanvasToolContext";
 
 const MARQUEE_THRESHOLD = 5;
 const BOX_SELECTING_FLAG = "boxSelecting";
-const MARQUEE_START_CANVAS_TYPES = new Set(["Page", "Viewport"]);
+const BOX_SELECTING_INTENT_FLAG = "boxSelectingIntent";
 
 type Rect = { left: number; top: number; right: number; bottom: number };
 
@@ -21,6 +21,7 @@ type MarqueeRect = {
 type DragState = {
   active: boolean;
   startedOnNode: boolean;
+  additive: boolean;
   startX: number;
   startY: number;
   currentX: number;
@@ -33,7 +34,7 @@ function rectsIntersect(a: Rect, b: Rect): boolean {
 
 export const BoxSelectionHandler = () => {
   const { actions, query } = useEditor();
-  const activeTool = useCanvasTool();
+  const { activeTool } = useCanvasTool();
 
   const [marqueeRect, setMarqueeRect] = useState<MarqueeRect | null>(null);
 
@@ -58,6 +59,8 @@ export const BoxSelectionHandler = () => {
       startedOnEmptyRef.current = false;
       setMarqueeRect(null);
       delete document.body.dataset[BOX_SELECTING_FLAG];
+      delete document.body.dataset[BOX_SELECTING_INTENT_FLAG];
+      document.body.style.userSelect = "";
     };
 
     const handleMouseDown = (e: MouseEvent) => {
@@ -73,34 +76,32 @@ export const BoxSelectionHandler = () => {
         target.closest("SELECT") ||
         target.closest("[contenteditable=true]")
       ) return;
-      if (target.closest("[data-panel]")) return;
+      const isResizeOverlay = !!target.closest("[data-panel='resize-overlay']");
+      if (target.closest("[data-panel]") && !isResizeOverlay) return;
+      if (target.closest("[data-resize-handle]")) return;
       if (!target.closest("[data-canvas-container]")) return;
       if (document.body.dataset.spacePan === "true") return;
       if (document.body.dataset.canvasPan === "true") return;
-      if (activeToolRef.current === "hand") return;
+      if (activeToolRef.current === "hand" || activeToolRef.current === "text") return;
 
       const nodeEl = target.closest("[data-node-id]") as HTMLElement | null;
       if (nodeEl) {
         const nodeId = nodeEl.getAttribute("data-node-id");
-        if (nodeId && nodeId !== "ROOT") {
-          try {
-            const state = queryRef.current.getState();
-            const node = state.nodes[nodeId];
-            const displayName = (node?.data?.displayName as string | undefined) ?? "";
-            const canStartMarqueeHere = MARQUEE_START_CANVAS_TYPES.has(displayName);
-            if (!canStartMarqueeHere) return;
-          } catch {
-            return;
-          }
-        } else {
+        if (!nodeId || nodeId === "ROOT") {
           return;
         }
       }
 
-      startedOnEmptyRef.current = true;
+      startedOnEmptyRef.current = !nodeEl;
+      // Only set box-select flags when starting on empty area so FigmaStyleDragHandler
+      // can drag nodes (including multi-drag) when starting on a node
+      if (startedOnEmptyRef.current) {
+        document.body.dataset[BOX_SELECTING_INTENT_FLAG] = "true";
+      }
       dragRef.current = {
         active: true,
         startedOnNode: !!nodeEl,
+        additive: e.ctrlKey || e.metaKey,
         startX: e.clientX,
         startY: e.clientY,
         currentX: e.clientX,
@@ -111,6 +112,8 @@ export const BoxSelectionHandler = () => {
     const handleMouseMove = (e: MouseEvent) => {
       const dragState = dragRef.current;
       if (!dragState || !dragState.active) return;
+      // Only show marquee when started on empty — when started on node, let drag handler work
+      if (!startedOnEmptyRef.current) return;
 
       dragState.currentX = e.clientX;
       dragState.currentY = e.clientY;
@@ -119,6 +122,7 @@ export const BoxSelectionHandler = () => {
       if (distance < MARQUEE_THRESHOLD) return;
 
       document.body.dataset[BOX_SELECTING_FLAG] = "true";
+      document.body.style.userSelect = "none";
 
       setMarqueeRect({
         left: Math.min(dragState.startX, dragState.currentX),
@@ -160,7 +164,20 @@ export const BoxSelectionHandler = () => {
       try {
         const state = queryRef.current.getState();
         const nodes = state.nodes;
-        const nodeIds = Object.keys(nodes).filter((id) => id !== "ROOT" && nodes[id]);
+        const currentSelectedRaw = state.events.selected;
+        const currentSelected: string[] = Array.isArray(currentSelectedRaw)
+          ? currentSelectedRaw
+          : currentSelectedRaw instanceof Set
+            ? Array.from(currentSelectedRaw)
+            : currentSelectedRaw && typeof currentSelectedRaw === "object"
+              ? Object.keys(currentSelectedRaw)
+              : [];
+        const nodeIds = Object.keys(nodes).filter((id) => {
+          if (id === "ROOT" || !nodes[id]) return false;
+          const displayName = (nodes[id]?.data?.displayName as string | undefined) ?? "";
+          if (displayName === "Viewport" || displayName === "Page") return false;
+          return true;
+        });
         const intersecting: string[] = [];
 
         for (const nodeId of nodeIds) {
@@ -178,10 +195,15 @@ export const BoxSelectionHandler = () => {
 
         if (intersecting.length === 0) {
           actionsRef.current.selectNode(undefined);
-        } else if (intersecting.length === 1) {
-          actionsRef.current.selectNode(intersecting[0]);
         } else {
-          actionsRef.current.selectNode(intersecting);
+          const finalIds = dragState.additive
+            ? Array.from(new Set([...currentSelected, ...intersecting]))
+            : intersecting;
+          if (finalIds.length === 1) {
+            actionsRef.current.selectNode(finalIds[0]);
+          } else {
+            actionsRef.current.selectNode(finalIds);
+          }
         }
       } catch {
         // ignore
@@ -221,22 +243,22 @@ export const BoxSelectionHandler = () => {
 
   return typeof document !== "undefined"
     ? ReactDOM.createPortal(
-        <div
-          data-panel="marquee"
-          style={{
-            position: "fixed",
-            left: marqueeRect.left,
-            top: marqueeRect.top,
-            width: marqueeRect.width,
-            height: marqueeRect.height,
-            border: "2px solid #3b82f6",
-            backgroundColor: "rgba(59, 130, 246, 0.08)",
-            pointerEvents: "none",
-            zIndex: 10000,
-            borderRadius: 2,
-          }}
-        />,
-        document.body
-      )
+      <div
+        data-panel="marquee"
+        style={{
+          position: "fixed",
+          left: marqueeRect.left,
+          top: marqueeRect.top,
+          width: marqueeRect.width,
+          height: marqueeRect.height,
+          border: "2px solid #3b82f6",
+          backgroundColor: "rgba(59, 130, 246, 0.08)",
+          pointerEvents: "none",
+          zIndex: 10000,
+          borderRadius: 2,
+        }}
+      />,
+      document.body
+    )
     : null;
 };

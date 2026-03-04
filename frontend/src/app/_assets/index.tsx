@@ -21,6 +21,7 @@ import {
   FeaturedProduct,
   CategoriesCard,
   BrowseCategory,
+   ProductsOverview,
   ProductDetailView,
   ProductDetailViewV2,
   ProductDetailViewV3,
@@ -134,6 +135,7 @@ export const TEMPLATES: TemplateEntry[] = [
   ProductDetailView,
   ProductDetailViewV2,
   ProductDetailViewV3,
+  ProductsOverview,
   SimpleFooter,
   MultiColumnFooter,
   NewsletterFooter,
@@ -198,6 +200,7 @@ export const GROUPED_TEMPLATES = [
       ProductDetailView,
       ProductDetailViewV2,
       ProductDetailViewV3,
+      ProductsOverview,
     ],
   },
   {

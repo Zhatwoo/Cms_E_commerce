@@ -65,12 +65,95 @@ export default function ProfilePage() {
   });
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
+  const [pendingAvatarPreviewUrl, setPendingAvatarPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const stopCameraStream = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      stopCameraStream();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!cameraOpen) return;
+
+    let cancelled = false;
+
+    const startCamera = async () => {
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        setCameraError('Camera is not supported on this browser/device.');
+        setCameraLoading(false);
+        return;
+      }
+
+      setCameraError(null);
+      setCameraLoading(true);
+      stopCameraStream();
+
+      try {
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => resolve());
+        });
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user' },
+          audio: false,
+        });
+
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        streamRef.current = stream;
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play().catch(() => undefined);
+        }
+      } catch (error) {
+        if (cancelled) return;
+        const err = error as { name?: string };
+        let message = 'Unable to access camera. Please allow camera permission.';
+        if (err?.name === 'NotAllowedError') message = 'Camera permission denied. Please allow access in your browser settings.';
+        if (err?.name === 'NotFoundError') message = 'No camera device found on this machine.';
+        if (err?.name === 'NotReadableError') message = 'Camera is currently being used by another app.';
+        if (err?.name === 'SecurityError') message = 'Camera requires a secure context (https or localhost).';
+        setCameraError(message);
+      } finally {
+        if (!cancelled) setCameraLoading(false);
+      }
+    };
+
+    startCamera();
+
+    return () => {
+      cancelled = true;
+      stopCameraStream();
+      setCameraLoading(false);
+    };
+  }, [cameraOpen]);
 
   useEffect(() => {
     if (user) {
-      // Use avatar from backend if available, otherwise fallback to dicebear
-      setAvatarUrl(user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`);
+      if (!pendingAvatarFile) {
+        // Use avatar from backend if available, otherwise fallback to dicebear
+        setAvatarUrl(user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`);
+        setPendingAvatarPreviewUrl(null);
+      }
       setFormData({
         name: user.name || '',
         email: user.email || '',
@@ -79,7 +162,15 @@ export default function ProfilePage() {
         bio: 'Building the future of commerce. Love React, Three.js, and good coffee.'
       });
     }
-  }, [user]);
+  }, [user, pendingAvatarFile]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingAvatarPreviewUrl) {
+        URL.revokeObjectURL(pendingAvatarPreviewUrl);
+      }
+    };
+  }, [pendingAvatarPreviewUrl]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -88,13 +179,25 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     setIsLoading(true);
+    setAvatarUploading(Boolean(pendingAvatarFile));
 
     try {
+      let avatarToSave: string | undefined;
+
+      if (pendingAvatarFile) {
+        const uploadRes = await uploadAvatarApi(pendingAvatarFile);
+        if (!uploadRes.success || !uploadRes.url) {
+          throw new Error(uploadRes.message || 'Avatar upload failed');
+        }
+        avatarToSave = uploadRes.url;
+      } else {
+        avatarToSave =
+          avatarUrl?.startsWith('http') || avatarUrl?.startsWith('https')
+            ? avatarUrl
+            : undefined;
+      }
+
       // Send only Storage URL (never base64) so Firestore stores path/URL, not image data
-      const avatarToSave =
-        avatarUrl?.startsWith('http') || avatarUrl?.startsWith('https')
-          ? avatarUrl
-          : undefined;
       const res = await updateProfile({
         name: formData.name,
         ...(avatarToSave !== undefined && { avatar: avatarToSave })
@@ -102,6 +205,12 @@ export default function ProfilePage() {
 
       if (res.success && res.user) {
         setUser(res.user);
+        if (pendingAvatarPreviewUrl) {
+          URL.revokeObjectURL(pendingAvatarPreviewUrl);
+        }
+        setPendingAvatarPreviewUrl(null);
+        setPendingAvatarFile(null);
+        setAvatarUrl(res.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${res.user.email}`);
         setFeedback({ type: 'success', message: 'Profile updated successfully!' });
         setTimeout(() => setFeedback(null), 3000);
       } else {
@@ -113,38 +222,89 @@ export default function ProfilePage() {
       setFeedback({ type: 'error', message: error.message || 'Connection error' });
       setTimeout(() => setFeedback(null), 3000);
     }
+    setAvatarUploading(false);
     setIsLoading(false);
   };
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const uploadAvatarFile = async (file: File) => {
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       setFeedback({ type: 'error', message: 'Please choose an image file.' });
       setTimeout(() => setFeedback(null), 3000);
       return;
     }
-    setAvatarUploading(true);
     setFeedback(null);
     try {
-      const res = await uploadAvatarApi(file);
-      if (res.success && res.url) {
-        setAvatarUrl(res.url);
-        if (res.user) setUser(res.user);
-        setFeedback({ type: 'success', message: 'Avatar uploaded. Profile updated.' });
-        setTimeout(() => setFeedback(null), 3000);
-      } else {
-        setFeedback({ type: 'error', message: res.message || 'Upload failed' });
-        setTimeout(() => setFeedback(null), 4000);
+      if (pendingAvatarPreviewUrl) {
+        URL.revokeObjectURL(pendingAvatarPreviewUrl);
       }
+      const previewUrl = URL.createObjectURL(file);
+      setPendingAvatarPreviewUrl(previewUrl);
+      setPendingAvatarFile(file);
+      setAvatarUrl(previewUrl);
+      setFeedback({ type: 'success', message: 'Avatar selected. Click Save Changes to apply.' });
+      setTimeout(() => setFeedback(null), 3000);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Upload failed';
       setFeedback({ type: 'error', message: msg });
       setTimeout(() => setFeedback(null), 4000);
     } finally {
-      setAvatarUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await uploadAvatarFile(file);
+  };
+
+  const openCamera = () => {
+    setCameraOpen(true);
+    setCameraError(null);
+    setFeedback(null);
+  };
+
+  const closeCamera = () => {
+    setCameraOpen(false);
+    stopCameraStream();
+  };
+
+  const captureFromCamera = async () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (!video.videoWidth || !video.videoHeight) {
+      setCameraError('Camera preview is not ready yet. Please wait a moment.');
+      return;
+    }
+
+    const width = video.videoWidth || 640;
+    const height = video.videoHeight || 480;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+
+    if (!context) {
+      setFeedback({ type: 'error', message: 'Failed to process camera image.' });
+      setTimeout(() => setFeedback(null), 4000);
+      return;
+    }
+
+    context.drawImage(video, 0, 0, width, height);
+
+    canvas.toBlob(async (blob) => {
+      if (!blob) {
+        setFeedback({ type: 'error', message: 'Failed to capture image.' });
+        setTimeout(() => setFeedback(null), 4000);
+        return;
+      }
+
+      closeCamera();
+      const capturedFile = new File([blob], `avatar-${Date.now()}.jpg`, { type: 'image/jpeg' });
+      await uploadAvatarFile(capturedFile);
+    }, 'image/jpeg', 0.92);
   };
 
   return (
@@ -259,30 +419,51 @@ export default function ProfilePage() {
                       </div>
                     </div>
 
-                    {/* Fixed camera button */}
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={avatarUploading}
-                      className="absolute bottom-0 right-0 p-2 rounded-full border transition-all shadow-lg opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 disabled:opacity-70"
-                      style={{
-                        backgroundColor: colors.bg.elevated,
-                        borderColor: colors.border.default,
-                        color: colors.text.secondary
-                      }}
-                    >
-                      {avatarUploading ? (
-                        <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin block" />
-                      ) : (
-                        <CameraIcon />
-                      )}
-                    </button>
+                    <div className="absolute bottom-0 right-0 flex items-center gap-2 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={avatarUploading}
+                        title="Upload photo"
+                        className="p-2 rounded-full border shadow-lg disabled:opacity-70"
+                        style={{
+                          backgroundColor: colors.bg.elevated,
+                          borderColor: colors.border.default,
+                          color: colors.text.secondary
+                        }}
+                      >
+                        {avatarUploading ? (
+                          <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin block" />
+                        ) : (
+                          <CameraIcon />
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={openCamera}
+                        disabled={avatarUploading}
+                        title="Take photo"
+                        className="p-2 rounded-full border shadow-lg disabled:opacity-70"
+                        style={{
+                          backgroundColor: colors.bg.elevated,
+                          borderColor: colors.border.default,
+                          color: colors.text.secondary
+                        }}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                          <rect x="3" y="7" width="15" height="13" rx="2" />
+                          <path d="M18 10l3-2v8l-3-2" />
+                        </svg>
+                      </button>
+                    </div>
 
                     <input
                       type="file"
                       ref={fileInputRef}
                       className="hidden"
                       accept="image/*"
+                      capture="user"
                       onChange={handleFileChange}
                     />
                   </div>
@@ -470,6 +651,67 @@ export default function ProfilePage() {
           </div>
         </motion.div>
       </div>
+
+      {cameraOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.65)' }}
+          onClick={closeCamera}
+        >
+          <div
+            className="w-full max-w-xl rounded-2xl border p-4 sm:p-5"
+            style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base sm:text-lg font-semibold" style={{ color: colors.text.primary }}>Take profile picture</h3>
+              <button type="button" onClick={closeCamera} style={{ color: colors.text.muted }} className="text-sm">Close</button>
+            </div>
+
+            <div className="rounded-xl overflow-hidden border" style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.dark }}>
+              <div className="relative h-[320px]">
+                <video
+                  ref={videoRef}
+                  className="w-full h-[320px] object-cover"
+                  autoPlay
+                  playsInline
+                  muted
+                />
+                {cameraLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>
+                    <span className="w-8 h-8 border-2 border-current border-t-transparent rounded-full animate-spin" style={{ color: '#fff' }} />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {cameraError && (
+              <p className="mt-3 text-sm" style={{ color: colors.status.error }}>
+                {cameraError}
+              </p>
+            )}
+
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeCamera}
+                className="px-4 py-2 rounded-lg text-sm font-medium border"
+                style={{ borderColor: colors.border.faint, color: colors.text.secondary }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={captureFromCamera}
+                disabled={cameraLoading || avatarUploading}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-violet-600 hover:bg-violet-500 disabled:opacity-60"
+              >
+                Capture & Use
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

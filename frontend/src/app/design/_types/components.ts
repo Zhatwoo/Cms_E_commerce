@@ -166,6 +166,10 @@ export interface TextProps extends SpacingProps, TypographyProps, TransformProps
   text: string;
   opacity?: number;
   boxShadow?: string;
+  /** Code block mode: preserve multiline/code-like editing behavior. */
+  isCodeBlock?: boolean;
+  /** Optional language label for code block content. */
+  codeLanguage?: string;
   /** When true, allow typing into this text element in preview mode. */
   previewEditable?: boolean;
 }
@@ -206,6 +210,8 @@ export interface PageProps extends AnimatableProps, InteractableProps {
   width?: string;
   height?: string;
   background?: string;
+  /** Per-page rotation in degrees (used by top panel rotate action). */
+  pageRotation?: number;
   /** Whiteboard X position in px. */
   canvasX?: number;
   /** Whiteboard Y position in px. */
