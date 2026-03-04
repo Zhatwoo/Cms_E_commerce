@@ -50,6 +50,17 @@ const buildAssetKey = (folder: string, label: string, idx: number) => `${folder}
 const isIconFolder = (folder: string) => folder.toLowerCase() === "icons";
 const isShapeFolder = (folder: string) => folder.toLowerCase() === "shapes";
 
+const ASSET_ICONS: Record<string, React.ReactNode> = {
+  Header: <Layout className="w-5 h-5" />,
+  Hero: <Star className="w-5 h-5" />,
+  Content: <FileText className="w-5 h-5" />,
+  Cards: <CreditCard className="w-5 h-5" />,
+  Forms: <FormInput className="w-5 h-5" />,
+  Footer: <PanelBottom className="w-5 h-5" />,
+  Icons: <Smile className="w-5 h-5" />,
+  Shapes: <ShapesIcon className="w-5 h-5" />,
+};
+
 const AssetLivePreview = ({
   item,
   previewMode,
@@ -300,6 +311,5 @@ export const AssetsPanel = () => {
           </div>
         </div>
       </div>
-    </>
   );
 };

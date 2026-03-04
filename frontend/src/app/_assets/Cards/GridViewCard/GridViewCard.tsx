@@ -31,8 +31,8 @@ const createGridProductItem = (name: string, price: string, imageText: string) =
       paddingRight: 12,
       borderRadius: 8,
     },
-
     // Image + badge
+    
     React.createElement(
       Element as any,
       {
