@@ -1022,6 +1022,10 @@ function normalizePreviewWidth(
   builderParityMode?: boolean,
   mobileBreakpoint?: number,
 ): string | undefined {
+  if (builderParityMode) {
+    return typeof widthValue === "string" ? widthValue : undefined;
+  }
+
   if (!Number.isFinite(viewportWidth) || viewportWidth <= 0) return typeof widthValue === "string" ? widthValue : undefined;
 
   const breakpoint = toNumber(mobileBreakpoint, 900);
@@ -1101,6 +1105,7 @@ function isNarrowResponsivePreview(
   builderParityMode?: boolean,
   mobileBreakpoint?: number,
 ): boolean {
+  if (builderParityMode) return false;
   if (!Number.isFinite(viewportWidth) || viewportWidth <= 0) return false;
   const breakpoint = toNumber(mobileBreakpoint, 900);
   return viewportWidth <= breakpoint;
@@ -2503,7 +2508,8 @@ export function WebPreview({
         key={currentPageSlug}
         className={`responsive-preview ${isNarrowBuilderPreview ? "builder-parity-narrow" : ""} ${isNarrowViewport ? "responsive-narrow" : ""}`.trim()}
         style={{
-          width: isDesktopMode ? "100%" : width,
+          width: isDesktopMode ? (frameStyles.width ?? "100%") : width,
+          maxWidth: isDesktopMode ? frameStyles.maxWidth : undefined,
           minHeight,
           backgroundColor: background,
           margin: "0 auto",

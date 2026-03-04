@@ -72,6 +72,7 @@ export const Container = ({
   const { id, connectors: { connect, drag }, childCount } = useNode((node) => ({
     childCount: node.data.nodes.length,
   }));
+  const hasChildren = childCount > 0 || React.Children.count(children) > 0;
 
   const wPx = parsePx(width);
   const hPx = parsePx(height);
@@ -116,7 +117,7 @@ export const Container = ({
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className={`relative min-h-[120px] transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
+      className={`relative ${hasChildren ? "" : "min-h-[120px]"} transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
       style={{
         backgroundColor: childCount === 0 ? "#f4f5f7" : background,
         backgroundImage: backgroundImage

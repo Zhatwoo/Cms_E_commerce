@@ -57,8 +57,11 @@ export const Section = ({
   customClassName = "",
   children,
 }: ContainerProps) => {
-  const { id, connectors: { connect, drag } } = useNode();
+  const { id, connectors: { connect, drag }, childCount } = useNode((node) => ({
+    childCount: node.data.nodes.length,
+  }));
   const isHeaderAsset = /header/i.test(id ?? "");
+  const hasChildren = childCount > 0 || React.Children.count(children) > 0;
 
   const wPx = parsePx(width);
   const hPx = parsePx(height);
@@ -86,7 +89,7 @@ export const Section = ({
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className={`min-h-[80px] transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
+      className={`${hasChildren ? "" : "min-h-[80px]"} transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
       style={{
         backgroundColor: background,
         backgroundImage: backgroundImage

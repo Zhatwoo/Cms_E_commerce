@@ -152,6 +152,38 @@ function PreviewContent() {
     [cleanDoc]
   );
 
+  const desktopPreviewWidth = useMemo(() => {
+    const rawWidth = cleanDoc?.pages?.[0]?.props?.width;
+    if (typeof rawWidth === "number" && Number.isFinite(rawWidth) && rawWidth > 0) {
+      return `${rawWidth}px`;
+    }
+    if (typeof rawWidth === "string" && rawWidth.trim()) {
+      return rawWidth.trim();
+    }
+    return "1920px";
+  }, [cleanDoc]);
+
+  const desktopPreviewStyle = useMemo<React.CSSProperties>(() => {
+    const lower = desktopPreviewWidth.toLowerCase();
+    const isFluid =
+      lower.includes("%") ||
+      lower.includes("vw") ||
+      lower.startsWith("min(") ||
+      lower.startsWith("max(") ||
+      lower.startsWith("clamp(");
+
+    if (isFluid) {
+      return {
+        width: desktopPreviewWidth,
+      };
+    }
+
+    return {
+      width: desktopPreviewWidth,
+      minWidth: desktopPreviewWidth,
+    };
+  }, [desktopPreviewWidth]);
+
   const rawFormatted = useMemo(() => {
     if (!rawJson) return null;
     try {
@@ -504,7 +536,7 @@ function PreviewContent() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col gap-6">
+      <div className={`${viewMode === "Web-Preview" ? "w-full" : "max-w-7xl mx-auto"} px-6 py-6 flex flex-col gap-6`}>
         {/* View Toggle + Stats */}
         <div className="flex items-center justify-between gap-4 flex-wrap">
           {/* Toggle */}
@@ -610,16 +642,18 @@ function PreviewContent() {
             <p>Fetching latest clean data...</p>
           </div>
         ) : viewMode === "Web-Preview" ? (
-          <div className="flex justify-center py-6 h-full">
+          <div className={`py-6 h-full ${previewViewport === "desktop" ? "overflow-x-auto" : "flex justify-center"}`}>
             {cleanDoc ? (
               <div
                 ref={previewRef}
                 className={`bg-white transition-[width] duration-300 ease-out ${previewViewport === "desktop"
-                    ? "w-full min-h-[calc(100vh-200px)]"
+                    ? "min-h-[calc(100vh-200px)] mx-auto"
                     : "min-h-[calc(100vh-200px)] rounded-xl border border-white/10 overflow-hidden"
                   }`}
                 style={
-                  previewViewport === "tablet"
+                  previewViewport === "desktop"
+                    ? desktopPreviewStyle
+                    : previewViewport === "tablet"
                     ? { width: 768, maxWidth: "100%" }
                     : previewViewport === "mobile"
                       ? { width: 390, maxWidth: "100%" }
