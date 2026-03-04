@@ -6,6 +6,7 @@ import { Element } from "@craftjs/core";
 import { Container } from "../../../design/_designComponents/Container/Container";
 import { Text } from "../../../design/_designComponents/Text/Text";
 import { Image } from "../../../design/_designComponents/Image/Image";
+import { Icon } from "../../../design/_designComponents/Icon/Icon";
 import { Button } from "../../../design/_designComponents/Button/Button";
 import { Section } from "../../../design/_designComponents/Section/Section";
 import { Row } from "../../../design/_designComponents/Row/Row";
@@ -59,19 +60,15 @@ const createDiscoverProductCard = () =>
 					alignItems: "center",
 					justifyContent: "flex-end",
 				},
-				React.createElement(Text as any, {
-					text: "➦",
-					fontSize: 18,
-					fontWeight: "700",
+				React.createElement(Icon as any, {
+					iconType: "arrow-right",
+					size: 18,
 					color: "#666770",
-					lineHeight: 1,
 				}),
-				React.createElement(Text as any, {
-					text: "♡",
-					fontSize: 18,
-					fontWeight: "700",
+				React.createElement(Icon as any, {
+					iconType: "heart",
+					size: 18,
 					color: "#666770",
-					lineHeight: 1,
 				})
 			)
 		),
