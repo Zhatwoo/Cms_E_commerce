@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { getMyDomains, getOne, create, delete: deleteDomain, getAll, updateStatus, syncPublicLookup, publish, unpublish, updateSubdomain, schedulePublish, getSchedule, getPublishHistory, getManagementList, setClientDomainStatus } = require('../controllers/domainController');
+const { listCustomDomains, addCustomDomain, verifyCustomDomain, removeCustomDomain } = require('../controllers/customDomainController');
 const { protect, admin } = require('../middleware/auth');
 
 router.get('/my', protect, getMyDomains);
@@ -14,6 +15,13 @@ router.post('/schedule-publish', protect, schedulePublish);
 router.get('/schedule', protect, getSchedule);
 router.get('/publish-history', protect, getPublishHistory);
 router.post('/sync-public', protect, syncPublicLookup);
+
+// Custom domain management
+router.get('/custom', protect, listCustomDomains);
+router.post('/custom', protect, addCustomDomain);
+router.post('/custom/verify', protect, verifyCustomDomain);
+router.delete('/custom', protect, removeCustomDomain);
+
 router.get('/', protect, admin, getAll);
 router.get('/:id', protect, getOne);
 router.post('/', protect, create);

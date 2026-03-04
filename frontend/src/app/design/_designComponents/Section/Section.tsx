@@ -65,7 +65,7 @@ export const Section = ({
 
   const wPx = parsePx(width);
   const hPx = parsePx(height);
-  const canScale = typeof designWidth === "number" && typeof designHeight === "number" && wPx != null && hPx != null && designWidth > 0 && designHeight > 0;
+  const canScale = false;
   const scaleX = canScale ? wPx / designWidth : 1;
   const scaleY = canScale ? hPx / designHeight : 1;
 
@@ -110,6 +110,7 @@ export const Section = ({
         marginBottom: `${mb}px`,
         width,
         height,
+        boxSizing: "border-box",
         maxWidth: "100%",
         minWidth: 0,
         borderRadius: `${borderRadius}px`,

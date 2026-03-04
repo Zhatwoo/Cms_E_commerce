@@ -1370,6 +1370,18 @@ function RenderNode({
         const mr = (props.marginRight ?? m) as number;
         const mb = (props.marginBottom ?? m) as number;
         const ml = (props.marginLeft ?? m) as number;
+        const normalizedSlotWidth = normalizeLayoutWidthForNarrow(
+          normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint),
+          isNarrowPreview,
+        );
+        const rawSlotWidth = (props.width as string | undefined)?.trim() || "";
+        const slotWidthPx = rawSlotWidth.toLowerCase().endsWith("px")
+          ? Number(rawSlotWidth.slice(0, -2))
+          : NaN;
+        const forceFluidSlotWidth = Number.isFinite(slotWidthPx) && slotWidthPx > 0 && slotWidthPx < 320;
+        const resolvedSlotWidth = forceFluidSlotWidth
+          ? "100%"
+          : ((normalizedSlotWidth ?? rawSlotWidth) || "100%");
         return (
           <div
             id="products"
@@ -1378,12 +1390,16 @@ function RenderNode({
               backgroundColor: props.background as string,
               padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
               margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
-              width: props.width as string,
-              display: "flex",
-              flexWrap: "wrap",
+              width: resolvedSlotWidth,
+              maxWidth: "100%",
+              minWidth: 0,
+              display: "grid",
+              gridTemplateColumns: isNarrowPreview
+                ? "minmax(0, 1fr)"
+                : "repeat(auto-fit, minmax(220px, 1fr))",
               gap: 20,
-              justifyContent: "flex-start",
               alignItems: "flex-start",
+              boxSizing: "border-box",
             }}
           >
             {storeContext!.products.map((product) => {
@@ -1397,12 +1413,14 @@ function RenderNode({
                   style={{
                     background: "#ffffff",
                     padding: 20,
-                    maxWidth: 300,
+                    width: "100%",
+                    maxWidth: "100%",
                     borderRadius: 8,
                     boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
                     display: "flex",
                     flexDirection: "column",
                     gap: 8,
+                    boxSizing: "border-box",
                   }}
                 >
                   <div
@@ -1501,10 +1519,11 @@ function RenderNode({
         padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
         margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
         width: normalizedWidth ?? (props.width as string),
-        maxWidth: isNarrowPreview ? "100%" : undefined,
-        minWidth: isNarrowPreview ? 0 : undefined,
+        maxWidth: normalizedPosition === "static" ? "100%" : (isNarrowPreview ? "100%" : undefined),
+        minWidth: normalizedPosition === "static" ? 0 : (isNarrowPreview ? 0 : undefined),
         height: normalizedHeight ?? (props.height as string) ?? "auto",
         minHeight: !hasRenderableChildren ? "50px" : undefined,
+        boxSizing: "border-box",
         borderRadius: `${br}px`,
         ...(strokePlacement === "outside" && borderDecl
           ? { border: "none", outline: borderDecl, outlineOffset: 0 }
