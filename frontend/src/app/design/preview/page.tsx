@@ -9,6 +9,7 @@ import { WebPreview } from "../_lib/webRenderer";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 import { getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, getMyDomains, type Project } from "@/lib/api";
+import { getSubdomainSiteUrl } from "@/lib/siteUrls";
 import { getLimits } from "@/lib/subscriptionLimits";
 import { uploadClientFile } from "@/lib/firebaseStorage";
 import html2canvas from "html2canvas";
@@ -808,7 +809,11 @@ function PreviewContent() {
           <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md">
             <h2 className="text-xl font-semibold text-white mb-2">Published successfully</h2>
             <p className="text-sm text-zinc-400 mb-1">Do you want to open your website now?</p>
-            <p className="text-xs text-zinc-500 mb-5">/sites/{publishedSubdomain}</p>
+            <p className="text-xs text-zinc-500 mb-5">
+              {typeof window !== 'undefined'
+                ? getSubdomainSiteUrl(publishedSubdomain, window.location.origin).replace(/^https?:\/\//, '')
+                : `${publishedSubdomain}.localhost`}
+            </p>
 
             <div className="flex justify-end gap-3">
               <button
@@ -827,7 +832,8 @@ function PreviewContent() {
                   const target = publishedSubdomain;
                   setShowPublishedSuccessModal(false);
                   setPublishedSubdomain(null);
-                  router.push(`/sites/${encodeURIComponent(target)}`);
+                  const url = getSubdomainSiteUrl(target, typeof window !== 'undefined' ? window.location.origin : null);
+                  if (url !== '#') window.location.href = url;
                 }}
                 className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
               >

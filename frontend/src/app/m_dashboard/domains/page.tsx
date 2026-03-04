@@ -26,6 +26,8 @@ import {
   ChevronUp,
 } from 'lucide-react';
 
+import { getSubdomainSiteUrl } from '@/lib/siteUrls';
+
 const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'websitelink';
 /** Host for subdomain display (e.g. panes/localhost:3000 or panes.websitelink) */
 const SITE_HOST = process.env.NEXT_PUBLIC_SITE_HOST ?? 'localhost:3000';
@@ -35,24 +37,11 @@ function toSubdomainSlug(subdomain: string): string {
   return subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || '';
 }
 
-/**
- * Full URL to open the published site (subdomain-based, like Vercel).
- * In dev: http://localhost:3000/sites/subdomain. In production: https://subdomain.websitelink (or your BASE_DOMAIN).
- */
-function getSubdomainSiteUrl(subdomain: string, origin: string | null): string {
-  const slug = toSubdomainSlug(subdomain);
-  if (!slug) return '#';
-  if (origin && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
-    return `${origin.replace(/\/$/, '')}/sites/${encodeURIComponent(slug)}`;
-  }
-  return `https://${slug}.${BASE_DOMAIN}`;
-}
-
 /** Display URL: subdomain/host format e.g. panes/localhost:3000, or subdomain.base in production */
 function getSiteDisplayUrl(subdomain: string, origin: string | null): string {
   const slug = toSubdomainSlug(subdomain);
   if (origin && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
-    return `${SITE_HOST}/sites/${slug}`;
+    return `${slug}/${SITE_HOST}`;
   }
   return `${slug}.${BASE_DOMAIN}`;
 }
