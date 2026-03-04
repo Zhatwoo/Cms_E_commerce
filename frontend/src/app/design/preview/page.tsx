@@ -77,18 +77,36 @@ function PreviewContent() {
   };
 
   useEffect(() => {
+    let cancelled = false;
+
     async function loadData() {
+      setLoading(true);
       try {
         const sessionSnapshot = readSessionSnapshot(projectId);
         if (sessionSnapshot) {
           console.log('✅ Preview: Loaded latest snapshot from sessionStorage');
-          setRawJson(sessionSnapshot);
-          setLoading(false);
+          if (!cancelled) {
+            setRawJson(sessionSnapshot);
+            setLoading(false);
+          }
           return;
         }
 
         console.log(`📡 Preview: Fetching draft for Project: ${projectId}...`);
-        const result = await getDraft(projectId);
+        const timeoutMs = 12000;
+        const result = await Promise.race([
+          getDraft(projectId),
+          new Promise<{ success: false; timeout: true }>((resolve) =>
+            window.setTimeout(() => resolve({ success: false, timeout: true }), timeoutMs)
+          ),
+        ]);
+
+        if (cancelled) return;
+
+        if ((result as { timeout?: boolean }).timeout) {
+          console.warn(`⚠️ Preview: getDraft timeout after ${timeoutMs}ms`);
+        }
+
         let loaded = false;
 
         if (result.success && result.data) {
@@ -101,9 +119,9 @@ function PreviewContent() {
             // for the rest of the existing preview logic to work (it formats it etc.)
             if (typeof content === 'object') {
               console.log('✨ Data is CLEAN format (version:', content.version, ')');
-              setRawJson(JSON.stringify(content));
+              if (!cancelled) setRawJson(JSON.stringify(content));
             } else {
-              setRawJson(content);
+              if (!cancelled) setRawJson(content);
             }
             loaded = true;
             console.log('✅ Preview: Data loaded');
@@ -118,7 +136,7 @@ function PreviewContent() {
           const fallback = readSessionSnapshot(projectId);
           if (fallback) {
             console.log('✅ Preview: Loaded fallback snapshot from sessionStorage');
-            setRawJson(fallback);
+            if (!cancelled) setRawJson(fallback);
           }
         }
       } catch (error) {
@@ -126,14 +144,18 @@ function PreviewContent() {
         const fallback = readSessionSnapshot(projectId);
         if (fallback) {
           console.log('✅ Preview: Loaded fallback snapshot after API error');
-          setRawJson(fallback);
+          if (!cancelled) setRawJson(fallback);
         }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
     loadData();
+
+    return () => {
+      cancelled = true;
+    };
   }, [projectId]);
 
   useEffect(() => {
