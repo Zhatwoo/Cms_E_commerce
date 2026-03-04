@@ -66,6 +66,13 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const [isSliderTransitionEnabled, setIsSliderTransitionEnabled] = useState(true);
   const [showAllOtherProjects, setShowAllOtherProjects] = useState(false);
 
+  const handleCardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>, onActivate: () => void) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onActivate();
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
     if (!selectedProject?.id) {
@@ -275,13 +282,12 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                     if (featuredProject?.id) router.push(`/design?projectId=${featuredProject.id}`);
                     else router.push('/m_dashboard/web-builder');
                   }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
+                  onKeyDown={(event) =>
+                    handleCardKeyDown(event, () => {
                       if (featuredProject?.id) router.push(`/design?projectId=${featuredProject.id}`);
                       else router.push('/m_dashboard/web-builder');
-                    }
-                  }}
+                    })
+                  }
                   aria-label={featuredProject?.title ? `Open featured project ${featuredProject.title}` : 'Open featured project'}
                   title={featuredProject?.title ? `Open featured project ${featuredProject.title}` : 'Open featured project'}
                   className="w-full block rounded-xl mt-3 overflow-hidden border border-[rgba(147,145,212,0.2)] bg-[#0E0D3D] cursor-pointer"
@@ -338,13 +344,8 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                     role="button"
                     tabIndex={0}
                     onClick={() => router.push(`/design?projectId=${project.id}`)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        router.push(`/design?projectId=${project.id}`);
-                      }
-                    }}
-                    className="rounded-[26px] border border-[#2D3A90] bg-[#12145A]/80 overflow-hidden text-left hover:translate-y-[-1px] transition-transform cursor-pointer"
+                    onKeyDown={(event) => handleCardKeyDown(event, () => router.push(`/design?projectId=${project.id}`))}
+                    className="rounded-[26px] border border-[#2D3A90] bg-[#12145A]/80 overflow-hidden text-left hover:translate-y-[-1px] transition-transform"
                   >
                     <div className="w-full aspect-[16/10] overflow-hidden border-b border-[#2D3A90] bg-[#0E0D3D]">
                       {project.thumbnail ? (
