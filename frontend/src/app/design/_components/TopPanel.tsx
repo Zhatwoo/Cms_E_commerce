@@ -309,17 +309,17 @@ export const TopPanel: React.FC<TopPanelProps> = ({
 
         {/* Right Section - Mobile view toggle + Display size presets */}
         <div className="flex items-center gap-2">
-          {/* Mobile Preview Toggle Button */}
+          {/* Device Preview Toggle Button */}
           <button
             onClick={onDualViewToggle}
             className={`p-2 rounded-lg transition-colors border border-white/10 flex items-center gap-2 ${showDualView
                 ? "bg-blue-500/30 text-blue-400 border-blue-400/30"
                 : "bg-brand-medium-dark hover:bg-brand-medium text-brand-lighter"
               }`}
-            title={showDualView ? "Hide Mobile Preview" : "Show Mobile Preview"}
+            title={showDualView ? "Hide Device Preview" : "Show Device Preview"}
           >
             <Smartphone className="w-4 h-4" />
-            <span className="text-xs font-medium">Mobile</span>
+            <span className="text-xs font-medium">Device</span>
           </button>
 
           {/* Device Preset Buttons */}

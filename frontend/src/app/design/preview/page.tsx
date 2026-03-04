@@ -19,6 +19,19 @@ const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 type ViewMode = "Web-Preview" | "clean" | "raw";
 type PreviewViewport = "desktop" | "tablet" | "mobile";
 
+const toPxNumber = (value: unknown): number | undefined => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return undefined;
+  if (normalized.endsWith("px")) {
+    const parsed = Number(normalized.slice(0, -2));
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
 
 
 function PreviewContent() {
@@ -179,6 +192,21 @@ function PreviewContent() {
   }, [rawJson]);
 
   const activeJson = viewMode === "clean" ? cleanJson : viewMode === "raw" ? rawFormatted : null;
+
+  const desktopResponsiveViewportWidth = useMemo(() => {
+    if (!cleanDoc?.pages?.length) return undefined;
+
+    const targetSlug = initialPageSlug;
+    const targetPage = targetSlug
+      ? cleanDoc.pages.find((page, index) => {
+          const slug = (page.props?.pageSlug as string | undefined) || `page-${index}`;
+          return slug === targetSlug;
+        })
+      : cleanDoc.pages[0];
+
+    return toPxNumber(targetPage?.props?.width) ?? 1920;
+  }, [cleanDoc, initialPageSlug]);
+
   const capturePreviewThumbnail = async () => {
     if (thumbnailCaptureRef.current || !previewRef.current || !projectId) return;
     if (viewMode !== "Web-Preview" || loading || !cleanDoc) return;
@@ -639,6 +667,10 @@ function PreviewContent() {
                   initialPageSlug={initialPageSlug}
                   mobileBreakpoint={mobileBreakpoint}
                   enableFormInputs
+                  builderParityMode
+                  responsiveViewportWidth={
+                    previewViewport === "desktop" ? desktopResponsiveViewportWidth : undefined
+                  }
                   simulatedWidth={
                     previewViewport === "desktop"
                       ? undefined

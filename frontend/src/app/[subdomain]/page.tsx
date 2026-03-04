@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, notFound } from 'next/navigation';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
-import { LiveSite } from '@/app/design/_lib/webRenderer';
+import { WebPreview } from '@/app/design/_lib/webRenderer';
 import { serializeCraftToClean } from '@/app/design/_lib/serializer';
 import type { BuilderDocument } from '@/app/design/_types/schema';
 
@@ -130,7 +130,7 @@ export default function SubdomainSitePage() {
 
   return (
     <div className="min-h-screen w-full bg-white">
-      <LiveSite doc={cleanDoc} pageIndex={0} mobileBreakpoint={900} enableFormInputs />
+      <WebPreview doc={cleanDoc} pageIndex={0} mobileBreakpoint={900} enableFormInputs />
     </div>
   );
 }

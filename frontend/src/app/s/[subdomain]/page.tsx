@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { getProjectBySubdomain } from '@/lib/api';
 import { getDraft } from '@/app/design/_lib/pageApi';
-import { LiveSite } from '@/app/design/_lib/webRenderer';
+import { WebPreview } from '@/app/design/_lib/webRenderer';
 import { serializeCraftToClean } from '@/app/design/_lib/serializer';
 
 export default function SubdomainSitePage() {
@@ -96,7 +96,7 @@ export default function SubdomainSitePage() {
 
   return (
     <div className="min-h-screen w-full bg-white">
-      <LiveSite doc={cleanDoc} pageIndex={0} mobileBreakpoint={480} enableFormInputs />
+      <WebPreview doc={cleanDoc} pageIndex={0} mobileBreakpoint={900} enableFormInputs />
     </div>
   );
 }
