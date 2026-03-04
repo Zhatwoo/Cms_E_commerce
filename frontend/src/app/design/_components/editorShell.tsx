@@ -82,6 +82,7 @@ class FrameErrorBoundary extends React.Component<
 }
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
+const PERSISTENT_STORAGE_KEY_PREFIX = "craftjs_preview_persist";
 const UI_STATE_KEY_PREFIX = "craftjs_editor_ui";
 
 // Must match Viewport.tsx for proper multipage positioning
@@ -153,6 +154,10 @@ function getStorageKey(projectId: string) {
   return `${STORAGE_KEY_PREFIX}_${projectId}`;
 }
 
+function getPersistentStorageKey(projectId: string) {
+  return `${PERSISTENT_STORAGE_KEY_PREFIX}_${projectId}`;
+}
+
 function isQuotaError(error: unknown): boolean {
   return (
     error instanceof DOMException &&
@@ -186,6 +191,35 @@ function safeSessionRemove(key: string): void {
   try {
     if (typeof window === "undefined" || !window.sessionStorage) return;
     window.sessionStorage.removeItem(key);
+  } catch {
+    // Ignore errors when removing
+  }
+}
+
+function safeLocalGet(key: string): string | null {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return null;
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeLocalSet(key: string, value: string): void {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return;
+    window.localStorage.setItem(key, value);
+  } catch (error) {
+    if (isQuotaError(error)) {
+      console.warn("LocalStorage quota exceeded, skipping save:", key);
+    }
+  }
+}
+
+function safeLocalRemove(key: string): void {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return;
+    window.localStorage.removeItem(key);
   } catch {
     // Ignore errors when removing
   }
@@ -379,6 +413,23 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
   }
 }
 
+function prepareFrameData(jsonString: string): { valid: boolean; data?: string } {
+  if (jsonString.length > 300_000) {
+    return { valid: true, data: jsonString };
+  }
+
+  try {
+    const parsed = JSON.parse(jsonString);
+    if (parsed && parsed.ROOT && Array.isArray(parsed.ROOT.nodes)) {
+      return { valid: true, data: jsonString };
+    }
+  } catch {
+    // Fall through to deep validator for salvage/fallback behavior.
+  }
+
+  return validateCraftData(jsonString);
+}
+
 // Suppress known @craftjs/core React 19 compatibility warnings.
 // Safe to remove once craftjs releases a stable React 19 compatible version (0.3.x+).
 if (typeof window !== "undefined") {
@@ -484,7 +535,7 @@ const SafeFrame = ({
           onError?.();
         }
       } else {
-        const validation = validateCraftData(data);
+        const validation = prepareFrameData(data);
         validationCacheRef.current = {
           input: data,
           output: validation.data ?? null,
@@ -510,7 +561,7 @@ const SafeFrame = ({
       setIsReady(true);
     };
     const id = requestAnimationFrame(markReady);
-    const fallback = window.setTimeout(markReady, 260);
+    const fallback = window.setTimeout(markReady, 80);
     return () => {
       cancelAnimationFrame(id);
       window.clearTimeout(fallback);
@@ -528,7 +579,7 @@ const SafeFrame = ({
       setCanRenderFrame(true);
     };
     const id = requestAnimationFrame(allowRender);
-    const fallback = window.setTimeout(allowRender, 260);
+    const fallback = window.setTimeout(allowRender, 80);
     return () => {
       cancelAnimationFrame(id);
       window.clearTimeout(fallback);
@@ -762,6 +813,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       } catch {
         // Ignore cleanup errors
       }
+
+      safeLocalRemove(getPersistentStorageKey(projectId));
     }
 
     // Reset to empty canvas
@@ -1529,45 +1582,60 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         // Try sessionStorage per-project (no localStorage — auth/drafts in cookies or session only)
         const storageKey = getStorageKey(projectId);
         const sessionSaved = safeSessionGet(storageKey);
-
-        // Try to load from database
-        const result = await getDraft(projectId);
+        const persistentKey = getPersistentStorageKey(projectId);
+        const persistentSaved = safeLocalGet(persistentKey);
 
         let contentToLoad: string | null = null;
+
+        const applyLoadedContent = (content: string | null) => {
+          setInitialJson(content);
+          if (!content) return;
+          loadPages(content);
+          try {
+            const parsed = JSON.parse(content);
+            if (parsed.files) {
+              setProjectFiles(parsed.files);
+            }
+          } catch (e) {
+            console.warn('Failed to parse files from initialJson', e);
+          }
+        };
 
         const normalizeToCraftJson = (input: unknown): string | null => {
           try {
             if (input == null) return null;
-
-            let content: string;
-
             if (typeof input === "string") {
-              content = input;
-            } else if (
-              typeof input === "object" &&
-              (input as { version?: unknown; pages?: unknown; nodes?: unknown }).version !== undefined &&
-              Array.isArray((input as { pages?: unknown[] }).pages) &&
-              typeof (input as { nodes?: unknown }).nodes === "object"
-            ) {
-              content = deserializeCleanToCraft(input as Parameters<typeof deserializeCleanToCraft>[0]);
-            } else {
-              content = JSON.stringify(input);
+              const parsed = JSON.parse(input);
+              if (parsed && parsed.ROOT && Array.isArray(parsed.ROOT.nodes)) {
+                return input;
+              }
+              if (
+                parsed &&
+                parsed.version !== undefined &&
+                Array.isArray(parsed.pages) &&
+                parsed.nodes &&
+                typeof parsed.nodes === "object"
+              ) {
+                return deserializeCleanToCraft(parsed as Parameters<typeof deserializeCleanToCraft>[0]);
+              }
+              return null;
             }
 
-            const parsedMaybeClean = JSON.parse(content);
-            if (
-              parsedMaybeClean &&
-              parsedMaybeClean.version !== undefined &&
-              Array.isArray(parsedMaybeClean.pages) &&
-              parsedMaybeClean.nodes &&
-              typeof parsedMaybeClean.nodes === "object"
-            ) {
-              content = deserializeCleanToCraft(parsedMaybeClean);
-            }
+            if (typeof input === "object") {
+              const obj = input as {
+                ROOT?: { nodes?: unknown[] };
+                version?: unknown;
+                pages?: unknown[];
+                nodes?: unknown;
+              };
 
-            const parsedCraft = JSON.parse(content);
-            if (parsedCraft && parsedCraft.ROOT && Array.isArray(parsedCraft.ROOT.nodes)) {
-              return content;
+              if (obj.ROOT && Array.isArray(obj.ROOT.nodes)) {
+                return JSON.stringify(obj);
+              }
+
+              if (obj.version !== undefined && Array.isArray(obj.pages) && obj.nodes && typeof obj.nodes === "object") {
+                return deserializeCleanToCraft(obj as Parameters<typeof deserializeCleanToCraft>[0]);
+              }
             }
 
             return null;
@@ -1577,6 +1645,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         };
 
         // 1. Check sessionStorage first to preserve latest unsaved/preview snapshot
+        // Apply immediately so existing projects open without waiting for DB/network.
         if (sessionSaved) {
           const normalized = normalizeToCraftJson(sessionSaved);
           if (normalized) {
@@ -1584,18 +1653,40 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
             if (normalized !== sessionSaved) {
               safeSessionSet(storageKey, normalized);
             }
+            safeLocalSet(persistentKey, normalized);
+            applyLoadedContent(contentToLoad);
           } else {
             console.warn('⚠️ Invalid draft structure in session. Clearing session cache for this project.');
             safeSessionRemove(storageKey);
           }
         }
 
-        // 2. Check Database (fallback)
+        // 2. Check persistent local cache when session cache is unavailable
+        if (!contentToLoad && persistentSaved) {
+          const normalized = normalizeToCraftJson(persistentSaved);
+          if (normalized) {
+            contentToLoad = normalized;
+            safeSessionSet(storageKey, normalized);
+            if (normalized !== persistentSaved) {
+              safeLocalSet(persistentKey, normalized);
+            }
+            applyLoadedContent(contentToLoad);
+          } else {
+            safeLocalRemove(persistentKey);
+          }
+        }
+
+        // 3. Try to load from database
+        const result = await getDraft(projectId);
+
+        // 4. Check Database (fallback)
         if (!contentToLoad && result.success && result.data && result.data.content) {
           const normalized = normalizeToCraftJson(result.data.content);
           if (normalized) {
             contentToLoad = normalized;
             safeSessionSet(storageKey, normalized);
+            safeLocalSet(persistentKey, normalized);
+            applyLoadedContent(contentToLoad);
           } else {
             console.warn('⚠️ Invalid draft structure in DB. Clearing invalid draft...');
             await deleteDraft(projectId);
@@ -1604,17 +1695,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
         // Legacy global fallback intentionally disabled to avoid cross-project draft bleed.
 
-        setInitialJson(contentToLoad);
-        if (contentToLoad) {
-          loadPages(contentToLoad);
-          try {
-            const parsed = JSON.parse(contentToLoad);
-            if (parsed.files) {
-              setProjectFiles(parsed.files);
-            }
-          } catch (e) {
-            console.warn('Failed to parse files from initialJson', e);
-          }
+        if (!contentToLoad) {
+          applyLoadedContent(null);
         }
 
         // IMPORTANT: Mark as ready immediately via Ref to avoid stale closures
@@ -1776,6 +1858,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           } catch (e) {
             if (!isQuotaError(e)) console.warn("Auto-save: sessionStorage write failed", e);
           }
+        }
+
+        if (projectId) {
+          safeLocalSet(getPersistentStorageKey(projectId), toStore);
         }
 
         if (snapshot) lastSnapshotRef.current = snapshot;
@@ -1948,8 +2034,18 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const validFrameData = React.useMemo(() => {
     if (initialJson === undefined || initialJson === null || initialJson === "") return null;
     try {
+      if (typeof initialJson === "string" && initialJson.length > 300_000) {
+        return initialJson;
+      }
+
       const parsed = typeof initialJson === "string" ? JSON.parse(initialJson) : initialJson;
       if (!parsed || typeof parsed !== "object" || !parsed.ROOT || !Array.isArray(parsed.ROOT?.nodes)) return null;
+
+      const parsedKeys = Object.keys(parsed as Record<string, unknown>);
+      if (parsedKeys.length > 1200 && typeof initialJson === "string") {
+        return initialJson;
+      }
+
       const resolverKeys = Object.keys(resolverRef.current);
       const keys = new Set(resolverKeys);
 
@@ -1995,43 +2091,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     } catch {
       return null;
     }
-  }, [initialJson]);
-
-  // Debug: list resolver keys after mount (must run in useEffect to avoid setState-during-render)
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const t = setTimeout(() => {
-      try {
-        const res = resolverRef.current;
-        // eslint-disable-next-line no-console
-        console.log("[EditorShell] resolver keys:", Object.keys(res));
-        if (initialJson) {
-          const parsed = typeof initialJson === "string" ? JSON.parse(initialJson) : initialJson;
-          const nodeTypes = new Set<string>();
-          if (parsed && parsed.nodes) {
-            Object.values(parsed.nodes as Record<string, unknown>).forEach((n: unknown) => {
-              try {
-                const node = n as { data?: { displayName?: string; name?: string; type?: string | { name?: string } } };
-                const display = node?.data?.displayName ?? node?.data?.name ?? (typeof node?.data?.type === "string" ? node.data.type : node?.data?.type?.name);
-                if (display) nodeTypes.add(display);
-              } catch {
-                // ignore
-              }
-            });
-          }
-          const resolverKeys = Object.keys(res);
-          const missing = [...nodeTypes].filter((typeName) => !resolverKeys.includes(typeName) && !resolverKeys.includes((typeName || "").replace(/\s+/g, "")));
-          // eslint-disable-next-line no-console
-          console.log("[EditorShell] Serialized node types:", [...nodeTypes]);
-          // eslint-disable-next-line no-console
-          console.log("[EditorShell] Missing resolver types:", missing);
-        }
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.warn("[EditorShell] failed to parse initialJson for debug", err);
-      }
-    }, 50);
-    return () => clearTimeout(t);
   }, [initialJson]);
 
   return (
@@ -2104,6 +2163,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                   onPointerCancel={handlePointerCancel}
                   onScroll={handleCanvasScroll}
                 >
+                  {initialJson === undefined && (
+                    <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center text-brand-light/80">
+                      Opening project...
+                    </div>
+                  )}
                   <div
                     className="flex items-start justify-start relative"
                     style={{
