@@ -2058,6 +2058,7 @@ export function WebPreview({
   const width = (pageProps.width as string) || "1920px";
   const background = (pageProps.background as string) || "#ffffff";
   const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
+  const pageRotation = toNumber(pageProps.pageRotation, 0);
   const frameStyles = resolvePageFrameStyles(width);
   const { ref, width: measuredWidth } = useContainerWidth(1000);
   const viewportWidth = simulatedWidth ?? measuredWidth;
@@ -2164,13 +2165,16 @@ export function WebPreview({
         key={currentPageSlug}
         className="responsive-preview"
         style={{
-          width: isDesktopMode ? "100%" : width,
+          width,
+          maxWidth: isDesktopMode ? "100%" : undefined,
           minHeight,
           backgroundColor: background,
-          margin: isDesktopMode ? 0 : "0 auto",
+          margin: "0 auto",
           boxShadow: isDesktopMode ? "none" : "0 25px 50px -12px rgba(0,0,0,0.25)",
           borderRadius: isDesktopMode ? 0 : 8,
           overflow: "hidden",
+          transform: pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
+          transformOrigin: "center center",
           ...transitionStyle,
           ...(!isDesktopMode ? { containerType: "inline-size" as const } : {}),
         }}
@@ -2249,7 +2253,10 @@ export function LiveSite({
   }
 
   const pageProps = mergeProps("Page", currentPage.props) as Record<string, unknown>;
+  const width = (pageProps.width as string) || "1920px";
+  const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
   const background = (pageProps.background as string) || "#ffffff";
+  const pageRotation = toNumber(pageProps.pageRotation, 0);
   const { ref, width: viewportWidth } = useContainerWidth();
   const isPhoneSize = viewportWidth <= mobileBreakpoint;
   const liveSiteWrapperRef = React.useRef<HTMLDivElement>(null);
@@ -2364,9 +2371,13 @@ export function LiveSite({
         key={currentPageSlug}
         ref={ref}
         style={{
-          width: "100%",
-          minHeight: "100vh",
+          width: isPhoneSize ? "100%" : width,
+          maxWidth: isPhoneSize ? "100%" : undefined,
+          minHeight,
           backgroundColor: background,
+          margin: isPhoneSize ? 0 : "0 auto",
+          transform: pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
+          transformOrigin: "center center",
           ...transitionStyle,
         }}
       >

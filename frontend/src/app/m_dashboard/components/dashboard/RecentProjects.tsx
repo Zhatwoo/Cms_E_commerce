@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTheme } from '../context/theme-context';
 import { useAlert } from '../context/alert-context';
 import { useProject } from '../context/project-context';
-import { listProjects, createProject, getStoredUser, type Project } from '@/lib/api';
+import { createProject, getStoredUser, listProjects, type Project } from '@/lib/api';
 import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
 import { DraftPreviewThumbnail } from '../projects/DraftPreviewThumbnail';
 
@@ -31,33 +31,14 @@ export function RecentProjects() {
   const { theme, colors } = useTheme();
   const router = useRouter();
   const { showAlert } = useAlert();
-  const { selectedProject, setSelectedProjectId } = useProject();
+  const { selectedProject, setSelectedProjectId, loading } = useProject();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [projectsLoading, setProjectsLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createTitle, setCreateTitle] = useState('');
   const [createSubdomain, setCreateSubdomain] = useState('');
   const [creating, setCreating] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    listProjects()
-      .then((res) => {
-        if (!cancelled && res.success && res.projects) {
-          // Get top 3 recent projects sorted by update time
-          const sorted = [...res.projects].sort((a, b) => {
-            const dateA = new Date(a.updatedAt || a.createdAt || 0).getTime();
-            const dateB = new Date(b.updatedAt || b.createdAt || 0).getTime();
-            return dateB - dateA;
-          });
-          setProjects(sorted);
-        }
-      })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, []);
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 639px)');
@@ -66,6 +47,34 @@ export function RecentProjects() {
     media.addEventListener('change', handleChange);
     return () => media.removeEventListener('change', handleChange);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!selectedProject?.id) {
+      setProjects([]);
+      setProjectsLoading(false);
+      return;
+    }
+
+    setProjectsLoading(true);
+    listProjects({ instanceId: selectedProject.id })
+      .then((res) => {
+        if (!cancelled && res.success && Array.isArray(res.projects)) {
+          setProjects(res.projects);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setProjects([]);
+      })
+      .finally(() => {
+        if (!cancelled) setProjectsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedProject?.id]);
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return 'Edited recently';
@@ -103,6 +112,7 @@ export function RecentProjects() {
       const res = await createProject({
         title,
         subdomain: subdomain || undefined,
+        instanceId: selectedProject?.id || undefined,
       });
 
       if (!res.success || !res.project) {
@@ -153,7 +163,7 @@ export function RecentProjects() {
         </button>
       </div>
 
-      {loading ? (
+      {loading || projectsLoading ? (
         <div className="flex gap-4 md:gap-5 overflow-hidden">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="animate-pulse flex-shrink-0 w-[240px]">
