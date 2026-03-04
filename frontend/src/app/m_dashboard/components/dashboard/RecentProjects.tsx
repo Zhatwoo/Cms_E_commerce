@@ -1,19 +1,11 @@
 'use client';
-<<<<<<< HEAD
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-=======
-import React, { useState, useEffect, useRef } from 'react';
->>>>>>> ba5a1b3b49c310d6a10fb92e356be506852e803a
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useTheme } from '../context/theme-context';
 import { useAlert } from '../context/alert-context';
 import { useProject } from '../context/project-context';
-<<<<<<< HEAD
-import { createProject, updateProject, deleteProject, getStoredUser } from '@/lib/api';
-=======
-import { listProjects, createProject, getStoredUser, type Project } from '@/lib/api';
->>>>>>> ba5a1b3b49c310d6a10fb92e356be506852e803a
+import { listProjects, createProject, updateProject, deleteProject, getStoredUser, type Project } from '@/lib/api';
 import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
 import { DraftPreviewThumbnail } from '../projects/DraftPreviewThumbnail';
 
@@ -47,7 +39,6 @@ export function RecentProjects() {
   const [createTitle, setCreateTitle] = useState('');
   const [createSubdomain, setCreateSubdomain] = useState('');
   const [creating, setCreating] = useState(false);
-  const [projects, setProjects] = useState(contextProjects);
   const [openMenuProjectId, setOpenMenuProjectId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -103,10 +94,6 @@ export function RecentProjects() {
     const colors = ['#FF8A3D', '#9333EA', '#3B82F6', '#10B981', '#F59E0B'];
     return colors[idx % colors.length];
   };
-
-  useEffect(() => {
-    setProjects(contextProjects);
-  }, [contextProjects]);
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -166,7 +153,6 @@ export function RecentProjects() {
     }
   };
 
-<<<<<<< HEAD
   const visibleProjects = useMemo(
     () =>
       [...projects]
@@ -234,9 +220,6 @@ export function RecentProjects() {
       setOpenMenuProjectId(null);
     }
   };
-
-=======
->>>>>>> ba5a1b3b49c310d6a10fb92e356be506852e803a
   return (
     <div className="mb-8 md:mb-12 w-full min-w-0 max-w-full overflow-x-hidden">
       <div className="flex items-center justify-between mb-5 md:mb-6">

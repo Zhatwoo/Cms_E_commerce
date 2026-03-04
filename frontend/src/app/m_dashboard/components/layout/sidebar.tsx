@@ -151,19 +151,12 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
                 item.id === 'home'
                   ? pathname === '/m_dashboard'
                   : item.id === 'web-builder'
-<<<<<<< HEAD
                     ? pathname.startsWith('/design') || pathname.startsWith('/m_dashboard/web-builder') || pathname.startsWith('/m_dashboard/projects')
-                    : item.href
-                      ? pathname === item.href
-                      : false;
-=======
-                    ? pathname.startsWith('/m_dashboard/web-builder')
                     : item.id === 'inventory'
                       ? pathname.startsWith('/m_dashboard/inventory')
                       : item.href
                         ? pathname === item.href
                         : false;
->>>>>>> ba5a1b3b49c310d6a10fb92e356be506852e803a
 
             const content = (
               <div
@@ -268,19 +261,12 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
               item.id === 'home'
                 ? pathname === '/m_dashboard'
                 : item.id === 'web-builder'
-<<<<<<< HEAD
                   ? pathname.startsWith('/design') || pathname.startsWith('/m_dashboard/web-builder') || pathname.startsWith('/m_dashboard/projects')
-                  : item.href
-                    ? pathname === item.href
-                    : false;
-=======
-                  ? pathname.startsWith('/m_dashboard/web-builder')
                   : item.id === 'inventory'
                     ? pathname.startsWith('/m_dashboard/inventory')
                     : item.href
                       ? pathname === item.href
                       : false;
->>>>>>> ba5a1b3b49c310d6a10fb92e356be506852e803a
 
             return (
               <Link

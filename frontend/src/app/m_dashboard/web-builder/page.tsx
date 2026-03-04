@@ -1,9 +1,3 @@
-<<<<<<< HEAD
-import { redirect } from 'next/navigation';
-
-export default function LegacyWebBuilderRedirectPage() {
-  redirect('/design');
-=======
 'use client';
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1272,5 +1266,4 @@ export default function WebBuilderPage() {
       />
     </section>
   );
->>>>>>> ba5a1b3b49c310d6a10fb92e356be506852e803a
 }
