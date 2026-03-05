@@ -6,119 +6,120 @@ import { Container } from "../../../design/_designComponents/Container/Container
 import { Text } from "../../../design/_designComponents/Text/Text";
 import { Button } from "../../../design/_designComponents/Button/Button";
 import { Image } from "../../../design/_designComponents/Image/Image";
-import { Section } from "../../../design/_designComponents/Section/Section";
 import { TemplateEntry } from "../../_types";
 
 export const ProductCard: TemplateEntry = {
   label: "Product Card",
   description: "E-commerce product card",
-  preview: "🛍️",
+  preview: "Card",
   category: "card",
   element: React.createElement(
     Element as any,
     {
-      is: Section as any,
+      is: Container as any,
       canvas: true,
-      background: "#f1f5f9",
-      width: "100%",
-      minHeight: "100vh",
-      paddingTop: 32,
-      paddingBottom: 32,
-      paddingLeft: 16,
-      paddingRight: 16,
-      gap: 16,
-      flexDirection: "row",
-      flexWrap: "wrap",
-      justifyContent: "center",
-      alignItems: "flex-start",
-      alignContent: "flex-start",
+      background: "#ffffff",
+      width: "calc((100% - 72px) / 4)",
+      flexShrink: 0,
+      borderWidth: 1,
+      borderColor: "#e5e7eb",
+      borderStyle: "solid",
+      paddingTop: 12,
+      paddingBottom: 12,
+      paddingLeft: 12,
+      paddingRight: 12,
+      borderRadius: 8,
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "flex-start",
+      gap: 10,
     },
 
+    // Image + badge
     React.createElement(
       Element as any,
       {
         is: Container as any,
         canvas: true,
-        background: "#ffffff",
-        width: "min(calc(50% - 8px), 240px)",
-        flexShrink: 0,
-        paddingTop: 14,
-        paddingBottom: 14,
-        paddingLeft: 14,
-        paddingRight: 14,
-        borderRadius: 12,
-        boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-        borderWidth: 1,
-        borderColor: "#e5e7eb",
-        borderStyle: "solid",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "flex-start",
-        gap: 10,
+        background: "transparent",
+        position: "relative",
+        width: "100%",
+        height: "320px",
+        padding: 0,
+        gap: 0,
       },
-
-      // Image container
+      React.createElement(Image as any, {
+        src: "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80",
+        alt: "Product Image",
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+        borderRadius: 4,
+        allowUpload: true,
+      }),
       React.createElement(
         Element as any,
         {
           is: Container as any,
           canvas: true,
-          background: "#f8fafc",
-          width: "100%",
-          height: "180px",
-          padding: 0,
-          borderRadius: 8,
-          overflow: "hidden",
+          position: "absolute",
+          top: "8px",
+          left: "8px",
+          background: "#1e293b",
+          borderRadius: 3,
+          paddingTop: 4,
+          paddingBottom: 4,
+          paddingLeft: 8,
+          paddingRight: 8,
+          width: "auto",
+          height: "auto",
           alignItems: "center",
           justifyContent: "center",
           gap: 0,
         },
-        React.createElement(Image as any, {
-          src: "",
-          alt: "Product Image",
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-          borderRadius: 8,
-          allowUpload: true,
+        React.createElement(Text as any, {
+          text: "50% Off",
+          fontSize: 11,
+          fontWeight: "600",
+          color: "#ffffff",
         })
-      ),
+      )
+    ),
 
-      // Product name
-      React.createElement(Text as any, {
-        text: "Product Name",
-        fontSize: 14,
-        fontWeight: "600",
-        color: "#1e293b",
-        textAlign: "center",
-      }),
+    // Product name
+    React.createElement(Text as any, {
+      text: "Product Name",
+      fontSize: 14,
+      fontWeight: "700",
+      color: "#111827",
+      textAlign: "center",
+    }),
 
-      // Price
-      React.createElement(Text as any, {
-        text: "₱ 1,000",
-        fontSize: 16,
-        fontWeight: "700",
-        color: "#222222",
-        textAlign: "center",
-      }),
+    // Price
+    React.createElement(Text as any, {
+      text: "PHP 1,000",
+      fontSize: 13,
+      fontWeight: "500",
+      color: "#111827",
+      textAlign: "center",
+    }),
 
-      // Add to cart button
-      React.createElement(Button as any, {
-        label: "Add to Cart",
-        backgroundColor: "#ffffff",
-        textColor: "#222222",
-        fontSize: 12,
-        fontWeight: "600",
-        paddingTop: 9,
-        paddingBottom: 9,
-        paddingLeft: 16,
-        paddingRight: 16,
-        borderColor: "#222222",
-        borderWidth: 1,
-        borderStyle: "solid",
-        borderRadius: 8,
-        width: "100%",
-      })
-    )
+    // Add to cart button
+    React.createElement(Button as any, {
+      label: "Add to Cart",
+      backgroundColor: "#ffffff",
+      textColor: "#111827",
+      fontSize: 12,
+      fontWeight: "600",
+      paddingTop: 8,
+      paddingBottom: 8,
+      paddingLeft: 20,
+      paddingRight: 20,
+      borderColor: "#111827",
+      borderWidth: 1,
+      borderStyle: "solid",
+      borderRadius: 4,
+      width: "100%",
+    })
   ),
 };
