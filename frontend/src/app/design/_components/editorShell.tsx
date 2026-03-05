@@ -35,6 +35,7 @@ import { PrototypeTabProvider } from "./PrototypeTabContext";
 import { PrototypeFlowLines } from "./PrototypeFlowLines";
 import { NewPageDropPlacementHandler } from "./NewPageDropPlacementHandler";
 import { HeaderFooterDropPlacementHandler } from "./HeaderFooterDropPlacementHandler";
+import { PanelDropFreePlacementHandler } from "./PanelDropFreePlacementHandler";
 import { ScrollToSelectedHandler } from "./ScrollToSelectedHandler";
 import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
@@ -688,8 +689,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [activeTool, setActiveTool] = useState<CanvasTool>("move");
   const [frameReady, setFrameReady] = useState(false);
   const [showDualView, setShowDualView] = useState(false);
-  const [suppressDropIndicator, setSuppressDropIndicator] = useState(false);
-  const [dropIndicatorPulse, setDropIndicatorPulse] = useState(false);
   const hasInitialCenteringRef = useRef(false);
   const hasForcedRightPanelOpenRef = useRef(false);
   const saveStatusRef = useRef(saveStatus);
@@ -1612,7 +1611,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         clearTimer = null;
       }
       document.body.dataset.newPageDragActive = "true";
-      setSuppressDropIndicator(true);
     };
 
     const clearSuppression = (delayMs = 900) => {
@@ -1621,7 +1619,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       }
       clearTimer = window.setTimeout(() => {
         delete document.body.dataset.newPageDragActive;
-        setSuppressDropIndicator(false);
         clearTimer = null;
       }, delayMs);
     };
@@ -1655,7 +1652,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         window.clearTimeout(clearTimer);
       }
       delete document.body.dataset.newPageDragActive;
-      setSuppressDropIndicator(false);
       clearTimer = null;
     };
 
@@ -1677,20 +1673,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       window.removeEventListener("blur", handleWindowBlur);
     };
   }, []);
-
-  // Animate green drop line while dragging (except when suppressed for New Page)
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      const isDragging = document.body.dataset.editorDragging === "true";
-      if (!isDragging || suppressDropIndicator) {
-        setDropIndicatorPulse(false);
-        return;
-      }
-      setDropIndicatorPulse((prev) => !prev);
-    }, 180);
-
-    return () => window.clearInterval(interval);
-  }, [suppressDropIndicator]);
 
   // Handle Delete Data
   const handleDeleteData = async () => {
@@ -1973,13 +1955,28 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
   return (
     <div data-web-builder-root className="h-screen bg-brand-black text-brand-lighter overflow-hidden font-sans relative">
+      <style>{`
+        div[style*="position: fixed"][style*="z-index: 99999"][style*="border-style: solid"],
+        div[style*="position: fixed"][style*="z-index: 99999"][style*="background-color: rgb(98, 196, 98)"],
+        div[style*="position: fixed"][style*="z-index: 99999"][style*="background-color: rgba(98, 196, 98"],
+        div[style*="position: fixed"][style*="z-index: 99999"][style*="height: 2px"],
+        div[style*="position: fixed"][style*="z-index: 99999"][style*="height: 3px"] {
+          display: none !important;
+          opacity: 0 !important;
+          border-width: 0 !important;
+          background: transparent !important;
+        }
+      `}</style>
       <Editor
         resolver={resolver}
         indicator={{
-          success: suppressDropIndicator ? "transparent" : (dropIndicatorPulse ? "#4ade80" : "#22c55e"),
-          error: suppressDropIndicator ? "transparent" : "#ef4444",
-          thickness: suppressDropIndicator ? 0 : (dropIndicatorPulse ? 4 : 2),
-          transition: suppressDropIndicator ? "none" : "all 140ms ease-out",
+          success: "rgba(0,0,0,0)",
+          error: "rgba(0,0,0,0)",
+          thickness: 0,
+          transition: "none",
+          style: {
+            display: "none",
+          },
         }}
         onRender={RenderNode}
         onNodesChange={(query) => requestAnimationFrame(() => handleNodesChange(query))}
@@ -1997,6 +1994,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 <FigmaStyleDragHandler />
                 <FreeDropPlacementHandler />
                 <NewPageDropPlacementHandler />
+                <HeaderFooterDropPlacementHandler />
+                <PanelDropFreePlacementHandler />
                 <TextToolHandler />
                 <ShapeToolHandler />
                 <DoubleClickTransformHandler />
