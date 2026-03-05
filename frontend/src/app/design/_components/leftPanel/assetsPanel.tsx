@@ -311,5 +311,5 @@ export const AssetsPanel = () => {
           </div>
         </div>
       </div>
-      );
+  );
 };

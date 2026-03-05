@@ -11,4 +11,3 @@ export { ProductDescriptionCard } from "./ProductDescriptionCard/ProductDescript
 export { CategoriesCard } from "./CategoriesCard/CategoriesCard";
 export { BrowseCategory } from "./BrowseCategory/BrowseCategory";
 export { ProductsOverview } from "./DiscoverProducts/productsOverview";
-
