@@ -4,7 +4,7 @@ import { DesignSection } from "../../_components/rightPanel/settings/DesignSecti
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
-import { ColorInput } from "../../_components/rightPanel/settings/inputs/ColorInput";
+import { ColorPicker } from "../../_components/rightPanel/settings/inputs/ColorPicker";
 import type { IconProps, SetProp } from "../../_types/components";
 
 export const IconSettings = () => {
@@ -68,27 +68,11 @@ export const IconSettings = () => {
           {/* Color */}
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-brand-lighter">Color</label>
-            <div className="flex items-center gap-1 bg-brand-black border border-brand-medium/30 rounded-md p-1">
-              <input
-                type="color"
-                value={color === "currentColor" ? "#000000" : color}
-                onChange={(e) =>
-                  typedSetProp((props) => {
-                    props.color = e.target.value;
-                  })
-                }
-                className="w-5 h-5 rounded cursor-pointer bg-transparent border-none p-0"
-              />
-              <ColorInput
-                value={color || "currentColor"}
-                onChange={(val) =>
-                  typedSetProp((props) => {
-                    props.color = val;
-                  })
-                }
-                className="flex-1"
-              />
-            </div>
+            <ColorPicker
+              value={color || "#ffffff"}
+              onChange={(val) => typedSetProp((props) => { props.color = val; })}
+              className="w-full"
+            />
           </div>
 
           {/* Link URL */}

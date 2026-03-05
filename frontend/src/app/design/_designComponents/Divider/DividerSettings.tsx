@@ -2,7 +2,7 @@ import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
-import { ColorInput } from "../../_components/rightPanel/settings/inputs/ColorInput";
+import { ColorPicker } from "../../_components/rightPanel/settings/inputs/ColorPicker";
 import type { DividerProps, SetProp } from "../../_types/components";
 
 export const DividerSettings = () => {
@@ -46,19 +46,11 @@ export const DividerSettings = () => {
           {/* Color */}
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-brand-lighter">Color</label>
-            <div className="flex items-center gap-2 bg-brand-medium-dark border border-brand-medium/30 rounded-md p-1">
-              <input
-                type="color"
-                value={color}
-                onChange={(e) => typedSetProp((props) => { props.color = e.target.value; })}
-                className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0"
-              />
-              <ColorInput
-                value={color ?? "#4a4a4a"}
-                onChange={(val) => typedSetProp((props) => { props.color = val; })}
-                className="flex-1"
-              />
-            </div>
+            <ColorPicker
+              value={color ?? "#4a4a4a"}
+              onChange={(val) => typedSetProp((props) => { props.color = val; })}
+              className="w-full"
+            />
           </div>
 
           {/* Thickness & Width */}

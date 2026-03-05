@@ -101,12 +101,16 @@ app.use(cors({
     return cb(null, false);
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-project-id']
 }));
 app.use(cookieParser());
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+
+// Domain & Subdomain detection middleware
+const domainDetector = require('./middleware/domainDetector');
+app.use(domainDetector);
 
 // Rate limit for auth (stricter in production; relaxed in dev so you can retry)
 const authLimiter = rateLimit({

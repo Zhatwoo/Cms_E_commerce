@@ -1,7 +1,7 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
-import { ColorInput } from "../../_components/rightPanel/settings/inputs/ColorInput";
+import { ColorPicker } from "../../_components/rightPanel/settings/inputs/ColorPicker";
 import { slugFromName } from "../../_lib/slug";
 import type { PageProps, SetProp } from "../../_types";
 
@@ -123,19 +123,11 @@ export const PageSettings = () => {
           {/* Background */}
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-brand-lighter">Background</label>
-            <div className="flex items-center gap-2 bg-brand-medium-dark rounded-lg px-2.5 py-1">
-              <input
-                type="color"
-                value={background ?? "#ffffff"}
-                onChange={(e) => typedSetProp((props) => { props.background = e.target.value; })}
-                className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0"
-              />
-              <ColorInput
-                value={background ?? "#ffffff"}
-                onChange={(val) => typedSetProp((props) => { props.background = val; })}
-                className="flex-1"
-              />
-            </div>
+            <ColorPicker
+              value={background ?? "#ffffff"}
+              onChange={(val) => typedSetProp((props) => { props.background = val; })}
+              className="w-full"
+            />
           </div>
         </div>
       </DesignSection>

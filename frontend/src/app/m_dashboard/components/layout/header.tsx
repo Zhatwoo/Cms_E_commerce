@@ -93,7 +93,6 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     const [scrolled, setScrolled] = useState(false);
     const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
     const userName = user?.name || user?.email || '';
-    const avatarSrc = user?.avatar || (user?.email ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user.email)}` : '');
 
     const resolveAvatarUrl = (raw?: string): string => {
         const value = String(raw || '').trim();
@@ -103,7 +102,11 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
         return value;
     };
 
-    const avatarSrc = resolveAvatarUrl(user?.avatar);
+    const avatarSrc = user?.avatar
+        ? resolveAvatarUrl(user.avatar)
+        : user?.email
+            ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user.email)}`
+            : '';
 
     useEffect(() => {
         const onScroll = () => setScrolled(window.scrollY > 10);
@@ -221,7 +224,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                             <button
                                 type="button"
                                 onClick={() => setShowMenu((v) => !v)}
-                                className="relative h-10 w-10 rounded-full flex items-center justify-center shadow-sm hover:opacity-90 transition-opacity overflow-visible"
+                                className="relative h-10 w-10 rounded-full p-[2px] flex items-center justify-center shadow-sm hover:opacity-90 transition-opacity overflow-hidden"
                                 style={{
                                     background: 'linear-gradient(135deg, #FFCE00 0%, #A64CD9 50%, #5C1D8F 100%)',
                                     border: 'none',
@@ -230,16 +233,21 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                                 aria-label="Profile menu"
                                 aria-expanded={showMenu}
                             >
-                                {avatarSrc && !avatarLoadFailed ? (
-                                    <img
-                                        src={avatarSrc}
-                                        alt={userName || 'User avatar'}
-                                        className="h-full w-full object-cover"
-                                        onError={() => setAvatarLoadFailed(true)}
-                                    />
-                                ) : (
-                                    <UserIcon />
-                                )}
+                                <div
+                                    className="h-full w-full rounded-full overflow-hidden flex items-center justify-center"
+                                    style={{ backgroundColor: colors.bg.dark }}
+                                >
+                                    {avatarSrc && !avatarLoadFailed ? (
+                                        <img
+                                            src={avatarSrc}
+                                            alt={userName || 'User avatar'}
+                                            className="h-full w-full object-cover"
+                                            onError={() => setAvatarLoadFailed(true)}
+                                        />
+                                    ) : (
+                                        <UserIcon />
+                                    )}
+                                </div>
                             </button>
                             {showMenu && (
                                 <>

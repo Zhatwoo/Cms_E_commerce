@@ -1,13 +1,13 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React from "react";
 import { Element } from "@craftjs/core";
-import { Container } from "../../../design/_designComponents/Container/Container";
+import { Image } from "../../../design/_designComponents/Image/Image";
 import { Text } from "../../../design/_designComponents/Text/Text";
 import { Icon } from "../../../design/_designComponents/Icon/Icon";
 import { Section } from "../../../design/_designComponents/Section/Section";
 import { Row } from "../../../design/_designComponents/Row/Row";
-import { Column } from "../../../design/_designComponents/Column/Column";
 import { TemplateEntry } from "../../_types";
 
 export const HeaderWithSearch: TemplateEntry = {
@@ -16,65 +16,114 @@ export const HeaderWithSearch: TemplateEntry = {
   preview: "Search",
   element: React.createElement(
     Element as any,
-    { is: Section as any, background: "#66706b", paddingTop: 10, paddingBottom: 10, paddingLeft: 8, paddingRight: 8, canvas: true },
+    {
+      is: Row as any,
+      canvas: true,
+      background: "#ffffff",
+      width: "100%",
+      paddingTop: 12,
+      paddingBottom: 12,
+      paddingLeft: 24,
+      paddingRight: 24,
+      justifyContent: "space-between",
+      alignItems: "center",
+      gap: 24,
+    },
     React.createElement(
       Element as any,
       {
-        is: Container as any,
-        background: "#ffffff",
-        borderRadius: 2,
-        width: "100%",
-        maxWidth: "1500px",
-        paddingTop: 12,
-        paddingBottom: 12,
-        paddingLeft: 24,
-        paddingRight: 24,
+        is: Section as any,
         canvas: true,
+        background: "transparent",
+        width: "100%",
+        padding: 0,
+        minHeight: "auto",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
       },
       React.createElement(
         Element as any,
         {
           is: Row as any,
           canvas: true,
+          background: "transparent",
+          width: "100%",
+          padding: 0,
+          gap: 24,
+          flexWrap: "nowrap",
           alignItems: "center",
           justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: 12,
         },
+        React.createElement(Image as any, {
+          src: "",
+          alt: "Header Logo",
+          width: 100,
+          height: 40,
+          objectFit: "contain",
+          allowUpload: true,
+        }),
         React.createElement(
           Element as any,
-          { is: Column as any, width: "clamp(120px, 16%, 180px)", padding: 0, gap: 0, canvas: true, alignItems: "flex-start" },
+          {
+            is: Row as any,
+            canvas: true,
+            background: "transparent",
+            width: "auto",
+            padding: 0,
+            gap: 32,
+            flexWrap: "nowrap",
+            alignItems: "center",
+            justifyContent: "center",
+          },
           React.createElement(Text as any, {
-            text: "Sass",
-            fontSize: 48,
-            fontWeight: "700",
-            fontFamily: "cursive",
+            text: "Shop",
+            fontSize: 24,
+            fontWeight: "500",
             color: "#111111",
-            lineHeight: 0.9,
+          }),
+          React.createElement(Text as any, {
+            text: "Retailer",
+            fontSize: 24,
+            fontWeight: "500",
+            color: "#111111",
+          }),
+          React.createElement(Text as any, {
+            text: "Wholesale",
+            fontSize: 24,
+            fontWeight: "500",
+            color: "#111111",
+          }),
+          React.createElement(Text as any, {
+            text: "About",
+            fontSize: 24,
+            fontWeight: "500",
+            color: "#111111",
           })
         ),
         React.createElement(
           Element as any,
-          { is: Column as any, width: "clamp(420px, 58%, 760px)", padding: 0, gap: 0, canvas: true },
-          React.createElement(
-            Element as any,
-            { is: Row as any, canvas: true, alignItems: "center", justifyContent: "flex-start", gap: 26, flexWrap: "nowrap" },
-            React.createElement(Text as any, { text: "Shop", fontSize: 36, color: "#111111", fontWeight: "500" }),
-            React.createElement(Text as any, { text: "Retailer", fontSize: 36, color: "#111111", fontWeight: "500" }),
-            React.createElement(Text as any, { text: "Wholesale", fontSize: 36, color: "#111111", fontWeight: "500" }),
-            React.createElement(Text as any, { text: "About", fontSize: 36, color: "#111111", fontWeight: "500" })
-          )
-        ),
-        React.createElement(
-          Element as any,
-          { is: Column as any, width: "clamp(150px, 18%, 240px)", padding: 0, gap: 0, canvas: true, alignItems: "flex-end" },
-          React.createElement(
-            Element as any,
-            { is: Row as any, canvas: true, alignItems: "center", justifyContent: "flex-end", gap: 18, flexWrap: "nowrap" },
-            React.createElement(Icon as any, { iconType: "search", size: 28, color: "#111111" }),
-            React.createElement(Icon as any, { iconType: "cart", size: 28, color: "#111111" }),
-            React.createElement(Text as any, { text: "Mail", fontSize: 18, color: "#111111", fontWeight: "600" })
-          )
+          {
+            is: Row as any,
+            canvas: true,
+            background: "transparent",
+            width: "auto",
+            padding: 0,
+            gap: 24,
+            flexWrap: "nowrap",
+            alignItems: "center",
+            justifyContent: "flex-end",
+          },
+          React.createElement(Icon as any, {
+            iconType: "search",
+            size: 24,
+            color: "#111111",
+          }),
+          React.createElement(Icon as any, {
+            iconType: "cart",
+            size: 24,
+            color: "#111111",
+          })
         )
       )
     )

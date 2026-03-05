@@ -75,7 +75,7 @@ export const Container = ({
 
   const wPx = parsePx(width);
   const hPx = parsePx(height);
-  const canScale = typeof designWidth === "number" && typeof designHeight === "number" && wPx != null && hPx != null && designWidth > 0 && designHeight > 0;
+  const canScale = false;
   const scaleX = canScale ? wPx / designWidth : 1;
   const scaleY = canScale ? hPx / designHeight : 1;
 
@@ -137,6 +137,9 @@ export const Container = ({
         marginBottom: `${mb}px`,
         width,
         height,
+        boxSizing: "border-box",
+        maxWidth: position === "static" ? "100%" : undefined,
+        minWidth: 0,
         borderTopLeftRadius: `${rtl}px`,
         borderTopRightRadius: `${rtr}px`,
         borderBottomRightRadius: `${rbr}px`,
