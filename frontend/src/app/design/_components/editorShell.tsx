@@ -1616,7 +1616,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         clearTimer = null;
       }
       document.body.dataset.newPageDragActive = "true";
-      setSuppressDropIndicator(true);
     };
 
     const clearSuppression = (delayMs = 900) => {
@@ -1625,7 +1624,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       }
       clearTimer = window.setTimeout(() => {
         delete document.body.dataset.newPageDragActive;
-        setSuppressDropIndicator(false);
         clearTimer = null;
       }, delayMs);
     };
@@ -1659,7 +1657,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         window.clearTimeout(clearTimer);
       }
       delete document.body.dataset.newPageDragActive;
-      setSuppressDropIndicator(false);
       clearTimer = null;
     };
 
@@ -1681,20 +1678,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       window.removeEventListener("blur", handleWindowBlur);
     };
   }, []);
-
-  // Animate green drop line while dragging (except when suppressed for New Page)
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      const isDragging = document.body.dataset.editorDragging === "true";
-      if (!isDragging || suppressDropIndicator) {
-        setDropIndicatorPulse(false);
-        return;
-      }
-      setDropIndicatorPulse((prev) => !prev);
-    }, 180);
-
-    return () => window.clearInterval(interval);
-  }, [suppressDropIndicator]);
 
   // Handle Delete Data
   const handleDeleteData = async () => {
