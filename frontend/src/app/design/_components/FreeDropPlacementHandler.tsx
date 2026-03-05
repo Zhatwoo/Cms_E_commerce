@@ -46,7 +46,7 @@ function getRenderedScale(el: HTMLElement | null): { scaleX: number; scaleY: num
 }
 
 function isSupportedSource(target: EventTarget | null): boolean {
-  const el = target as HTMLElement | null;
+  const el = target instanceof Element ? target : null;
   if (!el) return false;
 
   const source = el.closest("[data-drag-source='component'], [data-drag-source='asset']") as HTMLElement | null;

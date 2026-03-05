@@ -216,6 +216,7 @@ export const FigmaStyleDragHandler = () => {
     fallbackNodeId: string | null;
     selectionSnapshotIds: string[];
     clickedWasInSelection: boolean;
+    preferMultiDrag: boolean;
     dirty: boolean;
   } | null>(null);
 
@@ -384,8 +385,9 @@ export const FigmaStyleDragHandler = () => {
       if (locked) return;
 
       const clickedWasInSelection = selectedIdsAtMouseDown.includes(nodeIdFromTarget);
+      const preferMultiDrag = e.shiftKey || e.ctrlKey || e.metaKey;
 
-      if (clickedWasInSelection && selectedIdsAtMouseDown.length > 1) {
+      if (clickedWasInSelection && selectedIdsAtMouseDown.length > 1 && preferMultiDrag) {
         if (e.cancelable) e.preventDefault();
         e.stopPropagation();
         if (typeof e.stopImmediatePropagation === "function") {
@@ -404,6 +406,7 @@ export const FigmaStyleDragHandler = () => {
         fallbackNodeId: nodeIdFromTarget,
         selectionSnapshotIds: selectedIdsAtMouseDown,
         clickedWasInSelection,
+        preferMultiDrag,
         committed: false,
         dirty: false,
       };
@@ -474,7 +477,7 @@ export const FigmaStyleDragHandler = () => {
         const state = queryRef.current.getState();
         let ids = selectedToIds(state.events.selected).filter((id) => id && id !== "ROOT" && state.nodes[id]);
 
-        if (d.clickedWasInSelection && d.selectionSnapshotIds.length > 1) {
+        if (d.preferMultiDrag && d.clickedWasInSelection && d.selectionSnapshotIds.length > 1) {
           const snapshotValid = d.selectionSnapshotIds.filter((id) => id && id !== "ROOT" && state.nodes[id]);
           if (snapshotValid.length > 1) {
             ids = snapshotValid;

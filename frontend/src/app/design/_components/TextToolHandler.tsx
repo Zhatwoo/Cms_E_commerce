@@ -27,6 +27,19 @@ type PreviewRect = {
     height: number;
 };
 
+function getRenderedScale(el: HTMLElement | null): { scaleX: number; scaleY: number } {
+    if (!el) return { scaleX: 1, scaleY: 1 };
+    const rect = el.getBoundingClientRect();
+    const baseWidth = el.offsetWidth || el.clientWidth || 0;
+    const baseHeight = el.offsetHeight || el.clientHeight || 0;
+    const scaleX = baseWidth > 0 ? rect.width / baseWidth : 1;
+    const scaleY = baseHeight > 0 ? rect.height / baseHeight : 1;
+    return {
+        scaleX: Number.isFinite(scaleX) && scaleX > 0.01 ? scaleX : 1,
+        scaleY: Number.isFinite(scaleY) && scaleY > 0.01 ? scaleY : 1,
+    };
+}
+
 export const TextToolHandler = () => {
     const { actions, query } = useEditor();
     const { activeTool } = useCanvasTool();
@@ -125,25 +138,44 @@ export const TextToolHandler = () => {
 
             if (dragState.targetNodeId) {
                 try {
+                    const state = queryRef.current.getState();
+                    const parentNode = state.nodes[dragState.targetNodeId];
+                    const parentProps = (parentNode?.data?.props ?? {}) as Record<string, unknown>;
                     const targetDom = queryRef.current.node(dragState.targetNodeId).get()?.dom;
                     let finalLeft = left;
                     let finalTop = top;
+                    let finalWidth = width;
+                    let finalHeight = height;
 
                     if (targetDom) {
                         const rect = targetDom.getBoundingClientRect();
-                        finalLeft = (left - rect.left);
-                        finalTop = (top - rect.top);
+                        const { scaleX, scaleY } = getRenderedScale(targetDom);
+                        finalLeft = Math.max(0, Math.round((left - rect.left) / scaleX));
+                        finalTop = Math.max(0, Math.round((top - rect.top) / scaleY));
+                        finalWidth = Math.max(150, Math.round(width / scaleX));
+                        finalHeight = Math.max(0, Math.round(height / scaleY));
                     }
+
+                    const parentDisplay = String(parentProps.display ?? "").toLowerCase();
+                    const parentPosition = String(parentProps.position ?? "static").toLowerCase();
+                    const parentIsFreeform = parentProps.isFreeform === true;
+                    const parentIsFlexOrGrid = parentDisplay === "flex" || parentDisplay === "grid";
+                    const parentIsPositioned =
+                        parentPosition === "relative" ||
+                        parentPosition === "absolute" ||
+                        parentPosition === "fixed" ||
+                        parentPosition === "sticky";
+                    const shouldUseAbsolute = parentIsFreeform || (!parentIsFlexOrGrid && parentIsPositioned);
 
                     const tree = queryRef.current.parseReactElement(
                         <Text
                             text="Type something..."
                             fontSize={18}
-                            position="absolute"
-                            left={`${finalLeft}px`}
-                            top={`${finalTop}px`}
-                            width={`${width}px`}
-                            height={height > 20 ? `${height}px` : undefined}
+                            position={shouldUseAbsolute ? "absolute" : "relative"}
+                            left={shouldUseAbsolute ? `${finalLeft}px` : "auto"}
+                            top={shouldUseAbsolute ? `${finalTop}px` : "auto"}
+                            width={shouldUseAbsolute ? `${finalWidth}px` : "100%"}
+                            height={shouldUseAbsolute && finalHeight > 20 ? `${finalHeight}px` : undefined}
                         />
                     ).toNodeTree();
 

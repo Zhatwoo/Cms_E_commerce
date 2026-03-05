@@ -15,6 +15,7 @@ import { Text } from "../_designComponents/Text/Text";
 import { Page } from "../_designComponents/Page/Page";
 import { Viewport } from "../_designComponents/Viewport/Viewport";
 import { Section } from "../_designComponents/Section/Section";
+import { Image } from "../_designComponents/Image/Image";
 import { Button } from "../_designComponents/Button/Button";
 import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
@@ -49,7 +50,6 @@ import {
   DEFAULT_SCALE,
   ZOOM_STEP,
   ZOOM_SENSITIVITY,
-  SMOOTH_LERP_FACTOR,
 } from "./zoomConstants";
 
 /**
@@ -1635,18 +1635,23 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       }, delayMs);
     };
 
+    const hasClosest = (target: EventTarget | null, selector: string) => {
+      if (!target) return false;
+      const maybeElement = target as { closest?: (query: string) => Element | null };
+      if (typeof maybeElement.closest !== "function") return false;
+      return !!maybeElement.closest(selector);
+    };
+
     const handleMouseDown = (event: MouseEvent) => {
-      const target = event.target as HTMLElement | null;
-      const isNewPageSource = !!target?.closest("[data-component-new-page='true']");
+      const isNewPageSource = hasClosest(event.target, "[data-component-new-page='true']");
       if (isNewPageSource) {
         activateSuppression();
       }
     };
 
     const handleDragStart = (event: DragEvent) => {
-      const target = event.target as HTMLElement | null;
       const startedFromNewPage =
-        !!target?.closest("[data-component-new-page='true']") ||
+        hasClosest(event.target, "[data-component-new-page='true']") ||
         document.body.dataset.newPageDragActive === "true";
       if (startedFromNewPage) {
         activateSuppression();
@@ -1898,6 +1903,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       ...CRAFT_RESOLVER,
       Text: Text || Container,
       text: Text || Container,
+      Image: Image || Container,
+      image: Image || Container,
       Circle: Circle || Container,
       Square: Square || Container,
       Triangle: Triangle || Container,
