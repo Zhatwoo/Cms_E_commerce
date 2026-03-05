@@ -2259,11 +2259,6 @@ function RenderNode({
       const triangleStroke = `${bw}px ${props.borderStyle as string} ${props.borderColor as string}`;
       const shapeStrokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
       const useOutline = shapeStrokePlacement === "outside" && bw > 0 && type !== "Triangle";
-      const uniformShapeRadius = toNumber(props.borderRadius, 0);
-      const shapeTopLeftRadius = toNumber(props.radiusTopLeft ?? uniformShapeRadius, uniformShapeRadius);
-      const shapeTopRightRadius = toNumber(props.radiusTopRight ?? uniformShapeRadius, uniformShapeRadius);
-      const shapeBottomRightRadius = toNumber(props.radiusBottomRight ?? uniformShapeRadius, uniformShapeRadius);
-      const shapeBottomLeftRadius = toNumber(props.radiusBottomLeft ?? uniformShapeRadius, uniformShapeRadius);
 
       return wrap(
         <div
@@ -2297,12 +2292,7 @@ function RenderNode({
             backgroundSize: type !== "Triangle" && bgImage ? (props.backgroundSize as string) : undefined,
             backgroundPosition: type !== "Triangle" && bgImage ? (props.backgroundPosition as string) : undefined,
             backgroundRepeat: type !== "Triangle" && bgImage ? (props.backgroundRepeat as string) : undefined,
-            borderRadius:
-              type === "Circle"
-                ? "50%"
-                : type === "Square"
-                  ? `${shapeTopLeftRadius}px ${shapeTopRightRadius}px ${shapeBottomRightRadius}px ${shapeBottomLeftRadius}px`
-                  : undefined,
+            borderRadius: type === "Circle" ? "50%" : undefined,
             ...(type !== "Triangle" && bw > 0
               ? useOutline
                 ? { border: "none", outline: triangleStroke, outlineOffset: 0 }

@@ -63,7 +63,7 @@ function getOverlayRect(el: HTMLElement): DOMRect {
   return el.getBoundingClientRect();
 }
 
-const SNAP_THRESHOLD = 0;
+const SNAP_THRESHOLD = 4;
 
 type SiblingRect = {
   left: number;
