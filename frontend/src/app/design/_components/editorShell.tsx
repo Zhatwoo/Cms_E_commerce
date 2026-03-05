@@ -408,10 +408,6 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
 }
 
 function prepareFrameData(jsonString: string): { valid: boolean; data?: string } {
-  if (jsonString.length > 300_000) {
-    return { valid: true, data: jsonString };
-  }
-
   try {
     const parsed = JSON.parse(jsonString);
     if (parsed && parsed.ROOT && Array.isArray(parsed.ROOT.nodes)) {
@@ -1924,6 +1920,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     base.page = CRAFT_RESOLVER.Page ?? Page;
     base.Viewport = CRAFT_RESOLVER.Viewport ?? Viewport;
     base.viewport = CRAFT_RESOLVER.Viewport ?? Viewport;
+    base.Text = (typeof Text === "function" ? Text : null) ?? Container;
+    base.text = (typeof Text === "function" ? Text : null) ?? Container;
     return base;
   }, []);
 
@@ -1931,17 +1929,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const validFrameData = React.useMemo(() => {
     if (initialJson === undefined || initialJson === null || initialJson === "") return null;
     try {
-      if (typeof initialJson === "string" && initialJson.length > 300_000) {
-        return initialJson;
-      }
-
       const parsed = typeof initialJson === "string" ? JSON.parse(initialJson) : initialJson;
       if (!parsed || typeof parsed !== "object" || !parsed.ROOT || !Array.isArray(parsed.ROOT?.nodes)) return null;
-
-      const parsedKeys = Object.keys(parsed as Record<string, unknown>);
-      if (parsedKeys.length > 1200 && typeof initialJson === "string") {
-        return initialJson;
-      }
 
       const resolverKeys = Object.keys(resolverRef.current);
       const keys = new Set(resolverKeys);
