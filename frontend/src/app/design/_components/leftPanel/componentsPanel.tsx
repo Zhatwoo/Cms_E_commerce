@@ -48,14 +48,28 @@ export const ComponentsPanel = () => {
   const [activeElement, setActiveElement] = useState<ComponentElement | null>(null);
 
   const pageComponent = CRAFT_RESOLVER.Page ?? Container;
+  const FLOW_LAYOUT_COMPONENTS = new Set<unknown>([
+    Section,
+    Container,
+    Row,
+    Column,
+    Frame,
+    pageComponent,
+  ]);
 
-  const withFreePositionDefaults = (element: React.ReactElement): React.ReactElement =>
-    React.cloneElement(element, {
+  const withFreePositionDefaults = (element: React.ReactElement): React.ReactElement => {
+    const maybeCraftComponent = (element.props as { is?: unknown } | undefined)?.is ?? element.type;
+    if (FLOW_LAYOUT_COMPONENTS.has(maybeCraftComponent)) {
+      return element;
+    }
+
+    return React.cloneElement(element, {
       position: "absolute",
       top: "0px",
       left: "0px",
       ...(element.props ?? {}),
     });
+  };
 
   // ... (COMPONENTS_DATA stays the same)
   const COMPONENTS_DATA: Category[] = [
@@ -221,7 +235,7 @@ export const ComponentsPanel = () => {
     },
   ];
 
-  const renderVariant = (variant: ComponentVariant, compact = false) => {
+  const renderVariant = (variant: ComponentVariant & { icon?: React.ReactNode; color?: string }, compact = false) => {
     const isNewPage = variant.isNewPage;
     return (
       <div
@@ -260,8 +274,8 @@ export const ComponentsPanel = () => {
           </>
         ) : (
           <>
-            <div className={`w-8 h-8 rounded-lg ${(variant as any).color ?? "bg-brand-medium/20"} flex items-center justify-center text-brand-lighter group-hover:scale-110 transition-transform duration-300`}>
-              {(variant as any).icon}
+            <div className={`w-8 h-8 rounded-lg ${variant.color ?? "bg-brand-medium/20"} flex items-center justify-center text-brand-lighter group-hover:scale-110 transition-transform duration-300`}>
+              {variant.icon}
             </div>
             <span className="text-[10px] text-brand-lighter font-medium truncate w-full group-hover:text-brand-white transition-colors">
               {variant.label}

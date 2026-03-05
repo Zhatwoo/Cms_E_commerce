@@ -103,7 +103,7 @@ function PreviewContent() {
           console.log('✅ Preview: API result success. Keys in data:', Object.keys(result.data));
 
           if (result.data.content) {
-            let content = result.data.content;
+            const content = result.data.content;
 
             // If already clean object, we still keep it as "rawJson" (as string) 
             // for the rest of the existing preview logic to work (it formats it etc.)
@@ -265,24 +265,7 @@ function PreviewContent() {
   }, [rawJson]);
 
   const activeJson = viewMode === "clean" ? cleanJson : viewMode === "raw" ? rawFormatted : null;
-<<<<<<< HEAD
-
-  const desktopResponsiveViewportWidth = useMemo(() => {
-    if (!cleanDoc?.pages?.length) return undefined;
-
-    const targetSlug = initialPageSlug;
-    const targetPage = targetSlug
-      ? cleanDoc.pages.find((page: { props?: { pageSlug?: string } }, index: number) => {
-          const slug = (page.props?.pageSlug as string | undefined) || `page-${index}`;
-          return slug === targetSlug;
-        })
-      : cleanDoc.pages[0];
-
-    return toPxNumber(targetPage?.props?.width) ?? 1920;
-  }, [cleanDoc, initialPageSlug]);
-=======
   const useBuilderParityMode = false;
->>>>>>> 6b54c54c6361d2fe24e8411ebbde1d54625cb0c6
 
   const capturePreviewThumbnail = async () => {
     if (thumbnailCaptureRef.current || !previewRef.current || !projectId) return;
@@ -291,10 +274,10 @@ function PreviewContent() {
     thumbnailCaptureRef.current = true;
     try {
       const canvas = await html2canvas(previewRef.current, {
-        background: "#ffffff",
+        backgroundColor: "#ffffff",
         scale: 0.7,
         useCORS: true,
-      } as any);
+      });
 
       const blob: Blob | null = await new Promise((resolve) => {
         canvas.toBlob((b: Blob | null) => resolve(b), "image/jpeg", 0.85);
