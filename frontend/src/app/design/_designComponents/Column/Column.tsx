@@ -10,6 +10,13 @@ function parsePx(value: string | undefined): number | null {
   return m ? parseFloat(m[1]) : null;
 }
 
+function fluidSpace(value: number, min = 0): string {
+  if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
+  const preferred = Math.max(0.1, value / 12);
+  const floor = Math.max(min, Math.round(value * 0.45));
+  return `clamp(${floor}px, ${preferred.toFixed(2)}cqw, ${value}px)`;
+}
+
 /**
  * Column — a vertical flex child designed to live inside a Row.
  * Defaults to flex-1 so columns share space equally within a Row.
@@ -72,23 +79,26 @@ export const Column = ({
   return (
     <div
       data-node-id={id}
+      data-fluid-space="true"
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
       className={`min-h-[40px] transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
       style={{
-        flex: width === "auto" ? 1 : undefined,
+        flex: width === "auto" ? "1 1 0%" : undefined,
         backgroundColor: background,
-        paddingLeft: `${pl}px`,
-        paddingRight: `${pr}px`,
-        paddingTop: `${pt}px`,
-        paddingBottom: `${pb}px`,
-        marginLeft: `${ml}px`,
-        marginRight: `${mr}px`,
-        marginTop: `${mt}px`,
-        marginBottom: `${mb}px`,
+        paddingLeft: fluidSpace(pl, 0),
+        paddingRight: fluidSpace(pr, 0),
+        paddingTop: fluidSpace(pt, 0),
+        paddingBottom: fluidSpace(pb, 0),
+        marginLeft: fluidSpace(ml, 0),
+        marginRight: fluidSpace(mr, 0),
+        marginTop: fluidSpace(mt, 0),
+        marginBottom: fluidSpace(mb, 0),
         width: width !== "auto" ? width : undefined,
         height,
+        boxSizing: "border-box",
+        containerType: "inline-size",
         maxWidth: "100%",
         minWidth: 0,
         borderRadius: `${borderRadius}px`,
@@ -100,7 +110,7 @@ export const Column = ({
         flexWrap,
         alignItems,
         justifyContent,
-        gap: `${gap}px`,
+        gap: fluidSpace(gap, 0),
         boxShadow,
         opacity,
         overflow,
@@ -121,7 +131,7 @@ export const Column = ({
             flexWrap,
             alignItems,
             justifyContent,
-            gap: `${gap}px`,
+            gap: fluidSpace(gap, 0),
           }}
         >
           {children}

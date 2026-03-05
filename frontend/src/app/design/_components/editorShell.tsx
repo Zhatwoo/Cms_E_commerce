@@ -15,6 +15,7 @@ import { Text } from "../_designComponents/Text/Text";
 import { Page } from "../_designComponents/Page/Page";
 import { Viewport } from "../_designComponents/Viewport/Viewport";
 import { Section } from "../_designComponents/Section/Section";
+import { Image } from "../_designComponents/Image/Image";
 import { Button } from "../_designComponents/Button/Button";
 import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
@@ -408,10 +409,6 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
 }
 
 function prepareFrameData(jsonString: string): { valid: boolean; data?: string } {
-  if (jsonString.length > 300_000) {
-    return { valid: true, data: jsonString };
-  }
-
   try {
     const parsed = JSON.parse(jsonString);
     if (parsed && parsed.ROOT && Array.isArray(parsed.ROOT.nodes)) {
@@ -1609,6 +1606,96 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     return () => cancelAnimationFrame(id);
   }, [frameReady]);
 
+  // Hide Craft drop indicator only when dragging the special New Page source item
+  useEffect(() => {
+    let clearTimer: number | null = null;
+
+    const activateSuppression = () => {
+      if (clearTimer !== null) {
+        window.clearTimeout(clearTimer);
+        clearTimer = null;
+      }
+      document.body.dataset.newPageDragActive = "true";
+      setSuppressDropIndicator(true);
+    };
+
+    const clearSuppression = (delayMs = 900) => {
+      if (clearTimer !== null) {
+        window.clearTimeout(clearTimer);
+      }
+      clearTimer = window.setTimeout(() => {
+        delete document.body.dataset.newPageDragActive;
+        setSuppressDropIndicator(false);
+        clearTimer = null;
+      }, delayMs);
+    };
+
+    const handleMouseDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      const isNewPageSource = !!target?.closest("[data-component-new-page='true']");
+      if (isNewPageSource) {
+        activateSuppression();
+      }
+    };
+
+    const handleDragStart = (event: DragEvent) => {
+      const target = event.target as HTMLElement | null;
+      const startedFromNewPage =
+        !!target?.closest("[data-component-new-page='true']") ||
+        document.body.dataset.newPageDragActive === "true";
+      if (startedFromNewPage) {
+        activateSuppression();
+      }
+    };
+
+    const handleDropOrDragEnd = () => {
+      if (document.body.dataset.newPageDragActive === "true") {
+        clearSuppression(1000);
+      }
+    };
+
+    const handleWindowBlur = () => {
+      if (clearTimer !== null) {
+        window.clearTimeout(clearTimer);
+      }
+      delete document.body.dataset.newPageDragActive;
+      setSuppressDropIndicator(false);
+      clearTimer = null;
+    };
+
+    document.addEventListener("mousedown", handleMouseDown, true);
+    document.addEventListener("dragstart", handleDragStart, true);
+    document.addEventListener("drop", handleDropOrDragEnd, true);
+    document.addEventListener("dragend", handleDropOrDragEnd, true);
+    window.addEventListener("blur", handleWindowBlur);
+
+    return () => {
+      if (clearTimer !== null) {
+        window.clearTimeout(clearTimer);
+      }
+      delete document.body.dataset.newPageDragActive;
+      document.removeEventListener("mousedown", handleMouseDown, true);
+      document.removeEventListener("dragstart", handleDragStart, true);
+      document.removeEventListener("drop", handleDropOrDragEnd, true);
+      document.removeEventListener("dragend", handleDropOrDragEnd, true);
+      window.removeEventListener("blur", handleWindowBlur);
+    };
+  }, []);
+
+  // Animate green drop line while dragging (except when suppressed for New Page)
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      const isDragging = document.body.dataset.editorDragging === "true";
+      if (!isDragging || suppressDropIndicator) {
+        setDropIndicatorPulse(false);
+        return;
+      }
+      setDropIndicatorPulse((prev) => !prev);
+    }, 180);
+
+    return () => window.clearInterval(interval);
+  }, [suppressDropIndicator]);
+
   // Handle Delete Data
   const handleDeleteData = async () => {
     if (!projectId) return;
@@ -1806,6 +1893,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       ...CRAFT_RESOLVER,
       Text: Text || Container,
       text: Text || Container,
+      Image: Image || Container,
+      image: Image || Container,
       Circle: Circle || Container,
       Square: Square || Container,
       Triangle: Triangle || Container,
@@ -1825,6 +1914,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     base.page = CRAFT_RESOLVER.Page ?? Page;
     base.Viewport = CRAFT_RESOLVER.Viewport ?? Viewport;
     base.viewport = CRAFT_RESOLVER.Viewport ?? Viewport;
+    base.Text = (typeof Text === "function" ? Text : null) ?? Container;
+    base.text = (typeof Text === "function" ? Text : null) ?? Container;
     return base;
   }, []);
 
@@ -1832,17 +1923,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const validFrameData = React.useMemo(() => {
     if (initialJson === undefined || initialJson === null || initialJson === "") return null;
     try {
-      if (typeof initialJson === "string" && initialJson.length > 300_000) {
-        return initialJson;
-      }
-
       const parsed = typeof initialJson === "string" ? JSON.parse(initialJson) : initialJson;
       if (!parsed || typeof parsed !== "object" || !parsed.ROOT || !Array.isArray(parsed.ROOT?.nodes)) return null;
-
-      const parsedKeys = Object.keys(parsed as Record<string, unknown>);
-      if (parsedKeys.length > 1200 && typeof initialJson === "string") {
-        return initialJson;
-      }
 
       const resolverKeys = Object.keys(resolverRef.current);
       const keys = new Set(resolverKeys);

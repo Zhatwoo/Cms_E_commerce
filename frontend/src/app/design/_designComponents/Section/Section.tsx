@@ -32,7 +32,6 @@ export const Section = ({
   marginRight,
   marginBottom,
   marginLeft,
-  width = "100%",
   height = "auto",
   borderRadius = 0,
   backgroundImage = "",
@@ -70,10 +69,9 @@ export const Section = ({
   const isHeaderAsset = /header/i.test(id ?? "");
   const hasChildren = childCount > 0 || React.Children.count(children) > 0;
 
-  const wPx = parsePx(width);
   const hPx = parsePx(height);
   const canScale = false;
-  const scaleX = canScale ? wPx / designWidth : 1;
+  const scaleX = canScale ? 1 : 1;
   const scaleY = canScale ? hPx / designHeight : 1;
 
   const p = typeof padding === "number" ? padding : 0;
@@ -116,7 +114,7 @@ export const Section = ({
         marginRight: fluidSpace(mr, 0),
         marginTop: fluidSpace(mt, 0),
         marginBottom: fluidSpace(mb, 0),
-        width,
+        width: "100%",
         height,
         boxSizing: "border-box",
         maxWidth: "100%",
@@ -144,6 +142,9 @@ export const Section = ({
         transform: rotation ? `rotate(${rotation}deg)` : undefined,
       }}
     >
+      {flexDirection === "row" && (
+        <style>{`[data-node-id="${id}"] > * { min-width: 0; }`}</style>
+      )}
       {canScale ? (
         <div
           style={{
