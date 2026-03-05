@@ -324,6 +324,16 @@ export function FreeDropPlacementHandler() {
                 props.height = "auto";
               }
             }
+
+            if (displayName === "Text") {
+              const parentDom = query.node(parentId).get()?.dom ?? null;
+              const parentStyle = parentDom ? window.getComputedStyle(parentDom) : null;
+              const isRow = (parentStyle?.flexDirection ?? "").startsWith("row");
+              props.width = isRow ? "auto" : "100%";
+              props.maxWidth = "100%";
+              props.minWidth = 0;
+              props.height = "auto";
+            }
           });
           return;
         }

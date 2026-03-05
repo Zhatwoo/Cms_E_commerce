@@ -52,9 +52,10 @@ export const Text = ({
   const { id, connectors: { connect, drag }, actions, parentId } = useNode((node) => ({
     parentId: node.data.parent,
   }));
-  const { parentDisplay, parentDisplayName } = useEditor((state) => ({
+  const { parentDisplay, parentDisplayName, parentFlexDirection } = useEditor((state) => ({
     parentDisplay: parentId ? String(state.nodes[parentId]?.data?.props?.display ?? "") : "",
     parentDisplayName: parentId ? String(state.nodes[parentId]?.data?.displayName ?? "") : "",
+    parentFlexDirection: parentId ? String(state.nodes[parentId]?.data?.props?.flexDirection ?? "") : "",
   }));
   const { editingTextNodeId, setEditingTextNodeId } = useInlineTextEdit();
   const isEditing = editingTextNodeId === id;
@@ -67,7 +68,10 @@ export const Text = ({
     parentDisplay === "flex" ||
     parentDisplay === "grid" ||
     FLEX_PARENT_TYPES.has(parentDisplayName);
-  const resolvedWidth = width ?? (isFlowText && isFlexOrGridParent ? "100%" : undefined);
+  const isRowParent =
+    parentDisplayName === "Row" ||
+    (parentDisplay === "flex" && parentFlexDirection.toLowerCase().startsWith("row"));
+  const resolvedWidth = width ?? (isFlowText && isFlexOrGridParent ? (isRowParent ? "auto" : "100%") : undefined);
   const hasExplicitHeight =
     typeof height === "string" &&
     height.trim() !== "" &&
