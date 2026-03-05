@@ -17,6 +17,8 @@ type DropPoint = {
   clientY: number;
 };
 
+type DragSourceKind = "asset" | "component" | null;
+
 const MAX_RETRY_FRAMES = 24;
 const LAYOUT_LIKE_TYPES = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame"]);
 const SNAP_THRESHOLD = 16;
@@ -56,6 +58,16 @@ function isSupportedSource(target: EventTarget | null): boolean {
   return true;
 }
 
+function getSourceKind(target: EventTarget | null): DragSourceKind {
+  const el = target instanceof Element ? target : null;
+  if (!el) return null;
+  const source = el.closest("[data-drag-source='component'], [data-drag-source='asset']") as HTMLElement | null;
+  if (!source) return null;
+  if (source.getAttribute("data-component-new-page") === "true") return null;
+  const kind = source.getAttribute("data-drag-source");
+  return kind === "asset" || kind === "component" ? kind : null;
+}
+
 function snapToGrid(value: number): number {
   return Math.round(value / GRID_SIZE) * GRID_SIZE;
 }
@@ -65,18 +77,21 @@ export function FreeDropPlacementHandler() {
   const preDragNodeIdsRef = useRef<Set<string>>(new Set());
   const isTrackingRef = useRef(false);
   const dropPointRef = useRef<DropPoint | null>(null);
+  const dragSourceKindRef = useRef<DragSourceKind>(null);
 
   useEffect(() => {
-    const beginTracking = () => {
+    const beginTracking = (sourceKind: DragSourceKind) => {
       const nodes = (query.getState()?.nodes ?? {}) as Record<string, NodeShape>;
       preDragNodeIdsRef.current = new Set(Object.keys(nodes));
       dropPointRef.current = null;
+      dragSourceKindRef.current = sourceKind;
       isTrackingRef.current = true;
     };
 
     const stopTracking = () => {
       preDragNodeIdsRef.current.clear();
       dropPointRef.current = null;
+      dragSourceKindRef.current = null;
       isTrackingRef.current = false;
     };
 
@@ -87,6 +102,18 @@ export function FreeDropPlacementHandler() {
       const nodes = (state?.nodes ?? {}) as Record<string, NodeShape>;
       const preIds = preDragNodeIdsRef.current;
       const newIds = Object.keys(nodes).filter((id) => !preIds.has(id));
+
+      // Preserve template/asset internal layout exactly as-authored.
+      // Asset drops can include nested Row/Column/Section structures that should not
+      // be reordered or normalized by the generic free-drop placement logic.
+      if (dragSourceKindRef.current === "asset") {
+        if (newIds.length > 0 || attempt >= MAX_RETRY_FRAMES) {
+          stopTracking();
+        } else {
+          requestAnimationFrame(() => enforcePlacement(attempt + 1));
+        }
+        return;
+      }
 
       if (newIds.length === 0) {
         if (attempt < MAX_RETRY_FRAMES) {
@@ -125,6 +152,15 @@ export function FreeDropPlacementHandler() {
 
         const displayName = nodes[nodeId]?.data?.displayName ?? "";
         const isLayoutLike = LAYOUT_LIKE_TYPES.has(displayName);
+        const parentNode = nodes[parentId];
+        const parentDisplayName = parentNode?.data?.displayName ?? "";
+        const parentProps = (parentNode?.data?.props ?? {}) as Record<string, unknown>;
+        const parentDisplay = String(parentProps.display ?? "flex").toLowerCase();
+        const parentIsFreeform = parentProps.isFreeform === true;
+        const isFlexParent =
+          parentDisplay === "flex" ||
+          parentDisplay === "grid" ||
+          LAYOUT_LIKE_TYPES.has(parentDisplayName);
 
         let left = 0;
         let top = 0;
@@ -221,6 +257,77 @@ export function FreeDropPlacementHandler() {
         left = Math.max(0, snappedLeft);
         top = Math.max(0, snappedTop);
 
+        if (isFlexParent && !parentIsFreeform) {
+          let insertIndex = 0;
+          try {
+            const parentDom = query.node(parentId).get()?.dom ?? null;
+            const parentStyle = parentDom ? window.getComputedStyle(parentDom) : null;
+            const isRow = (parentStyle?.flexDirection ?? "").startsWith("row");
+            const orderedChildren = ((parentNode as any)?.data?.nodes as string[] | undefined) ?? [];
+            const siblingIds = orderedChildren.filter((id) => id !== nodeId && nodes[id]?.data?.parent === parentId);
+            insertIndex = siblingIds.length;
+
+            for (let i = 0; i < siblingIds.length; i++) {
+              const siblingDom = query.node(siblingIds[i]).get()?.dom;
+              if (!siblingDom) continue;
+              const rect = siblingDom.getBoundingClientRect();
+              const midpoint = isRow ? rect.left + rect.width / 2 : rect.top + rect.height / 2;
+              const cursor = isRow ? (dropPoint?.clientX ?? 0) : (dropPoint?.clientY ?? 0);
+              if (cursor < midpoint) {
+                insertIndex = i;
+                break;
+              }
+            }
+          } catch {
+            insertIndex = 0;
+          }
+
+          try {
+            actions.move(nodeId, parentId, insertIndex);
+          } catch {
+            // ignore move failure and still normalize flow props
+          }
+
+          actions.setProp(nodeId, (props: Record<string, unknown>) => {
+            props.position = "relative";
+            props.left = "auto";
+            props.top = "auto";
+            props.right = "auto";
+            props.bottom = "auto";
+            props.marginTop = 0;
+            props.marginLeft = 0;
+
+            if (isLayoutLike) {
+              const rawWidth = props.width;
+              if (typeof rawWidth === "number") {
+                if (parentLogicalWidth > 0 && rawWidth > parentLogicalWidth) {
+                  props.width = "100%";
+                }
+              } else if (typeof rawWidth === "string") {
+                const normalized = rawWidth.trim().toLowerCase();
+                if (normalized.endsWith("px")) {
+                  const widthNum = Number(normalized.slice(0, -2));
+                  if (Number.isFinite(widthNum) && parentLogicalWidth > 0 && widthNum > parentLogicalWidth) {
+                    props.width = "100%";
+                  }
+                }
+              } else if (rawWidth == null) {
+                props.width = "100%";
+              }
+            }
+
+            if (displayName === "Image") {
+              props.width = "100%";
+              props.maxWidth = "100%";
+              props.minWidth = 0;
+              if (props.height == null || String(props.height).toLowerCase() === "100%") {
+                props.height = "auto";
+              }
+            }
+          });
+          return;
+        }
+
         actions.setProp(parentId, (parentProps: Record<string, unknown>) => {
           const position = String(parentProps.position ?? "static");
           if (!position || position === "static") {
@@ -273,13 +380,15 @@ export function FreeDropPlacementHandler() {
     };
 
     const handleDragStart = (event: DragEvent) => {
-      if (!isSupportedSource(event.target)) return;
-      beginTracking();
+      const sourceKind = getSourceKind(event.target);
+      if (!sourceKind) return;
+      beginTracking(sourceKind);
     };
 
     const handleMouseDown = (event: MouseEvent) => {
-      if (!isSupportedSource(event.target)) return;
-      beginTracking();
+      const sourceKind = getSourceKind(event.target);
+      if (!sourceKind) return;
+      beginTracking(sourceKind);
     };
 
     const handleDrop = (event: DragEvent) => {

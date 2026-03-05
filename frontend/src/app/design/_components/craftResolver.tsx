@@ -51,6 +51,8 @@ export function buildCraftResolver(): Resolver {
   };
   base.Frame = FrameComp;
   base.frame = FrameComp;
+  base.Image = (typeof Image === "function" ? Image : null) ?? Container;
+  base.image = (typeof Image === "function" ? Image : null) ?? Container;
   base.Text = (typeof Text === "function" ? Text : null) ?? Container;
   base.text = (typeof Text === "function" ? Text : null) ?? Container;
   return base;

@@ -89,7 +89,7 @@ export function CanvasDropGuide() {
       return nodeEl;
     };
 
-    const showGuideFor = (targetEl: HTMLElement, clientY: number) => {
+    const showGuideFor = (targetEl: HTMLElement, clientY: number, clientX: number) => {
       ensureElements();
       const box = boxRef.current;
       const ghost = ghostRef.current;
@@ -97,6 +97,8 @@ export function CanvasDropGuide() {
       if (!box || !ghost || !badge) return;
 
       const rect = targetEl.getBoundingClientRect();
+      const computedStyle = window.getComputedStyle(targetEl);
+      const isRow = (computedStyle.flexDirection ?? "").startsWith("row");
       box.style.display = "block";
       box.style.left = `${rect.left}px`;
       box.style.top = `${rect.top}px`;
@@ -114,23 +116,36 @@ export function CanvasDropGuide() {
       badge.style.display = "block";
 
       if (targetChildren.length === 0) {
-        ghost.style.left = `${rect.left}px`;
-        ghost.style.top = `${rect.top}px`;
-        ghost.style.width = `${rect.width}px`;
-        ghost.style.height = `${Math.max(40, rect.height)}px`;
-
-        badge.style.left = `${rect.left + 6}px`;
-        badge.style.top = `${rect.top + 6}px`;
+        if (isRow) {
+          ghost.style.left = `${rect.left - 2}px`;
+          ghost.style.top = `${rect.top}px`;
+          ghost.style.width = "4px";
+          ghost.style.height = `${Math.max(40, rect.height)}px`;
+          badge.style.left = `${rect.left + 8}px`;
+          badge.style.top = `${rect.top + 6}px`;
+        } else {
+          ghost.style.left = `${rect.left}px`;
+          ghost.style.top = `${rect.top}px`;
+          ghost.style.width = `${rect.width}px`;
+          ghost.style.height = `${Math.max(40, rect.height)}px`;
+          badge.style.left = `${rect.left + 6}px`;
+          badge.style.top = `${rect.top + 6}px`;
+        }
         return;
       }
 
       let insertY = targetChildren[0].getBoundingClientRect().top;
+      let insertX = targetChildren[0].getBoundingClientRect().left;
       let foundSlot = false;
 
       for (const child of targetChildren) {
         const childRect = child.getBoundingClientRect();
-        const midpoint = childRect.top + childRect.height / 2;
-        if (clientY <= midpoint) {
+        const midpoint = isRow
+          ? childRect.left + childRect.width / 2
+          : childRect.top + childRect.height / 2;
+        const cursor = isRow ? clientX : clientY;
+        if (cursor <= midpoint) {
+          insertX = childRect.left;
           insertY = childRect.top;
           foundSlot = true;
           break;
@@ -139,16 +154,25 @@ export function CanvasDropGuide() {
 
       if (!foundSlot) {
         const lastRect = targetChildren[targetChildren.length - 1].getBoundingClientRect();
+        insertX = lastRect.right;
         insertY = lastRect.bottom;
       }
 
-      ghost.style.left = `${rect.left}px`;
-      ghost.style.top = `${insertY - 20}px`;
-      ghost.style.width = `${rect.width}px`;
-      ghost.style.height = "40px";
-
-      badge.style.left = `${rect.left + 6}px`;
-      badge.style.top = `${insertY - 18}px`;
+      if (isRow) {
+        ghost.style.left = `${insertX - 2}px`;
+        ghost.style.top = `${rect.top}px`;
+        ghost.style.width = "4px";
+        ghost.style.height = `${rect.height}px`;
+        badge.style.left = `${insertX + 8}px`;
+        badge.style.top = `${rect.top + 6}px`;
+      } else {
+        ghost.style.left = `${rect.left}px`;
+        ghost.style.top = `${insertY - 2}px`;
+        ghost.style.width = `${rect.width}px`;
+        ghost.style.height = "4px";
+        badge.style.left = `${rect.left + 6}px`;
+        badge.style.top = `${insertY + 6}px`;
+      }
     };
 
     const handleDragStart = (event: DragEvent) => {
@@ -172,7 +196,7 @@ export function CanvasDropGuide() {
         return;
       }
 
-      showGuideFor(targetEl, event.clientY);
+      showGuideFor(targetEl, event.clientY, event.clientX);
     };
 
     const handleDropOrEnd = () => {

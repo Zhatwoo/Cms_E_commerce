@@ -160,14 +160,6 @@ export const AssetsPanel = () => {
     [activeFolder],
   );
 
-  const withFreePositionDefaults = (element: React.ReactElement): React.ReactElement =>
-    React.cloneElement(element, {
-      position: "absolute",
-      top: "0px",
-      left: "0px",
-      ...(element.props ?? {}),
-    });
-
   useEffect(() => {
     if (!activeGroup) {
       setSelectedAsset(null);
@@ -261,7 +253,7 @@ export const AssetsPanel = () => {
                       data-asset-category={item.category}
                       data-asset-label={item.label}
                       ref={(ref) => {
-                        if (ref && item?.element) connectors.create(ref, withFreePositionDefaults(item.element));
+                        if (ref && item?.element) connectors.create(ref, item.element);
                       }}
                       onDragStart={() => {
                         if (typeof document !== "undefined") {
