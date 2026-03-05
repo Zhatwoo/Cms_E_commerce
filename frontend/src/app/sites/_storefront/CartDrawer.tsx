@@ -3,9 +3,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useStorefront } from './StorefrontContext';
 import { CheckoutModal } from '@/app/sites/_storefront/CheckoutModal';
+import { createPublishedOrder } from '@/lib/api';
 
 export function CartDrawer() {
   const {
+    subdomain,
     cart,
     cartOpen,
     closeCart,
@@ -79,12 +81,75 @@ export function CartDrawer() {
     setConfirmDeleteIds(null);
   };
 
-  const handleCheckoutConfirm = async () => {
+  const handleCheckoutConfirm = async (contact: {
+    fullName: string;
+    emailAddress: string;
+    contactNumber: string;
+    country: string;
+    state: string;
+    streetAddress: string;
+    city: string;
+    postalCode: string;
+  }) => {
+    if (!subdomain) {
+      window.alert('Checkout unavailable: missing subdomain context.');
+      return;
+    }
+    if (!selectedItems.length) {
+      window.alert('Please select at least one item to checkout.');
+      return;
+    }
+
     try {
       setSubmittingCheckout(true);
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const items = selectedItems.map((item) => ({
+        id: item.id,
+        productId: item.id,
+        name: item.name,
+        image: item.image,
+        quantity: item.quantity,
+        price: item.price,
+        subtotal: Number((item.quantity * item.price).toFixed(2)),
+      }));
+      const total = Number(
+        selectedItems.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)
+      );
+
+      const res = await createPublishedOrder({
+        subdomain,
+        items,
+        total,
+        shippingAddress: {
+          fullName: contact.fullName,
+          name: contact.fullName,
+          email: contact.emailAddress,
+          emailAddress: contact.emailAddress,
+          phone: contact.contactNumber,
+          contactNumber: contact.contactNumber,
+          street: contact.streetAddress,
+          streetAddress: contact.streetAddress,
+          addressLine1: contact.streetAddress,
+          city: contact.city,
+          state: contact.state,
+          province: contact.state,
+          postalCode: contact.postalCode,
+          zip: contact.postalCode,
+          country: contact.country,
+        },
+        currency: 'PHP',
+      });
+
+      if (!res?.success) {
+        throw new Error(res?.message || 'Unable to save checkout order.');
+      }
+
       removeManyFromCart(selectedItems.map((item) => item.id));
       setCheckoutOpen(false);
+      closeCart();
+      window.alert('Order placed successfully.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to complete checkout.';
+      window.alert(message);
     } finally {
       setSubmittingCheckout(false);
     }

@@ -2,9 +2,9 @@
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTheme } from '../components/context/theme-context';
-import { listMyOrders, updateOrderStatus, type ApiOrder } from '@/lib/api';
+import { listMyPublishedOrders, updatePublishedOrderStatus, type ApiPublishedOrder } from '@/lib/api';
 
-const STATUS_OPTIONS = ['Pending', 'Processing', 'Paid', 'Shipped', 'Delivered', 'Cancelled', 'Returned'] as const;
+type OrderStatus = 'Pending' | 'Processing' | 'Paid' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Returned';
 
 const THUMBNAILS = ['/images/template-saas.jpg', '/images/template-fashion.jpg', '/images/template-portfolio.jpg'];
 
@@ -31,7 +31,7 @@ const ORDER_CATEGORIES = [
   { id: 'creative-handmade', label: 'Creative & Handmade', keywords: ['creative', 'handmade', 'craft', 'art', 'custom', 'diy'] },
 ] as const;
 
-function orderNumber(order: ApiOrder): string {
+function orderNumber(order: ApiPublishedOrder): string {
   return `ORD-${order.id.slice(-8).toUpperCase()}`;
 }
 
@@ -53,7 +53,7 @@ function statusLabel(status: string): string {
   return status || 'Pending';
 }
 
-function shippingSummary(address: ApiOrder['shippingAddress']): string {
+function shippingSummary(address: ApiPublishedOrder['shippingAddress']): string {
   if (!address || typeof address !== 'object') return 'No shipping address provided.';
   const source = address as Record<string, unknown>;
   const fields = [
@@ -72,7 +72,7 @@ function shippingSummary(address: ApiOrder['shippingAddress']): string {
   return fields.join(', ');
 }
 
-function contactSummary(address: ApiOrder['shippingAddress']): string {
+function contactSummary(address: ApiPublishedOrder['shippingAddress']): string {
   if (!address || typeof address !== 'object') return 'No contact details';
   const source = address as Record<string, unknown>;
   const name = typeof source.fullName === 'string' ? source.fullName : typeof source.name === 'string' ? source.name : '';
@@ -113,7 +113,7 @@ function rowBadge(status: string, colors: ReturnType<typeof useTheme>['colors'])
 
 export default function OrdersPage() {
   const { colors } = useTheme();
-  const [orders, setOrders] = useState<ApiOrder[]>([]);
+  const [orders, setOrders] = useState<ApiPublishedOrder[]>([]);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<CheckoutTab>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -134,7 +134,7 @@ export default function OrdersPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await listMyOrders({ limit: 200, page: 1 });
+      const res = await listMyPublishedOrders({ limit: 200, page: 1 });
       setOrders(Array.isArray(res.items) ? res.items : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load orders');
@@ -178,11 +178,19 @@ export default function OrdersPage() {
       : [1, 2, 3, 4, 5, 'ellipsis', totalPages];
 
   const handleStatusUpdate = useCallback(
-    async (order: ApiOrder, nextStatus: string) => {
+    async (order: ApiPublishedOrder, nextStatus: string) => {
       if (!nextStatus || nextStatus === order.status) return;
+      if (!order.subdomain) {
+        window.alert('Cannot update status for order without subdomain.');
+        return;
+      }
       try {
         setUpdatingId(order.id);
-        await updateOrderStatus(order.id, nextStatus as (typeof STATUS_OPTIONS)[number]);
+        await updatePublishedOrderStatus(
+          order.subdomain,
+          order.id,
+          nextStatus as OrderStatus
+        );
         await loadOrders();
       } catch (err) {
         window.alert(err instanceof Error ? err.message : 'Unable to update order status');

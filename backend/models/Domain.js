@@ -26,6 +26,26 @@ async function listAllFromPublishedSubdomains() {
   return snap.docs.map((d) => docToObject(d));
 }
 
+/** Resolve published site directly from published_subdomains/{subdomain} without collectionGroup indexes. */
+async function findByPublishedSubdomain(subdomain) {
+  const normalized = (subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  if (!normalized) return null;
+
+  const snap = await getPublishedSubdomainsRef().doc(normalized).get();
+  if (!snap.exists) return null;
+  const data = docToObject(snap);
+  if ((data.status || 'published') !== 'published') return null;
+  return {
+    id: data.domainId,
+    projectId: data.projectId,
+    userId: data.userId,
+    subdomain: normalized,
+    projectTitle: data.projectTitle,
+    status: data.status,
+    publishedContent: data.publishedContent ?? data.published_content ?? null,
+  };
+}
+
 async function create(data) {
   const doc = {
     user_id: data.userId || null,
@@ -288,7 +308,11 @@ async function findBySubdomain(subdomain) {
   const normalized = (subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
   if (!normalized) return null;
 
-  // Primary: collection group query on client domains
+  // Fast path: published lookup (no composite index required)
+  const published = await findByPublishedSubdomain(normalized);
+  if (published) return published;
+
+  // Fallback: collection group query on client domains
   try {
     const groupSnap = await db.collectionGroup('domains')
       .where('subdomain', '==', normalized)
@@ -316,20 +340,7 @@ async function findBySubdomain(subdomain) {
     console.warn('findBySubdomain collectionGroup query failed, falling back:', e.message);
   }
 
-  // Fallback: published_subdomains (includes published_content snapshot)
-  const snap = await getPublishedSubdomainsRef().doc(normalized).get();
-  if (!snap.exists) return null;
-  const data = docToObject(snap);
-  if ((data.status || 'published') !== 'published') return null;
-  return {
-    id: data.domainId,
-    projectId: data.projectId,
-    userId: data.userId,
-    subdomain: normalized,
-    projectTitle: data.projectTitle,
-    status: data.status,
-    publishedContent: data.publishedContent ?? data.published_content ?? null,
-  };
+  return null;
 }
 
 /** Resolve published site by custom domain using collectionGroup query for efficiency. */
@@ -675,6 +686,7 @@ module.exports = {
   updateSubdomainForClient,
   setSubdomainLookup,
   findBySubdomain,
+  findByPublishedSubdomain,
   findByCustomDomain,
   listAllFromPublishedSubdomains,
   listByClient,
