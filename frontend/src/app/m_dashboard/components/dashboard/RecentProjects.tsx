@@ -5,12 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useTheme } from '../context/theme-context';
 import { useAlert } from '../context/alert-context';
 import { useProject } from '../context/project-context';
-<<<<<<< HEAD
 import { listProjects, createProject, updateProject, deleteProject, getStoredUser, type Project } from '@/lib/api';
-=======
-import { createProject, getStoredUser, listProjects, type Project } from '@/lib/api';
->>>>>>> 9b70934bfaeb6624b5e362f8f5d0f1f945ad5043
 import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
+import { INDUSTRY_OPTIONS } from '@/lib/industryCatalog';
 import { DraftPreviewThumbnail } from '../projects/DraftPreviewThumbnail';
 
 const ChevronLeftIcon = () => (
@@ -41,6 +38,7 @@ export function RecentProjects() {
   const [isMobile, setIsMobile] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createTitle, setCreateTitle] = useState('');
+  const [createIndustry, setCreateIndustry] = useState('');
   const [createSubdomain, setCreateSubdomain] = useState('');
   const [creating, setCreating] = useState(false);
   const [openMenuProjectId, setOpenMenuProjectId] = useState<string | null>(null);
@@ -57,14 +55,8 @@ export function RecentProjects() {
   useEffect(() => {
     let cancelled = false;
 
-    if (!selectedProject?.id) {
-      setProjects([]);
-      setProjectsLoading(false);
-      return;
-    }
-
     setProjectsLoading(true);
-    listProjects({ instanceId: selectedProject.id })
+    listProjects()
       .then((res) => {
         if (!cancelled && res.success && Array.isArray(res.projects)) {
           setProjects(res.projects);
@@ -130,12 +122,18 @@ export function RecentProjects() {
     try {
       setCreating(true);
       const title = createTitle.trim() || 'Untitled Project';
+      const industry = createIndustry.trim();
       const subdomain = createSubdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+
+      if (!industry) {
+        showAlert('Please select your store industry first.');
+        return;
+      }
 
       const res = await createProject({
         title,
+        industry,
         subdomain: subdomain || undefined,
-        instanceId: selectedProject?.id || undefined,
       });
 
       if (!res.success || !res.project) {
@@ -149,6 +147,7 @@ export function RecentProjects() {
 
       setCreateModalOpen(false);
       setCreateTitle('');
+      setCreateIndustry('');
       setCreateSubdomain('');
       // Only treat as a new website/instance if none is currently selected.
       if (!selectedProject) {
@@ -472,6 +471,23 @@ export function RecentProjects() {
                   className="w-full px-4 py-2.5 rounded-lg border bg-transparent focus:outline-none focus:ring-2"
                   style={{ borderColor: colors.border.default, color: colors.text.primary }}
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1.5" style={{ color: colors.text.primary }}>Industry / Store type</label>
+                <select
+                  data-industry-select="true"
+                  value={createIndustry}
+                  onChange={(e) => setCreateIndustry(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-lg border bg-transparent focus:outline-none focus:ring-2"
+                  style={{ borderColor: colors.border.default, color: colors.text.primary }}
+                  required
+                >
+                  <option value="" disabled>Select industry</option>
+                  {INDUSTRY_OPTIONS.map((item) => (
+                    <option key={item.key} value={item.key}>{item.label}</option>
+                  ))}
+                </select>
               </div>
 
               <div>

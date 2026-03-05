@@ -11,8 +11,7 @@ const { getTrashRetentionDays } = require('../utils/trashConfig');
 exports.list = async (req, res) => {
   try {
     const userId = req.user.id;
-    const instanceId = (req.query.instanceId || '').toString().trim() || null;
-    const projects = await Project.list(userId, { instanceId });
+    const projects = await Project.list(userId);
     res.status(200).json({
       success: true,
       projects,
@@ -32,7 +31,15 @@ exports.list = async (req, res) => {
 exports.create = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { title, templateId, subdomain, instanceId } = req.body || {};
+    const { title, templateId, subdomain, industry } = req.body || {};
+
+    const normalizedIndustry = (industry || '').toString().trim();
+    if (!normalizedIndustry) {
+      return res.status(400).json({
+        success: false,
+        message: 'Industry is required when creating a project.',
+      });
+    }
 
     // Check subscription limits
     const user = await User.findById(userId);
@@ -59,8 +66,8 @@ exports.create = async (req, res) => {
 
     const project = await Project.create(userId, {
       title: title || 'Untitled Project',
+      industry: normalizedIndustry,
       templateId: templateId || null,
-      instanceId: (instanceId && String(instanceId).trim()) || null,
       subdomain: subdomain || null,
     });
     res.status(201).json({
@@ -144,11 +151,11 @@ exports.update = async (req, res) => {
         message: 'Project not found',
       });
     }
-    const { title, status, thumbnail, instanceId, subdomain } = req.body;
+    const { title, status, thumbnail, subdomain, industry } = req.body;
     const project = await Project.update(userId, req.params.id, {
       ...(title !== undefined && { title }),
       ...(status !== undefined && { status }),
-      ...(instanceId !== undefined && { instanceId }),
+      ...(industry !== undefined && { industry }),
       ...(subdomain !== undefined && { subdomain }),
       ...(thumbnail !== undefined && { thumbnail }),
     });

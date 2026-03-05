@@ -13,6 +13,7 @@ import {
 } from '@/lib/api';
 import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
 import { getLimits } from '@/lib/subscriptionLimits';
+import { INDUSTRY_OPTIONS } from '@/lib/industryCatalog';
 import { DraftPreviewThumbnail } from '@/app/m_dashboard/components/projects/DraftPreviewThumbnail';
 
 // ─── tiny helpers ────────────────────────────────────────────────────────────
@@ -31,15 +32,13 @@ function formatEdited(dateStr?: string) {
 // ─── ProjectSelectorModal ────────────────────────────────────────────────────
 
 interface Props {
-  /** Instance (selected website) id — used to scope project listing */
-  instanceId?: string | null;
   /** Render as dedicated page instead of modal overlay */
   asPage?: boolean;
 }
 
 type View = 'select' | 'create';
 
-export function ProjectSelectorModal({ instanceId, asPage = false }: Props) {
+export function ProjectSelectorModal({ asPage = false }: Props) {
   const router = useRouter();
 
   const [view, setView] = useState<View>('select');
@@ -55,6 +54,7 @@ export function ProjectSelectorModal({ instanceId, asPage = false }: Props) {
 
   // create-form state
   const [title, setTitle] = useState('');
+  const [industry, setIndustry] = useState('');
   const [subdomain, setSubdomain] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
@@ -66,7 +66,7 @@ export function ProjectSelectorModal({ instanceId, asPage = false }: Props) {
   const loadActiveProjects = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await listProjects(instanceId ? { instanceId } : {});
+      const res = await listProjects();
       if (res.success && res.projects) {
         setProjects(res.projects);
       }
@@ -75,7 +75,7 @@ export function ProjectSelectorModal({ instanceId, asPage = false }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [instanceId]);
+  }, []);
 
   // ── load projects ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -163,10 +163,16 @@ export function ProjectSelectorModal({ instanceId, asPage = false }: Props) {
     e.preventDefault();
     setError('');
     const trimmedTitle = title.trim() || 'Untitled Project';
+    const trimmedIndustry = industry.trim();
     const trimmedSub = subdomain
       .trim()
       .toLowerCase()
       .replace(/[^a-z0-9-]/g, '');
+
+    if (!trimmedIndustry) {
+      setError('Please select your store industry.');
+      return;
+    }
 
     try {
       setCreating(true);
@@ -184,7 +190,7 @@ export function ProjectSelectorModal({ instanceId, asPage = false }: Props) {
 
       const res = await createProject({
         title: trimmedTitle,
-        instanceId: instanceId ?? undefined,
+        industry: trimmedIndustry,
         subdomain: trimmedSub || undefined,
         templateId: null,
       });
@@ -300,8 +306,16 @@ export function ProjectSelectorModal({ instanceId, asPage = false }: Props) {
                 transition={{ duration: 0.18 }}
               >
                 {/* create new button */}
-                <button
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setView('create')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setView('create');
+                    }
+                  }}
                   className={`${asPage
                     ? 'w-full sm:w-[260px] h-[72px] sm:h-[76px] flex items-center gap-4 px-4 sm:px-5 rounded-xl border border-dashed border-[#3A3A7A] bg-[#14113A] hover:bg-[#1A1750] hover:border-[#FFCE00]/50 transition-all group mb-5'
                     : 'w-full flex items-center gap-4 px-5 py-4 rounded-xl border border-dashed border-[#3A3A7A] bg-[#14113A] hover:bg-[#1A1750] hover:border-[#FFCE00]/50 transition-all group mb-6'}`}
@@ -315,7 +329,7 @@ export function ProjectSelectorModal({ instanceId, asPage = false }: Props) {
                     <p className="text-sm font-semibold text-white">Create new project</p>
                     <p className="text-xs text-[#8A8FC4]">Start from a blank canvas or a template</p>
                   </div>
-                </button>
+                </div>
 
                 {/* project list */}
                 {loading ? (
@@ -450,10 +464,17 @@ export function ProjectSelectorModal({ instanceId, asPage = false }: Props) {
                           </div>
                         ) : (
                           asPage ? (
-                            <button
-                              type="button"
+                            <div
+                              role="button"
+                              tabIndex={0}
                               onClick={() => openProject(project.id)}
-                              className="w-full text-left group"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  openProject(project.id);
+                                }
+                              }}
+                              className="w-full text-left group cursor-pointer"
                             >
                               <div className="w-full aspect-[16/10] overflow-hidden border-b border-[#2A2A60] bg-[#0a0d14]">
                                 {project.thumbnail ? (
@@ -480,13 +501,20 @@ export function ProjectSelectorModal({ instanceId, asPage = false }: Props) {
                                   {formatEdited(project.updatedAt ?? project.createdAt)}
                                 </p>
                               </div>
-                            </button>
+                            </div>
                           ) : (
                             <div className="flex items-center gap-4">
-                              <button
-                                type="button"
+                              <div
+                                role="button"
+                                tabIndex={0}
                                 onClick={() => openProject(project.id)}
-                                className="flex-1 min-w-0 flex items-center gap-4 text-left group"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    openProject(project.id);
+                                  }
+                                }}
+                                className="flex-1 min-w-0 flex items-center gap-4 text-left group cursor-pointer"
                               >
                                 <div className="shrink-0 rounded-lg overflow-hidden border border-[#2A2A60] bg-[#0a0d14] w-14 h-10">
                                   {project.thumbnail ? (
@@ -513,7 +541,7 @@ export function ProjectSelectorModal({ instanceId, asPage = false }: Props) {
                                     {formatEdited(project.updatedAt ?? project.createdAt)}
                                   </p>
                                 </div>
-                              </button>
+                              </div>
                             </div>
                           )
                         )}
@@ -546,6 +574,25 @@ export function ProjectSelectorModal({ instanceId, asPage = false }: Props) {
                       autoFocus
                       className="w-full px-4 py-2.5 rounded-lg border border-[#2A2A60] bg-[#141140] text-white text-sm placeholder:text-[#4A4A7E] focus:outline-none focus:border-[#6B72D8] focus:ring-1 focus:ring-[#6B72D8] transition-colors"
                     />
+                  </div>
+
+                  <div>
+                    <label htmlFor="project-industry" className="block text-sm font-medium text-[#C4C6E8] mb-1.5">
+                      Industry / Store type
+                    </label>
+                    <select
+                      id="project-industry"
+                      data-industry-select="true"
+                      value={industry}
+                      onChange={(e) => setIndustry(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-lg border border-[#2A2A60] bg-[#141140] text-white text-sm focus:outline-none focus:border-[#6B72D8] focus:ring-1 focus:ring-[#6B72D8] transition-colors"
+                      required
+                    >
+                      <option value="" disabled>Select industry</option>
+                      {INDUSTRY_OPTIONS.map((item) => (
+                        <option key={item.key} value={item.key}>{item.label}</option>
+                      ))}
+                    </select>
                   </div>
 
                   <div>

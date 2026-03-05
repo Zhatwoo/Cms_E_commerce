@@ -54,7 +54,7 @@ export function CartDrawer() {
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-zinc-900 truncate">{item.name}</p>
-                    <p className="text-sm text-zinc-600">${item.price.toFixed(2)}</p>
+                    <p className="text-sm text-zinc-600">₱{item.price.toFixed(2)}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <button
                         type="button"
@@ -88,7 +88,7 @@ export function CartDrawer() {
         {cart.length > 0 && (
           <div className="p-4 border-t border-zinc-200">
             <p className="text-xl text-black font-bold mb-2">
-              Total: $
+              Total: ₱
               {cart
                 .reduce((sum, i) => sum + i.price * i.quantity, 0)
                 .toFixed(2)}

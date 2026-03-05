@@ -210,17 +210,15 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
       const res = await restoreProject(projectId);
       if (!res.success) return;
       setTrashedProjects((prev) => prev.filter((project) => project.id !== projectId));
-      if (selectedProject?.id) {
-        const activeRes = await listProjects({ instanceId: selectedProject.id });
-        if (activeRes.success && activeRes.projects) {
-          const sorted = [...activeRes.projects].sort((a, b) => {
-            const aDate = new Date(a.updatedAt || a.createdAt || 0).getTime();
-            const bDate = new Date(b.updatedAt || b.createdAt || 0).getTime();
-            return bDate - aDate;
-          });
-          setAllProjects(sorted);
-          setRecentProjects(sorted.slice(0, 3));
-        }
+      const activeRes = await listProjects();
+      if (activeRes.success && activeRes.projects) {
+        const sorted = [...activeRes.projects].sort((a, b) => {
+          const aDate = new Date(a.updatedAt || a.createdAt || 0).getTime();
+          const bDate = new Date(b.updatedAt || b.createdAt || 0).getTime();
+          return bDate - aDate;
+        });
+        setAllProjects(sorted);
+        setRecentProjects(sorted.slice(0, 3));
       }
     } finally {
       setActioningProjectId(null);
@@ -480,15 +478,23 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                     WORKSPACE // {toWorkspaceLabel(featuredProject)}
                   </span>
                 </div>
-                <button
-                  type="button"
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => {
                     if (featuredProject?.id) router.push(`/design?projectId=${featuredProject.id}`);
                     else router.push('/design');
                   }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      if (featuredProject?.id) router.push(`/design?projectId=${featuredProject.id}`);
+                      else router.push('/design');
+                    }
+                  }}
                   aria-label={featuredProject?.title ? `Open featured project ${featuredProject.title}` : 'Open featured project'}
                   title={featuredProject?.title ? `Open featured project ${featuredProject.title}` : 'Open featured project'}
-                  className="w-full block rounded-xl mt-3 overflow-hidden border border-[rgba(147,145,212,0.2)] bg-[#0E0D3D]"
+                  className="w-full block rounded-xl mt-3 overflow-hidden border border-[rgba(147,145,212,0.2)] bg-[#0E0D3D] cursor-pointer"
                 >
                   <div className="w-full aspect-[16/9]">
                     <div className="relative h-full w-full overflow-hidden">
@@ -504,7 +510,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                       </div>
                     </div>
                   </div>
-                </button>
+                </div>
               </div>
             </div>
 
@@ -565,15 +571,6 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                     {otherProjects.map((project) => (
                       <div
                         key={project.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => router.push(`/design?projectId=${project.id}`)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            router.push(`/design?projectId=${project.id}`);
-                          }
-                        }}
                         className="relative rounded-[26px] border border-[#2D3A90] bg-[#12145A]/80 overflow-hidden text-left hover:translate-y-[-1px] transition-transform"
                       >
                         <div className="absolute right-3 top-3 z-20" onClick={(e) => e.stopPropagation()}>
@@ -633,21 +630,34 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                           )}
                         </div>
 
-                        <div className="w-full aspect-[16/10] overflow-hidden border-b border-[#2D3A90] bg-[#0E0D3D]">
-                          {project.thumbnail ? (
-                            <img src={project.thumbnail} alt={project.title || 'Project'} className="h-full w-full object-cover" loading="lazy" />
-                          ) : (
-                            <DraftPreviewThumbnail
-                              projectId={project.id}
-                              borderColor="rgba(45,58,144,0.9)"
-                              bgColor="#120F46"
-                              className="w-full h-full !aspect-[16/10] !rounded-none"
-                            />
-                          )}
-                        </div>
-                        <div className="px-4 py-3.5">
-                          <p className="text-2xl font-extrabold text-white leading-tight truncate">{project.title || 'Untitled Project'}</p>
-                          <p className="text-xs text-[#8A8FC4] mt-1 truncate">{formatEditedDate(project.updatedAt || project.createdAt)}</p>
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => router.push(`/design?projectId=${project.id}`)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              router.push(`/design?projectId=${project.id}`);
+                            }
+                          }}
+                          className="cursor-pointer"
+                        >
+                          <div className="w-full aspect-[16/10] overflow-hidden border-b border-[#2D3A90] bg-[#0E0D3D]">
+                            {project.thumbnail ? (
+                              <img src={project.thumbnail} alt={project.title || 'Project'} className="h-full w-full object-cover" loading="lazy" />
+                            ) : (
+                              <DraftPreviewThumbnail
+                                projectId={project.id}
+                                borderColor="rgba(45,58,144,0.9)"
+                                bgColor="#120F46"
+                                className="w-full h-full !aspect-[16/10] !rounded-none"
+                              />
+                            )}
+                          </div>
+                          <div className="px-4 py-3.5">
+                            <p className="text-2xl font-extrabold text-white leading-tight truncate">{project.title || 'Untitled Project'}</p>
+                            <p className="text-xs text-[#8A8FC4] mt-1 truncate">{formatEditedDate(project.updatedAt || project.createdAt)}</p>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -731,7 +741,6 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
             </section>
           </motion.div>
         ) : (
-<<<<<<< HEAD
           /* ── TEMPLATES TAB ──────────────────────────────────────── */
           <motion.div
             key="templates-tab"
@@ -741,9 +750,6 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
             transition={{ duration: 0.22, ease: 'easeOut' }}
           >
             {/* Browse by Industry */}
-=======
-          <>
->>>>>>> 9b70934bfaeb6624b5e362f8f5d0f1f945ad5043
             <section className="mx-auto w-full max-w-none pt-2">
               <div className="mb-5">
                 <h3 className="text-xs sm:text-sm font-bold tracking-[0.18em] uppercase text-[#FFCE00]">Browse by Industry</h3>
@@ -847,7 +853,6 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
         </AnimatePresence>
       </div>
 
-<<<<<<< HEAD
       {renamingProject && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => {
           if (actioningProjectId === renamingProject.id) return;
@@ -900,7 +905,6 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
           </div>
         </div>
       )}
-=======
       <style jsx>{`
         .template-pan-img,
         .template-pan-img-slow {
@@ -920,7 +924,6 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
           transform: scale(1.08);
         }
       `}</style>
->>>>>>> 9b70934bfaeb6624b5e362f8f5d0f1f945ad5043
     </section>
   );
 }

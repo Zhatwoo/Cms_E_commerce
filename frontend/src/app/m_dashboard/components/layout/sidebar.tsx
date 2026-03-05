@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../context/theme-context';
-import { useProject } from '../context/project-context';
 const HomeIcon = () => <img src="/icons/home.png" alt="Home" className="h-5 w-5 object-contain" />;
 const WebBuilderIcon = () => <img src="/icons/monitor.png" alt="Web Builder" className="h-5 w-5 object-contain" />;
 const DomainsIcon = () => <img src="/icons/globe.png" alt="Domains" className="h-5 w-5 object-contain" />;
@@ -63,8 +62,6 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
   const pathname = usePathname();
   const router = useRouter();
   const { colors, theme } = useTheme();
-  const { selectedProject, setSelectedProjectId } = useProject();
-  const hasSelectedWebsite = !!selectedProject;
 
   const handleHomeClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     if (pathname === '/m_dashboard') {
@@ -136,16 +133,6 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
         <nav className="flex-1 px-3 py-6 overflow-y-auto">
           {/* Full labels for mobile */}
           {navItems
-            .filter((item) => {
-              // Before a website/instance is selected, hide builder & commerce-specific items
-              if (
-                !hasSelectedWebsite &&
-                ['web-builder', 'products', 'inventory', 'orders', 'analytics', 'domains', 'subscription', 'settings'].includes(item.id)
-              ) {
-                return false;
-              }
-              return true;
-            })
             .map((item) => {
               const isActive =
                 item.id === 'home'
@@ -190,28 +177,6 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
               );
             })}
         </nav>
-
-        {selectedProject && (
-          <div className="px-3 pb-4 shrink-0">
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedProjectId(null);
-                router.push('/m_dashboard/instances');
-                onClose?.();
-              }}
-              className="w-full rounded-xl border px-3 py-2 text-left transition-colors hover:opacity-95"
-              style={{ borderColor: colors.border.faint, color: colors.text.secondary, backgroundColor: colors.bg.elevated }}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-sm" style={{ color: colors.text.primary }}>{selectedProject.title || 'Untitled website'}</span>
-                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ backgroundColor: sidebarBg, color: colors.text.muted }}>
-                  Switch
-                </span>
-              </div>
-            </button>
-          </div>
-        )}
       </aside>
     );
   }
@@ -247,15 +212,6 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
       {/* Navigation */}
       <nav className="flex-1 py-6 flex flex-col">
         {navItems
-          .filter((item) => {
-            if (
-              !hasSelectedWebsite &&
-              ['web-builder', 'products', 'inventory', 'orders', 'analytics', 'domains', 'subscription', 'settings'].includes(item.id)
-            ) {
-              return false;
-            }
-            return true;
-          })
           .map((item) => {
             const isActive =
               item.id === 'home'
@@ -323,47 +279,6 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
           );
         })}
       </nav>
-
-      {selectedProject && (
-        <div className="px-3 pb-3 shrink-0">
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedProjectId(null);
-              router.push('/m_dashboard/instances');
-            }}
-            className="w-full rounded-xl border px-3 py-2 text-left transition-colors hover:opacity-95"
-            style={{ borderColor: colors.border.faint, color: colors.text.secondary, backgroundColor: colors.bg.elevated }}
-          >
-            <AnimatePresence>
-              {isHovered ? (
-                <motion.div
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -8 }}
-                  transition={{ duration: 0.2 }}
-                  className="flex items-center justify-between gap-2"
-                >
-                  <span className="truncate text-sm" style={{ color: colors.text.primary }}>{selectedProject.title || 'Untitled website'}</span>
-                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ backgroundColor: sidebarBg, color: colors.text.muted }}>
-                    Switch
-                  </span>
-                </motion.div>
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="flex items-center justify-center"
-                >
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: accentYellow }} />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </button>
-        </div>
-      )}
 
       <div
         className="border-t py-4 text-xs shrink-0 flex justify-center transition-colors duration-300"

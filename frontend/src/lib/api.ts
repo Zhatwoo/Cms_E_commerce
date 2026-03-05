@@ -322,7 +322,7 @@ export type Project = {
   id: string;
   title: string;
   status: string;
-  instanceId?: string | null;
+  industry?: string | null;
   templateId?: string | null;
   subdomain?: string | null;
   thumbnail?: string | null;
@@ -332,46 +332,17 @@ export type Project = {
   daysLeft?: number;
 };
 
-export type Instance = {
-  id: string;
-  title: string;
-  status: string;
-  subdomain?: string | null;
-  thumbnail?: string | null;
-  createdAt?: string;
-  updatedAt?: string;
-};
-
-export async function listProjects(params?: { instanceId?: string | null }): Promise<{ success: boolean; projects: Project[] }> {
-  const query = new URLSearchParams();
-  if (params?.instanceId) query.set('instanceId', params.instanceId);
-  const qs = query.toString();
-  const path = qs ? `/api/projects?${qs}` : '/api/projects';
-  return apiFetch<{ success: boolean; projects: Project[] }>(path);
-}
-
-export async function listInstances(): Promise<{ success: boolean; instances: Instance[] }> {
-  return apiFetch<{ success: boolean; instances: Instance[] }>('/api/instances');
+export async function listProjects(): Promise<{ success: boolean; projects: Project[] }> {
+  return apiFetch<{ success: boolean; projects: Project[] }>('/api/projects');
 }
 
 export async function createProject(params: {
   title?: string;
-  instanceId?: string;
+  industry?: string | null;
   templateId?: string | null;
   subdomain?: string | null;
-  instanceId?: string | null;
 }): Promise<{ success: boolean; project: Project; message?: string }> {
   return apiFetch<{ success: boolean; project: Project; message?: string }>('/api/projects', {
-    method: 'POST',
-    body: JSON.stringify(params),
-  });
-}
-
-export async function createInstance(params: {
-  title?: string;
-  subdomain?: string | null;
-}): Promise<{ success: boolean; instance?: Instance; message?: string }> {
-  return apiFetch<{ success: boolean; instance?: Instance; message?: string }>('/api/instances', {
     method: 'POST',
     body: JSON.stringify(params),
   });
@@ -393,19 +364,9 @@ export async function getProjectBySubdomain(subdomain: string): Promise<{ succes
 
 export async function updateProject(
   id: string,
-  params: { title?: string; status?: string; subdomain?: string | null; thumbnail?: string | null }
+  params: { title?: string; status?: string; industry?: string | null; subdomain?: string | null; thumbnail?: string | null }
 ): Promise<{ success: boolean; project: Project; message?: string }> {
   return apiFetch<{ success: boolean; project: Project; message?: string }>(`/api/projects/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(params),
-  });
-}
-
-export async function updateInstance(
-  id: string,
-  params: { title?: string; subdomain?: string | null }
-): Promise<{ success: boolean; instance?: Instance; message?: string }> {
-  return apiFetch<{ success: boolean; instance?: Instance; message?: string }>(`/api/instances/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(params),
   });
@@ -414,12 +375,6 @@ export async function updateInstance(
 /** Move project to trash instead of deleting permanently. */
 export async function deleteProject(id: string): Promise<{ success: boolean; message?: string; daysLeft?: number; retentionDays?: number }> {
   return apiFetch<{ success: boolean; message?: string; daysLeft?: number; retentionDays?: number }>(`/api/projects/${id}`, { method: 'DELETE' });
-}
-
-export async function deleteInstance(id: string): Promise<{ success: boolean; message?: string }> {
-  return apiFetch<{ success: boolean; message?: string }>(`/api/instances/${id}`, {
-    method: 'DELETE',
-  });
 }
 
 /** List all projects currently in the trash for the user. */
@@ -527,6 +482,7 @@ export type ApiProduct = {
       priceAdjustment: number;
     }>;
   }>;
+  variantStocks?: Record<string, number>;
   priceRangeMin?: number | null;
   priceRangeMax?: number | null;
   images?: string[];
@@ -619,6 +575,7 @@ export async function createProduct(params: {
       priceAdjustment: number;
     }>;
   }>;
+  variantStocks?: Record<string, number>;
   priceRangeMin?: number | null;
   priceRangeMax?: number | null;
   images?: string[];
@@ -658,6 +615,7 @@ export async function updateProduct(
         priceAdjustment: number;
       }>;
     }>;
+    variantStocks?: Record<string, number>;
     priceRangeMin?: number | null;
     priceRangeMax?: number | null;
     images?: string[];
