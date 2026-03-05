@@ -1,0 +1,1 @@
+export const PREVIEW_MOBILE_BREAKPOINT = 768;

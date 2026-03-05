@@ -5,47 +5,14 @@ import { useParams, notFound } from 'next/navigation';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
 import { WebPreview } from '@/app/design/_lib/webRenderer';
-import { serializeCraftToClean } from '@/app/design/_lib/serializer';
+import { parseContentToCleanDoc } from '@/app/design/_lib/contentParser';
+import { PREVIEW_MOBILE_BREAKPOINT } from '@/app/design/_lib/viewportConstants';
 import type { BuilderDocument } from '@/app/design/_types/schema';
 
 const RESERVED_SUBDOMAINS = new Set([
   'site', 'm_dashboard', 'design', 'auth', 'admindashboard', 'landing', 'templates',
   'api', '_next', 'favicon.ico', 'admin', 'login', 'register', 'signup',
 ]);
-
-function parsePublishedContentToCleanDoc(content: unknown): BuilderDocument | null {
-  if (content == null) return null;
-
-  try {
-    let normalized: unknown = content;
-
-    for (let i = 0; i < 2; i += 1) {
-      if (typeof normalized !== 'string') break;
-      const trimmed = normalized.trim();
-      if (!trimmed) return null;
-      try {
-        normalized = JSON.parse(trimmed);
-      } catch {
-        break;
-      }
-    }
-
-    if (
-      normalized &&
-      typeof normalized === 'object' &&
-      'version' in normalized &&
-      'pages' in normalized &&
-      'nodes' in normalized
-    ) {
-      return normalized as BuilderDocument;
-    }
-
-    const raw = typeof normalized === 'string' ? normalized : JSON.stringify(normalized);
-    return serializeCraftToClean(raw);
-  } catch {
-    return null;
-  }
-}
 
 export default function SubdomainSitePage() {
   const params = useParams();
@@ -80,7 +47,7 @@ export default function SubdomainSitePage() {
           return;
         }
         const content = data?.data?.content;
-        const parsed = parsePublishedContentToCleanDoc(content);
+        const parsed = parseContentToCleanDoc(content);
         if (parsed) {
           setCleanDoc(parsed);
         } else {
@@ -130,7 +97,7 @@ export default function SubdomainSitePage() {
 
   return (
     <div className="min-h-screen w-full bg-white">
-      <WebPreview doc={cleanDoc} pageIndex={0} mobileBreakpoint={900} enableFormInputs />
+      <WebPreview doc={cleanDoc} pageIndex={0} mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT} enableFormInputs builderParityMode />
     </div>
   );
 }

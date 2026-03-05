@@ -9,6 +9,13 @@ function parsePx(value: string | undefined): number | null {
   return m ? parseFloat(m[1]) : null;
 }
 
+function fluidSpace(value: number, min = 0): string {
+  if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
+  const preferred = Math.max(0.1, value / 12);
+  const floor = Math.max(min, Math.round(value * 0.45));
+  return `clamp(${floor}px, ${preferred.toFixed(2)}cqw, ${value}px)`;
+}
+
 /**
  * Section — a full-width page band (hero, content section, footer, etc.)
  * Always stretches to 100% width with vertical (column) flex layout by default.
@@ -25,7 +32,6 @@ export const Section = ({
   marginRight,
   marginBottom,
   marginLeft,
-  width = "100%",
   height = "auto",
   borderRadius = 0,
   backgroundImage = "",
@@ -57,13 +63,15 @@ export const Section = ({
   customClassName = "",
   children,
 }: ContainerProps) => {
-  const { id, connectors: { connect, drag } } = useNode();
+  const { id, connectors: { connect, drag }, childCount } = useNode((node) => ({
+    childCount: node.data.nodes.length,
+  }));
   const isHeaderAsset = /header/i.test(id ?? "");
+  const hasChildren = childCount > 0 || React.Children.count(children) > 0;
 
-  const wPx = parsePx(width);
   const hPx = parsePx(height);
   const canScale = false;
-  const scaleX = canScale ? wPx / designWidth : 1;
+  const scaleX = canScale ? 1 : 1;
   const scaleY = canScale ? hPx / designHeight : 1;
 
   const p = typeof padding === "number" ? padding : 0;
@@ -81,12 +89,13 @@ export const Section = ({
   return (
     <section
       data-node-id={id}
+      data-fluid-space="true"
       {...(isHeaderAsset ? { "data-header": "true" } : {})}
       data-layout={flexDirection === "row" ? "row" : "column"}
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className={`min-h-[80px] transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
+      className={`${hasChildren ? "" : "min-h-[80px]"} transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
       style={{
         backgroundColor: background,
         backgroundImage: backgroundImage
@@ -97,15 +106,15 @@ export const Section = ({
         backgroundSize: backgroundImage ? backgroundSize : undefined,
         backgroundPosition: backgroundImage ? backgroundPosition : undefined,
         backgroundRepeat: backgroundImage ? backgroundRepeat : undefined,
-        paddingLeft: `${pl}px`,
-        paddingRight: `${pr}px`,
-        paddingTop: `${pt}px`,
-        paddingBottom: `${pb}px`,
-        marginLeft: `${ml}px`,
-        marginRight: `${mr}px`,
-        marginTop: `${mt}px`,
-        marginBottom: `${mb}px`,
-        width,
+        paddingLeft: fluidSpace(pl, 0),
+        paddingRight: fluidSpace(pr, 0),
+        paddingTop: fluidSpace(pt, 0),
+        paddingBottom: fluidSpace(pb, 0),
+        marginLeft: fluidSpace(ml, 0),
+        marginRight: fluidSpace(mr, 0),
+        marginTop: fluidSpace(mt, 0),
+        marginBottom: fluidSpace(mb, 0),
+        width: "100%",
         height,
         boxSizing: "border-box",
         maxWidth: "100%",
@@ -115,6 +124,7 @@ export const Section = ({
           ? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
           : { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
         display: "flex",
+        containerType: "inline-size",
         position,
         zIndex: zIndex !== 0 ? zIndex : undefined,
         top: position !== "static" ? top : undefined,
@@ -125,13 +135,16 @@ export const Section = ({
         flexWrap,
         alignItems,
         justifyContent,
-        gap: `${gap}px`,
+        gap: fluidSpace(gap, 0),
         boxShadow,
         opacity,
         overflow,
         transform: rotation ? `rotate(${rotation}deg)` : undefined,
       }}
     >
+      {flexDirection === "row" && (
+        <style>{`[data-node-id="${id}"] > * { min-width: 0; }`}</style>
+      )}
       {canScale ? (
         <div
           style={{
@@ -146,7 +159,7 @@ export const Section = ({
             flexWrap,
             alignItems,
             justifyContent,
-            gap: `${gap}px`,
+            gap: fluidSpace(gap, 0),
           }}
         >
           {children}
