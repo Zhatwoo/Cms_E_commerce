@@ -52,14 +52,21 @@ export const Text = ({
   const { id, connectors: { connect, drag }, actions, parentId } = useNode((node) => ({
     parentId: node.data.parent,
   }));
-  const { parentDisplay } = useEditor((state) => ({
+  const { parentDisplay, parentDisplayName } = useEditor((state) => ({
     parentDisplay: parentId ? String(state.nodes[parentId]?.data?.props?.display ?? "") : "",
+    parentDisplayName: parentId ? String(state.nodes[parentId]?.data?.displayName ?? "") : "",
   }));
   const { editingTextNodeId, setEditingTextNodeId } = useInlineTextEdit();
   const isEditing = editingTextNodeId === id;
   const editRef = useRef<HTMLDivElement | null>(null);
   const isFlowText = position !== "absolute" && position !== "fixed";
-  const isFlexOrGridParent = parentDisplay === "flex" || parentDisplay === "grid";
+  // Row, Column, Section hardcode display:flex in JSX without storing it in props,
+  // so we detect them by displayName as well.
+  const FLEX_PARENT_TYPES = new Set(["Row", "Column", "Section", "Container", "Frame"]);
+  const isFlexOrGridParent =
+    parentDisplay === "flex" ||
+    parentDisplay === "grid" ||
+    FLEX_PARENT_TYPES.has(parentDisplayName);
   const resolvedWidth = width ?? (isFlowText && isFlexOrGridParent ? "100%" : undefined);
   const hasExplicitHeight =
     typeof height === "string" &&
@@ -112,7 +119,6 @@ export const Text = ({
     textTransform,
     color,
     position,
-    display,
     zIndex,
     top: position !== "static" ? top : undefined,
     right: position !== "static" ? right : undefined,
@@ -128,12 +134,10 @@ export const Text = ({
     overflow: hasExplicitHeight ? "hidden" : "visible",
     whiteSpace: "pre-wrap",
     overflowWrap: "break-word",
-    wordBreak: "break-word",
-    hyphens: "auto",
-    display: isFlexOrGridParent && isFlowText ? "flex" : display,
-    alignItems: isFlexOrGridParent && isFlowText ? "center" : undefined,
-    flexShrink: isFlexOrGridParent && isFlowText ? 1 : undefined,
-    flexGrow: isFlexOrGridParent && isFlowText && !width ? 1 : undefined,
+    wordBreak: "normal",
+    hyphens: "manual",
+    display,
+    flexShrink: isFlexOrGridParent && isFlowText && !width ? 1 : undefined,
     marginTop: fluidSpace(mt),
     marginBottom: fluidSpace(mb),
     marginLeft: fluidSpace(ml),

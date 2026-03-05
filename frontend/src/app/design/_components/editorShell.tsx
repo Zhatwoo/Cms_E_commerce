@@ -130,6 +130,8 @@ const VALIDATOR_RESOLVER: Record<string, React.ComponentType<any>> = {
   container: Container,
   Text: Text || Container,
   text: Text || Container,
+  Image: Image || Container,
+  image: Image || Container,
   Page: Page || Container,
   page: Page || Container,
   Viewport: Viewport || Container,
@@ -408,15 +410,8 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
 }
 
 function prepareFrameData(jsonString: string): { valid: boolean; data?: string } {
-  try {
-    const parsed = JSON.parse(jsonString);
-    if (parsed && parsed.ROOT && Array.isArray(parsed.ROOT.nodes)) {
-      return { valid: true, data: jsonString };
-    }
-  } catch {
-    // Fall through to deep validator for salvage/fallback behavior.
-  }
-
+  // Always run through validator so component type names are canonicalized
+  // against resolver keys (e.g. Image/image/Text/text) before Frame mount.
   return validateCraftData(jsonString);
 }
 
@@ -1915,6 +1910,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     base.page = CRAFT_RESOLVER.Page ?? Page;
     base.Viewport = CRAFT_RESOLVER.Viewport ?? Viewport;
     base.viewport = CRAFT_RESOLVER.Viewport ?? Viewport;
+    base.Image = (typeof Image === "function" ? Image : null) ?? Container;
+    base.image = (typeof Image === "function" ? Image : null) ?? Container;
     base.Text = (typeof Text === "function" ? Text : null) ?? Container;
     base.text = (typeof Text === "function" ? Text : null) ?? Container;
     return base;

@@ -174,14 +174,35 @@ function canAcceptNode(nodes: NodesMap, _targetId: string, _nodeId: string): boo
 }
 
 function computeInsertIndex(
-  _targetId: string,
-  _clientX: number,
-  _clientY: number,
+  targetId: string,
+  clientX: number,
+  clientY: number,
   nodes: NodesMap,
-  ids: string[],
-  _queryNode: (id: string) => { get: () => { dom: HTMLElement | null } | null }
+  draggedIds: string[],
+  queryNode: (id: string) => { get: () => { dom: HTMLElement | null } | null }
 ): number {
-  return 0;
+  try {
+    const targetDom = queryNode(targetId).get()?.dom;
+    if (!targetDom) return 0;
+
+    const computedStyle = window.getComputedStyle(targetDom);
+    const isRow = computedStyle.flexDirection === "row";
+    const childIds = ((nodes[targetId] as any)?.data?.nodes as string[] | undefined) ?? [];
+    const validChildren = childIds.filter((id) => !draggedIds.includes(id));
+
+    for (let i = 0; i < validChildren.length; i++) {
+      const childDom = queryNode(validChildren[i]).get()?.dom;
+      if (!childDom) continue;
+      const rect = childDom.getBoundingClientRect();
+      const midpoint = isRow ? rect.left + rect.width / 2 : rect.top + rect.height / 2;
+      const cursor = isRow ? clientX : clientY;
+      if (cursor < midpoint) return i;
+    }
+
+    return validChildren.length;
+  } catch {
+    return 0;
+  }
 }
 
 export const FigmaStyleDragHandler = () => {
