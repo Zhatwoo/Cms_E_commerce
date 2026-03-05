@@ -52,11 +52,20 @@ const CameraIcon = () => (
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState('general');
+  const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { user, setUser } = useAuth();
   const { colors, theme } = useTheme();
   const [avatarUrl, setAvatarUrl] = useState("https://api.dicebear.com/7.x/avataaars/svg?seed=Felix");
+  const [savedAvatarUrl, setSavedAvatarUrl] = useState("https://api.dicebear.com/7.x/avataaars/svg?seed=Felix");
   const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    username: '',
+    website: '',
+    bio: ''
+  });
+  const [savedFormData, setSavedFormData] = useState({
     name: '',
     email: '',
     username: '',
@@ -71,6 +80,23 @@ export default function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+
+  const mergeUserWithCurrent = (incomingUser: NonNullable<typeof user>) => {
+    const current = user || ({} as NonNullable<typeof user>);
+    return {
+      ...current,
+      ...incomingUser,
+      name: typeof incomingUser?.name === 'string' ? incomingUser.name : current.name,
+      email: typeof incomingUser?.email === 'string' ? incomingUser.email : current.email,
+      username:
+        typeof incomingUser?.username === 'string' && incomingUser.username.trim() !== ''
+          ? incomingUser.username
+          : (current.username || ''),
+      website: typeof incomingUser?.website === 'string' ? incomingUser.website : (current.website || ''),
+      bio: typeof incomingUser?.bio === 'string' ? incomingUser.bio : (current.bio || ''),
+      avatar: typeof incomingUser?.avatar === 'string' ? incomingUser.avatar : current.avatar,
+    };
+  };
 
   const stopCameraStream = () => {
     if (streamRef.current) {
@@ -151,23 +177,54 @@ export default function ProfilePage() {
   useEffect(() => {
     if (user) {
       // Use avatar from backend if available, otherwise fallback to dicebear
-      setAvatarUrl(user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`);
-      setFormData({
-        name: user.name || '',
-        email: user.email || '',
-        username: user.name?.toLowerCase().replace(/\s/g, '') || '',
-        website: 'https://mercato.tools',
-        bio: 'Building the future of commerce. Love React, Three.js, and good coffee.'
-      });
+      const nextAvatar = user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`;
+      setAvatarUrl(nextAvatar);
+      setSavedAvatarUrl(nextAvatar);
+
+      const nextFormData = {
+        name: typeof user.name === 'string' ? user.name : '',
+        email: typeof user.email === 'string' ? user.email : '',
+        username: typeof user.username === 'string' ? user.username : '',
+        website: typeof user.website === 'string' ? user.website : '',
+        bio: typeof user.bio === 'string' ? user.bio : '',
+      };
+
+      setSavedFormData(nextFormData);
+      setFormData((prev) => ({
+        name: typeof user.name === 'string' ? user.name : prev.name,
+        email: typeof user.email === 'string' ? user.email : prev.email,
+        username: typeof user.username === 'string' ? user.username : prev.username,
+        website: typeof user.website === 'string' ? user.website : prev.website,
+        bio: typeof user.bio === 'string' ? user.bio : prev.bio,
+      }));
     }
   }, [user]);
+
+  const profileDisplayName =
+    (formData.username || user?.username || '').replace(/^@+/, '') ||
+    'User';
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleStartEdit = () => {
+    setSavedFormData(formData);
+    setSavedAvatarUrl(avatarUrl);
+    setFeedback(null);
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setFormData(savedFormData);
+    setAvatarUrl(savedAvatarUrl);
+    setFeedback(null);
+    setIsEditing(false);
+  };
+
   const handleSave = async () => {
+    if (!isEditing) return;
     setIsLoading(true);
 
     try {
@@ -176,13 +233,36 @@ export default function ProfilePage() {
         avatarUrl?.startsWith('http') || avatarUrl?.startsWith('https')
           ? avatarUrl
           : undefined;
-      const res = await updateProfile({
+      const profilePayload = {
         name: formData.name,
+        username: formData.username,
+        website: formData.website,
+        bio: formData.bio,
         ...(avatarToSave !== undefined && { avatar: avatarToSave })
-      });
+      } as Parameters<typeof updateProfile>[0];
+
+      const res = await updateProfile(profilePayload);
 
       if (res.success && res.user) {
-        setUser(res.user);
+        const mergedUser = mergeUserWithCurrent(res.user);
+        const nextFormData = {
+          name: typeof mergedUser?.name === 'string' ? mergedUser.name : formData.name,
+          email: typeof mergedUser?.email === 'string' ? mergedUser.email : formData.email,
+          username: typeof mergedUser?.username === 'string' ? mergedUser.username : formData.username,
+          website: typeof mergedUser?.website === 'string' ? mergedUser.website : formData.website,
+          bio: typeof mergedUser?.bio === 'string' ? mergedUser.bio : formData.bio,
+        };
+        setFormData((prev) => ({
+          name: typeof mergedUser?.name === 'string' ? mergedUser.name : prev.name,
+          email: typeof mergedUser?.email === 'string' ? mergedUser.email : prev.email,
+          username: typeof mergedUser?.username === 'string' ? mergedUser.username : prev.username,
+          website: typeof mergedUser?.website === 'string' ? mergedUser.website : prev.website,
+          bio: typeof mergedUser?.bio === 'string' ? mergedUser.bio : prev.bio,
+        }));
+        setSavedFormData(nextFormData);
+        setSavedAvatarUrl(avatarUrl);
+        setIsEditing(false);
+        setUser(mergedUser);
         setFeedback({ type: 'success', message: 'Profile updated successfully!' });
         setTimeout(() => setFeedback(null), 3000);
       } else {
@@ -210,7 +290,10 @@ export default function ProfilePage() {
       const res = await uploadAvatarApi(file);
       if (res.success && res.url) {
         setAvatarUrl(res.url);
-        if (res.user) setUser(res.user);
+        if (res.user) {
+          const mergedUser = mergeUserWithCurrent(res.user);
+          setUser(mergedUser);
+        }
         setFeedback({ type: 'success', message: 'Avatar uploaded. Profile updated.' });
         setTimeout(() => setFeedback(null), 3000);
       } else {
@@ -404,7 +487,7 @@ export default function ProfilePage() {
                   </div>
 
                   <div className="flex-1">
-                    <h3 className="text-xl font-semibold" style={{ color: colors.text.primary }}>{formData.name || user?.name || 'User'}</h3>
+                    <h3 className="text-xl font-semibold" style={{ color: colors.text.primary }}>{profileDisplayName}</h3>
                     <p className="text-sm" style={{ color: colors.text.secondary }}>{formData.email || user?.email || 'Loading...'}</p>
                     <div className="flex items-center gap-2 mt-2">
                       <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border"
@@ -425,7 +508,7 @@ export default function ProfilePage() {
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        disabled={avatarUploading}
+                        disabled={avatarUploading || !isEditing}
                         title="Upload image"
                         className="px-3 py-2 rounded-lg border shadow-lg disabled:opacity-70 inline-flex items-center gap-2 text-xs font-semibold"
                         style={{
@@ -445,7 +528,7 @@ export default function ProfilePage() {
                       <button
                         type="button"
                         onClick={openCamera}
-                        disabled={avatarUploading}
+                        disabled={avatarUploading || !isEditing}
                         title="Take picture"
                         className="px-3 py-2 rounded-lg border shadow-lg disabled:opacity-70 inline-flex items-center gap-2 text-xs font-semibold"
                         style={{
@@ -467,13 +550,14 @@ export default function ProfilePage() {
                 {/* Form Fields */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: colors.text.subtle }}>Display Name</label>
+                    <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: colors.text.subtle }}>Full Name</label>
                     <input
                       type="text"
                       name="name"
                       value={formData.name}
                       onChange={handleInputChange}
-                      placeholder="Your Name"
+                      disabled={!isEditing}
+                      placeholder="Your full name"
                       className="w-full border rounded-lg px-4 py-2.5 transition-all focus:outline-none focus:ring-1 focus:ring-violet-500"
                       style={{
                         backgroundColor: theme === 'dark' ? 'rgba(15, 23, 42, 0.5)' : 'rgba(241, 245, 249, 0.5)',
@@ -489,6 +573,7 @@ export default function ProfilePage() {
                       name="email"
                       value={formData.email}
                       onChange={handleInputChange}
+                      disabled
                       placeholder="your@email.com"
                       className="w-full border rounded-lg px-4 py-2.5 transition-all focus:outline-none focus:ring-1 focus:ring-violet-500"
                       style={{
@@ -507,6 +592,7 @@ export default function ProfilePage() {
                         name="username"
                         value={formData.username}
                         onChange={handleInputChange}
+                        disabled={!isEditing}
                         placeholder="username"
                         className="w-full border rounded-lg pl-8 pr-4 py-2.5 transition-all focus:outline-none focus:ring-1 focus:ring-violet-500"
                         style={{
@@ -524,6 +610,7 @@ export default function ProfilePage() {
                       name="website"
                       value={formData.website}
                       onChange={handleInputChange}
+                      disabled={!isEditing}
                       placeholder="https://your-website.com"
                       className="w-full border rounded-lg px-4 py-2.5 transition-all focus:outline-none focus:ring-1 focus:ring-violet-500"
                       style={{
@@ -540,6 +627,7 @@ export default function ProfilePage() {
                       rows={4}
                       value={formData.bio}
                       onChange={handleInputChange}
+                      disabled={!isEditing}
                       placeholder="Tell us a little about yourself..."
                       className="w-full border rounded-lg px-4 py-2.5 transition-all resize-none focus:outline-none focus:ring-1 focus:ring-violet-500"
                       style={{
@@ -554,24 +642,39 @@ export default function ProfilePage() {
 
                 {/* Action Buttons */}
                 <div className="flex items-center justify-end gap-4 pt-4 border-t" style={{ borderColor: colors.border.faint }}>
-                  <button
-                    className="px-4 py-2 text-sm font-medium transition-colors"
-                    style={{ color: colors.text.muted }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSave}
-                    disabled={isLoading}
-                    className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white px-6 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-violet-900/20"
-                  >
-                    {isLoading ? (
-                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <SaveIcon />
-                    )}
-                    {isLoading ? 'Saving...' : 'Save Changes'}
-                  </button>
+                  {isEditing ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleCancelEdit}
+                        disabled={isLoading}
+                        className="px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+                        style={{ color: colors.text.muted }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSave}
+                        disabled={isLoading}
+                        className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white px-6 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-violet-900/20"
+                      >
+                        {isLoading ? (
+                          <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          <SaveIcon />
+                        )}
+                        {isLoading ? 'Saving...' : 'Save Changes'}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleStartEdit}
+                      className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white px-6 py-2 rounded-lg text-sm font-medium transition-all shadow-lg shadow-violet-900/20"
+                    >
+                      Edit Profile
+                    </button>
+                  )}
                 </div>
               </motion.div>
             )}

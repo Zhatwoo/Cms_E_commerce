@@ -92,7 +92,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     const [showSwitchModal, setShowSwitchModal] = useState(false);
     const [scrolled, setScrolled] = useState(false);
     const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
-    const userName = user?.name || user?.email || '';
+    const userName = (user?.username || '').replace(/^@+/, '') || user?.name || user?.email || '';
     const avatarSrc = user?.avatar || (user?.email ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user.email)}` : '');
 
     useEffect(() => {

@@ -35,7 +35,7 @@ function ResetPasswordForm() {
     try {
       await resetPassword(token.trim(), newPassword);
       setSuccess(true);
-      setTimeout(() => router.push('/auth/login'), 2000);
+      setTimeout(() => router.push('/'), 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reset password.');
     } finally {
@@ -49,10 +49,10 @@ function ResetPasswordForm() {
         <div className="rounded-2xl border border-white/10 bg-[#0a0d14] p-8 shadow-xl">
           <h1 className="text-2xl font-bold text-white md:text-3xl">Password reset</h1>
           <p className="mt-2 rounded-lg bg-green-500/20 border border-green-500/50 px-3 py-2 text-sm text-green-200">
-            Password has been reset successfully. Redirecting to login…
+            Password has been reset successfully. Redirecting to landing page…
           </p>
-          <Link href="/auth/login" className="mt-4 inline-block text-sm text-violet-400 hover:text-violet-300">
-            Go to login
+          <Link href="/" className="mt-4 inline-block text-sm text-violet-400 hover:text-violet-300">
+            Back to landing page
           </Link>
         </div>
       </div>
@@ -66,7 +66,7 @@ function ResetPasswordForm() {
         className="inline-block text-2xl font-medium tracking-wide text-white mb-8"
         style={{ fontFamily: "'Great Vibes', cursive" }}
       >
-        Mercato
+        Finding Neo
       </Link>
       <div className="rounded-2xl border border-white/10 bg-[#0a0d14] p-8 shadow-xl">
         <h1 className="text-2xl font-bold text-white md:text-3xl">Set new password</h1>
@@ -131,8 +131,8 @@ function ResetPasswordForm() {
           </button>
         </form>
         <p className="mt-6 text-center text-sm text-white/70">
-          <Link href="/auth/login" className="font-medium text-violet-400 hover:text-violet-300">
-            Back to login
+          <Link href="/" className="font-medium text-violet-400 hover:text-violet-300">
+            Back to landing page
           </Link>
         </p>
       </div>

@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { login, register as apiRegister, setStoredUser } from '@/lib/api';
+import { forgotPassword, login, register as apiRegister, resendVerificationEmail, setStoredUser } from '@/lib/api';
 
-type AuthMode = 'login' | 'register';
+type AuthMode = 'login' | 'register' | 'forgot' | 'check-email';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -21,7 +21,11 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [registeredEmail, setRegisteredEmail] = useState('');
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [forgotDebugHint, setForgotDebugHint] = useState('');
+  const [forgotResetUrl, setForgotResetUrl] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -31,6 +35,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccessMessage('');
     if (!email || !password) {
       setError('Please enter email and password.');
       return;
@@ -61,6 +66,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccessMessage('');
     if (!email || !password) {
       setError('Please enter email and password.');
       return;
@@ -76,14 +82,65 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
         if (typeof (data as { confirmUrl?: string }).confirmUrl === 'string') {
           sessionStorage.setItem('finding_neo_confirm_url', (data as { confirmUrl: string }).confirmUrl);
         }
-        onClose();
-        router.push(`/auth/check-email?email=${encodeURIComponent(email)}`);
-        router.refresh();
+        setRegisteredEmail(email);
+        setMode('check-email');
+        setName('');
+        setPassword('');
+        setSuccessMessage('');
+        setError('');
       } else {
         setError(data.message || 'Sign up failed.');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign up failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMessage('');
+    setForgotDebugHint('');
+    setForgotResetUrl('');
+    if (!email) {
+      setError('Please enter your email.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const data = await forgotPassword(email);
+      setSuccessMessage(data.message || 'If an account exists with that email, we sent password reset instructions.');
+      const forgotDetails = data as { debugHint?: string; resetUrl?: string };
+      setForgotDebugHint(forgotDetails.debugHint || '');
+      setForgotResetUrl(forgotDetails.resetUrl || '');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send reset instructions.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    setError('');
+    setSuccessMessage('');
+    const targetEmail = registeredEmail || email;
+    if (!targetEmail) {
+      setError('No email address found.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const data = await resendVerificationEmail(targetEmail);
+      if (data.success) {
+        setSuccessMessage(data.message || 'A new confirmation link was sent to your email.');
+      } else {
+        setError(data.message || 'Something went wrong.');
+      }
+    } catch {
+      setError('Failed to resend. Try again later.');
     } finally {
       setLoading(false);
     }
@@ -161,7 +218,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
               {/* Tabs */}
               <div className="mb-6 flex gap-3 border-b border-white/10">
                 <button
-                  onClick={() => { setMode('login'); setError(''); }}
+                  onClick={() => { setMode('login'); setError(''); setSuccessMessage(''); setForgotDebugHint(''); setForgotResetUrl(''); setRegisteredEmail(''); }}
                   className={`pb-3 px-2 text-lg font-semibold transition-colors ${
                     mode === 'login'
                       ? 'text-white border-b-2 border-[#ffcc00]'
@@ -171,9 +228,9 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
                   Login
                 </button>
                 <button
-                  onClick={() => { setMode('register'); setError(''); }}
+                  onClick={() => { setMode('register'); setError(''); setSuccessMessage(''); setForgotDebugHint(''); setForgotResetUrl(''); setRegisteredEmail(''); }}
                   className={`pb-3 px-2 text-lg font-semibold transition-colors ${
-                    mode === 'register'
+                    mode === 'register' || mode === 'check-email'
                       ? 'text-white border-b-2 border-[#ffcc00]'
                       : 'text-white/55 hover:text-white/80'
                   }`}
@@ -212,7 +269,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
                         placeholder="Enter your email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="dark-input mt-3 w-full rounded-xl border border-white/25 bg-[#10131d]/85 px-4 py-3 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:outline-none focus:ring-2 focus:ring-[#8b3dff]/35"
+                        className="dark-input mt-3 w-full rounded-xl border border-white/25 bg-[#10131d]/85 px-4 py-3 text-white placeholder:text-white/20 focus:border-[#8b3dff] focus:outline-none focus:ring-2 focus:ring-[#8b3dff]/35"
                       />
                     </div>
                     <div>
@@ -226,14 +283,15 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
                         placeholder="Password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="dark-input mt-3 w-full rounded-xl border border-white/25 bg-[#10131d]/85 px-4 py-3 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:outline-none focus:ring-2 focus:ring-[#8b3dff]/35"
+                        className="dark-input mt-3 w-full rounded-xl border border-white/25 bg-[#10131d]/85 px-4 py-3 text-white placeholder:text-white/20 focus:border-[#8b3dff] focus:outline-none focus:ring-2 focus:ring-[#8b3dff]/35"
                       />
-                      <Link
-                        href="/auth/forgotPassword"
+                      <button
+                        type="button"
+                        onClick={() => { setMode('forgot'); setError(''); setSuccessMessage(''); setForgotDebugHint(''); setForgotResetUrl(''); }}
                         className="mt-3 inline-block text-sm text-[#b88cff] hover:text-[#cfa8ff]"
                       >
                         forgot password?
-                      </Link>
+                      </button>
                     </div>
                     <button
                       type="submit"
@@ -273,10 +331,10 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
                         id="reg-name"
                         type="text"
                         autoComplete="name"
-                        placeholder="Jane Doe"
+                        placeholder="Enter full name"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        className="dark-input mt-2 w-full rounded-xl border border-white/25 bg-[#10131d]/85 px-4 py-3 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:outline-none focus:ring-2 focus:ring-[#8b3dff]/35"
+                        className="dark-input mt-2 w-full rounded-xl border border-white/25 bg-[#10131d]/85 px-4 py-3 text-white placeholder:text-white/20 focus:border-[#8b3dff] focus:outline-none focus:ring-2 focus:ring-[#8b3dff]/35"
                       />
                     </div>
                     <div>
@@ -287,10 +345,10 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
                         id="reg-email"
                         type="email"
                         autoComplete="email"
-                        placeholder="you@example.com"
+                        placeholder="Enter email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="dark-input mt-2 w-full rounded-xl border border-white/25 bg-[#10131d]/85 px-4 py-3 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:outline-none focus:ring-2 focus:ring-[#8b3dff]/35"
+                        className="dark-input mt-2 w-full rounded-xl border border-white/25 bg-[#10131d]/85 px-4 py-3 text-white placeholder:text-white/20 focus:border-[#8b3dff] focus:outline-none focus:ring-2 focus:ring-[#8b3dff]/35"
                       />
                     </div>
                     <div>
@@ -301,10 +359,10 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
                         id="reg-password"
                         type="password"
                         autoComplete="new-password"
-                        placeholder="••••••••"
+                        placeholder="Enter password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="dark-input mt-2 w-full rounded-xl border border-white/25 bg-[#10131d]/85 px-4 py-3 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:outline-none focus:ring-2 focus:ring-[#8b3dff]/35"
+                        className="dark-input mt-2 w-full rounded-xl border border-white/25 bg-[#10131d]/85 px-4 py-3 text-white placeholder:text-white/20 focus:border-[#8b3dff] focus:outline-none focus:ring-2 focus:ring-[#8b3dff]/35"
                       />
                       <p className="mt-1.5 text-xs text-white/60">At least 6 characters</p>
                     </div>
@@ -316,6 +374,131 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
                       {loading ? 'Creating account…' : 'Create account'}
                     </button>
                   </form>
+                </motion.div>
+              )}
+
+              {mode === 'check-email' && (
+                <motion.div
+                  key="check-email"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="text-center"
+                >
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-violet-500/50 bg-violet-500/20">
+                    <svg className="h-7 w-7 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+
+                  <h1 className="mt-6 text-4xl font-black leading-none text-white">Check your email</h1>
+                  <p className="mt-3 text-base text-white/70">
+                    We sent a confirmation link to
+                    <span className="mt-1 block font-medium text-white/90">{registeredEmail || email}</span>
+                    Click the link to confirm your account, then you can log in.
+                  </p>
+
+                  <p className="mt-4 text-sm text-white/60">Didn&apos;t get the email? Check your spam folder.</p>
+
+                  {successMessage && (
+                    <p className="mt-4 rounded-lg border border-emerald-500/50 bg-emerald-500/20 px-3 py-2 text-sm text-emerald-200" role="alert">
+                      {successMessage}
+                    </p>
+                  )}
+                  {error && (
+                    <p className="mt-4 rounded-lg border border-red-500/50 bg-red-500/20 px-3 py-2 text-sm text-red-200" role="alert">
+                      {error}
+                    </p>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleResendVerification}
+                    disabled={loading}
+                    className="mt-6 w-full rounded-xl bg-gradient-to-r from-[#6d1eea] to-[#7b19dc] px-4 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {loading ? 'Sending…' : 'Resend email'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { setMode('login'); setError(''); setSuccessMessage(''); setRegisteredEmail(''); }}
+                    className="mt-4 inline-block text-sm font-medium text-violet-400 hover:text-violet-300"
+                  >
+                    Back to login
+                  </button>
+                </motion.div>
+              )}
+
+              {mode === 'forgot' && (
+                <motion.div
+                  key="forgot"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <h1 className="text-4xl font-black leading-none text-white">Forgot password</h1>
+                  <p className="mt-3 text-base text-white/65">
+                    Enter your email and we&apos;ll send reset instructions.
+                  </p>
+                  <form className="mt-8 space-y-5" onSubmit={handleForgotPassword}>
+                    {error && (
+                      <p className="rounded-lg bg-red-500/20 border border-red-500/50 px-3 py-2 text-sm text-red-200">
+                        {error}
+                      </p>
+                    )}
+                    {successMessage && (
+                      <p className="rounded-lg bg-emerald-500/20 border border-emerald-500/50 px-3 py-2 text-sm text-emerald-200">
+                        {successMessage}
+                      </p>
+                    )}
+                    {forgotDebugHint && (
+                      <p className="rounded-lg bg-amber-500/15 border border-amber-500/40 px-3 py-2 text-xs text-amber-200">
+                        {forgotDebugHint}
+                      </p>
+                    )}
+                    {forgotResetUrl && (
+                      <p className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white/80">
+                        Dev reset link:{' '}
+                        <a href={forgotResetUrl} className="text-[#b88cff] hover:text-[#cfa8ff] underline" target="_blank" rel="noreferrer">
+                          Open reset page
+                        </a>
+                      </p>
+                    )}
+                    <div>
+                      <label htmlFor="forgot-email" className="block text-sm font-semibold text-white/90">
+                        Email
+                      </label>
+                      <input
+                        id="forgot-email"
+                        type="email"
+                        autoComplete="email"
+                        placeholder="you@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="dark-input mt-2 w-full rounded-xl border border-white/25 bg-[#10131d]/85 px-4 py-3 text-white placeholder:text-white/20 focus:border-[#8b3dff] focus:outline-none focus:ring-2 focus:ring-[#8b3dff]/35"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full rounded-xl bg-gradient-to-r from-[#6d1eea] to-[#7b19dc] py-3 text-base font-extrabold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {loading ? 'Sending…' : 'Send reset link'}
+                    </button>
+                  </form>
+                  <p className="mt-6 text-center text-sm text-white/70">
+                    Remember your password?{' '}
+                    <button
+                      type="button"
+                      onClick={() => { setMode('login'); setError(''); setSuccessMessage(''); setForgotDebugHint(''); setForgotResetUrl(''); }}
+                      className="font-semibold text-[#b88cff] hover:text-[#cfa8ff]"
+                    >
+                      Back to login
+                    </button>
+                  </p>
                 </motion.div>
               )}
               </div>

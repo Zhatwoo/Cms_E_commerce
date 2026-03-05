@@ -27,13 +27,15 @@ async function findByToken(token) {
   if (snap.empty) return null;
   const d = snap.docs[0].data();
   const doc = snap.docs[0];
+  const expiresRaw = d.expires_at || d.expiresAt || null;
+  const createdRaw = d.created_at || d.createdAt || null;
   return {
     id: doc.id,
-    userId: d.user_id,
-    email: d.email,
+    userId: d.user_id || d.userId || null,
+    email: d.email || d.user_email || '',
     token: d.token,
-    expiresAt: d.expires_at?.toDate?.()?.toISOString?.() || d.expires_at,
-    createdAt: d.created_at?.toDate?.()?.toISOString?.() || d.created_at,
+    expiresAt: expiresRaw?.toDate?.()?.toISOString?.() || expiresRaw,
+    createdAt: createdRaw?.toDate?.()?.toISOString?.() || createdRaw,
   };
 }
 

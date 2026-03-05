@@ -417,6 +417,44 @@ body:has(.m-dashboard-shell) {
   animation: landingCursorDrift 3.2s cubic-bezier(0.25, 1, 0.3, 1) infinite;
 }
 
+.dark-input {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff;
+}
+
+.dark-input:focus,
+.dark-input:active,
+.dark-input:focus-visible {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff;
+}
+
+.dark-input::placeholder {
+  color: rgba(255, 255, 255, 0.12) !important;
+  font-weight: 400;
+  opacity: 1;
+}
+
+.dark-input::-webkit-input-placeholder {
+  color: rgba(255, 255, 255, 0.12) !important;
+  font-weight: 400;
+  opacity: 1;
+}
+
+.dark-input::-moz-placeholder {
+  color: rgba(255, 255, 255, 0.12) !important;
+  font-weight: 400;
+  opacity: 1;
+}
+
+.dark-input:-ms-input-placeholder {
+  color: rgba(255, 255, 255, 0.12) !important;
+  font-weight: 400;
+  opacity: 1;
+}
+
 .dark-input:-webkit-autofill,
 .dark-input:-webkit-autofill:hover,
 .dark-input:-webkit-autofill:focus,

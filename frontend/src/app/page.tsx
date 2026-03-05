@@ -17,12 +17,14 @@ export default function Home() {
   return (
     <div className={outfit.className}>
       <LandingPageClient>
-        <Hero />
-        <CommercePlatform />
-        <FindingNeoTools />
-        <Pricing />
-        <TrialContact />
-        <Footer />
+        <>
+          <Hero />
+          <CommercePlatform />
+          <FindingNeoTools />
+          <Pricing />
+          <TrialContact />
+          <Footer />
+        </>
       </LandingPageClient>
     </div>
   );

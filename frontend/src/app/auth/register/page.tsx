@@ -29,10 +29,12 @@ export default function RegisterPage() {
     try {
       const data = await apiRegister({ name: name.trim() || email.split('@')[0], email, password });
       if (data.success) {
+        sessionStorage.setItem('finding_neo_pending_email', email);
+        window.dispatchEvent(new Event('finding-neo-pending-email-change'));
         if (typeof (data as { confirmUrl?: string }).confirmUrl === 'string') {
           sessionStorage.setItem('finding_neo_confirm_url', (data as { confirmUrl: string }).confirmUrl);
         }
-        router.push(`/auth/check-email?email=${encodeURIComponent(email)}`);
+        router.replace('/');
         router.refresh();
       } else {
         setError(data.message || 'Sign up failed.');
@@ -83,10 +85,10 @@ export default function RegisterPage() {
                 id="name"
                 type="text"
                 autoComplete="name"
-                placeholder="Jane Doe"
+                placeholder="Enter full name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="dark-input mt-2 w-full rounded-xl border border-white/25 bg-[#10131d]/85 px-4 py-3 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:outline-none focus:ring-2 focus:ring-[#8b3dff]/35"
+                className="dark-input mt-2 w-full rounded-xl border border-white/25 bg-[#10131d]/85 px-4 py-3 text-white placeholder:text-white/20 focus:border-[#8b3dff] focus:outline-none focus:ring-2 focus:ring-[#8b3dff]/35"
               />
             </div>
             <div>
@@ -97,10 +99,10 @@ export default function RegisterPage() {
                 id="email"
                 type="email"
                 autoComplete="email"
-                placeholder="you@example.com"
+                placeholder="Enter email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="dark-input mt-2 w-full rounded-xl border border-white/25 bg-[#10131d]/85 px-4 py-3 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:outline-none focus:ring-2 focus:ring-[#8b3dff]/35"
+                className="dark-input mt-2 w-full rounded-xl border border-white/25 bg-[#10131d]/85 px-4 py-3 text-white placeholder:text-white/20 focus:border-[#8b3dff] focus:outline-none focus:ring-2 focus:ring-[#8b3dff]/35"
               />
             </div>
             <div>
@@ -111,10 +113,10 @@ export default function RegisterPage() {
                 id="password"
                 type="password"
                 autoComplete="new-password"
-                placeholder="••••••••"
+                placeholder="Enter password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="dark-input mt-2 w-full rounded-xl border border-white/25 bg-[#10131d]/85 px-4 py-3 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:outline-none focus:ring-2 focus:ring-[#8b3dff]/35"
+                className="dark-input mt-2 w-full rounded-xl border border-white/25 bg-[#10131d]/85 px-4 py-3 text-white placeholder:text-white/20 focus:border-[#8b3dff] focus:outline-none focus:ring-2 focus:ring-[#8b3dff]/35"
               />
               <p className="mt-1.5 text-xs text-white/60">At least 6 characters</p>
             </div>
@@ -128,8 +130,8 @@ export default function RegisterPage() {
           </form>
           <p className="mt-6 text-center text-sm text-white/70">
             Already have an account?{' '}
-            <Link href="/auth/login" className="font-semibold text-[#b88cff] hover:text-[#cfa8ff]">
-              Log in
+            <Link href="/" className="font-semibold text-[#b88cff] hover:text-[#cfa8ff]">
+              Back to landing page
             </Link>
           </p>
           </div>
