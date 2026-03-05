@@ -205,14 +205,7 @@ export const FigmaStyleDragHandler = () => {
     zoom: number;
     committed: boolean;
 
-    nodeMargins: Array<{
-      id: string;
-      marginTop: number;
-      marginLeft: number;
-      mode: "margin" | "offset";
-      top: number;
-      left: number;
-    }>;
+    nodeMargins: DragNodeState[];
     fallbackNodeId: string | null;
     selectionSnapshotIds: string[];
     clickedWasInSelection: boolean;

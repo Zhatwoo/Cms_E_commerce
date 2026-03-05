@@ -50,7 +50,6 @@ import {
   DEFAULT_SCALE,
   ZOOM_STEP,
   ZOOM_SENSITIVITY,
-  SMOOTH_LERP_FACTOR,
 } from "./zoomConstants";
 
 /**
