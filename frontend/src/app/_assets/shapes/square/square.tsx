@@ -3,65 +3,112 @@ import { useNode } from "@craftjs/core";
 import { ShapeSettings } from "../shared/ShapeSettings";
 import type { SquareProps } from "@/app/design/_types/components";
 
-export const Square = (props: SquareProps) => {
-  const {
-    color = "#e74c3c",
-    width = "200px",
-    height = "200px",
-    background,
-    backgroundImage = "",
-    backgroundSize = "cover",
-    backgroundPosition = "center",
-    backgroundRepeat = "no-repeat",
-    backgroundOverlay = "",
-    margin = 0,
-    marginTop,
-    marginRight,
-    marginBottom,
-    marginLeft,
-    padding = 0,
-    paddingTop = 0,
-    paddingRight = 0,
-    paddingBottom = 0,
-    paddingLeft = 0,
-    borderColor = "transparent",
-    borderWidth = 0,
-    borderStyle = "solid",
-    strokePlacement = "mid",
-    position = "relative",
-    display = "flex",
-    zIndex = 0,
-    top = "auto",
-    right = "auto",
-    bottom = "auto",
-    left = "auto",
-    rotation = 0,
-    boxShadow = "none",
-    opacity = 1,
-    overflow = "visible",
-    cursor = "default",
-    children,
-    isPreview,
-  } = props;
+const SquarePreview = ({
+  w,
+  h,
+  fillColor,
+  resolvedTopLeft,
+  resolvedTopRight,
+  resolvedBottomRight,
+  resolvedBottomLeft,
+}: {
+  w: string;
+  h: string;
+  fillColor: string;
+  resolvedTopLeft: number;
+  resolvedTopRight: number;
+  resolvedBottomRight: number;
+  resolvedBottomLeft: number;
+}) => (
+  <div
+    style={{
+      width: w,
+      height: h,
+      backgroundColor: fillColor,
+      borderRadius: `${resolvedTopLeft}px ${resolvedTopRight}px ${resolvedBottomRight}px ${resolvedBottomLeft}px`,
+    }}
+  />
+);
 
-  const w = typeof width === "number" ? `${width}px` : (width || "200px");
-  const h = typeof height === "number" ? `${height}px` : (height || "200px");
-  const fillColor = background || color;
-  const m = typeof margin === "number" ? margin : 0;
-  const mt = marginTop ?? m;
-  const mr = marginRight ?? m;
-  const mb = marginBottom ?? m;
-  const ml = marginLeft ?? m;
-  const p = typeof padding === "number" ? padding : 0;
-  const pt = paddingTop ?? p;
-  const pr = paddingRight ?? p;
-  const pb = paddingBottom ?? p;
-  const pl = paddingLeft ?? p;
-  const effectiveOverflow = overflow === "visible" ? "hidden" : overflow;
-  if (isPreview) {
-    return <div style={{ width: w, height: h, backgroundColor: fillColor }} />;
-  }
+const SquareEditor = ({
+  w,
+  h,
+  fillColor,
+  backgroundImage,
+  backgroundOverlay,
+  backgroundSize,
+  backgroundPosition,
+  backgroundRepeat,
+  borderWidth,
+  borderStyle,
+  borderColor,
+  strokePlacement,
+  resolvedTopLeft,
+  resolvedTopRight,
+  resolvedBottomRight,
+  resolvedBottomLeft,
+  position,
+  display,
+  zIndex,
+  top,
+  right,
+  bottom,
+  left,
+  rotation,
+  boxShadow,
+  opacity,
+  effectiveOverflow,
+  cursor,
+  pt,
+  pr,
+  pb,
+  pl,
+  mt,
+  mr,
+  mb,
+  ml,
+  children,
+}: {
+  w: string;
+  h: string;
+  fillColor: string;
+  backgroundImage: string;
+  backgroundOverlay: string;
+  backgroundSize: string;
+  backgroundPosition: string;
+  backgroundRepeat: string;
+  borderWidth: number;
+  borderStyle: string;
+  borderColor: string;
+  strokePlacement: "mid" | "inside" | "outside";
+  resolvedTopLeft: number;
+  resolvedTopRight: number;
+  resolvedBottomRight: number;
+  resolvedBottomLeft: number;
+  position: string;
+  display: string;
+  zIndex: number;
+  top: string;
+  right: string;
+  bottom: string;
+  left: string;
+  rotation: number;
+  boxShadow: string;
+  opacity: number;
+  effectiveOverflow: string;
+  cursor: string;
+  pt: number;
+  pr: number;
+  pb: number;
+  pl: number;
+  mt: number;
+  mr: number;
+  mb: number;
+  ml: number;
+  children?: React.ReactNode;
+}) => {
   const { connectors: { connect, drag }, id } = useNode();
+
   return (
     <div
       ref={ref => { if (ref) connect(drag(ref)); }}
@@ -94,6 +141,7 @@ export const Square = (props: SquareProps) => {
         ...(strokePlacement === "outside" && borderWidth > 0
           ? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
           : { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
+        borderRadius: `${resolvedTopLeft}px ${resolvedTopRight}px ${resolvedBottomRight}px ${resolvedBottomLeft}px`,
         boxShadow,
         opacity,
         overflow: effectiveOverflow,
@@ -108,11 +156,135 @@ export const Square = (props: SquareProps) => {
   );
 };
 
+export const Square = (props: SquareProps) => {
+  const {
+    color = "#e74c3c",
+    width = "200px",
+    height = "200px",
+    background,
+    backgroundImage = "",
+    backgroundSize = "cover",
+    backgroundPosition = "center",
+    backgroundRepeat = "no-repeat",
+    backgroundOverlay = "",
+    margin = 0,
+    marginTop,
+    marginRight,
+    marginBottom,
+    marginLeft,
+    padding = 0,
+    paddingTop = 0,
+    paddingRight = 0,
+    paddingBottom = 0,
+    paddingLeft = 0,
+    borderColor = "transparent",
+    borderWidth = 0,
+    borderStyle = "solid",
+    strokePlacement = "mid",
+    borderRadius = 0,
+    radiusTopLeft,
+    radiusTopRight,
+    radiusBottomRight,
+    radiusBottomLeft,
+    position = "relative",
+    display = "flex",
+    zIndex = 0,
+    top = "auto",
+    right = "auto",
+    bottom = "auto",
+    left = "auto",
+    rotation = 0,
+    boxShadow = "none",
+    opacity = 1,
+    overflow = "visible",
+    cursor = "default",
+    children,
+    isPreview,
+  } = props;
+
+  const w = typeof width === "number" ? `${width}px` : (width || "200px");
+  const h = typeof height === "number" ? `${height}px` : (height || "200px");
+  const fillColor = background || color;
+  const m = typeof margin === "number" ? margin : 0;
+  const mt = marginTop ?? m;
+  const mr = marginRight ?? m;
+  const mb = marginBottom ?? m;
+  const ml = marginLeft ?? m;
+  const p = typeof padding === "number" ? padding : 0;
+  const pt = paddingTop ?? p;
+  const pr = paddingRight ?? p;
+  const pb = paddingBottom ?? p;
+  const pl = paddingLeft ?? p;
+  const uniformRadius = typeof borderRadius === "number" ? borderRadius : 0;
+  const resolvedTopLeft = radiusTopLeft ?? uniformRadius;
+  const resolvedTopRight = radiusTopRight ?? uniformRadius;
+  const resolvedBottomRight = radiusBottomRight ?? uniformRadius;
+  const resolvedBottomLeft = radiusBottomLeft ?? uniformRadius;
+  const effectiveOverflow = overflow === "visible" ? "hidden" : overflow;
+
+  if (isPreview) {
+    return <SquarePreview
+      w={w}
+      h={h}
+      fillColor={fillColor}
+      resolvedTopLeft={resolvedTopLeft}
+      resolvedTopRight={resolvedTopRight}
+      resolvedBottomRight={resolvedBottomRight}
+      resolvedBottomLeft={resolvedBottomLeft}
+    />;
+  }
+  return <SquareEditor
+    w={w}
+    h={h}
+    fillColor={fillColor}
+    backgroundImage={backgroundImage}
+    backgroundOverlay={backgroundOverlay}
+    backgroundSize={backgroundSize}
+    backgroundPosition={backgroundPosition}
+    backgroundRepeat={backgroundRepeat}
+    borderWidth={borderWidth}
+    borderStyle={borderStyle}
+    borderColor={borderColor}
+    strokePlacement={strokePlacement}
+    resolvedTopLeft={resolvedTopLeft}
+    resolvedTopRight={resolvedTopRight}
+    resolvedBottomRight={resolvedBottomRight}
+    resolvedBottomLeft={resolvedBottomLeft}
+    position={position}
+    display={display}
+    zIndex={zIndex}
+    top={top}
+    right={right}
+    bottom={bottom}
+    left={left}
+    rotation={rotation}
+    boxShadow={boxShadow}
+    opacity={opacity}
+    effectiveOverflow={effectiveOverflow}
+    cursor={cursor}
+    pt={pt}
+    pr={pr}
+    pb={pb}
+    pl={pl}
+    mt={mt}
+    mr={mr}
+    mb={mb}
+    ml={ml}
+  >
+    {children}
+  </SquareEditor>;
+};
+
 export const SquareDefaultProps: Partial<SquareProps> = {
   color: "#e74c3c",
   width: "200px",
   height: "200px",
   background: "#e74c3c",
+  borderRadius: 0,
+  radiusTopLeft: 0,
+  radiusTopRight: 0,
+  radiusBottomRight: 0,
+  radiusBottomLeft: 0,
   borderColor: "transparent",
   borderWidth: 0,
   borderStyle: "solid",
@@ -128,7 +300,7 @@ Square.craft = {
   props: SquareDefaultProps,
   rules: {
     canMove: () => true,
-    canDelete: (node: any) => node.parent !== "ROOT",
+    canDelete: (node: { parent?: string }) => node.parent !== "ROOT",
   },
   related: {
     settings: ShapeSettings,
