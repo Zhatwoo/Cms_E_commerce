@@ -49,6 +49,14 @@ export const ComponentsPanel = () => {
 
   const pageComponent = CRAFT_RESOLVER.Page ?? Container;
 
+  const withFreePositionDefaults = (element: React.ReactElement): React.ReactElement =>
+    React.cloneElement(element, {
+      position: "absolute",
+      top: "0px",
+      left: "0px",
+      ...(element.props ?? {}),
+    });
+
   // ... (COMPONENTS_DATA stays the same)
   const COMPONENTS_DATA: Category[] = [
     {
@@ -227,7 +235,7 @@ export const ComponentsPanel = () => {
           if (activeTool === "hand") return;
           const sourceElement = variant.dragElement ?? variant.element;
           if (!sourceElement) return;
-          connectors.create(ref, sourceElement);
+          connectors.create(ref, withFreePositionDefaults(sourceElement));
         }}
         className={`bg-brand-white/5 rounded-xl hover:bg-brand-white/10 transition-all duration-300 border border-brand-medium/30 group shadow-md ${isNewPage
           ? "cursor-grab active:cursor-grabbing"

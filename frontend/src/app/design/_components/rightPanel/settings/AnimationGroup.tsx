@@ -1,8 +1,11 @@
 "use client";
 
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { useEditor } from "@craftjs/core";
+import { Play } from "lucide-react";
+import gsap from "gsap";
 import { DesignSection } from "./DesignSection";
+import { getInVariants, getOutVariants, getDuringAnimation, getScrollEffectTweenProps } from "../../../_lib/animationEngine";
 import {
   DEFAULT_ANIMATION,
   ANIMATE_IN_LABELS,
@@ -66,12 +69,174 @@ interface AnimationGroupProps {
   selectedIds: string[];
 }
 
+type PreviewPhase = "in" | "out" | "during" | "scrollEffect";
+
+function easingToCss(easing: EasingType): string {
+  const map: Record<EasingType, string> = {
+    linear: "linear",
+    easeIn: "cubic-bezier(0.42,0,1,1)",
+    easeOut: "cubic-bezier(0,0,0.58,1)",
+    easeInOut: "cubic-bezier(0.42,0,0.58,1)",
+    circIn: "cubic-bezier(0.6,0.04,0.98,0.34)",
+    circOut: "cubic-bezier(0.08,0.82,0.17,1)",
+    circInOut: "cubic-bezier(0.78,0.14,0.15,0.86)",
+    backIn: "cubic-bezier(0.6,-0.28,0.735,0.045)",
+    backOut: "cubic-bezier(0.175,0.885,0.32,1.275)",
+    backInOut: "cubic-bezier(0.68,-0.55,0.265,1.55)",
+    anticipate: "cubic-bezier(0.4,0,0.2,1)",
+  };
+  return map[easing] ?? "ease";
+}
+
+function normalizeWebAnimationEasing(raw: string | undefined): string {
+  if (!raw) return "ease-in-out";
+  const value = raw.trim();
+  if (!value) return "ease-in-out";
+
+  const map: Record<string, string> = {
+    linear: "linear",
+    ease: "ease",
+    easein: "ease-in",
+    easeout: "ease-out",
+    easeinout: "ease-in-out",
+    "ease-in": "ease-in",
+    "ease-out": "ease-out",
+    "ease-in-out": "ease-in-out",
+    "step-start": "step-start",
+    "step-end": "step-end",
+  };
+
+  const compact = value.toLowerCase().replace(/[\s_-]/g, "");
+  if (map[compact]) return map[compact];
+  if (map[value.toLowerCase()]) return map[value.toLowerCase()];
+
+  const lower = value.toLowerCase();
+  if (lower.startsWith("cubic-bezier(") || lower.startsWith("steps(")) {
+    return value;
+  }
+
+  return "ease-in-out";
+}
+
+function buildTransformFromState(state: Record<string, unknown>): string | undefined {
+  const parts: string[] = [];
+  if (typeof state.x === "number") parts.push(`translateX(${state.x}px)`);
+  if (typeof state.y === "number") parts.push(`translateY(${state.y}px)`);
+  if (typeof state.scale === "number") parts.push(`scale(${state.scale})`);
+  if (typeof state.scaleX === "number") parts.push(`scaleX(${state.scaleX})`);
+  if (typeof state.scaleY === "number") parts.push(`scaleY(${state.scaleY})`);
+  if (typeof state.rotate === "number") parts.push(`rotate(${state.rotate}deg)`);
+  if (typeof state.rotateX === "number") parts.push(`rotateX(${state.rotateX}deg)`);
+  if (typeof state.rotateY === "number") parts.push(`rotateY(${state.rotateY}deg)`);
+  return parts.length > 0 ? parts.join(" ") : undefined;
+}
+
+function stateToKeyframe(state: Record<string, unknown>): Keyframe {
+  const frame: Keyframe = {};
+  const transform = buildTransformFromState(state);
+  if (transform) frame.transform = transform;
+  if (typeof state.opacity === "number") frame.opacity = state.opacity;
+  if (typeof state.filter === "string") frame.filter = state.filter;
+  if (typeof state.boxShadow === "string") frame.boxShadow = state.boxShadow;
+  return frame;
+}
+
+function toKeyframeState(input: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...input };
+  delete out.transition;
+  return out;
+}
+
+function parseDuringKeyframes(input: Record<string, unknown>): Keyframe[] {
+  const state = { ...input };
+  delete state.transition;
+
+  const props = Object.entries(state);
+  if (props.length === 0) return [];
+
+  const maxFrames = props.reduce((max, [, value]) => {
+    if (Array.isArray(value)) return Math.max(max, value.length);
+    return max;
+  }, 0);
+
+  if (maxFrames <= 0) return [];
+
+  const frames: Keyframe[] = Array.from({ length: maxFrames }, () => ({}));
+
+  for (const [key, value] of props) {
+    if (!Array.isArray(value)) {
+      frames.forEach((frame) => {
+        (frame as Record<string, unknown>)[key] = value;
+      });
+      continue;
+    }
+    for (let i = 0; i < frames.length; i++) {
+      const frameValue = value[Math.min(i, value.length - 1)];
+      (frames[i] as Record<string, unknown>)[key] = frameValue;
+    }
+  }
+
+  const normalized = frames.map((frame) => {
+    const record = frame as Record<string, unknown>;
+    const transformParts: string[] = [];
+    if (typeof record.x === "number") transformParts.push(`translateX(${record.x}px)`);
+    if (typeof record.y === "number") transformParts.push(`translateY(${record.y}px)`);
+    if (typeof record.scale === "number") transformParts.push(`scale(${record.scale})`);
+    if (typeof record.rotate === "number") transformParts.push(`rotate(${record.rotate}deg)`);
+
+    const next: Keyframe = {};
+    if (transformParts.length > 0) next.transform = transformParts.join(" ");
+    if (typeof record.opacity === "number") next.opacity = record.opacity;
+    if (typeof record.filter === "string") next.filter = record.filter;
+    if (typeof record.boxShadow === "string") next.boxShadow = record.boxShadow;
+    return next;
+  });
+
+  return normalized;
+}
+
+function asNumber(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number.parseFloat(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
+}
+
+function applyScrollPreviewIndicator(element: HTMLElement): () => void {
+  const prevOutline = element.style.outline;
+  const prevOutlineOffset = element.style.outlineOffset;
+  const prevTransition = element.style.transition;
+
+  element.style.transition = prevTransition
+    ? `${prevTransition}, outline-color 140ms ease`
+    : "outline-color 140ms ease";
+  element.style.outline = "2px solid #a855f7";
+  element.style.outlineOffset = "2px";
+
+  return () => {
+    element.style.outline = prevOutline;
+    element.style.outlineOffset = prevOutlineOffset;
+    element.style.transition = prevTransition;
+  };
+}
+
 export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
   const firstId = selectedIds[0];
   const animation = useEditor((state) =>
     getAnimation(state.nodes[firstId]?.data?.props ?? {})
   );
-  const { actions } = useEditor();
+  const { actions, query } = useEditor();
+  const playingAnimationRef = useRef<Animation | null>(null);
+  const scrollPreviewTimelineRef = useRef<gsap.core.Timeline | null>(null);
+  const restoreScrollIndicatorRef = useRef<(() => void) | null>(null);
+  const debounceTimersRef = useRef<Record<PreviewPhase, number | null>>({
+    in: null,
+    out: null,
+    during: null,
+    scrollEffect: null,
+  });
 
   const update = useCallback(
     (path: string, value: unknown) => {
@@ -87,8 +252,269 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
     [actions, selectedIds]
   );
 
+  const previewOnCanvas = useCallback(
+    (phase: PreviewPhase, overrideType?: AnimateInType | AnimateOutType | AnimateDuringType | ScrollEffectType) => {
+      if (!firstId) return;
+
+      let element: HTMLElement | null = null;
+      try {
+        element = query.node(firstId).get()?.dom ?? null;
+      } catch {
+        element = null;
+      }
+      if (!element) return;
+
+      if (playingAnimationRef.current) {
+        playingAnimationRef.current.cancel();
+        playingAnimationRef.current = null;
+      }
+      if (scrollPreviewTimelineRef.current) {
+        scrollPreviewTimelineRef.current.kill();
+        scrollPreviewTimelineRef.current = null;
+      }
+      if (restoreScrollIndicatorRef.current) {
+        restoreScrollIndicatorRef.current();
+        restoreScrollIndicatorRef.current = null;
+      }
+
+      const current = animation;
+      let webAnimation: Animation | null = null;
+
+      if (phase === "in") {
+        const type = (overrideType as AnimateInType | undefined) ?? current.animateIn.type;
+        if (type === "none") return;
+        const variants = getInVariants(type, current.animateIn.distance);
+        const hidden = toKeyframeState(variants.hidden);
+        const visible = toKeyframeState(variants.visible);
+        const keyframes: Keyframe[] = [stateToKeyframe(hidden), stateToKeyframe(visible)];
+        webAnimation = element.animate(keyframes, {
+          duration: Math.max(1, current.animateIn.duration * 1000),
+          delay: Math.max(0, current.animateIn.delay * 1000),
+          easing: easingToCss(current.animateIn.easing),
+          fill: "forwards",
+        });
+      }
+
+      if (phase === "out") {
+        const type = (overrideType as AnimateOutType | undefined) ?? current.animateOut.type;
+        if (type === "none") return;
+        const variants = getOutVariants(type, current.animateOut.distance);
+        const visible = toKeyframeState(variants.visible);
+        const exit = toKeyframeState(variants.exit);
+        const keyframes: Keyframe[] = [stateToKeyframe(visible), stateToKeyframe(exit)];
+        webAnimation = element.animate(keyframes, {
+          duration: Math.max(1, current.animateOut.duration * 1000),
+          delay: Math.max(0, current.animateOut.delay * 1000),
+          easing: easingToCss(current.animateOut.easing),
+          fill: "forwards",
+        });
+      }
+
+      if (phase === "during") {
+        const type = (overrideType as AnimateDuringType | undefined) ?? current.animateDuring.type;
+        if (type === "none") return;
+        const duringConfig = getDuringAnimation(type, current.animateDuring.duration, current.animateDuring.intensity);
+        const keyframes = parseDuringKeyframes(duringConfig as Record<string, unknown>);
+        if (keyframes.length === 0) return;
+
+        const transition = (duringConfig as Record<string, unknown>).transition as Record<string, unknown> | undefined;
+        const durationSeconds = typeof transition?.duration === "number"
+          ? transition.duration
+          : current.animateDuring.duration;
+        const easing = normalizeWebAnimationEasing(
+          typeof transition?.ease === "string" ? transition.ease : "ease-in-out"
+        );
+
+        webAnimation = element.animate(keyframes, {
+          duration: Math.max(1, durationSeconds * 1000),
+          easing,
+          iterations: 2,
+          fill: "forwards",
+        });
+      }
+
+      if (phase === "scrollEffect") {
+        const nextType = (overrideType as ScrollEffectType | undefined) ?? current.scrollEffect.type;
+        if (!current.scrollEffect.enabled || nextType === "none") return;
+
+        const scrollConfig = {
+          ...current.scrollEffect,
+          type: nextType,
+        };
+        const tweenProps = getScrollEffectTweenProps(scrollConfig);
+        const speedMagnitude = Math.max(0.1, Math.abs(current.scrollEffect.speed || 1));
+        const baseDuration = 0.75;
+        const simulatedEase = current.scrollEffect.scrub ? "none" : "power1.inOut";
+
+        const restoreIndicator = applyScrollPreviewIndicator(element);
+        restoreScrollIndicatorRef.current = restoreIndicator;
+
+        const timeline = gsap.timeline({
+          defaults: {
+            ease: simulatedEase,
+          },
+          onComplete: () => {
+            if (restoreScrollIndicatorRef.current) {
+              restoreScrollIndicatorRef.current();
+              restoreScrollIndicatorRef.current = null;
+            }
+            timeline.kill();
+            if (scrollPreviewTimelineRef.current === timeline) {
+              scrollPreviewTimelineRef.current = null;
+            }
+          },
+          onInterrupt: () => {
+            if (restoreScrollIndicatorRef.current) {
+              restoreScrollIndicatorRef.current();
+              restoreScrollIndicatorRef.current = null;
+            }
+          },
+        });
+
+        if (nextType === "parallax" || nextType === "horizontalMove") {
+          const axis = (nextType === "horizontalMove" || current.scrollEffect.direction === "horizontal") ? "x" : "y";
+          const delta = Math.max(20, Math.abs(asNumber(tweenProps[axis])));
+          const startValue = current.scrollEffect.speed >= 0 ? delta / 2 : -delta / 2;
+          const endValue = -startValue;
+          timeline.fromTo(
+            element,
+            { [axis]: startValue },
+            { [axis]: endValue, duration: baseDuration }
+          );
+          timeline.to(element, {
+            [axis]: startValue,
+            duration: baseDuration,
+          });
+        } else if (nextType === "fade") {
+          timeline.fromTo(
+            element,
+            { opacity: 0 },
+            { opacity: 1, duration: baseDuration }
+          );
+          timeline.to(element, {
+            opacity: 0,
+            duration: baseDuration,
+          });
+        } else if (nextType === "scale") {
+          const targetScale = Math.max(0.2, Math.abs(asNumber(tweenProps.scale) || (1 + speedMagnitude * 0.5)));
+          timeline.fromTo(
+            element,
+            { scale: targetScale },
+            { scale: 1, duration: baseDuration }
+          );
+          timeline.to(element, {
+            scale: targetScale,
+            duration: baseDuration,
+          });
+        } else if (nextType === "rotate") {
+          const targetRotation = Math.abs(asNumber(tweenProps.rotation) || (speedMagnitude * 180));
+          timeline.fromTo(
+            element,
+            { rotation: targetRotation },
+            { rotation: 0, duration: baseDuration }
+          );
+          timeline.to(element, {
+            rotation: targetRotation,
+            duration: baseDuration,
+          });
+        } else if (nextType === "blur") {
+          const targetFilter = (typeof tweenProps.filter === "string" && tweenProps.filter)
+            ? tweenProps.filter
+            : `blur(${Math.max(1, speedMagnitude * 10)}px)`;
+          timeline.fromTo(
+            element,
+            { filter: targetFilter },
+            { filter: "blur(0px)", duration: baseDuration }
+          );
+          timeline.to(element, {
+            filter: targetFilter,
+            duration: baseDuration,
+          });
+        }
+
+        scrollPreviewTimelineRef.current = timeline;
+        return;
+      }
+
+      if (!webAnimation) return;
+
+      playingAnimationRef.current = webAnimation;
+      webAnimation.finished
+        .catch(() => undefined)
+        .then(() => {
+          webAnimation.cancel();
+          if (playingAnimationRef.current === webAnimation) {
+            playingAnimationRef.current = null;
+          }
+        });
+    },
+    [animation, firstId, query]
+  );
+
+  const schedulePreview = useCallback(
+    (phase: PreviewPhase) => {
+      const prev = debounceTimersRef.current[phase];
+      if (prev != null) {
+        window.clearTimeout(prev);
+      }
+      debounceTimersRef.current[phase] = window.setTimeout(() => {
+        previewOnCanvas(phase);
+        debounceTimersRef.current[phase] = null;
+      }, 300);
+    },
+    [previewOnCanvas]
+  );
+
+  useEffect(() => {
+    return () => {
+      (Object.keys(debounceTimersRef.current) as PreviewPhase[]).forEach((phase) => {
+        const timer = debounceTimersRef.current[phase];
+        if (timer != null) {
+          window.clearTimeout(timer);
+          debounceTimersRef.current[phase] = null;
+        }
+      });
+      if (playingAnimationRef.current) {
+        playingAnimationRef.current.cancel();
+        playingAnimationRef.current = null;
+      }
+      if (scrollPreviewTimelineRef.current) {
+        scrollPreviewTimelineRef.current.kill();
+        scrollPreviewTimelineRef.current = null;
+      }
+      if (restoreScrollIndicatorRef.current) {
+        restoreScrollIndicatorRef.current();
+        restoreScrollIndicatorRef.current = null;
+      }
+    };
+  }, []);
+
   return (
     <div className="flex flex-col pb-4">
+      <div className="mb-3 px-0.5">
+        <button
+          type="button"
+          aria-label="Preview animation"
+          title="Preview animation"
+          onClick={() => {
+            if (animation.animateIn.type !== "none") {
+              previewOnCanvas("in");
+              return;
+            }
+            if (animation.animateDuring.type !== "none") {
+              previewOnCanvas("during");
+              return;
+            }
+            if (animation.scrollEffect.enabled && animation.scrollEffect.type !== "none") {
+              previewOnCanvas("scrollEffect");
+            }
+          }}
+          className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-brand-medium/30 bg-brand-medium-dark text-brand-lighter hover:bg-brand-medium/40 hover:border-brand-medium/50 transition-colors"
+        >
+          <Play size={12} strokeWidth={2.2} />
+        </button>
+      </div>
+
       {/* ─── Trigger ─── */}
       <DesignSection title="Trigger">
         <div className="flex flex-col gap-3">
@@ -142,7 +568,11 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
             <label className={labelClass}>Animation</label>
             <select
               value={animation.animateIn.type}
-              onChange={(e) => update("animateIn.type", e.target.value as AnimateInType)}
+              onChange={(e) => {
+                const nextType = e.target.value as AnimateInType;
+                update("animateIn.type", nextType);
+                previewOnCanvas("in", nextType);
+              }}
               className={selectClass}
             >
               {Object.entries(ANIMATE_IN_LABELS).map(([k, v]) => (
@@ -165,7 +595,10 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                     max="3"
                     step="0.1"
                     value={animation.animateIn.duration}
-                    onChange={(e) => update("animateIn.duration", Number(e.target.value))}
+                    onChange={(e) => {
+                      update("animateIn.duration", Number(e.target.value));
+                      schedulePreview("in");
+                    }}
                     className={sliderClass}
                   />
                 </div>
@@ -180,7 +613,10 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                     max="3"
                     step="0.1"
                     value={animation.animateIn.delay}
-                    onChange={(e) => update("animateIn.delay", Number(e.target.value))}
+                    onChange={(e) => {
+                      update("animateIn.delay", Number(e.target.value));
+                      schedulePreview("in");
+                    }}
                     className={sliderClass}
                   />
                 </div>
@@ -190,7 +626,10 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                 <label className={labelClass}>Easing</label>
                 <select
                   value={animation.animateIn.easing}
-                  onChange={(e) => update("animateIn.easing", e.target.value as EasingType)}
+                  onChange={(e) => {
+                    update("animateIn.easing", e.target.value as EasingType);
+                    schedulePreview("in");
+                  }}
                   className={selectClass}
                 >
                   {Object.entries(EASING_LABELS).map(([k, v]) => (
@@ -211,7 +650,10 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                     max="300"
                     step="5"
                     value={animation.animateIn.distance}
-                    onChange={(e) => update("animateIn.distance", Number(e.target.value))}
+                    onChange={(e) => {
+                      update("animateIn.distance", Number(e.target.value));
+                      schedulePreview("in");
+                    }}
                     className={sliderClass}
                   />
                 </div>
@@ -244,7 +686,11 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
             <label className={labelClass}>Animation</label>
             <select
               value={animation.animateOut.type}
-              onChange={(e) => update("animateOut.type", e.target.value as AnimateOutType)}
+              onChange={(e) => {
+                const nextType = e.target.value as AnimateOutType;
+                update("animateOut.type", nextType);
+                previewOnCanvas("out", nextType);
+              }}
               className={selectClass}
             >
               {Object.entries(ANIMATE_OUT_LABELS).map(([k, v]) => (
@@ -267,7 +713,10 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                     max="3"
                     step="0.1"
                     value={animation.animateOut.duration}
-                    onChange={(e) => update("animateOut.duration", Number(e.target.value))}
+                    onChange={(e) => {
+                      update("animateOut.duration", Number(e.target.value));
+                      schedulePreview("out");
+                    }}
                     className={sliderClass}
                   />
                 </div>
@@ -282,7 +731,10 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                     max="3"
                     step="0.1"
                     value={animation.animateOut.delay}
-                    onChange={(e) => update("animateOut.delay", Number(e.target.value))}
+                    onChange={(e) => {
+                      update("animateOut.delay", Number(e.target.value));
+                      schedulePreview("out");
+                    }}
                     className={sliderClass}
                   />
                 </div>
@@ -292,7 +744,10 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                 <label className={labelClass}>Easing</label>
                 <select
                   value={animation.animateOut.easing}
-                  onChange={(e) => update("animateOut.easing", e.target.value as EasingType)}
+                  onChange={(e) => {
+                    update("animateOut.easing", e.target.value as EasingType);
+                    schedulePreview("out");
+                  }}
                   className={selectClass}
                 >
                   {Object.entries(EASING_LABELS).map(([k, v]) => (
@@ -313,7 +768,10 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                     max="300"
                     step="5"
                     value={animation.animateOut.distance}
-                    onChange={(e) => update("animateOut.distance", Number(e.target.value))}
+                    onChange={(e) => {
+                      update("animateOut.distance", Number(e.target.value));
+                      schedulePreview("out");
+                    }}
                     className={sliderClass}
                   />
                 </div>
@@ -330,7 +788,11 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
             <label className={labelClass}>Animation</label>
             <select
               value={animation.animateDuring.type}
-              onChange={(e) => update("animateDuring.type", e.target.value as AnimateDuringType)}
+              onChange={(e) => {
+                const nextType = e.target.value as AnimateDuringType;
+                update("animateDuring.type", nextType);
+                previewOnCanvas("during", nextType);
+              }}
               className={selectClass}
             >
               {Object.entries(ANIMATE_DURING_LABELS).map(([k, v]) => (
@@ -352,7 +814,10 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                   max="5"
                   step="0.1"
                   value={animation.animateDuring.duration}
-                  onChange={(e) => update("animateDuring.duration", Number(e.target.value))}
+                  onChange={(e) => {
+                    update("animateDuring.duration", Number(e.target.value));
+                    schedulePreview("during");
+                  }}
                   className={sliderClass}
                 />
               </div>
@@ -368,7 +833,10 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                   max="3"
                   step="0.1"
                   value={animation.animateDuring.intensity}
-                  onChange={(e) => update("animateDuring.intensity", Number(e.target.value))}
+                  onChange={(e) => {
+                    update("animateDuring.intensity", Number(e.target.value));
+                    schedulePreview("during");
+                  }}
                   className={sliderClass}
                 />
               </div>
@@ -420,7 +888,13 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
             <input
               type="checkbox"
               checked={animation.scrollEffect.enabled}
-              onChange={(e) => update("scrollEffect.enabled", e.target.checked)}
+              onChange={(e) => {
+                const enabled = e.target.checked;
+                update("scrollEffect.enabled", enabled);
+                if (enabled) {
+                  previewOnCanvas("scrollEffect");
+                }
+              }}
               className={checkboxClass}
             />
             <span className={labelClass}>Enable Scroll Effect</span>
@@ -432,7 +906,11 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                 <label className={labelClass}>Effect Type</label>
                 <select
                   value={animation.scrollEffect.type}
-                  onChange={(e) => update("scrollEffect.type", e.target.value as ScrollEffectType)}
+                  onChange={(e) => {
+                    const nextType = e.target.value as ScrollEffectType;
+                    update("scrollEffect.type", nextType);
+                    previewOnCanvas("scrollEffect", nextType);
+                  }}
                   className={selectClass}
                 >
                   {Object.entries(SCROLL_EFFECT_LABELS).map(([k, v]) => (
@@ -454,7 +932,10 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                       max="2"
                       step="0.1"
                       value={animation.scrollEffect.speed}
-                      onChange={(e) => update("scrollEffect.speed", Number(e.target.value))}
+                      onChange={(e) => {
+                        update("scrollEffect.speed", Number(e.target.value));
+                        schedulePreview("scrollEffect");
+                      }}
                       className={sliderClass}
                     />
                     <div className="flex justify-between">
@@ -467,7 +948,10 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                     <label className={labelClass}>Direction</label>
                     <select
                       value={animation.scrollEffect.direction}
-                      onChange={(e) => update("scrollEffect.direction", e.target.value)}
+                      onChange={(e) => {
+                        update("scrollEffect.direction", e.target.value);
+                        schedulePreview("scrollEffect");
+                      }}
                       className={selectClass}
                     >
                       <option value="vertical">Vertical</option>
@@ -479,7 +963,10 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                     <input
                       type="checkbox"
                       checked={animation.scrollEffect.scrub}
-                      onChange={(e) => update("scrollEffect.scrub", e.target.checked)}
+                      onChange={(e) => {
+                        update("scrollEffect.scrub", e.target.checked);
+                        previewOnCanvas("scrollEffect");
+                      }}
                       className={checkboxClass}
                     />
                     <span className={labelClass}>Scrub (smooth scroll-linked)</span>

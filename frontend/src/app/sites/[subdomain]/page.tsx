@@ -3,46 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { WebPreview } from '@/app/design/_lib/webRenderer';
-import { serializeCraftToClean } from '@/app/design/_lib/serializer';
+import { parseContentToCleanDoc } from '@/app/design/_lib/contentParser';
+import { PREVIEW_MOBILE_BREAKPOINT } from '@/app/design/_lib/viewportConstants';
 import type { BuilderDocument } from '@/app/design/_types/schema';
 import { apiFetch } from '@/lib/api';
 import { StorefrontProvider, useStorefront } from '@/app/sites/_storefront/StorefrontContext';
 import { CartDrawer } from '@/app/sites/_storefront/CartDrawer';
 import type { StorefrontProduct } from '@/app/sites/_storefront/StorefrontProducts';
-
-function parsePublishedContentToCleanDoc(content: unknown): BuilderDocument | null {
-  if (content == null) return null;
-
-  try {
-    let normalized: unknown = content;
-
-    for (let i = 0; i < 2; i += 1) {
-      if (typeof normalized !== 'string') break;
-      const trimmed = normalized.trim();
-      if (!trimmed) return null;
-      try {
-        normalized = JSON.parse(trimmed);
-      } catch {
-        break;
-      }
-    }
-
-    if (
-      normalized &&
-      typeof normalized === 'object' &&
-      'version' in normalized &&
-      'pages' in normalized &&
-      'nodes' in normalized
-    ) {
-      return normalized as BuilderDocument;
-    }
-
-    const raw = typeof normalized === 'string' ? normalized : JSON.stringify(normalized);
-    return serializeCraftToClean(raw);
-  } catch {
-    return null;
-  }
-}
 
 function CartFab() {
   const { cartCount, openCart, lastAddedAt } = useStorefront();
@@ -139,7 +106,7 @@ function PublicSiteContent() {
           setLoading(false);
           return;
         }
-        const clean = parsePublishedContentToCleanDoc(content);
+        const clean = parseContentToCleanDoc(content);
         if (!clean) {
           setError('Invalid content');
           setLoading(false);
@@ -205,8 +172,9 @@ function PublicSiteContent() {
       <WebPreview
         doc={doc}
         pageIndex={0}
-        mobileBreakpoint={900}
+        mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
         enableFormInputs
+        builderParityMode
         storeContext={{ products, addToCart }}
       />
       <CartFab />
