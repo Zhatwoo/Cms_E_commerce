@@ -75,7 +75,7 @@ export const Row = ({
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className={`min-h-[40px] transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
+      className={`min-h-[40px] ${customClassName}`}
       style={{
         backgroundColor: background,
         paddingLeft: fluidSpace(pl, 0),

@@ -85,19 +85,19 @@ export const PaymentForm: TemplateEntry = {
 							Element as any,
 							{ is: Row as any, justifyContent: "space-between", marginBottom: 8, canvas: true },
 							React.createElement(Text as any, { text: "Order Total", fontSize: 14, color: "#dbeafe" }),
-							React.createElement(Text as any, { text: "$149.00", fontSize: 14, color: "#ffffff" })
+							React.createElement(Text as any, { text: "₱149.00", fontSize: 14, color: "#ffffff" })
 						),
 						React.createElement(
 							Element as any,
 							{ is: Row as any, justifyContent: "space-between", marginBottom: 8, canvas: true },
 							React.createElement(Text as any, { text: "Processing Fee", fontSize: 14, color: "#dbeafe" }),
-							React.createElement(Text as any, { text: "$3.00", fontSize: 14, color: "#ffffff" })
+							React.createElement(Text as any, { text: "₱3.00", fontSize: 14, color: "#ffffff" })
 						),
 						React.createElement(
 							Element as any,
 							{ is: Row as any, justifyContent: "space-between", marginBottom: 14, canvas: true },
 							React.createElement(Text as any, { text: "Final Amount", fontSize: 16, fontWeight: "600", color: "#ffffff" }),
-							React.createElement(Text as any, { text: "$152.00", fontSize: 16, fontWeight: "600", color: "#ffffff" })
+							React.createElement(Text as any, { text: "₱152.00", fontSize: 16, fontWeight: "600", color: "#ffffff" })
 						)
 					),
 					React.createElement(Text as any, { text: "Your payment is encrypted and secure.", fontSize: 12, color: "#bfdbfe", marginTop: 18 })

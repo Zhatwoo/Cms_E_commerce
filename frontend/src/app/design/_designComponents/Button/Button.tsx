@@ -126,7 +126,7 @@ export const Button = ({
         wordBreak: "keep-all",
         transition: "background-color 0.15s, opacity 0.15s",
       }}
-      className={`hover:outline hover:outline-blue-500 ${customClassName}`}
+      className={customClassName}
     >
       {children ?? label}
     </button>

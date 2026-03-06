@@ -43,7 +43,7 @@ export const Text = ({
   letterSpacing = 0,
   textAlign = "left",
   textTransform = "none",
-  color = "#ffffff",
+  color = "#000000",
   position = "relative",
   display = "block",
   zIndex = 2,
@@ -188,9 +188,9 @@ export const Text = ({
     height: hasExplicitHeight ? height : "auto",
     maxWidth: "100%",
     minWidth: 0,
-    alignSelf: isFlowText && isFlexOrGridParent ? "stretch" : undefined,
+    alignSelf: undefined,
     boxSizing: "border-box",
-    minHeight: "1em",
+    minHeight: hasExplicitHeight ? undefined : "min-content",
     overflow: hasExplicitHeight ? "hidden" : "visible",
     whiteSpace: "pre-wrap",
     overflowWrap: "break-word",
@@ -279,6 +279,12 @@ export const Text = ({
     <div
       data-fluid-text="true"
       data-node-id={id}
+      onMouseDown={(e) => {
+        if (isEditing) e.preventDefault();
+      }}
+      onDragStart={(e) => {
+        if (isEditing) e.preventDefault();
+      }}
       onDoubleClick={(e) => {
         if (isCodeBlock) return;
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -286,14 +292,9 @@ export const Text = ({
         setEditingTextNodeId(id);
       }}
       ref={(ref) => {
-        if (!ref) return;
-        if (isEditing) {
-          connect(ref);
-          return;
-        }
-        connect(drag(ref));
+        if (ref) connect(drag(ref));
       }}
-      className={`hover:outline hover:outline-blue-500 ${isCodeBlock ? "cursor-default" : isEditing ? "cursor-text" : "cursor-pointer"} ${customClassName}`}
+      className={`${isCodeBlock ? "cursor-default" : isEditing ? "cursor-text" : "cursor-pointer"} ${customClassName}`}
       style={baseStyle}
     >
       {isEditing ? (
@@ -333,7 +334,7 @@ export const Text = ({
   );
 };
 
-export const TextDefaultProps: Partial<TextProps> = {
+export const TextDefaultProps: Partial<TextProps & { width?: string; height?: string }> = {
   text: "",
   fontSize: 16,
   fontFamily: "Outfit",
@@ -351,6 +352,8 @@ export const TextDefaultProps: Partial<TextProps> = {
   right: "auto",
   bottom: "auto",
   left: "auto",
+  width: undefined,
+  height: "auto",
   margin: 0,
   marginTop: 0,
   marginRight: 0,

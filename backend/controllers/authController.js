@@ -1,7 +1,7 @@
 
 const { auth } = require('../config/firebase');
 const PasswordReset = require('../models/PasswordReset');
-const { sendVerificationEmail } = require('../utils/emailService');
+const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/emailService');
 const { uploadAvatar, slugPathSegment, deleteAvatarByUrlForUser, getStoragePathFromUrl } = require('../utils/storageHelpers');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
@@ -534,18 +534,50 @@ exports.forgotPassword = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please provide email' });
     }
 
-    const user = await User.findByEmail(email);
-    if (user) {
-      await PasswordReset.create(user.id, user.email);
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('Password reset token created for', user.email);
+    const normEmail = email.toLowerCase().trim();
+    let user = await User.findByEmail(normEmail);
+
+    // Fallback: user might exist in Firebase Auth but not in Firestore (legacy/edge case)
+    if (!user) {
+      try {
+        const authUser = await auth.getUserByEmail(normEmail);
+        user = { id: authUser.uid, email: authUser.email, displayName: authUser.displayName || '' };
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('[forgotPassword] User found via Firebase Auth (not Firestore):', normEmail);
+        }
+      } catch (_) {
+        // No user found in Firebase Auth either
       }
     }
 
-    res.status(200).json({
+    let resetUrl = null;
+    if (user) {
+      const { token } = await PasswordReset.create(user.id, user.email);
+      resetUrl = `${(process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '')}/auth/reset-password?token=${encodeURIComponent(token)}`;
+
+      const { sent, error: sendError } = await sendPasswordResetEmail(
+        user.email,
+        token,
+        user.displayName || user.email?.split('@')[0] || ''
+      );
+
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[forgotPassword] Email sent:', sent, '| To:', user.email, sendError ? `| Error: ${sendError}` : '');
+        if (!sent) console.log('[forgotPassword] Reset link (copy if email failed):', resetUrl);
+      }
+    } else if (process.env.NODE_ENV !== 'production') {
+      console.log('[forgotPassword] No user found for email:', normEmail);
+    }
+
+    const payload = {
       success: true,
       message: 'If an account exists with that email, you will receive instructions to reset your password.'
-    });
+    };
+    // In development: include reset link so user can click even if email doesn't arrive
+    if (resetUrl && process.env.NODE_ENV !== 'production') {
+      payload.resetUrl = resetUrl;
+    }
+    res.status(200).json(payload);
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }

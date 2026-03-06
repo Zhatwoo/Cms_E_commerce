@@ -24,6 +24,7 @@ export interface Product {
   discountType?: 'percentage' | 'fixed';
   hasVariants?: boolean;
   variants?: ProductVariant[];
+  variantStocks?: Record<string, number>;
   priceRangeMin?: number | null;
   priceRangeMax?: number | null;
   stock: number;

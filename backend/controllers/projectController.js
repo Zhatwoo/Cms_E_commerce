@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Domain = require('../models/Domain');
 const { deleteProjectStorageFolder } = require('../utils/storageHelpers');
 const { getLimits } = require('../utils/subscriptionLimits');
+const { getTrashRetentionDays } = require('../utils/trashConfig');
 
 // @desc    List current user's projects
 // @route   GET /api/projects
@@ -10,8 +11,7 @@ const { getLimits } = require('../utils/subscriptionLimits');
 exports.list = async (req, res) => {
   try {
     const userId = req.user.id;
-    const instanceId = (req.query.instanceId || '').toString().trim() || null;
-    const projects = await Project.list(userId, { instanceId });
+    const projects = await Project.list(userId);
     res.status(200).json({
       success: true,
       projects,
@@ -31,7 +31,15 @@ exports.list = async (req, res) => {
 exports.create = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { title, templateId, subdomain, instanceId } = req.body || {};
+    const { title, templateId, subdomain, industry } = req.body || {};
+
+    const normalizedIndustry = (industry || '').toString().trim();
+    if (!normalizedIndustry) {
+      return res.status(400).json({
+        success: false,
+        message: 'Industry is required when creating a project.',
+      });
+    }
 
     // Check subscription limits
     const user = await User.findById(userId);
@@ -58,8 +66,8 @@ exports.create = async (req, res) => {
 
     const project = await Project.create(userId, {
       title: title || 'Untitled Project',
+      industry: normalizedIndustry,
       templateId: templateId || null,
-      instanceId: (instanceId && String(instanceId).trim()) || null,
       subdomain: subdomain || null,
     });
     res.status(201).json({
@@ -143,11 +151,12 @@ exports.update = async (req, res) => {
         message: 'Project not found',
       });
     }
-    const { title, status, thumbnail, instanceId } = req.body;
+    const { title, status, thumbnail, subdomain, industry } = req.body;
     const project = await Project.update(userId, req.params.id, {
       ...(title !== undefined && { title }),
       ...(status !== undefined && { status }),
-      ...(instanceId !== undefined && { instanceId }),
+      ...(industry !== undefined && { industry }),
+      ...(subdomain !== undefined && { subdomain }),
       ...(thumbnail !== undefined && { thumbnail }),
     });
     res.status(200).json({
@@ -171,9 +180,11 @@ exports.listTrash = async (req, res) => {
   try {
     const userId = req.user.id;
     const projects = await Project.listTrash(userId);
+    const retentionDays = getTrashRetentionDays();
     res.status(200).json({
       success: true,
       projects,
+      retentionDays,
     });
   } catch (error) {
     res.status(500).json({
@@ -193,7 +204,7 @@ exports.restore = async (req, res) => {
     const project = await Project.restore(userId, req.params.id);
     res.status(200).json({
       success: true,
-      message: 'Project restored from trash',
+      message: 'Project restored as draft. Publish again to make the website live.',
       project,
     });
   } catch (error) {
@@ -211,6 +222,7 @@ exports.restore = async (req, res) => {
 exports.delete = async (req, res) => {
   try {
     const userId = req.user.id;
+    const retentionDays = getTrashRetentionDays();
     const existing = await Project.get(userId, req.params.id);
     if (!existing) {
       return res.status(404).json({
@@ -237,7 +249,9 @@ exports.delete = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Project moved to trash',
+      message: `Project moved to trash. ${retentionDays} day(s) left before auto-delete.`,
+      daysLeft: retentionDays,
+      retentionDays,
     });
   } catch (error) {
     const msg = String(error?.message || '').toLowerCase();
@@ -259,8 +273,32 @@ exports.delete = async (req, res) => {
 // @route   DELETE /api/projects/:id/permanent
 // @access  Private
 exports.permanentDelete = async (req, res) => {
-  return res.status(403).json({
-    success: false,
-    message: 'Manual permanent delete is disabled. Projects are automatically purged 30 days after being moved to trash.',
-  });
+  try {
+    const userId = req.user.id;
+    const projectId = req.params.id;
+
+    // Verify it exists in trash or projects before deleting
+    const inTrash = await Project.getTrashRef(userId).doc(projectId).get();
+    const inProjects = await Project.get(userId, projectId);
+
+    if (!inTrash.exists && !inProjects) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found in trash or active projects.',
+      });
+    }
+
+    await Project.permanentDelete(userId, projectId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Project permanently deleted.',
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message,
+    });
+  }
 };

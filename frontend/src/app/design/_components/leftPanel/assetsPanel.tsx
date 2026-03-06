@@ -109,6 +109,7 @@ const AssetLivePreview = ({
   const frameRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [previewHeight, setPreviewHeight] = useState(0);
+  const previewResolver = useMemo(() => buildCraftResolver(), []);
 
   useEffect(() => {
     const containerEl = previewRef.current;

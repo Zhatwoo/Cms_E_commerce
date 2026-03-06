@@ -145,6 +145,12 @@ export function FreeDropPlacementHandler() {
       }
 
       const dropPoint = dropPointRef.current;
+      if (!dropPoint) {
+        // Keep Craft's native placement when we don't have a reliable drop point.
+        // Forcing reorder/coords without this causes nodes to jump to top/start.
+        stopTracking();
+        return;
+      }
 
       idsToPlace.forEach((nodeId) => {
         const parentId = nodes[nodeId]?.data?.parent;

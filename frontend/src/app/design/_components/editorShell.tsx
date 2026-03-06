@@ -719,6 +719,18 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   } | null>(null);
   const [isPanelDragging, setIsPanelDragging] = useState(false);
 
+  const handleToolChange = useCallback((tool: CanvasTool) => {
+    setActiveTool(tool);
+
+    // Keep hand cursor state from getting stuck after explicit tool switches.
+    if (tool !== "hand") {
+      setIsPanning(false);
+      setIsSpacePressed(false);
+      document.body.removeAttribute("data-canvas-pan");
+      document.body.removeAttribute("data-space-pan");
+    }
+  }, []);
+
   const startPanelDrag = useCallback((side: "left" | "right", event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
@@ -870,14 +882,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           name: p.name || `Page ${parsed.pages.indexOf(p) + 1}`,
         }));
         setPages(pageTabs);
-        if (pageTabs.length > 0 && !currentPageId) {
-          setCurrentPageId(pageTabs[0].id);
+        if (pageTabs.length > 0) {
+          setCurrentPageId((prev) => prev || pageTabs[0].id);
         }
       }
     } catch {
       // Silently fail for non-multipage documents
     }
-  }, [currentPageId]);
+  }, []);
 
   const handleAddPage = useCallback(() => {
     if (!initialJson) return;
@@ -1319,12 +1331,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (canPanWithPointerDrag) {
-      const target = e.target as HTMLElement | null;
-      const nodeEl = target?.closest("[data-node-id]") as HTMLElement | null;
-      const nodeId = nodeEl?.getAttribute("data-node-id") ?? null;
-      if (nodeId && nodeId !== "ROOT" && nodeId !== "Viewport") {
-        return;
-      }
       setIsPanning(true);
       document.body.dataset.canvasPan = "true";
       e.preventDefault();
@@ -1391,6 +1397,20 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   }, [activeTool, isSpacePanActive, isPanning]);
 
   useEffect(() => {
+    const stopPan = () => {
+      setIsPanning(false);
+      document.body.removeAttribute("data-canvas-pan");
+    };
+
+    window.addEventListener("mouseup", stopPan, true);
+    window.addEventListener("blur", stopPan);
+    return () => {
+      window.removeEventListener("mouseup", stopPan, true);
+      window.removeEventListener("blur", stopPan);
+    };
+  }, []);
+
+  useEffect(() => {
     const handleToolShortcut = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (isEditableTarget(event.target)) return;
@@ -1399,19 +1419,19 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
       if (key === "h") {
         event.preventDefault();
-        setActiveTool("hand");
+        handleToolChange("hand");
         return;
       }
 
       if (key === "g") {
         event.preventDefault();
-        setActiveTool("move");
+        handleToolChange("move");
       }
     };
 
     window.addEventListener("keydown", handleToolShortcut);
     return () => window.removeEventListener("keydown", handleToolShortcut);
-  }, []);
+  }, [handleToolChange]);
 
   // Track if editor is fully loaded to prevent stale closure issues
   const isReadyRef = useRef(false);
@@ -1507,7 +1527,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
             if (typeof input === "string") {
               const parsed = JSON.parse(input);
               if (parsed && parsed.ROOT && Array.isArray(parsed.ROOT.nodes)) {
-                return input;
+                const validated = validateCraftData(input);
+                return validated.valid && validated.data ? validated.data : null;
               }
               if (
                 parsed &&
@@ -1516,7 +1537,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 parsed.nodes &&
                 typeof parsed.nodes === "object"
               ) {
-                return deserializeCleanToCraft(parsed as Parameters<typeof deserializeCleanToCraft>[0]);
+                const craftJson = deserializeCleanToCraft(parsed as Parameters<typeof deserializeCleanToCraft>[0]);
+                const validated = validateCraftData(craftJson);
+                return validated.valid && validated.data ? validated.data : null;
               }
               return null;
             }
@@ -1530,11 +1553,15 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
               };
 
               if (obj.ROOT && Array.isArray(obj.ROOT.nodes)) {
-                return JSON.stringify(obj);
+                const craftJson = JSON.stringify(obj);
+                const validated = validateCraftData(craftJson);
+                return validated.valid && validated.data ? validated.data : null;
               }
 
               if (obj.version !== undefined && Array.isArray(obj.pages) && obj.nodes && typeof obj.nodes === "object") {
-                return deserializeCleanToCraft(obj as Parameters<typeof deserializeCleanToCraft>[0]);
+                const craftJson = deserializeCleanToCraft(obj as Parameters<typeof deserializeCleanToCraft>[0]);
+                const validated = validateCraftData(craftJson);
+                return validated.valid && validated.data ? validated.data : null;
               }
             }
 
@@ -1925,51 +1952,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const validFrameData = React.useMemo(() => {
     if (initialJson === undefined || initialJson === null || initialJson === "") return null;
     try {
-      const parsed = typeof initialJson === "string" ? JSON.parse(initialJson) : initialJson;
-      if (!parsed || typeof parsed !== "object" || !parsed.ROOT || !Array.isArray(parsed.ROOT?.nodes)) return null;
-
-      const resolverKeys = Object.keys(resolverRef.current);
-      const keys = new Set(resolverKeys);
-
-      const canonicalByLower = new Map<string, string>();
-      for (const key of resolverKeys) {
-        canonicalByLower.set(key.toLowerCase(), key);
-      }
-
-      const allIds = new Set(Object.keys(parsed));
-      const CANVAS_TYPES = new Set(["Frame", "Container", "Section", "Row", "Column", "Page", "Viewport", "Button"]);
-
-      for (const id of Object.keys(parsed)) {
-        const node = parsed[id] as Record<string, unknown> | null;
-        if (!node || typeof node !== "object") continue;
-        const t = node.type;
-        const rawName = ((typeof t === "string" ? t : (t as { resolvedName?: string })?.resolvedName) ?? "").toString().trim();
-        if (!rawName) return null;
-
-        if (!keys.has(rawName)) {
-          const normalized = canonicalByLower.get(rawName.toLowerCase());
-          if (normalized) {
-            node.type = { resolvedName: normalized };
-            node.displayName = normalized;
-          } else {
-            node.type = { resolvedName: "Container" };
-            node.displayName = "Container";
-          }
-        }
-
-        if (CANVAS_TYPES.has(rawName)) {
-          node.isCanvas = true;
-          if (typeof node.data === "object" && node.data !== null) {
-            (node.data as Record<string, unknown>).isCanvas = true;
-          }
-        }
-
-        const childIds = Array.isArray(node.nodes) ? node.nodes : [];
-        const validChildIds = childIds.filter((cid: string) => allIds.has(cid));
-        node.nodes = validChildIds;
-      }
-
-      return JSON.stringify(parsed);
+      const raw = typeof initialJson === "string" ? initialJson : JSON.stringify(initialJson);
+      const validated = validateCraftData(raw);
+      return validated.valid && validated.data ? validated.data : null;
     } catch {
       return null;
     }
@@ -2005,7 +1990,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       >
         <QueryStasher onQuery={(q) => { lastQueryRef.current = q; }} />
         <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
-          <CanvasToolProvider value={activeTool} onToolChange={setActiveTool}>
+          <CanvasToolProvider value={activeTool} onToolChange={handleToolChange}>
             <TransformModeProvider>
               <InlineTextEditProvider>
                 <KeyboardShortcuts />
@@ -2078,7 +2063,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                   >
                     {initialJson === undefined ? null : (
                       <SafeFrame
-                        data={validFrameData ?? initialJson}
+                        data={validFrameData ?? EMPTY_FRAME_DATA}
                         onError={handleFrameError}
                         onFrameMounted={() => {
                           setFrameReady((prev) => (prev ? prev : true));
@@ -2178,7 +2163,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 {panelsReady && (
                   <BottomPanel
                     activeTool={activeTool}
-                    onToolChange={setActiveTool}
+                    onToolChange={handleToolChange}
                     showHints={true}
                     saveStatus={saveStatus}
                     saveError={saveError}

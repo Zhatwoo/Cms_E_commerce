@@ -32,6 +32,7 @@ export const Section = ({
   marginRight,
   marginBottom,
   marginLeft,
+  width = "100%",
   height = "auto",
   borderRadius = 0,
   backgroundImage = "",
@@ -64,16 +65,31 @@ export const Section = ({
   customClassName = "",
   children,
 }: ContainerProps) => {
-  const { id, connectors: { connect, drag }, childCount } = useNode((node) => ({
+  const normalizeFlexPos = (value: unknown, fallback: "flex-start" | "center" | "flex-end") => {
+    const raw = String(value ?? "").trim().toLowerCase();
+    if (raw === "start" || raw === "flex-start") return "flex-start";
+    if (raw === "end" || raw === "flex-end") return "flex-end";
+    if (raw === "center") return "center";
+    return fallback;
+  };
+  const resolvedAlignItems = normalizeFlexPos(alignItems, "center");
+  const resolvedJustifyContent = normalizeFlexPos(justifyContent, "flex-start");
+
+  const {
+    id,
+    connectors: { connect, drag },
+    childCount,
+  } = useNode((node) => ({
     childCount: node.data.nodes.length,
   }));
   const isHeaderAsset = /header/i.test(id ?? "");
   const hasChildren = childCount > 0 || React.Children.count(children) > 0;
 
+  const wPx = parsePx(width);
   const hPx = parsePx(height);
   const canScale = false;
-  const scaleX = canScale ? 1 : 1;
-  const scaleY = canScale ? hPx / designHeight : 1;
+  const scaleX = canScale ? ((typeof wPx === "number" ? wPx : 1) / (designWidth ?? 1)) : 1;
+  const scaleY = canScale ? (typeof hPx === "number" ? hPx : 1) / (designHeight ?? 1) : 1;
 
   const p = typeof padding === "number" ? padding : 0;
   const pl = paddingLeft ?? p;
@@ -96,7 +112,7 @@ export const Section = ({
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className={`${hasChildren ? "" : "min-h-[80px]"} transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
+      className={`min-h-[80px] transition-[outline] duration-150 ${customClassName}`}
       style={{
         backgroundColor: background,
         backgroundImage: backgroundImage
@@ -115,7 +131,7 @@ export const Section = ({
         marginRight: fluidSpace(mr, 0),
         marginTop: fluidSpace(mt, 0),
         marginBottom: fluidSpace(mb, 0),
-        width: "100%",
+        width,
         height,
         boxSizing: "border-box",
         maxWidth: "100%",
@@ -134,8 +150,8 @@ export const Section = ({
         left: position !== "static" ? posLeft : undefined,
         flexDirection,
         flexWrap,
-        alignItems,
-        justifyContent,
+        alignItems: resolvedAlignItems,
+        justifyContent: resolvedJustifyContent,
         gap: fluidSpace(gap, 0),
         boxShadow,
         opacity,
@@ -143,9 +159,6 @@ export const Section = ({
         transform: rotation ? `rotate(${rotation}deg)` : undefined,
       }}
     >
-      {flexDirection === "row" && (
-        <style>{`[data-node-id="${id}"] > * { min-width: 0; }`}</style>
-      )}
       {canScale ? (
         <div
           style={{
@@ -158,8 +171,8 @@ export const Section = ({
             display: "flex",
             flexDirection,
             flexWrap,
-            alignItems,
-            justifyContent,
+            alignItems: resolvedAlignItems,
+            justifyContent: resolvedJustifyContent,
             gap: fluidSpace(gap, 0),
           }}
         >

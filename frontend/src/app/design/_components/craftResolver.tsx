@@ -44,12 +44,14 @@ function withResolverFallback<T extends Resolver>(base: T): T {
  */
 export function buildCraftResolver(): Resolver {
   const FrameComp = typeof Frame === "function" ? Frame : Container;
+  const TextComp = (typeof Text === "function" ? Text : null) ?? Container;
+  const ImageComp = (typeof Image === "function" ? Image : null) ?? Container;
   const base: Resolver = {
     Frame: FrameComp,
     frame: FrameComp,
     Container,
-    Text: Text || Container,
-    text: Text || Container,
+    Text: TextComp,
+    text: TextComp,
     Page,
     Viewport,
     Image: Image || Container,

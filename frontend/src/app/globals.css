@@ -358,6 +358,12 @@ body:has(.m-dashboard-shell) {
   cursor: grabbing !important;
 }
 
+/* While panning, disable node hit-targets so clicks never select components. */
+[data-canvas-container].canvas-hand-tool [data-node-id],
+[data-canvas-container].canvas-hand-tool [data-panel='resize-overlay'] {
+  pointer-events: none !important;
+}
+
 @keyframes landingSnapIn {
   0%,
   20% {
@@ -431,4 +437,73 @@ body:has(.m-dashboard-shell) {
   caret-color: #ffffff;
   border-color: rgba(255, 255, 255, 0.25);
   transition: background-color 9999s ease-out 0s;
+}
+
+.figma-hue-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 12px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: linear-gradient(
+    90deg,
+    #ff0000 0%,
+    #ffff00 16.6%,
+    #00ff00 33.3%,
+    #00ffff 50%,
+    #0000ff 66.6%,
+    #ff00ff 83.3%,
+    #ff0000 100%
+  );
+}
+
+.figma-hue-slider::-webkit-slider-runnable-track {
+  height: 12px;
+  border-radius: 9999px;
+  background: transparent;
+}
+
+.figma-hue-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -2px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  background: #0e0f3c;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.figma-hue-slider::-moz-range-track {
+  height: 12px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: linear-gradient(
+    90deg,
+    #ff0000 0%,
+    #ffff00 16.6%,
+    #00ff00 33.3%,
+    #00ffff 50%,
+    #0000ff 66.6%,
+    #ff00ff 83.3%,
+    #ff0000 100%
+  );
+}
+
+.figma-hue-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  background: #0e0f3c;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+select[data-industry-select="true"] option {
+  color: #ffffff;
+  background-color: #141140;
+}
+
+select[data-industry-select="true"] option[value=""] {
+  color: #bfc4ff;
 }

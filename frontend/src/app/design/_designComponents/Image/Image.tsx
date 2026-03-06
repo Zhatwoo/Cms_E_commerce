@@ -99,7 +99,7 @@ export const Image = ({
         display: "block",
         transform: [rotation ? `rotate(${rotation}deg)` : null, flipHorizontal ? "scaleX(-1)" : null, flipVertical ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined,
       }}
-      className={`hover:outline hover:outline-blue-500 cursor-pointer ${customClassName}`}
+      className={`cursor-pointer ${customClassName}`}
     />
   );
 };

@@ -133,7 +133,7 @@ export const Container = ({
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className={`relative ${hasChildren ? "" : "min-h-[120px]"} transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
+      className={`relative ${hasChildren ? "" : "min-h-[120px]"} ${customClassName}`}
       style={{
         backgroundColor: childCount === 0 ? "#f4f5f7" : background,
         backgroundImage: backgroundImage
@@ -240,7 +240,7 @@ export const Container = ({
 };
 
 export const ContainerDefaultProps: Partial<ContainerProps> = {
-  background: "transparent",
+  background: "#ffffff",
   padding: 0,
   paddingTop: 0,
   paddingRight: 0,

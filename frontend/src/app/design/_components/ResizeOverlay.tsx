@@ -286,8 +286,20 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
   const getMoveModeForNode = useCallback(
     (id: string, state: ReturnType<typeof query.getState>): "margin" | "offset" | "page-canvas" => {
       const displayName = state.nodes[id]?.data?.displayName as string | undefined;
+      const parentId = state.nodes[id]?.data?.parent as string | undefined;
+      const parentDisplayName = parentId
+        ? (state.nodes[parentId]?.data?.displayName as string | undefined)
+        : undefined;
+      const props = (state.nodes[id]?.data?.props ?? {}) as Record<string, unknown>;
+      const position = String(props.position ?? "static").toLowerCase();
+      const isAbsoluteLike = position === "absolute" || position === "fixed";
+
+      const flowLayoutParents = new Set(["Container", "Section", "Row", "Column", "Frame"]);
       const offsetMoveTypes = new Set(["Image", "Text", "Icon", "Button", "Circle", "Square", "Triangle"]);
+
       if (displayName === "Page") return "page-canvas";
+      if (isAbsoluteLike) return "offset";
+      if (parentDisplayName && flowLayoutParents.has(parentDisplayName)) return "margin";
       if (displayName && offsetMoveTypes.has(displayName)) return "offset";
       return "margin";
     },
@@ -382,6 +394,9 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         if (!dropParentId || dropParentId === sourceParentId) return false;
 
         const dropParent = state.nodes[dropParentId];
+        const dropParentName = dropParent?.data?.displayName as string | undefined;
+        const flowParents = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame"]);
+        const isFlowParent = !!dropParentName && flowParents.has(dropParentName);
         const index = Array.isArray(dropParent?.data?.nodes)
           ? dropParent.data.nodes.length
           : 0;
@@ -390,8 +405,16 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         actions.setProp(nodeId, (props: Record<string, unknown>) => {
           props.marginTop = 0;
           props.marginLeft = 0;
-          props.top = "0px";
-          props.left = "0px";
+          if (isFlowParent) {
+            props.position = "relative";
+            props.top = "auto";
+            props.left = "auto";
+            props.right = "auto";
+            props.bottom = "auto";
+          } else {
+            props.top = "0px";
+            props.left = "0px";
+          }
         });
 
         return true;
@@ -576,7 +599,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       }
       document.body.style.userSelect = "none";
       document.body.style.cursor =
-        type === "move" ? "grabbing" :
+        type === "move" ? "default" :
           type === "rotate" ? "grabbing" :
             handle ? HANDLE_CURSORS[handle] : "default";
     },
@@ -1319,14 +1342,14 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
           transformOrigin: "center center",
         }}
       >
-        {/* Border = grab to move */}
+        {/* Border = drag to move */}
         <div
           style={{
             position: "absolute",
             inset: 0,
             border: "2px solid #3b82f6",
             borderRadius: 2,
-            cursor: isExternalDragActive ? "default" : "grab",
+            cursor: "default",
             pointerEvents: isExternalDragActive ? "none" : "auto",
           }}
           onMouseDown={(e) => startDrag(e, "move")}
@@ -1366,7 +1389,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
             borderRadius: "50%",
             border: "2px solid #3b82f6",
             backgroundColor: "#ffffff",
-            cursor: "grab",
+            cursor: "default",
             pointerEvents: isExternalDragActive ? "none" : "auto",
             zIndex: 2,
           }}

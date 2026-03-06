@@ -24,6 +24,9 @@ const MULTI_DRAG_LOCK_FLAG = "multiDragLock";
 const BOX_SELECTING_FLAG = "boxSelecting";
 const BOX_SELECTING_INTENT_FLAG = "boxSelectingIntent";
 
+const FLOW_LAYOUT_PARENTS = new Set(["Container", "Section", "Row", "Column", "Frame"]);
+const OFFSET_MOVE_TYPES = new Set(["Image", "Text", "Icon", "Button", "Circle", "Square", "Triangle"]);
+
 
 type MoveMode = "margin" | "offset";
 
@@ -582,13 +585,16 @@ export const FigmaStyleDragHandler = () => {
             }
           }
 
+          const mode = getMoveModeForNode(id, { nodes: state.nodes as NodesMap });
+          const isAbsoluteLike = position === "absolute" || position === "fixed";
+
           return {
             id,
             parentId: state.nodes[id]?.data?.parent as string | undefined,
-            needsAbsolute: position !== "absolute",
+            needsAbsolute: mode === "offset" && !isAbsoluteLike,
             marginTop: parseNumberOrZero(props.marginTop),
             marginLeft: parseNumberOrZero(props.marginLeft),
-            mode: "offset",
+            mode,
             top,
             left,
           };
@@ -598,7 +604,7 @@ export const FigmaStyleDragHandler = () => {
         setDraggingStyle(draggedDomsRef.current, true);
         document.body.dataset[EDITOR_DRAGGING_FLAG] = "true";
         document.body.style.userSelect = "none";
-        document.body.style.cursor = "grabbing";
+        document.body.style.cursor = "default";
       }
 
       d.dirty = true;
