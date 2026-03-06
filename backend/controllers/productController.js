@@ -16,15 +16,28 @@ async function resolveOwnedDomain(userId, subdomainInput) {
   if (!subdomain) return { error: 'subdomain is required' };
 
   const project = await Project.getBySubdomain(userId, subdomain);
-  const projectStatus = (project?.status || '').toString().trim().toLowerCase();
-  if (project && projectStatus !== 'published') {
-    return { error: 'You cannot add products while this website is in draft. Only published domains can add products.' };
+  const domain = await Domain.findBySubdomain(subdomain);
+  if (domain && domain.userId && domain.userId !== userId) {
+    return { error: 'Access denied for this domain' };
   }
 
-  const domain = await Domain.findBySubdomain(subdomain);
-  if (!domain) return { error: 'Published domain not found. Only published domains can add products.' };
-  if (domain.userId !== userId) return { error: 'Access denied for this published domain' };
-  return { subdomain, domain };
+  // Allow products for owned projects even when site is draft/unpublished.
+  if (project) {
+    return {
+      subdomain,
+      domain: {
+        id: domain?.id || null,
+        domainId: domain?.domainId || null,
+        projectId: project.id,
+      },
+    };
+  }
+
+  if (domain && domain.userId === userId) {
+    return { subdomain, domain };
+  }
+
+  return { error: 'Project/domain not found for this subdomain' };
 }
 
 exports.getAll = async (req, res) => {
@@ -92,6 +105,7 @@ exports.create = async (req, res) => {
       discountType,
       hasVariants,
       variants,
+      variantStocks,
       priceRangeMin,
       priceRangeMax,
       images,
@@ -131,6 +145,7 @@ exports.create = async (req, res) => {
         discountType: discountType || 'percentage',
         hasVariants: hasVariants !== undefined ? !!hasVariants : (Array.isArray(variants) && variants.length > 0),
         variants: Array.isArray(variants) ? variants : [],
+        variantStocks: variantStocks && typeof variantStocks === 'object' ? variantStocks : {},
         priceRangeMin: priceRangeMin ?? null,
         priceRangeMax: priceRangeMax ?? null,
         images: Array.isArray(images) ? images : [],
@@ -165,6 +180,7 @@ exports.update = async (req, res) => {
       discountType,
       hasVariants,
       variants,
+      variantStocks,
       priceRangeMin,
       priceRangeMax,
       images,
@@ -194,6 +210,7 @@ exports.update = async (req, res) => {
     if (discountType !== undefined) updates.discountType = discountType;
     if (hasVariants !== undefined) updates.hasVariants = hasVariants;
     if (variants !== undefined) updates.variants = variants;
+    if (variantStocks !== undefined) updates.variantStocks = variantStocks && typeof variantStocks === 'object' ? variantStocks : {};
     if (priceRangeMin !== undefined) updates.priceRangeMin = priceRangeMin;
     if (priceRangeMax !== undefined) updates.priceRangeMax = priceRangeMax;
     if (images !== undefined) updates.images = Array.isArray(images) ? images : [];

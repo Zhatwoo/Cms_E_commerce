@@ -1,12 +1,14 @@
 'use client';
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
-import { Check } from 'lucide-react';
+import { Check, Zap, Crown, Settings } from 'lucide-react';
 import { getStoredUser } from '@/lib/api';
 import { SUBSCRIPTION_LIMITS, type SubscriptionPlan } from '@/lib/subscriptionLimits';
 
 export default function SubscriptionPage() {
+    const { colors, theme } = useTheme();
     const { showAlert } = useAlert();
     const user = getStoredUser();
     const currentPlan = (user?.subscriptionPlan || 'free').toLowerCase() as SubscriptionPlan;
@@ -14,54 +16,58 @@ export default function SubscriptionPage() {
     const plans = [
         {
             id: 'free',
-            name: 'Starter',
-            price: '0',
-            period: '/first month',
-            description: 'Try Finding Neo completely risk-free for 30 days.',
-            accent: 'violet',
+            name: 'Free',
+            price: '₱0',
+            description: 'Perfect for getting started',
+            icon: Zap,
+            color: 'blue',
             features: [
-                '1 Free Custom Domain',
-                'Up to 100 Products',
-                'Visual Canvas Editor',
+                'Up to 5 Projects',
+                'Up to 3 Domains',
+                'Basic Templates',
                 'Community Support',
             ],
+            limitKey: 'free',
         },
         {
             id: 'basic',
-            name: 'Standard',
-            price: '199',
-            period: '/month',
-            description: 'Perfect for starters and small teams.',
-            accent: 'violet',
+            name: 'Basic',
+            price: '₱19',
+            description: 'Ideal for growing sites',
+            icon: Zap,
+            color: 'emerald',
             features: [
-                '1 Custom Domain',
-                'Up to 500 Products',
-                'Basic Analytics',
-                '24/7 Email Support',
+                'Up to 10 Projects',
+                'Up to 10 Domains',
+                'All Templates',
+                'Email Support',
             ],
+            featured: true,
+            limitKey: 'basic',
         },
         {
             id: 'pro',
-            name: 'Premium',
-            price: '499',
-            period: '/month',
-            description: 'For growing businesses needing more power.',
-            accent: 'gold',
+            name: 'Professional',
+            price: '₱49',
+            description: 'Best for power users',
+            icon: Crown,
+            color: 'purple',
             features: [
+                'Unlimited Projects',
                 'Unlimited Domains',
-                'Unlimited Products',
-                'Advanced Analytics & Reporting',
-                'Priority 24/7 Support',
-                'API Access & Webhooks',
+                'Code Editor Access',
+                'Priority Support',
+                'Advanced Analytics',
             ],
+            limitKey: 'pro',
         },
         {
             id: 'custom',
-            name: 'Custom',
+            name: 'Customize',
             price: 'Custom',
-            period: '',
             description: 'Enterprise & Bespoke',
-            accent: 'gold',
+            icon: Settings,
+            color: 'amber',
             features: [
                 'Custom Limits',
                 'Dedicated Account Manager',
@@ -69,22 +75,24 @@ export default function SubscriptionPage() {
                 'Custom Integrations',
                 'White-label options',
             ],
+            limitKey: 'custom',
         }
     ];
 
     return (
-        <section className="w-full px-4 pb-20 pt-10 md:px-8 md:pb-24 md:pt-12">
-            <div className="mx-auto max-w-[1320px]">
-            <section className="mx-auto max-w-[760px] text-center">
+        <div className="space-y-8 pb-12">
+            <section className="text-center space-y-4">
                 <motion.h1
-                    className="text-[38px] font-black leading-[1.08] tracking-[-0.02em] bg-gradient-to-r from-[#8b3dff] via-[#c026d3] to-[#f5c400] bg-clip-text text-transparent md:text-[58px]"
+                    className="text-4xl font-bold tracking-tight"
+                    style={{ color: colors.text.primary }}
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
                 >
                     Subscription Plans
                 </motion.h1>
                 <motion.p
-                    className="mx-auto mt-5 max-w-[620px] text-[15px] leading-[1.35] text-white/50 md:text-[15px]"
+                    className="text-lg max-w-2xl mx-auto"
+                    style={{ color: colors.text.secondary }}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.1 }}
@@ -93,28 +101,10 @@ export default function SubscriptionPage() {
                 </motion.p>
             </section>
 
-            {currentPlan === 'custom' && (
-                <div className="mt-8 rounded-2xl border border-[#f5c400] bg-[#111058] px-5 py-3 text-sm text-[#f5c400]">
-                    You are currently on a Custom enterprise plan.
-                </div>
-            )}
-
-            <div className="mt-12 grid gap-6 md:mt-14 md:grid-cols-2 xl:grid-cols-4 md:gap-7">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 px-4">
                 {plans.map((plan, idx) => {
+                    const Icon = plan.icon;
                     const isCurrent = currentPlan === plan.id;
-                    const isGoldAccent = plan.accent === 'gold';
-
-                    const ringClass = isGoldAccent
-                        ? 'border-[3px] border-[#f5c400]'
-                        : 'border border-[#3d2a93]';
-
-                    const titleClass = isGoldAccent ? 'text-[#f0bb00]' : 'text-[#8b3dff]';
-                    const checkClass = isGoldAccent ? 'text-[#f5c400]' : 'text-[#a855f7]';
-                    const buttonClass = isCurrent
-                        ? 'border border-[#3d2a93] text-white/55 cursor-default'
-                        : isGoldAccent
-                            ? 'bg-[#f5c400] text-[#1c1d2b] hover:brightness-105'
-                            : 'bg-gradient-to-r from-[#8b3dff] to-[#c026d3] text-white hover:brightness-110';
 
                     return (
                         <motion.div
@@ -122,28 +112,39 @@ export default function SubscriptionPage() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: idx * 0.1 }}
-                            className={`relative h-full rounded-[2rem] p-7 md:min-h-[500px] md:p-8 ${ringClass} bg-[#111058] shadow-[8px_10px_20px_rgba(5,3,39,0.55)]`}
+                            className={`relative rounded-3xl border p-8 flex flex-col h-full overflow-hidden ${plan.featured ? 'ring-2 ring-blue-500 scale-105 z-10' : ''}`}
+                            style={{
+                                backgroundColor: colors.bg.card,
+                                borderColor: plan.featured ? colors.status.info : colors.border.faint,
+                                boxShadow: theme === 'dark' ? '0 25px 50px -12px rgba(0,0,0,0.5)' : '0 10px 15px -3px rgba(0,0,0,0.1)'
+                            }}
                         >
-                            <div className="flex h-full flex-col">
-                            <div>
-                                <h3 className={`text-[35px] font-extrabold leading-none ${titleClass}`}>{plan.name}</h3>
-
-                                <div className="mt-3 flex items-end gap-2 leading-none">
-                                    {plan.price !== 'Custom' && <span className="mb-1 text-[30px] font-bold text-white">₱</span>}
-                                    <span className="text-[58px] font-extrabold tracking-tight text-white">{plan.price}</span>
-                                    {plan.price !== 'Custom' && <span className="mb-1 text-[16px] font-medium text-white/55">{plan.period}</span>}
+                            {plan.featured && (
+                                <div className="absolute top-0 right-0 px-4 py-1 rounded-bl-xl bg-blue-500 text-white text-xs font-bold uppercase tracking-wider">
+                                    Popular
                                 </div>
+                            )}
 
-                                <p className="mt-4 min-h-[56px] text-[15px] leading-[1.25] text-white/60">
-                                    {plan.description}
-                                </p>
+                            <div className="mb-6">
+                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 bg-blue-500/10 text-blue-500`}>
+                                    <Icon size={24} />
+                                </div>
+                                <h3 className="text-2xl font-bold" style={{ color: colors.text.primary }}>{plan.name}</h3>
+                                <p className="text-sm mt-1" style={{ color: colors.text.muted }}>{plan.description}</p>
                             </div>
 
-                            <div className="mt-5 space-y-3 text-[15px] text-white/88 mb-8 flex-1">
+                            <div className="mb-8">
+                                <span className="text-4xl font-bold" style={{ color: colors.text.primary }}>{plan.price}</span>
+                                {plan.price !== 'Custom' && <span className="text-sm ml-1" style={{ color: colors.text.muted }}>/month</span>}
+                            </div>
+
+                            <div className="space-y-4 mb-8 flex-1">
                                 {plan.features.map((feature, i) => (
-                                    <div key={i} className="flex items-start gap-3">
-                                        <Check size={14} className={`mt-0.5 shrink-0 ${checkClass}`} />
-                                        <span>{feature}</span>
+                                    <div key={i} className="flex items-center gap-3">
+                                        <div className="shrink-0 w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                                            <Check size={12} className="text-emerald-500" />
+                                        </div>
+                                        <span className="text-sm" style={{ color: colors.text.secondary }}>{feature}</span>
                                     </div>
                                 ))}
                             </div>
@@ -151,65 +152,69 @@ export default function SubscriptionPage() {
                             <button
                                 onClick={() => isCurrent ? null : showAlert(`Upgrading to ${plan.name} is coming soon!`)}
                                 disabled={isCurrent}
-                                className={`mt-auto w-full whitespace-nowrap rounded-full px-7 py-3 text-[16px] font-extrabold leading-none transition ${buttonClass}`}
+                                className={`w-full py-4 rounded-2xl font-bold transition-all ${isCurrent
+                                        ? 'cursor-default border-2'
+                                        : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 active:scale-95'
+                                    }`}
+                                style={isCurrent ? { borderColor: colors.border.faint, color: colors.text.muted } : {}}
                             >
-                                {isCurrent ? 'Current Plan' : plan.id === 'custom' ? 'Contact Sales' : `Select ${plan.name}`}
+                                {isCurrent ? 'Current Plan' : plan.price === 'Custom' ? 'Contact Sales' : 'Upgrade Now'}
                             </button>
-                            </div>
                         </motion.div>
                     );
                 })}
             </div>
 
+            {/* Comparison Table or Extra Info */}
             <section
-                className="mt-12 rounded-[2rem] border border-[#3d2a93] bg-[#111058] p-8"
+                className="mt-12 rounded-3xl border p-8 mx-4"
+                style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
             >
-                <h2 className="mb-6 text-2xl font-bold text-white">Plan Comparison Details</h2>
+                <h2 className="text-2xl font-bold mb-6" style={{ color: colors.text.primary }}>Plan Comparison Details</h2>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
-                            <tr className="border-b border-[#3d2a93] text-white/55">
-                                <th className="px-2 py-4 text-sm font-semibold">Feature</th>
-                                <th className="px-2 py-4 text-sm font-semibold">Starter</th>
-                                <th className="px-2 py-4 text-sm font-semibold">Standard</th>
-                                <th className="px-2 py-4 text-sm font-semibold">Premium</th>
-                                <th className="px-2 py-4 text-sm font-semibold">Custom</th>
+                            <tr className="border-b" style={{ borderColor: colors.border.faint }}>
+                                <th className="py-4 font-semibold text-sm px-2" style={{ color: colors.text.muted }}>Feature</th>
+                                <th className="py-4 font-semibold text-sm px-2" style={{ color: colors.text.muted }}>Free</th>
+                                <th className="py-4 font-semibold text-sm px-2" style={{ color: colors.text.muted }}>Basic</th>
+                                <th className="py-4 font-semibold text-sm px-2" style={{ color: colors.text.muted }}>Pro</th>
+                                <th className="py-4 font-semibold text-sm px-2" style={{ color: colors.text.muted }}>Customize</th>
                             </tr>
                         </thead>
-                        <tbody className="text-white">
-                            <tr className="border-b border-[#3d2a93] transition-colors hover:bg-white/5">
-                                <td className="px-2 py-4 text-sm font-medium">Domain Limit</td>
-                                <td className="px-2 py-4 text-sm">{SUBSCRIPTION_LIMITS.free.domains}</td>
-                                <td className="px-2 py-4 text-sm font-bold text-[#8b3dff]">{SUBSCRIPTION_LIMITS.basic.domains}</td>
-                                <td className="px-2 py-4 text-sm">Unlimited</td>
-                                <td className="px-2 py-4 text-sm italic">Custom</td>
+                        <tbody style={{ color: colors.text.primary }}>
+                            <tr className="border-b transition-colors hover:bg-white/5" style={{ borderColor: colors.border.faint }}>
+                                <td className="py-4 text-sm font-medium px-2">Domain Limit</td>
+                                <td className="py-4 text-sm px-2">{SUBSCRIPTION_LIMITS.free.domains}</td>
+                                <td className="py-4 text-sm font-bold text-blue-500 px-2">{SUBSCRIPTION_LIMITS.basic.domains}</td>
+                                <td className="py-4 text-sm px-2">Unlimited</td>
+                                <td className="py-4 text-sm italic px-2">Custom</td>
                             </tr>
-                            <tr className="border-b border-[#3d2a93] transition-colors hover:bg-white/5">
-                                <td className="px-2 py-4 text-sm font-medium">Project Limit</td>
-                                <td className="px-2 py-4 text-sm">{SUBSCRIPTION_LIMITS.free.projects}</td>
-                                <td className="px-2 py-4 text-sm">{SUBSCRIPTION_LIMITS.basic.projects}</td>
-                                <td className="px-2 py-4 text-sm">Unlimited</td>
-                                <td className="px-2 py-4 text-sm italic">Custom</td>
+                            <tr className="border-b transition-colors hover:bg-white/5" style={{ borderColor: colors.border.faint }}>
+                                <td className="py-4 text-sm font-medium px-2">Project Limit</td>
+                                <td className="py-4 text-sm px-2">{SUBSCRIPTION_LIMITS.free.projects}</td>
+                                <td className="py-4 text-sm px-2">{SUBSCRIPTION_LIMITS.basic.projects}</td>
+                                <td className="py-4 text-sm px-2">Unlimited</td>
+                                <td className="py-4 text-sm italic px-2">Custom</td>
                             </tr>
-                            <tr className="border-b border-[#3d2a93] transition-colors hover:bg-white/5">
-                                <td className="px-2 py-4 text-sm font-medium">Code Editor</td>
-                                <td className="px-2 py-4 text-sm text-red-400/60">Disabled</td>
-                                <td className="px-2 py-4 text-sm text-red-400/60">Disabled</td>
-                                <td className="px-2 py-4 text-sm font-bold text-emerald-400">Full Access</td>
-                                <td className="px-2 py-4 text-sm font-bold text-emerald-400">Enabled</td>
+                            <tr className="border-b transition-colors hover:bg-white/5" style={{ borderColor: colors.border.faint }}>
+                                <td className="py-4 text-sm font-medium px-2">Code Editor</td>
+                                <td className="py-4 text-sm text-red-500/50 px-2">Disabled</td>
+                                <td className="py-4 text-sm text-red-500/50 px-2">Disabled</td>
+                                <td className="py-4 text-sm text-emerald-500 font-bold px-2">Full Access</td>
+                                <td className="py-4 text-sm text-emerald-500 font-bold px-2">Enabled</td>
                             </tr>
                             <tr className="transition-colors hover:bg-white/5">
-                                <td className="px-2 py-4 text-sm font-medium">Support</td>
-                                <td className="px-2 py-4 text-sm text-white/65">Community</td>
-                                <td className="px-2 py-4 text-sm text-white/65">Email</td>
-                                <td className="px-2 py-4 text-sm font-medium">Priority</td>
-                                <td className="px-2 py-4 text-sm font-bold text-[#f5c400]">Dedicated</td>
+                                <td className="py-4 text-sm font-medium px-2">Support</td>
+                                <td className="py-4 text-sm text-zinc-500 px-2">Community</td>
+                                <td className="py-4 text-sm text-zinc-500 px-2">Email</td>
+                                <td className="py-4 text-sm font-medium px-2">Priority</td>
+                                <td className="py-4 text-sm font-bold text-amber-500 px-2">Dedicated</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
             </section>
-            </div>
-        </section>
+        </div>
     );
 }

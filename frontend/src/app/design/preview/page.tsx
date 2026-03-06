@@ -3,79 +3,40 @@
 import React, { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload, Monitor, Tablet, Smartphone } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
+import { deserializeCleanToCraft } from "../_lib/serializer";
+import { parseContentToCleanDoc } from "../_lib/contentParser";
 import { autoSavePage, getDraft } from "../_lib/pageApi";
 import { WebPreview } from "../_lib/webRenderer";
+import { PREVIEW_MOBILE_BREAKPOINT } from "../_lib/viewportConstants";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 import { getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, getMyDomains, type Project } from "@/lib/api";
+import { getSubdomainSiteUrl } from "@/lib/siteUrls";
 import { getLimits } from "@/lib/subscriptionLimits";
 import { uploadClientFile } from "@/lib/firebaseStorage";
-import { createPortal } from "react-dom";
 import html2canvas from "html2canvas";
 //vdxvx
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 
-type ViewMode = "Web-Preview" | "clean" | "raw";
-type PreviewViewport = "desktop" | "tablet" | "mobile";
+function toPxNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return null;
 
-function PreviewIframe({ children, width, height = "80vh", isDesktop = false }: { children: React.ReactNode; width: string | number; height?: string | number; isDesktop?: boolean }) {
-  const [mountNode, setMountNode] = useState<HTMLElement | null>(null);
-  const iframeRef = React.useRef<HTMLIFrameElement>(null);
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
 
-  React.useEffect(() => {
-    const iframe = iframeRef.current;
-    if (!iframe) return;
-
-    const handleLoad = () => {
-      const doc = iframe.contentDocument;
-      if (doc && doc.head && doc.body) {
-        const root = doc.getElementById("preview-root");
-        if (root) setMountNode(root);
-      }
-    };
-
-    iframe.addEventListener("load", handleLoad);
-    // If already loaded (e.g. from cache or srcDoc fast load)
-    if (iframe.contentDocument?.readyState === "complete" || iframe.contentDocument?.body) {
-      handleLoad();
-    }
-
-    return () => iframe.removeEventListener("load", handleLoad);
-  }, []);
-
-  // Responsive: set width based on device
-  let responsiveWidth = width;
-  if (width === "responsive") {
-    // fallback: 100vw for desktop, 768px for tablet, 390px for mobile
-    responsiveWidth = "100vw";
-  } else if (typeof width === "number") {
-    // Convert number to pixel value
-    responsiveWidth = `${width}px`;
+  if (normalized.endsWith("px")) {
+    const parsed = Number.parseFloat(normalized.slice(0, -2));
+    return Number.isFinite(parsed) ? parsed : null;
   }
 
-  return (
-    <>
-      <iframe
-        ref={iframeRef}
-        style={{
-          width: responsiveWidth,
-          height,
-          transition: "width 0.3s ease",
-          borderRadius: isDesktop ? 0 : undefined,
-          border: isDesktop ? "none" : undefined,
-        }}
-        className={isDesktop ? "bg-white min-h-full" : "rounded-xl border border-white/10 bg-white min-h-full"}
-        srcDoc={`<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1'/><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet"/><style>*,*::before,*::after{box-sizing:border-box;}body{margin:0;font-family:'Outfit',sans-serif;}</style></head><body><div id='preview-root'></div></body></html>`}
-        sandbox="allow-scripts allow-same-origin"
-        tabIndex={-1}
-        aria-hidden
-      />
-      {mountNode && createPortal(children, mountNode)}
-    </>
-  );
+  const numeric = Number.parseFloat(normalized);
+  return Number.isFinite(numeric) ? numeric : null;
 }
+
+type ViewMode = "Web-Preview" | "clean" | "raw";
+type PreviewViewport = "desktop" | "tablet" | "mobile";
 
 
 
@@ -105,10 +66,11 @@ function PreviewContent() {
   const [scheduledAt, setScheduledAt] = useState("");
   const [scheduleInfo, setScheduleInfo] = useState<{ scheduledAt: string; subdomain: string | null } | null>(null);
   const [scheduling, setScheduling] = useState(false);
-  const [mobileBreakpoint, setMobileBreakpoint] = useState(900);
   const [project, setProject] = useState<Project | null>(null);
+  const [selectedPreviewPageSlug, setSelectedPreviewPageSlug] = useState<string | undefined>(initialPageSlug);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const thumbnailCaptureRef = useRef(false);
+  const useBuilderParityMode = false;
 
   const readSessionSnapshot = (targetProjectId: string): string | null => {
     if (typeof window === "undefined") return null;
@@ -122,18 +84,36 @@ function PreviewContent() {
   };
 
   useEffect(() => {
+    let cancelled = false;
+
     async function loadData() {
+      setLoading(true);
       try {
         const sessionSnapshot = readSessionSnapshot(projectId);
         if (sessionSnapshot) {
           console.log('✅ Preview: Loaded latest snapshot from sessionStorage');
-          setRawJson(sessionSnapshot);
-          setLoading(false);
+          if (!cancelled) {
+            setRawJson(sessionSnapshot);
+            setLoading(false);
+          }
           return;
         }
 
         console.log(`📡 Preview: Fetching draft for Project: ${projectId}...`);
-        const result = await getDraft(projectId);
+        const timeoutMs = 12000;
+        const result = await Promise.race([
+          getDraft(projectId),
+          new Promise<{ success: false; timeout: true }>((resolve) =>
+            window.setTimeout(() => resolve({ success: false, timeout: true }), timeoutMs)
+          ),
+        ]);
+
+        if (cancelled) return;
+
+        if ((result as { timeout?: boolean }).timeout) {
+          console.warn(`⚠️ Preview: getDraft timeout after ${timeoutMs}ms`);
+        }
+
         let loaded = false;
 
         if (result.success && result.data) {
@@ -146,9 +126,9 @@ function PreviewContent() {
             // for the rest of the existing preview logic to work (it formats it etc.)
             if (typeof content === 'object') {
               console.log('✨ Data is CLEAN format (version:', content.version, ')');
-              setRawJson(JSON.stringify(content));
+              if (!cancelled) setRawJson(JSON.stringify(content));
             } else {
-              setRawJson(content);
+              if (!cancelled) setRawJson(content);
             }
             loaded = true;
             console.log('✅ Preview: Data loaded');
@@ -163,7 +143,7 @@ function PreviewContent() {
           const fallback = readSessionSnapshot(projectId);
           if (fallback) {
             console.log('✅ Preview: Loaded fallback snapshot from sessionStorage');
-            setRawJson(fallback);
+            if (!cancelled) setRawJson(fallback);
           }
         }
       } catch (error) {
@@ -171,14 +151,18 @@ function PreviewContent() {
         const fallback = readSessionSnapshot(projectId);
         if (fallback) {
           console.log('✅ Preview: Loaded fallback snapshot after API error');
-          setRawJson(fallback);
+          if (!cancelled) setRawJson(fallback);
         }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
     loadData();
+
+    return () => {
+      cancelled = true;
+    };
   }, [projectId]);
 
   useEffect(() => {
@@ -200,23 +184,84 @@ function PreviewContent() {
   // Compute clean document
   const cleanDoc = useMemo(() => {
     if (!rawJson) return null;
-    try {
-      const parsed = JSON.parse(rawJson);
-      // If it's already clean (BuilderDocument)
-      if (parsed.version !== undefined && parsed.pages && parsed.nodes) {
-        return parsed;
-      }
-      // Otherwise, it's raw Craft.js, serialize it
-      return serializeCraftToClean(rawJson);
-    } catch {
-      return null;
-    }
+    return parseContentToCleanDoc(rawJson);
   }, [rawJson]);
 
   const cleanJson = useMemo(
     () => (cleanDoc ? JSON.stringify(cleanDoc, null, 2) : null),
     [cleanDoc]
   );
+
+  const previewPages = useMemo(() => {
+    if (!cleanDoc?.pages?.length) return [] as Array<{ slug: string; name: string }>;
+    return cleanDoc.pages.map((page, index) => {
+      const pageProps = (page?.props ?? {}) as Record<string, unknown>;
+      const rawName = page?.name ?? pageProps.pageName;
+      const name = typeof rawName === "string" && rawName.trim() ? rawName.trim() : `Page ${index + 1}`;
+      const rawSlug = page?.slug ?? pageProps.pageSlug;
+      const slug = typeof rawSlug === "string" && rawSlug.trim() ? rawSlug.trim() : `page-${index + 1}`;
+      return { slug, name };
+    });
+  }, [cleanDoc]);
+
+  useEffect(() => {
+    if (previewPages.length === 0) {
+      setSelectedPreviewPageSlug(undefined);
+      return;
+    }
+
+    const hasSelected = selectedPreviewPageSlug
+      ? previewPages.some((p) => p.slug === selectedPreviewPageSlug)
+      : false;
+
+    if (!hasSelected) {
+      const initialMatch = initialPageSlug
+        ? previewPages.find((p) => p.slug === initialPageSlug)
+        : undefined;
+      setSelectedPreviewPageSlug(initialMatch?.slug ?? previewPages[0]?.slug);
+    }
+  }, [previewPages, selectedPreviewPageSlug, initialPageSlug]);
+
+  const selectedPreviewPage = useMemo(() => {
+    if (previewPages.length === 0) return null;
+    return previewPages.find((p) => p.slug === selectedPreviewPageSlug) ?? previewPages[0] ?? null;
+  }, [previewPages, selectedPreviewPageSlug]);
+
+  const desktopPreviewWidth = useMemo(() => {
+    const selectedIndex = selectedPreviewPage
+      ? previewPages.findIndex((page) => page.slug === selectedPreviewPage.slug)
+      : 0;
+    const targetPage = selectedIndex >= 0 ? cleanDoc?.pages?.[selectedIndex] : cleanDoc?.pages?.[0];
+    const rawWidth = targetPage?.props?.width;
+    if (typeof rawWidth === "number" && Number.isFinite(rawWidth) && rawWidth > 0) {
+      return `${rawWidth}px`;
+    }
+    if (typeof rawWidth === "string" && rawWidth.trim()) {
+      return rawWidth.trim();
+    }
+    return "1920px";
+  }, [cleanDoc, previewPages, selectedPreviewPage]);
+
+  const desktopPreviewStyle = useMemo<React.CSSProperties>(() => {
+    const lower = desktopPreviewWidth.toLowerCase();
+    const isFluid =
+      lower.includes("%") ||
+      lower.includes("vw") ||
+      lower.startsWith("min(") ||
+      lower.startsWith("max(") ||
+      lower.startsWith("clamp(");
+
+    if (isFluid) {
+      return {
+        width: desktopPreviewWidth,
+      };
+    }
+
+    return {
+      width: desktopPreviewWidth,
+      minWidth: desktopPreviewWidth,
+    };
+  }, [desktopPreviewWidth]);
 
   const rawFormatted = useMemo(() => {
     if (!rawJson) return null;
@@ -237,12 +282,20 @@ function PreviewContent() {
   }, [rawJson]);
 
   const activeJson = viewMode === "clean" ? cleanJson : viewMode === "raw" ? rawFormatted : null;
-  const viewportClass =
-    previewViewport === "desktop"
-      ? "w-[1200px]"
-      : previewViewport === "tablet"
-        ? "w-[768px]"
-        : "w-[390px]";
+
+  const desktopResponsiveViewportWidth = useMemo(() => {
+    if (!cleanDoc?.pages?.length) return undefined;
+
+    const targetSlug = initialPageSlug;
+    const targetPage = targetSlug
+      ? cleanDoc.pages.find((page, index) => {
+          const slug = (page.props?.pageSlug as string | undefined) || `page-${index}`;
+          return slug === targetSlug;
+        })
+      : cleanDoc.pages[0];
+
+    return toPxNumber(targetPage?.props?.width) ?? 1920;
+  }, [cleanDoc, initialPageSlug]);
 
   const capturePreviewThumbnail = async () => {
     if (thumbnailCaptureRef.current || !previewRef.current || !projectId) return;
@@ -366,8 +419,7 @@ function PreviewContent() {
         setShowSaveDialog(false);
         setTemplateName("");
         setTemplateDescription("");
-        // Navigate to web-builder page
-        router.push("/m_dashboard/web-builder");
+        router.push(projectId ? `/design?projectId=${projectId}` : "/design");
       } else {
         showAlert("Failed to save template. Please try again.");
       }
@@ -402,6 +454,16 @@ function PreviewContent() {
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(9, 0, 0, 0);
     setScheduledAt(tomorrow.toISOString().slice(0, 16));
+  };
+
+  const isPlanLimitError = (message: string) => {
+    const lower = message.toLowerCase();
+    return (
+      lower.includes("limit reached") ||
+      lower.includes("free plan") ||
+      lower.includes("allows up to") ||
+      lower.includes("upgrade your subscription")
+    );
   };
 
   const handlePublishConfirm = async () => {
@@ -442,8 +504,14 @@ function PreviewContent() {
         }
       }
     } catch (error) {
-      console.error("Publish error:", error);
-      showAlert(error instanceof Error ? error.message : "Publish failed.");
+      const message = error instanceof Error ? error.message : "Publish failed.";
+      if (isPlanLimitError(message)) {
+        setPublishDomainError(message);
+        showAlert(message);
+      } else {
+        console.error("Publish error:", error);
+        showAlert(message);
+      }
     } finally {
       setPublishing(false);
     }
@@ -484,8 +552,14 @@ function PreviewContent() {
         showAlert(res.message || "Schedule failed.");
       }
     } catch (error) {
-      console.error("Schedule error:", error);
-      showAlert(error instanceof Error ? error.message : "Schedule failed.");
+      const message = error instanceof Error ? error.message : "Schedule failed.";
+      if (isPlanLimitError(message)) {
+        setPublishDomainError(message);
+        showAlert(message);
+      } else {
+        console.error("Schedule error:", error);
+        showAlert(message);
+      }
     } finally {
       setScheduling(false);
     }
@@ -554,44 +628,10 @@ function PreviewContent() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col gap-6">
+      <div className={`${viewMode === "Web-Preview" ? "w-full" : "max-w-7xl mx-auto"} px-6 py-6 flex flex-col gap-6`}>
         {/* View Toggle + Stats */}
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          {/* Toggle */}
-          <div className="flex items-center bg-[#111] rounded-lg border border-white/10 p-1">
-            <button
-              onClick={() => setViewMode("Web-Preview")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "Web-Preview"
-                ? "bg-white/10 text-brand-lighter"
-                : "text-zinc-500 hover:text-zinc-300"
-                }`}
-            >
-              <Globe size={14} />
-              Web-Preview
-            </button>
-            <button
-              onClick={() => setViewMode("clean")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "clean"
-                ? "bg-white/10 text-brand-lighter"
-                : "text-zinc-500 hover:text-zinc-300"
-                }`}
-            >
-              <Layers size={14} />
-              Clean
-            </button>
-            <button
-              onClick={() => setViewMode("raw")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "raw"
-                ? "bg-white/10 text-brand-lighter"
-                : "text-zinc-500 hover:text-zinc-300"
-                }`}
-            >
-              <Braces size={14} />
-              Raw (Craft.js)
-            </button>
-          </div>
-
-          {viewMode === "Web-Preview" && (
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex items-center justify-center gap-3 flex-wrap">
             <div className="flex items-center bg-[#111] rounded-lg border border-white/10 p-1">
               <button
                 onClick={() => setPreviewViewport("desktop")}
@@ -624,10 +664,58 @@ function PreviewContent() {
                 Mobile
               </button>
             </div>
-          )}
 
-          {/* Stats */}
-          <div className="flex items-center gap-6 text-xs text-zinc-500">
+            <div className="flex items-center bg-[#111] rounded-lg border border-white/10 p-1">
+              <button
+                onClick={() => setViewMode("Web-Preview")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "Web-Preview"
+                  ? "bg-white/10 text-brand-lighter"
+                  : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+              >
+                <Globe size={14} />
+                Web-Preview
+              </button>
+              <button
+                onClick={() => setViewMode("clean")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "clean"
+                  ? "bg-white/10 text-brand-lighter"
+                  : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+              >
+                <Layers size={14} />
+                Clean
+              </button>
+              <button
+                onClick={() => setViewMode("raw")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "raw"
+                  ? "bg-white/10 text-brand-lighter"
+                  : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+              >
+                <Braces size={14} />
+                Raw (Craft.js)
+              </button>
+            </div>
+          </div>
+
+          {/* Stats (inside tabs area) */}
+          <div className="flex items-center justify-center gap-6 text-xs text-zinc-500 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-zinc-600">Page:</span>
+              <select
+                value={selectedPreviewPage?.slug ?? ""}
+                onChange={(e) => setSelectedPreviewPageSlug(e.target.value || undefined)}
+                disabled={previewPages.length === 0}
+                className="bg-[#111] border border-white/10 rounded-md px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-white/20 disabled:opacity-50"
+              >
+                {previewPages.map((page) => (
+                  <option key={page.slug} value={page.slug}>
+                    {page.name}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="flex items-center gap-2">
               <span>{pageCount} pages</span>
               <span className="text-zinc-700">|</span>
@@ -660,25 +748,32 @@ function PreviewContent() {
             <p>Fetching latest clean data...</p>
           </div>
         ) : viewMode === "Web-Preview" ? (
-          <div className="flex justify-center py-6 h-full">
+          <div className={`py-6 h-full ${previewViewport === "desktop" ? "overflow-x-auto" : "flex justify-center"}`}>
             {cleanDoc ? (
-              <PreviewIframe
-                width={
+              <div
+                ref={previewRef}
+                className={`bg-white transition-[width] duration-300 ease-out ${previewViewport === "desktop"
+                  ? "min-h-[calc(100vh-200px)] mx-auto"
+                  : "min-h-[calc(100vh-200px)] rounded-xl border border-white/10 overflow-hidden"
+                  }`}
+                style={
                   previewViewport === "desktop"
-                    ? "100%"
+                    ? desktopPreviewStyle
                     : previewViewport === "tablet"
-                      ? 768
-                      : 390
+                      ? { width: 768, maxWidth: "100%" }
+                      : previewViewport === "mobile"
+                        ? { width: 390, maxWidth: "100%" }
+                        : undefined
                 }
-                height="calc(100vh - 200px)"
-                isDesktop={previewViewport === "desktop"}
               >
                 <WebPreview
+                  key={selectedPreviewPage?.slug ?? "default-page"}
                   doc={cleanDoc}
                   pageIndex={0}
-                  initialPageSlug={initialPageSlug}
-                  mobileBreakpoint={mobileBreakpoint}
+                  initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
+                  mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
                   enableFormInputs
+                  builderParityMode={useBuilderParityMode}
                   simulatedWidth={
                     previewViewport === "desktop"
                       ? undefined
@@ -687,7 +782,7 @@ function PreviewContent() {
                         : 390
                   }
                 />
-              </PreviewIframe>
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center min-h-96 text-zinc-500 p-8 border border-white/10 rounded-xl">
                 <p className="text-base mb-1">No page data</p>
@@ -816,7 +911,11 @@ function PreviewContent() {
           <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md">
             <h2 className="text-xl font-semibold text-white mb-2">Published successfully</h2>
             <p className="text-sm text-zinc-400 mb-1">Do you want to open your website now?</p>
-            <p className="text-xs text-zinc-500 mb-5">/sites/{publishedSubdomain}</p>
+            <p className="text-xs text-zinc-500 mb-5">
+              {typeof window !== 'undefined'
+                ? getSubdomainSiteUrl(publishedSubdomain, window.location.origin).replace(/^https?:\/\//, '')
+                : `${publishedSubdomain}.localhost`}
+            </p>
 
             <div className="flex justify-end gap-3">
               <button
@@ -835,7 +934,8 @@ function PreviewContent() {
                   const target = publishedSubdomain;
                   setShowPublishedSuccessModal(false);
                   setPublishedSubdomain(null);
-                  router.push(`/sites/${encodeURIComponent(target)}`);
+                  const url = getSubdomainSiteUrl(target, typeof window !== 'undefined' ? window.location.origin : null);
+                  if (url !== '#') window.location.href = url;
                 }}
                 className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
               >

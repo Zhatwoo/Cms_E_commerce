@@ -16,6 +16,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { MIN_SCALE, MAX_SCALE, ZOOM_STEP, ZOOM_PRESETS } from "./zoomConstants";
+import { selectedToIds } from "../_lib/canvasActions";
 
 export type DevicePreset = {
   name: string;
@@ -64,7 +65,10 @@ const DEVICE_PRESETS: DevicePreset[] = [
 interface TopPanelProps {
   scale: number;
   onScaleChange: (scale: number) => void;
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
   onRotateCanvas: () => void;
+  activePageId?: string | null;
   onFitToCanvas: () => void;
   canvasWidth?: number;
   canvasHeight?: number;
@@ -76,7 +80,10 @@ interface TopPanelProps {
 export const TopPanel: React.FC<TopPanelProps> = ({
   scale,
   onScaleChange,
+  onZoomIn,
+  onZoomOut,
   onRotateCanvas,
+  activePageId,
   onFitToCanvas,
   canvasWidth = 1440,
   canvasHeight = 900,
@@ -88,7 +95,6 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   const [showSizeDropdown, setShowSizeDropdown] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<DevicePreset | null>(null);
 
-  const [canvasRotation, setCanvasRotation] = useState(0);
   const sizeDropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdowns on outside click
@@ -117,20 +123,83 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   }, [canvasWidth, canvasHeight]);
 
   const handleZoomIn = () => {
+    if (onZoomIn) {
+      onZoomIn();
+      return;
+    }
     const safeScale = Number.isFinite(scale) ? scale : 1;
     const newScale = Math.min(safeScale + ZOOM_STEP, MAX_SCALE);
     onScaleChange(newScale);
   };
 
   const handleZoomOut = () => {
+    if (onZoomOut) {
+      onZoomOut();
+      return;
+    }
     const safeScale = Number.isFinite(scale) ? scale : 1;
     const newScale = Math.max(safeScale - ZOOM_STEP, MIN_SCALE);
     onScaleChange(newScale);
   };
 
   const handleRotateCanvas = () => {
-    const newRotation = (canvasRotation + 90) % 360;
-    setCanvasRotation(newRotation);
+    try {
+      const state = query.getState();
+      const nodes = state.nodes ?? {};
+
+      const findPageAncestor = (nodeId: string | null | undefined): string | null => {
+        if (!nodeId) return null;
+        let cursor: string | null = nodeId;
+        const seen = new Set<string>();
+
+        while (cursor && !seen.has(cursor)) {
+          seen.add(cursor);
+          const node = nodes[cursor] as { data?: { displayName?: string; parent?: string }; parent?: string } | undefined;
+          if (!node) return null;
+          if (node?.data?.displayName === "Page") return cursor;
+
+          const parentId =
+            (typeof node?.data?.parent === "string" ? node.data.parent : null) ??
+            (typeof node?.parent === "string" ? node.parent : null);
+          cursor = parentId;
+        }
+
+        return null;
+      };
+
+      let targetPageId: string | null = null;
+
+      const selectedIds = selectedToIds(state?.events?.selected);
+      for (const id of selectedIds) {
+        const pageId = findPageAncestor(id);
+        if (pageId) {
+          targetPageId = pageId;
+          break;
+        }
+      }
+
+      if (!targetPageId) {
+        const activePage = findPageAncestor(activePageId ?? null);
+        if (activePage) targetPageId = activePage;
+      }
+
+      if (!targetPageId) {
+        const firstPageEntry = Object.entries(nodes).find(([, node]: any) => node?.data?.displayName === "Page");
+        targetPageId = firstPageEntry ? firstPageEntry[0] : null;
+      }
+
+      if (!targetPageId) return;
+
+      actions.setProp(targetPageId, (props: Record<string, unknown>) => {
+        const current = typeof props.pageRotation === "number" && Number.isFinite(props.pageRotation)
+          ? props.pageRotation
+          : 0;
+        props.pageRotation = (current + 90) % 360;
+      });
+    } catch (error) {
+      console.error("Failed to rotate active page:", error);
+    }
+
     onRotateCanvas();
   };
 
@@ -297,17 +366,17 @@ export const TopPanel: React.FC<TopPanelProps> = ({
 
         {/* Right Section - Mobile view toggle + Display size presets */}
         <div className="flex items-center gap-2">
-          {/* Mobile Preview Toggle Button */}
+          {/* Device Preview Toggle Button */}
           <button
             onClick={onDualViewToggle}
             className={`p-2 rounded-lg transition-colors border border-white/10 flex items-center gap-2 ${showDualView
                 ? "bg-blue-500/30 text-blue-400 border-blue-400/30"
                 : "bg-brand-medium-dark hover:bg-brand-medium text-brand-lighter"
               }`}
-            title={showDualView ? "Hide Mobile Preview" : "Show Mobile Preview"}
+            title={showDualView ? "Hide Device Preview" : "Show Device Preview"}
           >
             <Smartphone className="w-4 h-4" />
-            <span className="text-xs font-medium">Mobile</span>
+            <span className="text-xs font-medium">Device</span>
           </button>
 
           {/* Device Preset Buttons */}

@@ -5,6 +5,11 @@
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 const API_BASE_URL = `${BASE.replace(/\/$/, '')}/api`;
 const REQUEST_TIMEOUT_MS = 10000;
+const DRAFT_CACHE_TTL_MS = 15000;
+
+type DraftResponse = { success: boolean; data?: any; error?: string };
+const draftCache = new Map<string, { expiresAt: number; value: DraftResponse }>();
+const draftInFlight = new Map<string, Promise<DraftResponse>>();
 
 /** Wraps fetch; returns null on network/parse errors so callers can handle gracefully. */
 async function safeFetch(
@@ -77,6 +82,10 @@ export async function autoSavePage(content: string, projectId: string): Promise<
             return { success: false, error: data.message || 'Database save failed' };
         }
 
+        draftCache.set(projectId, {
+            expiresAt: Date.now() + DRAFT_CACHE_TTL_MS,
+            value: { success: true, data: { ...data.data, content } }
+        });
         return { success: true, data: data.data };
     } catch (error) {
         console.error('❌ Auto-save error:', error);
@@ -105,7 +114,19 @@ export async function getMyId(): Promise<void> {
  * Get the user's draft page
  * Returns null if not authenticated - will fall back to localStorage
  */
-export async function getDraft(projectId: string): Promise<{ success: boolean; data?: any; error?: string }> {
+export async function getDraft(projectId: string): Promise<DraftResponse> {
+    const cached = draftCache.get(projectId);
+    const now = Date.now();
+    if (cached && cached.expiresAt > now) {
+        return cached.value;
+    }
+
+    const existing = draftInFlight.get(projectId);
+    if (existing) {
+        return existing;
+    }
+
+    const request = (async (): Promise<DraftResponse> => {
     try {
         const token = getAuthToken();
 
@@ -114,28 +135,43 @@ export async function getDraft(projectId: string): Promise<{ success: boolean; d
             headers['Authorization'] = `Bearer ${token}`;
         }
 
-        // Pass projectId in query with timestamp to avoid caching
-        const response = await safeFetch(`${API_BASE_URL}/pages/draft?projectId=${projectId}&t=${Date.now()}`, {
+        const response = await safeFetch(`${API_BASE_URL}/pages/draft?projectId=${projectId}`, {
             method: 'GET',
             headers,
             credentials: 'include'
         });
 
         if (!response) {
-            return { success: true, data: null };
+            const fallback = { success: true, data: null };
+            draftCache.set(projectId, { expiresAt: now + 4000, value: fallback });
+            return fallback;
         }
 
         const data = await response.json();
 
         if (!response.ok) {
             console.warn('⚠️ Database load failed:', data.message);
-            return { success: true, data: null };
+            const fallback = { success: true, data: null };
+            draftCache.set(projectId, { expiresAt: now + 4000, value: fallback });
+            return fallback;
         }
 
-        return { success: true, data: data.data };
+        const result = { success: true, data: data.data };
+        draftCache.set(projectId, { expiresAt: now + DRAFT_CACHE_TTL_MS, value: result });
+        return result;
     } catch (error) {
         console.error('Get draft error:', error);
-        return { success: true, data: null };
+        const fallback = { success: true, data: null };
+        draftCache.set(projectId, { expiresAt: now + 4000, value: fallback });
+        return fallback;
+    }
+    })();
+
+    draftInFlight.set(projectId, request);
+    try {
+        return await request;
+    } finally {
+        draftInFlight.delete(projectId);
     }
 }
 
@@ -165,6 +201,8 @@ export async function deleteDraft(projectId: string): Promise<{ success: boolean
             return { success: false, error: data.message };
         }
 
+        draftCache.delete(projectId);
+        draftInFlight.delete(projectId);
         return { success: true };
     } catch (error) {
         console.error('Delete draft error:', error);

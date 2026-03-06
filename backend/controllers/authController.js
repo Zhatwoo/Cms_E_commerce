@@ -1,10 +1,9 @@
 
 const { auth } = require('../config/firebase');
 const PasswordReset = require('../models/PasswordReset');
-const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/emailService');
-const { uploadAvatar, slugPathSegment } = require('../utils/storageHelpers');
+const { sendVerificationEmail } = require('../utils/emailService');
+const { uploadAvatar, slugPathSegment, deleteAvatarByUrlForUser, getStoragePathFromUrl } = require('../utils/storageHelpers');
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
 const User = require('../models/User');
 
 const COOKIE_NAME = 'mercato_token';
@@ -40,10 +39,7 @@ const userToResponse = (user) => {
     avatar: user.avatar || null,
     role: user.role,
     subscriptionPlan: user.subscriptionPlan,
-    createdAt: user.createdAt,
-    username: user.username || '',
-    website: user.website || '',
-    bio: user.bio || ''
+    createdAt: user.createdAt
   };
 };
 
@@ -130,7 +126,7 @@ exports.register = async (req, res) => {
     const payload = {
       success: true,
       message: sent
-        ? 'Welcome to Finding Neo! Please check your email to confirm your account. After confirming, you can continue from the landing page.'
+        ? 'Welcome to Mercato! Please check your email to confirm your account. After confirming, you can log in.'
         : 'Account created. Check your email to confirm (or see server console for the link).',
       requiresVerification: true
     };
@@ -461,7 +457,9 @@ exports.updateProfile = async (req, res) => {
 };
 
 /**
- * Upload avatar: multipart file -> Storage at Clients/{uid}/avatar.{ext} -> save URL in Firestore.
+ * Upload avatar: multipart file -> Storage at
+ * Clients/profile_picture/{username}/profile-{uid} -> save URL in Firestore.
+ * Replacing avatar keeps only one stored profile image per user.
  * @route POST /api/auth/avatar
  * @access Private
  */
@@ -476,10 +474,17 @@ exports.uploadAvatar = async (req, res) => {
       return res.status(400).json({ success: false, message: 'File must be an image.' });
     }
     const user = await User.get(uid);
-    const slug = slugPathSegment(user?.displayName || user?.username || user?.email || uid);
-    const folderName = `${slug}-${uid}`;
-    const url = await uploadAvatar(req.file.buffer, uid, mimeType, folderName);
+    const fallbackUsername = typeof user?.email === 'string' ? user.email.split('@')[0] : '';
+    const usernameSegment = slugPathSegment(user?.username || fallbackUsername || user?.displayName || uid);
+    const previousAvatarUrl = typeof user?.avatar === 'string' ? user.avatar : '';
+    const url = await uploadAvatar(req.file.buffer, uid, mimeType, usernameSegment);
     await User.update(uid, { avatar: url });
+    if (previousAvatarUrl && previousAvatarUrl !== url) {
+      // Deterministic avatar path means old/new URLs can differ only by token while pointing to same object.
+      // Skip delete when both URLs resolve to the same storage object to avoid deleting the freshly uploaded file.
+      const newAvatarPath = getStoragePathFromUrl(url);
+      await deleteAvatarByUrlForUser(previousAvatarUrl, uid, { skipObjectPath: newAvatarPath || '' });
+    }
     const updatedUser = await User.get(uid);
     res.status(200).json({
       success: true,
@@ -524,105 +529,23 @@ exports.changePassword = async (req, res) => {
 
 exports.forgotPassword = async (req, res) => {
   try {
-    const email = (req.body?.email || '').toString().trim().toLowerCase();
+    const { email } = req.body;
     if (!email) {
       return res.status(400).json({ success: false, message: 'Please provide email' });
     }
 
-    let authUser = null;
-    try {
-      authUser = await auth.getUserByEmail(email);
-    } catch (authErr) {
-      const code = String(authErr?.code || '').toLowerCase();
-      if (!code.includes('user-not-found')) {
-        throw authErr;
+    const user = await User.findByEmail(email);
+    if (user) {
+      await PasswordReset.create(user.id, user.email);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('Password reset token created for', user.email);
       }
     }
 
-    // Recovery path: Firestore user exists but Firebase Auth user is missing.
-    // Re-create Auth user with the same UID so existing profile links remain valid.
-    if (!authUser) {
-      const profile = await User.findByEmail(email);
-      if (profile?.id) {
-        try {
-          authUser = await auth.getUser(profile.id);
-          const authEmail = (authUser.email || '').toLowerCase();
-          if (authEmail !== email) {
-            await auth.updateUser(profile.id, { email });
-            authUser = await auth.getUser(profile.id);
-          }
-        } catch (uidLookupErr) {
-          const uidErrCode = String(uidLookupErr?.code || '').toLowerCase();
-          if (!uidErrCode.includes('user-not-found')) {
-            throw uidLookupErr;
-          }
-
-          const tempPassword = crypto.randomBytes(24).toString('base64url');
-          try {
-            authUser = await auth.createUser({
-              uid: profile.id,
-              email,
-              password: tempPassword,
-              displayName: profile.displayName || profile.fullName || email.split('@')[0],
-              emailVerified: true,
-            });
-            if (process.env.NODE_ENV !== 'production') {
-              console.log(`[forgotPassword] Repaired missing Firebase Auth user for ${email} with UID ${profile.id}`);
-            }
-          } catch (createErr) {
-            const createErrCode = String(createErr?.code || '').toLowerCase();
-            if (createErrCode.includes('email-already-exists')) {
-              authUser = await auth.getUserByEmail(email);
-            } else {
-              throw createErr;
-            }
-          }
-        }
-      }
-    }
-
-    if (authUser) {
-      const recipientEmail = (authUser.email || email).toLowerCase();
-      const profile = await User.findById(authUser.uid);
-      const { token } = await PasswordReset.create(authUser.uid, recipientEmail);
-      const displayName =
-        profile?.displayName ||
-        profile?.fullName ||
-        authUser.displayName ||
-        recipientEmail.split('@')[0] ||
-        '';
-      const { sent, resetUrl } = await sendPasswordResetEmail(recipientEmail, token, displayName);
-
-      const payload = {
-        success: true,
-        message: sent
-          ? 'If an account exists with that email, we sent password reset instructions.'
-          : 'If an account exists with that email, password reset instructions are ready (or check server logs in dev).'
-      };
-
-      if (resetUrl && process.env.NODE_ENV !== 'production') {
-        payload.resetUrl = resetUrl;
-      }
-
-      return res.status(200).json(payload);
-    }
-
-    const payload = {
+    res.status(200).json({
       success: true,
-      message: 'If an account exists with that email, we sent password reset instructions.'
-    };
-    if (process.env.NODE_ENV !== 'production') {
-      payload.debugHint = 'No Firebase Auth user found for this email.';
-    }
-
-    res.status(200).json(payload);
-
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('Password reset requested for non-existing email:', email);
-    }
-
-    return;
-
+      message: 'If an account exists with that email, you will receive instructions to reset your password.'
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
@@ -642,44 +565,13 @@ exports.resetPassword = async (req, res) => {
     if (!record) {
       return res.status(400).json({ success: false, message: 'Invalid or expired reset token' });
     }
-    if (!record.userId) {
-      await PasswordReset.deleteByDocId(record.id).catch(() => {});
-      return res.status(400).json({ success: false, message: 'Invalid reset token. Please request a new password reset link.' });
-    }
     if (new Date(record.expiresAt) < new Date()) {
       await PasswordReset.deleteByDocId(record.id);
       return res.status(400).json({ success: false, message: 'Reset token has expired' });
     }
 
-    try {
-      await User.updatePassword(record.userId, newPassword);
-    } catch (updateErr) {
-      const code = String(updateErr?.code || '').toLowerCase();
-      const msg = String(updateErr?.message || '').toLowerCase();
-      if (code.includes('user-not-found') || msg.includes('user record') || msg.includes('user-not-found')) {
-        const emailFromToken = (record.email || '').toString().trim().toLowerCase();
-        if (emailFromToken) {
-          try {
-            const authUser = await auth.getUserByEmail(emailFromToken);
-            if (authUser?.uid) {
-              await User.updatePassword(authUser.uid, newPassword);
-              await PasswordReset.deleteByDocId(record.id).catch(() => {});
-              return res.status(200).json({ success: true, message: 'Password has been reset successfully' });
-            }
-          } catch {
-            // fall through to invalid-link response
-          }
-        }
-        await PasswordReset.deleteByDocId(record.id).catch(() => {});
-        return res.status(400).json({
-          success: false,
-          message: 'This reset link is no longer valid. Please request a new password reset link.'
-        });
-      }
-      throw updateErr;
-    }
-
-    await PasswordReset.deleteByDocId(record.id).catch(() => {});
+    await User.updatePassword(record.userId, newPassword);
+    await PasswordReset.deleteByDocId(record.id);
 
     res.status(200).json({ success: true, message: 'Password has been reset successfully' });
   } catch (error) {

@@ -19,11 +19,23 @@ export const CanvasSelectionHandler = () => {
   const MULTI_DRAG_LOCK_FLAG = "multiDragLock";
 
   useEffect(() => {
+    if (activeTool !== "hand") return;
+    try {
+      actions.selectNode(undefined);
+      lastSelectedNodeIdRef.current = null;
+    } catch {
+      // ignore
+    }
+  }, [activeTool, actions]);
+
+  useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
       if (document.body.dataset[MULTI_DRAG_LOCK_FLAG] === "true") return;
 
-      // When panning is active, do not process selection
+      // When panning is active (Hand tool or Space), do not process selection
       if (document.body.dataset.canvasPan === "true") return;
+      if (document.body.dataset.spacePan === "true") return;
+      if (activeTool === "hand" || activeTool === "text") return;
 
       const target = e.target as HTMLElement | null;
       if (!target) return;

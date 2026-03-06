@@ -266,11 +266,11 @@ export function Hero({ isDarkMode = false }: { isDarkMode?: boolean }) {
           transition={{ duration: 0.75, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
           className="mt-9 flex flex-col items-center gap-3 sm:flex-row"
         >
-          <button className="group relative overflow-hidden rounded-full bg-[#ffcc00] px-8 py-3 text-base font-extrabold text-[#120533] shadow-[0_0_28px_rgba(255,204,0,0.55)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_0_40px_rgba(255,204,0,0.75)] active:scale-95 sm:px-10 sm:text-lg">
+          <button suppressHydrationWarning className="group relative overflow-hidden rounded-full bg-[#ffcc00] px-8 py-3 text-base font-extrabold text-[#120533] shadow-[0_0_28px_rgba(255,204,0,0.55)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_0_40px_rgba(255,204,0,0.75)] active:scale-95 sm:px-10 sm:text-lg">
             <span className="relative z-10">Start for Free</span>
             <span className="absolute inset-0 translate-y-full bg-[#ffe147] transition-transform duration-200 group-hover:translate-y-0" />
           </button>
-          <button className="rounded-full border border-white/20 bg-white/5 px-7 py-3 text-sm font-semibold text-white/80 backdrop-blur-sm transition-all duration-200 hover:border-white/35 hover:bg-white/10 hover:-translate-y-0.5 sm:px-9 sm:text-base">
+          <button suppressHydrationWarning className="rounded-full border border-white/20 bg-white/5 px-7 py-3 text-sm font-semibold text-white/80 backdrop-blur-sm transition-all duration-200 hover:border-white/35 hover:bg-white/10 hover:-translate-y-0.5 sm:px-9 sm:text-base">
             Watch Demo →
           </button>
         </motion.div>

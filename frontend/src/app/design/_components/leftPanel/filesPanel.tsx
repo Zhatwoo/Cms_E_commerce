@@ -599,7 +599,17 @@ export const FilesPanel = () => {
                 actions.selectNode(nodeId);
                 // Scroll canvas to center the selected node, accounting for zoom/transform
                 try {
-                  const dom = query.node(nodeId).get()?.dom ?? null;
+                  const selectedNode = query.node(nodeId).get();
+                  const selectedDisplayName = selectedNode?.data?.displayName ?? "";
+                  let dom = selectedNode?.dom ?? null;
+
+                  if (selectedDisplayName === "Viewport") {
+                    const firstPageDom = document.querySelector<HTMLElement>("[data-viewport-desktop] [data-page-node='true']");
+                    if (firstPageDom) {
+                      dom = firstPageDom;
+                    }
+                  }
+
                   if (dom) {
                     const container = document.querySelector("[data-canvas-container]") as HTMLElement | null;
                     if (container) {
@@ -713,6 +723,23 @@ export const FilesPanel = () => {
   // ── Context menu portal ───────────────────────────────────
   const ContextMenuPortal = () => {
     if (!contextMenu) return null;
+    const gap = 8;
+    const viewportWidth = typeof window !== "undefined" ? window.innerWidth : 0;
+    const viewportHeight = typeof window !== "undefined" ? window.innerHeight : 0;
+    const estimatedMenuWidth = 220;
+    const estimatedMenuHeight = 280;
+    const openToLeft = contextMenu.x + estimatedMenuWidth > viewportWidth - gap;
+    const openUpward = contextMenu.y + estimatedMenuHeight > viewportHeight - gap;
+
+    const menuStyle: React.CSSProperties = {
+      ...(openToLeft
+        ? { right: Math.max(gap, viewportWidth - contextMenu.x) }
+        : { left: Math.max(gap, contextMenu.x) }),
+      ...(openUpward
+        ? { bottom: Math.max(gap, viewportHeight - contextMenu.y) }
+        : { top: Math.max(gap, contextMenu.y) }),
+    };
+
     const nodeProtected = isProtected(contextMenu.nodeId);
     const nodeName = nodes[contextMenu.nodeId]?.data.displayName || "Node";
     const selectedIds = selectedToIds(selected);
@@ -722,8 +749,8 @@ export const FilesPanel = () => {
     return ReactDOM.createPortal(
       <div
         data-context-menu
-        className="fixed z-9999 min-w-[160px] bg-brand-darker border border-white/10 rounded-lg shadow-2xl px-2.5 py-1 text-sm"
-        style={{ left: contextMenu.x, top: contextMenu.y }}
+        className="fixed z-[10050] min-w-[160px] max-h-[calc(100vh-16px)] overflow-y-auto bg-brand-darker border border-white/10 rounded-lg shadow-2xl px-2.5 py-1 text-sm"
+        style={menuStyle}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-white/50 font-semibold border-b border-white/5">

@@ -77,7 +77,7 @@ export function StorefrontProducts({
                 <div className="p-4">
                   <h3 className="font-semibold text-zinc-900 mb-1">{product.name}</h3>
                   <p className="text-lg font-bold text-blue-600 mb-2">
-                    ${price.toFixed(2)}
+                    ₱{price.toFixed(2)}
                   </p>
                   {product.description && (
                     <p className="text-sm text-zinc-500 mb-3 line-clamp-2">

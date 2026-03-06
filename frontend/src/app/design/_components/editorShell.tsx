@@ -15,12 +15,14 @@ import { Text } from "../_designComponents/Text/Text";
 import { Page } from "../_designComponents/Page/Page";
 import { Viewport } from "../_designComponents/Viewport/Viewport";
 import { Section } from "../_designComponents/Section/Section";
+import { Image } from "../_designComponents/Image/Image";
 import { Button } from "../_designComponents/Button/Button";
 import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
 import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
+import { FreeDropPlacementHandler } from "./FreeDropPlacementHandler";
 import { MarqueeSelectionHandler } from "./MarqueeSelectionHandler";
 import { TextToolHandler } from "./TextToolHandler";
 import { ShapeToolHandler } from "./ShapeToolHandler";
@@ -33,6 +35,7 @@ import { PrototypeTabProvider } from "./PrototypeTabContext";
 import { PrototypeFlowLines } from "./PrototypeFlowLines";
 import { NewPageDropPlacementHandler } from "./NewPageDropPlacementHandler";
 import { HeaderFooterDropPlacementHandler } from "./HeaderFooterDropPlacementHandler";
+import { PanelDropFreePlacementHandler } from "./PanelDropFreePlacementHandler";
 import { ScrollToSelectedHandler } from "./ScrollToSelectedHandler";
 import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
@@ -81,6 +84,7 @@ class FrameErrorBoundary extends React.Component<
 }
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
+const PERSISTENT_STORAGE_KEY_PREFIX = "craftjs_preview_persist";
 const UI_STATE_KEY_PREFIX = "craftjs_editor_ui";
 
 // These must match the Viewport constants for proper page positioning
@@ -127,6 +131,8 @@ const VALIDATOR_RESOLVER: Record<string, React.ComponentType<any>> = {
   container: Container,
   Text: Text || Container,
   text: Text || Container,
+  Image: Image || Container,
+  image: Image || Container,
   Page: Page || Container,
   page: Page || Container,
   Viewport: Viewport || Container,
@@ -149,6 +155,10 @@ function normalizeResolvedName(rawName: unknown): string {
 
 function getStorageKey(projectId: string) {
   return `${STORAGE_KEY_PREFIX}_${projectId}`;
+}
+
+function getPersistentStorageKey(projectId: string) {
+  return `${PERSISTENT_STORAGE_KEY_PREFIX}_${projectId}`;
 }
 
 function isQuotaError(error: unknown): boolean {
@@ -189,6 +199,35 @@ function safeSessionRemove(key: string): void {
   }
 }
 
+function safeLocalGet(key: string): string | null {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return null;
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeLocalSet(key: string, value: string): void {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return;
+    window.localStorage.setItem(key, value);
+  } catch (error) {
+    if (isQuotaError(error)) {
+      console.warn("LocalStorage quota exceeded, skipping save:", key);
+    }
+  }
+}
+
+function safeLocalRemove(key: string): void {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return;
+    window.localStorage.removeItem(key);
+  } catch {
+    // Ignore errors when removing
+  }
+}
+
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 type EditorShellProps = {
@@ -202,6 +241,9 @@ const MIN_PANEL_WIDTH = 200;
 const MAX_PANEL_WIDTH = 600;
 const MIN_CANVAS_VIEWPORT_WIDTH = 760;
 const TOP_PANEL_HEIGHT_PX = 48;
+const INFINITE_CANVAS_WIDTH_VW = 4000;
+const INFINITE_CANVAS_HEIGHT_VH = 4000;
+const INFINITE_CANVAS_PADDING_PX = 30000;
 
 const isEditableTarget = (target: EventTarget | null) => {
   if (!target || !(target instanceof HTMLElement)) return false;
@@ -228,8 +270,6 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
   try {
     const parsed = JSON.parse(jsonString);
 
-    console.log('🔍 Validation: Starting with', Object.keys(parsed).length, 'nodes');
-
     // Must have ROOT
     if (!parsed || !parsed.ROOT) {
       console.error('❌ Validation failed: Missing ROOT node');
@@ -255,14 +295,12 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
 
       // Must be an object
       if (!node || typeof node !== 'object') {
-        console.warn(`⚠️ Node ${id} is not an object:`, typeof node);
         invalidNodes.push(id);
         return false;
       }
 
       // Must have type property
       if (!node.type) {
-        console.warn(`⚠️ Node ${id} is missing 'type' property`);
         invalidNodes.push(id);
         return false;
       }
@@ -278,19 +316,12 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
 
       // Must have nodes array (even if empty)
       if (!Array.isArray(node.nodes)) {
-        console.warn(`⚠️ Node ${id} is missing 'nodes' array`);
         // Try to fix it
         node.nodes = [];
       }
 
       return true;
     }));
-
-    if (invalidNodes.length > 0) {
-      console.warn(`⚠️ Found ${invalidNodes.length} invalid nodes:`, invalidNodes);
-    }
-
-    console.log(`🔍 Validation: Found ${validNodeIds.size} valid nodes out of ${allNodeIds.length} total`);
 
     // If too many invalid nodes, abort
     if (invalidNodes.length > allNodeIds.length * 0.5) {
@@ -314,7 +345,6 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
         const originalLength = node.nodes.length;
         node.nodes = node.nodes.filter((childId: string) => {
           if (!validNodeIds.has(childId)) {
-            console.warn(`⚠️ Removing invalid reference: ${nodeId} -> ${childId}`);
             hasInvalidRefs = true;
             removedRefsCount++;
             return false;
@@ -323,7 +353,7 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
         });
 
         if (node.nodes.length !== originalLength) {
-          console.log(`🔧 Cleaned ${nodeId}: ${originalLength} -> ${node.nodes.length} children`);
+          hasInvalidRefs = true;
         }
 
         // Recursively clean children
@@ -334,7 +364,6 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
       if (node.linkedNodes && typeof node.linkedNodes === 'object') {
         for (const [key, linkedId] of Object.entries(node.linkedNodes)) {
           if (typeof linkedId === 'string' && !validNodeIds.has(linkedId)) {
-            console.warn(`⚠️ Removing invalid linkedNode: ${nodeId}.${key} -> ${linkedId}`);
             delete node.linkedNodes[key];
             hasInvalidRefs = true;
             removedRefsCount++;
@@ -345,10 +374,6 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
 
     // Start validation from ROOT
     cleanNodeRefs('ROOT');
-
-    if (hasInvalidRefs) {
-      console.log(`🔧 Data cleaned - removed ${removedRefsCount} invalid references`);
-    }
 
     // Remove invalid nodes from the parsed object
     invalidNodes.forEach(id => {
@@ -373,7 +398,10 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
     });
 
     const finalJson = JSON.stringify(parsed);
-    console.log(`✅ Validation complete. Final data has ${Object.keys(parsed).length} nodes`);
+
+    if (hasInvalidRefs && removedRefsCount > 0) {
+      console.warn(`Editor data cleaned: removed ${removedRefsCount} invalid references.`);
+    }
 
     return { valid: true, data: finalJson };
   } catch (error) {
@@ -382,19 +410,33 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
   }
 }
 
+function prepareFrameData(jsonString: string): { valid: boolean; data?: string } {
+  // Always run through validator so component type names are canonicalized
+  // against resolver keys (e.g. Image/image/Text/text) before Frame mount.
+  return validateCraftData(jsonString);
+}
+
 // Suppress known @craftjs/core React 19 compatibility warnings.
 // Safe to remove once craftjs releases a stable React 19 compatible version (0.3.x+).
 if (typeof window !== "undefined") {
-  const _origConsoleError = console.error.bind(console);
-  console.error = (...args: unknown[]) => {
-    if (typeof args[0] === "string") {
-      // React 19 removed element.ref access — craftjs still uses old API internally
-      if (args[0].includes("Accessing element.ref was removed")) return;
-      // craftjs store updates trigger setState during Frame render in React 19 concurrent mode
-      if (args[0].includes("Cannot update a component") && args[0].includes("while rendering a different component")) return;
-    }
-    _origConsoleError(...args);
+  const win = window as Window & {
+    __craftConsoleErrorPatched__?: boolean;
+    __craftOriginalConsoleError__?: typeof console.error;
   };
+  if (!win.__craftConsoleErrorPatched__) {
+    const originalError = win.__craftOriginalConsoleError__ ?? console.error.bind(console);
+    win.__craftOriginalConsoleError__ = originalError;
+    console.error = (...args: unknown[]) => {
+      if (typeof args[0] === "string") {
+        // React 19 removed element.ref access — craftjs still uses old API internally
+        if (args[0].includes("Accessing element.ref was removed")) return;
+        // craftjs store updates trigger setState during Frame render in React 19 concurrent mode
+        if (args[0].includes("Cannot update a component") && args[0].includes("while rendering a different component")) return;
+      }
+      originalError(...args);
+    };
+    win.__craftConsoleErrorPatched__ = true;
+  }
 }
 
 /**
@@ -457,6 +499,7 @@ const SafeFrame = ({
   const [frameDataToShow, setFrameDataToShow] = useState<string | null>(null);
   const [hasErrorBoundaryError, setHasErrorBoundaryError] = useState(false);
   const mountedSignalSentRef = useRef(false);
+  const validationCacheRef = useRef<{ input: string; output: string | null; valid: boolean } | null>(null);
 
   useEffect(() => {
     setFrameDataToShow(null);
@@ -469,18 +512,30 @@ const SafeFrame = ({
 
     // Validate and prepare data for rendering
     if (data) {
-      console.log('🔍 SafeFrame: Validating data before render...');
-      const validation = validateCraftData(data);
-
-      if (validation.valid && validation.data) {
-        console.log('✅ SafeFrame: Data is valid, preparing to render');
-        setRenderData(validation.data);
+      const cached = validationCacheRef.current;
+      if (cached && cached.input === data) {
+        if (cached.valid && cached.output) {
+          setRenderData(cached.output);
+        } else {
+          setRenderData(null);
+          onError?.();
+        }
       } else {
-        console.error('❌ SafeFrame: Data validation failed, using empty canvas');
-        setRenderData(null);
-        onError?.();
+        const validation = prepareFrameData(data);
+        validationCacheRef.current = {
+          input: data,
+          output: validation.data ?? null,
+          valid: Boolean(validation.valid && validation.data),
+        };
+        if (validation.valid && validation.data) {
+          setRenderData(validation.data);
+        } else {
+          setRenderData(null);
+          onError?.();
+        }
       }
     } else {
+      validationCacheRef.current = null;
       setRenderData(null);
     }
 
@@ -492,7 +547,7 @@ const SafeFrame = ({
       setIsReady(true);
     };
     const id = requestAnimationFrame(markReady);
-    const fallback = window.setTimeout(markReady, 260);
+    const fallback = window.setTimeout(markReady, 80);
     return () => {
       cancelAnimationFrame(id);
       window.clearTimeout(fallback);
@@ -510,7 +565,7 @@ const SafeFrame = ({
       setCanRenderFrame(true);
     };
     const id = requestAnimationFrame(allowRender);
-    const fallback = window.setTimeout(allowRender, 260);
+    const fallback = window.setTimeout(allowRender, 80);
     return () => {
       cancelAnimationFrame(id);
       window.clearTimeout(fallback);
@@ -604,12 +659,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [projectFiles, setProjectFiles] = useState<any[]>([]);
   const lastQueryRef = useRef<{ serialize: () => string } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const cameraRef = useRef({ x: 0, y: 0 });
-  const [cameraVersion, setCameraVersion] = useState(0);
+  const previousScaleRef = useRef(1);
   const wheelZoomDeltaRef = useRef(0);
-  const wheelPanDeltaRef = useRef({ x: 0, y: 0 });
-  const wheelAnchorRef = useRef({ x: 0, y: 0 });
   const wheelZoomRafRef = useRef<number | null>(null);
+  const wheelZoomAnchorRef = useRef<{ x: number; y: number } | null>(null);
+  const wheelZoomingRef = useRef(false);
+  const lastWheelZoomAtRef = useRef(0);
+  const manualCameraControlUntilRef = useRef(0);
+  const hasAutoCenteredAfterFrameReadyRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSnapshotRef = useRef<string | null>(null);
   const lastSavedRawRef = useRef<string | null>(null);
@@ -618,8 +675,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [isPanning, setIsPanning] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [scale, setScale] = useState(DEFAULT_SCALE);
-  const scaleRef = useRef(scale);
-  scaleRef.current = scale;
   const [initialJson, setInitialJson] = useState<string | null | undefined>(undefined);
   const [panelsReady, setPanelsReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
@@ -631,12 +686,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [rightPanelTab, setRightPanelTab] = useState<TabId>("design");
   const [canvasWidth, setCanvasWidth] = useState(1440);
   const [canvasHeight, setCanvasHeight] = useState(900);
-  const [canvasRotation, setCanvasRotation] = useState(0);
   const [activeTool, setActiveTool] = useState<CanvasTool>("move");
   const [frameReady, setFrameReady] = useState(false);
   const [showDualView, setShowDualView] = useState(false);
-  const [suppressDropIndicator, setSuppressDropIndicator] = useState(false);
-  const [dropIndicatorPulse, setDropIndicatorPulse] = useState(false);
   const hasInitialCenteringRef = useRef(false);
   const hasForcedRightPanelOpenRef = useRef(false);
   const saveStatusRef = useRef(saveStatus);
@@ -647,10 +699,16 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   } | null>(null);
   const [isPanelDragging, setIsPanelDragging] = useState(false);
 
-  const updateCamera = useCallback((x: number, y: number) => {
-    cameraRef.current.x = x;
-    cameraRef.current.y = y;
-    setCameraVersion((v) => v + 1);
+  const handleToolChange = useCallback((tool: CanvasTool) => {
+    setActiveTool(tool);
+
+    // Keep hand cursor state from getting stuck after explicit tool switches.
+    if (tool !== "hand") {
+      setIsPanning(false);
+      setIsSpacePressed(false);
+      document.body.removeAttribute("data-canvas-pan");
+      document.body.removeAttribute("data-space-pan");
+    }
   }, []);
 
   const startPanelDrag = useCallback((side: "left" | "right", event: React.MouseEvent) => {
@@ -727,6 +785,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       } catch {
         // Ignore cleanup errors
       }
+
+      safeLocalRemove(getPersistentStorageKey(projectId));
     }
 
     // Reset to empty canvas
@@ -756,10 +816,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           return prev === next ? prev : next;
         });
       }
-      if (typeof parsed.cameraX === "number" && typeof parsed.cameraY === "number") {
-        cameraRef.current = { x: parsed.cameraX, y: parsed.cameraY };
-        setCameraVersion((v) => v + 1);
-      }
       if (typeof parsed.leftPanelOpen === "boolean") setLeftPanelOpen(parsed.leftPanelOpen);
       if (typeof parsed.rightPanelOpen === "boolean") setRightPanelOpen(parsed.rightPanelOpen);
       if (parsed.rightPanelTab) setRightPanelTab(parsed.rightPanelTab);
@@ -773,11 +829,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   // Persist basic UI state so it survives full page refreshes and dev reloads
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const cam = cameraRef.current;
     const payload = JSON.stringify({
       scale,
-      cameraX: cam.x,
-      cameraY: cam.y,
       leftPanelOpen,
       rightPanelOpen,
       rightPanelTab,
@@ -789,7 +842,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     } catch {
       // Ignore UI state persistence errors
     }
-  }, [scale, cameraVersion, leftPanelOpen, rightPanelOpen, rightPanelTab, currentPageId, showDualView, uiStateStorageKey]);
+  }, [scale, leftPanelOpen, rightPanelOpen, rightPanelTab, currentPageId, showDualView, uiStateStorageKey]);
 
   // Fail-safe: ensure right panel is visible at least once after panels mount.
   // Prevents stale hidden state from making the panel appear missing.
@@ -809,14 +862,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           name: p.name || `Page ${parsed.pages.indexOf(p) + 1}`,
         }));
         setPages(pageTabs);
-        if (pageTabs.length > 0 && !currentPageId) {
-          setCurrentPageId(pageTabs[0].id);
+        if (pageTabs.length > 0) {
+          setCurrentPageId((prev) => prev || pageTabs[0].id);
         }
       }
     } catch {
       // Silently fail for non-multipage documents
     }
-  }, [currentPageId]);
+  }, []);
 
   const handleAddPage = useCallback(() => {
     if (!initialJson) return;
@@ -894,54 +947,18 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     }
   }, [initialJson, projectId, loadPages, showAlert]);
 
-  // Figma-style zoom: Ctrl+wheel zooms anchored to cursor; plain wheel pans. RAF batching for smooth zoom.
+  const mousePosRef = useRef({ x: 0, y: 0 });
+
+  // Figma-style zoom: Ctrl+wheel zooms anchored to cursor; plain wheel pans via native scroll.
   useEffect(() => {
-    const applyWheelFrame = () => {
-      wheelZoomRafRef.current = null;
-      const zoomDelta = wheelZoomDeltaRef.current;
-      const panDelta = wheelPanDeltaRef.current;
-      wheelZoomDeltaRef.current = 0;
-      wheelPanDeltaRef.current = { x: 0, y: 0 };
-
-      const container = containerRef.current;
-      if (!container) return;
-
-      const cam = cameraRef.current;
-      let scaleUpdated = false;
-      const prevScale = scaleRef.current;
-
-      if (Math.abs(zoomDelta) >= 0.01) {
-        const zoomFactor = Math.exp(-zoomDelta * ZOOM_SENSITIVITY);
-        if (Number.isFinite(zoomFactor) && zoomFactor > 0) {
-          const prev = clampScale(prevScale, 1);
-          const newScale = clampScale(prev * zoomFactor, prev);
-          if (newScale !== prevScale) {
-            const mx = wheelAnchorRef.current.x;
-            const my = wheelAnchorRef.current.y;
-            const ratio = newScale / prevScale;
-            cam.x = mx - (mx - cam.x) * ratio;
-            cam.y = my - (my - cam.y) * ratio;
-            setScale(newScale);
-            scaleUpdated = true;
-          }
-        }
-      }
-
-      if (Math.abs(panDelta.x) >= 0.5 || Math.abs(panDelta.y) >= 0.5) {
-        cam.x -= panDelta.x;
-        cam.y -= panDelta.y;
-        setCameraVersion((v) => v + 1);
-      }
-
-      if (scaleUpdated) {
-        setCameraVersion((v) => v + 1);
-      }
-    };
-
     const handleWheel = (e: WheelEvent) => {
+      // Detect if the target is inside our builder root to avoid intercepting other components
       const targetEl = e.target instanceof HTMLElement ? e.target : null;
       if (!targetEl || !targetEl.closest("[data-web-builder-root]")) return;
+
+      if (!(e.ctrlKey || e.metaKey)) return;
       if (isEditableTarget(e.target)) return;
+      if (e.target instanceof HTMLElement && e.target.closest("[data-panel]")) return;
 
       const container = containerRef.current;
       if (!container) return;
@@ -952,56 +969,138 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         e.clientX <= rect.right &&
         e.clientY >= rect.top &&
         e.clientY <= rect.bottom;
+
       if (!isInsideCanvas) return;
 
-      if (e.cancelable) e.preventDefault();
+      mousePosRef.current = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      };
+      wheelZoomAnchorRef.current = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      };
+      lastWheelZoomAtRef.current = Date.now();
+      manualCameraControlUntilRef.current = Date.now() + 5000;
+
+      if (e.cancelable) {
+        e.preventDefault();
+      }
       e.stopPropagation();
 
       let deltaY = e.deltaY;
-      let deltaX = e.deltaX;
       if (e.deltaMode === WheelEvent.DOM_DELTA_LINE) {
         deltaY *= 16;
-        deltaX *= 16;
       } else if (e.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
         deltaY *= container.clientHeight;
-        deltaX *= container.clientWidth;
       }
 
-      if (e.ctrlKey || e.metaKey) {
-        const normalizedDelta = Math.max(-240, Math.min(240, deltaY));
-        wheelZoomDeltaRef.current += normalizedDelta;
-        wheelAnchorRef.current = {
-          x: e.clientX - rect.left,
-          y: e.clientY - rect.top,
-        };
-      } else {
-        wheelPanDeltaRef.current.x += deltaX;
-        wheelPanDeltaRef.current.y += deltaY;
-      }
+      const normalizedDelta = Math.max(-240, Math.min(240, deltaY));
+      wheelZoomDeltaRef.current += normalizedDelta;
 
-      if (wheelZoomRafRef.current === null) {
-        wheelZoomRafRef.current = requestAnimationFrame(applyWheelFrame);
-      }
+      if (wheelZoomRafRef.current !== null) return;
+
+      wheelZoomRafRef.current = requestAnimationFrame(() => {
+        wheelZoomRafRef.current = null;
+        const frameDelta = wheelZoomDeltaRef.current;
+        wheelZoomDeltaRef.current = 0;
+
+        if (Math.abs(frameDelta) < 0.01) return;
+
+        wheelZoomingRef.current = true;
+        setScale((prevScale) => {
+          const safePrev = clampScale(prevScale, previousScaleRef.current || 1);
+          const zoomFactor = Math.exp(-frameDelta * ZOOM_SENSITIVITY);
+          if (!Number.isFinite(zoomFactor) || zoomFactor <= 0) {
+            return safePrev;
+          }
+          const nextScale = safePrev * zoomFactor;
+          return clampScale(nextScale, safePrev);
+        });
+      });
     };
 
     window.addEventListener("wheel", handleWheel, { passive: false, capture: true });
+
     return () => {
-      window.removeEventListener("wheel", handleWheel, { capture: true });
       if (wheelZoomRafRef.current !== null) {
         cancelAnimationFrame(wheelZoomRafRef.current);
         wheelZoomRafRef.current = null;
       }
+      wheelZoomDeltaRef.current = 0;
+      window.removeEventListener("wheel", handleWheel, { capture: true });
     };
   }, []);
 
-  // Keyboard zoom: Ctrl+/Ctrl-/Ctrl+0 anchored to viewport center
+  // Update mouse position for anchoring
+  useEffect(() => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      const container = containerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      mousePosRef.current = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      };
+    };
+    window.addEventListener("mousemove", handleGlobalMouseMove);
+    return () => window.removeEventListener("mousemove", handleGlobalMouseMove);
+  }, []);
+
+  // Keep anchor point stationary while zooming
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
+      previousScaleRef.current = clampScale(scale, previousScaleRef.current || 1);
+      wheelZoomingRef.current = false;
+      return;
+    }
+
+    const prevScale = clampScale(previousScaleRef.current, scale || 1);
+    const nextScale = clampScale(scale, prevScale);
+    if (prevScale === nextScale) {
+      previousScaleRef.current = nextScale;
+      wheelZoomingRef.current = false;
+      return;
+    }
+
+    if (container.clientWidth <= 0 || container.clientHeight <= 0) {
+      previousScaleRef.current = nextScale;
+      wheelZoomingRef.current = false;
+      return;
+    }
+
+    // Anchor point: Use current mouse coordinates relative to container
+    const wheelAnchor = wheelZoomingRef.current ? wheelZoomAnchorRef.current : null;
+    const anchorX = Math.min(container.clientWidth, Math.max(0, wheelAnchor?.x ?? mousePosRef.current.x));
+    const anchorY = Math.min(container.clientHeight, Math.max(0, wheelAnchor?.y ?? mousePosRef.current.y));
+
+    const contentX = (container.scrollLeft + anchorX) / prevScale;
+    const contentY = (container.scrollTop + anchorY) / prevScale;
+
+    if (!Number.isFinite(contentX) || !Number.isFinite(contentY)) {
+      previousScaleRef.current = nextScale;
+      wheelZoomingRef.current = false;
+      return;
+    }
+
+    const nextScrollLeft = contentX * nextScale - anchorX;
+    const nextScrollTop = contentY * nextScale - anchorY;
+
+    const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
+    const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+
+    container.scrollLeft = Math.min(maxScrollLeft, Math.max(0, nextScrollLeft));
+    container.scrollTop = Math.min(maxScrollTop, Math.max(0, nextScrollTop));
+    previousScaleRef.current = nextScale;
+    wheelZoomingRef.current = false;
+  }, [scale]);
+
+  // Keyboard zoom handles: Ctrl+/Ctrl-/Ctrl+0
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const ctrl = e.ctrlKey || e.metaKey;
       if (!ctrl) return;
-
-      const targetEl = e.target instanceof HTMLElement ? e.target : null;
-      if (!targetEl || !targetEl.closest("[data-web-builder-root]")) return;
       if (isEditableTarget(e.target)) return;
 
       const key = e.key;
@@ -1013,35 +1112,16 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       if (e.cancelable) e.preventDefault();
       e.stopPropagation();
 
-      const container = containerRef.current;
-      if (!container) return;
-
-      const cam = cameraRef.current;
-      const oldZoom = scale;
-      let newZoom: number;
       if (isZoomReset) {
-        newZoom = 1;
+        setScale(1);
       } else {
-        newZoom = clampScale(isZoomIn ? oldZoom + ZOOM_STEP : oldZoom - ZOOM_STEP, oldZoom);
+        setScale((prev) => clampScale(isZoomIn ? prev + ZOOM_STEP : prev - ZOOM_STEP, prev));
       }
-      if (newZoom === oldZoom) return;
-
-      const cx = container.clientWidth / 2;
-      const cy = container.clientHeight / 2;
-      const ratio = newZoom / oldZoom;
-      const newCamX = cx - (cx - cam.x) * ratio;
-      const newCamY = cy - (cy - cam.y) * ratio;
-
-      cameraRef.current = { x: newCamX, y: newCamY };
-      setScale(newZoom);
-      setCameraVersion((v) => v + 1);
     };
 
     window.addEventListener("keydown", handleKeyDown, { capture: true });
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown, { capture: true });
-    };
-  }, [scale]);
+    return () => window.removeEventListener("keydown", handleKeyDown, { capture: true });
+  }, []);
 
   // Center camera so that a given world-space point appears at viewport center
   const centerOnWorldPoint = useCallback((worldX: number, worldY: number, zoom?: number) => {
@@ -1050,8 +1130,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     const z = zoom ?? scale;
     const vw = container.clientWidth / 2;
     const vh = container.clientHeight / 2;
-    updateCamera(vw - worldX * z, vh - worldY * z);
-  }, [scale, updateCamera]);
+
+    // We want the viewport center to correspond to the world point
+    // worldX * z + offsetX = vw  => offsetX = vw - worldX * z
+    // In our scroll system, scrollLeft = INFINITE_CANVAS_PADDING_PX + worldX*z - viewportCenter
+    // wait, actually simplified:
+    container.scrollLeft = worldX * z - vw;
+    container.scrollTop = worldY * z - vh;
+  }, [scale]);
 
   // Center camera on the current page element
   const centerCanvasInView = useCallback(() => {
@@ -1061,27 +1147,28 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     const pageEl =
       (currentPageId
         ? container.querySelector<HTMLElement>(
-            `[data-viewport-desktop] [data-page-node="true"][data-node-id="${currentPageId}"]`
-          ) ?? container.querySelector<HTMLElement>(
-            `[data-page-node="true"][data-node-id="${currentPageId}"]`
-          )
+          `[data-viewport-desktop] [data-page-node="true"][data-node-id="${currentPageId}"]`
+        ) ?? container.querySelector<HTMLElement>(
+          `[data-page-node="true"][data-node-id="${currentPageId}"]`
+        )
         : null) ??
       container.querySelector<HTMLElement>('[data-viewport-desktop] [data-page-node="true"]') ??
       container.querySelector<HTMLElement>('[data-page-node="true"]');
 
     if (pageEl) {
-      const cam = cameraRef.current;
       const contRect = container.getBoundingClientRect();
       const pageRect = pageEl.getBoundingClientRect();
-      const pageCenterScreenX = pageRect.left + pageRect.width / 2 - contRect.left;
-      const pageCenterScreenY = pageRect.top + pageRect.height / 2 - contRect.top;
-      const worldCenterX = (pageCenterScreenX - cam.x) / scale;
-      const worldCenterY = (pageCenterScreenY - cam.y) / scale;
-      centerOnWorldPoint(worldCenterX, worldCenterY);
+
+      const pageCenterX = container.scrollLeft + (pageRect.left - contRect.left) + pageRect.width / 2;
+      const pageCenterY = container.scrollTop + (pageRect.top - contRect.top) + pageRect.height / 2;
+
+      container.scrollLeft = pageCenterX - container.clientWidth / 2;
+      container.scrollTop = pageCenterY - container.clientHeight / 2;
     } else {
-      centerOnWorldPoint(PAGE_GRID_ORIGIN_X + PAGE_BASE_WIDTH / 2, PAGE_GRID_ORIGIN_Y + PAGE_BASE_HEIGHT / 2);
+      // Fallback: center of the "infinite" area roughly where origin is
+      centerOnWorldPoint(INFINITE_CANVAS_PADDING_PX + PAGE_BASE_WIDTH / 2, INFINITE_CANVAS_PADDING_PX + PAGE_BASE_HEIGHT / 2);
     }
-  }, [scale, currentPageId, centerOnWorldPoint]);
+  }, [currentPageId, centerOnWorldPoint]);
 
   // Center immediately on first mount
   useLayoutEffect(() => {
@@ -1099,9 +1186,18 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   // Re-center after frame loads so the page is visible
   useEffect(() => {
     if (!frameReady) return;
-    const raf = requestAnimationFrame(() => centerCanvasInView());
-    const t1 = window.setTimeout(() => centerCanvasInView(), 300);
-    const t2 = window.setTimeout(() => centerCanvasInView(), 800);
+    if (hasAutoCenteredAfterFrameReadyRef.current) return;
+    hasAutoCenteredAfterFrameReadyRef.current = true;
+
+    const centerIfNotRecentWheelZoom = () => {
+      if (Date.now() < manualCameraControlUntilRef.current) return;
+      if (Date.now() - lastWheelZoomAtRef.current < 350) return;
+      centerCanvasInView();
+    };
+
+    const raf = requestAnimationFrame(() => centerIfNotRecentWheelZoom());
+    const t1 = window.setTimeout(() => centerIfNotRecentWheelZoom(), 300);
+    const t2 = window.setTimeout(() => centerIfNotRecentWheelZoom(), 800);
     return () => {
       cancelAnimationFrame(raf);
       window.clearTimeout(t1);
@@ -1115,6 +1211,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     if (!container) return;
 
     const handleCenterOnNode = (e: Event) => {
+      if (Date.now() < manualCameraControlUntilRef.current) return;
+      if (Date.now() - lastWheelZoomAtRef.current < 250) return;
+
       const { nodeId } = (e as CustomEvent<{ nodeId: string }>).detail;
       if (!nodeId) return;
 
@@ -1123,23 +1222,23 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       ) ?? document.querySelector<HTMLElement>(`[data-node-id="${nodeId}"]`);
       if (!nodeEl) return;
 
-      const cam = cameraRef.current;
       const contRect = container.getBoundingClientRect();
       const nodeRect = nodeEl.getBoundingClientRect();
-      const nodeCenterScreenX = nodeRect.left + nodeRect.width / 2 - contRect.left;
-      const nodeCenterScreenY = nodeRect.top + nodeRect.height / 2 - contRect.top;
-      const worldX = (nodeCenterScreenX - cam.x) / scale;
-      const worldY = (nodeCenterScreenY - cam.y) / scale;
-      centerOnWorldPoint(worldX, worldY);
+
+      const nodeCenterX = container.scrollLeft + (nodeRect.left - contRect.left) + nodeRect.width / 2;
+      const nodeCenterY = container.scrollTop + (nodeRect.top - contRect.top) + nodeRect.height / 2;
+
+      container.scrollLeft = nodeCenterX - container.clientWidth / 2;
+      container.scrollTop = nodeCenterY - container.clientHeight / 2;
     };
 
     container.addEventListener("center-on-node", handleCenterOnNode);
     return () => container.removeEventListener("center-on-node", handleCenterOnNode);
-  }, [scale, centerOnWorldPoint]);
+  }, []);
 
   // Handle canvas rotation
   const handleRotateCanvas = useCallback(() => {
-    setCanvasRotation((prev) => (prev + 90) % 360);
+    // Rotation is handled per-page in TopPanel; keep callback for API compatibility.
   }, []);
 
   // Handle fit to canvas: zoom so page fits with 10% margin, then center
@@ -1164,10 +1263,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     const pageEl =
       (currentPageId
         ? container.querySelector<HTMLElement>(
-            `[data-viewport-desktop] [data-page-node="true"][data-node-id="${currentPageId}"]`
-          ) ?? container.querySelector<HTMLElement>(
-            `[data-page-node="true"][data-node-id="${currentPageId}"]`
-          )
+          `[data-viewport-desktop] [data-page-node="true"][data-node-id="${currentPageId}"]`
+        ) ?? container.querySelector<HTMLElement>(
+          `[data-page-node="true"][data-node-id="${currentPageId}"]`
+        )
         : null) ??
       container.querySelector<HTMLElement>('[data-viewport-desktop] [data-page-node="true"]') ??
       container.querySelector<HTMLElement>('[data-page-node="true"]');
@@ -1176,38 +1275,27 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     let worldCY = PAGE_GRID_ORIGIN_Y + PAGE_BASE_HEIGHT / 2;
 
     if (pageEl) {
-      const cam = cameraRef.current;
       const contRect = container.getBoundingClientRect();
       const pageRect = pageEl.getBoundingClientRect();
-      const pageCenterScreenX = pageRect.left + pageRect.width / 2 - contRect.left;
-      const pageCenterScreenY = pageRect.top + pageRect.height / 2 - contRect.top;
-      worldCX = (pageCenterScreenX - cam.x) / scale;
-      worldCY = (pageCenterScreenY - cam.y) / scale;
-    }
+      const pageCenterX = container.scrollLeft + (pageRect.left - contRect.left) + pageRect.width / 2;
+      const pageCenterY = container.scrollTop + (pageRect.top - contRect.top) + pageRect.height / 2;
 
-    setScale(newScale);
-    centerOnWorldPoint(worldCX, worldCY, newScale);
+      setScale(newScale);
+      setTimeout(() => {
+        if (containerRef.current) {
+          containerRef.current.scrollLeft = pageCenterX - containerRef.current.clientWidth / 2;
+          containerRef.current.scrollTop = pageCenterY - containerRef.current.clientHeight / 2;
+        }
+      }, 1);
+    } else {
+      setScale(newScale);
+      centerOnWorldPoint(INFINITE_CANVAS_PADDING_PX + PAGE_BASE_WIDTH / 2, INFINITE_CANVAS_PADDING_PX + PAGE_BASE_HEIGHT / 2, newScale);
+    }
   }, [canvasWidth, canvasHeight, scale, currentPageId, centerOnWorldPoint]);
 
   const handleScaleChange = useCallback((nextScale: number) => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const oldZoom = scale;
-    const newZoom = clampScale(nextScale, oldZoom);
-    if (newZoom === oldZoom) return;
-
-    const cam = cameraRef.current;
-    const cx = container.clientWidth / 2;
-    const cy = container.clientHeight / 2;
-    const ratio = newZoom / oldZoom;
-    cameraRef.current = {
-      x: cx - (cx - cam.x) * ratio,
-      y: cy - (cy - cam.y) * ratio,
-    };
-    setScale(newZoom);
-    setCameraVersion((v) => v + 1);
-  }, [scale]);
+    setScale((prev) => clampScale(nextScale, prev));
+  }, []);
 
   // Handle device preset selection - only width changes; preserve page height so it doesn't reset
   const handleDevicePresetSelect = useCallback((preset: DevicePreset) => {
@@ -1223,12 +1311,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (canPanWithPointerDrag) {
-      const target = e.target as HTMLElement | null;
-      const nodeEl = target?.closest("[data-node-id]") as HTMLElement | null;
-      const nodeId = nodeEl?.getAttribute("data-node-id") ?? null;
-      if (nodeId && nodeId !== "ROOT" && nodeId !== "Viewport") {
-        return;
-      }
       setIsPanning(true);
       document.body.dataset.canvasPan = "true";
       e.preventDefault();
@@ -1242,9 +1324,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (isPanning) {
-      const cam = cameraRef.current;
-      updateCamera(cam.x + e.movementX, cam.y + e.movementY);
+    if (isPanning && containerRef.current) {
+      manualCameraControlUntilRef.current = Date.now() + 5000;
+      containerRef.current.scrollLeft -= e.movementX;
+      containerRef.current.scrollTop -= e.movementY;
     }
   };
 
@@ -1294,6 +1377,20 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   }, [activeTool, isSpacePanActive, isPanning]);
 
   useEffect(() => {
+    const stopPan = () => {
+      setIsPanning(false);
+      document.body.removeAttribute("data-canvas-pan");
+    };
+
+    window.addEventListener("mouseup", stopPan, true);
+    window.addEventListener("blur", stopPan);
+    return () => {
+      window.removeEventListener("mouseup", stopPan, true);
+      window.removeEventListener("blur", stopPan);
+    };
+  }, []);
+
+  useEffect(() => {
     const handleToolShortcut = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (isEditableTarget(event.target)) return;
@@ -1302,19 +1399,19 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
       if (key === "h") {
         event.preventDefault();
-        setActiveTool("hand");
+        handleToolChange("hand");
         return;
       }
 
       if (key === "g") {
         event.preventDefault();
-        setActiveTool("move");
+        handleToolChange("move");
       }
     };
 
     window.addEventListener("keydown", handleToolShortcut);
     return () => window.removeEventListener("keydown", handleToolShortcut);
-  }, []);
+  }, [handleToolChange]);
 
   // Track if editor is fully loaded to prevent stale closure issues
   const isReadyRef = useRef(false);
@@ -1365,6 +1462,15 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
   // Restore saved editor state from database on mount
   useEffect(() => {
+    hasInitialCenteringRef.current = false;
+    hasAutoCenteredAfterFrameReadyRef.current = false;
+    manualCameraControlUntilRef.current = 0;
+    lastWheelZoomAtRef.current = 0;
+    wheelZoomAnchorRef.current = null;
+    wheelZoomingRef.current = false;
+    setFrameReady(false);
+    setPanelsReady(false);
+
     if (!projectId) {
       setInitialJson(null);
       isReadyRef.current = true;
@@ -1376,45 +1482,67 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         // Try sessionStorage per-project (no localStorage — auth/drafts in cookies or session only)
         const storageKey = getStorageKey(projectId);
         const sessionSaved = safeSessionGet(storageKey);
-
-        // Try to load from database
-        const result = await getDraft(projectId);
+        const persistentKey = getPersistentStorageKey(projectId);
+        const persistentSaved = safeLocalGet(persistentKey);
 
         let contentToLoad: string | null = null;
+
+        const applyLoadedContent = (content: string | null) => {
+          setInitialJson(content);
+          if (!content) return;
+          loadPages(content);
+          try {
+            const parsed = JSON.parse(content);
+            if (parsed.files) {
+              setProjectFiles(parsed.files);
+            }
+          } catch (e) {
+            console.warn('Failed to parse files from initialJson', e);
+          }
+        };
 
         const normalizeToCraftJson = (input: unknown): string | null => {
           try {
             if (input == null) return null;
-
-            let content: string;
-
             if (typeof input === "string") {
-              content = input;
-            } else if (
-              typeof input === "object" &&
-              (input as { version?: unknown; pages?: unknown; nodes?: unknown }).version !== undefined &&
-              Array.isArray((input as { pages?: unknown[] }).pages) &&
-              typeof (input as { nodes?: unknown }).nodes === "object"
-            ) {
-              content = deserializeCleanToCraft(input as Parameters<typeof deserializeCleanToCraft>[0]);
-            } else {
-              content = JSON.stringify(input);
+              const parsed = JSON.parse(input);
+              if (parsed && parsed.ROOT && Array.isArray(parsed.ROOT.nodes)) {
+                const validated = validateCraftData(input);
+                return validated.valid && validated.data ? validated.data : null;
+              }
+              if (
+                parsed &&
+                parsed.version !== undefined &&
+                Array.isArray(parsed.pages) &&
+                parsed.nodes &&
+                typeof parsed.nodes === "object"
+              ) {
+                const craftJson = deserializeCleanToCraft(parsed as Parameters<typeof deserializeCleanToCraft>[0]);
+                const validated = validateCraftData(craftJson);
+                return validated.valid && validated.data ? validated.data : null;
+              }
+              return null;
             }
 
-            const parsedMaybeClean = JSON.parse(content);
-            if (
-              parsedMaybeClean &&
-              parsedMaybeClean.version !== undefined &&
-              Array.isArray(parsedMaybeClean.pages) &&
-              parsedMaybeClean.nodes &&
-              typeof parsedMaybeClean.nodes === "object"
-            ) {
-              content = deserializeCleanToCraft(parsedMaybeClean);
-            }
+            if (typeof input === "object") {
+              const obj = input as {
+                ROOT?: { nodes?: unknown[] };
+                version?: unknown;
+                pages?: unknown[];
+                nodes?: unknown;
+              };
 
-            const parsedCraft = JSON.parse(content);
-            if (parsedCraft && parsedCraft.ROOT && Array.isArray(parsedCraft.ROOT.nodes)) {
-              return content;
+              if (obj.ROOT && Array.isArray(obj.ROOT.nodes)) {
+                const craftJson = JSON.stringify(obj);
+                const validated = validateCraftData(craftJson);
+                return validated.valid && validated.data ? validated.data : null;
+              }
+
+              if (obj.version !== undefined && Array.isArray(obj.pages) && obj.nodes && typeof obj.nodes === "object") {
+                const craftJson = deserializeCleanToCraft(obj as Parameters<typeof deserializeCleanToCraft>[0]);
+                const validated = validateCraftData(craftJson);
+                return validated.valid && validated.data ? validated.data : null;
+              }
             }
 
             return null;
@@ -1424,6 +1552,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         };
 
         // 1. Check sessionStorage first to preserve latest unsaved/preview snapshot
+        // Apply immediately so existing projects open without waiting for DB/network.
         if (sessionSaved) {
           const normalized = normalizeToCraftJson(sessionSaved);
           if (normalized) {
@@ -1431,50 +1560,50 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
             if (normalized !== sessionSaved) {
               safeSessionSet(storageKey, normalized);
             }
+            safeLocalSet(persistentKey, normalized);
+            applyLoadedContent(contentToLoad);
           } else {
             console.warn('⚠️ Invalid draft structure in session. Clearing session cache for this project.');
             safeSessionRemove(storageKey);
           }
         }
 
-        // 2. Check Database (fallback)
+        // 2. Check persistent local cache when session cache is unavailable
+        if (!contentToLoad && persistentSaved) {
+          const normalized = normalizeToCraftJson(persistentSaved);
+          if (normalized) {
+            contentToLoad = normalized;
+            safeSessionSet(storageKey, normalized);
+            if (normalized !== persistentSaved) {
+              safeLocalSet(persistentKey, normalized);
+            }
+            applyLoadedContent(contentToLoad);
+          } else {
+            safeLocalRemove(persistentKey);
+          }
+        }
+
+        // 3. Try to load from database
+        const result = await getDraft(projectId);
+
+        // 4. Check Database (fallback)
         if (!contentToLoad && result.success && result.data && result.data.content) {
           const normalized = normalizeToCraftJson(result.data.content);
           if (normalized) {
             contentToLoad = normalized;
             safeSessionSet(storageKey, normalized);
+            safeLocalSet(persistentKey, normalized);
+            applyLoadedContent(contentToLoad);
           } else {
             console.warn('⚠️ Invalid draft structure in DB. Clearing invalid draft...');
             await deleteDraft(projectId);
           }
         }
 
-        // 3. Legacy: check unprefixed key (e.g. template loaded before navigation)
-        if (!contentToLoad && storageKey !== STORAGE_KEY_PREFIX) {
-          const legacySaved = safeSessionGet(STORAGE_KEY_PREFIX);
-          if (legacySaved) {
-            const normalized = normalizeToCraftJson(legacySaved);
-            if (normalized) {
-              contentToLoad = normalized;
-              safeSessionSet(storageKey, normalized);
-              safeSessionRemove(STORAGE_KEY_PREFIX);
-            } else {
-              safeSessionRemove(STORAGE_KEY_PREFIX);
-            }
-          }
-        }
+        // Legacy global fallback intentionally disabled to avoid cross-project draft bleed.
 
-        setInitialJson(contentToLoad);
-        if (contentToLoad) {
-          loadPages(contentToLoad);
-          try {
-            const parsed = JSON.parse(contentToLoad);
-            if (parsed.files) {
-              setProjectFiles(parsed.files);
-            }
-          } catch (e) {
-            console.warn('Failed to parse files from initialJson', e);
-          }
+        if (!contentToLoad) {
+          applyLoadedContent(null);
         }
 
         // IMPORTANT: Mark as ready immediately via Ref to avoid stale closures
@@ -1509,7 +1638,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         clearTimer = null;
       }
       document.body.dataset.newPageDragActive = "true";
-      setSuppressDropIndicator(true);
     };
 
     const clearSuppression = (delayMs = 900) => {
@@ -1518,7 +1646,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       }
       clearTimer = window.setTimeout(() => {
         delete document.body.dataset.newPageDragActive;
-        setSuppressDropIndicator(false);
         clearTimer = null;
       }, delayMs);
     };
@@ -1552,7 +1679,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         window.clearTimeout(clearTimer);
       }
       delete document.body.dataset.newPageDragActive;
-      setSuppressDropIndicator(false);
       clearTimer = null;
     };
 
@@ -1574,20 +1700,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       window.removeEventListener("blur", handleWindowBlur);
     };
   }, []);
-
-  // Animate green drop line while dragging (except when suppressed for New Page)
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      const isDragging = document.body.dataset.editorDragging === "true";
-      if (!isDragging || suppressDropIndicator) {
-        setDropIndicatorPulse(false);
-        return;
-      }
-      setDropIndicatorPulse((prev) => !prev);
-    }, 180);
-
-    return () => window.clearInterval(interval);
-  }, [suppressDropIndicator]);
 
   // Handle Delete Data
   const handleDeleteData = async () => {
@@ -1633,10 +1745,13 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           try {
             const key = `${STORAGE_KEY_PREFIX}_${projectId}`;
             window.sessionStorage.setItem(key, toStore);
-            window.sessionStorage.setItem(STORAGE_KEY_PREFIX, toStore);
           } catch (e) {
             if (!isQuotaError(e)) console.warn("Auto-save: sessionStorage write failed", e);
           }
+        }
+
+        if (projectId) {
+          safeLocalSet(getPersistentStorageKey(projectId), toStore);
         }
 
         if (snapshot) lastSnapshotRef.current = snapshot;
@@ -1783,6 +1898,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       ...CRAFT_RESOLVER,
       Text: Text || Container,
       text: Text || Container,
+      Image: Image || Container,
+      image: Image || Container,
       Circle: Circle || Container,
       Square: Square || Container,
       Triangle: Triangle || Container,
@@ -1802,6 +1919,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     base.page = CRAFT_RESOLVER.Page ?? Page;
     base.Viewport = CRAFT_RESOLVER.Viewport ?? Viewport;
     base.viewport = CRAFT_RESOLVER.Viewport ?? Viewport;
+    base.Image = (typeof Image === "function" ? Image : null) ?? Container;
+    base.image = (typeof Image === "function" ? Image : null) ?? Container;
+    base.Text = (typeof Text === "function" ? Text : null) ?? Container;
+    base.text = (typeof Text === "function" ? Text : null) ?? Container;
     return base;
   }, []);
 
@@ -1809,108 +1930,45 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const validFrameData = React.useMemo(() => {
     if (initialJson === undefined || initialJson === null || initialJson === "") return null;
     try {
-      const parsed = typeof initialJson === "string" ? JSON.parse(initialJson) : initialJson;
-      if (!parsed || typeof parsed !== "object" || !parsed.ROOT || !Array.isArray(parsed.ROOT?.nodes)) return null;
-      const resolverKeys = Object.keys(resolverRef.current);
-      const keys = new Set(resolverKeys);
-
-      const canonicalByLower = new Map<string, string>();
-      for (const key of resolverKeys) {
-        canonicalByLower.set(key.toLowerCase(), key);
-      }
-
-      const allIds = new Set(Object.keys(parsed));
-      const CANVAS_TYPES = new Set(["Frame", "Container", "Section", "Row", "Column", "Page", "Viewport", "Button"]);
-
-      for (const id of Object.keys(parsed)) {
-        const node = parsed[id] as Record<string, unknown> | null;
-        if (!node || typeof node !== "object") continue;
-        const t = node.type;
-        const rawName = ((typeof t === "string" ? t : (t as { resolvedName?: string })?.resolvedName) ?? "").toString().trim();
-        if (!rawName) return null;
-
-        if (!keys.has(rawName)) {
-          const normalized = canonicalByLower.get(rawName.toLowerCase());
-          if (normalized) {
-            node.type = { resolvedName: normalized };
-            node.displayName = normalized;
-          } else {
-            node.type = { resolvedName: "Container" };
-            node.displayName = "Container";
-          }
-        }
-
-        if (CANVAS_TYPES.has(rawName)) {
-          node.isCanvas = true;
-          if (typeof node.data === "object" && node.data !== null) {
-            (node.data as Record<string, unknown>).isCanvas = true;
-          }
-        }
-
-        const childIds = Array.isArray(node.nodes) ? node.nodes : [];
-        const validChildIds = childIds.filter((cid: string) => allIds.has(cid));
-        node.nodes = validChildIds;
-      }
-
-      return JSON.stringify(parsed);
+      const raw = typeof initialJson === "string" ? initialJson : JSON.stringify(initialJson);
+      const validated = validateCraftData(raw);
+      return validated.valid && validated.data ? validated.data : null;
     } catch {
       return null;
     }
   }, [initialJson]);
 
-  // Debug: list resolver keys after mount (must run in useEffect to avoid setState-during-render)
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const t = setTimeout(() => {
-      try {
-        const res = resolverRef.current;
-        // eslint-disable-next-line no-console
-        console.log("[EditorShell] resolver keys:", Object.keys(res));
-        if (initialJson) {
-          const parsed = typeof initialJson === "string" ? JSON.parse(initialJson) : initialJson;
-          const nodeTypes = new Set<string>();
-          if (parsed && parsed.nodes) {
-            Object.values(parsed.nodes as Record<string, unknown>).forEach((n: unknown) => {
-              try {
-                const node = n as { data?: { displayName?: string; name?: string; type?: string | { name?: string } } };
-                const display = node?.data?.displayName ?? node?.data?.name ?? (typeof node?.data?.type === "string" ? node.data.type : node?.data?.type?.name);
-                if (display) nodeTypes.add(display);
-              } catch {
-                // ignore
-              }
-            });
-          }
-          const resolverKeys = Object.keys(res);
-          const missing = [...nodeTypes].filter((typeName) => !resolverKeys.includes(typeName) && !resolverKeys.includes((typeName || "").replace(/\s+/g, "")));
-          // eslint-disable-next-line no-console
-          console.log("[EditorShell] Serialized node types:", [...nodeTypes]);
-          // eslint-disable-next-line no-console
-          console.log("[EditorShell] Missing resolver types:", missing);
-        }
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.warn("[EditorShell] failed to parse initialJson for debug", err);
-      }
-    }, 50);
-    return () => clearTimeout(t);
-  }, [initialJson]);
-
   return (
     <div data-web-builder-root className="h-screen bg-brand-black text-brand-lighter overflow-hidden font-sans relative">
+      <style>{`
+        div[style*="position: fixed"][style*="z-index: 99999"][style*="border-style: solid"],
+        div[style*="position: fixed"][style*="z-index: 99999"][style*="background-color: rgb(98, 196, 98)"],
+        div[style*="position: fixed"][style*="z-index: 99999"][style*="background-color: rgba(98, 196, 98"],
+        div[style*="position: fixed"][style*="z-index: 99999"][style*="height: 2px"],
+        div[style*="position: fixed"][style*="z-index: 99999"][style*="height: 3px"] {
+          display: none !important;
+          opacity: 0 !important;
+          border-width: 0 !important;
+          background: transparent !important;
+        }
+      `}</style>
       <Editor
         resolver={resolver}
         indicator={{
-          success: suppressDropIndicator ? "transparent" : (dropIndicatorPulse ? "#4ade80" : "#22c55e"),
-          error: suppressDropIndicator ? "transparent" : "#ef4444",
-          thickness: suppressDropIndicator ? 0 : (dropIndicatorPulse ? 4 : 2),
-          transition: suppressDropIndicator ? "none" : "all 140ms ease-out",
+          success: "rgba(0,0,0,0)",
+          error: "rgba(0,0,0,0)",
+          thickness: 0,
+          transition: "none",
+          style: {
+            display: "none",
+          },
         }}
         onRender={RenderNode}
         onNodesChange={(query) => requestAnimationFrame(() => handleNodesChange(query))}
       >
         <QueryStasher onQuery={(q) => { lastQueryRef.current = q; }} />
         <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
-          <CanvasToolProvider value={activeTool} onToolChange={setActiveTool}>
+          <CanvasToolProvider value={activeTool} onToolChange={handleToolChange}>
             <TransformModeProvider>
               <InlineTextEditProvider>
                 <KeyboardShortcuts />
@@ -1919,7 +1977,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 <ScrollToSelectedHandler />
                 <CanvasContextMenu />
                 <FigmaStyleDragHandler />
+                <FreeDropPlacementHandler />
                 <NewPageDropPlacementHandler />
+                <HeaderFooterDropPlacementHandler />
+                <PanelDropFreePlacementHandler />
                 <TextToolHandler />
                 <ShapeToolHandler />
                 <DoubleClickTransformHandler />
@@ -1930,6 +1991,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                     scale={scale}
                     onScaleChange={handleScaleChange}
                     onRotateCanvas={handleRotateCanvas}
+                    activePageId={currentPageId}
                     onFitToCanvas={handleFitToCanvas}
                     canvasWidth={canvasWidth}
                     canvasHeight={canvasHeight}
@@ -1938,12 +2000,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                     onDualViewToggle={() => setShowDualView((v) => !v)}
                   />
                 )}
-                {/* Canvas Area — Figma-style: overflow hidden + camera transform */}
+                {/* Canvas Area — Infinite Scroll Area */}
                 <div
                   ref={containerRef}
                   data-canvas-container
-                  data-camera-v={cameraVersion}
-                  className={`absolute inset-0 overflow-hidden bg-brand-darker canvas-scroll-container ${canPanWithPointerDrag ? "canvas-hand-tool" : ""} ${canPanWithPointerDrag && isPanning ? "canvas-hand-panning" : ""} ${isPanelDragging ? "transition-none" : "transition-[left,right] duration-300 ease-out"}`}
+                  className={`absolute inset-0 overflow-auto bg-brand-darker canvas-scroll-container ${canPanWithPointerDrag ? "canvas-hand-tool" : ""} ${canPanWithPointerDrag && isPanning ? "canvas-hand-panning" : ""} ${isPanelDragging ? "transition-none" : "transition-[left,right] duration-300 ease-out"}`}
                   style={{
                     top: `${TOP_PANEL_HEIGHT_PX}px`,
                     left: panelsReady && leftPanelOpen ? `${leftPanelWidth}px` : "0px",
@@ -1961,19 +2022,26 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                   onMouseLeave={handleMouseUp}
                   onMouseMove={handleMouseMove}
                 >
+                  {initialJson === undefined && (
+                    <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center text-brand-light/80">
+                      Opening project...
+                    </div>
+                  )}
                   <div
+                    className="flex items-start justify-start relative"
                     style={{
-                      transformOrigin: "0 0",
-                      transform:
-                        canvasRotation !== 0
-                          ? `translate(${cameraRef.current.x}px, ${cameraRef.current.y}px) scale(${scale}) rotate(${canvasRotation}deg)`
-                          : `translate(${cameraRef.current.x}px, ${cameraRef.current.y}px) scale(${scale})`,
+                      minWidth: `${INFINITE_CANVAS_WIDTH_VW}vw`,
+                      minHeight: `${INFINITE_CANVAS_HEIGHT_VH}vh`,
+                      padding: `${INFINITE_CANVAS_PADDING_PX}px`,
+                      boxSizing: "border-box",
+                      transformOrigin: "top left",
+                      transform: `scale(${scale})`,
                       willChange: "transform",
                     }}
                   >
                     {initialJson === undefined ? null : (
                       <SafeFrame
-                        data={validFrameData ?? initialJson}
+                        data={validFrameData ?? EMPTY_FRAME_DATA}
                         onError={handleFrameError}
                         onFrameMounted={() => {
                           setFrameReady((prev) => (prev ? prev : true));
@@ -2073,7 +2141,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 {panelsReady && (
                   <BottomPanel
                     activeTool={activeTool}
-                    onToolChange={setActiveTool}
+                    onToolChange={handleToolChange}
                     showHints={true}
                     saveStatus={saveStatus}
                     saveError={saveError}
@@ -2091,7 +2159,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                   />
                 )}
               </InlineTextEditProvider>
-             </TransformModeProvider>
+            </TransformModeProvider>
           </CanvasToolProvider>
         </PrototypeTabProvider>
       </Editor>

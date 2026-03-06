@@ -6,9 +6,10 @@ import { useTheme } from '../components/context/theme-context';
 import { useAuth } from '../components/context/auth-context';
 import { useProject } from '../components/context/project-context';
 import { useAlert } from '../components/context/alert-context';
-import { listProjects, getSchedule, getPublishHistory, unpublishProject, updateDomainSubdomain, type Project, type PublishHistoryEntry } from '@/lib/api';
+import { listProjects, getSchedule, getPublishHistory, unpublishProject, updateDomainSubdomain, addCustomDomain as apiAddCustomDomain, verifyCustomDomain as apiVerifyCustomDomain, removeCustomDomain as apiRemoveCustomDomain, listCustomDomains, type Project, type PublishHistoryEntry, type DnsInstructions } from '@/lib/api';
 import { subscribeUserProjectSubdomains, type ProjectSubdomainEntry } from '@/lib/firebase';
 import { PublishModal } from '../components/PublishModal';
+import { DraftPreviewThumbnail } from '../components/projects/DraftPreviewThumbnail';
 import {
   Globe,
   Plus,
@@ -24,7 +25,16 @@ import {
   ArrowDownToLine,
   ChevronDown,
   ChevronUp,
+  Link2,
+  Unlink,
+  ShieldCheck,
+  AlertTriangle,
+  Loader2,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
+
+import { getSubdomainSiteUrl } from '@/lib/siteUrls';
 
 const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'websitelink';
 /** Host for subdomain display (e.g. panes/localhost:3000 or panes.websitelink) */
@@ -35,24 +45,11 @@ function toSubdomainSlug(subdomain: string): string {
   return subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || '';
 }
 
-/**
- * Full URL to open the published site (subdomain-based, like Vercel).
- * In dev: http://localhost:3000/sites/subdomain. In production: https://subdomain.websitelink (or your BASE_DOMAIN).
- */
-function getSubdomainSiteUrl(subdomain: string, origin: string | null): string {
-  const slug = toSubdomainSlug(subdomain);
-  if (!slug) return '#';
-  if (origin && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
-    return `${origin.replace(/\/$/, '')}/sites/${encodeURIComponent(slug)}`;
-  }
-  return `https://${slug}.${BASE_DOMAIN}`;
-}
-
 /** Display URL: subdomain/host format e.g. panes/localhost:3000, or subdomain.base in production */
 function getSiteDisplayUrl(subdomain: string, origin: string | null): string {
   const slug = toSubdomainSlug(subdomain);
   if (origin && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
-    return `${SITE_HOST}/sites/${slug}`;
+    return `${slug}/${SITE_HOST}`;
   }
   return `${slug}.${BASE_DOMAIN}`;
 }
@@ -126,11 +123,6 @@ export default function DomainsPage() {
     active: domainsList.filter(d => (d.project.status || '').trim().toLowerCase() === 'published').length,
     draft: domainsList.filter(d => (d.project.status || '').trim().toLowerCase() !== 'published').length,
   };
-  const primaryActionStyle = {
-    backgroundColor: colors.accent.purple,
-    color: colors.text.primary,
-    boxShadow: theme === 'dark' ? '0 10px 24px rgba(92,29,143,0.32)' : '0 8px 18px rgba(107,45,192,0.22)',
-  };
 
   type DomainEntry = { project: Project; subdomain: string | null };
   const [selectedDomain, setSelectedDomain] = useState<DomainEntry | null>(null);
@@ -145,13 +137,24 @@ export default function DomainsPage() {
   const [editSubdomainValue, setEditSubdomainValue] = useState('');
   const [editSubdomainError, setEditSubdomainError] = useState('');
   const [updatingSubdomain, setUpdatingSubdomain] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  // Custom domain state
+  const [showCustomDomainModal, setShowCustomDomainModal] = useState(false);
+  const [customDomainInput, setCustomDomainInput] = useState('');
+  const [customDomainError, setCustomDomainError] = useState('');
+  const [customDomainLoading, setCustomDomainLoading] = useState(false);
+  const [dnsInstructions, setDnsInstructions] = useState<DnsInstructions | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [removingDomain, setRemovingDomain] = useState(false);
+  const [customDomains, setCustomDomains] = useState<Record<string, { domain: string; domainStatus: string; verifiedAt?: string | null }>>({});
 
   const filteredDomains = searchQuery.trim()
     ? domainsList.filter(
-        (d) =>
-          (d.project.title || '').toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
-          (d.subdomain || '').toLowerCase().includes(searchQuery.trim().toLowerCase())
-      )
+      (d) =>
+        (d.project.title || '').toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+        (d.subdomain || '').toLowerCase().includes(searchQuery.trim().toLowerCase())
+    )
     : domainsList;
 
   const handleUnpublish = async (projectId: string, e?: React.MouseEvent) => {
@@ -190,6 +193,91 @@ export default function DomainsPage() {
   const refreshProjects = async () => {
     const res = await listProjects();
     if (res.success && res.projects) setProjects(res.projects);
+  };
+
+  // Load custom domains
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await listCustomDomains();
+        if (!cancelled && res.success && res.data) {
+          const map: Record<string, { domain: string; domainStatus: string; verifiedAt?: string | null }> = {};
+          for (const d of res.data) {
+            if (d.projectId) map[d.projectId] = { domain: d.domain, domainStatus: d.domainStatus, verifiedAt: d.verifiedAt };
+          }
+          setCustomDomains(map);
+        }
+      } catch { }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedDomain?.project.id]);
+
+  const handleAddCustomDomain = async () => {
+    if (!selectedDomain) return;
+    const trimmed = customDomainInput.trim().toLowerCase();
+    if (!trimmed || !trimmed.includes('.')) {
+      setCustomDomainError('Enter a valid domain. Example: mybusiness.com');
+      return;
+    }
+    setCustomDomainError('');
+    setCustomDomainLoading(true);
+    try {
+      const res = await apiAddCustomDomain(selectedDomain.project.id, trimmed);
+      if (res.success) {
+        setDnsInstructions(res.dnsInstructions || null);
+        setCustomDomains((prev) => ({ ...prev, [selectedDomain.project.id]: { domain: trimmed, domainStatus: 'pending' } }));
+        showAlert('Custom domain added! Configure your DNS next.', 'Domain Added');
+      } else {
+        setCustomDomainError(res.message || 'Failed to add domain');
+      }
+    } catch (e) {
+      setCustomDomainError(e instanceof Error ? e.message : 'Failed');
+    } finally {
+      setCustomDomainLoading(false);
+    }
+  };
+
+  const handleVerifyDomain = async () => {
+    if (!selectedDomain) return;
+    setVerifying(true);
+    try {
+      const res = await apiVerifyCustomDomain(selectedDomain.project.id);
+      if (res.success && res.data?.status === 'verified') {
+        setCustomDomains((prev) => ({ ...prev, [selectedDomain.project.id]: { ...prev[selectedDomain.project.id], domainStatus: 'verified', verifiedAt: new Date().toISOString() } }));
+        setDnsInstructions(null);
+        showAlert('Domain verified! Your custom domain is now active.', 'Verified ✓');
+      } else {
+        showAlert(res.message || 'DNS not configured yet. Please wait a few minutes and try again.', 'Not Verified');
+      }
+    } catch (e) {
+      showAlert(e instanceof Error ? e.message : 'Verification failed', 'Error');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleRemoveCustomDomain = async () => {
+    if (!selectedDomain) return;
+    setRemovingDomain(true);
+    try {
+      const res = await apiRemoveCustomDomain(selectedDomain.project.id);
+      if (res.success) {
+        setCustomDomains((prev) => {
+          const copy = { ...prev };
+          delete copy[selectedDomain.project.id];
+          return copy;
+        });
+        setDnsInstructions(null);
+        showAlert('Custom domain removed.', 'Removed');
+      } else {
+        showAlert(res.message || 'Failed to remove', 'Error');
+      }
+    } catch {
+      showAlert('Failed to remove domain', 'Error');
+    } finally {
+      setRemovingDomain(false);
+    }
   };
 
   const handleEditSubdomainClick = () => {
@@ -322,8 +410,7 @@ export default function DomainsPage() {
             <button
               type="button"
               onClick={handleAddDomainClick}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-opacity hover:opacity-90"
-              style={primaryActionStyle}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors shadow-sm"
             >
               <Plus className="w-4 h-4" />
               Add site
@@ -342,8 +429,8 @@ export default function DomainsPage() {
             style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
           >
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg" style={{ backgroundColor: `${colors.accent.purple}20` }}>
-                <Globe className="w-5 h-5" style={{ color: colors.accent.purple }} />
+              <div className="p-2 rounded-lg bg-blue-500/10">
+                <Globe className="w-5 h-5 text-blue-600" />
               </div>
               <div>
                 <p className="text-2xl font-bold" style={{ color: colors.text.primary }}>
@@ -364,8 +451,8 @@ export default function DomainsPage() {
             style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
           >
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg" style={{ backgroundColor: `${colors.status.good}20` }}>
-                <Check className="w-5 h-5" style={{ color: colors.status.good }} />
+              <div className="p-2 rounded-lg bg-green-500/10">
+                <Check className="w-5 h-5 text-green-600" />
               </div>
               <div>
                 <p className="text-2xl font-bold" style={{ color: colors.text.primary }}>
@@ -386,8 +473,8 @@ export default function DomainsPage() {
             style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
           >
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg" style={{ backgroundColor: `${colors.status.warning}20` }}>
-                <Clock className="w-5 h-5" style={{ color: colors.status.warning }} />
+              <div className="p-2 rounded-lg bg-red-500/10">
+                <Clock className="w-5 h-5 text-red-500" />
               </div>
               <div>
                 <p className="text-2xl font-bold" style={{ color: colors.text.primary }}>
@@ -438,8 +525,11 @@ export default function DomainsPage() {
               <button
                 type="button"
                 onClick={handleAddDomainClick}
-                className="px-4 py-2 text-sm font-medium rounded-lg transition-opacity hover:opacity-90"
-                style={primaryActionStyle}
+                className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+                style={{
+                  backgroundColor: colors.text.primary,
+                  color: colors.bg.primary,
+                }}
               >
                 Add site
               </button>
@@ -448,107 +538,223 @@ export default function DomainsPage() {
         ) : (
           <>
             <div className="space-y-3 flex-1 min-w-0">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: colors.text.muted }} />
-                <input
-                  type="text"
-                  placeholder="Search by title or subdomain..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 rounded-lg border text-sm"
-                  style={{
-                    backgroundColor: colors.bg.primary,
-                    borderColor: colors.border.faint,
-                    color: colors.text.primary,
-                  }}
-                />
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: colors.text.muted }} />
+                  <input
+                    type="text"
+                    placeholder="Search by title or subdomain..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 rounded-lg border text-sm"
+                    style={{
+                      backgroundColor: colors.bg.primary,
+                      borderColor: colors.border.faint,
+                      color: colors.text.primary,
+                    }}
+                  />
+                </div>
+                <div className="flex items-center gap-1 p-1 rounded-lg" style={{ backgroundColor: colors.bg.elevated }}>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('grid')}
+                    className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'shadow-sm' : 'opacity-50 hover:opacity-100'}`}
+                    style={{
+                      backgroundColor: viewMode === 'grid' ? colors.bg.card : 'transparent',
+                      color: colors.text.primary,
+                    }}
+                    aria-label="Grid view"
+                  >
+                    <LayoutGrid size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('list')}
+                    className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'shadow-sm' : 'opacity-50 hover:opacity-100'}`}
+                    style={{
+                      backgroundColor: viewMode === 'list' ? colors.bg.card : 'transparent',
+                      color: colors.text.primary,
+                    }}
+                    aria-label="List view"
+                  >
+                    <List size={16} />
+                  </button>
+                </div>
               </div>
               {filteredDomains.length === 0 ? (
                 <p className="text-sm py-4 text-center" style={{ color: colors.text.muted }}>
                   {searchQuery.trim() ? 'No domains match your search.' : 'No domains yet.'}
                 </p>
+              ) : viewMode === 'grid' ? (
+                /* ═══ GRID VIEW ═══ */
+                <div className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                  {filteredDomains.map(({ project, subdomain }) => {
+                    const isPublished = isPublishedStatus(project.status);
+                    const canVisit = Boolean(subdomain && isPublished);
+                    return (
+                      <motion.div
+                        key={project.id}
+                        className="relative min-w-0 rounded-xl border overflow-hidden cursor-pointer hover:border-opacity-80 transition-all group"
+                        style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+                        whileHover={{ scale: 1.02, y: -2 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setSelectedDomain({ project, subdomain })}
+                      >
+                        {/* Thumbnail */}
+                        <div className="relative w-full" style={{ backgroundColor: colors.bg.elevated, borderBottom: `1px solid ${colors.border.faint}` }}>
+                          <DraftPreviewThumbnail
+                            projectId={project.id}
+                            borderColor={colors.border.faint}
+                            bgColor={colors.bg.elevated}
+                          />
+                          {/* Status badge overlay */}
+                          <div className="absolute top-2 right-2">
+                            <span
+                              className="text-[10px] px-2 py-0.5 rounded-full font-medium backdrop-blur-md"
+                              style={{
+                                backgroundColor: isPublished ? 'rgba(34,197,94,0.85)' : 'rgba(239,68,68,0.85)',
+                                color: '#fff',
+                              }}
+                            >
+                              {isPublished ? 'Published' : 'Draft'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Card content */}
+                        <div className="p-3 space-y-2">
+                          <div>
+                            <h3 className="font-medium truncate text-sm" style={{ color: colors.text.primary }}>{project.title}</h3>
+                            <p className="text-xs font-mono truncate mt-0.5" style={{ color: colors.text.muted }}>
+                              {subdomain ? getSiteDisplayUrl(subdomain, origin) : 'No subdomain'}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            {canVisit ? (
+                              <a
+                                href={getSubdomainSiteUrl(subdomain as string, origin)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
+                                style={{ backgroundColor: colors.text.primary, color: colors.bg.primary }}
+                              >
+                                <ExternalLink size={12} /> Visit
+                              </a>
+                            ) : (
+                              <a
+                                href={`/design?projectId=${project.id}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
+                                style={{ backgroundColor: 'rgba(59,130,246,0.15)', color: 'rgb(59,130,246)' }}
+                              >
+                                <ExternalLink size={12} /> Publish to go live
+                              </a>
+                            )}
+                            {isPublished && (
+                              <button
+                                type="button"
+                                onClick={(e) => handleUnpublish(project.id, e)}
+                                disabled={unpublishingId === project.id}
+                                className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-[11px] font-medium border transition-colors"
+                                style={{ borderColor: 'rgba(239,68,68,0.4)', color: 'rgb(239,68,68)' }}
+                              >
+                                <ArrowDownToLine size={12} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
               ) : (
+                /* ═══ LIST VIEW ═══ */
                 filteredDomains.map(({ project, subdomain }) => {
                   const isPublished = isPublishedStatus(project.status);
                   const canVisit = Boolean(subdomain && isPublished);
                   const cardUrl = canVisit ? getSubdomainSiteUrl(subdomain as string, origin) : '';
                   return (
-                <div
-                  key={project.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setSelectedDomain({ project, subdomain })}
-                  onKeyDown={(e) => e.key === 'Enter' && setSelectedDomain({ project, subdomain })}
-                  className="rounded-2xl border p-4 shadow-sm flex items-center justify-between gap-3 transition-colors cursor-pointer hover:opacity-95"
-                  style={{
-                    backgroundColor: colors.bg.card,
-                    borderColor: colors.border.faint,
-                  }}
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate" style={{ color: colors.text.primary }}>{project.title}</p>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <p className="text-xs font-mono truncate" style={{ color: colors.text.secondary }}>
-                        {subdomain ? getSiteDisplayUrl(subdomain, origin) : 'Empty'}
-                      </p>
-                      {cardUrl && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigator.clipboard.writeText(cardUrl).then(
-                              () => showAlert('URL copied to clipboard', 'Copied'),
-                              () => showAlert('Failed to copy', 'Error')
-                            );
-                          }}
-                          className="p-0.5 rounded hover:opacity-80 shrink-0"
-                          style={{ color: colors.text.muted }}
-                          aria-label="Copy URL"
-                        >
-                          <Copy size={12} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span
-                      className="text-xs px-2 py-1 rounded-full capitalize"
+                    <div
+                      key={project.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSelectedDomain({ project, subdomain })}
+                      onKeyDown={(e) => e.key === 'Enter' && setSelectedDomain({ project, subdomain })}
+                      className="rounded-2xl border p-4 shadow-sm flex items-center justify-between gap-3 transition-colors cursor-pointer hover:opacity-95"
                       style={{
-                        backgroundColor: isPublished ? `${colors.status.good}22` : `${colors.status.warning}22`,
-                        color: isPublished ? colors.status.good : colors.status.warning,
+                        backgroundColor: colors.bg.card,
+                        borderColor: colors.border.faint,
                       }}
                     >
-                      {isPublished ? 'Published' : 'Draft'}
-                    </span>
-                    <a
-                      href={canVisit ? getSubdomainSiteUrl(subdomain as string, origin) : `/design?projectId=${project.id}`}
-                      target={canVisit ? "_blank" : "_self"}
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-opacity hover:opacity-90 shrink-0"
-                      style={primaryActionStyle}
-                    >
-                      <ExternalLink size={14} />
-                      {canVisit ? 'Visit' : 'Publish to go live'}
-                    </a>
-                    {isPublished && (
-                      <button
-                        type="button"
-                        onClick={(e) => handleUnpublish(project.id, e)}
-                        disabled={unpublishingId === project.id}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors shrink-0 border"
-                        style={{
-                          borderColor: `${colors.status.error}66`,
-                          color: colors.status.error,
-                          backgroundColor: 'transparent',
-                        }}
-                      >
-                        <ArrowDownToLine size={14} />
-                        {unpublishingId === project.id ? 'Taking down…' : 'Take down'}
-                      </button>
-                    )}
-                  </div>
-                </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate" style={{ color: colors.text.primary }}>{project.title}</p>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <p className="text-xs font-mono truncate" style={{ color: colors.text.secondary }}>
+                            {subdomain ? getSiteDisplayUrl(subdomain, origin) : 'Empty'}
+                          </p>
+                          {cardUrl && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigator.clipboard.writeText(cardUrl).then(
+                                  () => showAlert('URL copied to clipboard', 'Copied'),
+                                  () => showAlert('Failed to copy', 'Error')
+                                );
+                              }}
+                              className="p-0.5 rounded hover:opacity-80 shrink-0"
+                              style={{ color: colors.text.muted }}
+                              aria-label="Copy URL"
+                            >
+                              <Copy size={12} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span
+                          className="text-xs px-2 py-1 rounded-full capitalize"
+                          style={{
+                            backgroundColor: isPublished ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)',
+                            color: isPublished ? 'rgb(22,163,74)' : 'rgb(220,38,38)',
+                          }}
+                        >
+                          {isPublished ? 'Published' : 'Draft'}
+                        </span>
+                        <a
+                          href={canVisit ? getSubdomainSiteUrl(subdomain as string, origin) : `/design?projectId=${project.id}`}
+                          target={canVisit ? "_blank" : "_self"}
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors shrink-0"
+                          style={{
+                            backgroundColor: colors.text.primary,
+                            color: colors.bg.primary,
+                          }}
+                        >
+                          <ExternalLink size={14} />
+                          {canVisit ? 'Visit' : 'Publish to go live'}
+                        </a>
+                        {isPublished && (
+                          <button
+                            type="button"
+                            onClick={(e) => handleUnpublish(project.id, e)}
+                            disabled={unpublishingId === project.id}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors shrink-0 border"
+                            style={{
+                              borderColor: 'rgba(239,68,68,0.5)',
+                              color: 'rgb(239,68,68)',
+                              backgroundColor: 'transparent',
+                            }}
+                          >
+                            <ArrowDownToLine size={14} />
+                            {unpublishingId === project.id ? 'Taking down…' : 'Take down'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   );
                 })
               )}
@@ -634,14 +840,112 @@ export default function DomainsPage() {
                       {siteUrl && <ExternalLink size={14} className="shrink-0" />}
                     </a>
                   </div>
+
+                  {/* Custom Domain Section */}
+                  {isPublishedStatus(selectedDomain.project.status) && (
+                    <div className="pt-3 border-t" style={{ borderColor: colors.border.faint }}>
+                      <div className="flex items-center justify-between gap-2 text-sm font-medium mb-2" style={{ color: colors.text.secondary }}>
+                        <span className="flex items-center gap-2">
+                          <Link2 size={16} />
+                          Custom Domain
+                        </span>
+                      </div>
+
+                      {customDomains[selectedDomain.project.id] ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-mono flex-1 truncate" style={{ color: colors.text.primary }}>
+                              {customDomains[selectedDomain.project.id].domain}
+                            </span>
+                            <span
+                              className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1"
+                              style={{
+                                backgroundColor: customDomains[selectedDomain.project.id].domainStatus === 'verified' ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)',
+                                color: customDomains[selectedDomain.project.id].domainStatus === 'verified' ? 'rgb(22,163,74)' : 'rgb(180,83,9)',
+                              }}
+                            >
+                              {customDomains[selectedDomain.project.id].domainStatus === 'verified'
+                                ? <><ShieldCheck size={12} /> Verified</>
+                                : <><AlertTriangle size={12} /> Pending</>}
+                            </span>
+                          </div>
+                          <div className="flex gap-2">
+                            {customDomains[selectedDomain.project.id].domainStatus !== 'verified' && (
+                              <button
+                                type="button"
+                                onClick={handleVerifyDomain}
+                                disabled={verifying}
+                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white transition-colors"
+                              >
+                                {verifying ? <><Loader2 size={12} className="animate-spin" /> Verifying…</> : <><ShieldCheck size={12} /> Verify DNS</>}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={handleRemoveCustomDomain}
+                              disabled={removingDomain}
+                              className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors"
+                              style={{ borderColor: 'rgba(239,68,68,0.5)', color: 'rgb(239,68,68)' }}
+                            >
+                              {removingDomain ? <><Loader2 size={12} className="animate-spin" /></> : <><Unlink size={12} /> Remove</>}
+                            </button>
+                          </div>
+
+                          {/* DNS Instructions (shown after adding) */}
+                          {customDomains[selectedDomain.project.id].domainStatus !== 'verified' && dnsInstructions && (
+                            <div
+                              className="mt-2 p-3 rounded-lg text-xs space-y-2"
+                              style={{ backgroundColor: colors.bg.elevated, border: `1px solid ${colors.border.faint}` }}
+                            >
+                              <p className="font-semibold" style={{ color: colors.text.primary }}>DNS Setup Instructions</p>
+                              <p style={{ color: colors.text.secondary }}>{dnsInstructions.message}</p>
+                              <div className="space-y-1.5">
+                                <p className="font-medium" style={{ color: colors.text.primary }}>Option A — A Record:</p>
+                                <div className="font-mono p-2 rounded" style={{ backgroundColor: colors.bg.primary }}>
+                                  <p>Type: {dnsInstructions.optionA.type}</p>
+                                  <p>Host: {dnsInstructions.optionA.host}</p>
+                                  <p>Value: {dnsInstructions.optionA.value}</p>
+                                </div>
+                              </div>
+                              <div className="space-y-1.5">
+                                <p className="font-medium" style={{ color: colors.text.primary }}>Option B — CNAME:</p>
+                                <div className="font-mono p-2 rounded" style={{ backgroundColor: colors.bg.primary }}>
+                                  <p>Type: {dnsInstructions.optionB.type}</p>
+                                  <p>Host: {dnsInstructions.optionB.host}</p>
+                                  <p>Value: {dnsInstructions.optionB.value}</p>
+                                </div>
+                              </div>
+                              <p style={{ color: colors.text.muted }}>DNS changes can take up to 48 hours to propagate. Click "Verify DNS" once configured.</p>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCustomDomainInput('');
+                            setCustomDomainError('');
+                            setDnsInstructions(null);
+                            setShowCustomDomainModal(true);
+                          }}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium rounded-lg border border-dashed transition-colors hover:opacity-80"
+                          style={{ borderColor: colors.border.faint, color: colors.text.secondary }}
+                        >
+                          <Link2 size={14} />
+                          Connect custom domain
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   <div>
                     <div className="text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>Status</div>
                     <div className="flex flex-wrap items-center gap-2">
                       <span
                         className="text-xs px-2 py-1 rounded-full capitalize"
                         style={{
-                          backgroundColor: selectedDomain.project.status === 'published' ? `${colors.status.good}22` : `${colors.status.warning}22`,
-                          color: selectedDomain.project.status === 'published' ? colors.status.good : colors.status.warning,
+                          backgroundColor: selectedDomain.project.status === 'published' ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)',
+                          color: selectedDomain.project.status === 'published' ? 'rgb(22,163,74)' : 'rgb(180,83,9)',
                         }}
                       >
                         {selectedDomain.project.status || 'draft'}
@@ -653,8 +957,8 @@ export default function DomainsPage() {
                           disabled={unpublishingId === selectedDomain.project.id}
                           className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors"
                           style={{
-                            borderColor: `${colors.status.error}66`,
-                            color: colors.status.error,
+                            borderColor: 'rgba(239,68,68,0.5)',
+                            color: 'rgb(239,68,68)',
                             backgroundColor: 'transparent',
                           }}
                         >
@@ -693,60 +997,60 @@ export default function DomainsPage() {
                       {historyExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                     </button>
                     {historyExpanded && (
-                    <>
-                    <ul className="space-y-2 text-sm">
-                      <li className="flex items-center justify-between gap-2">
-                        <span style={{ color: colors.text.secondary }}>Status</span>
-                        <span
-                          className="capitalize px-2 py-0.5 rounded text-xs font-medium"
-                          style={{
-                            backgroundColor: isPublishedStatus(selectedDomain.project.status) ? `${colors.status.good}22` : `${colors.status.warning}22`,
-                            color: isPublishedStatus(selectedDomain.project.status) ? colors.status.good : colors.status.warning,
-                          }}
-                        >
-                          {isPublishedStatus(selectedDomain.project.status) ? 'Published' : 'Draft'}
-                        </span>
-                      </li>
-                      {scheduleInfo?.scheduledAt && (
-                        <li className="flex items-center justify-between gap-2">
-                          <span style={{ color: colors.text.secondary }}>Next scheduled</span>
-                          <span style={{ color: colors.text.primary }}>
-                            {new Date(scheduleInfo.scheduledAt).toLocaleString()}
-                          </span>
-                        </li>
-                      )}
-                    </ul>
-                    <div>
-                      <div className="text-xs font-medium mb-2" style={{ color: colors.text.secondary }}>Last 10 changes (newest first)</div>
-                      {publishHistory.length > 0 ? (
-                        <ul className="space-y-1.5 max-h-48 overflow-y-auto">
-                          {publishHistory.map((entry, i) => (
-                            <li
-                              key={`${entry.at}-${i}`}
-                              className="flex items-center justify-between gap-2 py-1.5 px-2 rounded text-xs"
+                      <>
+                        <ul className="space-y-2 text-sm">
+                          <li className="flex items-center justify-between gap-2">
+                            <span style={{ color: colors.text.secondary }}>Status</span>
+                            <span
+                              className="capitalize px-2 py-0.5 rounded text-xs font-medium"
                               style={{
-                                backgroundColor: colors.bg.primary,
-                                color: colors.text.primary,
-                                borderLeft: '3px solid rgba(56, 189, 248, 0.6)',
+                                backgroundColor: isPublishedStatus(selectedDomain.project.status) ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)',
+                                color: isPublishedStatus(selectedDomain.project.status) ? 'rgb(22,163,74)' : 'rgb(220,38,38)',
                               }}
                             >
-                              <span className="capitalize" style={{ color: colors.text.secondary }}>{entry.type}</span>
-                              <span>{new Date(entry.at).toLocaleString()}</span>
+                              {isPublishedStatus(selectedDomain.project.status) ? 'Published' : 'Draft'}
+                            </span>
+                          </li>
+                          {scheduleInfo?.scheduledAt && (
+                            <li className="flex items-center justify-between gap-2">
+                              <span style={{ color: colors.text.secondary }}>Next scheduled</span>
+                              <span style={{ color: colors.text.primary }}>
+                                {new Date(scheduleInfo.scheduledAt).toLocaleString()}
+                              </span>
                             </li>
-                          ))}
+                          )}
                         </ul>
-                      ) : (
-                        <p className="text-xs py-1" style={{ color: colors.text.muted }}>
-                          No publish history yet. History is recorded each time you publish.
-                        </p>
-                      )}
-                    </div>
-                    {!scheduleInfo?.scheduledAt && selectedDomain.project.status === 'published' && (
-                      <p className="text-xs" style={{ color: colors.text.muted }}>
-                        No upcoming scheduled publish.
-                      </p>
-                    )}
-                    </>
+                        <div>
+                          <div className="text-xs font-medium mb-2" style={{ color: colors.text.secondary }}>Last 10 changes (newest first)</div>
+                          {publishHistory.length > 0 ? (
+                            <ul className="space-y-1.5 max-h-48 overflow-y-auto">
+                              {publishHistory.map((entry, i) => (
+                                <li
+                                  key={`${entry.at}-${i}`}
+                                  className="flex items-center justify-between gap-2 py-1.5 px-2 rounded text-xs"
+                                  style={{
+                                    backgroundColor: colors.bg.primary,
+                                    color: colors.text.primary,
+                                    borderLeft: '3px solid rgba(56, 189, 248, 0.6)',
+                                  }}
+                                >
+                                  <span className="capitalize" style={{ color: colors.text.secondary }}>{entry.type}</span>
+                                  <span>{new Date(entry.at).toLocaleString()}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-xs py-1" style={{ color: colors.text.muted }}>
+                              No publish history yet. History is recorded each time you publish.
+                            </p>
+                          )}
+                        </div>
+                        {!scheduleInfo?.scheduledAt && selectedDomain.project.status === 'published' && (
+                          <p className="text-xs" style={{ color: colors.text.muted }}>
+                            No upcoming scheduled publish.
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -802,12 +1106,12 @@ export default function DomainsPage() {
                   className="w-full px-3 py-2 rounded-lg border text-sm font-mono"
                   style={{
                     backgroundColor: colors.bg.primary,
-                    borderColor: editSubdomainError ? colors.status.error : colors.border.faint,
+                    borderColor: editSubdomainError ? 'rgb(239,68,68)' : colors.border.faint,
                     color: colors.text.primary,
                   }}
                 />
                 {editSubdomainError && (
-                  <p className="text-xs mt-1" style={{ color: colors.status.error }}>{editSubdomainError}</p>
+                  <p className="text-xs mt-1" style={{ color: 'rgb(239,68,68)' }}>{editSubdomainError}</p>
                 )}
               </div>
               <div className="flex gap-2 mt-6">
@@ -823,10 +1127,81 @@ export default function DomainsPage() {
                   type="button"
                   onClick={handleEditSubdomainConfirm}
                   disabled={updatingSubdomain}
-                  className="flex-1 px-4 py-2 rounded-lg disabled:opacity-50 text-sm font-medium transition-opacity hover:opacity-90"
-                  style={primaryActionStyle}
+                  className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium"
                 >
                   {updatingSubdomain ? 'Updating…' : 'Save'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Custom Domain Modal */}
+      <AnimatePresence>
+        {showCustomDomainModal && selectedDomain && (
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+            style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+            onClick={() => !customDomainLoading && setShowCustomDomainModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="rounded-2xl border p-6 w-full max-w-md shadow-xl"
+              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-semibold mb-1" style={{ color: colors.text.primary }}>
+                Connect Custom Domain
+              </h3>
+              <p className="text-sm mb-4" style={{ color: colors.text.secondary }}>
+                Connect your own domain to <span className="font-semibold">{selectedDomain.project.title}</span>
+              </p>
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>Domain</label>
+                <input
+                  type="text"
+                  placeholder="e.g. mybusiness.com"
+                  value={customDomainInput}
+                  onChange={(e) => {
+                    setCustomDomainInput(e.target.value);
+                    setCustomDomainError('');
+                  }}
+                  className="w-full px-3 py-2 rounded-lg border text-sm font-mono"
+                  style={{
+                    backgroundColor: colors.bg.primary,
+                    borderColor: customDomainError ? 'rgb(239,68,68)' : colors.border.faint,
+                    color: colors.text.primary,
+                  }}
+                />
+                <p className="text-xs mt-1" style={{ color: colors.text.muted }}>
+                  Enter the domain you own. You&apos;ll configure DNS records after.
+                </p>
+                {customDomainError && (
+                  <p className="text-xs mt-1" style={{ color: 'rgb(239,68,68)' }}>{customDomainError}</p>
+                )}
+              </div>
+              <div className="flex gap-2 mt-6">
+                <button
+                  type="button"
+                  onClick={() => !customDomainLoading && setShowCustomDomainModal(false)}
+                  className="flex-1 px-4 py-2 rounded-lg border text-sm font-medium"
+                  style={{ borderColor: colors.border.faint, color: colors.text.secondary }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await handleAddCustomDomain();
+                    if (!customDomainError) setShowCustomDomainModal(false);
+                  }}
+                  disabled={customDomainLoading}
+                  className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium"
+                >
+                  {customDomainLoading ? 'Connecting…' : 'Connect Domain'}
                 </button>
               </div>
             </motion.div>

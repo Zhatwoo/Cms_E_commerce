@@ -3,8 +3,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { getDraft } from '@/app/design/_lib/pageApi';
-import { LiveSite } from '@/app/design/_lib/webRenderer';
-import { serializeCraftToClean } from '@/app/design/_lib/serializer';
+import { WebPreview } from '@/app/design/_lib/webRenderer';
+import { parseContentToCleanDoc } from '@/app/design/_lib/contentParser';
+import { PREVIEW_MOBILE_BREAKPOINT } from '@/app/design/_lib/viewportConstants';
 
 export default function SitePage() {
   const params = useParams();
@@ -41,13 +42,7 @@ export default function SitePage() {
 
   const cleanDoc = useMemo(() => {
     if (!rawJson) return null;
-    try {
-      const parsed = JSON.parse(rawJson);
-      if (parsed.version !== undefined && parsed.pages && parsed.nodes) return parsed;
-      return serializeCraftToClean(rawJson);
-    } catch {
-      return null;
-    }
+    return parseContentToCleanDoc(rawJson);
   }, [rawJson]);
 
   if (!projectId || error) {
@@ -76,7 +71,7 @@ export default function SitePage() {
 
   return (
     <div className="min-h-screen w-full bg-white">
-      <LiveSite doc={cleanDoc} pageIndex={0} />
+      <WebPreview doc={cleanDoc} pageIndex={0} mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT} enableFormInputs builderParityMode />
     </div>
   );
 }

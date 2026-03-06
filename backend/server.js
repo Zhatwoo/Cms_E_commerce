@@ -101,12 +101,16 @@ app.use(cors({
     return cb(null, false);
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-project-id']
 }));
 app.use(cookieParser());
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+
+// Domain & Subdomain detection middleware
+const domainDetector = require('./middleware/domainDetector');
+app.use(domainDetector);
 
 // Rate limit for auth (stricter in production; relaxed in dev so you can retry)
 const authLimiter = rateLimit({
@@ -153,7 +157,6 @@ const orderRoutes = require('./routes/orderRoutes');
 const templateRoutes = require('./routes/templateRoutes');
 const domainRoutes = require('./routes/domainRoutes');
 const projectRoutes = require('./routes/projectRoutes');
-const instanceRoutes = require('./routes/instanceRoutes');
 
 // Routes – public site by subdomain must be reachable
 app.use('/api/public', publicSiteRoutes);
@@ -168,7 +171,6 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/domains', domainRoutes);
 app.use('/api/projects', projectRoutes);
-app.use('/api/instances', instanceRoutes);
 
 // Home route
 app.get('/', (req, res) => {

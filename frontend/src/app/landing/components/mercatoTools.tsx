@@ -269,6 +269,7 @@ export function FindingNeoTools({ isDarkMode = false }: { isDarkMode?: boolean }
                     type="button"
                     whileHover={{ scale: 1.04, y: -1 }}
                     whileTap={{ scale: 0.96 }}
+                    suppressHydrationWarning
                     className={`rounded-lg border px-3 py-2 text-left text-sm font-semibold transition-all ${frameBtn}`}
                   >
                     <span className="mb-0.5 block text-[10px] opacity-40">

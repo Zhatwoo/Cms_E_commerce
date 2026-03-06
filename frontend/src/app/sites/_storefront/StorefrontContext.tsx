@@ -17,8 +17,10 @@ type StorefrontContextValue = {
   siteTitle: string | null;
   setSiteTitle: (title: string | null) => void;
   cart: CartItem[];
+  lastAddedAt: number;
   addToCart: (product: { id: string; name: string; price: number; image?: string }, qty?: number) => void;
   removeFromCart: (productId: string) => void;
+  removeManyFromCart: (productIds: string[]) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   cartCount: number;
   openCart: () => void;
@@ -59,6 +61,7 @@ export function StorefrontProvider({
   const [siteTitle, setSiteTitle] = useState<string | null>(initialSiteTitle ?? null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
+  const [lastAddedAt, setLastAddedAt] = useState(0);
 
   useEffect(() => {
     setCart(loadCart(subdomain));
@@ -79,13 +82,19 @@ export function StorefrontProvider({
         }
         return [...prev, { ...product, quantity: qty }];
       });
-      setCartOpen(true);
+      setLastAddedAt(Date.now());
     },
     []
   );
 
   const removeFromCart = useCallback((productId: string) => {
     setCart((prev) => prev.filter((i) => i.id !== productId));
+  }, []);
+
+  const removeManyFromCart = useCallback((productIds: string[]) => {
+    const idSet = new Set((Array.isArray(productIds) ? productIds : []).map((id) => String(id)));
+    if (!idSet.size) return;
+    setCart((prev) => prev.filter((i) => !idSet.has(String(i.id))));
   }, []);
 
   const updateQuantity = useCallback((productId: string, quantity: number) => {
@@ -105,8 +114,10 @@ export function StorefrontProvider({
     siteTitle,
     setSiteTitle,
     cart,
+    lastAddedAt,
     addToCart,
     removeFromCart,
+    removeManyFromCart,
     updateQuantity,
     cartCount,
     openCart: () => setCartOpen(true),

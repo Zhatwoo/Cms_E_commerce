@@ -1,5 +1,5 @@
 import React from "react";
-import { useNode } from "@craftjs/core";
+import { useEditor, useNode } from "@craftjs/core";
 import { ContainerSettings } from "./ContainerSettings";
 import type { ContainerProps } from "../../_types/components";
 
@@ -7,6 +7,13 @@ function parsePx(value: string | undefined): number | null {
   if (value == null) return null;
   const m = String(value).match(/^(-?\d+(?:\.\d+)?)px$/);
   return m ? parseFloat(m[1]) : null;
+}
+
+function fluidSpace(value: number, min = 0): string {
+  if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
+  const preferred = Math.max(0.1, value / 12);
+  const floor = Math.max(min, Math.round(value * 0.45));
+  return `clamp(${floor}px, ${preferred.toFixed(2)}cqw, ${value}px)`;
 }
 
 export const Container = ({
@@ -69,13 +76,20 @@ export const Container = ({
   customClassName = "",
   children
 }: ContainerProps) => {
-  const { id, connectors: { connect, drag }, childCount } = useNode((node) => ({
+  const { id, connectors: { connect, drag }, childCount, parentId } = useNode((node) => ({
     childCount: node.data.nodes.length,
+    parentId: node.data.parent,
   }));
+  const { parentDisplay, parentFlexDirection } = useEditor((state) => ({
+    parentDisplay: parentId ? String(state.nodes[parentId]?.data?.props?.display ?? "") : "",
+    parentFlexDirection: parentId ? String(state.nodes[parentId]?.data?.props?.flexDirection ?? "") : "",
+  }));
+  const hasChildren = childCount > 0 || React.Children.count(children) > 0;
+  const isFlexRowParent = parentDisplay === "flex" && parentFlexDirection === "row";
 
   const wPx = parsePx(width);
   const hPx = parsePx(height);
-  const canScale = typeof designWidth === "number" && typeof designHeight === "number" && wPx != null && hPx != null && designWidth > 0 && designHeight > 0;
+  const canScale = false;
   const scaleX = canScale ? wPx / designWidth : 1;
   const scaleY = canScale ? hPx / designHeight : 1;
 
@@ -109,14 +123,17 @@ export const Container = ({
       : editorVisibility === "show" && display === "none"
         ? "flex"
         : display;
+  const shouldFlexFill = width === "100%" && isFlexRowParent;
 
   return (
     <div
       data-node-id={id}
+      data-fluid-space="true"
+      data-layout={effectiveDisplay === "flex" ? (flexDirection === "row" ? "row" : "column") : undefined}
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className={`relative min-h-[120px] transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
+      className={`relative ${hasChildren ? "" : "min-h-[120px]"} transition-[outline] duration-150 ${customClassName}`}
       style={{
         backgroundColor: childCount === 0 ? "#f4f5f7" : background,
         backgroundImage: backgroundImage
@@ -127,16 +144,20 @@ export const Container = ({
         backgroundSize: backgroundImage ? backgroundSize : undefined,
         backgroundPosition: backgroundImage ? backgroundPosition : undefined,
         backgroundRepeat: backgroundImage ? backgroundRepeat : undefined,
-        paddingLeft: `${effectivePl}px`,
-        paddingRight: `${effectivePr}px`,
-        paddingTop: `${effectivePt}px`,
-        paddingBottom: `${effectivePb}px`,
-        marginLeft: `${ml}px`,
-        marginRight: `${mr}px`,
-        marginTop: `${mt}px`,
-        marginBottom: `${mb}px`,
+        paddingLeft: fluidSpace(effectivePl, 0),
+        paddingRight: fluidSpace(effectivePr, 0),
+        paddingTop: fluidSpace(effectivePt, 0),
+        paddingBottom: fluidSpace(effectivePb, 0),
+        marginLeft: fluidSpace(ml, 0),
+        marginRight: fluidSpace(mr, 0),
+        marginTop: fluidSpace(mt, 0),
+        marginBottom: fluidSpace(mb, 0),
         width,
         height,
+        flex: shouldFlexFill ? "1 1 0%" : undefined,
+        boxSizing: "border-box",
+        maxWidth: position === "static" ? "100%" : undefined,
+        minWidth: 0,
         borderTopLeftRadius: `${rtl}px`,
         borderTopRightRadius: `${rtr}px`,
         borderBottomRightRadius: `${rbr}px`,
@@ -145,6 +166,7 @@ export const Container = ({
         borderColor,
         borderStyle,
         position,
+        containerType: "inline-size",
         display: effectiveDisplay,
         zIndex: zIndex !== 0 ? zIndex : undefined,
         top: position !== "static" ? top : undefined,
@@ -157,14 +179,14 @@ export const Container = ({
         alignItems: effectiveDisplay === "flex" || effectiveDisplay === "grid" ? alignItems : undefined,
         justifyContent: effectiveDisplay === "flex" || effectiveDisplay === "grid" ? justifyContent : undefined,
         columnGap: effectiveDisplay === "flex"
-          ? `${gap}px`
+          ? fluidSpace(gap, 0)
           : effectiveDisplay === "grid"
-            ? `${gridColumnGap ?? gridGap}px`
+            ? fluidSpace((gridColumnGap ?? gridGap) as number, 0)
             : undefined,
         rowGap: effectiveDisplay === "flex"
-          ? `${gap}px`
+          ? fluidSpace(gap, 0)
           : effectiveDisplay === "grid"
-            ? `${gridRowGap ?? gridGap}px`
+            ? fluidSpace((gridRowGap ?? gridGap) as number, 0)
             : undefined,
         // Grid properties
         gridTemplateColumns: effectiveDisplay === "grid" ? gridTemplateColumns : undefined,

@@ -115,6 +115,7 @@ export function Footer({ isDarkMode = true }: { isDarkMode?: boolean }) {
           <div className="flex shrink-0 flex-col items-start gap-3 sm:items-center">
             <button
               type="button"
+              suppressHydrationWarning
               className="group relative overflow-hidden rounded-full bg-gradient-to-r from-[#7c3aed] to-[#9d3fff] px-[clamp(1.75rem,3vw,3rem)] py-[clamp(0.8rem,1.5vw,1.1rem)] text-[clamp(0.9rem,1.3vw,1.1rem)] font-extrabold text-white shadow-[0_6px_32px_rgba(139,61,255,0.45)] transition-all duration-300 hover:shadow-[0_8px_40px_rgba(139,61,255,0.65)] hover:brightness-110"
             >
               {/* Shimmer sweep */}

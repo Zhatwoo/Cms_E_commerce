@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   TrendingUp,
   ArrowDownUp,
+  CheckCircle,
   Search,
   Filter,
   Plus,
@@ -143,6 +144,12 @@ type StockAdjustmentModalState = {
   error: string | null;
 };
 
+type ImportPopupState = {
+  open: boolean;
+  message: string;
+  tone: 'success' | 'error';
+};
+
 const getDefaultAdjustmentNote = (movementType: StockAdjustmentType) =>
   movementType === 'IN' ? 'Manual stock-in from inventory page' : 'Manual stock-out from inventory page';
 
@@ -180,6 +187,12 @@ export default function InventoryPage() {
   });
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [importPopup, setImportPopup] = useState<ImportPopupState>({
+    open: false,
+    message: '',
+    tone: 'success',
+  });
+  const importPopupTimerRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const primaryActionStyle = {
     backgroundColor: colors.accent.purple,
@@ -187,8 +200,33 @@ export default function InventoryPage() {
     boxShadow: theme === 'dark' ? '0 10px 24px rgba(92,29,143,0.32)' : '0 8px 18px rgba(107,45,192,0.22)',
   };
 
+  const showImportPopup = useCallback((message: string, tone: 'success' | 'error') => {
+    if (importPopupTimerRef.current) {
+      window.clearTimeout(importPopupTimerRef.current);
+    }
+
+    setImportPopup({
+      open: true,
+      message,
+      tone,
+    });
+
+    importPopupTimerRef.current = window.setTimeout(() => {
+      setImportPopup((prev) => ({ ...prev, open: false }));
+      importPopupTimerRef.current = null;
+    }, 3000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (importPopupTimerRef.current) {
+        window.clearTimeout(importPopupTimerRef.current);
+      }
+    };
+  }, []);
+
   const formatStat = (value: string | number) => (typeof value === 'number' ? String(value) : value);
-  const stockValueLabel = useMemo(() => `$${(summary?.stockValue || 0).toLocaleString()}`, [summary?.stockValue]);
+  const stockValueLabel = useMemo(() => `₱${(summary?.stockValue || 0).toLocaleString()}`, [summary?.stockValue]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -378,8 +416,9 @@ export default function InventoryPage() {
         const text = await file.text();
         const rows = parseCsvToRows(text);
         if (rows.length === 0) {
-          window.alert(
-            'No valid rows in CSV. Ensure file has a header with "sku" and optionally "onHandStock", "reservedStock", "lowStockThreshold".'
+          showImportPopup(
+            'Import failed: No valid rows in CSV. Use header "sku" and optionally "onHandStock", "reservedStock", "lowStockThreshold".',
+            'error'
           );
           return;
         }
@@ -390,25 +429,63 @@ export default function InventoryPage() {
           await loadData();
         }
 
-        const msg =
-          result.errors && result.errors.length > 0
-            ? `${result.message}\n\nErrors: ${result.errors
-                .slice(0, 5)
-                .map((e) => `Row ${e.row} (${e.sku}): ${e.message}`)
-                .join('; ')}${result.errors.length > 5 ? ` ... and ${result.errors.length - 5} more` : ''}`
-            : result.message ?? `Updated ${result.updated ?? 0} product(s).`;
-        window.alert(msg);
+        if (result.errors && result.errors.length > 0) {
+          const errorSummary = result.errors
+            .slice(0, 2)
+            .map((e) => `Row ${e.row} (${e.sku}): ${e.message}`)
+            .join(' | ');
+          showImportPopup(
+            `Import completed with errors. ${errorSummary}${result.errors.length > 2 ? ` | +${result.errors.length - 2} more` : ''}`,
+            'error'
+          );
+        } else {
+          showImportPopup(result.message ?? `Import successful. Updated ${result.updated ?? 0} product(s).`, 'success');
+        }
       } catch (err) {
-        window.alert(err instanceof Error ? err.message : 'Import failed');
+        showImportPopup(err instanceof Error ? `Import failed: ${err.message}` : 'Import failed', 'error');
       } finally {
         setImporting(false);
       }
     },
-    [loadData]
+    [loadData, showImportPopup]
   );
 
   return (
-    <div className="space-y-6 md:space-y-8 max-w-full overflow-x-hidden">
+    <div className="relative space-y-6 md:space-y-8 max-w-full overflow-x-hidden">
+      <AnimatePresence>
+        {importPopup.open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[140] flex items-center justify-center p-4"
+            style={{ backgroundColor: 'rgba(0, 0, 0, 0.35)', backdropFilter: 'blur(4px)' }}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 10, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.98 }}
+              transition={{ duration: 0.2 }}
+              className="w-auto max-w-sm rounded-xl border px-4 py-3 shadow-xl"
+              style={{
+                backgroundColor: colors.bg.card,
+                borderColor: colors.border.faint,
+              }}
+            >
+              <p className="text-sm text-center" style={{ color: importPopup.tone === 'success' ? '#ffffff' : '#ef4444' }}>
+                {importPopup.tone === 'success' ? 'File uploaded successfully' : importPopup.message}
+              </p>
+              {importPopup.tone === 'success' && (
+                <div className="mt-2 flex justify-center">
+                  <CheckCircle className="w-5 h-5" style={{ color: '#22c55e' }} />
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <section
         className="rounded-2xl border p-5 md:p-6"

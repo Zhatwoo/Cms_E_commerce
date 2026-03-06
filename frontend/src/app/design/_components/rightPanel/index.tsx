@@ -29,7 +29,7 @@ const TABS: Tab[] = [
 ];
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
-const RIGHT_PANEL_DEFAULT_WIDTH = 420;
+const RIGHT_PANEL_DEFAULT_WIDTH = 300;
 
 interface RightPanelProps {
   projectId: string;
@@ -253,7 +253,7 @@ const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeT
                               }
                               setActiveTab(tab.id);
                             }}
-                            className={`relative z-10 w-full px-2 py-2.5 rounded-xl transition-all duration-300 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap flex items-center justify-center gap-1 ${activeTab === tab.id
+                            className={`relative z-10 w-full px-1.5 py-2.5 rounded-xl transition-all duration-300 text-[10px] font-semibold tracking-normal whitespace-nowrap flex items-center justify-center gap-1 ${activeTab === tab.id
                               ? "text-white"
                               : isRestricted ? "text-white/20 hover:text-white/40" : "text-white/40 hover:text-white/60"
                               }`}
