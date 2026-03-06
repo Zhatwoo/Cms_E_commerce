@@ -3,6 +3,7 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
 import { updateProfile, uploadAvatarApi } from '@/lib/api';
+import { getSubscriptionPlanDisplayName } from '@/lib/subscriptionLimits';
 import { useAuth } from '../components/context/auth-context';
 import { useTheme } from '../components/context/theme-context';
 import { motion } from 'framer-motion';
@@ -497,7 +498,9 @@ export default function ProfilePage() {
                           borderColor: theme === 'dark' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(22, 163, 74, 0.2)'
                         }}
                       >
-                        {user?.subscriptionPlan ? (user.subscriptionPlan.charAt(0).toUpperCase() + user.subscriptionPlan.slice(1).toLowerCase()) + (user.subscriptionPlan.toLowerCase() !== 'free' ? ' Plan' : '') : 'Free'}
+                        {user?.subscriptionPlan
+                          ? `${getSubscriptionPlanDisplayName(user.subscriptionPlan)}${user.subscriptionPlan.toLowerCase() !== 'free' ? ' Plan' : ''}`
+                          : 'Free'}
                       </span>
                       <span className="text-xs" style={{ color: colors.text.subtle }}>
                         Member since {user?.createdAt ? new Date(user.createdAt).getFullYear() : '—'}
