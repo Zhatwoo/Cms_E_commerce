@@ -154,6 +154,7 @@ export function TrialContact() {
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
                 type="button"
+                suppressHydrationWarning
                 className="rounded-full border border-white/22 px-[clamp(1.5rem,3vw,2.5rem)] py-[clamp(0.55rem,1vw,0.75rem)] text-[clamp(0.75rem,1vw,0.875rem)] font-bold text-white transition hover:bg-white/10"
               >
                 Learn more
@@ -162,6 +163,7 @@ export function TrialContact() {
                 whileHover={{ scale: 1.03, boxShadow: '0 6px 28px rgba(245,196,0,0.55)' }}
                 whileTap={{ scale: 0.97 }}
                 type="button"
+                suppressHydrationWarning
                 className="rounded-full bg-[#f5c400] px-[clamp(1.75rem,3.5vw,3rem)] py-[clamp(0.55rem,1vw,0.75rem)] text-[clamp(0.75rem,1vw,0.875rem)] font-extrabold text-[#140d3d] shadow-[0_4px_20px_rgba(245,196,0,0.4)] transition hover:brightness-105"
               >
                 Get Started

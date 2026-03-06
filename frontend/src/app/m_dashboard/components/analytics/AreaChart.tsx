@@ -190,7 +190,7 @@ export const AreaChart = ({ data, color, colors }: AreaChartProps) => {
                                             border: `1px solid ${colors.border.faint}`
                                         }}
                                     >
-                                        ${point.revenue.toLocaleString()}
+                                        ₱{point.revenue.toLocaleString()}
                                         <div
                                             className="absolute left-1/2 -bottom-1 -translate-x-1/2 w-2 h-2 rotate-45 border-r border-b"
                                             style={{

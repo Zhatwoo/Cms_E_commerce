@@ -221,7 +221,7 @@ export default function InventoryPage() {
   }, []);
 
   const formatStat = (value: string | number) => (typeof value === 'number' ? String(value) : value);
-  const stockValueLabel = useMemo(() => `$${(summary?.stockValue || 0).toLocaleString()}`, [summary?.stockValue]);
+  const stockValueLabel = useMemo(() => `₱${(summary?.stockValue || 0).toLocaleString()}`, [summary?.stockValue]);
 
   const loadData = useCallback(async () => {
     setLoading(true);

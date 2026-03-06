@@ -1540,7 +1540,7 @@ function RenderNode({
                     {product.name}
                   </div>
                   <div style={{ fontSize: 20, fontWeight: "bold", color: "#3b82f6" }}>
-                    ${price.toFixed(2)}
+                    ₱{price.toFixed(2)}
                   </div>
                   {product.description && (
                     <div style={{ fontSize: 14, color: "#64748b" }}>

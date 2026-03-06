@@ -855,14 +855,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           name: p.name || `Page ${parsed.pages.indexOf(p) + 1}`,
         }));
         setPages(pageTabs);
-        if (pageTabs.length > 0 && !currentPageId) {
-          setCurrentPageId(pageTabs[0].id);
+        if (pageTabs.length > 0) {
+          setCurrentPageId((prev) => prev || pageTabs[0].id);
         }
       }
     } catch {
       // Silently fail for non-multipage documents
     }
-  }, [currentPageId]);
+  }, []);
 
   const handleAddPage = useCallback(() => {
     if (!initialJson) return;

@@ -306,11 +306,11 @@ export default function AnalyticsPage() {
 
     const modalDetails: Record<ModalType, MetricDetails | null> = {
         revenue: {
-            title: 'Total Revenue', value: `$${data.revenue.total.toLocaleString()}`, growth: data.revenue.growth, icon: revenueIcon,
+            title: 'Total Revenue', value: `₱${data.revenue.total.toLocaleString()}`, growth: data.revenue.growth, icon: revenueIcon,
             details: [
-                { label: 'Average Order Value', value: data.revenue.total > 0 ? `$${(data.revenue.total / Math.max(data.orders.total, 1)).toFixed(2)}` : '$0.00' },
-                { label: 'Monthly Average', value: data.revenue.monthly.length > 0 ? `$${(data.revenue.total / data.revenue.monthly.length).toFixed(2)}` : '$0.00' },
-                { label: 'Best Month', value: data.revenue.monthly.length > 0 ? `$${Math.max(...data.revenue.monthly.map(m => m.revenue)).toLocaleString()}` : '$0' },
+                { label: 'Average Order Value', value: data.revenue.total > 0 ? `₱${(data.revenue.total / Math.max(data.orders.total, 1)).toFixed(2)}` : '₱0.00' },
+                { label: 'Monthly Average', value: data.revenue.monthly.length > 0 ? `₱${(data.revenue.total / data.revenue.monthly.length).toFixed(2)}` : '₱0.00' },
+                { label: 'Best Month', value: data.revenue.monthly.length > 0 ? `₱${Math.max(...data.revenue.monthly.map(m => m.revenue)).toLocaleString()}` : '₱0' },
                 { label: 'Period', value: selectedPeriod }
             ],
         },
@@ -331,7 +331,7 @@ export default function AnalyticsPage() {
                 { label: 'New Customers', value: data.customers.new },
                 { label: 'Returning Customers', value: data.customers.returning },
                 { label: 'Retention Rate', value: data.customers.total > 0 ? `${((data.customers.returning / data.customers.total) * 100).toFixed(1)}%` : '0%' },
-                { label: 'Average Customer Value', value: data.customers.total > 0 ? `$${(data.revenue.total / data.customers.total).toFixed(2)}` : '$0.00' }
+                { label: 'Average Customer Value', value: data.customers.total > 0 ? `₱${(data.revenue.total / data.customers.total).toFixed(2)}` : '₱0.00' }
             ],
         },
         traffic: {
@@ -349,7 +349,7 @@ export default function AnalyticsPage() {
                 { label: 'This Period', value: data.customers.new },
                 { label: 'Percentage of Total', value: data.customers.total > 0 ? `${((data.customers.new / data.customers.total) * 100).toFixed(1)}%` : '0%' },
                 { label: 'Conversion Rate', value: data.traffic.total > 0 ? `${((data.customers.new / data.traffic.total) * 100).toFixed(2)}%` : '0%' },
-                { label: 'Avg. Acquisition Cost', value: '$0.00' }
+                { label: 'Avg. Acquisition Cost', value: '₱0.00' }
             ],
         },
         returningCustomers: {
@@ -358,7 +358,7 @@ export default function AnalyticsPage() {
                 { label: 'Returning Count', value: data.customers.returning },
                 { label: 'Retention Rate', value: data.customers.total > 0 ? `${((data.customers.returning / data.customers.total) * 100).toFixed(1)}%` : '0%' },
                 { label: 'Repeat Purchase Rate', value: '0%' },
-                { label: 'Avg. Customer Lifetime Value', value: '$0.00' }
+                { label: 'Avg. Customer Lifetime Value', value: '₱0.00' }
             ],
         },
         uniqueVisitors: {
@@ -386,7 +386,7 @@ export default function AnalyticsPage() {
                 { label: 'Abandoned', value: data.checkouts.totalInitiated - data.checkouts.totalCompleted },
                 { label: 'Conversion Rate', value: `${data.checkouts.conversionRate}%` },
                 { label: 'Abandonment Rate', value: `${data.checkouts.abandonmentRate}%` },
-                { label: 'Avg Order Value', value: `$${data.checkouts.avgOrderValue.toFixed(2)}` },
+                { label: 'Avg Order Value', value: `₱${data.checkouts.avgOrderValue.toFixed(2)}` },
                 { label: 'Recovered Carts', value: data.checkouts.recoveredCarts }
             ],
         },
@@ -395,7 +395,7 @@ export default function AnalyticsPage() {
             details: [
                 { label: 'Initiated', value: data.checkouts.totalInitiated },
                 { label: 'Completed', value: data.checkouts.totalCompleted },
-                { label: 'Lost Revenue Est.', value: '$0.00' },
+                { label: 'Lost Revenue Est.', value: '₱0.00' },
                 { label: 'Industry Avg', value: '~35%' }
             ],
         },
@@ -405,7 +405,7 @@ export default function AnalyticsPage() {
                 { label: 'Abandoned Carts', value: data.checkouts.totalInitiated - data.checkouts.totalCompleted },
                 { label: 'Abandonment Rate', value: `${data.checkouts.abandonmentRate}%` },
                 { label: 'Top Drop-off Step', value: 'Payment' },
-                { label: 'Recoverable Revenue', value: '$0.00' }
+                { label: 'Recoverable Revenue', value: '₱0.00' }
             ],
         },
         recoveredCarts: {
@@ -413,7 +413,7 @@ export default function AnalyticsPage() {
             details: [
                 { label: 'Recovered Count', value: data.checkouts.recoveredCarts },
                 { label: 'Recovery Rate', value: data.checkouts.totalInitiated > 0 ? `${((data.checkouts.recoveredCarts / data.checkouts.totalInitiated) * 100).toFixed(1)}%` : '0%' },
-                { label: 'Revenue Recovered', value: `$${(data.checkouts.recoveredCarts * data.checkouts.avgOrderValue).toFixed(2)}` },
+                { label: 'Revenue Recovered', value: `₱${(data.checkouts.recoveredCarts * data.checkouts.avgOrderValue).toFixed(2)}` },
                 { label: 'Avg Recovery Time', value: '4h 12m' }
             ],
         },
@@ -475,7 +475,7 @@ export default function AnalyticsPage() {
                 <h2 className="text-lg font-semibold" style={{ color: colors.text.primary }}>Overview</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {[
-                        { modal: 'revenue' as ModalType, title: 'Total Revenue', value: `$${data.revenue.total.toLocaleString()}`, growth: data.revenue.growth, icon: revenueIcon, color: '#10b981' },
+                        { modal: 'revenue' as ModalType, title: 'Total Revenue', value: `₱${data.revenue.total.toLocaleString()}`, growth: data.revenue.growth, icon: revenueIcon, color: '#10b981' },
                         { modal: 'orders' as ModalType, title: 'Total Orders', value: data.orders.total.toLocaleString(), growth: data.orders.growth, icon: ordersIcon, color: '#3b82f6' },
                         { modal: 'customers' as ModalType, title: 'Total Customers', value: data.customers.total.toLocaleString(), growth: data.customers.growth, icon: customersIcon, color: '#8b5cf6' },
                         { modal: 'traffic' as ModalType, title: 'Total Traffic', value: data.traffic.total.toLocaleString(), growth: undefined, icon: trafficIcon, color: '#f59e0b' },
@@ -535,7 +535,7 @@ export default function AnalyticsPage() {
                             modal: 'recoveredCarts' as ModalType,
                             label: 'Recovered Carts',
                             value: data.checkouts.recoveredCarts.toLocaleString(),
-                            sub: `$${(data.checkouts.recoveredCarts * data.checkouts.avgOrderValue).toFixed(0)} recovered`,
+                            sub: `₱${(data.checkouts.recoveredCarts * data.checkouts.avgOrderValue).toFixed(0)} recovered`,
                             icon: <Package className="w-4 h-4" />,
                             color: '#f59e0b',
                             growth: null,
@@ -686,7 +686,7 @@ export default function AnalyticsPage() {
                                         <p className="text-sm font-medium line-clamp-1" style={{ color: colors.text.primary }}>{product.name}</p>
                                         <p className="text-xs" style={{ color: colors.text.muted }}>{product.sales} units sold</p>
                                     </div>
-                                    <p className="text-sm font-semibold" style={{ color: colors.text.primary }}>${product.revenue.toLocaleString()}</p>
+                                    <p className="text-sm font-semibold" style={{ color: colors.text.primary }}>₱{product.revenue.toLocaleString()}</p>
                                 </div>
                             ))}
                         </div>

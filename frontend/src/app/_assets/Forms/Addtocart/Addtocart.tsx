@@ -90,7 +90,7 @@ export const AddToCart: TemplateEntry = {
                 color: "#0f172a",
                 marginBottom: 4,
               }),
-              React.createElement(Text as any, { text: "$49.00", fontSize: 14, color: "#64748b" })
+              React.createElement(Text as any, { text: "₱49.00", fontSize: 14, color: "#64748b" })
             ),
             React.createElement(
               Element as any,
@@ -121,7 +121,7 @@ export const AddToCart: TemplateEntry = {
               Element as any,
               { is: Column as any, width: "min(100%, 130px)", alignItems: "flex-end", canvas: true },
               React.createElement(Text as any, {
-                text: "$49.00",
+                text: "₱49.00",
                 fontSize: 16,
                 fontWeight: "600",
                 color: "#0f172a",
@@ -165,19 +165,19 @@ export const AddToCart: TemplateEntry = {
             Element as any,
             { is: Row as any, justifyContent: "space-between", marginBottom: 8, canvas: true },
             React.createElement(Text as any, { text: "Subtotal", fontSize: 14, color: "#cbd5e1" }),
-            React.createElement(Text as any, { text: "$49.00", fontSize: 14, color: "#ffffff" })
+            React.createElement(Text as any, { text: "₱49.00", fontSize: 14, color: "#ffffff" })
           ),
           React.createElement(
             Element as any,
             { is: Row as any, justifyContent: "space-between", marginBottom: 8, canvas: true },
             React.createElement(Text as any, { text: "Discount", fontSize: 14, color: "#cbd5e1" }),
-            React.createElement(Text as any, { text: "-$5.00", fontSize: 14, color: "#22c55e" })
+            React.createElement(Text as any, { text: "-₱5.00", fontSize: 14, color: "#22c55e" })
           ),
           React.createElement(
             Element as any,
             { is: Row as any, justifyContent: "space-between", marginBottom: 14, canvas: true },
             React.createElement(Text as any, { text: "Total", fontSize: 16, fontWeight: "600", color: "#ffffff" }),
-            React.createElement(Text as any, { text: "$44.00", fontSize: 16, fontWeight: "600", color: "#ffffff" })
+            React.createElement(Text as any, { text: "₱44.00", fontSize: 16, fontWeight: "600", color: "#ffffff" })
           ),
           React.createElement(Button as any, {
             label: "Checkout",
