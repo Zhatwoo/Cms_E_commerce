@@ -35,7 +35,7 @@ import { PrototypeTabProvider } from "./PrototypeTabContext";
 import { PrototypeFlowLines } from "./PrototypeFlowLines";
 import { NewPageDropPlacementHandler } from "./NewPageDropPlacementHandler";
 import { HeaderFooterDropPlacementHandler } from "./HeaderFooterDropPlacementHandler";
-import { PanelDropFreePlacementHandler } from "./PanelDropFreePlacementHandler";
+import PanelDropFreePlacementHandler from "./PanelDropFreePlacementHandler";
 import { ScrollToSelectedHandler } from "./ScrollToSelectedHandler";
 import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
@@ -129,6 +129,8 @@ const VALIDATOR_RESOLVER: Record<string, React.ComponentType<any>> = {
   ...CRAFT_RESOLVER,
   Container,
   container: Container,
+  Button: (typeof Button === "function" ? Button : null) ?? Container,
+  button: (typeof Button === "function" ? Button : null) ?? Container,
   Text: Text || Container,
   text: Text || Container,
   Image: Image || Container,
@@ -151,6 +153,24 @@ function normalizeResolvedName(rawName: unknown): string {
   const name = typeof rawName === "string" ? rawName.trim() : "";
   if (!name) return "Container";
   return VALIDATOR_CANONICAL_NAME_BY_LOWER.get(name.toLowerCase()) ?? "Container";
+}
+
+function withResolverFallback<T extends Record<string, React.ComponentType>>(base: T): T {
+  return new Proxy(base, {
+    get(target, prop, receiver) {
+      const direct = Reflect.get(target, prop, receiver);
+      if (direct) return direct;
+      if (typeof prop !== "string") return direct;
+
+      const normalized = prop.trim().toLowerCase();
+      const resolved =
+        Reflect.get(target, prop.trim(), receiver) ||
+        Reflect.get(target, normalized, receiver) ||
+        Reflect.get(target, VALIDATOR_CANONICAL_NAME_BY_LOWER.get(normalized) ?? "", receiver);
+
+      return resolved || target.Container || Container;
+    },
+  }) as T;
 }
 
 function getStorageKey(projectId: string) {
@@ -1896,6 +1916,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     const base: Record<string, any> = {
       ...RenderBlocks,
       ...CRAFT_RESOLVER,
+      Button: (typeof Button === "function" ? Button : null) ?? Container,
+      button: (typeof Button === "function" ? Button : null) ?? Container,
       Text: Text || Container,
       text: Text || Container,
       Image: Image || Container,
@@ -1923,7 +1945,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     base.image = (typeof Image === "function" ? Image : null) ?? Container;
     base.Text = (typeof Text === "function" ? Text : null) ?? Container;
     base.text = (typeof Text === "function" ? Text : null) ?? Container;
-    return base;
+    return withResolverFallback(base);
   }, []);
 
   resolverRef.current = resolver;

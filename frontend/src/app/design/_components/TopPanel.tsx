@@ -253,11 +253,17 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   const displayWidth = Math.round(canvasWidth);
   const displayHeight = Math.round(canvasHeight);
   const zoomPercentage = Math.round((Number.isFinite(scale) ? scale : 1) * 100);
+  const toolbarTextSmoothingStyle: React.CSSProperties = {
+    WebkitFontSmoothing: "antialiased",
+    MozOsxFontSmoothing: "grayscale",
+    textRendering: "optimizeLegibility",
+  };
 
   return (
     <div
       data-panel="top-controls"
-      className="absolute top-0 left-0 right-0 z-[9999] bg-brand-dark/90 backdrop-blur-lg border-b border-white/10 pointer-events-auto"
+      className="absolute top-0 left-0 right-0 z-[9999] bg-brand-dark/90 backdrop-blur-lg border-b border-white/10 pointer-events-auto antialiased"
+      style={toolbarTextSmoothingStyle}
     >
       <div className="flex items-center justify-between px-4 py-2 h-12">
         {/* Left Section - Canvas Controls */}

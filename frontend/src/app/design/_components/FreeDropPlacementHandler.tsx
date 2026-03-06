@@ -163,12 +163,10 @@ export function FreeDropPlacementHandler() {
         const parentProps = (parentNode?.data?.props ?? {}) as Record<string, unknown>;
         const parentDisplay = String(parentProps.display ?? "flex").toLowerCase();
         const parentIsFreeform = parentProps.isFreeform === true;
-        const parentIsCanvasSurface = parentDisplayName === "Page" || parentDisplayName === "Viewport";
         const isFlexParent =
           parentDisplay === "flex" ||
           parentDisplay === "grid" ||
           LAYOUT_LIKE_TYPES.has(parentDisplayName);
-        const shouldFreePlace = parentIsFreeform || parentIsCanvasSurface;
 
         let left = 0;
         let top = 0;
@@ -265,7 +263,7 @@ export function FreeDropPlacementHandler() {
         left = Math.max(0, snappedLeft);
         top = Math.max(0, snappedTop);
 
-        if (isFlexParent && !shouldFreePlace) {
+        if (isFlexParent && !parentIsFreeform) {
           let insertIndex = 0;
           try {
             const parentDom = query.node(parentId).get()?.dom ?? null;
@@ -280,9 +278,7 @@ export function FreeDropPlacementHandler() {
               if (!siblingDom) continue;
               const rect = siblingDom.getBoundingClientRect();
               const midpoint = isRow ? rect.left + rect.width / 2 : rect.top + rect.height / 2;
-              const cursor = isRow
-                ? (dropPoint?.clientX ?? Number.POSITIVE_INFINITY)
-                : (dropPoint?.clientY ?? Number.POSITIVE_INFINITY);
+              const cursor = isRow ? (dropPoint?.clientX ?? 0) : (dropPoint?.clientY ?? 0);
               if (cursor < midpoint) {
                 insertIndex = i;
                 break;
@@ -334,7 +330,6 @@ export function FreeDropPlacementHandler() {
                 props.height = "auto";
               }
             }
-
           });
           return;
         }

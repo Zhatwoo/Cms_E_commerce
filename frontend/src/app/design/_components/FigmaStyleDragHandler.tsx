@@ -208,28 +208,6 @@ function computeInsertIndex(
   }
 }
 
-function getMoveModeForNode(
-  id: string,
-  state: { nodes: NodesMap }
-): MoveMode {
-  const node = state.nodes[id] as { data?: { displayName?: string; parent?: string; props?: Record<string, unknown> } } | undefined;
-  const displayName = node?.data?.displayName as string | undefined;
-  const props = (node?.data?.props ?? {}) as Record<string, unknown>;
-  const position = String(props.position ?? "static").toLowerCase();
-  const isAbsoluteLike = position === "absolute" || position === "fixed";
-
-  if (isAbsoluteLike) return "offset";
-
-  const parentId = node?.data?.parent as string | undefined;
-  const parentDisplayName = parentId
-    ? String((state.nodes[parentId] as { data?: { displayName?: string } } | undefined)?.data?.displayName ?? "")
-    : "";
-
-  if (FLOW_LAYOUT_PARENTS.has(parentDisplayName)) return "margin";
-  if (displayName && OFFSET_MOVE_TYPES.has(displayName)) return "offset";
-  return "margin";
-}
-
 export const FigmaStyleDragHandler = () => {
   const { actions, query } = useEditor();
   const actionsRef = useRef(actions);
@@ -251,14 +229,7 @@ export const FigmaStyleDragHandler = () => {
     zoom: number;
     committed: boolean;
 
-    nodeMargins: Array<{
-      id: string;
-      marginTop: number;
-      marginLeft: number;
-      mode: "margin" | "offset";
-      top: number;
-      left: number;
-    }>;
+    nodeMargins: DragNodeState[];
     fallbackNodeId: string | null;
     selectionSnapshotIds: string[];
     clickedWasInSelection: boolean;
@@ -413,11 +384,12 @@ export const FigmaStyleDragHandler = () => {
       if (document.body.dataset[BOX_SELECTING_FLAG] === "true") return;
       if (document.body.dataset[BOX_SELECTING_INTENT_FLAG] === "true") return;
 
-      // Hand/Text tool: do not start dragging elements
-      if (activeTool === "hand" || activeTool === "text") return;
+      // Hand/Text/Shape tools: do not start node dragging while drawing/panning tools are active.
+      if (activeTool === "hand" || activeTool === "text" || activeTool === "shape") return;
 
       if (target.closest("INPUT") || target.closest("TEXTAREA") || target.closest("SELECT") || target.closest("[contenteditable=true]")) return;
       if (document.body.dataset.spacePan === "true") return;
+      if (target.closest("[data-panel='resize-overlay']")) return;
       if (target.closest("[data-panel]") && !target.closest("[data-panel='resize-overlay']")) return;
       if (target.closest("[data-resize-handle]")) return;
 
@@ -499,8 +471,8 @@ export const FigmaStyleDragHandler = () => {
         return;
       }
 
-      // Hand tool: cancel any ongoing drag
-      if (activeTool === "hand") {
+      // Non-move tools: cancel any ongoing drag
+      if (activeTool === "hand" || activeTool === "text" || activeTool === "shape") {
         dragRef.current = null;
         document.body.style.userSelect = "";
         document.body.style.cursor = "";

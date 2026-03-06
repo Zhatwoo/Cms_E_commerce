@@ -49,6 +49,7 @@ export const Section = ({
   alignItems = "center",
   justifyContent = "flex-start",
   gap = 0,
+  display = "flex",
   position = "static",
   zIndex = 0,
   top = "auto",
@@ -139,7 +140,7 @@ export const Section = ({
         ...(strokePlacement === "outside" && borderWidth > 0
           ? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
           : { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
-        display: "flex",
+        display: display ?? "flex",
         containerType: "inline-size",
         position,
         zIndex: zIndex !== 0 ? zIndex : undefined,
@@ -213,6 +214,7 @@ export const SectionDefaultProps: Partial<ContainerProps> = {
   alignItems: "center",
   justifyContent: "flex-start",
   gap: 0,
+  display: "flex",
   position: "static",
   zIndex: 0,
   top: "auto",
