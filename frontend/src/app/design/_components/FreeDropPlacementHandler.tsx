@@ -266,31 +266,7 @@ export function FreeDropPlacementHandler() {
         top = Math.max(0, snappedTop);
 
         if (isFlexParent && !shouldFreePlace) {
-          let insertIndex = 0;
-          try {
-            const parentDom = query.node(parentId).get()?.dom ?? null;
-            const parentStyle = parentDom ? window.getComputedStyle(parentDom) : null;
-            const isRow = (parentStyle?.flexDirection ?? "").startsWith("row");
-            const orderedChildren = ((parentNode as any)?.data?.nodes as string[] | undefined) ?? [];
-            const siblingIds = orderedChildren.filter((id) => id !== nodeId && nodes[id]?.data?.parent === parentId);
-            insertIndex = siblingIds.length;
-
-            for (let i = 0; i < siblingIds.length; i++) {
-              const siblingDom = query.node(siblingIds[i]).get()?.dom;
-              if (!siblingDom) continue;
-              const rect = siblingDom.getBoundingClientRect();
-              const midpoint = isRow ? rect.left + rect.width / 2 : rect.top + rect.height / 2;
-              const cursor = isRow
-                ? (dropPoint?.clientX ?? Number.POSITIVE_INFINITY)
-                : (dropPoint?.clientY ?? Number.POSITIVE_INFINITY);
-              if (cursor < midpoint) {
-                insertIndex = i;
-                break;
-              }
-            }
-          } catch {
-            insertIndex = 0;
-          }
+          const insertIndex = 0;
 
           try {
             actions.move(nodeId, parentId, insertIndex);

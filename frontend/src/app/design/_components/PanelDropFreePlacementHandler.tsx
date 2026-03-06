@@ -8,6 +8,7 @@ type MoveMode = "margin" | "offset" | "page-canvas";
 
 const MOVE_THRESHOLD_PX = 6;
 const MAX_RETRY_FRAMES = 20;
+const FLOW_LAYOUT_PARENTS = new Set(["Container", "Section", "Row", "Column"]);
 
 function isPanelSource(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
@@ -119,7 +120,27 @@ export function PanelDropFreePlacementHandler() {
           const finalTop = Math.round(clamp(rawTop, 0, maxTop));
 
           const displayName = latestNodes[nodeId]?.data?.displayName;
+          const parentDisplayName = latestNodes[parentId]?.data?.displayName;
           const moveMode = getMoveMode(displayName);
+
+          if (parentDisplayName && FLOW_LAYOUT_PARENTS.has(parentDisplayName)) {
+            try {
+              actions.move(nodeId, parentId, 0);
+            } catch {
+              // ignore order failures
+            }
+
+            actions.setProp(nodeId, (props: Record<string, unknown>) => {
+              props.position = "relative";
+              props.left = "auto";
+              props.top = "auto";
+              props.right = "auto";
+              props.bottom = "auto";
+              props.marginTop = 0;
+              props.marginLeft = 0;
+            });
+            continue;
+          }
 
           if (moveMode === "page-canvas") {
             actions.setProp(nodeId, (props: Record<string, unknown>) => {
