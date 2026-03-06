@@ -4,12 +4,6 @@ import type { Node } from "@craftjs/core";
 import { ColumnSettings } from "./ColumnSettings";
 import type { ContainerProps } from "../../_types/components";
 
-function parsePx(value: string | undefined): number | null {
-  if (value == null) return null;
-  const m = String(value).match(/^(-?\d+(?:\.\d+)?)px$/);
-  return m ? parseFloat(m[1]) : null;
-}
-
 function fluidSpace(value: number, min = 0): string {
   if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
   const preferred = Math.max(0.1, value / 12);
@@ -51,20 +45,12 @@ export const Column = ({
   opacity = 1,
   overflow = "visible",
   rotation = 0,
-  designWidth,
-  designHeight,
   customClassName = "",
   children,
 }: ContainerProps) => {
   const { id, connectors: { connect, drag }, childCount } = useNode((node) => ({
     childCount: node.data.nodes.length,
   }));
-
-  const wPx = parsePx(width);
-  const hPx = parsePx(height);
-  const canScale = typeof designWidth === "number" && typeof designHeight === "number" && wPx != null && hPx != null && designWidth > 0 && designHeight > 0;
-  const scaleX = canScale ? wPx / designWidth : 1;
-  const scaleY = canScale ? hPx / designHeight : 1;
 
   const p = typeof padding === "number" ? padding : 0;
   const pl = paddingLeft ?? p;
@@ -87,7 +73,7 @@ export const Column = ({
       }}
       className={`min-h-[40px] ${customClassName}`}
       style={{
-        flex: width === "auto" ? "1 1 0%" : undefined,
+        flex: width === "auto" ? "1 1 clamp(180px, 45%, 280px)" : undefined,
         backgroundColor: background,
         paddingLeft: fluidSpace(pl, 0),
         paddingRight: fluidSpace(pr, 0),
@@ -102,7 +88,7 @@ export const Column = ({
         boxSizing: "border-box",
         containerType: "inline-size",
         maxWidth: "100%",
-        minWidth: 0,
+        minWidth: width === "auto" ? "min(160px, 100%)" : 0,
         borderRadius: `${borderRadius}px`,
         ...(strokePlacement === "outside" && borderWidth > 0
           ? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
@@ -119,46 +105,18 @@ export const Column = ({
         transform: rotation ? `rotate(${rotation}deg)` : undefined,
       }}
     >
-      {canScale ? (
-        <div
-          style={{
-            width: designWidth,
-            height: designHeight,
-            transform: `scale(${scaleX}, ${scaleY})`,
-            transformOrigin: "0 0",
-            flexShrink: 0,
-            boxSizing: "border-box",
-            display: "flex",
-            flexDirection,
-            flexWrap,
-            alignItems,
-            justifyContent,
-            gap: fluidSpace(gap, 0),
-          }}
-        >
-          {children}
-          {childCount === 0 && (
-            <div
-              className="w-full min-h-[52px] border border-dashed border-brand-medium/50 rounded-lg flex items-center justify-center text-xs text-brand-light/70"
-              data-column-drop-zone="true"
-            >
-              Drop components here
-            </div>
-          )}
-        </div>
-      ) : (
-        <>
-          {children}
-          {childCount === 0 && (
-            <div
-              className="w-full min-h-[52px] border border-dashed border-brand-medium/50 rounded-lg flex items-center justify-center text-xs text-brand-light/70"
-              data-column-drop-zone="true"
-            >
-              Drop components here
-            </div>
-          )}
-        </>
-      )}
+      <style>{`[data-node-id="${id}"] > * { min-width: 0; }`}</style>
+      <>
+        {children}
+        {childCount === 0 && (
+          <div
+            className="w-full min-h-[52px] border border-dashed border-brand-medium/50 rounded-lg flex items-center justify-center text-xs text-brand-light/70"
+            data-column-drop-zone="true"
+          >
+            Drop components here
+          </div>
+        )}
+      </>
     </div>
   );
 };

@@ -8,7 +8,9 @@ type MoveMode = "margin" | "offset" | "page-canvas";
 
 const MOVE_THRESHOLD_PX = 6;
 const MAX_RETRY_FRAMES = 20;
-const FLOW_LAYOUT_PARENTS = new Set(["Container", "Section", "Row", "Column"]);
+const MAX_COLUMNS_PER_ROW = 5;
+const FLOW_LAYOUT_TYPES = new Set(["Row", "Section", "Container", "Viewport"]);
+const HORIZONTAL_COLUMN_PARENTS = new Set(["Row", "Section", "Container", "Column"]);
 
 function isPanelSource(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
@@ -100,7 +102,7 @@ export function PanelDropFreePlacementHandler() {
       for (const nodeId of rootNewIds) {
         try {
           const latest = query.getState();
-          const latestNodes = (latest?.nodes ?? {}) as Record<string, { data?: { parent?: string; displayName?: string } }>;
+          const latestNodes = (latest?.nodes ?? {}) as Record<string, { data?: { parent?: string; displayName?: string; nodes?: string[] } }>;
           const parentId = latestNodes[nodeId]?.data?.parent;
           if (!parentId) continue;
 
@@ -120,28 +122,46 @@ export function PanelDropFreePlacementHandler() {
           const finalTop = Math.round(clamp(rawTop, 0, maxTop));
 
           const displayName = latestNodes[nodeId]?.data?.displayName;
-          const parentDisplayName = latestNodes[parentId]?.data?.displayName;
-          const moveMode = getMoveMode(displayName);
+          if (displayName === "Column") {
+            const parentDisplayName = latestNodes[parentId]?.data?.displayName;
 
-          if (parentDisplayName && FLOW_LAYOUT_PARENTS.has(parentDisplayName)) {
-            try {
-              actions.move(nodeId, parentId, 0);
-            } catch {
-              // ignore order failures
+            if (parentDisplayName && HORIZONTAL_COLUMN_PARENTS.has(parentDisplayName)) {
+              actions.setProp(parentId, (props: Record<string, unknown>) => {
+                props.flexDirection = "row";
+                props.flexWrap = "wrap";
+                props.alignItems = "stretch";
+                props.justifyContent = "flex-start";
+              });
             }
 
-            actions.setProp(nodeId, (props: Record<string, unknown>) => {
-              props.position = "relative";
-              props.left = "auto";
-              props.top = "auto";
-              props.right = "auto";
-              props.bottom = "auto";
-              props.marginTop = 0;
-              props.marginLeft = 0;
-            });
+            const siblingIds = latestNodes[parentId]?.data?.nodes ?? [];
+            const columnIds = siblingIds.filter((id) => latestNodes[id]?.data?.displayName === "Column");
+
+            if (columnIds.length > MAX_COLUMNS_PER_ROW) {
+              actions.delete(nodeId);
+              continue;
+            }
+
+            for (const columnId of columnIds) {
+              actions.setProp(columnId, (props: Record<string, unknown>) => {
+                props.position = "relative";
+                props.top = "0px";
+                props.left = "0px";
+                props.right = "auto";
+                props.bottom = "auto";
+                props.marginTop = 0;
+                props.marginLeft = 0;
+              });
+            }
+
             continue;
           }
 
+          if (displayName && FLOW_LAYOUT_TYPES.has(displayName)) {
+            continue;
+          }
+
+          const moveMode = getMoveMode(displayName);
           if (moveMode === "page-canvas") {
             actions.setProp(nodeId, (props: Record<string, unknown>) => {
               props.canvasX = finalLeft;
@@ -242,3 +262,5 @@ export function PanelDropFreePlacementHandler() {
 
   return null;
 }
+
+export default PanelDropFreePlacementHandler;

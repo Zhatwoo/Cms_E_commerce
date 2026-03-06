@@ -163,12 +163,10 @@ export function FreeDropPlacementHandler() {
         const parentProps = (parentNode?.data?.props ?? {}) as Record<string, unknown>;
         const parentDisplay = String(parentProps.display ?? "flex").toLowerCase();
         const parentIsFreeform = parentProps.isFreeform === true;
-        const parentIsCanvasSurface = parentDisplayName === "Page" || parentDisplayName === "Viewport";
         const isFlexParent =
           parentDisplay === "flex" ||
           parentDisplay === "grid" ||
           LAYOUT_LIKE_TYPES.has(parentDisplayName);
-        const shouldFreePlace = parentIsFreeform || parentIsCanvasSurface;
 
         let left = 0;
         let top = 0;
@@ -265,8 +263,30 @@ export function FreeDropPlacementHandler() {
         left = Math.max(0, snappedLeft);
         top = Math.max(0, snappedTop);
 
-        if (isFlexParent && !shouldFreePlace) {
-          const insertIndex = 0;
+        if (isFlexParent && !parentIsFreeform) {
+          let insertIndex = 0;
+          try {
+            const parentDom = query.node(parentId).get()?.dom ?? null;
+            const parentStyle = parentDom ? window.getComputedStyle(parentDom) : null;
+            const isRow = (parentStyle?.flexDirection ?? "").startsWith("row");
+            const orderedChildren = ((parentNode as any)?.data?.nodes as string[] | undefined) ?? [];
+            const siblingIds = orderedChildren.filter((id) => id !== nodeId && nodes[id]?.data?.parent === parentId);
+            insertIndex = siblingIds.length;
+
+            for (let i = 0; i < siblingIds.length; i++) {
+              const siblingDom = query.node(siblingIds[i]).get()?.dom;
+              if (!siblingDom) continue;
+              const rect = siblingDom.getBoundingClientRect();
+              const midpoint = isRow ? rect.left + rect.width / 2 : rect.top + rect.height / 2;
+              const cursor = isRow ? (dropPoint?.clientX ?? 0) : (dropPoint?.clientY ?? 0);
+              if (cursor < midpoint) {
+                insertIndex = i;
+                break;
+              }
+            }
+          } catch {
+            insertIndex = 0;
+          }
 
           try {
             actions.move(nodeId, parentId, insertIndex);
@@ -310,7 +330,6 @@ export function FreeDropPlacementHandler() {
                 props.height = "auto";
               }
             }
-
           });
           return;
         }

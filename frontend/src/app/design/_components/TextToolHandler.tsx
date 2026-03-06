@@ -50,6 +50,20 @@ function resolveCanvasTargetId(startId: string | null, nodes: Record<string, any
     return null;
 }
 
+function resolvePageTargetId(startId: string | null, nodes: Record<string, any>): string | null {
+    let current = startId;
+    const visited = new Set<string>();
+    while (current && !visited.has(current)) {
+        visited.add(current);
+        const node = nodes[current];
+        if (String(node?.data?.displayName ?? "") === "Page") return current;
+        const parent = node?.data?.parent;
+        current = typeof parent === "string" ? parent : null;
+    }
+    const firstPage = Object.keys(nodes).find((id) => String(nodes[id]?.data?.displayName ?? "") === "Page");
+    return firstPage ?? null;
+}
+
 function getRenderedScale(el: HTMLElement | null): { scaleX: number; scaleY: number } {
     if (!el) return { scaleX: 1, scaleY: 1 };
     const rect = el.getBoundingClientRect();
@@ -65,7 +79,7 @@ function getRenderedScale(el: HTMLElement | null): { scaleX: number; scaleY: num
 
 export const TextToolHandler = () => {
     const { actions, query } = useEditor();
-    const { activeTool } = useCanvasTool();
+    const { activeTool, setActiveTool } = useCanvasTool();
     const { setEditingTextNodeId } = useInlineTextEdit();
 
     const [previewRect, setPreviewRect] = useState<PreviewRect | null>(null);
@@ -112,7 +126,7 @@ export const TextToolHandler = () => {
             const nodeEl = target.closest("[data-node-id]") as HTMLElement | null;
             const clickedNodeId = nodeEl?.getAttribute("data-node-id") || null;
             const nodes = queryRef.current.getState().nodes as Record<string, any>;
-            let targetNodeId = resolveCanvasTargetId(clickedNodeId, nodes);
+            let targetNodeId = resolvePageTargetId(clickedNodeId, nodes) ?? resolveCanvasTargetId(clickedNodeId, nodes);
 
             if (!targetNodeId || targetNodeId === "ROOT") {
                 const firstPage = Object.keys(nodes).find(id => String(nodes[id]?.data?.displayName ?? "") === "Page");
@@ -160,19 +174,20 @@ export const TextToolHandler = () => {
             }
 
             const didDrag = dragState.hasDragged;
-            if (!didDrag) {
-                clearState();
-                return;
-            }
             const left = didDrag ? Math.min(dragState.startX, dragState.currentX) : e.clientX;
             const top = didDrag ? Math.min(dragState.startY, dragState.currentY) : e.clientY;
             const width = didDrag ? Math.max(Math.abs(dragState.currentX - dragState.startX), 150) : 220;
             const height = didDrag ? Math.abs(dragState.currentY - dragState.startY) : 0;
+            const forceAbsoluteForClick = !didDrag;
+            const clickDefaultHeight = 36;
 
             if (dragState.targetNodeId) {
                 try {
                     const state = queryRef.current.getState();
-                    const normalizedTargetId = resolveCanvasTargetId(dragState.targetNodeId, state.nodes as Record<string, any>) ?? dragState.targetNodeId;
+                    const normalizedTargetId =
+                        resolvePageTargetId(dragState.targetNodeId, state.nodes as Record<string, any>) ??
+                        resolveCanvasTargetId(dragState.targetNodeId, state.nodes as Record<string, any>) ??
+                        dragState.targetNodeId;
                     const parentNode = state.nodes[normalizedTargetId];
                     const parentProps = (parentNode?.data?.props ?? {}) as Record<string, unknown>;
                     const targetDom = queryRef.current.node(normalizedTargetId).get()?.dom;
@@ -187,7 +202,9 @@ export const TextToolHandler = () => {
                         finalLeft = Math.max(0, Math.round((left - rect.left) / scaleX));
                         finalTop = Math.max(0, Math.round((top - rect.top) / scaleY));
                         finalWidth = Math.max(150, Math.round(width / scaleX));
-                        finalHeight = Math.max(0, Math.round(height / scaleY));
+                        finalHeight = didDrag
+                            ? Math.max(0, Math.round(height / scaleY))
+                            : clickDefaultHeight;
                     }
 
                     const parentDisplay = String(parentProps.display ?? "").toLowerCase();
@@ -200,19 +217,19 @@ export const TextToolHandler = () => {
                         parentPosition === "absolute" ||
                         parentPosition === "fixed" ||
                         parentPosition === "sticky";
-                    const shouldUseAbsolute = parentIsFreeform || (!parentIsFlexOrGrid && parentIsPositioned);
+                    const shouldUseAbsolute = forceAbsoluteForClick || parentIsFreeform || (!parentIsFlexOrGrid && parentIsPositioned);
 
                     const flowWidth = !shouldUseAbsolute ? `${finalWidth}px` : undefined;
 
                     const tree = queryRef.current.parseReactElement(
                         <Text
-                            text="Type something..."
+                            text=""
                             fontSize={18}
                             position={shouldUseAbsolute ? "absolute" : "relative"}
                             left={shouldUseAbsolute ? `${finalLeft}px` : "auto"}
                             top={shouldUseAbsolute ? `${finalTop}px` : "auto"}
                             width={shouldUseAbsolute ? `${finalWidth}px` : flowWidth}
-                            height={shouldUseAbsolute && finalHeight > 20 ? `${finalHeight}px` : undefined}
+                            height={shouldUseAbsolute ? `${Math.max(finalHeight, clickDefaultHeight)}px` : undefined}
                         />
                     ).toNodeTree();
 
@@ -221,6 +238,8 @@ export const TextToolHandler = () => {
                     setTimeout(() => {
                         actionsRef.current.selectNode(tree.rootNodeId);
                         setEditingTextNodeId(tree.rootNodeId);
+                        // One-shot text tool: after placing one text box, return to cursor tool.
+                        setActiveTool("move");
                     }, 50);
 
                 } catch (error) {
@@ -255,7 +274,7 @@ export const TextToolHandler = () => {
             document.removeEventListener("click", handleClick, true);
             clearState();
         };
-    }, [setEditingTextNodeId]);
+    }, [setEditingTextNodeId, setActiveTool]);
 
     if (!previewRect || !previewHost) return null;
     const hostRect = previewHost.getBoundingClientRect();
