@@ -1998,7 +1998,7 @@ function RenderNode({
         return wrapWithAnimation(
           <input
             type="text"
-            defaultValue=""
+            defaultValue={textContent}
             placeholder={textContent}
             aria-label={textContent}
             data-fluid-space="true"

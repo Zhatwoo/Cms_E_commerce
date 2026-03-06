@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Editor, Frame, useEditor } from "@craftjs/core";
 import { ChevronLeft, ChevronRight, Layout, Star, FileText, CreditCard, FormInput, PanelBottom, Smile, Shapes as ShapesIcon } from "lucide-react";
 import { GROUPED_TEMPLATES } from "../../../_assets";
-import { CRAFT_RESOLVER } from "../craftResolver";
+import { buildCraftResolver } from "../craftResolver";
 type AssetItem = {
   label: string;
   description?: string;
@@ -74,6 +74,7 @@ const AssetLivePreview = ({
   const frameRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [previewHeight, setPreviewHeight] = useState(0);
+  const previewResolver = useMemo(() => buildCraftResolver(), []);
 
   useEffect(() => {
     const containerEl = previewRef.current;
@@ -103,7 +104,7 @@ const AssetLivePreview = ({
   if (previewMode === "icon") {
     return (
       <div className="h-16 w-full rounded-lg border border-dashed border-brand-medium/50 bg-brand-medium/10 flex items-center justify-center text-brand-light pointer-events-none group-hover:bg-brand-medium/20 transition-colors">
-        <Editor resolver={CRAFT_RESOLVER} enabled={false}>
+        <Editor resolver={previewResolver} enabled={false}>
           <Frame>{item.element}</Frame>
         </Editor>
       </div>
@@ -141,7 +142,7 @@ const AssetLivePreview = ({
           transform: `scale(${scale})`,
         }}
       >
-        <Editor resolver={CRAFT_RESOLVER} enabled={false}>
+        <Editor resolver={previewResolver} enabled={false}>
           <Frame>{item.element}</Frame>
         </Editor>
       </div>
