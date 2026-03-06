@@ -157,10 +157,11 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
 
   useEffect(() => {
     const updateExternalDragState = (event?: DragEvent) => {
-      const target = (event?.target as HTMLElement | null) ?? null;
+      const target = event?.target;
+      const elementTarget = target instanceof Element ? target : null;
       const fromPanelDrag =
-        !!target?.closest("[data-drag-source='asset']") ||
-        !!target?.closest("[data-drag-source='component']") ||
+        !!elementTarget?.closest("[data-drag-source='asset']") ||
+        !!elementTarget?.closest("[data-drag-source='component']") ||
         !!document.body.dataset.assetDragCategory ||
         !!document.body.dataset.assetDragLabel;
 

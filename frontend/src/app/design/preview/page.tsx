@@ -271,7 +271,7 @@ function PreviewContent() {
 
     const targetSlug = initialPageSlug;
     const targetPage = targetSlug
-      ? cleanDoc.pages.find((page: { props?: { pageSlug?: string } }, index: number) => {
+      ? cleanDoc.pages.find((page, index) => {
           const slug = (page.props?.pageSlug as string | undefined) || `page-${index}`;
           return slug === targetSlug;
         })
