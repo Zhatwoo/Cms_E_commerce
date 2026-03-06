@@ -133,6 +133,35 @@ function parsePxOrAuto(value: unknown): number {
   return 0;
 }
 
+function computeTextFontSizeForResize(
+  handle: Handle,
+  startW: number,
+  startH: number,
+  newW: number,
+  newH: number,
+  startFontSize: number
+): number {
+  if (!Number.isFinite(startFontSize) || startFontSize <= 0) return startFontSize;
+
+  const safeStartW = Math.max(1, startW);
+  const safeStartH = Math.max(1, startH);
+  const widthScale = newW / safeStartW;
+  const heightScale = newH / safeStartH;
+
+  let scale = 1;
+  if (handle === "e" || handle === "w") {
+    scale = widthScale;
+  } else if (handle === "n" || handle === "s") {
+    scale = heightScale;
+  } else {
+    // Corner resize should feel natural for text scaling.
+    scale = (widthScale + heightScale) / 2;
+  }
+
+  const scaled = startFontSize * scale;
+  return Math.min(320, Math.max(8, scaled));
+}
+
 type GuideLine = { type: "v" | "h"; value: number };
 type GuideState = {
   lines: GuideLine[];
@@ -831,9 +860,19 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
           marginLeft: nextMarginLeft,
         };
 
+        const currentNode = query.getState().nodes[nodeId];
+        const isTextNode = currentNode?.data?.displayName === "Text";
+        const startFontSize = parsePxOrAuto(d.startProps.fontSize);
+        const nextFontSize = isTextNode
+          ? computeTextFontSizeForResize(h, startW, startH, newW, newH, startFontSize)
+          : null;
+
         actions.setProp(nodeId, (props: Record<string, unknown>) => {
           props.width = `${newW}px`;
           props.height = `${newH}px`;
+          if (isTextNode && nextFontSize != null) {
+            props.fontSize = Math.round(nextFontSize * 10) / 10;
+          }
           if (extraMT !== 0) {
             props.marginTop = nextMarginTop;
           }
@@ -1060,9 +1099,20 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
             if (h.includes("n") || h.includes("s")) extraMT = -dh / 2;
           }
           ({ newW, newH, extraMT, extraML } = clampResizeToBounds(h, d, { newW, newH, extraMT, extraML }));
+
+          const currentNode = query.getState().nodes[nodeId];
+          const isTextNode = currentNode?.data?.displayName === "Text";
+          const startFontSize = parsePxOrAuto(d.startProps.fontSize);
+          const nextFontSize = isTextNode
+            ? computeTextFontSizeForResize(h, startW, startH, newW, newH, startFontSize)
+            : null;
+
           actions.setProp(nodeId, (props: Record<string, unknown>) => {
             props.width = `${Math.round(newW)}px`;
             props.height = `${Math.round(newH)}px`;
+            if (isTextNode && nextFontSize != null) {
+              props.fontSize = Math.round(nextFontSize * 10) / 10;
+            }
             if (extraMT !== 0) {
               const bMT = typeof d.startProps.marginTop === "number" ? d.startProps.marginTop as number : 0;
               const nextMT = (d.moveMode ?? "margin") === "margin" ? Math.max(0, bMT + extraMT) : (bMT + extraMT);

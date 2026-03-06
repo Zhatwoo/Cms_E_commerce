@@ -73,7 +73,7 @@ export const Column = ({
       }}
       className={`min-h-[40px] transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
       style={{
-        flex: width === "auto" ? "1 1 280px" : undefined,
+        flex: width === "auto" ? "1 1 clamp(180px, 45%, 280px)" : undefined,
         backgroundColor: background,
         paddingLeft: fluidSpace(pl, 0),
         paddingRight: fluidSpace(pr, 0),
@@ -88,7 +88,7 @@ export const Column = ({
         boxSizing: "border-box",
         containerType: "inline-size",
         maxWidth: "100%",
-        minWidth: width === "auto" ? "220px" : 0,
+        minWidth: width === "auto" ? "min(160px, 100%)" : 0,
         borderRadius: `${borderRadius}px`,
         ...(strokePlacement === "outside" && borderWidth > 0
           ? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
@@ -105,6 +105,7 @@ export const Column = ({
         transform: rotation ? `rotate(${rotation}deg)` : undefined,
       }}
     >
+      <style>{`[data-node-id="${id}"] > * { min-width: 0; }`}</style>
       <>
         {children}
         {childCount === 0 && (

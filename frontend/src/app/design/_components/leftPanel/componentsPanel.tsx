@@ -140,7 +140,11 @@ export const ComponentsPanel = () => {
               name: "Text",
               icon: <Type className="w-4 h-4" />,
               variants: [
-                { label: "Text", preview: "Aa", element: <Text text="New Text" fontSize={16} /> },
+                {
+                  label: "Text",
+                  preview: "Aa",
+                  element: <Text text="" fontSize={18} width="220px" position="absolute" left="0px" top="0px" />,
+                },
               ]
             },
             { name: "Image", icon: <ImageIcon className="w-4 h-4" />, variants: [{ label: "Image", preview: "Image Preview", element: <Image /> }] },
@@ -222,7 +226,13 @@ export const ComponentsPanel = () => {
     { label: "Container", preview: "Container", element: <Element is={Container} background="#27272a" padding={20} canvas />, icon: <Layers className="w-5 h-5" />, color: "bg-purple-500/10" },
     { label: "Row", preview: "Row", element: <Element is={Row} canvas />, icon: <Minus className="w-5 h-5" />, color: "bg-orange-500/10" },
     { label: "Column", preview: "Column", element: <Element is={Column} canvas />, icon: <Columns className="w-5 h-5" />, color: "bg-emerald-500/10" },
-    { label: "Text", preview: "Text", element: <Text text="New Text" fontSize={16} />, icon: <Type className="w-5 h-5" />, color: "bg-pink-500/10" },
+    {
+      label: "Text",
+      preview: "Text",
+      element: <Text text="" fontSize={18} width="220px" position="absolute" left="0px" top="0px" />,
+      icon: <Type className="w-5 h-5" />,
+      color: "bg-pink-500/10",
+    },
     { label: "Image", preview: "Image", element: <Image />, icon: <ImageIcon className="w-5 h-5" />, color: "bg-yellow-500/10" },
     { label: "Button", preview: "Button", element: <Element is={Button} canvas label="Click me" />, icon: <MousePointer2 className="w-5 h-5" />, color: "bg-red-500/10" },
     {

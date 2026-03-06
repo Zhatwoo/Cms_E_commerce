@@ -8,7 +8,7 @@ export const Image = ({
   alt = "Image",
   objectFit = "cover",
   width = "100%",
-  height = "100%",
+  height = "auto",
   borderRadius = 0,
   radiusTopLeft,
   radiusTopRight,
@@ -38,7 +38,7 @@ export const Image = ({
     parentDisplay: parentId ? String(state.nodes[parentId]?.data?.props?.display ?? "") : "",
   }));
   const shouldFillParent = parentDisplay === "flex" || parentDisplay === "grid";
-  const resolvedHeight = shouldFillParent && (height === "auto" || height == null) ? "100%" : height;
+  const resolvedHeight = height ?? "auto";
 
   // Handle empty or invalid src
   const imageSrc = src && src.trim() !== ""
@@ -109,7 +109,7 @@ export const ImageDefaultProps: Partial<ImageProps> = {
   alt: "Image",
   objectFit: "cover",
   width: "100%",
-  height: "100%",
+  height: "auto",
   borderRadius: 0,
   padding: 0,
   paddingTop: 0,

@@ -19,6 +19,24 @@ import { Triangle } from "../../_assets/shapes/triangle/triangle";
 
 type Resolver = Record<string, React.ComponentType<any>>;
 
+function withResolverFallback<T extends Resolver>(base: T): T {
+  return new Proxy(base, {
+    get(target, prop, receiver) {
+      const direct = Reflect.get(target, prop, receiver);
+      if (direct) return direct;
+      if (typeof prop !== "string") return direct;
+
+      const normalized = prop.trim().toLowerCase();
+      const resolved =
+        Reflect.get(target, prop.trim(), receiver) ||
+        Reflect.get(target, normalized, receiver) ||
+        Reflect.get(target, normalized.charAt(0).toUpperCase() + normalized.slice(1), receiver);
+
+      return resolved || target.Container || Container;
+    },
+  }) as T;
+}
+
 /**
  * Resolver built in a dedicated module so Frame is always available when the module loads.
  * editorShell imports this file; this file does NOT import editorShell, so there is no
@@ -36,7 +54,8 @@ export function buildCraftResolver(): Resolver {
     Viewport,
     Image: Image || Container,
     image: Image || Container,
-    Button,
+    Button: (typeof Button === "function" ? Button : null) ?? Container,
+    button: (typeof Button === "function" ? Button : null) ?? Container,
     Divider,
     Section,
     Row,
@@ -55,7 +74,7 @@ export function buildCraftResolver(): Resolver {
   base.image = (typeof Image === "function" ? Image : null) ?? Container;
   base.Text = (typeof Text === "function" ? Text : null) ?? Container;
   base.text = (typeof Text === "function" ? Text : null) ?? Container;
-  return base;
+  return withResolverFallback(base);
 }
 
 /** Single resolver instance so Editor always receives the same reference with Frame defined. */

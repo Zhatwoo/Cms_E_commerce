@@ -4,6 +4,28 @@ import { TextSettings } from "./TextSettings";
 import { useInlineTextEdit } from "../../_components/InlineTextEditContext";
 import type { TextProps } from "../../_types/components";
 
+const NEW_TEXT_PLACEHOLDER = "Type something...";
+
+function normalizeTextValue(value: string): string {
+  return value.replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function stripSeedPlaceholder(value: string): string {
+  if (!value) return value;
+  return value.split(NEW_TEXT_PLACEHOLDER).join("").replace(/^\s+/, "");
+}
+
+function shouldStripPlaceholder(value: string): boolean {
+  const normalized = normalizeTextValue(value);
+  if (!normalized) return false;
+  if (!value.includes(NEW_TEXT_PLACEHOLDER)) return false;
+  return normalized !== normalizeTextValue(NEW_TEXT_PLACEHOLDER);
+}
+
+function isPlaceholderOnly(value: string): boolean {
+  return normalizeTextValue(value) === normalizeTextValue(NEW_TEXT_PLACEHOLDER);
+}
+
 function fluidSpace(value: number, min = 0): string {
   if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
   const preferred = Math.max(0.1, value / 12);
@@ -58,7 +80,13 @@ export const Text = ({
   }));
   const { editingTextNodeId, setEditingTextNodeId } = useInlineTextEdit();
   const isEditing = editingTextNodeId === id;
+  const resolvedText = typeof text === "string" ? text : "";
+  const isSeedPlaceholderText = isPlaceholderOnly(resolvedText);
   const editRef = useRef<HTMLDivElement | null>(null);
+  const didInitEditingRef = useRef(false);
+  const pendingTextRef = useRef<string>(resolvedText);
+  const lastSyncedTextRef = useRef<string>(resolvedText);
+  const syncTimeoutRef = useRef<number | null>(null);
   const isFlowText = position !== "absolute" && position !== "fixed";
   // Row, Column, Section hardcode display:flex in JSX without storing it in props,
   // so we detect them by displayName as well.
@@ -72,8 +100,8 @@ export const Text = ({
     typeof height === "string" &&
     height.trim() !== "" &&
     height.trim().toLowerCase() !== "auto";
-  const fluidFontMin = Math.max(10, Math.round(fontSize * 0.5));
-  const fluidFontCqw = ((fontSize / 16) * 2.4).toFixed(2);
+  const fluidFontMin = Math.max(12, Math.round(fontSize * 0.7));
+  const fluidFontCqw = ((fontSize / 16) * 2.1).toFixed(2);
 
   useEffect(() => {
     if (isCodeBlock && isEditing) {
@@ -82,15 +110,47 @@ export const Text = ({
   }, [isCodeBlock, isEditing, setEditingTextNodeId]);
 
   useEffect(() => {
-    if (isEditing && editRef.current) {
+    if (isEditing && editRef.current && !didInitEditingRef.current) {
+      didInitEditingRef.current = true;
       editRef.current.focus();
+      editRef.current.innerText = isSeedPlaceholderText ? "" : resolvedText;
       const range = document.createRange();
       range.selectNodeContents(editRef.current);
+      range.collapse(false);
       const sel = window.getSelection();
       sel?.removeAllRanges();
       sel?.addRange(range);
+      return;
     }
-  }, [isEditing]);
+
+    if (!isEditing) {
+      didInitEditingRef.current = false;
+    }
+  }, [isEditing, isSeedPlaceholderText, resolvedText]);
+
+  useEffect(() => {
+    if (!isEditing) {
+      pendingTextRef.current = resolvedText;
+      lastSyncedTextRef.current = resolvedText;
+    }
+  }, [isEditing, resolvedText]);
+
+  useEffect(() => {
+    return () => {
+      if (syncTimeoutRef.current !== null) {
+        window.clearTimeout(syncTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const flushPendingTextSync = (force = false) => {
+    const nextText = pendingTextRef.current;
+    if (!force && nextText === lastSyncedTextRef.current) return;
+    actions.setProp((props: { text?: string }) => {
+      props.text = nextText;
+    });
+    lastSyncedTextRef.current = nextText;
+  };
 
   const m = typeof margin === "number" ? margin : 0;
   const mt = marginTop !== undefined ? marginTop : m;
@@ -153,8 +213,17 @@ export const Text = ({
 
   const handleBlur = () => {
     if (!editRef.current) return;
-    const newText = editRef.current.innerText ?? editRef.current.textContent ?? "";
-    actions.setProp((props: { text?: string }) => { props.text = newText; });
+    const rawText = editRef.current.innerText ?? editRef.current.textContent ?? "";
+    const sanitizedText =
+      isSeedPlaceholderText || shouldStripPlaceholder(rawText)
+        ? stripSeedPlaceholder(rawText)
+        : rawText;
+    if (syncTimeoutRef.current !== null) {
+      window.clearTimeout(syncTimeoutRef.current);
+      syncTimeoutRef.current = null;
+    }
+    pendingTextRef.current = sanitizedText;
+    flushPendingTextSync(true);
     setEditingTextNodeId(null);
   };
 
@@ -169,10 +238,41 @@ export const Text = ({
     }
     if (e.key === "Escape") {
       e.preventDefault();
-      if (editRef.current) editRef.current.innerText = text;
+      if (editRef.current) editRef.current.innerText = isSeedPlaceholderText ? "" : resolvedText;
       setEditingTextNodeId(null);
       editRef.current?.blur();
     }
+  };
+
+  const handleInput = () => {
+    if (!editRef.current) return;
+    const currentText = editRef.current.innerText ?? editRef.current.textContent ?? "";
+    const shouldSanitize = isSeedPlaceholderText || shouldStripPlaceholder(currentText);
+    const sanitizedText = shouldSanitize ? stripSeedPlaceholder(currentText) : currentText;
+
+    if (sanitizedText !== currentText) {
+      editRef.current.innerText = sanitizedText;
+
+      const selection = window.getSelection();
+      if (selection) {
+        const range = document.createRange();
+        range.selectNodeContents(editRef.current);
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
+
+    pendingTextRef.current = sanitizedText;
+    if (syncTimeoutRef.current !== null) {
+      return;
+    }
+
+    // Keep config panel connected but avoid heavy updates on every keystroke.
+    syncTimeoutRef.current = window.setTimeout(() => {
+      syncTimeoutRef.current = null;
+      flushPendingTextSync();
+    }, 80);
   };
 
   return (
@@ -210,6 +310,7 @@ export const Text = ({
           }}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
+          onInput={handleInput}
           style={{
             outline: "none",
             minHeight: "1em",
@@ -222,11 +323,11 @@ export const Text = ({
             lineHeight: "inherit",
             width: "100%",
           }}
-        >
-          {text}
-        </div>
+        />
       ) : (
-        text || " "
+        resolvedText
+          ? resolvedText
+          : <span style={{ opacity: 0.58 }}>{NEW_TEXT_PLACEHOLDER}</span>
       )}
     </div>
   );

@@ -65,7 +65,7 @@ function getRenderedScale(el: HTMLElement | null): { scaleX: number; scaleY: num
 
 export const TextToolHandler = () => {
     const { actions, query } = useEditor();
-    const { activeTool } = useCanvasTool();
+    const { activeTool, setActiveTool } = useCanvasTool();
     const { setEditingTextNodeId } = useInlineTextEdit();
 
     const [previewRect, setPreviewRect] = useState<PreviewRect | null>(null);
@@ -209,7 +209,7 @@ export const TextToolHandler = () => {
 
                     const tree = queryRef.current.parseReactElement(
                         <Text
-                            text="Type something..."
+                            text=""
                             fontSize={18}
                             position={shouldUseAbsolute ? "absolute" : "relative"}
                             left={shouldUseAbsolute ? `${finalLeft}px` : "auto"}
@@ -224,6 +224,8 @@ export const TextToolHandler = () => {
                     setTimeout(() => {
                         actionsRef.current.selectNode(tree.rootNodeId);
                         setEditingTextNodeId(tree.rootNodeId);
+                        // One-shot text tool: after placing one text box, return to cursor tool.
+                        setActiveTool("move");
                     }, 50);
 
                 } catch (error) {
@@ -258,7 +260,7 @@ export const TextToolHandler = () => {
             document.removeEventListener("click", handleClick, true);
             clearState();
         };
-    }, [setEditingTextNodeId]);
+    }, [setEditingTextNodeId, setActiveTool]);
 
     if (!previewRect) return null;
 
