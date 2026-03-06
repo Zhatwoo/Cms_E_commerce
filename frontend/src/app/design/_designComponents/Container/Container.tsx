@@ -9,6 +9,13 @@ function parsePx(value: string | undefined): number | null {
   return m ? parseFloat(m[1]) : null;
 }
 
+function fluidSpace(value: number, min = 0): string {
+  if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
+  const preferred = Math.max(0.1, value / 12);
+  const floor = Math.max(min, Math.round(value * 0.45));
+  return `clamp(${floor}px, ${preferred.toFixed(2)}cqw, ${value}px)`;
+}
+
 export const Container = ({
   background,
   padding,
@@ -72,6 +79,7 @@ export const Container = ({
   const { id, connectors: { connect, drag }, childCount } = useNode((node) => ({
     childCount: node.data.nodes.length,
   }));
+  const hasChildren = childCount > 0 || React.Children.count(children) > 0;
 
   const wPx = parsePx(width);
   const hPx = parsePx(height);
@@ -113,10 +121,12 @@ export const Container = ({
   return (
     <div
       data-node-id={id}
+      data-fluid-space="true"
+      data-layout={effectiveDisplay === "flex" ? (flexDirection === "row" ? "row" : "column") : undefined}
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className={`relative min-h-[120px] transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
+      className={`relative ${hasChildren ? "" : "min-h-[120px]"} transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
       style={{
         backgroundColor: childCount === 0 ? "#f4f5f7" : background,
         backgroundImage: backgroundImage
@@ -127,14 +137,14 @@ export const Container = ({
         backgroundSize: backgroundImage ? backgroundSize : undefined,
         backgroundPosition: backgroundImage ? backgroundPosition : undefined,
         backgroundRepeat: backgroundImage ? backgroundRepeat : undefined,
-        paddingLeft: `${effectivePl}px`,
-        paddingRight: `${effectivePr}px`,
-        paddingTop: `${effectivePt}px`,
-        paddingBottom: `${effectivePb}px`,
-        marginLeft: `${ml}px`,
-        marginRight: `${mr}px`,
-        marginTop: `${mt}px`,
-        marginBottom: `${mb}px`,
+        paddingLeft: fluidSpace(effectivePl, 0),
+        paddingRight: fluidSpace(effectivePr, 0),
+        paddingTop: fluidSpace(effectivePt, 0),
+        paddingBottom: fluidSpace(effectivePb, 0),
+        marginLeft: fluidSpace(ml, 0),
+        marginRight: fluidSpace(mr, 0),
+        marginTop: fluidSpace(mt, 0),
+        marginBottom: fluidSpace(mb, 0),
         width,
         height,
         boxSizing: "border-box",
@@ -148,6 +158,7 @@ export const Container = ({
         borderColor,
         borderStyle,
         position,
+        containerType: "inline-size",
         display: effectiveDisplay,
         zIndex: zIndex !== 0 ? zIndex : undefined,
         top: position !== "static" ? top : undefined,
@@ -160,14 +171,14 @@ export const Container = ({
         alignItems: effectiveDisplay === "flex" || effectiveDisplay === "grid" ? alignItems : undefined,
         justifyContent: effectiveDisplay === "flex" || effectiveDisplay === "grid" ? justifyContent : undefined,
         columnGap: effectiveDisplay === "flex"
-          ? `${gap}px`
+          ? fluidSpace(gap, 0)
           : effectiveDisplay === "grid"
-            ? `${gridColumnGap ?? gridGap}px`
+            ? fluidSpace((gridColumnGap ?? gridGap) as number, 0)
             : undefined,
         rowGap: effectiveDisplay === "flex"
-          ? `${gap}px`
+          ? fluidSpace(gap, 0)
           : effectiveDisplay === "grid"
-            ? `${gridRowGap ?? gridGap}px`
+            ? fluidSpace((gridRowGap ?? gridGap) as number, 0)
             : undefined,
         // Grid properties
         gridTemplateColumns: effectiveDisplay === "grid" ? gridTemplateColumns : undefined,
