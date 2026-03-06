@@ -36,7 +36,7 @@ export const Divider = ({
         height: height || undefined,
         transform: rotation ? `rotate(${rotation}deg)` : undefined,
       }}
-      className="hover:outline hover:outline-blue-500 cursor-pointer"
+      className="cursor-pointer"
     />
   );
 };

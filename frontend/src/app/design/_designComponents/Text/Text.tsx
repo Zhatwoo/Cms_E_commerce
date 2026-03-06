@@ -197,7 +197,7 @@ export const Text = ({
         }
         connect(drag(ref));
       }}
-      className={`hover:outline hover:outline-blue-500 ${isCodeBlock ? "cursor-default" : isEditing ? "cursor-text" : "cursor-pointer"} ${customClassName}`}
+      className={`${isCodeBlock ? "cursor-default" : isEditing ? "cursor-text" : "cursor-pointer"} ${customClassName}`}
       style={baseStyle}
     >
       {isEditing ? (

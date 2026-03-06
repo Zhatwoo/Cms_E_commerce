@@ -32,6 +32,7 @@ export const Section = ({
   marginRight,
   marginBottom,
   marginLeft,
+  width = "100%",
   height = "auto",
   borderRadius = 0,
   backgroundImage = "",
@@ -48,7 +49,6 @@ export const Section = ({
   alignItems = "center",
   justifyContent = "flex-start",
   gap = 0,
-  display = "flex",
   position = "static",
   zIndex = 0,
   top = "auto",
@@ -64,16 +64,21 @@ export const Section = ({
   customClassName = "",
   children,
 }: ContainerProps) => {
-  const { id, connectors: { connect, drag }, childCount } = useNode((node) => ({
+  const {
+    id,
+    connectors: { connect, drag },
+    childCount,
+  } = useNode((node) => ({
     childCount: node.data.nodes.length,
   }));
   const isHeaderAsset = /header/i.test(id ?? "");
   const hasChildren = childCount > 0 || React.Children.count(children) > 0;
 
+  const wPx = parsePx(width);
   const hPx = parsePx(height);
   const canScale = false;
-  const scaleX = canScale ? 1 : 1;
-  const scaleY = canScale ? hPx / designHeight : 1;
+  const scaleX = canScale ? ((typeof wPx === "number" ? wPx : 1) / (designWidth ?? 1)) : 1;
+  const scaleY = canScale ? (typeof hPx === "number" ? hPx : 1) / (designHeight ?? 1) : 1;
 
   const p = typeof padding === "number" ? padding : 0;
   const pl = paddingLeft ?? p;
@@ -96,7 +101,7 @@ export const Section = ({
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className={`${hasChildren ? "" : "min-h-[80px]"} transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
+      className={`min-h-[80px] transition-[outline] duration-150 ${customClassName}`}
       style={{
         backgroundColor: background,
         backgroundImage: backgroundImage
@@ -115,7 +120,7 @@ export const Section = ({
         marginRight: fluidSpace(mr, 0),
         marginTop: fluidSpace(mt, 0),
         marginBottom: fluidSpace(mb, 0),
-        width: "100%",
+        width,
         height,
         boxSizing: "border-box",
         maxWidth: "100%",
@@ -124,7 +129,7 @@ export const Section = ({
         ...(strokePlacement === "outside" && borderWidth > 0
           ? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
           : { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
-        display: display ?? "flex",
+        display: "flex",
         containerType: "inline-size",
         position,
         zIndex: zIndex !== 0 ? zIndex : undefined,
@@ -143,9 +148,6 @@ export const Section = ({
         transform: rotation ? `rotate(${rotation}deg)` : undefined,
       }}
     >
-      {flexDirection === "row" && (
-        <style>{`[data-node-id="${id}"] > * { min-width: 0; }`}</style>
-      )}
       {canScale ? (
         <div
           style={{
@@ -201,7 +203,6 @@ export const SectionDefaultProps: Partial<ContainerProps> = {
   alignItems: "center",
   justifyContent: "flex-start",
   gap: 0,
-  display: "flex",
   position: "static",
   zIndex: 0,
   top: "auto",
