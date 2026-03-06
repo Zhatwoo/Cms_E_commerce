@@ -317,15 +317,25 @@ export const FigmaStyleDragHandler = () => {
       if (mode === "offset") {
         const rawTop = Math.round(top + dy);
         const rawLeft = Math.round(left + dx);
-        const bounds = getOffsetBounds(id);
+        const currentPosition = (props.position as string | undefined) ?? "static";
+        const isAbsoluteLike = currentPosition === "absolute" || currentPosition === "fixed";
 
+        if (!isAbsoluteLike) {
+          props.position = "relative";
+          props.top = `${rawTop}px`;
+          props.left = `${rawLeft}px`;
+          return;
+        }
+
+        const bounds = getOffsetBounds(id);
         if (bounds) {
           props.top = `${clamp(rawTop, bounds.minTop, bounds.maxTop)}px`;
           props.left = `${clamp(rawLeft, bounds.minLeft, bounds.maxLeft)}px`;
-        } else {
-          props.top = `${rawTop}px`;
-          props.left = `${rawLeft}px`;
+          return;
         }
+
+        props.top = `${rawTop}px`;
+        props.left = `${rawLeft}px`;
         return;
       }
 
@@ -619,12 +629,20 @@ export const FigmaStyleDragHandler = () => {
               actionsRef.current.move(nodeId, dropTargetId, insertIndex + i);
             });
 
+            const modeById = new Map(d.nodeMargins.map((entry) => [entry.id, entry.mode] as const));
+
             ids.forEach((id) => {
               actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
                 props.marginTop = 0;
                 props.marginLeft = 0;
                 props.top = "0px";
                 props.left = "0px";
+                if (modeById.get(id) === "offset") {
+                  const currentPosition = (props.position as string | undefined) ?? "static";
+                  if (currentPosition !== "absolute" && currentPosition !== "fixed") {
+                    props.position = "relative";
+                  }
+                }
               });
             });
           } catch {
