@@ -578,7 +578,7 @@ export default function SettingsPage() {
                                                 </p>
                                             </div>
                                             <span className="text-2xl font-bold" style={{ color: colors.text.primary }}>
-                                                $49<span className="text-sm font-normal">/mo</span>
+                                                ₱49<span className="text-sm font-normal">/mo</span>
                                             </span>
                                         </div>
                                         <div className="flex gap-3">
@@ -628,9 +628,9 @@ export default function SettingsPage() {
                                         </h3>
                                         <div className="space-y-2">
                                             {[
-                                                { date: 'Jan 1, 2026', amount: '$49.00', status: 'Paid' },
-                                                { date: 'Dec 1, 2025', amount: '$49.00', status: 'Paid' },
-                                                { date: 'Nov 1, 2025', amount: '$49.00', status: 'Paid' },
+                                                { date: 'Jan 1, 2026', amount: '₱49.00', status: 'Paid' },
+                                                { date: 'Dec 1, 2025', amount: '₱49.00', status: 'Paid' },
+                                                { date: 'Nov 1, 2025', amount: '₱49.00', status: 'Paid' },
                                             ].map((invoice, i) => (
                                                 <div
                                                     key={i}

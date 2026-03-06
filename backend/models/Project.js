@@ -1,6 +1,7 @@
 const { db, getRealtimeDb } = require('../config/firebase');
 const { docToObject, deleteRecursive } = require('../utils/firestoreHelper');
 const Domain = require('./Domain');
+const { getTrashRetentionMs } = require('../utils/trashConfig');
 
 function getProjectsRef(userId) {
   return db.collection('user').doc('roles').collection('client').doc(userId).collection('projects');
@@ -11,15 +12,23 @@ function getTrashRef(userId) {
   return db.collection('user').doc('roles').collection('client').doc(userId).collection('trash');
 }
 
+function sanitizeProject(project) {
+  if (!project || typeof project !== 'object') return project;
+  if (Object.prototype.hasOwnProperty.call(project, 'instanceId')) {
+    delete project.instanceId;
+  }
+  return project;
+}
+
 async function create(userId, data) {
   const ref = getProjectsRef(userId);
   const subdomain = (data.subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || null;
-  const instanceId = (data.instanceId || '').toString().trim() || null;
+  const industry = (data.industry || '').toString().trim() || null;
   const doc = {
     title: data.title || 'Untitled Project',
     status: 'draft',
+    industry,
     template_id: data.templateId || null,
-    instance_id: instanceId,
     subdomain: subdomain || null,
     thumbnail: data.thumbnail || null,
     created_at: new Date(),
@@ -27,15 +36,13 @@ async function create(userId, data) {
   };
   const newRef = await ref.add(doc);
   const snap = await newRef.get();
-  return docToObject(snap);
+  return sanitizeProject(docToObject(snap));
 }
 
-async function list(userId, options = {}) {
+async function list(userId) {
   const ref = getProjectsRef(userId);
-  const instanceId = (options.instanceId || '').toString().trim();
-  const query = instanceId ? ref.where('instance_id', '==', instanceId) : ref;
-  const snap = await query.get();
-  const items = snap.docs.map(d => docToObject(d)).filter(x => x);
+  const snap = await ref.get();
+  const items = snap.docs.map(d => sanitizeProject(docToObject(d))).filter(x => x);
   // Sort in JS instead of Firestore to avoid filtering out docs missing 'updated_at'
   return items.sort((a, b) => {
     const tA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
@@ -46,7 +53,7 @@ async function list(userId, options = {}) {
 
 async function get(userId, projectId) {
   const snap = await getProjectsRef(userId).doc(projectId).get();
-  return docToObject(snap);
+  return sanitizeProject(docToObject(snap));
 }
 
 async function update(userId, projectId, data) {
@@ -54,14 +61,14 @@ async function update(userId, projectId, data) {
   const updates = {};
   if (data.title !== undefined) updates.title = data.title;
   if (data.status !== undefined) updates.status = data.status;
-  if (data.instanceId !== undefined) updates.instance_id = (data.instanceId || '').toString().trim() || null;
+  if (data.industry !== undefined) updates.industry = (data.industry || '').toString().trim() || null;
   if (data.subdomain !== undefined) updates.subdomain = (data.subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || null;
   if (data.thumbnail !== undefined) updates.thumbnail = data.thumbnail || null;
   if (Object.keys(updates).length === 0) return get(userId, projectId);
   updates.updated_at = new Date();
   await ref.update(updates);
   const snap = await ref.get();
-  return docToObject(snap);
+  return sanitizeProject(docToObject(snap));
 }
 
 /** Move project to trash instead of deleting it permanently */
@@ -74,20 +81,10 @@ async function moveToTrash(userId, projectId) {
 
   const data = snap.data();
 
-  // If published, auto-unpublish first (takedown) so site goes offline, then proceed with trash
+  // Published/live sites must be taken down first before moving project to trash
   const normalizedStatus = String(data.status || '').trim().toLowerCase();
   if (normalizedStatus === 'published' || normalizedStatus === 'live') {
-    await Domain.unpublishForClient(userId, projectId);
-    await update(userId, projectId, { status: 'draft' });
-    data.status = 'draft';
-    const rtdb = getRealtimeDb();
-    if (rtdb) {
-      try {
-        await rtdb.ref(`user/roles/client/${userId}/projects/${projectId}`).update({ status: 'draft' });
-      } catch (e) {
-        console.warn('moveToTrash: RTDB unpublish sync failed:', e.message);
-      }
-    }
+    throw new Error('Published projects cannot be deleted. Please take down (unpublish) the website first.');
   }
 
   // Mark with deletion timestamp and store in trash
@@ -113,7 +110,7 @@ async function moveToTrash(userId, projectId) {
   // Move domain to trash (preserves for restore) instead of hard-delete
   await Domain.moveToTrashByProjectId(userId, projectId);
 
-  return { id: projectId, ...data };
+  return sanitizeProject({ id: projectId, ...data });
 }
 
 /** List projects currently in the trash for a user (only those <= 30 days old) */
@@ -122,22 +119,22 @@ async function listTrash(userId) {
   const snap = await ref.get();
 
   const now = new Date();
-  const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
+  const retentionMs = getTrashRetentionMs();
 
-  const items = snap.docs.map(d => docToObject(d)).filter(x => {
+  const items = snap.docs.map(d => sanitizeProject(docToObject(d))).filter(x => {
     if (!x || !x.deletedAt) return false;
     const deletedDate = new Date(x.deletedAt);
     const ageMs = now.getTime() - deletedDate.getTime();
 
-    // Auto-purge older than 30 days if found during listing
-    if (ageMs > thirtyDaysInMs) {
+    // Auto-purge older than retention threshold if found during listing
+    if (ageMs > retentionMs) {
       // Trigger background purge (don't await to keep response fast)
       permanentDelete(userId, x.id).catch(err => console.error('Auto-purge failed:', err));
       return false;
     }
 
     // Calculate fractional days left
-    const msLeft = thirtyDaysInMs - ageMs;
+    const msLeft = retentionMs - ageMs;
     x.daysLeft = Math.max(1, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
     return true;
   });
@@ -162,6 +159,9 @@ async function restore(userId, projectId) {
   delete data.deleted_at;
   delete data.original_id;
 
+  // Restored projects should always come back as draft/offline.
+  data.status = 'draft';
+
   // Restore to active projects
   await projectRef.set(data);
   // Remove from trash
@@ -176,14 +176,14 @@ async function restore(userId, projectId) {
     try {
       await rtdb.ref(`user/roles/client/${userId}/projects/${projectId}`).set({
         subdomain: data.subdomain ?? null,
-        status: data.status ?? 'draft',
+        status: 'draft',
       });
     } catch (e) {
       console.warn('restore: RTDB sync failed:', e.message);
     }
   }
 
-  return { id: projectId, ...data };
+  return sanitizeProject({ id: projectId, ...data });
 }
 
 /** Public delete function now moves to trash by default */
@@ -221,7 +221,7 @@ async function getBySubdomain(userId, subdomain) {
   // 1) Try Firestore first (subdomain stored when creating/updating project via API)
   const ref = getProjectsRef(userId).where('subdomain', '==', normalized);
   const snap = await ref.limit(1).get();
-  if (!snap.empty) return docToObject(snap.docs[0]);
+  if (!snap.empty) return sanitizeProject(docToObject(snap.docs[0]));
 
   // 2) Fallback: read from Firebase Realtime DB (path used by frontend: user/roles/client/{uid}/projects)
   const rtdb = getRealtimeDb();
@@ -237,7 +237,7 @@ async function getBySubdomain(userId, subdomain) {
         const project = await get(userId, projectId);
         if (project) {
           project.subdomain = normalized;
-          return project;
+          return sanitizeProject(project);
         }
         return null;
       }

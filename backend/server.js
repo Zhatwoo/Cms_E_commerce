@@ -157,7 +157,6 @@ const orderRoutes = require('./routes/orderRoutes');
 const templateRoutes = require('./routes/templateRoutes');
 const domainRoutes = require('./routes/domainRoutes');
 const projectRoutes = require('./routes/projectRoutes');
-const instanceRoutes = require('./routes/instanceRoutes');
 
 // Routes – public site by subdomain must be reachable
 app.use('/api/public', publicSiteRoutes);
@@ -172,7 +171,6 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/domains', domainRoutes);
 app.use('/api/projects', projectRoutes);
-app.use('/api/instances', instanceRoutes);
 
 // Home route
 app.get('/', (req, res) => {

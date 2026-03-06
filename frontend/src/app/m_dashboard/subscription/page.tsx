@@ -17,7 +17,7 @@ export default function SubscriptionPage() {
         {
             id: 'free',
             name: 'Free',
-            price: '$0',
+            price: '₱0',
             description: 'Perfect for getting started',
             icon: Zap,
             color: 'blue',
@@ -32,7 +32,7 @@ export default function SubscriptionPage() {
         {
             id: 'basic',
             name: 'Basic',
-            price: '$19',
+            price: '₱19',
             description: 'Ideal for growing sites',
             icon: Zap,
             color: 'emerald',
@@ -48,7 +48,7 @@ export default function SubscriptionPage() {
         {
             id: 'pro',
             name: 'Professional',
-            price: '$49',
+            price: '₱49',
             description: 'Best for power users',
             icon: Crown,
             color: 'purple',

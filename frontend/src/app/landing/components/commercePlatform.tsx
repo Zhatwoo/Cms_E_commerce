@@ -239,6 +239,7 @@ export function CommercePlatform({ isDarkMode = false }: { isDarkMode?: boolean 
               <motion.button
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
+                suppressHydrationWarning
                 className="mt-5 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#9d3fff] px-5 py-2.5 text-sm font-bold text-white shadow-[0_4px_20px_rgba(139,61,255,0.5)] transition-shadow hover:shadow-[0_6px_28px_rgba(139,61,255,0.65)]"
                 type="button"
               >
