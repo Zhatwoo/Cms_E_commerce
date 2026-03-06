@@ -273,9 +273,32 @@ exports.delete = async (req, res) => {
 // @route   DELETE /api/projects/:id/permanent
 // @access  Private
 exports.permanentDelete = async (req, res) => {
-  const retentionDays = getTrashRetentionDays();
-  return res.status(403).json({
-    success: false,
-    message: `Manual permanent delete is disabled. Projects are automatically purged ${retentionDays} day(s) after being moved to trash.`,
-  });
+  try {
+    const userId = req.user.id;
+    const projectId = req.params.id;
+
+    // Verify it exists in trash or projects before deleting
+    const inTrash = await Project.getTrashRef(userId).doc(projectId).get();
+    const inProjects = await Project.get(userId, projectId);
+
+    if (!inTrash.exists && !inProjects) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found in trash or active projects.',
+      });
+    }
+
+    await Project.permanentDelete(userId, projectId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Project permanently deleted.',
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message,
+    });
+  }
 };
