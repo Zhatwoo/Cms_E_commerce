@@ -176,6 +176,19 @@ function canAcceptNode(nodes: NodesMap, _targetId: string, _nodeId: string): boo
   return true;
 }
 
+function getMoveModeForNode(nodeId: string, state: { nodes: NodesMap }): MoveMode {
+  const node = state.nodes[nodeId];
+  const displayName = String(node?.data?.displayName ?? "");
+  const parentId = node?.data?.parent as string | undefined;
+  const parentDisplayName = parentId
+    ? String(state.nodes[parentId]?.data?.displayName ?? "")
+    : "";
+
+  if (OFFSET_MOVE_TYPES.has(displayName)) return "offset";
+  if (FLOW_LAYOUT_PARENTS.has(parentDisplayName)) return "margin";
+  return "margin";
+}
+
 function computeInsertIndex(
   targetId: string,
   clientX: number,
