@@ -140,8 +140,8 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
         )
         : null}
 
-      {/* Resize / Move overlay — only for actively selected nodes (skip Text so inline edit remains clickable) */}
-      {!isHandTool && mounted && isActive && dom && name !== "Text" ? (
+      {/* Resize / Move overlay — only for actively selected nodes. */}
+      {!isHandTool && mounted && isActive && dom ? (
         <ResizeOverlay nodeId={id} dom={dom} />
       ) : null}
 

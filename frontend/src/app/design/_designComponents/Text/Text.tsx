@@ -4,13 +4,6 @@ import { TextSettings } from "./TextSettings";
 import { useInlineTextEdit } from "../../_components/InlineTextEditContext";
 import type { TextProps } from "../../_types/components";
 
-function fluidSpace(value: number, min = 0): string {
-  if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
-  const preferred = Math.max(0.1, value / 12);
-  const floor = Math.max(min, Math.round(value * 0.45));
-  return `clamp(${floor}px, ${preferred.toFixed(2)}cqw, ${value}px)`;
-}
-
 export const Text = ({
   text,
   fontSize = 16,
@@ -21,7 +14,7 @@ export const Text = ({
   letterSpacing = 0,
   textAlign = "left",
   textTransform = "none",
-  color = "#ffffff",
+  color = "#000000",
   position = "relative",
   display = "block",
   zIndex = 2,
@@ -71,7 +64,8 @@ export const Text = ({
   const isRowParent =
     parentDisplayName === "Row" ||
     (parentDisplay === "flex" && parentFlexDirection.toLowerCase().startsWith("row"));
-  const resolvedWidth = width ?? (isFlowText && isFlexOrGridParent ? (isRowParent ? "auto" : "100%") : undefined);
+  const resolvedWidth =
+    width ?? (isFlowText && isFlexOrGridParent ? "auto" : undefined);
   const hasExplicitHeight =
     typeof height === "string" &&
     height.trim() !== "" &&
@@ -132,9 +126,9 @@ export const Text = ({
     height: hasExplicitHeight ? height : "auto",
     maxWidth: "100%",
     minWidth: 0,
-    alignSelf: isFlowText && isFlexOrGridParent ? "stretch" : undefined,
+    alignSelf: undefined,
     boxSizing: "border-box",
-    minHeight: "1em",
+    minHeight: hasExplicitHeight ? undefined : "min-content",
     overflow: hasExplicitHeight ? "hidden" : "visible",
     whiteSpace: "pre-wrap",
     overflowWrap: "break-word",
@@ -142,14 +136,14 @@ export const Text = ({
     hyphens: "manual",
     display,
     flexShrink: isFlexOrGridParent && isFlowText && !width ? 1 : undefined,
-    marginTop: fluidSpace(mt),
-    marginBottom: fluidSpace(mb),
-    marginLeft: fluidSpace(ml),
-    marginRight: fluidSpace(mr),
-    paddingTop: fluidSpace(pt),
-    paddingBottom: fluidSpace(pb),
-    paddingLeft: fluidSpace(pl),
-    paddingRight: fluidSpace(pr),
+    marginTop: `${mt}px`,
+    marginBottom: `${mb}px`,
+    marginLeft: `${ml}px`,
+    marginRight: `${mr}px`,
+    paddingTop: `${pt}px`,
+    paddingBottom: `${pb}px`,
+    paddingLeft: `${pl}px`,
+    paddingRight: `${pr}px`,
     opacity,
     boxShadow,
     transform: [rotation ? `rotate(${rotation}deg)` : null, flipHorizontal ? "scaleX(-1)" : null, flipVertical ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined,
@@ -183,6 +177,12 @@ export const Text = ({
     <div
       data-fluid-text="true"
       data-node-id={id}
+      onMouseDown={(e) => {
+        if (isEditing) e.preventDefault();
+      }}
+      onDragStart={(e) => {
+        if (isEditing) e.preventDefault();
+      }}
       onDoubleClick={(e) => {
         if (isCodeBlock) return;
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -190,12 +190,7 @@ export const Text = ({
         setEditingTextNodeId(id);
       }}
       ref={(ref) => {
-        if (!ref) return;
-        if (isEditing) {
-          connect(ref);
-          return;
-        }
-        connect(drag(ref));
+        if (ref) connect(drag(ref));
       }}
       className={`${isCodeBlock ? "cursor-default" : isEditing ? "cursor-text" : "cursor-pointer"} ${customClassName}`}
       style={baseStyle}
@@ -236,7 +231,7 @@ export const Text = ({
   );
 };
 
-export const TextDefaultProps: Partial<TextProps> = {
+export const TextDefaultProps: Partial<TextProps & { width?: string; height?: string }> = {
   text: "",
   fontSize: 16,
   fontFamily: "Outfit",
@@ -254,6 +249,8 @@ export const TextDefaultProps: Partial<TextProps> = {
   right: "auto",
   bottom: "auto",
   left: "auto",
+  width: undefined,
+  height: "auto",
   margin: 0,
   marginTop: 0,
   marginRight: 0,

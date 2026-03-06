@@ -26,16 +26,18 @@ type Resolver = Record<string, React.ComponentType<any>>;
  */
 export function buildCraftResolver(): Resolver {
   const FrameComp = typeof Frame === "function" ? Frame : Container;
+  const TextComp = (typeof Text === "function" ? Text : null) ?? Container;
+  const ImageComp = (typeof Image === "function" ? Image : null) ?? Container;
   const base: Resolver = {
     Frame: FrameComp,
     frame: FrameComp,
     Container,
-    Text: Text || Container,
-    text: Text || Container,
+    Text: TextComp,
+    text: TextComp,
     Page,
     Viewport,
-    Image: Image || Container,
-    image: Image || Container,
+    Image: ImageComp,
+    image: ImageComp,
     Button,
     Divider,
     Section,
@@ -51,10 +53,10 @@ export function buildCraftResolver(): Resolver {
   };
   base.Frame = FrameComp;
   base.frame = FrameComp;
-  base.Image = (typeof Image === "function" ? Image : null) ?? Container;
-  base.image = (typeof Image === "function" ? Image : null) ?? Container;
-  base.Text = (typeof Text === "function" ? Text : null) ?? Container;
-  base.text = (typeof Text === "function" ? Text : null) ?? Container;
+  base.Image = ImageComp;
+  base.image = ImageComp;
+  base.Text = TextComp;
+  base.text = TextComp;
   return base;
 }
 

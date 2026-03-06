@@ -24,6 +24,9 @@ const MULTI_DRAG_LOCK_FLAG = "multiDragLock";
 const BOX_SELECTING_FLAG = "boxSelecting";
 const BOX_SELECTING_INTENT_FLAG = "boxSelectingIntent";
 
+const FLOW_LAYOUT_PARENTS = new Set(["Container", "Section", "Row", "Column", "Frame"]);
+const OFFSET_MOVE_TYPES = new Set(["Image", "Text", "Icon", "Button", "Circle", "Square", "Triangle"]);
+
 
 type MoveMode = "margin" | "offset";
 
@@ -203,6 +206,28 @@ function computeInsertIndex(
   } catch {
     return 0;
   }
+}
+
+function getMoveModeForNode(
+  id: string,
+  state: { nodes: NodesMap }
+): MoveMode {
+  const node = state.nodes[id] as { data?: { displayName?: string; parent?: string; props?: Record<string, unknown> } } | undefined;
+  const displayName = node?.data?.displayName as string | undefined;
+  const props = (node?.data?.props ?? {}) as Record<string, unknown>;
+  const position = String(props.position ?? "static").toLowerCase();
+  const isAbsoluteLike = position === "absolute" || position === "fixed";
+
+  if (isAbsoluteLike) return "offset";
+
+  const parentId = node?.data?.parent as string | undefined;
+  const parentDisplayName = parentId
+    ? String((state.nodes[parentId] as { data?: { displayName?: string } } | undefined)?.data?.displayName ?? "")
+    : "";
+
+  if (FLOW_LAYOUT_PARENTS.has(parentDisplayName)) return "margin";
+  if (displayName && OFFSET_MOVE_TYPES.has(displayName)) return "offset";
+  return "margin";
 }
 
 export const FigmaStyleDragHandler = () => {
@@ -588,13 +613,16 @@ export const FigmaStyleDragHandler = () => {
             }
           }
 
+          const mode = getMoveModeForNode(id, { nodes: state.nodes as NodesMap });
+          const isAbsoluteLike = position === "absolute" || position === "fixed";
+
           return {
             id,
             parentId: state.nodes[id]?.data?.parent as string | undefined,
-            needsAbsolute: position !== "absolute",
+            needsAbsolute: mode === "offset" && !isAbsoluteLike,
             marginTop: parseNumberOrZero(props.marginTop),
             marginLeft: parseNumberOrZero(props.marginLeft),
-            mode: "offset",
+            mode,
             top,
             left,
           };

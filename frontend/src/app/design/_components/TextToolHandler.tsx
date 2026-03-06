@@ -7,7 +7,7 @@ import { useCanvasTool } from "./CanvasToolContext";
 import { useInlineTextEdit } from "./InlineTextEditContext";
 import { Text } from "../_designComponents/Text/Text";
 
-const DRAG_THRESHOLD = 5;
+const DRAG_THRESHOLD = 8;
 const TEXT_ADDING_FLAG = "textAdding";
 
 type DragState = {
@@ -69,6 +69,7 @@ export const TextToolHandler = () => {
     const { setEditingTextNodeId } = useInlineTextEdit();
 
     const [previewRect, setPreviewRect] = useState<PreviewRect | null>(null);
+    const [previewHost, setPreviewHost] = useState<HTMLElement | null>(null);
     const dragRef = useRef<DragState | null>(null);
 
     const actionsRef = useRef(actions);
@@ -88,6 +89,7 @@ export const TextToolHandler = () => {
         const clearState = () => {
             dragRef.current = null;
             setPreviewRect(null);
+            setPreviewHost(null);
             delete document.body.dataset[TEXT_ADDING_FLAG];
         };
 
@@ -99,7 +101,8 @@ export const TextToolHandler = () => {
             if (!target) return;
 
             if (target.closest("[data-panel]")) return;
-            if (!target.closest("[data-canvas-container]")) return;
+            const canvasContainer = target.closest("[data-canvas-container]") as HTMLElement | null;
+            if (!canvasContainer) return;
             if (document.body.dataset.spacePan === "true") return;
 
             // Block Craft.js internal handlers and all other handlers from processing this click
@@ -125,6 +128,7 @@ export const TextToolHandler = () => {
                 targetNodeId,
                 hasDragged: false,
             };
+            setPreviewHost(canvasContainer);
         };
 
         const handleMouseMove = (e: MouseEvent) => {
@@ -156,6 +160,10 @@ export const TextToolHandler = () => {
             }
 
             const didDrag = dragState.hasDragged;
+            if (!didDrag) {
+                clearState();
+                return;
+            }
             const left = didDrag ? Math.min(dragState.startX, dragState.currentX) : e.clientX;
             const top = didDrag ? Math.min(dragState.startY, dragState.currentY) : e.clientY;
             const width = didDrag ? Math.max(Math.abs(dragState.currentX - dragState.startX), 150) : 220;
@@ -194,18 +202,7 @@ export const TextToolHandler = () => {
                         parentPosition === "sticky";
                     const shouldUseAbsolute = parentIsFreeform || (!parentIsFlexOrGrid && parentIsPositioned);
 
-                    let flowWidth: string | undefined;
-                    if (!shouldUseAbsolute) {
-                        if (parentDisplay === "grid") {
-                            flowWidth = "100%";
-                        } else if (parentDisplay === "flex") {
-                            flowWidth = parentFlexDirection.startsWith("row")
-                                ? (didDrag ? `${finalWidth}px` : "auto")
-                                : "100%";
-                        } else {
-                            flowWidth = didDrag ? `${finalWidth}px` : "100%";
-                        }
-                    }
+                    const flowWidth = !shouldUseAbsolute ? `${finalWidth}px` : undefined;
 
                     const tree = queryRef.current.parseReactElement(
                         <Text
@@ -260,26 +257,29 @@ export const TextToolHandler = () => {
         };
     }, [setEditingTextNodeId]);
 
-    if (!previewRect) return null;
+    if (!previewRect || !previewHost) return null;
+    const hostRect = previewHost.getBoundingClientRect();
+    const relativeLeft = previewRect.left - hostRect.left + previewHost.scrollLeft;
+    const relativeTop = previewRect.top - hostRect.top + previewHost.scrollTop;
 
     return typeof document !== "undefined"
         ? ReactDOM.createPortal(
             <div
                 data-panel="text-tool-preview"
                 style={{
-                    position: "fixed",
-                    left: previewRect.left,
-                    top: previewRect.top,
+                    position: "absolute",
+                    left: relativeLeft,
+                    top: relativeTop,
                     width: previewRect.width,
                     height: previewRect.height,
-                    border: "1px solid #3b82f6",
-                    backgroundColor: "rgba(59, 130, 246, 0.1)",
+                    border: "1px dashed #3b82f6",
+                    backgroundColor: "rgba(59, 130, 246, 0.06)",
                     pointerEvents: "none",
                     zIndex: 10000,
                     borderRadius: 2,
                 }}
             />,
-            document.body
+            previewHost
         )
         : null;
 };
