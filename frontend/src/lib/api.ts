@@ -865,6 +865,8 @@ export type ApiOrderItem = {
   productId?: string;
   sku?: string;
   name?: string;
+  image?: string;
+  subtotal?: number;
   quantity: number;
   price: number;
 };
@@ -941,6 +943,77 @@ export async function updateOrderStatus(
   });
 }
 
+
+export type ApiPublishedOrder = {
+  id: string;
+  subdomain: string;
+  ownerUserId: string;
+  projectId?: string | null;
+  domainId?: string | null;
+  items: ApiOrderItem[];
+  total: number;
+  status: 'Pending' | 'Processing' | 'Paid' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Returned' | string;
+  shippingAddress?: Record<string, unknown> | null;
+  currency?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export async function createPublishedOrder(params: {
+  subdomain: string;
+  items: ApiOrderItem[];
+  total?: number;
+  shippingAddress?: Record<string, unknown> | null;
+  currency?: string;
+}): Promise<{ success: boolean; message?: string; data?: ApiPublishedOrder }> {
+  const normalizedSubdomain = params.subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  return apiFetch<{ success: boolean; message?: string; data?: ApiPublishedOrder }>(
+    `/api/orders/published/${encodeURIComponent(normalizedSubdomain)}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        items: params.items,
+        total: params.total,
+        shippingAddress: params.shippingAddress ?? null,
+        currency: params.currency ?? 'PHP',
+      }),
+    }
+  );
+}
+
+export async function listMyPublishedOrders(params?: {
+  subdomain?: string;
+  search?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}): Promise<{ success: boolean; items: ApiPublishedOrder[]; total: number; page: number; totalPages: number }> {
+  const query = new URLSearchParams();
+  if (params?.subdomain) query.set('subdomain', params.subdomain);
+  if (params?.search) query.set('search', params.search);
+  if (params?.status) query.set('status', params.status);
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.limit) query.set('limit', String(params.limit));
+  const qs = query.toString();
+  return apiFetch<{ success: boolean; items: ApiPublishedOrder[]; total: number; page: number; totalPages: number }>(
+    qs ? `/api/orders/published/my?${qs}` : '/api/orders/published/my'
+  );
+}
+
+export async function updatePublishedOrderStatus(
+  subdomain: string,
+  id: string,
+  status: 'Pending' | 'Processing' | 'Paid' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Returned'
+): Promise<{ success: boolean; message?: string; data?: ApiPublishedOrder }> {
+  const normalizedSubdomain = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  return apiFetch<{ success: boolean; message?: string; data?: ApiPublishedOrder }>(
+    `/api/orders/published/${encodeURIComponent(normalizedSubdomain)}/${encodeURIComponent(id)}/status`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }
+  );
+}
 /** Admin: User and Website Management — list websites with owner and plan from user/roles/client (subscription_plan). */
 export type DomainRow = {
   id: string;
@@ -1089,3 +1162,4 @@ export async function getAnalytics(period: '7days' | '30days' | '3months' = '7da
   }
   return apiFetch<AnalyticsResponse>(`/api/dashboard/analytics?period=${encodeURIComponent(period)}`);
 }
+

@@ -3,6 +3,8 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Project = require('../models/Project');
 const InventoryMovement = require('../models/InventoryMovement');
+const Domain = require('../models/Domain');
+const StorefrontOrder = require('../models/StorefrontOrder');
 
 function normalizeStatus(status) {
   return String(status || '')
@@ -27,6 +29,83 @@ function toCanonicalStatus(status) {
 function itemQuantity(item) {
   const q = parseInt(item?.quantity, 10);
   return Number.isFinite(q) && q > 0 ? q : 1;
+}
+
+function numberOrFallback(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function safeText(value) {
+  return String(value || '').trim();
+}
+
+function normalizeCheckoutItems(items) {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((raw) => {
+      const quantity = itemQuantity(raw);
+      const price = numberOrFallback(raw?.price, 0);
+      const productId = safeText(raw?.productId || raw?.id);
+      const sku = safeText(raw?.sku);
+      const name = safeText(raw?.name);
+      const image = safeText(raw?.image);
+      const subtotal = Number((price * quantity).toFixed(2));
+      return {
+        id: productId || undefined,
+        productId: productId || undefined,
+        sku: sku || undefined,
+        name: name || undefined,
+        image: image || undefined,
+        quantity,
+        price,
+        subtotal,
+      };
+    })
+    .filter((item) => item.quantity > 0 && Number.isFinite(item.price) && item.price >= 0);
+}
+
+function normalizeShippingAddress(shippingAddress) {
+  const raw = shippingAddress && typeof shippingAddress === 'object' ? shippingAddress : {};
+  const fullName = safeText(raw.fullName || raw.name);
+  const email = safeText(raw.email || raw.emailAddress);
+  const phone = safeText(raw.phone || raw.contactNumber);
+  const street = safeText(raw.street || raw.streetAddress || raw.addressLine1);
+  const city = safeText(raw.city);
+  const state = safeText(raw.state || raw.province);
+  const postalCode = safeText(raw.postalCode || raw.zip);
+  const country = safeText(raw.country);
+
+  return {
+    fullName: fullName || undefined,
+    name: fullName || undefined,
+    email: email || undefined,
+    phone: phone || undefined,
+    contactNumber: phone || undefined,
+    addressLine1: street || undefined,
+    street: street || undefined,
+    city: city || undefined,
+    state: state || undefined,
+    province: state || undefined,
+    zip: postalCode || undefined,
+    postalCode: postalCode || undefined,
+    country: country || undefined,
+  };
+}
+
+function missingShippingFields(address) {
+  const required = ['fullName', 'email', 'phone', 'street', 'city', 'state', 'postalCode', 'country'];
+  return required.filter((key) => !safeText(address?.[key]));
+}
+
+async function getOwnedSubdomains(userId) {
+  const domains = await Domain.listByClient(userId);
+  const owned = new Set(
+    domains
+      .map((domain) => StorefrontOrder.normalizeSubdomain(domain?.subdomain))
+      .filter(Boolean)
+  );
+  return owned;
 }
 
 function readInventoryState(order) {
@@ -335,5 +414,118 @@ exports.updateStatus = async (req, res) => {
   } catch (error) {
     const statusCode = /insufficient/i.test(error.message || '') ? 400 : 500;
     res.status(statusCode).json({ success: false, message: error.message || 'Server error', error: error.message });
+  }
+};
+
+// Public storefront checkout: insert into published_subdomains/{subdomain}/orders
+exports.createPublicCheckout = async (req, res) => {
+  try {
+    const normalizedSubdomain = StorefrontOrder.normalizeSubdomain(req.params.subdomain || req.siteIdentifier || '');
+    if (!normalizedSubdomain) {
+      return res.status(400).json({ success: false, message: 'Subdomain is required' });
+    }
+
+    // Use direct published_subdomains lookup to avoid collectionGroup index requirements.
+    const domain = await Domain.findByPublishedSubdomain(normalizedSubdomain);
+    if (!domain || !domain.userId || !domain.projectId) {
+      return res.status(404).json({ success: false, message: 'Published site not found' });
+    }
+
+    const items = normalizeCheckoutItems(req.body?.items);
+    if (!items.length) {
+      return res.status(400).json({ success: false, message: 'At least one valid item is required' });
+    }
+
+    const shippingAddress = normalizeShippingAddress(req.body?.shippingAddress || {});
+    const missing = missingShippingFields(shippingAddress);
+    if (missing.length) {
+      return res.status(400).json({
+        success: false,
+        message: `Missing shipping fields: ${missing.join(', ')}`,
+      });
+    }
+
+    const computedTotal = Number(items.reduce((sum, item) => sum + numberOrFallback(item.price, 0) * item.quantity, 0).toFixed(2));
+    const requestedTotal = numberOrFallback(req.body?.total, computedTotal);
+    const total = requestedTotal > 0 ? requestedTotal : computedTotal;
+    const currency = safeText(req.body?.currency || 'PHP') || 'PHP';
+
+    const data = await StorefrontOrder.createForSubdomain({
+      subdomain: normalizedSubdomain,
+      ownerUserId: domain.userId,
+      projectId: domain.projectId || null,
+      domainId: domain.id || null,
+      items,
+      total,
+      status: 'Pending',
+      shippingAddress,
+      currency,
+    });
+
+    res.status(201).json({ success: true, message: 'Checkout saved', data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+// Owner: list checkouts from published_subdomains/{subdomain}/orders for owned domains
+exports.getMyPublishedOrders = async (req, res) => {
+  try {
+    const requestedSubdomain = StorefrontOrder.normalizeSubdomain(req.query.subdomain || '');
+    const ownedSubdomains = await getOwnedSubdomains(req.user.id);
+    let subdomains = Array.from(ownedSubdomains);
+
+    if (requestedSubdomain) {
+      subdomains = ownedSubdomains.has(requestedSubdomain) ? [requestedSubdomain] : [];
+    }
+
+    const result = await StorefrontOrder.listByOwner({
+      ownerUserId: req.user.id,
+      subdomains,
+      status: req.query.status,
+      search: req.query.search,
+      page: req.query.page,
+      limit: req.query.limit,
+    });
+
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+// Owner: update checkout status for a specific published subdomain order
+exports.updatePublishedOrderStatus = async (req, res) => {
+  try {
+    const subdomain = StorefrontOrder.normalizeSubdomain(req.params.subdomain || '');
+    const orderId = safeText(req.params.id);
+    if (!subdomain || !orderId) {
+      return res.status(400).json({ success: false, message: 'subdomain and order id are required' });
+    }
+
+    const ownedSubdomains = await getOwnedSubdomains(req.user.id);
+    if (!ownedSubdomains.has(subdomain)) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+
+    const requestedStatus = toCanonicalStatus(req.body?.status);
+    const allowed = ['Pending', 'Processing', 'Paid', 'Shipped', 'Delivered', 'Cancelled', 'Returned'];
+    if (!requestedStatus || !allowed.includes(requestedStatus)) {
+      return res.status(400).json({ success: false, message: 'Valid status required: ' + allowed.join(', ') });
+    }
+
+    const data = await StorefrontOrder.updateStatusForOwner({
+      ownerUserId: req.user.id,
+      subdomain,
+      orderId,
+      status: requestedStatus,
+    });
+    if (!data) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    res.status(200).json({ success: true, message: 'Order updated', data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
