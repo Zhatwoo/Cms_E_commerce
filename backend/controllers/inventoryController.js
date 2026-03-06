@@ -181,6 +181,41 @@ exports.getMovements = async (req, res) => {
   }
 };
 
+exports.deleteMovement = async (req, res) => {
+  try {
+    const movementId = String(req.params.movementId || '').trim();
+    if (!movementId) {
+      return res.status(400).json({ success: false, message: 'movementId is required' });
+    }
+
+    const { subdomain, projectId } = req.query;
+    const headerProjectId = String(req.headers['x-project-id'] || '').trim();
+    const scopedSubdomain = await resolveScopedSubdomain(req.user.id, subdomain, headerProjectId);
+    const scopedProjectId = String(projectId || headerProjectId || '').trim() || undefined;
+
+    const result = await InventoryMovement.deleteForUser(req.user.id, movementId, {
+      subdomain: scopedSubdomain || undefined,
+      projectId: scopedProjectId,
+    });
+
+    if (!result?.deleted) {
+      return res.status(404).json({ success: false, message: 'Movement not found' });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Inventory movement deleted',
+      data: result.item,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+      error: error.message,
+    });
+  }
+};
+
 function toIntOrNull(value) {
   if (value === undefined || value === null || value === '') return undefined;
   const n = parseInt(value, 10);
