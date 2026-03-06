@@ -13,10 +13,12 @@ import {
   Download,
   Upload,
   Minus,
+  Trash2,
 } from 'lucide-react';
 import { useTheme } from '../components/context/theme-context';
 import {
   adjustInventoryStock,
+  deleteInventoryMovement,
   getInventorySummary,
   importInventoryCsv,
   listInventory,
@@ -150,6 +152,13 @@ type ImportPopupState = {
   tone: 'success' | 'error';
 };
 
+type MovementDeleteToastState = {
+  open: boolean;
+  tone: 'confirm' | 'success' | 'error';
+  message: string;
+  movement: InventoryMovement | null;
+};
+
 const getDefaultAdjustmentNote = (movementType: StockAdjustmentType) =>
   movementType === 'IN' ? 'Manual stock-in from inventory page' : 'Manual stock-out from inventory page';
 
@@ -192,7 +201,15 @@ export default function InventoryPage() {
     message: '',
     tone: 'success',
   });
+  const [movementDeleteToast, setMovementDeleteToast] = useState<MovementDeleteToastState>({
+    open: false,
+    tone: 'confirm',
+    message: '',
+    movement: null,
+  });
+  const [deletingMovementId, setDeletingMovementId] = useState<string | null>(null);
   const importPopupTimerRef = useRef<number | null>(null);
+  const movementDeleteToastTimerRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const showImportPopup = useCallback((message: string, tone: 'success' | 'error') => {
@@ -217,8 +234,58 @@ export default function InventoryPage() {
       if (importPopupTimerRef.current) {
         window.clearTimeout(importPopupTimerRef.current);
       }
+      if (movementDeleteToastTimerRef.current) {
+        window.clearTimeout(movementDeleteToastTimerRef.current);
+      }
     };
   }, []);
+
+  const clearMovementDeleteToastTimer = useCallback(() => {
+    if (!movementDeleteToastTimerRef.current) return;
+    window.clearTimeout(movementDeleteToastTimerRef.current);
+    movementDeleteToastTimerRef.current = null;
+  }, []);
+
+  const closeMovementDeleteToast = useCallback(() => {
+    if (deletingMovementId) return;
+    clearMovementDeleteToastTimer();
+    setMovementDeleteToast({
+      open: false,
+      tone: 'confirm',
+      message: '',
+      movement: null,
+    });
+  }, [clearMovementDeleteToastTimer, deletingMovementId]);
+
+  const showMovementDeleteResultToast = useCallback(
+    (message: string, tone: 'success' | 'error') => {
+      clearMovementDeleteToastTimer();
+      setMovementDeleteToast({
+        open: true,
+        tone,
+        message,
+        movement: null,
+      });
+      movementDeleteToastTimerRef.current = window.setTimeout(() => {
+        setMovementDeleteToast((prev) => ({ ...prev, open: false }));
+        movementDeleteToastTimerRef.current = null;
+      }, 3000);
+    },
+    [clearMovementDeleteToastTimer]
+  );
+
+  const requestDeleteMovement = useCallback(
+    (movement: InventoryMovement) => {
+      clearMovementDeleteToastTimer();
+      setMovementDeleteToast({
+        open: true,
+        tone: 'confirm',
+        message: `Delete this movement for ${movement.productName || 'this product'}? This will remove it from history.`,
+        movement,
+      });
+    },
+    [clearMovementDeleteToastTimer]
+  );
 
   const formatStat = (value: string | number) => (typeof value === 'number' ? String(value) : value);
   const stockValueLabel = useMemo(() => `₱${(summary?.stockValue || 0).toLocaleString()}`, [summary?.stockValue]);
@@ -268,6 +335,11 @@ export default function InventoryPage() {
 
   const closeAllMovementsModal = useCallback(() => {
     setShowAllMovementsModal(false);
+    setMovementDeleteToast((prev) =>
+      prev.tone === 'confirm'
+        ? { open: false, tone: 'confirm', message: '', movement: null }
+        : prev
+    );
   }, []);
 
   useEffect(() => {
@@ -368,6 +440,34 @@ export default function InventoryPage() {
       setAdjustingId(null);
     }
   }, [stockModal, getStockNumbers, loadData, showAllMovementsModal, loadAllMovements]);
+
+  const confirmDeleteMovement = useCallback(async () => {
+    const targetMovement = movementDeleteToast.movement;
+    if (!targetMovement?.id) return;
+
+    try {
+      setDeletingMovementId(targetMovement.id);
+      await deleteInventoryMovement(targetMovement.id);
+      await loadData();
+      if (showAllMovementsModal) {
+        await loadAllMovements();
+      }
+      showMovementDeleteResultToast('Inventory movement deleted.', 'success');
+    } catch (err) {
+      showMovementDeleteResultToast(
+        err instanceof Error ? err.message : 'Failed to delete movement',
+        'error'
+      );
+    } finally {
+      setDeletingMovementId(null);
+    }
+  }, [
+    movementDeleteToast.movement,
+    loadAllMovements,
+    loadData,
+    showAllMovementsModal,
+    showMovementDeleteResultToast,
+  ]);
 
   const isAdjustingFromModal = Boolean(stockModal.product && adjustingId === stockModal.product.id);
   const modalOnHand = stockModal.product ? getStockNumbers(stockModal.product).onHand : 0;
@@ -477,6 +577,59 @@ export default function InventoryPage() {
                 </div>
               )}
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {movementDeleteToast.open && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[150] flex items-center justify-center p-4"
+          >
+            <div
+              className="w-full max-w-sm rounded-xl border px-4 py-3 shadow-xl"
+              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+            >
+              <p
+                className="text-sm"
+                style={{
+                  color:
+                    movementDeleteToast.tone === 'success'
+                      ? '#22c55e'
+                      : movementDeleteToast.tone === 'error'
+                        ? '#ef4444'
+                        : colors.text.primary,
+                }}
+              >
+                {movementDeleteToast.message}
+              </p>
+              {movementDeleteToast.tone === 'confirm' && movementDeleteToast.movement && (
+                <div className="mt-3 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={closeMovementDeleteToast}
+                    disabled={Boolean(deletingMovementId)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors hover:opacity-90 disabled:opacity-60"
+                    style={{ borderColor: colors.border.default, color: colors.text.secondary }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void confirmDeleteMovement()}
+                    disabled={Boolean(deletingMovementId)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-colors disabled:opacity-60"
+                    style={{ backgroundColor: '#dc2626' }}
+                  >
+                    {deletingMovementId === movementDeleteToast.movement.id ? 'Deleting...' : 'Delete'}
+                  </button>
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -864,9 +1017,21 @@ export default function InventoryPage() {
                               {m.notes || 'Inventory movement'}
                             </div>
                           </div>
-                          <div className="text-right">
-                            <div style={{ color: quantityColor }}>{m.quantity > 0 ? `+${m.quantity}` : m.quantity}</div>
-                            <div style={{ color: colors.text.muted }}>{m.createdAt ? new Date(m.createdAt).toLocaleString() : '-'}</div>
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <div style={{ color: quantityColor }}>{m.quantity > 0 ? `+${m.quantity}` : m.quantity}</div>
+                              <div style={{ color: colors.text.muted }}>{m.createdAt ? new Date(m.createdAt).toLocaleString() : '-'}</div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => requestDeleteMovement(m)}
+                              disabled={Boolean(deletingMovementId)}
+                              className="p-1.5 rounded border transition-colors hover:bg-red-500/10 disabled:opacity-60"
+                              style={{ borderColor: colors.border.default, color: '#ef4444' }}
+                              title="Delete movement"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </div>
                       );
