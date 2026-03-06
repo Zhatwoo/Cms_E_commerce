@@ -2,20 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AnimatePresence, motion } from 'framer-motion';
-import {
-  listProjects,
-  listTrashedProjects,
-  updateProject,
-  deleteProject,
-  restoreProject,
-  permanentDeleteProject,
-  type Project,
-} from '@/lib/api';
+import { listProjects, type Project } from '@/lib/api';
 import { DraftPreviewThumbnail } from '../components/projects/DraftPreviewThumbnail';
 import { useProject } from '../components/context/project-context';
-import { useTheme } from '../components/context/theme-context';
-import { useAlert } from '../components/context/alert-context';
+import { useNavigationLoading } from '../components/context/navigation-loading-context';
 
 const INDUSTRIES = [
   { label: 'Fashion &\nApparel', img: '/images/industries/Fashion & Apparel.png', bg: 'linear-gradient(135deg,#3A006D 0%,#1A1A6E 100%)' },
@@ -31,7 +21,6 @@ const INDUSTRIES = [
 ] as const;
 
 type HeroTab = 'designs' | 'templates';
-type ProjectTab = 'active' | 'trash';
 
 function formatLastEdited(dateStr?: string) {
   if (!dateStr) return 'Last edited recently';
@@ -69,8 +58,7 @@ function toWorkspaceLabel(project?: Project | null) {
 export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const router = useRouter();
   const { selectedProject } = useProject();
-  const { theme } = useTheme();
-  const { showAlert, showConfirm } = useAlert();
+  const { startNavigation } = useNavigationLoading();
   const [activeTab, setActiveTab] = useState<HeroTab>('designs');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -79,21 +67,6 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const [activeProjectIndex, setActiveProjectIndex] = useState(0);
   const [isSliderTransitionEnabled, setIsSliderTransitionEnabled] = useState(true);
   const [showAllOtherProjects, setShowAllOtherProjects] = useState(false);
-  const [projectTab, setProjectTab] = useState<ProjectTab>('active');
-  const [trashLoading, setTrashLoading] = useState(false);
-  const [trashedProjects, setTrashedProjects] = useState<Project[]>([]);
-  const [trashRetentionDays, setTrashRetentionDays] = useState(30);
-  const [actioningProjectId, setActioningProjectId] = useState<string | null>(null);
-  const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
-  const [renamingProject, setRenamingProject] = useState<Project | null>(null);
-  const [renameTitle, setRenameTitle] = useState('');
-
-  const handleCardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>, onActivate: () => void) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      onActivate();
-    }
-  };
 
   useEffect(() => {
     let cancelled = false;
@@ -145,40 +118,6 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
     return () => window.clearInterval(interval);
   }, [recentProjects.length]);
 
-  useEffect(() => {
-    if (projectTab !== 'trash') return;
-    let cancelled = false;
-    setTrashLoading(true);
-    listTrashedProjects()
-      .then((res) => {
-        if (cancelled) return;
-        if (res.success && res.projects) {
-          setTrashedProjects(res.projects);
-          if (Number.isFinite(res.retentionDays) && Number(res.retentionDays) > 0) {
-            setTrashRetentionDays(Number(res.retentionDays));
-          }
-          return;
-        }
-        setTrashedProjects([]);
-      })
-      .catch(() => {
-        if (!cancelled) setTrashedProjects([]);
-      })
-      .finally(() => {
-        if (!cancelled) setTrashLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [projectTab]);
-
-  useEffect(() => {
-    if (!openProjectMenuId) return;
-    const closeMenu = () => setOpenProjectMenuId(null);
-    document.addEventListener('click', closeMenu);
-    return () => document.removeEventListener('click', closeMenu);
-  }, [openProjectMenuId]);
-
   const projectCount = recentProjects.length;
   const displayProjectIndex = projectCount > 0 && activeProjectIndex >= projectCount ? 0 : activeProjectIndex;
   const featuredProject = recentProjects[displayProjectIndex] ?? null;
@@ -188,9 +127,6 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const otherProjects = allProjects.length > 3 && !showAllOtherProjects
     ? allProjects.filter((project) => !recentProjectIds.has(project.id))
     : allProjects;
-  const visibleTrashProjects = showAllOtherProjects
-    ? trashedProjects
-    : trashedProjects.slice(0, 3);
 
   const getTrackTranslateClass = () => {
     if (activeProjectIndex <= 0) return 'translate-x-0';
@@ -209,121 +145,6 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
         setIsSliderTransitionEnabled(true);
       });
     });
-  };
-
-  const handleRestoreProject = async (projectId: string) => {
-    try {
-      setActioningProjectId(projectId);
-      const res = await restoreProject(projectId);
-      if (!res.success) return;
-      setTrashedProjects((prev) => prev.filter((project) => project.id !== projectId));
-      const activeRes = await listProjects();
-      if (activeRes.success && activeRes.projects) {
-        const sorted = [...activeRes.projects].sort((a, b) => {
-          const aDate = new Date(a.updatedAt || a.createdAt || 0).getTime();
-          const bDate = new Date(b.updatedAt || b.createdAt || 0).getTime();
-          return bDate - aDate;
-        });
-        setAllProjects(sorted);
-        setRecentProjects(sorted.slice(0, 3));
-      }
-    } finally {
-      setActioningProjectId(null);
-    }
-  };
-
-  const handlePermanentDeleteProject = async (projectId: string, projectTitle?: string) => {
-    const confirmed = window.confirm(`Permanently delete "${projectTitle || 'Untitled Project'}"? This cannot be undone.`);
-    if (!confirmed) return;
-    try {
-      setActioningProjectId(projectId);
-      const res = await permanentDeleteProject(projectId);
-      if (!res.success) return;
-      setTrashedProjects((prev) => prev.filter((project) => project.id !== projectId));
-    } finally {
-      setActioningProjectId(null);
-    }
-  };
-
-  const sortProjectsByUpdated = (projects: Project[]) => {
-    return [...projects].sort((a, b) => {
-      const aDate = new Date(a.updatedAt || a.createdAt || 0).getTime();
-      const bDate = new Date(b.updatedAt || b.createdAt || 0).getTime();
-      return bDate - aDate;
-    });
-  };
-
-  const handleEditActiveProject = async (project: Project) => {
-    setRenamingProject(project);
-    setRenameTitle((project.title || 'Untitled Project').trim());
-    setOpenProjectMenuId(null);
-  };
-
-  const submitRenameProject = async () => {
-    if (!renamingProject) return;
-    const trimmedTitle = renameTitle.trim();
-    if (!trimmedTitle) {
-      showAlert('Project title cannot be empty.');
-      return;
-    }
-
-    try {
-      setActioningProjectId(renamingProject.id);
-      const res = await updateProject(renamingProject.id, { title: trimmedTitle });
-      if (!res.success) {
-        showAlert(res.message || 'Failed to rename project.');
-        return;
-      }
-
-      const merged = allProjects.map((item) =>
-        item.id === renamingProject.id
-          ? {
-              ...item,
-              ...(res.project || {}),
-              title: res.project?.title || trimmedTitle,
-              updatedAt: res.project?.updatedAt || new Date().toISOString(),
-            }
-          : item
-      );
-      const sorted = sortProjectsByUpdated(merged);
-      setAllProjects(sorted);
-      setRecentProjects(sorted.slice(0, 3));
-      setRenamingProject(null);
-      setRenameTitle('');
-    } catch {
-      showAlert('Backend is unreachable. Start the backend server and ensure API URL/port is correct.');
-    } finally {
-      setActioningProjectId(null);
-    }
-  };
-
-  const handleDeleteActiveProject = async (project: Project) => {
-    const normalizedStatus = String(project.status || '').trim().toLowerCase();
-    if (normalizedStatus === 'published' || normalizedStatus === 'live') {
-      showAlert('This project is live. Take down (unpublish) the website first before moving it to trash.');
-      setOpenProjectMenuId(null);
-      return;
-    }
-
-    const confirmed = await showConfirm(`Move "${project.title || 'Untitled Project'}" to trash?`);
-    if (!confirmed) return;
-
-    try {
-      setActioningProjectId(project.id);
-      const res = await deleteProject(project.id);
-      if (!res.success) return;
-
-      const filtered = allProjects.filter((item) => item.id !== project.id);
-      const sorted = sortProjectsByUpdated(filtered);
-      setAllProjects(sorted);
-      setRecentProjects(sorted.slice(0, 3));
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to move project to trash.';
-      showAlert(message);
-    } finally {
-      setActioningProjectId(null);
-      setOpenProjectMenuId(null);
-    }
   };
 
   const renderProjectPreview = (project: Project | null) => {
@@ -350,6 +171,11 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
     );
   };
 
+  const navigateWithLoader = (href: string) => {
+    startNavigation();
+    router.push(href);
+  };
+
   return (
     <section className="relative min-h-[calc(100vh-176px)] px-3 py-3 sm:px-5 sm:py-4 lg:px-[100px] [font-family:var(--font-outfit),sans-serif]">
       <div className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full blur-3xl opacity-25 bg-[#5C1D8F]" />
@@ -358,14 +184,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
 
       <div className="relative z-10 mx-auto w-full max-w-none flex flex-col gap-10">
         <div className="flex flex-col items-center text-center gap-6 pt-1">
-          <h1
-            className={`text-4xl sm:text-6xl lg:text-[76px] font-extrabold leading-[1.06] tracking-tight max-w-5xl [font-family:var(--font-outfit),sans-serif] ${theme === 'dark' ? 'bg-clip-text text-transparent' : 'text-[#000000]'}`}
-            style={{
-              backgroundImage: theme === 'dark'
-                ? 'linear-gradient(90deg,rgba(255,255,255,1) 0%,rgba(255,255,255,0.81) 15%,rgba(216,157,255,0.63) 31%,rgba(167,139,250,1) 54%,rgba(217,173,143,0.89) 82%,rgba(255,242,191,0.78) 88%,rgba(255,255,255,0.81) 97%)'
-                : 'none',
-            }}
-          >
+          <h1 className="text-4xl sm:text-6xl lg:text-[76px] font-extrabold leading-[1.06] tracking-tight max-w-5xl [font-family:var(--font-outfit),sans-serif] bg-gradient-to-r from-[#8b3dff] via-[#c026d3] to-[#f5c400] bg-clip-text text-transparent">
             <span className="block">What website will</span>
             <span className="block">you build?</span>
           </h1>
@@ -374,32 +193,16 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
             <button
               type="button"
               onClick={() => setActiveTab('designs')}
-              className={`relative pb-1 transition-colors ${activeTab === 'designs' ? 'text-[#FFCE00]' : 'text-[#807FAF]'}`}
+              className={`pb-1 border-b-2 transition-colors ${activeTab === 'designs' ? 'border-[#FFCE00] text-[#FFCE00]' : 'border-transparent text-[#807FAF]'}`}
             >
               YOUR DESIGNS
-              {activeTab === 'designs' && (
-                <motion.span
-                  layoutId="dashboard-tab-underline"
-                  className="absolute left-0 right-0 -bottom-[2px] h-[2px]"
-                  style={{ background: 'linear-gradient(90deg,#B13BFF 0%, #B36760 50%, #FFCC00 100%)' }}
-                  transition={{ type: 'spring', stiffness: 520, damping: 38 }}
-                />
-              )}
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('templates')}
-              className={`relative pb-1 transition-colors ${activeTab === 'templates' ? 'text-[#FFCE00]' : 'text-[#807FAF]'}`}
+              className={`pb-1 border-b-2 transition-colors ${activeTab === 'templates' ? 'border-[#FFCE00] text-[#FFCE00]' : 'border-transparent text-[#807FAF]'}`}
             >
               TEMPLATES
-              {activeTab === 'templates' && (
-                <motion.span
-                  layoutId="dashboard-tab-underline"
-                  className="absolute left-0 right-0 -bottom-[2px] h-[2px]"
-                  style={{ background: 'linear-gradient(90deg,#B13BFF 0%, #B36760 50%, #FFCC00 100%)' }}
-                  transition={{ type: 'spring', stiffness: 520, damping: 38 }}
-                />
-              )}
             </button>
           </div>
 
@@ -418,27 +221,14 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
           </div>
         </div>
 
-        <AnimatePresence mode="wait" initial={false}>
         {activeTab === 'designs' ? (
-          <motion.div
-            key="designs-tab"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
-          >
+          <>
             <div className="mx-auto w-full max-w-none grid grid-cols-1 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,1.18fr)] gap-8 lg:gap-12 items-center pt-3">
               <div className="space-y-5 w-full max-w-[760px] lg:justify-self-start">
-                <h2
-                  className="text-5xl sm:text-6xl lg:text-[84px] font-extrabold leading-[0.94] [font-family:var(--font-outfit),sans-serif]"
-                  style={{ color: theme === 'dark' ? '#FFFFFF' : '#1E1B4B' }}
-                >
+                <h2 className="text-5xl sm:text-6xl lg:text-[84px] font-extrabold leading-[0.94] [font-family:var(--font-outfit),sans-serif] text-white">
                   Most Recent Project
                 </h2>
-                <p
-                  className="text-base sm:text-xl leading-relaxed max-w-[760px]"
-                  style={{ color: theme === 'dark' ? 'rgba(255,255,255,0.72)' : 'rgba(30, 41, 59, 0.78)' }}
-                >
+                <p className="text-base sm:text-xl leading-relaxed text-[rgba(255,255,255,0.72)] max-w-[760px]">
                   {loading
                     ? 'Loading your latest project...'
                     : featuredProject
@@ -448,8 +238,8 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                 <button
                   type="button"
                   onClick={() => {
-                    if (featuredProject?.id) router.push(`/design?projectId=${featuredProject.id}`);
-                    else router.push('/design');
+                    if (featuredProject?.id) navigateWithLoader(`/design?projectId=${featuredProject.id}`);
+                    else navigateWithLoader('/m_dashboard/web-builder');
                   }}
                   className="rounded-full px-10 py-3 text-base font-bold transition-transform hover:-translate-y-0.5 bg-[#FFCE00] text-[#121241] shadow-[0_0_28px_rgba(255,206,0,0.35)]"
                 >
@@ -485,29 +275,15 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                     WORKSPACE // {toWorkspaceLabel(featuredProject)}
                   </span>
                 </div>
-                <div
-                  role="button"
-                  tabIndex={0}
+                <button
+                  type="button"
                   onClick={() => {
-                    if (featuredProject?.id) router.push(`/design?projectId=${featuredProject.id}`);
-                    else router.push('/design');
+                    if (featuredProject?.id) navigateWithLoader(`/design?projectId=${featuredProject.id}`);
+                    else navigateWithLoader('/m_dashboard/web-builder');
                   }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      if (featuredProject?.id) router.push(`/design?projectId=${featuredProject.id}`);
-                      else router.push('/design');
-                    }
-                  }}
-                  onKeyDown={(event) =>
-                    handleCardKeyDown(event, () => {
-                      if (featuredProject?.id) router.push(`/design?projectId=${featuredProject.id}`);
-                      else router.push('/m_dashboard/web-builder');
-                    })
-                  }
                   aria-label={featuredProject?.title ? `Open featured project ${featuredProject.title}` : 'Open featured project'}
                   title={featuredProject?.title ? `Open featured project ${featuredProject.title}` : 'Open featured project'}
-                  className="w-full block rounded-xl mt-3 overflow-hidden border border-[rgba(147,145,212,0.2)] bg-[#0E0D3D] cursor-pointer"
+                  className="w-full block rounded-xl mt-3 overflow-hidden border border-[rgba(147,145,212,0.2)] bg-[#0E0D3D]"
                 >
                   <div className="w-full aspect-[16/9]">
                     <div className="relative h-full w-full overflow-hidden">
@@ -523,246 +299,68 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                       </div>
                     </div>
                   </div>
-                </div>
+                </button>
               </div>
             </div>
 
             <section className="mx-auto w-full max-w-none pt-2 sm:pt-4">
               <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-xs sm:text-sm font-bold tracking-[0.18em] uppercase text-[#FFCE00]">Other Projects</h3>
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="inline-flex items-center gap-1 rounded-xl border border-[#1F1F51] bg-[#141446] p-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setProjectTab('active');
-                        setShowAllOtherProjects(false);
-                      }}
-                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold transition-all ${projectTab === 'active' ? 'bg-[#2D3A90] text-white shadow-sm' : 'text-[#8A8FC4] hover:text-white'}`}
-                    >
-                      Active
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setProjectTab('trash');
-                        setShowAllOtherProjects(false);
-                      }}
-                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold transition-all ${projectTab === 'trash' ? 'bg-[#2D3A90] text-white shadow-sm' : 'text-[#8A8FC4] hover:text-white'}`}
-                    >
-                      Trash
-                    </button>
-                  </div>
-                  {((projectTab === 'active' && allProjects.length > 3) || (projectTab === 'trash' && trashedProjects.length > 3)) && (
-                    <button
-                      type="button"
-                      onClick={() => setShowAllOtherProjects((prev) => !prev)}
-                      className="rounded-lg border border-[#2B3488] bg-[#10145A]/70 px-4 py-1.5 text-xs sm:text-sm font-semibold text-white hover:opacity-95"
-                    >
-                      {showAllOtherProjects ? 'Show Less' : 'See All'}
-                    </button>
-                  )}
-                </div>
+                {allProjects.length > 3 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllOtherProjects((prev) => !prev)}
+                    className="rounded-lg border border-[#2B3488] bg-[#10145A]/70 px-4 py-1.5 text-xs sm:text-sm font-semibold text-white hover:opacity-95"
+                  >
+                    {showAllOtherProjects ? 'Show Less' : 'See All'}
+                  </button>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-                {projectTab === 'active' ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => router.push('/design')}
-                      className="rounded-[26px] border border-dashed border-[#2D3A90] bg-[#12145A]/80 p-4 sm:p-5 text-left min-h-[240px] sm:min-h-[260px] flex flex-col items-center justify-center gap-5"
-                    >
-                      <span className="h-14 w-14 rounded-2xl bg-[#FFCE00] flex items-center justify-center">
-                        <svg className="w-7 h-7" fill="none" stroke="#11134D" strokeWidth={2.4} viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                        </svg>
-                      </span>
-                      <span className="text-2xl font-extrabold text-white">New Project</span>
-                    </button>
-
-                    {otherProjects.map((project) => (
-                      <div
-                        key={project.id}
-                        className="relative rounded-[26px] border border-[#2D3A90] bg-[#12145A]/80 overflow-hidden text-left hover:translate-y-[-1px] transition-transform"
-                      >
-                        <div className="absolute right-3 top-3 z-20" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setOpenProjectMenuId((prev) => (prev === project.id ? null : project.id));
-                            }}
-                            className="h-8 w-8 rounded-md border border-[#2D3A90] bg-[#0E0D3D]/90 text-white flex items-center justify-center"
-                            aria-label="Project actions"
-                            title="Project actions"
-                          >
-                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                              <circle cx="12" cy="6" r="1.8" />
-                              <circle cx="12" cy="12" r="1.8" />
-                              <circle cx="12" cy="18" r="1.8" />
-                            </svg>
-                          </button>
-
-                          {openProjectMenuId === project.id && (
-                            <div className="absolute right-0 mt-1 w-36 rounded-lg border border-[#2D3A90] bg-[#12145A] py-1 shadow-xl">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleEditActiveProject(project);
-                                }}
-                                disabled={actioningProjectId === project.id}
-                                className="w-full px-3 py-2 text-left text-sm text-white flex items-center gap-2 hover:bg-white/5 disabled:opacity-50"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 3.487a1.875 1.875 0 1 1 2.652 2.652L8.25 17.403 4.5 18.75l1.347-3.75L16.862 3.487Z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 4.5l3.75 3.75" />
-                                </svg>
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleDeleteActiveProject(project);
-                                }}
-                                disabled={actioningProjectId === project.id || String(project.status || '').trim().toLowerCase() === 'published' || String(project.status || '').trim().toLowerCase() === 'live'}
-                                className="w-full px-3 py-2 text-left text-sm text-red-300 flex items-center gap-2 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
-                                title={String(project.status || '').trim().toLowerCase() === 'published' || String(project.status || '').trim().toLowerCase() === 'live' ? 'Take down (unpublish) this website first' : 'Move to trash'}
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                                {String(project.status || '').trim().toLowerCase() === 'published' || String(project.status || '').trim().toLowerCase() === 'live' ? 'Take down first' : 'Delete'}
-                              </button>
-                            </div>
-                          )}
-                        </div>
-
-                        <div
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => router.push(`/design?projectId=${project.id}`)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              router.push(`/design?projectId=${project.id}`);
-                            }
-                          }}
-                          className="cursor-pointer"
-                        >
-                          <div className="w-full aspect-[16/10] overflow-hidden border-b border-[#2D3A90] bg-[#0E0D3D]">
-                            {project.thumbnail ? (
-                              <img src={project.thumbnail} alt={project.title || 'Project'} className="h-full w-full object-cover" loading="lazy" />
-                            ) : (
-                              <DraftPreviewThumbnail
-                                projectId={project.id}
-                                borderColor="rgba(45,58,144,0.9)"
-                                bgColor="#120F46"
-                                className="w-full h-full !aspect-[16/10] !rounded-none"
-                              />
-                            )}
-                          </div>
-                          <div className="px-4 py-3.5">
-                            <p className="text-2xl font-extrabold text-white leading-tight truncate">{project.title || 'Untitled Project'}</p>
-                            <p className="text-xs text-[#8A8FC4] mt-1 truncate">{formatEditedDate(project.updatedAt || project.createdAt)}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </>
-                ) : trashLoading ? (
-                  <div className="col-span-full flex flex-col items-center justify-center py-14 gap-3">
-                    <div className="w-6 h-6 border-2 border-[#FFCE00] border-t-transparent rounded-full animate-spin" />
-                    <p className="text-sm text-[#8A8FC4]">Loading trash…</p>
-                  </div>
-                ) : visibleTrashProjects.length === 0 ? (
-                  <div className="col-span-full flex flex-col items-center justify-center py-14 gap-2 text-center">
-                    <svg className="w-10 h-10 text-[#3A3A7A]" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                <button
+                  type="button"
+                  onClick={() => navigateWithLoader('/m_dashboard/web-builder')}
+                  className="rounded-[26px] border border-dashed border-[#2D3A90] bg-[#12145A]/80 p-4 sm:p-5 text-left min-h-[240px] sm:min-h-[260px] flex flex-col items-center justify-center gap-5"
+                >
+                  <span className="h-14 w-14 rounded-2xl bg-[#FFCE00] flex items-center justify-center">
+                    <svg className="w-7 h-7" fill="none" stroke="#11134D" strokeWidth={2.4} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                     </svg>
-                    <p className="text-sm text-[#8A8FC4]">Trash is empty.</p>
-                    <p className="text-xs text-[#6B6FA0]">Deleted projects appear here for {trashRetentionDays} days before being purged.</p>
-                  </div>
-                ) : (
-                  <>
-                    {visibleTrashProjects.map((project) => {
-                      const daysLeft = Number.isFinite(project.daysLeft)
-                        ? Number(project.daysLeft)
-                        : (project.deletedAt
-                            ? Math.max(
-                                1,
-                                Math.ceil(
-                                  (trashRetentionDays * 24 * 60 * 60 * 1000
-                                    - (Date.now() - new Date(project.deletedAt).getTime()))
-                                  / (24 * 60 * 60 * 1000)
-                                )
-                              )
-                            : null);
+                  </span>
+                  <span className="text-2xl font-extrabold text-white">New Project</span>
+                </button>
 
-                      return (
-                        <div
-                          key={project.id}
-                          className="rounded-[26px] border border-[#2D3A90] bg-[#12145A]/80 overflow-hidden text-left"
-                        >
-                          <div className="w-full aspect-[16/10] overflow-hidden border-b border-[#2D3A90] bg-[#0E0D3D] grayscale">
-                            <DraftPreviewThumbnail
-                              projectId={project.id}
-                              borderColor="rgba(45,58,144,0.9)"
-                              bgColor="#120F46"
-                              className="w-full h-full !aspect-[16/10] !rounded-none"
-                            />
-                          </div>
-                          <div className="px-4 py-3.5 space-y-3">
-                            <div>
-                              <p className="text-2xl font-extrabold text-white leading-tight truncate">{project.title || 'Untitled Project'}</p>
-                              <p className="text-xs text-[#8A8FC4] mt-1 truncate">
-                                {daysLeft == null
-                                  ? 'Days remaining unavailable'
-                                  : `${daysLeft} day${daysLeft === 1 ? '' : 's'} remaining in trash`}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleRestoreProject(project.id)}
-                                disabled={actioningProjectId === project.id}
-                                className="px-2.5 py-1.5 rounded-md text-xs font-medium text-white border border-[#3E4AA3] hover:bg-[#2D3A90]/40 disabled:opacity-50"
-                              >
-                                Restore
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handlePermanentDeleteProject(project.id, project.title)}
-                                disabled={actioningProjectId === project.id}
-                                className="px-2.5 py-1.5 rounded-md text-xs font-medium text-red-300 border border-red-500/40 hover:bg-red-500/10 disabled:opacity-50"
-                              >
-                                Delete forever
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </>
-                )}
+                {otherProjects.map((project) => (
+                  <button
+                    key={project.id}
+                    type="button"
+                    onClick={() => navigateWithLoader(`/design?projectId=${project.id}`)}
+                    className="rounded-[26px] border border-[#2D3A90] bg-[#12145A]/80 overflow-hidden text-left hover:translate-y-[-1px] transition-transform"
+                  >
+                    <div className="w-full aspect-[16/10] overflow-hidden border-b border-[#2D3A90] bg-[#0E0D3D]">
+                      {project.thumbnail ? (
+                        <img src={project.thumbnail} alt={project.title || 'Project'} className="h-full w-full object-cover" loading="lazy" />
+                      ) : (
+                        <DraftPreviewThumbnail
+                          projectId={project.id}
+                          borderColor="rgba(45,58,144,0.9)"
+                          bgColor="#120F46"
+                          className="w-full h-full !aspect-[16/10] !rounded-none"
+                        />
+                      )}
+                    </div>
+                    <div className="px-4 py-3.5">
+                      <p className="text-2xl font-extrabold text-white leading-tight truncate">{project.title || 'Untitled Project'}</p>
+                      <p className="text-xs text-[#8A8FC4] mt-1 truncate">{formatEditedDate(project.updatedAt || project.createdAt)}</p>
+                    </div>
+                  </button>
+                ))}
               </div>
             </section>
-          </motion.div>
+          </>
         ) : (
-          /* ── TEMPLATES TAB ──────────────────────────────────────── */
-          <motion.div
-            key="templates-tab"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
-          >
-            {/* Browse by Industry */}
+          <>
             <section className="mx-auto w-full max-w-none pt-2">
               <div className="mb-5">
                 <h3 className="text-xs sm:text-sm font-bold tracking-[0.18em] uppercase text-[#FFCE00]">Browse by Industry</h3>
@@ -861,63 +459,10 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                 </div>
               </div>
             </section>
-          </motion.div>
+          </>
         )}
-        </AnimatePresence>
       </div>
 
-      {renamingProject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => {
-          if (actioningProjectId === renamingProject.id) return;
-          setRenamingProject(null);
-          setRenameTitle('');
-        }}>
-          <div
-            className="w-full max-w-md rounded-2xl border border-[#2D3A90] bg-[#12145A] p-5 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold text-white">Rename project</h3>
-            <p className="mt-1 text-xs text-[#8A8FC4]">Update the project title.</p>
-
-            <input
-              type="text"
-              value={renameTitle}
-              onChange={(e) => setRenameTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  submitRenameProject();
-                }
-              }}
-              autoFocus
-              className="mt-4 w-full rounded-lg border border-[#2D3A90] bg-[#0E0D3D] px-3 py-2 text-sm text-white outline-none focus:border-[#6B72D8]"
-              placeholder="Untitled Project"
-            />
-
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setRenamingProject(null);
-                  setRenameTitle('');
-                }}
-                disabled={actioningProjectId === renamingProject.id}
-                className="px-3 py-1.5 rounded-md text-xs font-medium text-[#8A8FC4] hover:text-white disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={submitRenameProject}
-                disabled={actioningProjectId === renamingProject.id}
-                className="px-3 py-1.5 rounded-md text-xs font-semibold bg-[#FFCE00] text-[#121241] hover:bg-[#FFD740] disabled:opacity-50"
-              >
-                {actioningProjectId === renamingProject.id ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       <style jsx>{`
         .template-pan-img,
         .template-pan-img-slow {

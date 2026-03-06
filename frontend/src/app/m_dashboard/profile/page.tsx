@@ -3,6 +3,7 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
 import { updateProfile, uploadAvatarApi } from '@/lib/api';
+import { getSubscriptionPlanDisplayName } from '@/lib/subscriptionLimits';
 import { useAuth } from '../components/context/auth-context';
 import { useTheme } from '../components/context/theme-context';
 import { motion } from 'framer-motion';
@@ -52,11 +53,20 @@ const CameraIcon = () => (
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState('general');
+  const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { user, setUser } = useAuth();
   const { colors, theme } = useTheme();
   const [avatarUrl, setAvatarUrl] = useState("https://api.dicebear.com/7.x/avataaars/svg?seed=Felix");
+  const [savedAvatarUrl, setSavedAvatarUrl] = useState("https://api.dicebear.com/7.x/avataaars/svg?seed=Felix");
   const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    username: '',
+    website: '',
+    bio: ''
+  });
+  const [savedFormData, setSavedFormData] = useState({
     name: '',
     email: '',
     username: '',
@@ -65,14 +75,29 @@ export default function ProfilePage() {
   });
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
-  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
-  const [pendingAvatarPreviewUrl, setPendingAvatarPreviewUrl] = useState<string | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraLoading, setCameraLoading] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+
+  const mergeUserWithCurrent = (incomingUser: NonNullable<typeof user>) => {
+    const current = user || ({} as NonNullable<typeof user>);
+    return {
+      ...current,
+      ...incomingUser,
+      name: typeof incomingUser?.name === 'string' ? incomingUser.name : current.name,
+      email: typeof incomingUser?.email === 'string' ? incomingUser.email : current.email,
+      username:
+        typeof incomingUser?.username === 'string' && incomingUser.username.trim() !== ''
+          ? incomingUser.username
+          : (current.username || ''),
+      website: typeof incomingUser?.website === 'string' ? incomingUser.website : (current.website || ''),
+      bio: typeof incomingUser?.bio === 'string' ? incomingUser.bio : (current.bio || ''),
+      avatar: typeof incomingUser?.avatar === 'string' ? incomingUser.avatar : current.avatar,
+    };
+  };
 
   const stopCameraStream = () => {
     if (streamRef.current) {
@@ -152,68 +177,93 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (user) {
-      if (!pendingAvatarFile) {
-        // Use avatar from backend if available, otherwise fallback to dicebear
-        setAvatarUrl(user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`);
-        setPendingAvatarPreviewUrl(null);
-      }
-      setFormData({
-        name: user.name || '',
-        email: user.email || '',
-        username: user.name?.toLowerCase().replace(/\s/g, '') || '',
-        website: 'https://mercato.tools',
-        bio: 'Building the future of commerce. Love React, Three.js, and good coffee.'
-      });
-    }
-  }, [user, pendingAvatarFile]);
+      // Use avatar from backend if available, otherwise fallback to dicebear
+      const nextAvatar = user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`;
+      setAvatarUrl(nextAvatar);
+      setSavedAvatarUrl(nextAvatar);
 
-  useEffect(() => {
-    return () => {
-      if (pendingAvatarPreviewUrl) {
-        URL.revokeObjectURL(pendingAvatarPreviewUrl);
-      }
-    };
-  }, [pendingAvatarPreviewUrl]);
+      const nextFormData = {
+        name: typeof user.name === 'string' ? user.name : '',
+        email: typeof user.email === 'string' ? user.email : '',
+        username: typeof user.username === 'string' ? user.username : '',
+        website: typeof user.website === 'string' ? user.website : '',
+        bio: typeof user.bio === 'string' ? user.bio : '',
+      };
+
+      setSavedFormData(nextFormData);
+      setFormData((prev) => ({
+        name: typeof user.name === 'string' ? user.name : prev.name,
+        email: typeof user.email === 'string' ? user.email : prev.email,
+        username: typeof user.username === 'string' ? user.username : prev.username,
+        website: typeof user.website === 'string' ? user.website : prev.website,
+        bio: typeof user.bio === 'string' ? user.bio : prev.bio,
+      }));
+    }
+  }, [user]);
+
+  const profileDisplayName =
+    (formData.username || user?.username || '').replace(/^@+/, '') ||
+    'User';
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleStartEdit = () => {
+    setSavedFormData(formData);
+    setSavedAvatarUrl(avatarUrl);
+    setFeedback(null);
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setFormData(savedFormData);
+    setAvatarUrl(savedAvatarUrl);
+    setFeedback(null);
+    setIsEditing(false);
+  };
+
   const handleSave = async () => {
+    if (!isEditing) return;
     setIsLoading(true);
-    setAvatarUploading(Boolean(pendingAvatarFile));
 
     try {
-      let avatarToSave: string | undefined;
-
-      if (pendingAvatarFile) {
-        const uploadRes = await uploadAvatarApi(pendingAvatarFile);
-        if (!uploadRes.success || !uploadRes.url) {
-          throw new Error(uploadRes.message || 'Avatar upload failed');
-        }
-        avatarToSave = uploadRes.url;
-      } else {
-        avatarToSave =
-          avatarUrl?.startsWith('http') || avatarUrl?.startsWith('https')
-            ? avatarUrl
-            : undefined;
-      }
-
       // Send only Storage URL (never base64) so Firestore stores path/URL, not image data
-      const res = await updateProfile({
+      const avatarToSave =
+        avatarUrl?.startsWith('http') || avatarUrl?.startsWith('https')
+          ? avatarUrl
+          : undefined;
+      const profilePayload = {
         name: formData.name,
+        username: formData.username,
+        website: formData.website,
+        bio: formData.bio,
         ...(avatarToSave !== undefined && { avatar: avatarToSave })
-      });
+      } as Parameters<typeof updateProfile>[0];
+
+      const res = await updateProfile(profilePayload);
 
       if (res.success && res.user) {
-        setUser(res.user);
-        if (pendingAvatarPreviewUrl) {
-          URL.revokeObjectURL(pendingAvatarPreviewUrl);
-        }
-        setPendingAvatarPreviewUrl(null);
-        setPendingAvatarFile(null);
-        setAvatarUrl(res.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${res.user.email}`);
+        const mergedUser = mergeUserWithCurrent(res.user);
+        const nextFormData = {
+          name: typeof mergedUser?.name === 'string' ? mergedUser.name : formData.name,
+          email: typeof mergedUser?.email === 'string' ? mergedUser.email : formData.email,
+          username: typeof mergedUser?.username === 'string' ? mergedUser.username : formData.username,
+          website: typeof mergedUser?.website === 'string' ? mergedUser.website : formData.website,
+          bio: typeof mergedUser?.bio === 'string' ? mergedUser.bio : formData.bio,
+        };
+        setFormData((prev) => ({
+          name: typeof mergedUser?.name === 'string' ? mergedUser.name : prev.name,
+          email: typeof mergedUser?.email === 'string' ? mergedUser.email : prev.email,
+          username: typeof mergedUser?.username === 'string' ? mergedUser.username : prev.username,
+          website: typeof mergedUser?.website === 'string' ? mergedUser.website : prev.website,
+          bio: typeof mergedUser?.bio === 'string' ? mergedUser.bio : prev.bio,
+        }));
+        setSavedFormData(nextFormData);
+        setSavedAvatarUrl(avatarUrl);
+        setIsEditing(false);
+        setUser(mergedUser);
         setFeedback({ type: 'success', message: 'Profile updated successfully!' });
         setTimeout(() => setFeedback(null), 3000);
       } else {
@@ -225,7 +275,6 @@ export default function ProfilePage() {
       setFeedback({ type: 'error', message: error.message || 'Connection error' });
       setTimeout(() => setFeedback(null), 3000);
     }
-    setAvatarUploading(false);
     setIsLoading(false);
   };
 
@@ -236,22 +285,28 @@ export default function ProfilePage() {
       setTimeout(() => setFeedback(null), 3000);
       return;
     }
+    setAvatarUploading(true);
     setFeedback(null);
     try {
-      if (pendingAvatarPreviewUrl) {
-        URL.revokeObjectURL(pendingAvatarPreviewUrl);
+      const res = await uploadAvatarApi(file);
+      if (res.success && res.url) {
+        setAvatarUrl(res.url);
+        if (res.user) {
+          const mergedUser = mergeUserWithCurrent(res.user);
+          setUser(mergedUser);
+        }
+        setFeedback({ type: 'success', message: 'Avatar uploaded. Profile updated.' });
+        setTimeout(() => setFeedback(null), 3000);
+      } else {
+        setFeedback({ type: 'error', message: res.message || 'Upload failed' });
+        setTimeout(() => setFeedback(null), 4000);
       }
-      const previewUrl = URL.createObjectURL(file);
-      setPendingAvatarPreviewUrl(previewUrl);
-      setPendingAvatarFile(file);
-      setAvatarUrl(previewUrl);
-      setFeedback({ type: 'success', message: 'Avatar selected. Click Save Changes to apply.' });
-      setTimeout(() => setFeedback(null), 3000);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Upload failed';
       setFeedback({ type: 'error', message: msg });
       setTimeout(() => setFeedback(null), 4000);
     } finally {
+      setAvatarUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
@@ -406,10 +461,10 @@ export default function ProfilePage() {
                 )}
 
                 {/* Profile Header */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 pb-8 border-b"
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 pb-8 border-b"
                   style={{ borderColor: colors.border.faint }}
                 >
-                  <div className="relative group">
+                  <div className="relative shrink-0">
                     <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-violet-500 to-fuchsia-500 p-[2px]">
                       <div className="w-full h-full rounded-full flex items-center justify-center overflow-hidden"
                         style={{ backgroundColor: colors.bg.dark }}
@@ -420,45 +475,6 @@ export default function ProfilePage() {
                           className="w-full h-full object-cover"
                         />
                       </div>
-                    </div>
-
-                    <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={avatarUploading}
-                        title="Upload photo"
-                        className="w-9 h-9 rounded-full border shadow-lg disabled:opacity-70 flex items-center justify-center"
-                        style={{
-                          backgroundColor: colors.bg.elevated,
-                          borderColor: colors.border.default,
-                          color: colors.text.secondary
-                        }}
-                      >
-                        {avatarUploading ? (
-                          <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin block" />
-                        ) : (
-                          <CameraIcon />
-                        )}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={openCamera}
-                        disabled={avatarUploading}
-                        title="Take photo"
-                        className="w-9 h-9 rounded-full border shadow-lg disabled:opacity-70 flex items-center justify-center"
-                        style={{
-                          backgroundColor: colors.bg.elevated,
-                          borderColor: colors.border.default,
-                          color: colors.text.secondary
-                        }}
-                      >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                          <rect x="3" y="7" width="15" height="13" rx="2" />
-                          <path d="M18 10l3-2v8l-3-2" />
-                        </svg>
-                      </button>
                     </div>
 
                     <input
@@ -472,7 +488,7 @@ export default function ProfilePage() {
                   </div>
 
                   <div className="flex-1">
-                    <h3 className="text-xl font-semibold" style={{ color: colors.text.primary }}>{formData.name || user?.name || 'User'}</h3>
+                    <h3 className="text-xl font-semibold" style={{ color: colors.text.primary }}>{profileDisplayName}</h3>
                     <p className="text-sm" style={{ color: colors.text.secondary }}>{formData.email || user?.email || 'Loading...'}</p>
                     <div className="flex items-center gap-2 mt-2">
                       <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border"
@@ -482,11 +498,54 @@ export default function ProfilePage() {
                           borderColor: theme === 'dark' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(22, 163, 74, 0.2)'
                         }}
                       >
-                        {user?.subscriptionPlan ? (user.subscriptionPlan.charAt(0).toUpperCase() + user.subscriptionPlan.slice(1).toLowerCase()) + (user.subscriptionPlan.toLowerCase() !== 'free' ? ' Plan' : '') : 'Free'}
+                        {user?.subscriptionPlan
+                          ? `${getSubscriptionPlanDisplayName(user.subscriptionPlan)}${user.subscriptionPlan.toLowerCase() !== 'free' ? ' Plan' : ''}`
+                          : 'Free'}
                       </span>
                       <span className="text-xs" style={{ color: colors.text.subtle }}>
                         Member since {user?.createdAt ? new Date(user.createdAt).getFullYear() : '—'}
                       </span>
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={avatarUploading || !isEditing}
+                        title="Upload image"
+                        className="px-3 py-2 rounded-lg border shadow-lg disabled:opacity-70 inline-flex items-center gap-2 text-xs font-semibold"
+                        style={{
+                          backgroundColor: colors.bg.elevated,
+                          borderColor: colors.border.default,
+                          color: colors.text.secondary
+                        }}
+                      >
+                        {avatarUploading ? (
+                          <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin block" />
+                        ) : (
+                          <CameraIcon />
+                        )}
+                        Upload Image
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={openCamera}
+                        disabled={avatarUploading || !isEditing}
+                        title="Take picture"
+                        className="px-3 py-2 rounded-lg border shadow-lg disabled:opacity-70 inline-flex items-center gap-2 text-xs font-semibold"
+                        style={{
+                          backgroundColor: colors.bg.elevated,
+                          borderColor: colors.border.default,
+                          color: colors.text.secondary
+                        }}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                          <rect x="3" y="7" width="15" height="13" rx="2" />
+                          <path d="M18 10l3-2v8l-3-2" />
+                        </svg>
+                        Take Picture
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -494,13 +553,14 @@ export default function ProfilePage() {
                 {/* Form Fields */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: colors.text.subtle }}>Display Name</label>
+                    <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: colors.text.subtle }}>Full Name</label>
                     <input
                       type="text"
                       name="name"
                       value={formData.name}
                       onChange={handleInputChange}
-                      placeholder="Your Name"
+                      disabled={!isEditing}
+                      placeholder="Your full name"
                       className="w-full border rounded-lg px-4 py-2.5 transition-all focus:outline-none focus:ring-1 focus:ring-violet-500"
                       style={{
                         backgroundColor: theme === 'dark' ? 'rgba(15, 23, 42, 0.5)' : 'rgba(241, 245, 249, 0.5)',
@@ -516,6 +576,7 @@ export default function ProfilePage() {
                       name="email"
                       value={formData.email}
                       onChange={handleInputChange}
+                      disabled
                       placeholder="your@email.com"
                       className="w-full border rounded-lg px-4 py-2.5 transition-all focus:outline-none focus:ring-1 focus:ring-violet-500"
                       style={{
@@ -534,6 +595,7 @@ export default function ProfilePage() {
                         name="username"
                         value={formData.username}
                         onChange={handleInputChange}
+                        disabled={!isEditing}
                         placeholder="username"
                         className="w-full border rounded-lg pl-8 pr-4 py-2.5 transition-all focus:outline-none focus:ring-1 focus:ring-violet-500"
                         style={{
@@ -551,6 +613,7 @@ export default function ProfilePage() {
                       name="website"
                       value={formData.website}
                       onChange={handleInputChange}
+                      disabled={!isEditing}
                       placeholder="https://your-website.com"
                       className="w-full border rounded-lg px-4 py-2.5 transition-all focus:outline-none focus:ring-1 focus:ring-violet-500"
                       style={{
@@ -567,6 +630,7 @@ export default function ProfilePage() {
                       rows={4}
                       value={formData.bio}
                       onChange={handleInputChange}
+                      disabled={!isEditing}
                       placeholder="Tell us a little about yourself..."
                       className="w-full border rounded-lg px-4 py-2.5 transition-all resize-none focus:outline-none focus:ring-1 focus:ring-violet-500"
                       style={{
@@ -581,24 +645,39 @@ export default function ProfilePage() {
 
                 {/* Action Buttons */}
                 <div className="flex items-center justify-end gap-4 pt-4 border-t" style={{ borderColor: colors.border.faint }}>
-                  <button
-                    className="px-4 py-2 text-sm font-medium transition-colors"
-                    style={{ color: colors.text.muted }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSave}
-                    disabled={isLoading}
-                    className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white px-6 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-violet-900/20"
-                  >
-                    {isLoading ? (
-                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <SaveIcon />
-                    )}
-                    {isLoading ? 'Saving...' : 'Save Changes'}
-                  </button>
+                  {isEditing ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleCancelEdit}
+                        disabled={isLoading}
+                        className="px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+                        style={{ color: colors.text.muted }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSave}
+                        disabled={isLoading}
+                        className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white px-6 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-violet-900/20"
+                      >
+                        {isLoading ? (
+                          <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          <SaveIcon />
+                        )}
+                        {isLoading ? 'Saving...' : 'Save Changes'}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleStartEdit}
+                      className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white px-6 py-2 rounded-lg text-sm font-medium transition-all shadow-lg shadow-violet-900/20"
+                    >
+                      Edit Profile
+                    </button>
+                  )}
                 </div>
               </motion.div>
             )}
