@@ -30,6 +30,8 @@ type MoveMode = "margin" | "offset";
 type DragNodeState = {
   id: string;
   mode: MoveMode;
+  parentId?: string;
+  needsAbsolute: boolean;
   marginTop: number;
   marginLeft: number;
   top: number;
@@ -70,8 +72,6 @@ function parseNumberOrZero(value: unknown): number {
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
-
-const OFFSET_MOVE_TYPES = new Set(["Image", "Text", "Icon", "Button", "Circle", "Square", "Triangle"]);
 
 function selectedToIds(raw: unknown): string[] {
   if (Array.isArray(raw)) return raw;
@@ -317,15 +317,25 @@ export const FigmaStyleDragHandler = () => {
       if (mode === "offset") {
         const rawTop = Math.round(top + dy);
         const rawLeft = Math.round(left + dx);
-        const bounds = getOffsetBounds(id);
+        const currentPosition = (props.position as string | undefined) ?? "static";
+        const isAbsoluteLike = currentPosition === "absolute" || currentPosition === "fixed";
 
+        if (!isAbsoluteLike) {
+          props.position = "relative";
+          props.top = `${rawTop}px`;
+          props.left = `${rawLeft}px`;
+          return;
+        }
+
+        const bounds = getOffsetBounds(id);
         if (bounds) {
           props.top = `${clamp(rawTop, bounds.minTop, bounds.maxTop)}px`;
           props.left = `${clamp(rawLeft, bounds.minLeft, bounds.maxLeft)}px`;
-        } else {
-          props.top = `${rawTop}px`;
-          props.left = `${rawLeft}px`;
+          return;
         }
+
+        props.top = `${rawTop}px`;
+        props.left = `${rawLeft}px`;
         return;
       }
 
@@ -534,18 +544,35 @@ export const FigmaStyleDragHandler = () => {
         d.zoom = getEffectiveZoom(firstDom);
         d.nodeMargins = ids.map((id): DragNodeState => {
           const props = state.nodes[id]?.data?.props ?? {};
-          const displayName = state.nodes[id]?.data?.displayName as string | undefined;
           const position = (props.position as string) ?? "static";
-          const useOffset =
-            (position === "absolute" || position === "relative" || position === "fixed") ||
-            (displayName && OFFSET_MOVE_TYPES.has(displayName));
+
+          let top = parsePxOrAuto(props.top);
+          let left = parsePxOrAuto(props.left);
+
+          if (position !== "absolute") {
+            try {
+              const dom = queryRef.current.node(id).get()?.dom ?? null;
+              const parent = (dom?.offsetParent as HTMLElement | null) ?? dom?.parentElement ?? null;
+              if (dom && parent) {
+                const rect = dom.getBoundingClientRect();
+                const parentRect = parent.getBoundingClientRect();
+                top = Math.round(rect.top - parentRect.top);
+                left = Math.round(rect.left - parentRect.left);
+              }
+            } catch {
+              // ignore and keep parsed top/left
+            }
+          }
+
           return {
             id,
+            parentId: state.nodes[id]?.data?.parent as string | undefined,
+            needsAbsolute: position !== "absolute",
             marginTop: parseNumberOrZero(props.marginTop),
             marginLeft: parseNumberOrZero(props.marginLeft),
-            mode: useOffset ? "offset" : "margin",
-            top: parsePxOrAuto(props.top),
-            left: parsePxOrAuto(props.left),
+            mode: "offset",
+            top,
+            left,
           };
         });
 
@@ -602,12 +629,20 @@ export const FigmaStyleDragHandler = () => {
               actionsRef.current.move(nodeId, dropTargetId, insertIndex + i);
             });
 
+            const modeById = new Map(d.nodeMargins.map((entry) => [entry.id, entry.mode] as const));
+
             ids.forEach((id) => {
               actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
                 props.marginTop = 0;
                 props.marginLeft = 0;
                 props.top = "0px";
                 props.left = "0px";
+                if (modeById.get(id) === "offset") {
+                  const currentPosition = (props.position as string | undefined) ?? "static";
+                  if (currentPosition !== "absolute" && currentPosition !== "fixed") {
+                    props.position = "relative";
+                  }
+                }
               });
             });
           } catch {
@@ -629,7 +664,22 @@ export const FigmaStyleDragHandler = () => {
 
           d.nodeMargins.filter((e) => e.id && nodes[e.id]).forEach((entry) => {
             const { id } = entry;
+
+            if (entry.needsAbsolute && entry.parentId && nodes[entry.parentId]) {
+              actionsRef.current.setProp(entry.parentId, (parentProps: Record<string, unknown>) => {
+                const parentPosition = String(parentProps.position ?? "static");
+                if (!parentPosition || parentPosition === "static") {
+                  parentProps.position = "relative";
+                }
+              });
+            }
+
             actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
+              if (entry.needsAbsolute) {
+                props.position = "absolute";
+                if (props.right == null) props.right = "auto";
+                if (props.bottom == null) props.bottom = "auto";
+              }
               applyBoundedMove(entry, dx, dy, props);
             });
           });

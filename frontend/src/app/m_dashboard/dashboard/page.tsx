@@ -88,6 +88,13 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const [renamingProject, setRenamingProject] = useState<Project | null>(null);
   const [renameTitle, setRenameTitle] = useState('');
 
+  const handleCardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>, onActivate: () => void) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onActivate();
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
     if (!selectedProject?.id) {
@@ -492,6 +499,12 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                       else router.push('/design');
                     }
                   }}
+                  onKeyDown={(event) =>
+                    handleCardKeyDown(event, () => {
+                      if (featuredProject?.id) router.push(`/design?projectId=${featuredProject.id}`);
+                      else router.push('/m_dashboard/web-builder');
+                    })
+                  }
                   aria-label={featuredProject?.title ? `Open featured project ${featuredProject.title}` : 'Open featured project'}
                   title={featuredProject?.title ? `Open featured project ${featuredProject.title}` : 'Open featured project'}
                   className="w-full block rounded-xl mt-3 overflow-hidden border border-[rgba(147,145,212,0.2)] bg-[#0E0D3D] cursor-pointer"

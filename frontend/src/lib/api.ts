@@ -455,6 +455,61 @@ export async function getPublishHistory(projectId: string): Promise<{ success: b
   );
 }
 
+// --- Custom Domains ---
+
+export type CustomDomainEntry = {
+  id: string;
+  domain: string;
+  subdomain?: string;
+  projectId?: string;
+  projectTitle?: string;
+  status?: string;
+  domainStatus: 'pending' | 'verified' | 'error';
+  verifiedAt?: string | null;
+};
+
+export type DnsInstructions = {
+  message: string;
+  optionA: { type: string; host: string; value: string; description: string };
+  optionB: { type: string; host: string; value: string; description: string };
+};
+
+/** List all custom domains for the current user. */
+export async function listCustomDomains(): Promise<{ success: boolean; data: CustomDomainEntry[] }> {
+  return apiFetch<{ success: boolean; data: CustomDomainEntry[] }>('/api/domains/custom');
+}
+
+/** Connect a custom domain to a published project. */
+export async function addCustomDomain(
+  projectId: string,
+  domain: string
+): Promise<{ success: boolean; message?: string; data?: { domain: string; status: string }; dnsInstructions?: DnsInstructions }> {
+  return apiFetch('/api/domains/custom', {
+    method: 'POST',
+    body: JSON.stringify({ projectId, domain }),
+  });
+}
+
+/** Verify DNS records for a custom domain. */
+export async function verifyCustomDomain(
+  projectId: string
+): Promise<{ success: boolean; message?: string; data?: { domain: string; status: string; details: string } }> {
+  return apiFetch('/api/domains/custom/verify', {
+    method: 'POST',
+    body: JSON.stringify({ projectId }),
+  });
+}
+
+/** Remove a custom domain from a project. */
+export async function removeCustomDomain(
+  projectId: string
+): Promise<{ success: boolean; message?: string }> {
+  return apiFetch('/api/domains/custom', {
+    method: 'DELETE',
+    body: JSON.stringify({ projectId }),
+  });
+}
+
 // --- Products (stored per published_subdomains/{subdomain}/products) ---
 
 export type ApiProduct = {
@@ -769,6 +824,8 @@ export type ApiOrderItem = {
   productId?: string;
   sku?: string;
   name?: string;
+  image?: string;
+  subtotal?: number;
   quantity: number;
   price: number;
 };
@@ -845,6 +902,77 @@ export async function updateOrderStatus(
   });
 }
 
+
+export type ApiPublishedOrder = {
+  id: string;
+  subdomain: string;
+  ownerUserId: string;
+  projectId?: string | null;
+  domainId?: string | null;
+  items: ApiOrderItem[];
+  total: number;
+  status: 'Pending' | 'Processing' | 'Paid' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Returned' | string;
+  shippingAddress?: Record<string, unknown> | null;
+  currency?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export async function createPublishedOrder(params: {
+  subdomain: string;
+  items: ApiOrderItem[];
+  total?: number;
+  shippingAddress?: Record<string, unknown> | null;
+  currency?: string;
+}): Promise<{ success: boolean; message?: string; data?: ApiPublishedOrder }> {
+  const normalizedSubdomain = params.subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  return apiFetch<{ success: boolean; message?: string; data?: ApiPublishedOrder }>(
+    `/api/orders/published/${encodeURIComponent(normalizedSubdomain)}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        items: params.items,
+        total: params.total,
+        shippingAddress: params.shippingAddress ?? null,
+        currency: params.currency ?? 'PHP',
+      }),
+    }
+  );
+}
+
+export async function listMyPublishedOrders(params?: {
+  subdomain?: string;
+  search?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}): Promise<{ success: boolean; items: ApiPublishedOrder[]; total: number; page: number; totalPages: number }> {
+  const query = new URLSearchParams();
+  if (params?.subdomain) query.set('subdomain', params.subdomain);
+  if (params?.search) query.set('search', params.search);
+  if (params?.status) query.set('status', params.status);
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.limit) query.set('limit', String(params.limit));
+  const qs = query.toString();
+  return apiFetch<{ success: boolean; items: ApiPublishedOrder[]; total: number; page: number; totalPages: number }>(
+    qs ? `/api/orders/published/my?${qs}` : '/api/orders/published/my'
+  );
+}
+
+export async function updatePublishedOrderStatus(
+  subdomain: string,
+  id: string,
+  status: 'Pending' | 'Processing' | 'Paid' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Returned'
+): Promise<{ success: boolean; message?: string; data?: ApiPublishedOrder }> {
+  const normalizedSubdomain = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  return apiFetch<{ success: boolean; message?: string; data?: ApiPublishedOrder }>(
+    `/api/orders/published/${encodeURIComponent(normalizedSubdomain)}/${encodeURIComponent(id)}/status`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }
+  );
+}
 /** Admin: User and Website Management — list websites with owner and plan from user/roles/client (subscription_plan). */
 export type DomainRow = {
   id: string;
@@ -993,3 +1121,4 @@ export async function getAnalytics(period: '7days' | '30days' | '3months' = '7da
   }
   return apiFetch<AnalyticsResponse>(`/api/dashboard/analytics?period=${encodeURIComponent(period)}`);
 }
+

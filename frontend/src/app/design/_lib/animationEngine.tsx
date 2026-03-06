@@ -37,7 +37,7 @@ function mapEasing(easing: EasingType): number[] | string {
 
 // ─── In Animation Variants ───────────────────────────────────────────────────
 
-function getInVariants(type: AnimateInType, distance: number) {
+export function getInVariants(type: AnimateInType, distance: number) {
   const base = { opacity: 0 };
   const variants: Record<AnimateInType, { hidden: Record<string, unknown>; visible: Record<string, unknown> }> = {
     none: { hidden: {}, visible: {} },
@@ -99,7 +99,7 @@ function getInVariants(type: AnimateInType, distance: number) {
 
 // ─── Out Animation Variants ──────────────────────────────────────────────────
 
-function getOutVariants(type: AnimateOutType, distance: number) {
+export function getOutVariants(type: AnimateOutType, distance: number) {
   const variants: Record<AnimateOutType, { visible: Record<string, unknown>; exit: Record<string, unknown> }> = {
     none: { visible: {}, exit: {} },
     fadeOut: {
@@ -156,7 +156,7 @@ function getOutVariants(type: AnimateOutType, distance: number) {
 
 // ─── Continuous Animation Keyframes ──────────────────────────────────────────
 
-function getDuringAnimation(type: AnimateDuringType, duration: number, intensity: number) {
+export function getDuringAnimation(type: AnimateDuringType, duration: number, intensity: number) {
   const i = intensity;
   const animations: Record<AnimateDuringType, Record<string, unknown>> = {
     none: {},
@@ -215,35 +215,7 @@ function useGsapScrollEffect(
     if (!config.enabled || config.type === "none" || !ref.current) return;
 
     const el = ref.current;
-    const speed = config.speed;
-    const isVertical = config.direction === "vertical";
-
-    const tweenProps: Record<string, unknown> = {};
-
-    switch (config.type as ScrollEffectType) {
-      case "parallax":
-        if (isVertical) {
-          tweenProps.y = `${speed * 100}`;
-        } else {
-          tweenProps.x = `${speed * 100}`;
-        }
-        break;
-      case "fade":
-        tweenProps.opacity = speed > 0 ? 0 : 1;
-        break;
-      case "scale":
-        tweenProps.scale = 1 + speed * 0.5;
-        break;
-      case "rotate":
-        tweenProps.rotation = speed * 180;
-        break;
-      case "blur":
-        tweenProps.filter = `blur(${Math.abs(speed) * 10}px)`;
-        break;
-      case "horizontalMove":
-        tweenProps.x = `${speed * 200}`;
-        break;
-    }
+    const tweenProps = getScrollEffectTweenProps(config);
 
     const tl = gsap.timeline({
       scrollTrigger: {
@@ -276,6 +248,41 @@ function useGsapScrollEffect(
     config.start,
     config.end,
   ]);
+}
+
+export function getScrollEffectTweenProps(
+  config: AnimationConfig["scrollEffect"]
+): Record<string, unknown> {
+  const speed = config.speed;
+  const isVertical = config.direction === "vertical";
+  const tweenProps: Record<string, unknown> = {};
+
+  switch (config.type as ScrollEffectType) {
+    case "parallax":
+      if (isVertical) {
+        tweenProps.y = `${speed * 100}`;
+      } else {
+        tweenProps.x = `${speed * 100}`;
+      }
+      break;
+    case "fade":
+      tweenProps.opacity = speed > 0 ? 0 : 1;
+      break;
+    case "scale":
+      tweenProps.scale = 1 + speed * 0.5;
+      break;
+    case "rotate":
+      tweenProps.rotation = speed * 180;
+      break;
+    case "blur":
+      tweenProps.filter = `blur(${Math.abs(speed) * 10}px)`;
+      break;
+    case "horizontalMove":
+      tweenProps.x = `${speed * 200}`;
+      break;
+  }
+
+  return tweenProps;
 }
 
 // ─── AnimationWrapper Component ──────────────────────────────────────────────

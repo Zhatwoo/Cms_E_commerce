@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useEditor } from "@craftjs/core";
 import { serializeCraftToClean } from "../_lib/serializer";
 import { WebPreview } from "../_lib/webRenderer";
+import { PREVIEW_MOBILE_BREAKPOINT } from "../_lib/viewportConstants";
 import type { BuilderDocument } from "../_types/schema";
 import { Smartphone, Circle, ChevronDown } from "lucide-react";
 
@@ -216,7 +217,7 @@ export function EditorPhonePreview() {
         >
           {hasContent ? (
             <div className="w-full min-h-full" style={{ borderRadius: SCREEN_BORDER_RADIUS }}>
-              <WebPreview doc={cleanDoc!} simulatedWidth={screenWidth} />
+              <WebPreview doc={cleanDoc!} simulatedWidth={screenWidth} mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT} builderParityMode />
             </div>
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center text-neutral-400 text-sm p-4">

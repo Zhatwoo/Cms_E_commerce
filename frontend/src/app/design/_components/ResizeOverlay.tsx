@@ -63,7 +63,7 @@ function getOverlayRect(el: HTMLElement): DOMRect {
   return el.getBoundingClientRect();
 }
 
-const SNAP_THRESHOLD = 4;
+const SNAP_THRESHOLD = 0;
 
 type SiblingRect = {
   left: number;
@@ -153,6 +153,38 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [guides, setGuides] = useState<GuideState>(null);
   const [rotateAngle, setRotateAngle] = useState<number | null>(null);
+  const [isExternalDragActive, setIsExternalDragActive] = useState(false);
+
+  useEffect(() => {
+    const updateExternalDragState = (event?: DragEvent) => {
+      const target = (event?.target as HTMLElement | null) ?? null;
+      const fromPanelDrag =
+        !!target?.closest("[data-drag-source='asset']") ||
+        !!target?.closest("[data-drag-source='component']") ||
+        !!document.body.dataset.assetDragCategory ||
+        !!document.body.dataset.assetDragLabel;
+
+      if (fromPanelDrag) {
+        setIsExternalDragActive(true);
+      }
+    };
+
+    const clearExternalDragState = () => {
+      setIsExternalDragActive(false);
+    };
+
+    document.addEventListener("dragstart", updateExternalDragState, true);
+    document.addEventListener("dragend", clearExternalDragState, true);
+    document.addEventListener("drop", clearExternalDragState, true);
+    window.addEventListener("blur", clearExternalDragState);
+
+    return () => {
+      document.removeEventListener("dragstart", updateExternalDragState, true);
+      document.removeEventListener("dragend", clearExternalDragState, true);
+      document.removeEventListener("drop", clearExternalDragState, true);
+      window.removeEventListener("blur", clearExternalDragState);
+    };
+  }, []);
 
   const clampMoveDeltaToBounds = useCallback((dx: number, dy: number, d: DragState) => {
     const bounds = d.guideBounds;
@@ -351,20 +383,9 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       const cy = startRect.top + startRect.height / 2;
       const pointerAngle = Math.atan2(e.clientY - cy, e.clientX - cx);
 
-      if (type === "resize") {
-        try {
-          const state = query.getState();
-          const displayName = state.nodes[nodeId]?.data?.displayName;
-          if (["Container", "Section", "Row", "Column"].includes(displayName as string)) {
-            const designW = Math.round(startRect.width / zoom);
-            const designH = Math.round(startRect.height / zoom);
-            actions.setProp(nodeId, (props: Record<string, unknown>) => {
-              if (props.designWidth == null) props.designWidth = designW;
-              if (props.designHeight == null) props.designHeight = designH;
-            });
-          }
-        } catch { /* ignore */ }
-      }
+      // Keep layout containers in normal flow-resize mode.
+      // Auto-injecting designWidth/designHeight here can lock them into scale mode,
+      // which causes content distortion/overlap when resizing out and back.
 
       dragRef.current = {
         type,
@@ -783,8 +804,11 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
 
         const bMT = typeof d.startProps.marginTop === "number" ? (d.startProps.marginTop as number) : 0;
         const bML = typeof d.startProps.marginLeft === "number" ? (d.startProps.marginLeft as number) : 0;
-        const nextMarginTop = extraMT !== 0 ? bMT + extraMT : bMT;
-        const nextMarginLeft = extraML !== 0 ? bML + extraML : bML;
+        const nextMarginTopRaw = extraMT !== 0 ? bMT + extraMT : bMT;
+        const nextMarginLeftRaw = extraML !== 0 ? bML + extraML : bML;
+        const isMarginFlowResize = (d.moveMode ?? "margin") === "margin";
+        const nextMarginTop = isMarginFlowResize ? Math.max(0, nextMarginTopRaw) : nextMarginTopRaw;
+        const nextMarginLeft = isMarginFlowResize ? Math.max(0, nextMarginLeftRaw) : nextMarginLeftRaw;
 
         const lastResize = d.lastAppliedResize;
         const unchangedFromLast =
@@ -1040,11 +1064,13 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
             props.height = `${Math.round(newH)}px`;
             if (extraMT !== 0) {
               const bMT = typeof d.startProps.marginTop === "number" ? d.startProps.marginTop as number : 0;
-              props.marginTop = Math.round(bMT + extraMT);
+              const nextMT = (d.moveMode ?? "margin") === "margin" ? Math.max(0, bMT + extraMT) : (bMT + extraMT);
+              props.marginTop = Math.round(nextMT);
             }
             if (extraML !== 0) {
               const bML = typeof d.startProps.marginLeft === "number" ? d.startProps.marginLeft as number : 0;
-              props.marginLeft = Math.round(bML + extraML);
+              const nextML = (d.moveMode ?? "margin") === "margin" ? Math.max(0, bML + extraML) : (bML + extraML);
+              props.marginLeft = Math.round(nextML);
             }
           });
         } else if (d.type === "rotate") {
@@ -1249,8 +1275,8 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
             inset: 0,
             border: "2px solid #3b82f6",
             borderRadius: 2,
-            cursor: "grab",
-            pointerEvents: "auto",
+            cursor: isExternalDragActive ? "default" : "grab",
+            pointerEvents: isExternalDragActive ? "none" : "auto",
           }}
           onMouseDown={(e) => startDrag(e, "move")}
         />
@@ -1268,7 +1294,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
               border: "2px solid #3b82f6",
               borderRadius: 2,
               cursor: HANDLE_CURSORS[h.key],
-              pointerEvents: "auto",
+              pointerEvents: isExternalDragActive ? "none" : "auto",
               zIndex: 1,
               ...h.style,
             }}
@@ -1290,7 +1316,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
             border: "2px solid #3b82f6",
             backgroundColor: "#ffffff",
             cursor: "grab",
-            pointerEvents: "auto",
+            pointerEvents: isExternalDragActive ? "none" : "auto",
             zIndex: 2,
           }}
           onMouseDown={(e) => startDrag(e, "rotate")}
