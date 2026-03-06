@@ -131,6 +131,8 @@ const VALIDATOR_RESOLVER: Record<string, React.ComponentType<any>> = {
   container: Container,
   Text: Text || Container,
   text: Text || Container,
+  Image: Image || Container,
+  image: Image || Container,
   Page: Page || Container,
   page: Page || Container,
   Viewport: Viewport || Container,
@@ -409,15 +411,8 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
 }
 
 function prepareFrameData(jsonString: string): { valid: boolean; data?: string } {
-  try {
-    const parsed = JSON.parse(jsonString);
-    if (parsed && parsed.ROOT && Array.isArray(parsed.ROOT.nodes)) {
-      return { valid: true, data: jsonString };
-    }
-  } catch {
-    // Fall through to deep validator for salvage/fallback behavior.
-  }
-
+  // Always run through validator so component type names are canonicalized
+  // against resolver keys (e.g. Image/image/Text/text) before Frame mount.
   return validateCraftData(jsonString);
 }
 
@@ -1492,7 +1487,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
             if (typeof input === "string") {
               const parsed = JSON.parse(input);
               if (parsed && parsed.ROOT && Array.isArray(parsed.ROOT.nodes)) {
-                return input;
+                const validated = validateCraftData(input);
+                return validated.valid && validated.data ? validated.data : null;
               }
               if (
                 parsed &&
@@ -1501,7 +1497,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 parsed.nodes &&
                 typeof parsed.nodes === "object"
               ) {
-                return deserializeCleanToCraft(parsed as Parameters<typeof deserializeCleanToCraft>[0]);
+                const craftJson = deserializeCleanToCraft(parsed as Parameters<typeof deserializeCleanToCraft>[0]);
+                const validated = validateCraftData(craftJson);
+                return validated.valid && validated.data ? validated.data : null;
               }
               return null;
             }
@@ -1515,11 +1513,15 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
               };
 
               if (obj.ROOT && Array.isArray(obj.ROOT.nodes)) {
-                return JSON.stringify(obj);
+                const craftJson = JSON.stringify(obj);
+                const validated = validateCraftData(craftJson);
+                return validated.valid && validated.data ? validated.data : null;
               }
 
               if (obj.version !== undefined && Array.isArray(obj.pages) && obj.nodes && typeof obj.nodes === "object") {
-                return deserializeCleanToCraft(obj as Parameters<typeof deserializeCleanToCraft>[0]);
+                const craftJson = deserializeCleanToCraft(obj as Parameters<typeof deserializeCleanToCraft>[0]);
+                const validated = validateCraftData(craftJson);
+                return validated.valid && validated.data ? validated.data : null;
               }
             }
 
@@ -1897,6 +1899,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     base.page = CRAFT_RESOLVER.Page ?? Page;
     base.Viewport = CRAFT_RESOLVER.Viewport ?? Viewport;
     base.viewport = CRAFT_RESOLVER.Viewport ?? Viewport;
+    base.Image = (typeof Image === "function" ? Image : null) ?? Container;
+    base.image = (typeof Image === "function" ? Image : null) ?? Container;
     base.Text = (typeof Text === "function" ? Text : null) ?? Container;
     base.text = (typeof Text === "function" ? Text : null) ?? Container;
     return base;
@@ -1906,51 +1910,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const validFrameData = React.useMemo(() => {
     if (initialJson === undefined || initialJson === null || initialJson === "") return null;
     try {
-      const parsed = typeof initialJson === "string" ? JSON.parse(initialJson) : initialJson;
-      if (!parsed || typeof parsed !== "object" || !parsed.ROOT || !Array.isArray(parsed.ROOT?.nodes)) return null;
-
-      const resolverKeys = Object.keys(resolverRef.current);
-      const keys = new Set(resolverKeys);
-
-      const canonicalByLower = new Map<string, string>();
-      for (const key of resolverKeys) {
-        canonicalByLower.set(key.toLowerCase(), key);
-      }
-
-      const allIds = new Set(Object.keys(parsed));
-      const CANVAS_TYPES = new Set(["Frame", "Container", "Section", "Row", "Column", "Page", "Viewport", "Button"]);
-
-      for (const id of Object.keys(parsed)) {
-        const node = parsed[id] as Record<string, unknown> | null;
-        if (!node || typeof node !== "object") continue;
-        const t = node.type;
-        const rawName = ((typeof t === "string" ? t : (t as { resolvedName?: string })?.resolvedName) ?? "").toString().trim();
-        if (!rawName) return null;
-
-        if (!keys.has(rawName)) {
-          const normalized = canonicalByLower.get(rawName.toLowerCase());
-          if (normalized) {
-            node.type = { resolvedName: normalized };
-            node.displayName = normalized;
-          } else {
-            node.type = { resolvedName: "Container" };
-            node.displayName = "Container";
-          }
-        }
-
-        if (CANVAS_TYPES.has(rawName)) {
-          node.isCanvas = true;
-          if (typeof node.data === "object" && node.data !== null) {
-            (node.data as Record<string, unknown>).isCanvas = true;
-          }
-        }
-
-        const childIds = Array.isArray(node.nodes) ? node.nodes : [];
-        const validChildIds = childIds.filter((cid: string) => allIds.has(cid));
-        node.nodes = validChildIds;
-      }
-
-      return JSON.stringify(parsed);
+      const raw = typeof initialJson === "string" ? initialJson : JSON.stringify(initialJson);
+      const validated = validateCraftData(raw);
+      return validated.valid && validated.data ? validated.data : null;
     } catch {
       return null;
     }
@@ -2059,7 +2021,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                   >
                     {initialJson === undefined ? null : (
                       <SafeFrame
-                        data={validFrameData ?? initialJson}
+                        data={validFrameData ?? EMPTY_FRAME_DATA}
                         onError={handleFrameError}
                         onFrameMounted={() => {
                           setFrameReady((prev) => (prev ? prev : true));

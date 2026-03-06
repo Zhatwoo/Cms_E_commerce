@@ -17,6 +17,7 @@ function fluidSpace(value: number, min = 0): string {
   return `clamp(${floor}px, ${preferred.toFixed(2)}cqw, ${value}px)`;
 }
 
+
 /**
  * Column — a vertical flex child designed to live inside a Row.
  * Defaults to flex-1 so columns share space equally within a Row.
@@ -45,6 +46,7 @@ export const Column = ({
   alignItems = "flex-start",
   justifyContent = "flex-start",
   gap = 8,
+  display = "flex",
   boxShadow = "none",
   opacity = 1,
   overflow = "visible",
@@ -105,7 +107,7 @@ export const Column = ({
         ...(strokePlacement === "outside" && borderWidth > 0
           ? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
           : { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
-        display: "flex",
+        display: display ?? "flex",
         flexDirection,
         flexWrap,
         alignItems,
@@ -185,6 +187,7 @@ export const ColumnDefaultProps: Partial<ContainerProps> = {
   alignItems: "flex-start",
   justifyContent: "flex-start",
   gap: 8,
+  display: "flex",
   boxShadow: "none",
   opacity: 1,
   overflow: "visible",
