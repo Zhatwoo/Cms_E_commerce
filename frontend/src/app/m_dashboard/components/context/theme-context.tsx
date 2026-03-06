@@ -45,36 +45,36 @@ export const THEMES = {
   },
   light: {
     bg: {
-      primary: '#F0F2F5',
-      primaryEnd: '#F0F2F5',
-      dark: '#FFFFFF',
-      card: '#FFFFFF',
-      elevated: '#F1F5F9',
-      fog: '#FFFFFF',
-      sidebar: '#1C172B',
-      searchBar: '#E2E8F0',
+      primary: '#F5F6FA',
+      primaryEnd: '#ECEFF6',
+      dark: '#23206D',
+      card: '#23206D',
+      elevated: '#30367C',
+      fog: '#898AC2',
+      sidebar: '#1A1A4C',
+      searchBar: '#1B1F63',
     },
     text: {
-      primary: '#0F172A',
-      secondary: '#334155',
-      muted: '#64748B',
-      subtle: '#94A3B8',
+      primary: '#F8F8FF',
+      secondary: '#D7D9F3',
+      muted: '#B7BCE8',
+      subtle: '#898AC2',
     },
     border: {
-      default: '#CBD5E1',
-      faint: '#E2E8F0',
+      default: 'rgba(137, 138, 194, 0.55)',
+      faint: 'rgba(137, 138, 194, 0.35)',
     },
     accent: {
-      yellow: '#D97706',
-      yellowBright: '#FCD34D',
-      purple: '#6B2DC0',
-      purpleDeep: '#5B21B6',
+      yellow: '#EAB308',
+      yellowBright: '#FACC15',
+      purple: '#898AC2',
+      purpleDeep: '#5861A2',
     },
     status: {
       good: '#16A34A',
       warning: '#D97706',
       error: '#DC2626',
-      info: '#2563EB',
+      info: '#C7CCFF',
     },
   },
 };
@@ -90,16 +90,17 @@ type ThemeContextType = {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window === 'undefined') return 'dark';
+  const [theme, setTheme] = useState<Theme>('dark');
 
+  useEffect(() => {
     const storedTheme = window.sessionStorage.getItem(THEME_STORAGE_KEY);
     if (storedTheme === 'dark' || storedTheme === 'light') {
-      return storedTheme;
+      setTheme(storedTheme);
+      return;
     }
 
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  });
+    setTheme(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  }, []);
 
   useEffect(() => {
     document.documentElement.classList.remove('dark', 'light');

@@ -5,6 +5,18 @@ import { Editor, Frame, useEditor } from "@craftjs/core";
 import { ChevronLeft, ChevronRight, Layout, Star, FileText, CreditCard, FormInput, PanelBottom, Smile, Shapes as ShapesIcon } from "lucide-react";
 import { GROUPED_TEMPLATES } from "../../../_assets";
 import { CRAFT_RESOLVER } from "../craftResolver";
+import { Container } from "../../_designComponents/Container/Container";
+import { Text } from "../../_designComponents/Text/Text";
+import { Page } from "../../_designComponents/Page/Page";
+import { Viewport } from "../../_designComponents/Viewport/Viewport";
+import { Image } from "../../_designComponents/Image/Image";
+import { Button } from "../../_designComponents/Button/Button";
+import { Divider } from "../../_designComponents/Divider/Divider";
+import { Section } from "../../_designComponents/Section/Section";
+import { Row } from "../../_designComponents/Row/Row";
+import { Column } from "../../_designComponents/Column/Column";
+import { Icon } from "../../_designComponents/Icon/Icon";
+import { Frame as FrameComponent } from "../../_designComponents/Frame/Frame";
 type AssetItem = {
   label: string;
   description?: string;
@@ -61,6 +73,29 @@ const ASSET_ICONS: Record<string, React.ReactNode> = {
   Shapes: <ShapesIcon className="w-5 h-5" />,
 };
 
+const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = {
+  ...CRAFT_RESOLVER,
+  Frame: (typeof FrameComponent === "function" ? FrameComponent : null) ?? Container,
+  frame: (typeof FrameComponent === "function" ? FrameComponent : null) ?? Container,
+  Container,
+  container: Container,
+  Text: (typeof Text === "function" ? Text : null) ?? Container,
+  text: (typeof Text === "function" ? Text : null) ?? Container,
+  Page: (typeof Page === "function" ? Page : null) ?? Container,
+  page: (typeof Page === "function" ? Page : null) ?? Container,
+  Viewport: (typeof Viewport === "function" ? Viewport : null) ?? Container,
+  viewport: (typeof Viewport === "function" ? Viewport : null) ?? Container,
+  Image: (typeof Image === "function" ? Image : null) ?? Container,
+  image: (typeof Image === "function" ? Image : null) ?? Container,
+  Button: (typeof Button === "function" ? Button : null) ?? Container,
+  button: (typeof Button === "function" ? Button : null) ?? Container,
+  Divider: (typeof Divider === "function" ? Divider : null) ?? Container,
+  Section: (typeof Section === "function" ? Section : null) ?? Container,
+  Row: (typeof Row === "function" ? Row : null) ?? Container,
+  Column: (typeof Column === "function" ? Column : null) ?? Container,
+  Icon: (typeof Icon === "function" ? Icon : null) ?? Container,
+};
+
 const AssetLivePreview = ({
   item,
   previewMode,
@@ -74,6 +109,7 @@ const AssetLivePreview = ({
   const frameRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [previewHeight, setPreviewHeight] = useState(0);
+  const previewResolver = useMemo(() => buildCraftResolver(), []);
 
   useEffect(() => {
     const containerEl = previewRef.current;
@@ -103,7 +139,7 @@ const AssetLivePreview = ({
   if (previewMode === "icon") {
     return (
       <div className="h-16 w-full rounded-lg border border-dashed border-brand-medium/50 bg-brand-medium/10 flex items-center justify-center text-brand-light pointer-events-none group-hover:bg-brand-medium/20 transition-colors">
-        <Editor resolver={CRAFT_RESOLVER} enabled={false}>
+        <Editor resolver={PREVIEW_RESOLVER} enabled={false}>
           <Frame>{item.element}</Frame>
         </Editor>
       </div>
@@ -141,7 +177,7 @@ const AssetLivePreview = ({
           transform: `scale(${scale})`,
         }}
       >
-        <Editor resolver={CRAFT_RESOLVER} enabled={false}>
+        <Editor resolver={PREVIEW_RESOLVER} enabled={false}>
           <Frame>{item.element}</Frame>
         </Editor>
       </div>
@@ -159,14 +195,6 @@ export const AssetsPanel = () => {
     () => GROUPED_TEMPLATES.find((group) => group.folder === activeFolder) ?? null,
     [activeFolder],
   );
-
-  const withFreePositionDefaults = (element: React.ReactElement): React.ReactElement =>
-    React.cloneElement(element, {
-      position: "absolute",
-      top: "0px",
-      left: "0px",
-      ...(element.props ?? {}),
-    });
 
   useEffect(() => {
     if (!activeGroup) {
@@ -261,7 +289,7 @@ export const AssetsPanel = () => {
                       data-asset-category={item.category}
                       data-asset-label={item.label}
                       ref={(ref) => {
-                        if (ref && item?.element) connectors.create(ref, withFreePositionDefaults(item.element));
+                        if (ref && item?.element) connectors.create(ref, item.element);
                       }}
                       onDragStart={() => {
                         if (typeof document !== "undefined") {

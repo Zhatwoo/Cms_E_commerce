@@ -268,7 +268,7 @@ export const OrderForm: TemplateEntry = {
                 React.createElement(
                   Element as any,
                   { is: Container as any, background: "#dcfce7", borderRadius: 10, padding: 12, canvas: true },
-                  React.createElement(Text as any, { text: "$0.00", fontSize: 18, fontWeight: "700", color: "#14532d" })
+                  React.createElement(Text as any, { text: "₱0.00", fontSize: 18, fontWeight: "700", color: "#14532d" })
                 )
               )
             ),

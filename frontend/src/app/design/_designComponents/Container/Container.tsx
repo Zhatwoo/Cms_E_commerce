@@ -1,5 +1,5 @@
 import React from "react";
-import { useNode } from "@craftjs/core";
+import { useEditor, useNode } from "@craftjs/core";
 import { ContainerSettings } from "./ContainerSettings";
 import type { ContainerProps } from "../../_types/components";
 
@@ -76,10 +76,16 @@ export const Container = ({
   customClassName = "",
   children
 }: ContainerProps) => {
-  const { id, connectors: { connect, drag }, childCount } = useNode((node) => ({
+  const { id, connectors: { connect, drag }, childCount, parentId } = useNode((node) => ({
     childCount: node.data.nodes.length,
+    parentId: node.data.parent,
+  }));
+  const { parentDisplay, parentFlexDirection } = useEditor((state) => ({
+    parentDisplay: parentId ? String(state.nodes[parentId]?.data?.props?.display ?? "") : "",
+    parentFlexDirection: parentId ? String(state.nodes[parentId]?.data?.props?.flexDirection ?? "") : "",
   }));
   const hasChildren = childCount > 0 || React.Children.count(children) > 0;
+  const isFlexRowParent = parentDisplay === "flex" && parentFlexDirection === "row";
 
   const wPx = parsePx(width);
   const hPx = parsePx(height);
@@ -117,6 +123,7 @@ export const Container = ({
       : editorVisibility === "show" && display === "none"
         ? "flex"
         : display;
+  const shouldFlexFill = width === "100%" && isFlexRowParent;
 
   return (
     <div
@@ -126,7 +133,7 @@ export const Container = ({
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className={`relative ${hasChildren ? "" : "min-h-[120px]"} transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
+      className={`relative ${hasChildren ? "" : "min-h-[120px]"} ${customClassName}`}
       style={{
         backgroundColor: childCount === 0 ? "#f4f5f7" : background,
         backgroundImage: backgroundImage
@@ -147,6 +154,7 @@ export const Container = ({
         marginBottom: fluidSpace(mb, 0),
         width,
         height,
+        flex: shouldFlexFill ? "1 1 0%" : undefined,
         boxSizing: "border-box",
         maxWidth: position === "static" ? "100%" : undefined,
         minWidth: 0,
@@ -232,7 +240,7 @@ export const Container = ({
 };
 
 export const ContainerDefaultProps: Partial<ContainerProps> = {
-  background: "transparent",
+  background: "#ffffff",
   padding: 0,
   paddingTop: 0,
   paddingRight: 0,

@@ -19,8 +19,37 @@ import html2canvas from "html2canvas";
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 
+function toPxNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return null;
+
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
+
+  if (normalized.endsWith("px")) {
+    const parsed = Number.parseFloat(normalized.slice(0, -2));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  const numeric = Number.parseFloat(normalized);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
 type ViewMode = "Web-Preview" | "clean" | "raw";
 type PreviewViewport = "desktop" | "tablet" | "mobile";
+
+const toPxNumber = (value: unknown): number | undefined => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return undefined;
+  if (normalized.endsWith("px")) {
+    const parsed = Number(normalized.slice(0, -2));
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
 
 
 
@@ -54,6 +83,7 @@ function PreviewContent() {
   const [selectedPreviewPageSlug, setSelectedPreviewPageSlug] = useState<string | undefined>(initialPageSlug);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const thumbnailCaptureRef = useRef(false);
+  const useBuilderParityMode = false;
 
   const readSessionSnapshot = (targetProjectId: string): string | null => {
     if (typeof window === "undefined") return null;
@@ -103,7 +133,7 @@ function PreviewContent() {
           console.log('✅ Preview: API result success. Keys in data:', Object.keys(result.data));
 
           if (result.data.content) {
-            let content = result.data.content;
+            const content = result.data.content;
 
             // If already clean object, we still keep it as "rawJson" (as string) 
             // for the rest of the existing preview logic to work (it formats it etc.)
@@ -267,6 +297,20 @@ function PreviewContent() {
   const activeJson = viewMode === "clean" ? cleanJson : viewMode === "raw" ? rawFormatted : null;
   const useBuilderParityMode = false;
 
+  const desktopResponsiveViewportWidth = useMemo(() => {
+    if (!cleanDoc?.pages?.length) return undefined;
+
+    const targetSlug = initialPageSlug;
+    const targetPage = targetSlug
+      ? cleanDoc.pages.find((page, index) => {
+          const slug = (page.props?.pageSlug as string | undefined) || `page-${index}`;
+          return slug === targetSlug;
+        })
+      : cleanDoc.pages[0];
+
+    return toPxNumber(targetPage?.props?.width) ?? 1920;
+  }, [cleanDoc, initialPageSlug]);
+
   const capturePreviewThumbnail = async () => {
     if (thumbnailCaptureRef.current || !previewRef.current || !projectId) return;
     if (viewMode !== "Web-Preview" || loading || !cleanDoc) return;
@@ -274,10 +318,10 @@ function PreviewContent() {
     thumbnailCaptureRef.current = true;
     try {
       const canvas = await html2canvas(previewRef.current, {
-        background: "#ffffff",
+        backgroundColor: "#ffffff",
         scale: 0.7,
         useCORS: true,
-      } as any);
+      });
 
       const blob: Blob | null = await new Promise((resolve) => {
         canvas.toBlob((b: Blob | null) => resolve(b), "image/jpeg", 0.85);
@@ -389,8 +433,7 @@ function PreviewContent() {
         setShowSaveDialog(false);
         setTemplateName("");
         setTemplateDescription("");
-        // Navigate to web-builder page
-        router.push("/m_dashboard/web-builder");
+        router.push(projectId ? `/design?projectId=${projectId}` : "/design");
       } else {
         showAlert("Failed to save template. Please try again.");
       }

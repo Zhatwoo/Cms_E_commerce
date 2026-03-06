@@ -68,7 +68,7 @@ export default function RevenueGrowth({ period, onPeriodChange, revenueOverTime,
                         },
                         ticks: {
                             callback: function(value) {
-                                return '$' + value.toLocaleString();
+                                return '₱' + value.toLocaleString();
                             }
                         }
                     },

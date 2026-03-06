@@ -8,6 +8,7 @@ import { templateService, Template as FullTemplate } from '@/lib/templateService
 import { createProject, listProjects, updateProject, deleteProject, listTrashedProjects, restoreProject, getMyDomains, getStoredUser, type Project } from '@/lib/api';
 import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
 import { getLimits } from '@/lib/subscriptionLimits';
+import { INDUSTRY_OPTIONS } from '@/lib/industryCatalog';
 import { useAlert } from '../components/context/alert-context';
 import { useProject } from '../components/context/project-context';
 import { DraftPreviewThumbnail } from '../components/projects/DraftPreviewThumbnail';
@@ -161,7 +162,7 @@ const TemplateCard = ({ template, colors, onPreview, onUseTemplate }: {
   </div>
 );
 
-/** Modal: ask project title + preferred subdomain before creating project */
+/** Modal: ask project title + industry + preferred subdomain before creating project */
 const CreateProjectModal = ({
   open,
   initialTitle,
@@ -177,14 +178,16 @@ const CreateProjectModal = ({
   colors: any;
   creating: boolean;
   onClose: () => void;
-  onSubmit: (title: string, subdomain: string) => void;
+  onSubmit: (title: string, industry: string, subdomain: string) => void;
 }) => {
   const [title, setTitle] = useState(initialTitle);
+  const [industry, setIndustry] = useState('');
   const [subdomain, setSubdomain] = useState('');
 
   useEffect(() => {
     if (open) {
       setTitle(initialTitle);
+      setIndustry('');
       setSubdomain('');
     }
   }, [open, initialTitle]);
@@ -192,8 +195,9 @@ const CreateProjectModal = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const t = title.trim() || 'Untitled Project';
+    const ind = industry.trim();
     const sub = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || '';
-    onSubmit(t, sub);
+    onSubmit(t, ind, sub);
   };
 
   if (!open) return null;
@@ -225,6 +229,25 @@ const CreateProjectModal = ({
               className="w-full px-4 py-2.5 rounded-lg border bg-transparent focus:outline-none focus:ring-2"
               style={{ borderColor: colors.border.default, color: colors.text.primary }}
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1.5" style={{ color: colors.text.primary }}>Industry / Store type</label>
+            <select
+              data-industry-select="true"
+              value={industry}
+              onChange={(e) => setIndustry(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-lg border bg-transparent focus:outline-none focus:ring-2"
+              style={{ borderColor: colors.border.default, color: colors.text.primary }}
+              required
+            >
+              <option value="" disabled>Select industry</option>
+              {INDUSTRY_OPTIONS.map((item) => (
+                <option key={item.key} value={item.key}>{item.label}</option>
+              ))}
+            </select>
+            <p className="text-xs mt-1" style={{ color: colors.text.muted }}>
+              Product categories will match this industry when adding products.
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium mb-1.5" style={{ color: colors.text.primary }}>Preferred subdomain</label>
@@ -367,6 +390,7 @@ export default function WebBuilderPage() {
   const [renameValue, setRenameValue] = useState('');
   const [sortOption, setSortOption] = useState<SortOptionId>('relevant');
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [trashRetentionDays, setTrashRetentionDays] = useState(30);
   const [publishModalProject, setPublishModalProject] = useState<Project | null>(null);
 
   const visibleProjects = projects;
@@ -415,7 +439,12 @@ export default function WebBuilderPage() {
       setTrashedProjectsLoading(true);
       listTrashedProjects()
         .then((res) => {
-          if (res.success && res.projects) setTrashedProjects(res.projects);
+          if (res.success && res.projects) {
+            setTrashedProjects(res.projects);
+            if (Number.isFinite(res.retentionDays) && Number(res.retentionDays) > 0) {
+              setTrashRetentionDays(Number(res.retentionDays));
+            }
+          }
         })
         .finally(() => setTrashedProjectsLoading(false));
     }
@@ -451,9 +480,15 @@ export default function WebBuilderPage() {
     }
   }, [projectsLoading, projectsLoadingFromContext, isAutoCreate, selectedProject?.id, projects, setSelectedProjectId]);
 
-  const handleCreateSubmit = async (title: string, subdomain: string) => {
+  const handleCreateSubmit = async (title: string, industry: string, subdomain: string) => {
     try {
       setCreating(true);
+
+      if (!industry.trim()) {
+        showAlert('Please select your store industry first.');
+        setCreating(false);
+        return;
+      }
 
       // Check subscription limits
       const user = getStoredUser();
@@ -479,6 +514,7 @@ export default function WebBuilderPage() {
 
       const res = await createProject({
         title: title || 'Untitled Project',
+        industry: industry || null,
         subdomain: subdomain || undefined,
         templateId: createModalTemplate ? String(createModalTemplate.id) : null,
       });
@@ -566,6 +602,7 @@ export default function WebBuilderPage() {
       setCreating(true);
       const res = await createProject({
         title: `${p.title} (copy)`,
+        industry: p.industry || 'other',
         subdomain: p.subdomain ? `${p.subdomain}-copy` : undefined,
       });
       if (res.success && res.project) {
@@ -593,6 +630,12 @@ export default function WebBuilderPage() {
     try {
       const res = await deleteProject(p.id);
       if (res.success) {
+        const daysLeft = Number.isFinite(res.daysLeft) ? Number(res.daysLeft) : null;
+        if (daysLeft && daysLeft > 0) {
+          showAlert(`Moved "${p.title}" to trash. ${daysLeft} day(s) left before auto-delete.`);
+        } else {
+          showAlert(res.message || `Moved "${p.title}" to trash.`);
+        }
         setProjects((prev) => prev.filter((x) => x.id !== p.id));
         await refreshProjects();
         // If we are on the active tab, we might want to refresh the notification or count
@@ -944,7 +987,7 @@ export default function WebBuilderPage() {
               <div className="rounded-xl border p-12 text-center border-dashed" style={{ borderColor: colors.border.faint }}>
                 <div className="space-y-1">
                   <p className="text-sm" style={{ color: colors.text.muted }}>Trash is empty.</p>
-                  <p className="text-xs" style={{ color: colors.text.secondary }}>Deleted projects appear here for 30 days before being purged.</p>
+                  <p className="text-xs" style={{ color: colors.text.secondary }}>Deleted projects appear here for {trashRetentionDays} days before being purged.</p>
                 </div>
               </div>
             ) : (
@@ -956,8 +999,8 @@ export default function WebBuilderPage() {
                     const deletedDate = new Date(p.deletedAt);
                     const now = new Date();
                     const ageMs = now.getTime() - deletedDate.getTime();
-                    const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
-                    const msLeft = thirtyDaysInMs - ageMs;
+                    const retentionMs = trashRetentionDays * 24 * 60 * 60 * 1000;
+                    const msLeft = retentionMs - ageMs;
                     daysLeft = Math.max(1, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
                   }
 
@@ -982,7 +1025,7 @@ export default function WebBuilderPage() {
                         <div>
                           <h3 className="font-medium truncate text-[11px]" style={{ color: colors.text.primary }}>{p.title}</h3>
                           <p className="text-[10px] text-red-500 font-medium">
-                            Restorable for {daysLeft ?? '—'} {daysLeft === 1 ? 'day' : 'days'}
+                            {daysLeft ?? '—'}/{trashRetentionDays} days remaining in trash
                           </p>
                         </div>
                         <div className="flex gap-1.5 relative z-10">
@@ -1001,7 +1044,7 @@ export default function WebBuilderPage() {
                             Restore Project
                           </button>
                           <span className="px-2 py-1.5 text-[10px] rounded-md border whitespace-nowrap" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
-                            Auto-delete after 30 days
+                            Auto-delete after {trashRetentionDays} days
                           </span>
                         </div>
                       </div>

@@ -191,7 +191,7 @@ export interface ImageProps extends SpacingProps, SizeProps, EffectsProps, Trans
 export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps, LayerProps, AnimatableProps, InteractionProps {
   label?: string;
   link?: string;
-  variant?: "primary" | "secondary" | "outline" | "ghost";
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "cta";
   backgroundColor?: string;
   textColor?: string;
   fontSize?: number;

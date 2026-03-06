@@ -40,7 +40,7 @@ function CartFab() {
           className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[45] pointer-events-none rounded-2xl bg-black/50 text-white px-12 py-9 shadow-2xl flex flex-col items-center text-center animate-[fadeIn_0.2s_ease-out]"
           aria-hidden
         >
-          <span className="text-xl font-semibold">item has been added to your cart</span>
+          <span className="text-xl font-semibold">Item has been added to your cart</span>
           <svg className="w-10 h-10 mt-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
           </svg>

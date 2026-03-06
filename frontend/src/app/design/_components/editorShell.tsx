@@ -15,6 +15,7 @@ import { Text } from "../_designComponents/Text/Text";
 import { Page } from "../_designComponents/Page/Page";
 import { Viewport } from "../_designComponents/Viewport/Viewport";
 import { Section } from "../_designComponents/Section/Section";
+import { Image } from "../_designComponents/Image/Image";
 import { Button } from "../_designComponents/Button/Button";
 import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
@@ -34,6 +35,7 @@ import { PrototypeTabProvider } from "./PrototypeTabContext";
 import { PrototypeFlowLines } from "./PrototypeFlowLines";
 import { NewPageDropPlacementHandler } from "./NewPageDropPlacementHandler";
 import { HeaderFooterDropPlacementHandler } from "./HeaderFooterDropPlacementHandler";
+import PanelDropFreePlacementHandler from "./PanelDropFreePlacementHandler";
 import { ScrollToSelectedHandler } from "./ScrollToSelectedHandler";
 import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
@@ -49,7 +51,6 @@ import {
   DEFAULT_SCALE,
   ZOOM_STEP,
   ZOOM_SENSITIVITY,
-  SMOOTH_LERP_FACTOR,
 } from "./zoomConstants";
 
 /**
@@ -128,8 +129,12 @@ const VALIDATOR_RESOLVER: Record<string, React.ComponentType<any>> = {
   ...CRAFT_RESOLVER,
   Container,
   container: Container,
+  Button: (typeof Button === "function" ? Button : null) ?? Container,
+  button: (typeof Button === "function" ? Button : null) ?? Container,
   Text: Text || Container,
   text: Text || Container,
+  Image: Image || Container,
+  image: Image || Container,
   Page: Page || Container,
   page: Page || Container,
   Viewport: Viewport || Container,
@@ -148,6 +153,24 @@ function normalizeResolvedName(rawName: unknown): string {
   const name = typeof rawName === "string" ? rawName.trim() : "";
   if (!name) return "Container";
   return VALIDATOR_CANONICAL_NAME_BY_LOWER.get(name.toLowerCase()) ?? "Container";
+}
+
+function withResolverFallback<T extends Record<string, React.ComponentType>>(base: T): T {
+  return new Proxy(base, {
+    get(target, prop, receiver) {
+      const direct = Reflect.get(target, prop, receiver);
+      if (direct) return direct;
+      if (typeof prop !== "string") return direct;
+
+      const normalized = prop.trim().toLowerCase();
+      const resolved =
+        Reflect.get(target, prop.trim(), receiver) ||
+        Reflect.get(target, normalized, receiver) ||
+        Reflect.get(target, VALIDATOR_CANONICAL_NAME_BY_LOWER.get(normalized) ?? "", receiver);
+
+      return resolved || target.Container || Container;
+    },
+  }) as T;
 }
 
 function getStorageKey(projectId: string) {
@@ -408,19 +431,8 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
 }
 
 function prepareFrameData(jsonString: string): { valid: boolean; data?: string } {
-  if (jsonString.length > 300_000) {
-    return { valid: true, data: jsonString };
-  }
-
-  try {
-    const parsed = JSON.parse(jsonString);
-    if (parsed && parsed.ROOT && Array.isArray(parsed.ROOT.nodes)) {
-      return { valid: true, data: jsonString };
-    }
-  } catch {
-    // Fall through to deep validator for salvage/fallback behavior.
-  }
-
+  // Always run through validator so component type names are canonicalized
+  // against resolver keys (e.g. Image/image/Text/text) before Frame mount.
   return validateCraftData(jsonString);
 }
 
@@ -697,8 +709,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [activeTool, setActiveTool] = useState<CanvasTool>("move");
   const [frameReady, setFrameReady] = useState(false);
   const [showDualView, setShowDualView] = useState(false);
-  const [suppressDropIndicator, setSuppressDropIndicator] = useState(false);
-  const [dropIndicatorPulse, setDropIndicatorPulse] = useState(false);
   const hasInitialCenteringRef = useRef(false);
   const hasForcedRightPanelOpenRef = useRef(false);
   const saveStatusRef = useRef(saveStatus);
@@ -708,6 +718,18 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     startWidth: number;
   } | null>(null);
   const [isPanelDragging, setIsPanelDragging] = useState(false);
+
+  const handleToolChange = useCallback((tool: CanvasTool) => {
+    setActiveTool(tool);
+
+    // Keep hand cursor state from getting stuck after explicit tool switches.
+    if (tool !== "hand") {
+      setIsPanning(false);
+      setIsSpacePressed(false);
+      document.body.removeAttribute("data-canvas-pan");
+      document.body.removeAttribute("data-space-pan");
+    }
+  }, []);
 
   const startPanelDrag = useCallback((side: "left" | "right", event: React.MouseEvent) => {
     event.preventDefault();
@@ -860,14 +882,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           name: p.name || `Page ${parsed.pages.indexOf(p) + 1}`,
         }));
         setPages(pageTabs);
-        if (pageTabs.length > 0 && !currentPageId) {
-          setCurrentPageId(pageTabs[0].id);
+        if (pageTabs.length > 0) {
+          setCurrentPageId((prev) => prev || pageTabs[0].id);
         }
       }
     } catch {
       // Silently fail for non-multipage documents
     }
-  }, [currentPageId]);
+  }, []);
 
   const handleAddPage = useCallback(() => {
     if (!initialJson) return;
@@ -1309,12 +1331,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (canPanWithPointerDrag) {
-      const target = e.target as HTMLElement | null;
-      const nodeEl = target?.closest("[data-node-id]") as HTMLElement | null;
-      const nodeId = nodeEl?.getAttribute("data-node-id") ?? null;
-      if (nodeId && nodeId !== "ROOT" && nodeId !== "Viewport") {
-        return;
-      }
       setIsPanning(true);
       document.body.dataset.canvasPan = "true";
       e.preventDefault();
@@ -1381,6 +1397,20 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   }, [activeTool, isSpacePanActive, isPanning]);
 
   useEffect(() => {
+    const stopPan = () => {
+      setIsPanning(false);
+      document.body.removeAttribute("data-canvas-pan");
+    };
+
+    window.addEventListener("mouseup", stopPan, true);
+    window.addEventListener("blur", stopPan);
+    return () => {
+      window.removeEventListener("mouseup", stopPan, true);
+      window.removeEventListener("blur", stopPan);
+    };
+  }, []);
+
+  useEffect(() => {
     const handleToolShortcut = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (isEditableTarget(event.target)) return;
@@ -1389,19 +1419,19 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
       if (key === "h") {
         event.preventDefault();
-        setActiveTool("hand");
+        handleToolChange("hand");
         return;
       }
 
       if (key === "g") {
         event.preventDefault();
-        setActiveTool("move");
+        handleToolChange("move");
       }
     };
 
     window.addEventListener("keydown", handleToolShortcut);
     return () => window.removeEventListener("keydown", handleToolShortcut);
-  }, []);
+  }, [handleToolChange]);
 
   // Track if editor is fully loaded to prevent stale closure issues
   const isReadyRef = useRef(false);
@@ -1497,7 +1527,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
             if (typeof input === "string") {
               const parsed = JSON.parse(input);
               if (parsed && parsed.ROOT && Array.isArray(parsed.ROOT.nodes)) {
-                return input;
+                const validated = validateCraftData(input);
+                return validated.valid && validated.data ? validated.data : null;
               }
               if (
                 parsed &&
@@ -1506,7 +1537,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 parsed.nodes &&
                 typeof parsed.nodes === "object"
               ) {
-                return deserializeCleanToCraft(parsed as Parameters<typeof deserializeCleanToCraft>[0]);
+                const craftJson = deserializeCleanToCraft(parsed as Parameters<typeof deserializeCleanToCraft>[0]);
+                const validated = validateCraftData(craftJson);
+                return validated.valid && validated.data ? validated.data : null;
               }
               return null;
             }
@@ -1520,11 +1553,15 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
               };
 
               if (obj.ROOT && Array.isArray(obj.ROOT.nodes)) {
-                return JSON.stringify(obj);
+                const craftJson = JSON.stringify(obj);
+                const validated = validateCraftData(craftJson);
+                return validated.valid && validated.data ? validated.data : null;
               }
 
               if (obj.version !== undefined && Array.isArray(obj.pages) && obj.nodes && typeof obj.nodes === "object") {
-                return deserializeCleanToCraft(obj as Parameters<typeof deserializeCleanToCraft>[0]);
+                const craftJson = deserializeCleanToCraft(obj as Parameters<typeof deserializeCleanToCraft>[0]);
+                const validated = validateCraftData(craftJson);
+                return validated.valid && validated.data ? validated.data : null;
               }
             }
 
@@ -1621,7 +1658,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         clearTimer = null;
       }
       document.body.dataset.newPageDragActive = "true";
-      setSuppressDropIndicator(true);
     };
 
     const clearSuppression = (delayMs = 900) => {
@@ -1630,7 +1666,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       }
       clearTimer = window.setTimeout(() => {
         delete document.body.dataset.newPageDragActive;
-        setSuppressDropIndicator(false);
         clearTimer = null;
       }, delayMs);
     };
@@ -1664,7 +1699,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         window.clearTimeout(clearTimer);
       }
       delete document.body.dataset.newPageDragActive;
-      setSuppressDropIndicator(false);
       clearTimer = null;
     };
 
@@ -1686,20 +1720,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       window.removeEventListener("blur", handleWindowBlur);
     };
   }, []);
-
-  // Animate green drop line while dragging (except when suppressed for New Page)
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      const isDragging = document.body.dataset.editorDragging === "true";
-      if (!isDragging || suppressDropIndicator) {
-        setDropIndicatorPulse(false);
-        return;
-      }
-      setDropIndicatorPulse((prev) => !prev);
-    }, 180);
-
-    return () => window.clearInterval(interval);
-  }, [suppressDropIndicator]);
 
   // Handle Delete Data
   const handleDeleteData = async () => {
@@ -1896,8 +1916,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     const base: Record<string, any> = {
       ...RenderBlocks,
       ...CRAFT_RESOLVER,
+      Button: (typeof Button === "function" ? Button : null) ?? Container,
+      button: (typeof Button === "function" ? Button : null) ?? Container,
       Text: Text || Container,
       text: Text || Container,
+      Image: Image || Container,
+      image: Image || Container,
       Circle: Circle || Container,
       Square: Square || Container,
       Triangle: Triangle || Container,
@@ -1917,67 +1941,20 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     base.page = CRAFT_RESOLVER.Page ?? Page;
     base.Viewport = CRAFT_RESOLVER.Viewport ?? Viewport;
     base.viewport = CRAFT_RESOLVER.Viewport ?? Viewport;
-    return base;
+    base.Image = (typeof Image === "function" ? Image : null) ?? Container;
+    base.image = (typeof Image === "function" ? Image : null) ?? Container;
+    base.Text = (typeof Text === "function" ? Text : null) ?? Container;
+    base.text = (typeof Text === "function" ? Text : null) ?? Container;
+    return withResolverFallback(base);
   }, []);
 
   resolverRef.current = resolver;
   const validFrameData = React.useMemo(() => {
     if (initialJson === undefined || initialJson === null || initialJson === "") return null;
     try {
-      if (typeof initialJson === "string" && initialJson.length > 300_000) {
-        return initialJson;
-      }
-
-      const parsed = typeof initialJson === "string" ? JSON.parse(initialJson) : initialJson;
-      if (!parsed || typeof parsed !== "object" || !parsed.ROOT || !Array.isArray(parsed.ROOT?.nodes)) return null;
-
-      const parsedKeys = Object.keys(parsed as Record<string, unknown>);
-      if (parsedKeys.length > 1200 && typeof initialJson === "string") {
-        return initialJson;
-      }
-
-      const resolverKeys = Object.keys(resolverRef.current);
-      const keys = new Set(resolverKeys);
-
-      const canonicalByLower = new Map<string, string>();
-      for (const key of resolverKeys) {
-        canonicalByLower.set(key.toLowerCase(), key);
-      }
-
-      const allIds = new Set(Object.keys(parsed));
-      const CANVAS_TYPES = new Set(["Frame", "Container", "Section", "Row", "Column", "Page", "Viewport", "Button"]);
-
-      for (const id of Object.keys(parsed)) {
-        const node = parsed[id] as Record<string, unknown> | null;
-        if (!node || typeof node !== "object") continue;
-        const t = node.type;
-        const rawName = ((typeof t === "string" ? t : (t as { resolvedName?: string })?.resolvedName) ?? "").toString().trim();
-        if (!rawName) return null;
-
-        if (!keys.has(rawName)) {
-          const normalized = canonicalByLower.get(rawName.toLowerCase());
-          if (normalized) {
-            node.type = { resolvedName: normalized };
-            node.displayName = normalized;
-          } else {
-            node.type = { resolvedName: "Container" };
-            node.displayName = "Container";
-          }
-        }
-
-        if (CANVAS_TYPES.has(rawName)) {
-          node.isCanvas = true;
-          if (typeof node.data === "object" && node.data !== null) {
-            (node.data as Record<string, unknown>).isCanvas = true;
-          }
-        }
-
-        const childIds = Array.isArray(node.nodes) ? node.nodes : [];
-        const validChildIds = childIds.filter((cid: string) => allIds.has(cid));
-        node.nodes = validChildIds;
-      }
-
-      return JSON.stringify(parsed);
+      const raw = typeof initialJson === "string" ? initialJson : JSON.stringify(initialJson);
+      const validated = validateCraftData(raw);
+      return validated.valid && validated.data ? validated.data : null;
     } catch {
       return null;
     }
@@ -1985,20 +1962,35 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
   return (
     <div data-web-builder-root className="h-screen bg-brand-black text-brand-lighter overflow-hidden font-sans relative">
+      <style>{`
+        div[style*="position: fixed"][style*="z-index: 99999"][style*="border-style: solid"],
+        div[style*="position: fixed"][style*="z-index: 99999"][style*="background-color: rgb(98, 196, 98)"],
+        div[style*="position: fixed"][style*="z-index: 99999"][style*="background-color: rgba(98, 196, 98"],
+        div[style*="position: fixed"][style*="z-index: 99999"][style*="height: 2px"],
+        div[style*="position: fixed"][style*="z-index: 99999"][style*="height: 3px"] {
+          display: none !important;
+          opacity: 0 !important;
+          border-width: 0 !important;
+          background: transparent !important;
+        }
+      `}</style>
       <Editor
         resolver={resolver}
         indicator={{
-          success: suppressDropIndicator ? "transparent" : (dropIndicatorPulse ? "#4ade80" : "#22c55e"),
-          error: suppressDropIndicator ? "transparent" : "#ef4444",
-          thickness: suppressDropIndicator ? 0 : (dropIndicatorPulse ? 4 : 2),
-          transition: suppressDropIndicator ? "none" : "all 140ms ease-out",
+          success: "rgba(0,0,0,0)",
+          error: "rgba(0,0,0,0)",
+          thickness: 0,
+          transition: "none",
+          style: {
+            display: "none",
+          },
         }}
         onRender={RenderNode}
         onNodesChange={(query) => requestAnimationFrame(() => handleNodesChange(query))}
       >
         <QueryStasher onQuery={(q) => { lastQueryRef.current = q; }} />
         <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
-          <CanvasToolProvider value={activeTool} onToolChange={setActiveTool}>
+          <CanvasToolProvider value={activeTool} onToolChange={handleToolChange}>
             <TransformModeProvider>
               <InlineTextEditProvider>
                 <KeyboardShortcuts />
@@ -2009,6 +2001,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 <FigmaStyleDragHandler />
                 <FreeDropPlacementHandler />
                 <NewPageDropPlacementHandler />
+                <HeaderFooterDropPlacementHandler />
+                <PanelDropFreePlacementHandler />
                 <TextToolHandler />
                 <ShapeToolHandler />
                 <DoubleClickTransformHandler />
@@ -2069,7 +2063,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                   >
                     {initialJson === undefined ? null : (
                       <SafeFrame
-                        data={validFrameData ?? initialJson}
+                        data={validFrameData ?? EMPTY_FRAME_DATA}
                         onError={handleFrameError}
                         onFrameMounted={() => {
                           setFrameReady((prev) => (prev ? prev : true));
@@ -2169,7 +2163,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 {panelsReady && (
                   <BottomPanel
                     activeTool={activeTool}
-                    onToolChange={setActiveTool}
+                    onToolChange={handleToolChange}
                     showHints={true}
                     saveStatus={saveStatus}
                     saveError={saveError}

@@ -48,14 +48,28 @@ export const ComponentsPanel = () => {
   const [activeElement, setActiveElement] = useState<ComponentElement | null>(null);
 
   const pageComponent = CRAFT_RESOLVER.Page ?? Container;
+  const FLOW_LAYOUT_COMPONENTS = new Set<unknown>([
+    Section,
+    Container,
+    Row,
+    Column,
+    Frame,
+    pageComponent,
+  ]);
 
-  const withFreePositionDefaults = (element: React.ReactElement): React.ReactElement =>
-    React.cloneElement(element, {
+  const withFreePositionDefaults = (element: React.ReactElement): React.ReactElement => {
+    const maybeCraftComponent = (element.props as { is?: unknown } | undefined)?.is ?? element.type;
+    if (FLOW_LAYOUT_COMPONENTS.has(maybeCraftComponent)) {
+      return element;
+    }
+
+    return React.cloneElement(element, {
       position: "absolute",
       top: "0px",
       left: "0px",
       ...(element.props ?? {}),
     });
+  };
 
   // ... (COMPONENTS_DATA stays the same)
   const COMPONENTS_DATA: Category[] = [
@@ -126,7 +140,11 @@ export const ComponentsPanel = () => {
               name: "Text",
               icon: <Type className="w-4 h-4" />,
               variants: [
-                { label: "Text", preview: "Aa", element: <Text text="New Text" fontSize={16} /> },
+                {
+                  label: "Text",
+                  preview: "Aa",
+                  element: <Text text="" fontSize={18} width="220px" position="absolute" left="0px" top="0px" />,
+                },
               ]
             },
             { name: "Image", icon: <ImageIcon className="w-4 h-4" />, variants: [{ label: "Image", preview: "Image Preview", element: <Image /> }] },
@@ -208,7 +226,13 @@ export const ComponentsPanel = () => {
     { label: "Container", preview: "Container", element: <Element is={Container} background="#27272a" padding={20} canvas />, icon: <Layers className="w-5 h-5" />, color: "bg-purple-500/10" },
     { label: "Row", preview: "Row", element: <Element is={Row} canvas />, icon: <Minus className="w-5 h-5" />, color: "bg-orange-500/10" },
     { label: "Column", preview: "Column", element: <Element is={Column} canvas />, icon: <Columns className="w-5 h-5" />, color: "bg-emerald-500/10" },
-    { label: "Text", preview: "Text", element: <Text text="New Text" fontSize={16} />, icon: <Type className="w-5 h-5" />, color: "bg-pink-500/10" },
+    {
+      label: "Text",
+      preview: "Text",
+      element: <Text text="" fontSize={18} width="220px" position="absolute" left="0px" top="0px" />,
+      icon: <Type className="w-5 h-5" />,
+      color: "bg-pink-500/10",
+    },
     { label: "Image", preview: "Image", element: <Image />, icon: <ImageIcon className="w-5 h-5" />, color: "bg-yellow-500/10" },
     { label: "Button", preview: "Button", element: <Element is={Button} canvas label="Click me" />, icon: <MousePointer2 className="w-5 h-5" />, color: "bg-red-500/10" },
     {
@@ -221,7 +245,7 @@ export const ComponentsPanel = () => {
     },
   ];
 
-  const renderVariant = (variant: ComponentVariant, compact = false) => {
+  const renderVariant = (variant: ComponentVariant & { icon?: React.ReactNode; color?: string }, compact = false) => {
     const isNewPage = variant.isNewPage;
     return (
       <div
@@ -260,8 +284,8 @@ export const ComponentsPanel = () => {
           </>
         ) : (
           <>
-            <div className={`w-8 h-8 rounded-lg ${(variant as any).color ?? "bg-brand-medium/20"} flex items-center justify-center text-brand-lighter group-hover:scale-110 transition-transform duration-300`}>
-              {(variant as any).icon}
+            <div className={`w-8 h-8 rounded-lg ${variant.color ?? "bg-brand-medium/20"} flex items-center justify-center text-brand-lighter group-hover:scale-110 transition-transform duration-300`}>
+              {variant.icon}
             </div>
             <span className="text-[10px] text-brand-lighter font-medium truncate w-full group-hover:text-brand-white transition-colors">
               {variant.label}

@@ -158,7 +158,7 @@ export const Icon = ({
         justifyContent: "center",
         cursor: link ? "pointer" : "default",
       }}
-      className="hover:outline hover:outline-blue-500"
+      className=""
     >
       <IconComponent size={size} className={fitToBox ? "w-full h-full" : ""} />
     </div>

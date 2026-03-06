@@ -4,6 +4,13 @@ import type { Node } from "@craftjs/core";
 import { RowSettings } from "./RowSettings";
 import type { ContainerProps } from "../../_types/components";
 
+function fluidSpace(value: number, min = 0): string {
+  if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
+  const preferred = Math.max(0.1, value / 12);
+  const floor = Math.max(min, Math.round(value * 0.45));
+  return `clamp(${floor}px, ${preferred.toFixed(2)}cqw, ${value}px)`;
+}
+
 /**
  * Row — a horizontal flex container for creating multi-column layouts.
  * Default direction is row with wrap enabled.
@@ -32,6 +39,7 @@ export const Row = ({
   alignItems = "stretch",
   justifyContent = "flex-start",
   gap = 16,
+  display = "flex",
   boxShadow = "none",
   opacity = 1,
   overflow = "visible",
@@ -61,24 +69,26 @@ export const Row = ({
   return (
     <div
       data-node-id={id}
+      data-fluid-space="true"
       {...(isHeaderAsset ? { "data-header": "true" } : {})}
       data-layout={flexDirection === "row" ? "row" : "column"}
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className={`min-h-[40px] transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
+      className={`min-h-[40px] ${customClassName}`}
       style={{
         backgroundColor: background,
-        paddingLeft: `${pl}px`,
-        paddingRight: `${pr}px`,
-        paddingTop: `${pt}px`,
-        paddingBottom: `${pb}px`,
-        marginLeft: `${ml}px`,
-        marginRight: `${mr}px`,
-        marginTop: `${mt}px`,
-        marginBottom: `${mb}px`,
+        paddingLeft: fluidSpace(pl, 0),
+        paddingRight: fluidSpace(pr, 0),
+        paddingTop: fluidSpace(pt, 0),
+        paddingBottom: fluidSpace(pb, 0),
+        marginLeft: fluidSpace(ml, 0),
+        marginRight: fluidSpace(mr, 0),
+        marginTop: fluidSpace(mt, 0),
+        marginBottom: fluidSpace(mb, 0),
         width,
         height,
+        boxSizing: "border-box",
         maxWidth: "100%",
         minWidth: 0,
         borderRadius: `${borderRadius}px`,
@@ -86,17 +96,20 @@ export const Row = ({
           ? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
           : { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
         display: "flex",
+        containerType: "inline-size",
         flexDirection,
         flexWrap,
         alignItems: effectiveAlignItems,
         justifyContent,
-        gap: `${gap}px`,
+        columnGap: fluidSpace(gap, 0),
+        rowGap: fluidSpace(gap, 0),
         boxShadow,
         opacity,
         overflow,
         transform: rotation ? `rotate(${rotation}deg)` : undefined,
       }}
     >
+      <style>{`[data-node-id="${id}"] > * { min-width: 0; }`}</style>
       {children}
       {childCount === 0 && (
         <div
@@ -134,6 +147,7 @@ export const RowDefaultProps: Partial<ContainerProps> = {
   alignItems: "flex-start",
   justifyContent: "flex-start",
   gap: 16,
+  display: "flex",
   boxShadow: "none",
   opacity: 1,
   overflow: "visible",

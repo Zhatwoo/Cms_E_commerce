@@ -627,8 +627,6 @@ function processChildren(
     // Already processed (shared node)
     if (nodes[id]) continue;
 
-    console.log(`🔗 Serializer: Processing node ${id} (${rawNode.type.resolvedName})`);
-
     const type = rawNode.type.resolvedName as ComponentType;
 
     nodes[id] = {

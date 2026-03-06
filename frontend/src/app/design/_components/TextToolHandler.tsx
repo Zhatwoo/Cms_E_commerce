@@ -7,7 +7,7 @@ import { useCanvasTool } from "./CanvasToolContext";
 import { useInlineTextEdit } from "./InlineTextEditContext";
 import { Text } from "../_designComponents/Text/Text";
 
-const DRAG_THRESHOLD = 5;
+const DRAG_THRESHOLD = 8;
 const TEXT_ADDING_FLAG = "textAdding";
 
 type DragState = {
@@ -27,12 +27,63 @@ type PreviewRect = {
     height: number;
 };
 
+const CANVAS_DISPLAY_NAMES = new Set(["Page", "Viewport", "Container", "Section", "Row", "Column", "Frame", "Button"]);
+
+function isCanvasNode(nodes: Record<string, any>, nodeId: string | null): nodeId is string {
+    if (!nodeId) return false;
+    const node = nodes[nodeId];
+    if (!node?.data) return false;
+    if (node.data.isCanvas) return true;
+    const displayName = String(node.data.displayName ?? "");
+    return CANVAS_DISPLAY_NAMES.has(displayName);
+}
+
+function resolveCanvasTargetId(startId: string | null, nodes: Record<string, any>): string | null {
+    let current = startId;
+    const visited = new Set<string>();
+    while (current && !visited.has(current)) {
+        visited.add(current);
+        if (isCanvasNode(nodes, current)) return current;
+        const parent = nodes[current]?.data?.parent;
+        current = typeof parent === "string" ? parent : null;
+    }
+    return null;
+}
+
+function resolvePageTargetId(startId: string | null, nodes: Record<string, any>): string | null {
+    let current = startId;
+    const visited = new Set<string>();
+    while (current && !visited.has(current)) {
+        visited.add(current);
+        const node = nodes[current];
+        if (String(node?.data?.displayName ?? "") === "Page") return current;
+        const parent = node?.data?.parent;
+        current = typeof parent === "string" ? parent : null;
+    }
+    const firstPage = Object.keys(nodes).find((id) => String(nodes[id]?.data?.displayName ?? "") === "Page");
+    return firstPage ?? null;
+}
+
+function getRenderedScale(el: HTMLElement | null): { scaleX: number; scaleY: number } {
+    if (!el) return { scaleX: 1, scaleY: 1 };
+    const rect = el.getBoundingClientRect();
+    const baseWidth = el.offsetWidth || el.clientWidth || 0;
+    const baseHeight = el.offsetHeight || el.clientHeight || 0;
+    const scaleX = baseWidth > 0 ? rect.width / baseWidth : 1;
+    const scaleY = baseHeight > 0 ? rect.height / baseHeight : 1;
+    return {
+        scaleX: Number.isFinite(scaleX) && scaleX > 0.01 ? scaleX : 1,
+        scaleY: Number.isFinite(scaleY) && scaleY > 0.01 ? scaleY : 1,
+    };
+}
+
 export const TextToolHandler = () => {
     const { actions, query } = useEditor();
-    const { activeTool } = useCanvasTool();
+    const { activeTool, setActiveTool } = useCanvasTool();
     const { setEditingTextNodeId } = useInlineTextEdit();
 
     const [previewRect, setPreviewRect] = useState<PreviewRect | null>(null);
+    const [previewHost, setPreviewHost] = useState<HTMLElement | null>(null);
     const dragRef = useRef<DragState | null>(null);
 
     const actionsRef = useRef(actions);
@@ -52,6 +103,7 @@ export const TextToolHandler = () => {
         const clearState = () => {
             dragRef.current = null;
             setPreviewRect(null);
+            setPreviewHost(null);
             delete document.body.dataset[TEXT_ADDING_FLAG];
         };
 
@@ -63,7 +115,8 @@ export const TextToolHandler = () => {
             if (!target) return;
 
             if (target.closest("[data-panel]")) return;
-            if (!target.closest("[data-canvas-container]")) return;
+            const canvasContainer = target.closest("[data-canvas-container]") as HTMLElement | null;
+            if (!canvasContainer) return;
             if (document.body.dataset.spacePan === "true") return;
 
             // Block Craft.js internal handlers and all other handlers from processing this click
@@ -71,11 +124,12 @@ export const TextToolHandler = () => {
             e.preventDefault();
 
             const nodeEl = target.closest("[data-node-id]") as HTMLElement | null;
-            let targetNodeId = nodeEl?.getAttribute("data-node-id") || null;
+            const clickedNodeId = nodeEl?.getAttribute("data-node-id") || null;
+            const nodes = queryRef.current.getState().nodes as Record<string, any>;
+            let targetNodeId = resolvePageTargetId(clickedNodeId, nodes) ?? resolveCanvasTargetId(clickedNodeId, nodes);
 
             if (!targetNodeId || targetNodeId === "ROOT") {
-                const nodes = queryRef.current.getState().nodes;
-                const firstPage = Object.keys(nodes).find(id => nodes[id].data.displayName === "Page");
+                const firstPage = Object.keys(nodes).find(id => String(nodes[id]?.data?.displayName ?? "") === "Page");
                 targetNodeId = firstPage || "ROOT";
             }
 
@@ -88,6 +142,7 @@ export const TextToolHandler = () => {
                 targetNodeId,
                 hasDragged: false,
             };
+            setPreviewHost(canvasContainer);
         };
 
         const handleMouseMove = (e: MouseEvent) => {
@@ -113,45 +168,78 @@ export const TextToolHandler = () => {
 
         const handleMouseUp = (e: MouseEvent) => {
             const dragState = dragRef.current;
-            if (!dragState || !dragState.active || !dragState.hasDragged) {
+            if (!dragState || !dragState.active) {
                 clearState();
                 return;
             }
 
-            const left = Math.min(dragState.startX, dragState.currentX);
-            const top = Math.min(dragState.startY, dragState.currentY);
-            const width = Math.max(Math.abs(dragState.currentX - dragState.startX), 150);
-            const height = Math.abs(dragState.currentY - dragState.startY);
+            const didDrag = dragState.hasDragged;
+            const left = didDrag ? Math.min(dragState.startX, dragState.currentX) : e.clientX;
+            const top = didDrag ? Math.min(dragState.startY, dragState.currentY) : e.clientY;
+            const width = didDrag ? Math.max(Math.abs(dragState.currentX - dragState.startX), 150) : 220;
+            const height = didDrag ? Math.abs(dragState.currentY - dragState.startY) : 0;
+            const forceAbsoluteForClick = !didDrag;
+            const clickDefaultHeight = 36;
 
             if (dragState.targetNodeId) {
                 try {
-                    const targetDom = queryRef.current.node(dragState.targetNodeId).get()?.dom;
+                    const state = queryRef.current.getState();
+                    const normalizedTargetId =
+                        resolvePageTargetId(dragState.targetNodeId, state.nodes as Record<string, any>) ??
+                        resolveCanvasTargetId(dragState.targetNodeId, state.nodes as Record<string, any>) ??
+                        dragState.targetNodeId;
+                    const parentNode = state.nodes[normalizedTargetId];
+                    const parentProps = (parentNode?.data?.props ?? {}) as Record<string, unknown>;
+                    const targetDom = queryRef.current.node(normalizedTargetId).get()?.dom;
                     let finalLeft = left;
                     let finalTop = top;
+                    let finalWidth = width;
+                    let finalHeight = height;
 
                     if (targetDom) {
                         const rect = targetDom.getBoundingClientRect();
-                        finalLeft = (left - rect.left);
-                        finalTop = (top - rect.top);
+                        const { scaleX, scaleY } = getRenderedScale(targetDom);
+                        finalLeft = Math.max(0, Math.round((left - rect.left) / scaleX));
+                        finalTop = Math.max(0, Math.round((top - rect.top) / scaleY));
+                        finalWidth = Math.max(150, Math.round(width / scaleX));
+                        finalHeight = didDrag
+                            ? Math.max(0, Math.round(height / scaleY))
+                            : clickDefaultHeight;
                     }
+
+                    const parentDisplay = String(parentProps.display ?? "").toLowerCase();
+                    const parentFlexDirection = String(parentProps.flexDirection ?? "column").toLowerCase();
+                    const parentPosition = String(parentProps.position ?? "static").toLowerCase();
+                    const parentIsFreeform = parentProps.isFreeform === true;
+                    const parentIsFlexOrGrid = parentDisplay === "flex" || parentDisplay === "grid";
+                    const parentIsPositioned =
+                        parentPosition === "relative" ||
+                        parentPosition === "absolute" ||
+                        parentPosition === "fixed" ||
+                        parentPosition === "sticky";
+                    const shouldUseAbsolute = forceAbsoluteForClick || parentIsFreeform || (!parentIsFlexOrGrid && parentIsPositioned);
+
+                    const flowWidth = !shouldUseAbsolute ? `${finalWidth}px` : undefined;
 
                     const tree = queryRef.current.parseReactElement(
                         <Text
-                            text="Type something..."
+                            text=""
                             fontSize={18}
-                            position="absolute"
-                            left={`${finalLeft}px`}
-                            top={`${finalTop}px`}
-                            width={`${width}px`}
-                            height={height > 20 ? `${height}px` : undefined}
+                            position={shouldUseAbsolute ? "absolute" : "relative"}
+                            left={shouldUseAbsolute ? `${finalLeft}px` : "auto"}
+                            top={shouldUseAbsolute ? `${finalTop}px` : "auto"}
+                            width={shouldUseAbsolute ? `${finalWidth}px` : flowWidth}
+                            height={shouldUseAbsolute ? `${Math.max(finalHeight, clickDefaultHeight)}px` : undefined}
                         />
                     ).toNodeTree();
 
-                    (actionsRef.current as any).addNodeTree(tree, dragState.targetNodeId);
+                    (actionsRef.current as any).addNodeTree(tree, normalizedTargetId);
 
                     setTimeout(() => {
                         actionsRef.current.selectNode(tree.rootNodeId);
                         setEditingTextNodeId(tree.rootNodeId);
+                        // One-shot text tool: after placing one text box, return to cursor tool.
+                        setActiveTool("move");
                     }, 50);
 
                 } catch (error) {
@@ -186,28 +274,31 @@ export const TextToolHandler = () => {
             document.removeEventListener("click", handleClick, true);
             clearState();
         };
-    }, [setEditingTextNodeId]);
+    }, [setEditingTextNodeId, setActiveTool]);
 
-    if (!previewRect) return null;
+    if (!previewRect || !previewHost) return null;
+    const hostRect = previewHost.getBoundingClientRect();
+    const relativeLeft = previewRect.left - hostRect.left + previewHost.scrollLeft;
+    const relativeTop = previewRect.top - hostRect.top + previewHost.scrollTop;
 
     return typeof document !== "undefined"
         ? ReactDOM.createPortal(
             <div
                 data-panel="text-tool-preview"
                 style={{
-                    position: "fixed",
-                    left: previewRect.left,
-                    top: previewRect.top,
+                    position: "absolute",
+                    left: relativeLeft,
+                    top: relativeTop,
                     width: previewRect.width,
                     height: previewRect.height,
-                    border: "1px solid #3b82f6",
-                    backgroundColor: "rgba(59, 130, 246, 0.1)",
+                    border: "1px dashed #3b82f6",
+                    backgroundColor: "rgba(59, 130, 246, 0.06)",
                     pointerEvents: "none",
                     zIndex: 10000,
                     borderRadius: 2,
                 }}
             />,
-            document.body
+            previewHost
         )
         : null;
 };

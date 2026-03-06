@@ -1,8 +1,21 @@
 // routes/orderRoutes.js
 const express = require('express');
 const router = express.Router();
-const { create, getMyOrders, getOne, getAll, updateStatus } = require('../controllers/orderController');
+const {
+  create,
+  getMyOrders,
+  getOne,
+  getAll,
+  updateStatus,
+  createPublicCheckout,
+  getMyPublishedOrders,
+  updatePublishedOrderStatus,
+} = require('../controllers/orderController');
 const { protect, admin } = require('../middleware/auth');
+
+router.post('/published/:subdomain', createPublicCheckout);
+router.get('/published/my', protect, getMyPublishedOrders);
+router.put('/published/:subdomain/:id/status', protect, updatePublishedOrderStatus);
 
 router.post('/', protect, create);
 router.get('/my', protect, getMyOrders);

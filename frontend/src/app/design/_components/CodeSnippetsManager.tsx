@@ -162,7 +162,7 @@ export function useDebounce<T>(value: T, delay: number): T {
   }).format(price);
 }
 
-// Usage: formatPrice(99.99) => "$99.99"`,
+// Usage: formatPrice(99.99) => "₱99.99"`,
     tags: ["utility", "formatting", "price"],
   },
   {

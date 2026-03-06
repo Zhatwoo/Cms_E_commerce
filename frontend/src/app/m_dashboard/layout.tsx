@@ -27,18 +27,6 @@ function DashboardLayoutContent({
         }
     }, [loading, user, router]);
 
-    // Only send users to instances page when they truly have no projects.
-    // If projects exist but selection is not yet hydrated, avoid forcing a prompt flow.
-    useEffect(() => {
-        if (!loading && !projectLoading && user && !selectedProject && projects.length === 0) {
-            const isInstancesPage = pathname.startsWith('/m_dashboard/instances');
-            const isInDashboard = pathname.startsWith('/m_dashboard');
-            if (isInDashboard && !isInstancesPage) {
-                router.replace('/m_dashboard/instances');
-            }
-        }
-    }, [loading, projectLoading, user, selectedProject, projects.length, pathname, router]);
-
     useEffect(() => {
         if (pathname === '/m_dashboard') {
             contentScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
@@ -74,8 +62,8 @@ function DashboardLayoutContent({
 
     if (loading || !user) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white flex items-center justify-center">
-                <p className="text-white/70">Loading...</p>
+            <div className="min-h-screen flex items-center justify-center" style={{ background: `linear-gradient(180deg, ${colors.bg.primary} 0%, ${colors.bg.primaryEnd} 100%)`, color: colors.text.primary }}>
+                <p style={{ color: colors.text.muted }}>Loading...</p>
             </div>
         );
     }
