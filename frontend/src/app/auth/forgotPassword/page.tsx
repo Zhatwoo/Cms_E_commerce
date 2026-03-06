@@ -10,10 +10,13 @@ export default function ForgotPasswordPage() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const [resetUrl, setResetUrl] = useState<string | null>(null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess(false);
+    setResetUrl(null);
     if (!email) {
       setError('Please enter your email.');
       return;
@@ -22,7 +25,8 @@ export default function ForgotPasswordPage() {
     try {
       const data = await forgotPassword(email);
       setSuccess(true);
-      if (data.message) setError(''); // backend returns generic message for security
+      if (data.resetUrl) setResetUrl(data.resetUrl);
+      if (data.message) setError('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send reset email.');
     } finally {
@@ -55,6 +59,18 @@ export default function ForgotPasswordPage() {
                 <p className="rounded-lg bg-green-500/20 border border-green-500/50 px-3 py-2 text-sm text-green-200">
                   If an account exists with that email, you will receive instructions to reset your password.
                 </p>
+                {resetUrl && (
+                  <div className="rounded-lg border border-violet-500/50 bg-violet-500/10 p-4">
+                    <p className="mb-2 text-sm font-medium text-white/90">Can&apos;t find the email? Use this link:</p>
+                    <a
+                      href={resetUrl}
+                      className="block break-all text-sm font-medium text-violet-400 underline hover:text-violet-300"
+                    >
+                      {resetUrl}
+                    </a>
+                    <p className="mt-2 text-xs text-white/60">This link expires in 1 hour.</p>
+                  </div>
+                )}
                 <p className="text-sm text-white/70">
                   Have a reset token?{' '}
                   <Link href="/auth/reset-password" className="font-medium text-violet-400 hover:text-violet-300">
