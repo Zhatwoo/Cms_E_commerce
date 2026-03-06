@@ -358,6 +358,12 @@ body:has(.m-dashboard-shell) {
   cursor: grabbing !important;
 }
 
+/* While panning, disable node hit-targets so clicks never select components. */
+[data-canvas-container].canvas-hand-tool [data-node-id],
+[data-canvas-container].canvas-hand-tool [data-panel='resize-overlay'] {
+  pointer-events: none !important;
+}
+
 @keyframes landingSnapIn {
   0%,
   20% {

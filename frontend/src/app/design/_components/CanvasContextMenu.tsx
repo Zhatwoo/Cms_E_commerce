@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useLayoutEffect, useRef } from "react";
 import ReactDOM from "react-dom";
 import { useEditor } from "@craftjs/core";
 import {
@@ -33,6 +33,7 @@ import {
 const PROTECTED = new Set(["Viewport", "ROOT"]);
 
 type MenuState = { x: number; y: number; nodeId: string | null } | null;
+const MENU_VIEWPORT_GAP = 8;
 
 function MenuItem({
   icon: Icon,
@@ -81,6 +82,8 @@ export function CanvasContextMenu() {
   const { actions, query } = useEditor();
   const [menu, setMenu] = useState<MenuState>(null);
   const [menuContentReady, setMenuContentReady] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<{ left: number; top: number } | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   const close = useCallback(() => {
     setMenu(null);
@@ -149,13 +152,41 @@ export function CanvasContextMenu() {
     return () => cancelAnimationFrame(id);
   }, [menu]);
 
+  useEffect(() => {
+    if (!menu) return;
+    setMenuPosition({ left: menu.x, top: menu.y });
+  }, [menu]);
+
+  useLayoutEffect(() => {
+    if (!menu || !menuRef.current) return;
+    const rect = menuRef.current.getBoundingClientRect();
+    let nextLeft = menu.x;
+    let nextTop = menu.y;
+
+    if (nextLeft + rect.width + MENU_VIEWPORT_GAP > window.innerWidth) {
+      nextLeft = window.innerWidth - rect.width - MENU_VIEWPORT_GAP;
+    }
+    if (nextTop + rect.height + MENU_VIEWPORT_GAP > window.innerHeight) {
+      nextTop = window.innerHeight - rect.height - MENU_VIEWPORT_GAP;
+    }
+
+    nextLeft = Math.max(MENU_VIEWPORT_GAP, nextLeft);
+    nextTop = Math.max(MENU_VIEWPORT_GAP, nextTop);
+
+    setMenuPosition((prev) => {
+      if (prev && prev.left === nextLeft && prev.top === nextTop) return prev;
+      return { left: nextLeft, top: nextTop };
+    });
+  }, [menu, menuContentReady]);
+
   if (!menu) return null;
   if (!menuContentReady) {
     return ReactDOM.createPortal(
       <div
+        ref={menuRef}
         data-context-menu
-        className="fixed z-[9999] min-w-[200px] bg-brand-darker border border-white/10 rounded-lg shadow-2xl py-2 px-3 text-brand-light/60 text-sm"
-        style={{ left: menu.x, top: menu.y }}
+        className="fixed z-[10050] min-w-[200px] max-h-[calc(100vh-16px)] overflow-y-auto bg-brand-darker border border-white/10 rounded-lg shadow-2xl py-2 px-3 text-brand-light/60 text-sm"
+        style={{ left: menuPosition?.left ?? menu.x, top: menuPosition?.top ?? menu.y }}
       >
         Loading…
       </div>,
@@ -319,9 +350,10 @@ export function CanvasContextMenu() {
 
   return ReactDOM.createPortal(
     <div
+      ref={menuRef}
       data-context-menu
-      className="fixed z-[9999] min-w-[200px] bg-brand-darker border border-white/10 rounded-lg shadow-2xl py-1 text-sm"
-      style={{ left: menu.x, top: menu.y }}
+      className="fixed z-[10050] min-w-[200px] max-h-[calc(100vh-16px)] overflow-y-auto bg-brand-darker border border-white/10 rounded-lg shadow-2xl py-1 text-sm"
+      style={{ left: menuPosition?.left ?? menu.x, top: menuPosition?.top ?? menu.y }}
       onClick={(e) => e.stopPropagation()}
     >
       <MenuItem icon={Copy} label="Copy" shortcut="⌘C" onClick={handleCopy} disabled={!hasSelection} />

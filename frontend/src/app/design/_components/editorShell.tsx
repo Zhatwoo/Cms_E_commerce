@@ -699,6 +699,18 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   } | null>(null);
   const [isPanelDragging, setIsPanelDragging] = useState(false);
 
+  const handleToolChange = useCallback((tool: CanvasTool) => {
+    setActiveTool(tool);
+
+    // Keep hand cursor state from getting stuck after explicit tool switches.
+    if (tool !== "hand") {
+      setIsPanning(false);
+      setIsSpacePressed(false);
+      document.body.removeAttribute("data-canvas-pan");
+      document.body.removeAttribute("data-space-pan");
+    }
+  }, []);
+
   const startPanelDrag = useCallback((side: "left" | "right", event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
@@ -1299,12 +1311,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (canPanWithPointerDrag) {
-      const target = e.target as HTMLElement | null;
-      const nodeEl = target?.closest("[data-node-id]") as HTMLElement | null;
-      const nodeId = nodeEl?.getAttribute("data-node-id") ?? null;
-      if (nodeId && nodeId !== "ROOT" && nodeId !== "Viewport") {
-        return;
-      }
       setIsPanning(true);
       document.body.dataset.canvasPan = "true";
       e.preventDefault();
@@ -1371,6 +1377,20 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   }, [activeTool, isSpacePanActive, isPanning]);
 
   useEffect(() => {
+    const stopPan = () => {
+      setIsPanning(false);
+      document.body.removeAttribute("data-canvas-pan");
+    };
+
+    window.addEventListener("mouseup", stopPan, true);
+    window.addEventListener("blur", stopPan);
+    return () => {
+      window.removeEventListener("mouseup", stopPan, true);
+      window.removeEventListener("blur", stopPan);
+    };
+  }, []);
+
+  useEffect(() => {
     const handleToolShortcut = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (isEditableTarget(event.target)) return;
@@ -1379,19 +1399,19 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
       if (key === "h") {
         event.preventDefault();
-        setActiveTool("hand");
+        handleToolChange("hand");
         return;
       }
 
       if (key === "g") {
         event.preventDefault();
-        setActiveTool("move");
+        handleToolChange("move");
       }
     };
 
     window.addEventListener("keydown", handleToolShortcut);
     return () => window.removeEventListener("keydown", handleToolShortcut);
-  }, []);
+  }, [handleToolChange]);
 
   // Track if editor is fully loaded to prevent stale closure issues
   const isReadyRef = useRef(false);
@@ -1948,7 +1968,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       >
         <QueryStasher onQuery={(q) => { lastQueryRef.current = q; }} />
         <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
-          <CanvasToolProvider value={activeTool} onToolChange={setActiveTool}>
+          <CanvasToolProvider value={activeTool} onToolChange={handleToolChange}>
             <TransformModeProvider>
               <InlineTextEditProvider>
                 <KeyboardShortcuts />
@@ -2121,7 +2141,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 {panelsReady && (
                   <BottomPanel
                     activeTool={activeTool}
-                    onToolChange={setActiveTool}
+                    onToolChange={handleToolChange}
                     showHints={true}
                     saveStatus={saveStatus}
                     saveError={saveError}

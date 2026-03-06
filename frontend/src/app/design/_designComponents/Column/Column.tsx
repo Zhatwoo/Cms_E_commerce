@@ -85,7 +85,7 @@ export const Column = ({
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className={`min-h-[40px] transition-[outline] duration-150 hover:outline hover:outline-blue-500 ${customClassName}`}
+      className={`min-h-[40px] transition-[outline] duration-150 ${customClassName}`}
       style={{
         flex: width === "auto" ? "1 1 0%" : undefined,
         backgroundColor: background,

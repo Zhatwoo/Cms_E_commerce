@@ -547,7 +547,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       }
       document.body.style.userSelect = "none";
       document.body.style.cursor =
-        type === "move" ? "grabbing" :
+        type === "move" ? "default" :
           type === "rotate" ? "grabbing" :
             handle ? HANDLE_CURSORS[handle] : "default";
     },
@@ -1269,14 +1269,14 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
           transformOrigin: "center center",
         }}
       >
-        {/* Border = grab to move */}
+        {/* Border = drag to move */}
         <div
           style={{
             position: "absolute",
             inset: 0,
             border: "2px solid #3b82f6",
             borderRadius: 2,
-            cursor: isExternalDragActive ? "default" : "grab",
+            cursor: "default",
             pointerEvents: isExternalDragActive ? "none" : "auto",
           }}
           onMouseDown={(e) => startDrag(e, "move")}
@@ -1316,7 +1316,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
             borderRadius: "50%",
             border: "2px solid #3b82f6",
             backgroundColor: "#ffffff",
-            cursor: "grab",
+            cursor: "default",
             pointerEvents: isExternalDragActive ? "none" : "auto",
             zIndex: 2,
           }}

@@ -604,7 +604,7 @@ export const FigmaStyleDragHandler = () => {
         setDraggingStyle(draggedDomsRef.current, true);
         document.body.dataset[EDITOR_DRAGGING_FLAG] = "true";
         document.body.style.userSelect = "none";
-        document.body.style.cursor = "grabbing";
+        document.body.style.cursor = "default";
       }
 
       d.dirty = true;
