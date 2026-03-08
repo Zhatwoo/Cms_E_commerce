@@ -277,10 +277,13 @@ export async function getMe(): Promise<{ success: boolean; user?: User }> {
   return apiFetch<{ success: boolean; user?: User }>('/api/auth/me');
 }
 
-/** Update user profile (Name, Avatar) */
+/** Update user profile (Full Name, Avatar, Username, Website, Bio) */
 export async function updateProfile(data: {
   name?: string;
   avatar?: string;
+  username?: string;
+  website?: string;
+  bio?: string;
 }): Promise<{ success: boolean; message?: string; user?: User }> {
   return apiFetch<{ success: boolean; message?: string; user?: User }>('/api/auth/profile', {
     method: 'PUT',

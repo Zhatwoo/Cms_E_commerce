@@ -4,6 +4,17 @@ import path from "path";
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
+  experimental: {
+    optimizePackageImports: [
+      'lucide-react',
+      'framer-motion',
+      'firebase',
+      '@firebase/app',
+      '@firebase/auth',
+      '@firebase/database',
+      '@firebase/storage',
+    ],
+  },
   transpilePackages: ['firebase', '@firebase/app', '@firebase/auth', '@firebase/database', '@firebase/storage'],
   turbopack: {
     resolveAlias: {
