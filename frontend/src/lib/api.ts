@@ -333,6 +333,10 @@ export type Project = {
   updatedAt?: string;
   deletedAt?: string;
   daysLeft?: number;
+  isShared?: boolean;
+  ownerName?: string;
+  ownerId?: string;
+  collaboratorPermission?: "editor" | "viewer";
 };
 
 export async function listProjects(): Promise<{ success: boolean; projects: Project[] }> {

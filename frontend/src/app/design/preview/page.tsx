@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState, Suspense } from "react";
-import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload, Monitor, Tablet, Smartphone } from "lucide-react";
+import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload, Monitor, Tablet, Smartphone, Lock, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { deserializeCleanToCraft } from "../_lib/serializer";
 import { parseContentToCleanDoc } from "../_lib/contentParser";
@@ -11,7 +11,7 @@ import { WebPreview } from "../_lib/webRenderer";
 import { PREVIEW_MOBILE_BREAKPOINT } from "../_lib/viewportConstants";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
-import { getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, getMyDomains, type Project } from "@/lib/api";
+import { getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, getMyDomains, getMe, type Project } from "@/lib/api";
 import { getSubdomainSiteUrl } from "@/lib/siteUrls";
 import { getLimits } from "@/lib/subscriptionLimits";
 import { uploadClientFile } from "@/lib/firebaseStorage";
@@ -57,6 +57,7 @@ function PreviewContent() {
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [showPublishDialog, setShowPublishDialog] = useState(false);
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [publishDomainName, setPublishDomainName] = useState("");
   const [publishDomainError, setPublishDomainError] = useState("");
   const [showPublishedSuccessModal, setShowPublishedSuccessModal] = useState(false);
@@ -66,10 +67,17 @@ function PreviewContent() {
   const [scheduleInfo, setScheduleInfo] = useState<{ scheduledAt: string; subdomain: string | null } | null>(null);
   const [scheduling, setScheduling] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [selectedPreviewPageSlug, setSelectedPreviewPageSlug] = useState<string | undefined>(initialPageSlug);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const thumbnailCaptureRef = useRef(false);
   const useBuilderParityMode = false;
+
+  useEffect(() => {
+    getMe().then((res: any) => {
+      if (res.success && res.user) setCurrentUser(res.user);
+    });
+  }, []);
 
   const readSessionSnapshot = (targetProjectId: string): string | null => {
     if (typeof window === "undefined") return null;
@@ -289,9 +297,9 @@ function PreviewContent() {
     const targetSlug = initialPageSlug;
     const targetPage = targetSlug
       ? cleanDoc.pages.find((page, index) => {
-          const slug = (page.props?.pageSlug as string | undefined) || `page-${index}`;
-          return slug === targetSlug;
-        })
+        const slug = (page.props?.pageSlug as string | undefined) || `page-${index}`;
+        return slug === targetSlug;
+      })
       : cleanDoc.pages[0];
 
     return toPxNumber(targetPage?.props?.width) ?? 1920;
@@ -395,6 +403,10 @@ function PreviewContent() {
   };
 
   const handleSaveTemplate = async () => {
+    if (project?.isShared) {
+      setShowPermissionModal(true);
+      return;
+    }
     if (!templateName.trim() || !templateDescription.trim()) {
       showAlert("Please fill in all fields");
       return;
@@ -432,6 +444,11 @@ function PreviewContent() {
   };
   //cjdhv
   const handlePublishClick = async () => {
+    const isCollaborator = project?.isShared || (project?.ownerId && currentUser?.id && project.ownerId !== currentUser.id);
+    if (isCollaborator) {
+      setShowPermissionModal(true);
+      return;
+    }
     setPublishDomainError("");
     try {
       const res = await getProject(projectId);
@@ -586,15 +603,21 @@ function PreviewContent() {
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setShowSaveDialog(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-400 transition-colors"
+              onClick={() => {
+                const isCollaborator = project?.isShared || (project?.ownerId && currentUser?.id && project.ownerId !== currentUser.id);
+                if (isCollaborator) setShowPermissionModal(true);
+                else if (project) setShowSaveDialog(true);
+              }}
+              disabled={loading || !project}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Save size={14} />
               Save Template
             </button>
             <button
               onClick={handlePublishClick}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 transition-colors"
+              disabled={loading || !project}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Upload size={14} />
               Publish
@@ -1022,6 +1045,29 @@ function PreviewContent() {
                 className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving ? "Saving..." : "Save Template"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Permission Denied Modal */}
+      {showPermissionModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm bg-[#111] border border-white/10 rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center mb-4">
+                <Lock className="w-6 h-6 text-red-500" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Owner Access Required</h3>
+              <p className="text-sm text-gray-400 mb-6 leading-relaxed">
+                Only the project owner has permission to publish or save templates. Please contact the owner if you need these actions performed.
+              </p>
+              <button
+                onClick={() => setShowPermissionModal(false)}
+                className="w-full py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-sm font-semibold transition-all active:scale-[0.98]"
+              >
+                Got it
               </button>
             </div>
           </div>

@@ -159,4 +159,70 @@ async function sendPasswordResetEmail(to, token, name) {
   }
 }
 
-module.exports = { sendVerificationEmail, sendPasswordResetEmail, getConfirmUrl, getResetPasswordUrl };
+/**
+ * Send collaboration invitation email.
+ */
+async function sendCollaborationInviteEmail({ to, fromName, projectId, projectTitle, permission }) {
+  const recipient = typeof to === 'string' ? to.trim().toLowerCase() : '';
+  if (!recipient) {
+    console.warn('[emailService] ⚠️ No recipient email for collaboration invite.');
+    return { sent: false, error: 'No recipient email' };
+  }
+
+  console.log('[emailService] 📤 Sending collaboration invite to:', recipient);
+
+  const appUrl = frontendUrl;
+  const inviteUrl = `${appUrl}/design?projectId=${projectId}`;
+  const subject = `${fromName} invited you to collaborate`;
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+      <h1 style="color: #0a0d14; font-size: 24px; font-weight: 600; margin-bottom: 24px; line-height: 1.2;">Collaboration Invitation</h1>
+      <p style="font-size: 16px; color: #333; line-height: 1.6; margin-bottom: 24px;">
+        <strong>${fromName}</strong> has invited you to collaborate on the project <strong>${projectTitle || 'Untitled Project'}</strong>.
+      </p>
+      <p style="font-size: 16px; color: #555; line-height: 1.7; margin-bottom: 32px;">
+        You have been granted <strong>${permission}</strong> access. Click the button below to open the project and start collaborating.
+      </p>
+      <p style="margin: 40px 0; text-align: center;">
+        <a href="${inviteUrl}" style="display: inline-block; background: #7c3aed; color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 2px 4px rgba(124, 58, 237, 0.2);">Open Project</a>
+      </p>
+      <p style="color: #666; font-size: 14px; margin-top: 32px; padding-top: 24px; border-top: 1px solid #eee;">
+        If you don't have an account yet, please sign up using this email address to access the project.
+      </p>
+      <p style="color: #999; font-size: 13px; margin-top: 40px; padding-top: 24px; border-top: 1px solid #eee;">
+        Cheers,<br>
+        The Mercato Team
+      </p>
+    </div>
+  `;
+
+  const fromLabel = process.env.GMAIL_FROM_NAME || 'Mercato';
+
+  if (!transporter) {
+    console.log('[emailService] 📧 No SMTP config. Invite link (dev):', inviteUrl);
+    return { sent: false, error: 'Email not configured.', inviteUrl };
+  }
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"${fromLabel}" <${gmailUser}>`,
+      to: recipient,
+      subject,
+      html,
+    });
+    console.log('[emailService] ✅ Collaboration invite sent to', recipient, '| MessageId:', info.messageId || '');
+    return { sent: true };
+  } catch (err) {
+    console.error('[emailService] ❌ Invite send error:', err.message);
+    return { sent: false, error: err.message };
+  }
+}
+
+module.exports = {
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+  sendCollaborationInviteEmail,
+  getConfirmUrl,
+  getResetPasswordUrl
+};

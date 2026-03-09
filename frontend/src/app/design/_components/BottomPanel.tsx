@@ -23,6 +23,7 @@ interface BottomPanelProps {
   scale?: number;
   /** Zoom: set scale (e.g. 1 for 100%) */
   onScaleChange?: (scale: number) => void;
+  permission?: "owner" | "editor" | "viewer";
 }
 
 export const BottomPanel: React.FC<BottomPanelProps> = ({
@@ -37,6 +38,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
   onZoomFit,
   scale = 1,
   onScaleChange,
+  permission = "editor",
 }) => {
   const { actions } = useEditor();
   const [isShapesPickerOpen, setIsShapesPickerOpen] = React.useState(false);
@@ -136,17 +138,19 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
         <button
           type="button"
           onClick={() => onToolChange("text")}
+          disabled={permission === "viewer"}
           className={`h-9 w-9 grid place-items-center rounded-lg transition-colors ${activeTool === "text"
             ? "bg-blue-500/25 text-blue-300"
-            : "text-white/70 hover:text-white hover:bg-white/[0.08]"
+            : "text-white/70 hover:text-white hover:bg-white/[0.08] disabled:opacity-30 disabled:pointer-events-none"
             }`}
-          title="Text – Click and drag to add text"
+          title={permission === "viewer" ? "Text tool disabled (View only)" : "Text – Click and drag to add text"}
         >
           <Type className="w-4 h-4" strokeWidth={1.8} />
         </button>
         <div className="relative">
           <button
             type="button"
+            disabled={permission === "viewer"}
             onClick={() => {
               if (activeTool === "shape") {
                 setShowShapesMenu(!showShapesMenu);
@@ -157,9 +161,9 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
             }}
             className={`h-9 w-9 grid place-items-center rounded-lg transition-colors ${activeTool === "shape"
               ? "bg-blue-500/25 text-blue-300"
-              : "text-white/70 hover:text-white hover:bg-white/[0.08]"
+              : "text-white/70 hover:text-white hover:bg-white/[0.08] disabled:opacity-30 disabled:pointer-events-none"
               }`}
-            title="Shapes – Click to choose, then drag to add"
+            title={permission === "viewer" ? "Shape tool disabled (View only)" : "Shapes – Click to choose, then drag to add"}
           >
             <Shapes className="w-4 h-4" strokeWidth={1.8} />
           </button>
@@ -190,18 +194,18 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
         <button
           type="button"
           onClick={handleUndo}
-          disabled={!canUndo}
-          className="h-9 w-9 grid place-items-center rounded-lg transition-colors text-white/70 hover:text-white hover:bg-white/[0.08] disabled:opacity-40 disabled:pointer-events-none"
-          title="Undo (Ctrl+Z)"
+          disabled={!canUndo || permission === "viewer"}
+          className="h-9 w-9 grid place-items-center rounded-lg transition-colors text-white/70 hover:text-white hover:bg-white/[0.08] disabled:opacity-30 disabled:pointer-events-none"
+          title={permission === "viewer" ? "Undo disabled" : "Undo (Ctrl+Z)"}
         >
           <Undo2 className="w-4 h-4" strokeWidth={1.8} />
         </button>
         <button
           type="button"
           onClick={handleRedo}
-          disabled={!canRedo}
-          className="h-9 w-9 grid place-items-center rounded-lg transition-colors text-white/70 hover:text-white hover:bg-white/[0.08] disabled:opacity-40 disabled:pointer-events-none"
-          title="Redo (Ctrl+Shift+Z)"
+          disabled={!canRedo || permission === "viewer"}
+          className="h-9 w-9 grid place-items-center rounded-lg transition-colors text-white/70 hover:text-white hover:bg-white/[0.08] disabled:opacity-30 disabled:pointer-events-none"
+          title={permission === "viewer" ? "Redo disabled" : "Redo (Ctrl+Shift+Z)"}
         >
           <Redo2 className="w-4 h-4" strokeWidth={1.8} />
         </button>
