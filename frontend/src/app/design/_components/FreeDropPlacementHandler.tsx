@@ -382,6 +382,15 @@ export function FreeDropPlacementHandler() {
         });
       });
 
+      const selectableNewIds = idsToPlace.filter((id) => !!query.getState()?.nodes?.[id]);
+      if (selectableNewIds.length > 0) {
+        try {
+          actions.selectNode(selectableNewIds.length === 1 ? selectableNewIds[0] : selectableNewIds);
+        } catch {
+          // ignore selection failures
+        }
+      }
+
       stopTracking();
     };
 

@@ -43,13 +43,17 @@ function withResolverFallback<T extends Resolver>(base: T): T {
  * circular dependency and Frame is guaranteed to be defined.
  */
 export function buildCraftResolver(): Resolver {
+  const ContainerComp: React.ComponentType<any> =
+    (typeof Container === "function" ? Container : null) ??
+    ((props: any) => React.createElement("div", props, props?.children));
   const FrameComp = typeof Frame === "function" ? Frame : Container;
   const TextComp = (typeof Text === "function" ? Text : null) ?? Container;
   const ImageComp = (typeof Image === "function" ? Image : null) ?? Container;
   const base: Resolver = {
     Frame: FrameComp,
     frame: FrameComp,
-    Container,
+    Container: ContainerComp,
+    container: ContainerComp,
     Text: TextComp,
     text: TextComp,
     Page,
@@ -63,20 +67,22 @@ export function buildCraftResolver(): Resolver {
     Row,
     Column,
     Icon,
-    Circle: Circle || Container,
-    Square: Square || Container,
-    Triangle: Triangle || Container,
-    circle: Circle || Container,
-    square: Square || Container,
-    triangle: Triangle || Container,
+    Circle: Circle || ContainerComp,
+    Square: Square || ContainerComp,
+    Triangle: Triangle || ContainerComp,
+    circle: Circle || ContainerComp,
+    square: Square || ContainerComp,
+    triangle: Triangle || ContainerComp,
   };
   base.Frame = FrameComp;
   base.frame = FrameComp;
-  base.Image = (typeof Image === "function" ? Image : null) ?? Container;
-  base.image = (typeof Image === "function" ? Image : null) ?? Container;
-  base.Text = (typeof Text === "function" ? Text : null) ?? Container;
-  base.text = (typeof Text === "function" ? Text : null) ?? Container;
-  return withResolverFallback(base);
+  base.Image = (typeof Image === "function" ? Image : null) ?? ContainerComp;
+  base.image = (typeof Image === "function" ? Image : null) ?? ContainerComp;
+  base.Text = (typeof Text === "function" ? Text : null) ?? ContainerComp;
+  base.text = (typeof Text === "function" ? Text : null) ?? ContainerComp;
+  base.Container = ContainerComp;
+  base.container = ContainerComp;
+  return base;
 }
 
 /** Single resolver instance so Editor always receives the same reference with Frame defined. */

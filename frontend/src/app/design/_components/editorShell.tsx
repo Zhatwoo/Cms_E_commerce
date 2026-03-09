@@ -124,21 +124,25 @@ const EMPTY_FRAME_DATA = JSON.stringify({
   },
 });
 
+const SAFE_CONTAINER: React.ComponentType<any> =
+  (typeof Container === "function" ? Container : null) ??
+  ((props: any) => React.createElement("div", props, props?.children));
+
 const VALIDATOR_RESOLVER: Record<string, React.ComponentType<any>> = {
   ...RenderBlocks,
   ...CRAFT_RESOLVER,
-  Container,
-  container: Container,
-  Button: (typeof Button === "function" ? Button : null) ?? Container,
-  button: (typeof Button === "function" ? Button : null) ?? Container,
-  Text: Text || Container,
-  text: Text || Container,
-  Image: Image || Container,
-  image: Image || Container,
-  Page: Page || Container,
-  page: Page || Container,
-  Viewport: Viewport || Container,
-  viewport: Viewport || Container,
+  Container: SAFE_CONTAINER,
+  container: SAFE_CONTAINER,
+  Button: (typeof Button === "function" ? Button : null) ?? SAFE_CONTAINER,
+  button: (typeof Button === "function" ? Button : null) ?? SAFE_CONTAINER,
+  Text: Text || SAFE_CONTAINER,
+  text: Text || SAFE_CONTAINER,
+  Image: Image || SAFE_CONTAINER,
+  image: Image || SAFE_CONTAINER,
+  Page: Page || SAFE_CONTAINER,
+  page: Page || SAFE_CONTAINER,
+  Viewport: Viewport || SAFE_CONTAINER,
+  viewport: Viewport || SAFE_CONTAINER,
 };
 
 const VALIDATOR_CANONICAL_NAME_BY_LOWER = new Map<string, string>();
@@ -168,7 +172,7 @@ function withResolverFallback<T extends Record<string, React.ComponentType>>(bas
         Reflect.get(target, normalized, receiver) ||
         Reflect.get(target, VALIDATOR_CANONICAL_NAME_BY_LOWER.get(normalized) ?? "", receiver);
 
-      return resolved || target.Container || Container;
+      return resolved || target.Container || SAFE_CONTAINER;
     },
   }) as T;
 }
@@ -1911,41 +1915,41 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       (typeof FrameComponentFromFile === "function" ? FrameComponentFromFile : null) ??
       (typeof RenderBlocks?.Frame === "function" ? RenderBlocks.Frame : null) ??
       CRAFT_RESOLVER.Frame ??
-      Container;
+      SAFE_CONTAINER;
 
     const base: Record<string, any> = {
       ...RenderBlocks,
       ...CRAFT_RESOLVER,
-      Button: (typeof Button === "function" ? Button : null) ?? Container,
-      button: (typeof Button === "function" ? Button : null) ?? Container,
-      Text: Text || Container,
-      text: Text || Container,
-      Image: Image || Container,
-      image: Image || Container,
-      Circle: Circle || Container,
-      Square: Square || Container,
-      Triangle: Triangle || Container,
-      circle: Circle || Container,
-      square: Square || Container,
-      triangle: Triangle || Container,
+      Button: (typeof Button === "function" ? Button : null) ?? SAFE_CONTAINER,
+      button: (typeof Button === "function" ? Button : null) ?? SAFE_CONTAINER,
+      Text: Text || SAFE_CONTAINER,
+      text: Text || SAFE_CONTAINER,
+      Image: Image || SAFE_CONTAINER,
+      image: Image || SAFE_CONTAINER,
+      Circle: Circle || SAFE_CONTAINER,
+      Square: Square || SAFE_CONTAINER,
+      Triangle: Triangle || SAFE_CONTAINER,
+      circle: Circle || SAFE_CONTAINER,
+      square: Square || SAFE_CONTAINER,
+      triangle: Triangle || SAFE_CONTAINER,
     };
     // Force Frame to always exist; Craft looks up by "Frame" and sometimes "frame"
     base.Frame = FrameForResolver;
     base.frame = FrameForResolver;
     // Ensure Container always exists in resolver (serialized nodes often use this)
     // Prefer the locally imported Container component so we never end up with an undefined value
-    base.Container = Container;
-    base.container = Container;
+    base.Container = SAFE_CONTAINER;
+    base.container = SAFE_CONTAINER;
     // Ensure Page and Viewport always in resolver (serialized drafts reference these by type)
-    base.Page = CRAFT_RESOLVER.Page ?? Page;
-    base.page = CRAFT_RESOLVER.Page ?? Page;
-    base.Viewport = CRAFT_RESOLVER.Viewport ?? Viewport;
-    base.viewport = CRAFT_RESOLVER.Viewport ?? Viewport;
-    base.Image = (typeof Image === "function" ? Image : null) ?? Container;
-    base.image = (typeof Image === "function" ? Image : null) ?? Container;
-    base.Text = (typeof Text === "function" ? Text : null) ?? Container;
-    base.text = (typeof Text === "function" ? Text : null) ?? Container;
-    return withResolverFallback(base);
+    base.Page = CRAFT_RESOLVER.Page ?? Page ?? SAFE_CONTAINER;
+    base.page = CRAFT_RESOLVER.Page ?? Page ?? SAFE_CONTAINER;
+    base.Viewport = CRAFT_RESOLVER.Viewport ?? Viewport ?? SAFE_CONTAINER;
+    base.viewport = CRAFT_RESOLVER.Viewport ?? Viewport ?? SAFE_CONTAINER;
+    base.Image = (typeof Image === "function" ? Image : null) ?? SAFE_CONTAINER;
+    base.image = (typeof Image === "function" ? Image : null) ?? SAFE_CONTAINER;
+    base.Text = (typeof Text === "function" ? Text : null) ?? SAFE_CONTAINER;
+    base.text = (typeof Text === "function" ? Text : null) ?? SAFE_CONTAINER;
+    return base;
   }, []);
 
   resolverRef.current = resolver;

@@ -99,6 +99,7 @@ type DragState = {
   previewX?: number;
   previewY?: number;
   previousTransition?: string;
+  previousWillChange?: string;
   dirty: boolean;
   constrainRatio?: boolean;
   resizeFromCenter?: boolean;
@@ -465,6 +466,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         previewX: type === "move" ? 0 : undefined,
         previewY: type === "move" ? 0 : undefined,
         previousTransition: type === "move" ? dom.style.transition : undefined,
+        previousWillChange: type === "resize" ? dom.style.willChange : undefined,
         dirty: false,
         constrainRatio: e.shiftKey,
         resizeFromCenter: e.altKey,
@@ -572,9 +574,12 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       } else if (type === "resize") {
         try {
           const state = query.getState();
+          const nodeDisplayName = state.nodes[nodeId]?.data?.displayName as string | undefined;
+          const childCount = (((state.nodes[nodeId] as any)?.data?.nodes as string[] | undefined) ?? []).length;
+          const bypassBoundsForResize = nodeDisplayName === "Section" || (nodeDisplayName === "Container" && childCount > 0);
           const parentId = state.nodes[nodeId]?.data?.parent;
           const parentDom = parentId ? query.node(parentId).get()?.dom ?? null : null;
-          if (dragRef.current && parentDom) {
+          if (dragRef.current && parentDom && !bypassBoundsForResize) {
             const parentRect = parentDom.getBoundingClientRect();
             dragRef.current.guideBounds = {
               left: parentRect.left,
@@ -582,7 +587,11 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
               top: parentRect.top,
               bottom: parentRect.bottom,
             };
+          } else if (dragRef.current) {
+            dragRef.current.guideBounds = undefined;
           }
+
+          dom.style.willChange = "width, height, margin-top, margin-left";
         } catch {
           // ignore
         }
@@ -890,19 +899,31 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
           ? computeTextFontSizeForResize(h, startW, startH, newW, newH, startFontSize)
           : null;
 
-        actions.setProp(nodeId, (props: Record<string, unknown>) => {
-          props.width = `${newW}px`;
-          props.height = `${newH}px`;
-          if (isTextNode && nextFontSize != null) {
-            props.fontSize = Math.round(nextFontSize * 10) / 10;
-          }
+        if (isTextNode) {
+          actions.setProp(nodeId, (props: Record<string, unknown>) => {
+            props.width = `${newW}px`;
+            props.height = `${newH}px`;
+            if (nextFontSize != null) {
+              props.fontSize = Math.round(nextFontSize * 10) / 10;
+            }
+            if (extraMT !== 0) {
+              props.marginTop = nextMarginTop;
+            }
+            if (extraML !== 0) {
+              props.marginLeft = nextMarginLeft;
+            }
+          });
+        } else {
+          // Smooth preview: apply direct DOM style during drag, commit once on mouseup.
+          dom.style.width = `${newW}px`;
+          dom.style.height = `${newH}px`;
           if (extraMT !== 0) {
-            props.marginTop = nextMarginTop;
+            dom.style.marginTop = `${nextMarginTop}px`;
           }
           if (extraML !== 0) {
-            props.marginLeft = nextMarginLeft;
+            dom.style.marginLeft = `${nextMarginLeft}px`;
           }
-        });
+        }
       } else if (d.type === "rotate" && d.startAngle != null) {
         const cx = d.startRect.left + d.startRect.width / 2;
         const cy = d.startRect.top + d.startRect.height / 2;
@@ -1168,6 +1189,9 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       setDragType(null);
       setGuides(null);
       setRotateAngle(null);
+      if (d?.type === "resize") {
+        dom.style.willChange = d.previousWillChange ?? "";
+      }
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
