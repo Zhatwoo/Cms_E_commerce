@@ -538,9 +538,11 @@ export type ApiProduct = {
       id: string;
       name: string;
       priceAdjustment: number;
+      image?: string;
     }>;
   }>;
   variantStocks?: Record<string, number>;
+  variantPrices?: Record<string, number>;
   priceRangeMin?: number | null;
   priceRangeMax?: number | null;
   images?: string[];
@@ -631,9 +633,11 @@ export async function createProduct(params: {
       id: string;
       name: string;
       priceAdjustment: number;
+      image?: string;
     }>;
   }>;
   variantStocks?: Record<string, number>;
+  variantPrices?: Record<string, number>;
   priceRangeMin?: number | null;
   priceRangeMax?: number | null;
   images?: string[];
@@ -671,9 +675,11 @@ export async function updateProduct(
         id: string;
         name: string;
         priceAdjustment: number;
+        image?: string;
       }>;
     }>;
     variantStocks?: Record<string, number>;
+    variantPrices?: Record<string, number>;
     priceRangeMin?: number | null;
     priceRangeMax?: number | null;
     images?: string[];

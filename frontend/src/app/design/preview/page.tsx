@@ -15,7 +15,7 @@ import { getSubdomainSiteUrl } from "@/lib/siteUrls";
 import { getLimits } from "@/lib/subscriptionLimits";
 import { uploadClientFile } from "@/lib/firebaseStorage";
 import html2canvas from "html2canvas";
-//vdxvx
+
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 
@@ -37,19 +37,6 @@ function toPxNumber(value: unknown): number | null {
 
 type ViewMode = "Web-Preview" | "clean" | "raw";
 type PreviewViewport = "desktop" | "tablet" | "mobile";
-
-const toPxNumber = (value: unknown): number | undefined => {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value !== "string") return undefined;
-  const normalized = value.trim().toLowerCase();
-  if (!normalized) return undefined;
-  if (normalized.endsWith("px")) {
-    const parsed = Number(normalized.slice(0, -2));
-    return Number.isFinite(parsed) ? parsed : undefined;
-  }
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : undefined;
-};
 
 
 
@@ -295,7 +282,6 @@ function PreviewContent() {
   }, [rawJson]);
 
   const activeJson = viewMode === "clean" ? cleanJson : viewMode === "raw" ? rawFormatted : null;
-  const useBuilderParityMode = false;
 
   const desktopResponsiveViewportWidth = useMemo(() => {
     if (!cleanDoc?.pages?.length) return undefined;

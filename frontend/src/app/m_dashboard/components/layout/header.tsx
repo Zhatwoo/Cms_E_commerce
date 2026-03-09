@@ -3,10 +3,11 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { getApiUrl, logout } from '@/lib/api';
 import { useTheme } from '../context/theme-context';
 import { useAuth } from '../context/auth-context';
+import { ProjectSwitchPill } from './ProjectSwitchPill';
 import { AnimatePresence, motion } from 'framer-motion';
 
 const SunIcon = () => (
@@ -84,6 +85,7 @@ type DashboardHeaderProps = {
 
 export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     const router = useRouter();
+    const pathname = usePathname();
     const { user, setUser } = useAuth();
     const { theme, toggleTheme, colors } = useTheme();
     const [showMenu, setShowMenu] = useState(false);
@@ -117,6 +119,10 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     }, []);
 
     const unreadCount = NOTIFICATIONS.filter((n) => n.unread).length;
+    const showProjectSwitch =
+        pathname?.startsWith('/m_dashboard/products') ||
+        pathname?.startsWith('/m_dashboard/inventory') ||
+        pathname?.startsWith('/m_dashboard/orders');
 
     const handleLogout = async () => {
         await logout();
@@ -144,7 +150,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                     : 'none',
             }}
         >
-            <div className="flex items-center justify-between px-4 sm:px-6" style={{ height: '84px' }}>
+            <div className="relative flex items-center justify-between px-4 sm:px-6" style={{ height: '84px' }}>
                 <div className="flex items-center">
                     <button
                         type="button"
@@ -159,7 +165,11 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                     </button>
                 </div>
 
-                <div className="flex-1" />
+                {showProjectSwitch && (
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+                        <ProjectSwitchPill />
+                    </div>
+                )}
 
                 <div className="flex items-center gap-4">
                     <button
