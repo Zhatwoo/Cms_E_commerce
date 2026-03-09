@@ -38,6 +38,19 @@ function toPxNumber(value: unknown): number | null {
 type ViewMode = "Web-Preview" | "clean" | "raw";
 type PreviewViewport = "desktop" | "tablet" | "mobile";
 
+const toPxNumber = (value: unknown): number | undefined => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return undefined;
+  if (normalized.endsWith("px")) {
+    const parsed = Number(normalized.slice(0, -2));
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
 
 
 function PreviewContent() {
@@ -120,7 +133,7 @@ function PreviewContent() {
           console.log('✅ Preview: API result success. Keys in data:', Object.keys(result.data));
 
           if (result.data.content) {
-            let content = result.data.content;
+            const content = result.data.content;
 
             // If already clean object, we still keep it as "rawJson" (as string) 
             // for the rest of the existing preview logic to work (it formats it etc.)
@@ -282,6 +295,7 @@ function PreviewContent() {
   }, [rawJson]);
 
   const activeJson = viewMode === "clean" ? cleanJson : viewMode === "raw" ? rawFormatted : null;
+  const useBuilderParityMode = false;
 
   const desktopResponsiveViewportWidth = useMemo(() => {
     if (!cleanDoc?.pages?.length) return undefined;
@@ -304,10 +318,10 @@ function PreviewContent() {
     thumbnailCaptureRef.current = true;
     try {
       const canvas = await html2canvas(previewRef.current, {
-        background: "#ffffff",
+        backgroundColor: "#ffffff",
         scale: 0.7,
         useCORS: true,
-      } as any);
+      });
 
       const blob: Blob | null = await new Promise((resolve) => {
         canvas.toBlob((b: Blob | null) => resolve(b), "image/jpeg", 0.85);

@@ -894,10 +894,10 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
     borderRadius: 8,
     width: "auto",
     height: "auto",
-    paddingTop: 10,
-    paddingBottom: 10,
-    paddingLeft: 24,
-    paddingRight: 24,
+    paddingTop: 12,
+    paddingBottom: 12,
+    paddingLeft: 28,
+    paddingRight: 28,
     margin: 0,
     opacity: 1,
     boxShadow: "none",
@@ -1246,6 +1246,7 @@ const BUTTON_VARIANTS: Record<string, { bg: string; text: string; border: string
   secondary: { bg: "#6b7280", text: "#ffffff", border: "transparent", borderWidth: 0 },
   outline: { bg: "transparent", text: "#3b82f6", border: "#3b82f6", borderWidth: 1 },
   ghost: { bg: "transparent", text: "#3b82f6", border: "transparent", borderWidth: 0 },
+  cta: { bg: "#000000", text: "#ffffff", border: "transparent", borderWidth: 0 },
 };
 
 function wrapWithAnimation(
@@ -1998,7 +1999,7 @@ function RenderNode({
         return wrapWithAnimation(
           <input
             type="text"
-            defaultValue=""
+            defaultValue={textContent}
             placeholder={textContent}
             aria-label={textContent}
             data-fluid-space="true"
@@ -2066,6 +2067,7 @@ function RenderNode({
     case "Button": {
       const variant = (props.variant as string) || "primary";
       const style = BUTTON_VARIANTS[variant] ?? BUTTON_VARIANTS.primary;
+      const isCta = variant === "cta";
       const bg = (props.backgroundColor as string) ?? style.bg;
       const color = (props.textColor as string) ?? style.text;
       const borderColor = (props.borderColor as string) ?? style.border;
@@ -2077,13 +2079,14 @@ function RenderNode({
         isNarrowPreview,
         builderParityMode,
       ) || "auto";
+      const isAutoWidth = width === "auto";
       const height = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode) || (props.height as string) || "auto";
       const isPercentWidth = typeof width === "string" && width.includes("%");
       const p = typeof props.padding === "number" ? props.padding : 0;
-      const pt = toNumber(props.paddingTop ?? p, 10);
-      const pr = toNumber(props.paddingRight ?? p, 24);
-      const pb = toNumber(props.paddingBottom ?? p, 10);
-      const pl = toNumber(props.paddingLeft ?? p, 24);
+      const pt = toNumber(props.paddingTop ?? p, 12);
+      const pr = toNumber(props.paddingRight ?? p, 28);
+      const pb = toNumber(props.paddingBottom ?? p, 12);
+      const pl = toNumber(props.paddingLeft ?? p, 28);
       const m = typeof props.margin === "number" ? props.margin : 0;
       const mt = (props.marginTop ?? m) as number;
       const mr = (props.marginRight ?? m) as number;
@@ -2114,11 +2117,11 @@ function RenderNode({
             fontSize: fluidFont(rawButtonFontSize, 12, 3),
             fontWeight: props.fontWeight as string,
             fontFamily: (props.fontFamily as string) || "Outfit",
-            borderRadius: px(props.borderRadius),
+            borderRadius: isCta ? "0px" : px(props.borderRadius),
             border: `${borderWidth}px ${resolvedBorderStyle} ${borderColor}`,
             padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
             margin: `${fluidSpace(mt, 0, 0.35, 1.4)} ${fluidSpace(mr, 0, 0.35, 1.4)} ${fluidSpace(mb, 0, 0.35, 1.4)} ${fluidSpace(ml, 0, 0.35, 1.4)}`,
-            width: isPercentWidth ? "100%" : width,
+            width: isPercentWidth ? "100%" : isAutoWidth ? "fit-content" : width,
             maxWidth: isNarrowPreview ? "100%" : undefined,
             height: height,
             boxSizing: "border-box",
@@ -2130,7 +2133,13 @@ function RenderNode({
             cursor: interactiveClick ? "pointer" : undefined,
             transform: btnTransform,
             transformOrigin: "center center",
-            minWidth: isNarrowPreview ? 0 : undefined,
+            minWidth: isPercentWidth ? (isNarrowPreview ? 0 : undefined) : "max-content",
+            flexShrink: isAutoWidth ? 0 : 1,
+            textTransform: isCta ? "uppercase" : undefined,
+            letterSpacing: isCta ? "0.08em" : undefined,
+            whiteSpace: "nowrap",
+            overflowWrap: "normal",
+            wordBreak: "keep-all",
             ["--fluid-font-cqw" as any]: "3cqw",
             ["--mobile-source-font-size" as any]: `${rawButtonFontSize}px`,
             ["--fluid-font-max" as any]: `${rawButtonFontSize}px`,

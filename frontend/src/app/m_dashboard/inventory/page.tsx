@@ -12,9 +12,11 @@ import {
   Download,
   Upload,
   Minus,
+  Trash2,
 } from 'lucide-react';
 import {
   adjustInventoryStock,
+  deleteInventoryMovement,
   getInventorySummary,
   importInventoryCsv,
   listInventory,
@@ -338,6 +340,34 @@ export default function InventoryPage() {
       setStockModal((p) => ({ ...p, error: err instanceof Error ? err.message : 'Failed to adjust stock' }));
     } finally { setAdjustingId(null); }
   }, [stockModal, getStockNumbers, loadData, showAllMovementsModal, loadAllMovements]);
+
+  const confirmDeleteMovement = useCallback(async () => {
+    const targetMovement = movementDeleteToast.movement;
+    if (!targetMovement?.id) return;
+
+    try {
+      setDeletingMovementId(targetMovement.id);
+      await deleteInventoryMovement(targetMovement.id);
+      await loadData();
+      if (showAllMovementsModal) {
+        await loadAllMovements();
+      }
+      showMovementDeleteResultToast('Inventory movement deleted.', 'success');
+    } catch (err) {
+      showMovementDeleteResultToast(
+        err instanceof Error ? err.message : 'Failed to delete movement',
+        'error'
+      );
+    } finally {
+      setDeletingMovementId(null);
+    }
+  }, [
+    movementDeleteToast.movement,
+    loadAllMovements,
+    loadData,
+    showAllMovementsModal,
+    showMovementDeleteResultToast,
+  ]);
 
   const isAdjustingFromModal = Boolean(stockModal.product && adjustingId === stockModal.product.id);
   const modalOnHand = stockModal.product ? getStockNumbers(stockModal.product).onHand : 0;

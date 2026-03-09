@@ -49,6 +49,7 @@ export const Section = ({
   alignItems = "center",
   justifyContent = "flex-start",
   gap = 0,
+  display = "flex",
   position = "static",
   zIndex = 0,
   top = "auto",
@@ -64,6 +65,16 @@ export const Section = ({
   customClassName = "",
   children,
 }: ContainerProps) => {
+  const normalizeFlexPos = (value: unknown, fallback: "flex-start" | "center" | "flex-end") => {
+    const raw = String(value ?? "").trim().toLowerCase();
+    if (raw === "start" || raw === "flex-start") return "flex-start";
+    if (raw === "end" || raw === "flex-end") return "flex-end";
+    if (raw === "center") return "center";
+    return fallback;
+  };
+  const resolvedAlignItems = normalizeFlexPos(alignItems, "center");
+  const resolvedJustifyContent = normalizeFlexPos(justifyContent, "flex-start");
+
   const {
     id,
     connectors: { connect, drag },
@@ -129,7 +140,7 @@ export const Section = ({
         ...(strokePlacement === "outside" && borderWidth > 0
           ? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
           : { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
-        display: "flex",
+        display: display ?? "flex",
         containerType: "inline-size",
         position,
         zIndex: zIndex !== 0 ? zIndex : undefined,
@@ -139,8 +150,8 @@ export const Section = ({
         left: position !== "static" ? posLeft : undefined,
         flexDirection,
         flexWrap,
-        alignItems,
-        justifyContent,
+        alignItems: resolvedAlignItems,
+        justifyContent: resolvedJustifyContent,
         gap: fluidSpace(gap, 0),
         boxShadow,
         opacity,
@@ -160,8 +171,8 @@ export const Section = ({
             display: "flex",
             flexDirection,
             flexWrap,
-            alignItems,
-            justifyContent,
+            alignItems: resolvedAlignItems,
+            justifyContent: resolvedJustifyContent,
             gap: fluidSpace(gap, 0),
           }}
         >
@@ -203,6 +214,7 @@ export const SectionDefaultProps: Partial<ContainerProps> = {
   alignItems: "center",
   justifyContent: "flex-start",
   gap: 0,
+  display: "flex",
   position: "static",
   zIndex: 0,
   top: "auto",

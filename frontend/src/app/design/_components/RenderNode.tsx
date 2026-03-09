@@ -3,9 +3,11 @@ import { useNode, useEditor } from "@craftjs/core";
 import ReactDOM from "react-dom";
 import { ResizeOverlay } from "./ResizeOverlay";
 import { useCanvasTool } from "./CanvasToolContext";
+import { useInlineTextEdit } from "./InlineTextEditContext";
 
 export const RenderNode = ({ render }: { render: React.ReactElement }) => {
   const { activeTool } = useCanvasTool();
+  const { editingTextNodeId } = useInlineTextEdit();
 
   const {
     id,
@@ -28,6 +30,9 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
   const [isDomHovered, setIsDomHovered] = useState(false);
   const pendingSelectTimerRef = useRef<number | null>(null);
   const isHandTool = activeTool === "hand";
+  const isDrawingTool = activeTool === "text" || activeTool === "shape";
+  const isTextNode = name === "Text";
+  const canShowResizeOverlay = !isHandTool && !isDrawingTool && isActive && dom && (!isTextNode || editingTextNodeId !== id);
 
   useEffect(() => {
     setMounted(true);
@@ -140,8 +145,8 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
         )
         : null}
 
-      {/* Resize / Move overlay — only for actively selected nodes (skip Text so inline edit remains clickable) */}
-      {!isHandTool && mounted && isActive && dom && name !== "Text" ? (
+      {/* Resize / Move overlay — active nodes, including Text when not inline editing */}
+      {mounted && canShowResizeOverlay ? (
         <ResizeOverlay nodeId={id} dom={dom} />
       ) : null}
 

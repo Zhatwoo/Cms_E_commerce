@@ -28,9 +28,59 @@ type PreviewRect = {
     height: number;
 };
 
+const CANVAS_DISPLAY_NAMES = new Set(["Page", "Viewport", "Container", "Section", "Row", "Column", "Frame", "Button"]);
+
+function isCanvasNode(nodes: Record<string, any>, nodeId: string | null): nodeId is string {
+    if (!nodeId) return false;
+    const node = nodes[nodeId];
+    if (!node?.data) return false;
+    if (node.data.isCanvas) return true;
+    const displayName = String(node.data.displayName ?? "");
+    return CANVAS_DISPLAY_NAMES.has(displayName);
+}
+
+function resolveCanvasTargetId(startId: string | null, nodes: Record<string, any>): string | null {
+    let current = startId;
+    const visited = new Set<string>();
+    while (current && !visited.has(current)) {
+        visited.add(current);
+        if (isCanvasNode(nodes, current)) return current;
+        const parent = nodes[current]?.data?.parent;
+        current = typeof parent === "string" ? parent : null;
+    }
+    return null;
+}
+
+function resolvePageTargetId(startId: string | null, nodes: Record<string, any>): string | null {
+    let current = startId;
+    const visited = new Set<string>();
+    while (current && !visited.has(current)) {
+        visited.add(current);
+        const node = nodes[current];
+        if (String(node?.data?.displayName ?? "") === "Page") return current;
+        const parent = node?.data?.parent;
+        current = typeof parent === "string" ? parent : null;
+    }
+    const firstPage = Object.keys(nodes).find((id) => String(nodes[id]?.data?.displayName ?? "") === "Page");
+    return firstPage ?? null;
+}
+
+function getRenderedScale(el: HTMLElement | null): { scaleX: number; scaleY: number } {
+    if (!el) return { scaleX: 1, scaleY: 1 };
+    const rect = el.getBoundingClientRect();
+    const baseWidth = el.offsetWidth || el.clientWidth || 0;
+    const baseHeight = el.offsetHeight || el.clientHeight || 0;
+    const scaleX = baseWidth > 0 ? rect.width / baseWidth : 1;
+    const scaleY = baseHeight > 0 ? rect.height / baseHeight : 1;
+    return {
+        scaleX: Number.isFinite(scaleX) && scaleX > 0.01 ? scaleX : 1,
+        scaleY: Number.isFinite(scaleY) && scaleY > 0.01 ? scaleY : 1,
+    };
+}
+
 export const ShapeToolHandler = () => {
     const { actions, query } = useEditor();
-    const { activeTool, activeShape } = useCanvasTool();
+    const { activeTool, activeShape, setActiveTool } = useCanvasTool();
 
     const [previewRect, setPreviewRect] = useState<PreviewRect | null>(null);
     const dragRef = useRef<DragState | null>(null);
@@ -72,11 +122,12 @@ export const ShapeToolHandler = () => {
             e.preventDefault();
 
             const nodeEl = target.closest("[data-node-id]") as HTMLElement | null;
-            let targetNodeId = nodeEl?.getAttribute("data-node-id") || null;
+            const clickedNodeId = nodeEl?.getAttribute("data-node-id") || null;
+            const nodes = queryRef.current.getState().nodes as Record<string, any>;
+            let targetNodeId = resolvePageTargetId(clickedNodeId, nodes) ?? resolveCanvasTargetId(clickedNodeId, nodes);
 
             if (!targetNodeId || targetNodeId === "ROOT") {
-                const nodes = queryRef.current.getState().nodes;
-                const firstPage = Object.keys(nodes).find(id => nodes[id].data.displayName === "Page");
+                const firstPage = Object.keys(nodes).find(id => String(nodes[id]?.data?.displayName ?? "") === "Page");
                 targetNodeId = firstPage || "ROOT";
             }
 
@@ -126,14 +177,24 @@ export const ShapeToolHandler = () => {
 
             if (dragState.targetNodeId) {
                 try {
-                    const targetDom = queryRef.current.node(dragState.targetNodeId).get()?.dom;
+                    const state = queryRef.current.getState();
+                    const normalizedTargetId =
+                        resolvePageTargetId(dragState.targetNodeId, state.nodes as Record<string, any>) ??
+                        resolveCanvasTargetId(dragState.targetNodeId, state.nodes as Record<string, any>) ??
+                        dragState.targetNodeId;
+                    const targetDom = queryRef.current.node(normalizedTargetId).get()?.dom;
                     let finalLeft = left;
                     let finalTop = top;
+                    let finalWidth = width;
+                    let finalHeight = height;
 
                     if (targetDom) {
                         const rect = targetDom.getBoundingClientRect();
-                        finalLeft = (left - rect.left);
-                        finalTop = (top - rect.top);
+                        const { scaleX, scaleY } = getRenderedScale(targetDom);
+                        finalLeft = Math.max(0, Math.round((left - rect.left) / scaleX));
+                        finalTop = Math.max(0, Math.round((top - rect.top) / scaleY));
+                        finalWidth = Math.max(12, Math.round(width / scaleX));
+                        finalHeight = Math.max(12, Math.round(height / scaleY));
                     }
 
                     let shapeElement;
@@ -141,8 +202,8 @@ export const ShapeToolHandler = () => {
                         position: "absolute" as const,
                         left: `${finalLeft}px`,
                         top: `${finalTop}px`,
-                        width: `${width}px`,
-                        height: `${height}px`,
+                        width: `${finalWidth}px`,
+                        height: `${finalHeight}px`,
                     };
 
                     if (activeShapeRef.current === "Circle") {
@@ -155,10 +216,12 @@ export const ShapeToolHandler = () => {
 
                     const tree = queryRef.current.parseReactElement(shapeElement).toNodeTree();
 
-                    (actionsRef.current as any).addNodeTree(tree, dragState.targetNodeId);
+                    (actionsRef.current as any).addNodeTree(tree, normalizedTargetId);
 
                     setTimeout(() => {
                         actionsRef.current.selectNode(tree.rootNodeId);
+                        // One-shot shape tool: return to cursor tool after placing one shape.
+                        setActiveTool("move");
                     }, 50);
 
                 } catch (error) {
@@ -192,7 +255,7 @@ export const ShapeToolHandler = () => {
             document.removeEventListener("click", handleClick, true);
             clearState();
         };
-    }, []);
+    }, [setActiveTool]);
 
     if (!previewRect) return null;
 

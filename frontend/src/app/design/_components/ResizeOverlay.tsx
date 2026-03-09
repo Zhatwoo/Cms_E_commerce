@@ -133,6 +133,35 @@ function parsePxOrAuto(value: unknown): number {
   return 0;
 }
 
+function computeTextFontSizeForResize(
+  handle: Handle,
+  startW: number,
+  startH: number,
+  newW: number,
+  newH: number,
+  startFontSize: number
+): number {
+  if (!Number.isFinite(startFontSize) || startFontSize <= 0) return startFontSize;
+
+  const safeStartW = Math.max(1, startW);
+  const safeStartH = Math.max(1, startH);
+  const widthScale = newW / safeStartW;
+  const heightScale = newH / safeStartH;
+
+  let scale = 1;
+  if (handle === "e" || handle === "w") {
+    scale = widthScale;
+  } else if (handle === "n" || handle === "s") {
+    scale = heightScale;
+  } else {
+    // Corner resize should feel natural for text scaling.
+    scale = (widthScale + heightScale) / 2;
+  }
+
+  const scaled = startFontSize * scale;
+  return Math.min(320, Math.max(8, scaled));
+}
+
 type GuideLine = { type: "v" | "h"; value: number };
 type GuideState = {
   lines: GuideLine[];
@@ -257,8 +286,20 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
   const getMoveModeForNode = useCallback(
     (id: string, state: ReturnType<typeof query.getState>): "margin" | "offset" | "page-canvas" => {
       const displayName = state.nodes[id]?.data?.displayName as string | undefined;
+      const parentId = state.nodes[id]?.data?.parent as string | undefined;
+      const parentDisplayName = parentId
+        ? (state.nodes[parentId]?.data?.displayName as string | undefined)
+        : undefined;
+      const props = (state.nodes[id]?.data?.props ?? {}) as Record<string, unknown>;
+      const position = String(props.position ?? "static").toLowerCase();
+      const isAbsoluteLike = position === "absolute" || position === "fixed";
+
+      const flowLayoutParents = new Set(["Container", "Section", "Row", "Column", "Frame"]);
       const offsetMoveTypes = new Set(["Image", "Text", "Icon", "Button", "Circle", "Square", "Triangle"]);
+
       if (displayName === "Page") return "page-canvas";
+      if (isAbsoluteLike) return "offset";
+      if (parentDisplayName && flowLayoutParents.has(parentDisplayName)) return "margin";
       if (displayName && offsetMoveTypes.has(displayName)) return "offset";
       return "margin";
     },
@@ -353,16 +394,27 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         if (!dropParentId || dropParentId === sourceParentId) return false;
 
         const dropParent = state.nodes[dropParentId];
+        const dropParentName = dropParent?.data?.displayName as string | undefined;
+        const flowParents = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame"]);
+        const isFlowParent = !!dropParentName && flowParents.has(dropParentName);
         const index = Array.isArray(dropParent?.data?.nodes)
-          ? dropParent.data.nodes.length
+          ? (isFlowParent ? 0 : dropParent.data.nodes.length)
           : 0;
 
         actions.move(nodeId, dropParentId, index);
         actions.setProp(nodeId, (props: Record<string, unknown>) => {
           props.marginTop = 0;
           props.marginLeft = 0;
-          props.top = "0px";
-          props.left = "0px";
+          if (isFlowParent) {
+            props.position = "relative";
+            props.top = "auto";
+            props.left = "auto";
+            props.right = "auto";
+            props.bottom = "auto";
+          } else {
+            props.top = "0px";
+            props.left = "0px";
+          }
         });
 
         return true;
@@ -831,9 +883,19 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
           marginLeft: nextMarginLeft,
         };
 
+        const currentNode = query.getState().nodes[nodeId];
+        const isTextNode = currentNode?.data?.displayName === "Text";
+        const startFontSize = parsePxOrAuto(d.startProps.fontSize);
+        const nextFontSize = isTextNode
+          ? computeTextFontSizeForResize(h, startW, startH, newW, newH, startFontSize)
+          : null;
+
         actions.setProp(nodeId, (props: Record<string, unknown>) => {
           props.width = `${newW}px`;
           props.height = `${newH}px`;
+          if (isTextNode && nextFontSize != null) {
+            props.fontSize = Math.round(nextFontSize * 10) / 10;
+          }
           if (extraMT !== 0) {
             props.marginTop = nextMarginTop;
           }
@@ -1060,9 +1122,20 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
             if (h.includes("n") || h.includes("s")) extraMT = -dh / 2;
           }
           ({ newW, newH, extraMT, extraML } = clampResizeToBounds(h, d, { newW, newH, extraMT, extraML }));
+
+          const currentNode = query.getState().nodes[nodeId];
+          const isTextNode = currentNode?.data?.displayName === "Text";
+          const startFontSize = parsePxOrAuto(d.startProps.fontSize);
+          const nextFontSize = isTextNode
+            ? computeTextFontSizeForResize(h, startW, startH, newW, newH, startFontSize)
+            : null;
+
           actions.setProp(nodeId, (props: Record<string, unknown>) => {
             props.width = `${Math.round(newW)}px`;
             props.height = `${Math.round(newH)}px`;
+            if (isTextNode && nextFontSize != null) {
+              props.fontSize = Math.round(nextFontSize * 10) / 10;
+            }
             if (extraMT !== 0) {
               const bMT = typeof d.startProps.marginTop === "number" ? d.startProps.marginTop as number : 0;
               const nextMT = (d.moveMode ?? "margin") === "margin" ? Math.max(0, bMT + extraMT) : (bMT + extraMT);
