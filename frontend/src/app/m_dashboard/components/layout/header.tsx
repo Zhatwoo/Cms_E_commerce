@@ -92,6 +92,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     const [showNotifications, setShowNotifications] = useState(false);
     const [scrolled, setScrolled] = useState(false);
     const [failedAvatarSrc, setFailedAvatarSrc] = useState<string | null>(null);
+    const [modalOpen, setModalOpen] = useState(false);
     const emailPrefix = (user?.email || '').split('@')[0] || 'user';
     const usernameValue = String(user?.username || emailPrefix || '').replace(/^@+/, '');
     const headerIdentity = `@${usernameValue || 'user'}`;
@@ -116,6 +117,26 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
         const onScroll = () => setScrolled(window.scrollY > 10);
         window.addEventListener('scroll', onScroll, { passive: true });
         return () => window.removeEventListener('scroll', onScroll);
+    }, []);
+
+    useEffect(() => {
+        const computeModalOpen = () => {
+            if (typeof document === 'undefined') return false;
+            return document.body.style.overflow === 'hidden';
+        };
+
+        setModalOpen(computeModalOpen());
+
+        const observer = new MutationObserver(() => {
+            setModalOpen(computeModalOpen());
+        });
+
+        observer.observe(document.body, {
+            attributes: true,
+            attributeFilter: ['style', 'class'],
+        });
+
+        return () => observer.disconnect();
     }, []);
 
     const unreadCount = NOTIFICATIONS.filter((n) => n.unread).length;
@@ -165,7 +186,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                     </button>
                 </div>
 
-                {showProjectSwitch && (
+                {showProjectSwitch && !modalOpen && (
                     <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
                         <ProjectSwitchPill />
                     </div>
