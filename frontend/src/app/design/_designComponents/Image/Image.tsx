@@ -46,7 +46,7 @@ export const Image = ({
   // Handle empty or invalid src
   const imageSrc = src && src.trim() !== ""
     ? src
-    : "https://placehold.co/600x400/27272a/a1a1aa?text=Image";
+    : "https://placehold.co/600x400?text=Photo";
 
   // Resolve spacing
   const p = typeof padding === "number" ? padding : 0;

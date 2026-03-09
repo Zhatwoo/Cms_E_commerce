@@ -2,8 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { getSubdomainSiteUrl } from '@/lib/siteUrls';
 import { WebPreview } from '@/app/design/_lib/webRenderer';
 import { parseContentToCleanDoc } from '@/app/design/_lib/contentParser';
+import { migratePublishedContent } from '@/app/design/_lib/contentMigration';
 import { PREVIEW_MOBILE_BREAKPOINT } from '@/app/design/_lib/viewportConstants';
 import type { BuilderDocument } from '@/app/design/_types/schema';
 import { apiFetch } from '@/lib/api';
@@ -76,6 +78,18 @@ function PublicSiteContent() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (typeof window === 'undefined' || !subdomain) return;
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      const subdomainUrl = getSubdomainSiteUrl(subdomain, window.location.origin);
+      if (subdomainUrl && subdomainUrl !== '#' && !subdomainUrl.includes('/sites/')) {
+        window.location.replace(subdomainUrl);
+        return;
+      }
+    }
+  }, [subdomain]);
+
+  useEffect(() => {
     if (!subdomain || typeof subdomain !== 'string') {
       setLoading(false);
       setError('Invalid subdomain');
@@ -100,18 +114,23 @@ function PublicSiteContent() {
         });
         if (cancelled) return;
         const content = data?.data?.content;
-        if (data?.projectTitle) setSiteTitle(data.projectTitle as string);
+        const title = data?.projectTitle;
+        if (title) {
+          setSiteTitle(title as string);
+          if (typeof document !== 'undefined') document.title = String(title);
+        }
         if (!content) {
           setError('No content yet');
           setLoading(false);
           return;
         }
-        const clean = parseContentToCleanDoc(content);
+        let clean = parseContentToCleanDoc(content);
         if (!clean) {
           setError('Invalid content');
           setLoading(false);
           return;
         }
+        clean = migratePublishedContent(clean) as BuilderDocument;
         setDoc(clean);
       } catch (e) {
         if (!cancelled) {
@@ -174,10 +193,11 @@ function PublicSiteContent() {
         pageIndex={0}
         mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
         enableFormInputs
-        builderParityMode
+        builderParityMode={false}
+        fillViewport
         storeContext={{ products, addToCart }}
       />
-      <CartFab />
+      {products.length > 0 && <CartFab />}
       <CartDrawer />
     </>
   );

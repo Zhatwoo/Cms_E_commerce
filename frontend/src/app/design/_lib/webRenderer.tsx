@@ -34,7 +34,7 @@ function getDefaultLinkForLabel(label: string): string {
   if (t === "products") return "#products";
   if (t === "contact") return "#contact";
   if (t === "services") return "#services";
-  if (t === "start building") return "/signup";
+  if (t === "learn more" || t === "start building") return "#";
   if (t === "logo") return "#";
   return "";
 }
@@ -2040,7 +2040,7 @@ function RenderNode({
       const mediaAspectRatio = imageWidthPx && imageHeightPx ? `${imageWidthPx} / ${imageHeightPx}` : undefined;
       return wrap(
         <img
-          src={(props.src as string) || "https://placehold.co/600x400?text=Image"}
+          src={(props.src as string) || "https://placehold.co/600x400?text=Photo"}
           alt={(props.alt as string) || "Image"}
           data-fluid-space="true"
           data-fluid-media="true"
@@ -2440,6 +2440,7 @@ export function WebPreview({
   mobileBreakpoint,
   enableFormInputs = false,
   builderParityMode = false,
+  fillViewport = false,
 }: {
   doc: BuilderDocument;
   pageIndex?: number;
@@ -2453,6 +2454,8 @@ export function WebPreview({
   enableFormInputs?: boolean;
   /** When true, keep nodes visible like the editor canvas (skip showOn/collapsible filtering). */
   builderParityMode?: boolean;
+  /** When true, content fills full viewport width (no max-width box, no side margins). */
+  fillViewport?: boolean;
 }): React.ReactElement {
   const safePages = doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page));
   const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
@@ -2641,13 +2644,13 @@ export function WebPreview({
         key={currentPageSlug}
         className={`responsive-preview ${isNarrowBuilderPreview ? "builder-parity-narrow" : ""} ${isNarrowViewport ? "responsive-narrow" : ""}`.trim()}
         style={{
-          width: isDesktopMode ? (frameStyles.width ?? "100%") : width,
-          maxWidth: isDesktopMode ? frameStyles.maxWidth : undefined,
+          width: fillViewport ? "100%" : (isDesktopMode ? (frameStyles.width ?? "100%") : width),
+          maxWidth: fillViewport ? "none" : (isDesktopMode ? frameStyles.maxWidth : undefined),
           minHeight,
           backgroundColor: background,
-          margin: "0 auto",
-          boxShadow: isDesktopMode ? "none" : "0 25px 50px -12px rgba(0,0,0,0.25)",
-          borderRadius: isDesktopMode ? 0 : 8,
+          margin: fillViewport ? 0 : "0 auto",
+          boxShadow: isDesktopMode || fillViewport ? "none" : "0 25px 50px -12px rgba(0,0,0,0.25)",
+          borderRadius: isDesktopMode || fillViewport ? 0 : 8,
           overflow: "hidden",
           transform: pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
           transformOrigin: "center center",

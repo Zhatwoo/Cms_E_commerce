@@ -164,6 +164,7 @@ class TemplateService {
 
   /**
    * Load template into design editor.
+   * Saves to sessionStorage (for editor) AND to backend draft (so publish/preview work even in new sessions).
    * @param templateId - Template id to load
    * @param projectId - When opening design for a specific project, pass this so the editor's per-project session key is used. Otherwise the editor won't find the content and the canvas opens empty.
    */
@@ -190,6 +191,15 @@ class TemplateService {
       const key = this.getEditorStorageKey(projectId);
       sessionStorage.setItem(key, craftJson);
       console.log('Stored in sessionStorage under key:', key);
+
+      // Save to backend draft so Preview/Publish work even in a new tab or after session expires
+      if (projectId) {
+        const cleanSnapshot = JSON.stringify(template.data);
+        const { autoSavePage } = await import('@/app/design/_lib/pageApi');
+        autoSavePage(cleanSnapshot, projectId).catch((err) => {
+          console.warn('Template save to draft failed (will use sessionStorage):', err);
+        });
+      }
 
       return true;
     } catch (error) {
