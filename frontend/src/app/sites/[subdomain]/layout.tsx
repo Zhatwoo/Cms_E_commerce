@@ -18,7 +18,7 @@ export default function SiteLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="published-site bg-white" style={{ minHeight: '100vh', width: '100%', isolation: 'isolate' }}>
+    <div className="published-site" style={{ minHeight: '100vh', width: '100%', isolation: 'isolate', background: '#ffffff' }}>
       {children}
     </div>
   );

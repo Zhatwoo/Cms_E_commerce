@@ -194,6 +194,7 @@ function PublicSiteContent() {
         mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
         enableFormInputs
         builderParityMode={false}
+        fillViewport
         storeContext={{ products, addToCart }}
       />
       {products.length > 0 && <CartFab />}
