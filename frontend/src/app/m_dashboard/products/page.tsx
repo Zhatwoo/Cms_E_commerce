@@ -471,6 +471,9 @@ function toDashboardProduct(product: ApiProduct): Product {
       return acc;
     }, {})
     : {};
+  const normalizedStock = typeof product.onHandStock === 'number'
+    ? product.onHandStock
+    : (typeof product.stock === 'number' ? product.stock : 0);
 
   return {
     id: product.id,
@@ -490,7 +493,7 @@ function toDashboardProduct(product: ApiProduct): Product {
     variantStocks,
     priceRangeMin,
     priceRangeMax,
-    stock: typeof product.stock === 'number' ? product.stock : 0,
+    stock: normalizedStock,
     lowStockThreshold: typeof product.lowStockThreshold === 'number' ? product.lowStockThreshold : DEFAULT_LOW_STOCK_THRESHOLD,
     status: toDashboardStatus(product.status),
     image: images[0] || '[product]',
@@ -580,6 +583,25 @@ export default function ProductsPage() {
 
   useEffect(() => {
     void loadProducts();
+  }, [loadProducts]);
+
+  useEffect(() => {
+    const handleRefreshOnFocus = () => {
+      void loadProducts();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void loadProducts();
+      }
+    };
+
+    window.addEventListener('focus', handleRefreshOnFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      window.removeEventListener('focus', handleRefreshOnFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [loadProducts]);
 
   const categories = ['All', ...Array.from(new Set(products.map((product) => product.category))).sort()];
