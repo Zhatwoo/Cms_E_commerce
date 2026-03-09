@@ -7,19 +7,31 @@ import { Page } from "../../_designComponents/Page/Page";
 import { Viewport } from "../../_designComponents/Viewport/Viewport";
 import { CRAFT_RESOLVER } from "../craftResolver";
 
+const SAFE_CONTAINER: React.ComponentType<unknown> =
+  (typeof Container === "function" ? Container : null) ??
+  ((props: unknown) => React.createElement("div", null, (props as any)?.children));
+
+const asComponent = (value: unknown): React.ComponentType<unknown> =>
+  typeof value === "function" ? (value as React.ComponentType<unknown>) : SAFE_CONTAINER;
+
 const VALIDATOR_RESOLVER: Record<string, React.ComponentType<unknown>> = {
   ...RenderBlocks,
   ...CRAFT_RESOLVER,
-  Container,
-  container: Container,
-  Text: Text || Container,
-  text: Text || Container,
-  Image: Image || Container,
-  image: Image || Container,
-  Page: Page || Container,
-  page: Page || Container,
-  Viewport: Viewport || Container,
-  viewport: Viewport || Container,
+  Container: SAFE_CONTAINER,
+  container: SAFE_CONTAINER,
+  CONTAINER: SAFE_CONTAINER,
+  Text: asComponent(Text),
+  text: asComponent(Text),
+  TEXT: asComponent(Text),
+  Image: asComponent(Image),
+  image: asComponent(Image),
+  IMAGE: asComponent(Image),
+  Page: asComponent(Page),
+  page: asComponent(Page),
+  PAGE: asComponent(Page),
+  Viewport: asComponent(Viewport),
+  viewport: asComponent(Viewport),
+  VIEWPORT: asComponent(Viewport),
 };
 
 const VALIDATOR_CANONICAL_NAME_BY_LOWER = new Map<string, string>();
@@ -33,7 +45,15 @@ for (const key of Object.keys(VALIDATOR_RESOLVER)) {
 export function normalizeResolvedName(rawName: unknown): string {
   const name = typeof rawName === "string" ? rawName.trim() : "";
   if (!name) return "Container";
-  return VALIDATOR_CANONICAL_NAME_BY_LOWER.get(name.toLowerCase()) ?? "Container";
+  const lowered = name.toLowerCase();
+  const exact = VALIDATOR_CANONICAL_NAME_BY_LOWER.get(lowered);
+  if (exact) return exact;
+  if (lowered.includes("image")) return "Image";
+  if (lowered.includes("text")) return "Text";
+  if (lowered.includes("container")) return "Container";
+  if (lowered.includes("page")) return "Page";
+  if (lowered.includes("viewport")) return "Viewport";
+  return "Container";
 }
 
 /**
