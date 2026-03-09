@@ -3,6 +3,7 @@
 const { db } = require('../config/firebase');
 const User = require('../models/User');
 const nodemailer = require('nodemailer');
+const { resolveProjectOwner } = require('../utils/resolveProjectOwner');
 
 const COLLAB_COLORS = [
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
@@ -94,10 +95,14 @@ exports.invite = async (req, res) => {
 exports.list = async (req, res) => {
     try {
         const userId = req.user.id;
+        const userEmail = (req.user.email || '').toLowerCase();
         const { projectId } = req.params;
 
-        // Only project owner reads their collaborators collection
-        const collabRef = getCollabRef(userId, projectId);
+        // Resolve actual owner (supports collaborators viewing the list)
+        const resolved = await resolveProjectOwner(userId, projectId, userEmail);
+        const ownerId = resolved ? resolved.ownerId : userId;
+
+        const collabRef = getCollabRef(ownerId, projectId);
         const snap = await collabRef.get();
         const collaborators = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 

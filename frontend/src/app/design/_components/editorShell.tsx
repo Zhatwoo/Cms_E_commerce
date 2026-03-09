@@ -41,6 +41,7 @@ import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
 import { migratePublishedContent } from "../_lib/contentMigration";
+import { useRouter } from "next/navigation";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 import { Circle } from "../../_assets/shapes/circle/circle";
 import { Square } from "../../_assets/shapes/square/square";
@@ -53,7 +54,7 @@ import {
   ZOOM_STEP,
   ZOOM_SENSITIVITY,
 } from "./zoomConstants";
-import { CollaborationProvider, useCollaboration } from "../_context/CollaborationContext";
+import { useCollaboration } from "../_context/CollaborationContext";
 import CollaboratorCursors from "./CollaboratorCursors";
 
 /**
@@ -675,6 +676,43 @@ const QueryStasher = ({ onQuery }: { onQuery: (query: any) => void }) => {
   return null;
 };
 
+const isApplyingRemoteRef = { current: false };
+
+/**
+ * Syncs remote canvas changes from collaborators into the local editor.
+ * Must be a child of <Editor />.
+ */
+const CollabSyncHandler = () => {
+  const { actions } = useEditor();
+  const { setOnRemoteCanvasChange } = useCollaboration();
+
+  useEffect(() => {
+    console.log("[CollabSync] Registering remote canvas change handler");
+    const handler = (data: { type?: string; json?: string }) => {
+      console.log("[CollabSync] Received remote change, type:", data.type, "hasJson:", !!data.json);
+      if (data.type !== "nodes_change" || !data.json) return;
+      try {
+        const validated = validateCraftData(data.json);
+        if (validated.valid && validated.data) {
+          console.log("[CollabSync] Applying remote deserialization");
+          isApplyingRemoteRef.current = true;
+          actions.deserialize(validated.data);
+          requestAnimationFrame(() => { isApplyingRemoteRef.current = false; });
+        } else {
+          console.warn("[CollabSync] Remote data validation failed");
+        }
+      } catch (err) {
+        console.error("[CollabSync] Error applying remote change:", err);
+        isApplyingRemoteRef.current = false;
+      }
+    };
+    setOnRemoteCanvasChange(handler);
+    return () => setOnRemoteCanvasChange(null);
+  }, [actions, setOnRemoteCanvasChange]);
+
+  return null;
+};
+
 /**
  * Broadcasts cursor position to collaborators via socket.
  * Mounted inside the canvas scroll container.
@@ -724,9 +762,13 @@ const CollabCursorBroadcaster = ({
   return null;
 };
 
+const COLLAB_EMIT_DEBOUNCE_MS = 400;
+
 /** Editor Shell */
 export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellProps) => {
+  const router = useRouter();
   const { showAlert, showConfirm } = useAlert();
+  const { emitCanvasChange, setOnRemoteCanvasChange } = useCollaboration();
   const [currentPageId, setCurrentPageId] = useState<string | null>(initialPageId ?? null);
   const [pages, setPages] = useState<Array<{ id: string; name: string }>>([]);
   const [projectFiles, setProjectFiles] = useState<any[]>([]);
@@ -1488,6 +1530,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
   // Track if editor is fully loaded to prevent stale closure issues
   const isReadyRef = useRef(false);
+  // True only after draft content has been loaded (prevents auto-saving empty canvas over real content)
+  const draftLoadedRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1516,6 +1560,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     };
   }, []);
 
+  // Cleanup collab emit timer on unmount
+  useEffect(() => () => {
+    if (collabEmitTimerRef.current) clearTimeout(collabEmitTimerRef.current);
+    collabEmitTimerRef.current = null;
+  }, []);
+
   // One-time migration: clear legacy draft data from localStorage (now using sessionStorage only)
   useEffect(() => {
     if (typeof window === "undefined" || !window.localStorage) return;
@@ -1541,6 +1591,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     lastWheelZoomAtRef.current = 0;
     wheelZoomAnchorRef.current = null;
     wheelZoomingRef.current = false;
+    draftLoadedRef.current = false;
     setFrameReady(false);
     setPanelsReady(false);
 
@@ -1563,6 +1614,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         const applyLoadedContent = (content: string | null) => {
           setInitialJson(content);
           if (!content) return;
+          draftLoadedRef.current = true;
           loadPages(content);
           try {
             const parsed = JSON.parse(content);
@@ -1587,91 +1639,111 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         const normalizeToCraftJson = (input: unknown): string | null => {
           try {
             if (input == null) return null;
-            const migratedStr = typeof input === "string"
-              ? applyMigration(input)
-              : applyMigration(input as object);
-            const input2 = migratedStr;
-            if (typeof input2 === "string") {
-              const parsed = JSON.parse(input2);
-              if (parsed && parsed.ROOT && Array.isArray(parsed.ROOT.nodes)) {
-                const validated = validateCraftData(input2);
-                return validated.valid && validated.data ? validated.data : null;
+            let obj = input as Record<string, unknown>;
+            if (typeof input === "string") {
+              try {
+                obj = JSON.parse(input) as Record<string, unknown>;
+              } catch {
+                return null;
               }
-              if (
-                parsed &&
-                parsed.version !== undefined &&
-                Array.isArray(parsed.pages) &&
-                parsed.nodes &&
-                typeof parsed.nodes === "object"
-              ) {
-                const craftJson = deserializeCleanToCraft(parsed as Parameters<typeof deserializeCleanToCraft>[0]);
-                const validated = validateCraftData(craftJson);
-                return validated.valid && validated.data ? validated.data : null;
-              }
+            }
+            if (typeof obj !== "object") return null;
+
+            const unwrap = (o: Record<string, unknown>): Record<string, unknown> | null => {
+              if (!o) return null;
+              if (o.ROOT && Array.isArray((o.ROOT as Record<string, unknown>)?.nodes)) return o;
+              if (o.version !== undefined && Array.isArray(o.pages) && o.nodes && typeof o.nodes === "object") return o;
+              const nested = (o.page || o.content) as Record<string, unknown> | undefined;
+              if (nested && typeof nested === "object") return unwrap(nested);
               return null;
+            };
+
+            const target = unwrap(obj);
+            if (!target) return null;
+
+            const migratedStr = applyMigration(target);
+            const str = typeof migratedStr === "string" ? migratedStr : JSON.stringify(migratedStr);
+            const parsed = typeof str === "string" ? JSON.parse(str) : str;
+            if (!parsed || typeof parsed !== "object") return null;
+
+            if (parsed.ROOT && Array.isArray(parsed.ROOT?.nodes)) {
+              const validated = validateCraftData(JSON.stringify(parsed));
+              return validated.valid && validated.data ? validated.data : null;
             }
-
-            if (typeof input === "object") {
-              const obj = input as {
-                ROOT?: { nodes?: unknown[] };
-                version?: unknown;
-                pages?: unknown[];
-                nodes?: unknown;
-              };
-
-              if (obj.ROOT && Array.isArray(obj.ROOT.nodes)) {
-                const craftJson = JSON.stringify(obj);
-                const validated = validateCraftData(craftJson);
-                return validated.valid && validated.data ? validated.data : null;
-              }
-
-              if (obj.version !== undefined && Array.isArray(obj.pages) && obj.nodes && typeof obj.nodes === "object") {
-                const craftJson = deserializeCleanToCraft(obj as Parameters<typeof deserializeCleanToCraft>[0]);
-                const validated = validateCraftData(craftJson);
-                return validated.valid && validated.data ? validated.data : null;
-              }
+            if (
+              parsed.version !== undefined &&
+              Array.isArray(parsed.pages) &&
+              parsed.nodes &&
+              typeof parsed.nodes === "object"
+            ) {
+              const craftJson = deserializeCleanToCraft(parsed as Parameters<typeof deserializeCleanToCraft>[0]);
+              const validated = validateCraftData(craftJson);
+              return validated.valid && validated.data ? validated.data : null;
             }
-
             return null;
           } catch {
             return null;
           }
         };
 
-        // 1. Check sessionStorage first to preserve latest unsaved/preview snapshot
-        // Apply immediately so existing projects open without waiting for DB/network.
+        const isEmptyCraftContent = (craftJson: string): boolean => {
+          try {
+            const p = JSON.parse(craftJson) as Record<string, unknown>;
+            const keys = Object.keys(p).filter((k) => k !== "ROOT");
+            const root = p?.ROOT as { nodes?: string[] } | undefined;
+            if (!root || !Array.isArray(root.nodes)) return true;
+            const hasAnyChildren = root.nodes.some((id) => {
+              const n = p[id] as { nodes?: string[] } | undefined;
+              return n && Array.isArray(n.nodes) && n.nodes.length > 0;
+            });
+            return !hasAnyChildren && keys.length <= 4;
+          } catch {
+            return true;
+          }
+        };
+
+        // 1. Check sessionStorage (skip empty cache so API can override for collaborators)
         if (sessionSaved) {
           const normalized = normalizeToCraftJson(sessionSaved);
-          if (normalized) {
+          if (normalized && !isEmptyCraftContent(normalized)) {
             contentToLoad = normalized;
-            if (normalized !== sessionSaved) {
-              safeSessionSet(storageKey, normalized);
-            }
+            if (normalized !== sessionSaved) safeSessionSet(storageKey, normalized);
             safeLocalSet(persistentKey, normalized);
             applyLoadedContent(contentToLoad);
+          } else if (normalized) {
+            safeSessionRemove(storageKey);
           } else {
-            console.warn('⚠️ Invalid draft structure in session. Clearing session cache for this project.');
             safeSessionRemove(storageKey);
           }
         }
 
-        // 2. Check persistent local cache when session cache is unavailable
+        // 2. Check persistent local cache
         if (!contentToLoad && persistentSaved) {
           const normalized = normalizeToCraftJson(persistentSaved);
-          if (normalized) {
+          if (normalized && !isEmptyCraftContent(normalized)) {
             contentToLoad = normalized;
             safeSessionSet(storageKey, normalized);
-            if (normalized !== persistentSaved) {
-              safeLocalSet(persistentKey, normalized);
-            }
+            if (normalized !== persistentSaved) safeLocalSet(persistentKey, normalized);
             applyLoadedContent(contentToLoad);
           } else {
             safeLocalRemove(persistentKey);
           }
         }
 
-        // 3. Try to load from database
+        // 3. Always fetch from API — overrides empty cache (fixes collaborator view)
         const result = await getDraft(projectId);
+
+        if (result.success === false && result.error === "auth") {
+          showAlert("Please log in to view this project", "error");
+          router.replace(`/auth/login?returnTo=${encodeURIComponent(`/design?projectId=${projectId}`)}`);
+          isReadyRef.current = true;
+          return;
+        }
+        if (result.success === false && result.error === "forbidden") {
+          showAlert("You don't have access to this project", "error");
+          isReadyRef.current = true;
+          return;
+        }
 
         // 4. Check Database (fallback)
         if (!contentToLoad && result.success && result.data && result.data.content) {
@@ -1682,8 +1754,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
             safeLocalSet(persistentKey, normalized);
             applyLoadedContent(contentToLoad);
           } else {
-            console.warn('⚠️ Invalid draft structure in DB. Clearing invalid draft...');
-            await deleteDraft(projectId);
+            console.warn('⚠️ Draft content could not be parsed — check structure.');
+            showAlert('Could not load project content. Try refreshing.', 'error');
           }
         }
 
@@ -1703,7 +1775,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     }
 
     loadDraft();
-  }, [projectId, loadPages]);
+  }, [projectId, loadPages, router, showAlert]);
 
   // Defer panel rendering until Frame has mounted to avoid setState-during-render warnings
   useEffect(() => {
@@ -1852,10 +1924,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
   const dbSaveInFlightRef = useRef(false);
   const dbSavePendingRef = useRef(false);
+  const collabEmitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleNodesChangeRef = useRef<((query: { serialize: () => string }) => void) | null>(null);
 
   const flushToDb = useCallback(async () => {
     const snapshot = lastSnapshotRef.current;
-    if (!snapshot || !projectId) {
+    if (!snapshot || !projectId || !draftLoadedRef.current) {
       setSaveStatus("idle");
       return;
     }
@@ -1902,6 +1976,25 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       // Always mirror to sessionStorage so refresh never loses work
       mirrorToSession(query);
 
+      // Emit to collaborators (debounced); skip when applying remote change to avoid echo
+      if (!isDragging && !isApplyingRemoteRef.current) {
+        if (collabEmitTimerRef.current) clearTimeout(collabEmitTimerRef.current);
+        collabEmitTimerRef.current = setTimeout(() => {
+          collabEmitTimerRef.current = null;
+          if (isApplyingRemoteRef.current) return;
+          try {
+            const json = query.serialize();
+            console.log("[EditorShell] Debounced emit — json length:", json?.length ?? 0);
+            if (json) emitCanvasChange({ type: "nodes_change", json });
+          } catch (err) {
+            console.error("[EditorShell] Error serializing for collab emit:", err);
+          }
+        }, COLLAB_EMIT_DEBOUNCE_MS);
+      } else {
+        if (isDragging) console.log("[EditorShell] Skipping collab emit — dragging");
+        if (isApplyingRemoteRef.current) console.log("[EditorShell] Skipping collab emit — applying remote");
+      }
+
       // During drag: skip DB write to keep the canvas responsive (drag-end handler will flush)
       if (isDragging) return;
 
@@ -1915,8 +2008,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       // Save to DB immediately (queued if a save is already in flight)
       flushToDb();
     },
-    [projectId, mirrorToSession, flushToDb],
+    [projectId, mirrorToSession, flushToDb, emitCanvasChange],
   );
+
+  // Keep a ref so the stable onNodesChange closure passed to Editor always calls the latest version
+  handleNodesChangeRef.current = handleNodesChange;
 
   // After a drag ends, do one final save (positions changed but no further onNodesChange fires)
   useEffect(() => {
@@ -2028,7 +2124,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   }, [initialJson]);
 
   return (
-    <CollaborationProvider projectId={projectId}>
       <div data-web-builder-root className="h-screen bg-brand-black text-brand-lighter overflow-hidden font-sans relative">
         <style>{`
           div[style*="position: fixed"][style*="z-index: 99999"][style*="border-style: solid"],
@@ -2054,9 +2149,10 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
             },
           }}
           onRender={RenderNode}
-          onNodesChange={(query) => requestAnimationFrame(() => handleNodesChange(query))}
+          onNodesChange={(query) => requestAnimationFrame(() => handleNodesChangeRef.current?.(query))}
         >
           <QueryStasher onQuery={(q) => { lastQueryRef.current = q; }} />
+          <CollabSyncHandler />
           <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
             <CanvasToolProvider value={activeTool} onToolChange={handleToolChange}>
               <TransformModeProvider>
@@ -2259,7 +2355,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           </PrototypeTabProvider>
         </Editor>
       </div>
-    </CollaborationProvider>
   );
 };
 

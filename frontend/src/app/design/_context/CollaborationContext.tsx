@@ -112,6 +112,8 @@ export function CollaborationProvider({ projectId, permission = "editor", childr
     useEffect(() => {
         const BACKEND = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/api$/, "");
 
+        console.log("[Collab] Connecting to", BACKEND, "for project", projectId);
+
         const socket = io(BACKEND, {
             path: "/socket.io",
             transports: ["websocket", "polling"],
@@ -124,8 +126,8 @@ export function CollaborationProvider({ projectId, permission = "editor", childr
         socketRef.current = socket;
 
         socket.on("connect", () => {
+            console.log("[Collab] Socket connected, id:", socket.id);
             setConnected(true);
-            // Join the project room
             socket.emit("collab:join", {
                 projectId,
                 userId,
@@ -135,12 +137,18 @@ export function CollaborationProvider({ projectId, permission = "editor", childr
             });
         });
 
-        socket.on("disconnect", () => {
+        socket.on("connect_error", (err) => {
+            console.warn("[Collab] Socket connect_error:", err.message);
+        });
+
+        socket.on("disconnect", (reason) => {
+            console.log("[Collab] Socket disconnected:", reason);
             setConnected(false);
         });
 
         // Receive full presence list on join
         socket.on("collab:presence_list", (list: Collaborator[]) => {
+            console.log("[Collab] Presence list received:", list.length, "users");
             setCollaborators(list.filter(c => c.socketId !== socket.id));
         });
 
@@ -182,8 +190,11 @@ export function CollaborationProvider({ projectId, permission = "editor", childr
         // Remote canvas change
         socket.on("collab:canvas_change", (data: CanvasChangePayload & { userId: string; displayName: string; color: string; socketId: string }) => {
             if (data.socketId === socket.id) return;
+            console.log("[Collab] Received canvas_change from", data.displayName, "type:", data.type, "hasJson:", !!data.json);
             if (remoteChangeCallbackRef.current) {
                 remoteChangeCallbackRef.current(data);
+            } else {
+                console.warn("[Collab] No remoteChangeCallback registered — CollabSyncHandler might not be mounted");
             }
         });
 
@@ -204,7 +215,12 @@ export function CollaborationProvider({ projectId, permission = "editor", childr
 
     const emitCanvasChange = useCallback((payload: CanvasChangePayload) => {
         if (permission !== "editor") return;
-        socketRef.current?.emit("collab:canvas_change", payload);
+        if (!socketRef.current?.connected) {
+            console.warn("[Collab] emitCanvasChange skipped — socket not connected");
+            return;
+        }
+        console.log("[Collab] Emitting canvas_change, type:", payload.type, "hasJson:", !!payload.json);
+        socketRef.current.emit("collab:canvas_change", payload);
     }, [permission]);
 
     const emitSelectionChange = useCallback((selectedIds: string[]) => {

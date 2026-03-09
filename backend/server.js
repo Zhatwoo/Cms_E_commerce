@@ -330,6 +330,7 @@ function tryListen(port) {
   });
 
   io.on('connection', (socket) => {
+    console.log('[Socket.IO] New connection:', socket.id);
     let currentRoom = null;
     let currentUser = null;
 
@@ -345,6 +346,9 @@ function tryListen(port) {
 
       if (!projectRooms.has(projectId)) projectRooms.set(projectId, new Map());
       projectRooms.get(projectId).set(socket.id, currentUser);
+
+      const roomSize = projectRooms.get(projectId).size;
+      console.log(`[Socket.IO] ${displayName} joined room ${projectId} (${roomSize} users)`);
 
       // Notify room that this user joined
       socket.to(projectId).emit('collab:user_joined', currentUser);
@@ -369,8 +373,13 @@ function tryListen(port) {
     // Broadcast canvas changes (move/resize/drop) to others in the room
     socket.on('collab:canvas_change', (data) => {
       if (!currentRoom) return;
-      // Only broadcast if the user has editor permission
-      if (currentUser?.permission !== 'editor') return;
+      if (currentUser?.permission !== 'editor') {
+        console.log('[Socket.IO] canvas_change blocked — user is not editor');
+        return;
+      }
+      const room = projectRooms.get(currentRoom);
+      const othersCount = room ? room.size - 1 : 0;
+      console.log(`[Socket.IO] canvas_change from ${currentUser?.displayName} → broadcasting to ${othersCount} other(s) in ${currentRoom}`);
       socket.to(currentRoom).emit('collab:canvas_change', {
         ...data,
         socketId: socket.id,
