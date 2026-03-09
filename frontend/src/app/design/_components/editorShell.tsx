@@ -128,21 +128,30 @@ const EMPTY_FRAME_DATA = JSON.stringify({
   },
 });
 
+const SAFE_CONTAINER: React.ComponentType<any> =
+  (typeof Container === "function" ? Container : null) ??
+  ((props: any) => React.createElement("div", props, props?.children));
+
+const asComponent = (value: unknown): React.ComponentType<any> =>
+  typeof value === "function" ? (value as React.ComponentType<any>) : SAFE_CONTAINER;
+
 const VALIDATOR_RESOLVER: Record<string, React.ComponentType<any>> = {
   ...RenderBlocks,
   ...CRAFT_RESOLVER,
-  Container,
-  container: Container,
-  Button: (typeof Button === "function" ? Button : null) ?? Container,
-  button: (typeof Button === "function" ? Button : null) ?? Container,
-  Text: Text || Container,
-  text: Text || Container,
-  Image: Image || Container,
-  image: Image || Container,
-  Page: Page || Container,
-  page: Page || Container,
-  Viewport: Viewport || Container,
-  viewport: Viewport || Container,
+  Container: SAFE_CONTAINER,
+  container: SAFE_CONTAINER,
+  CONTAINER: SAFE_CONTAINER,
+  Button: asComponent(Button),
+  button: asComponent(Button),
+  Text: asComponent(Text),
+  text: asComponent(Text),
+  Image: asComponent(Image),
+  image: asComponent(Image),
+  IMAGE: asComponent(Image),
+  Page: asComponent(Page),
+  page: asComponent(Page),
+  Viewport: asComponent(Viewport),
+  viewport: asComponent(Viewport),
 };
 
 const VALIDATOR_CANONICAL_NAME_BY_LOWER = new Map<string, string>();
@@ -156,7 +165,15 @@ for (const key of Object.keys(VALIDATOR_RESOLVER)) {
 function normalizeResolvedName(rawName: unknown): string {
   const name = typeof rawName === "string" ? rawName.trim() : "";
   if (!name) return "Container";
-  return VALIDATOR_CANONICAL_NAME_BY_LOWER.get(name.toLowerCase()) ?? "Container";
+  const lowered = name.toLowerCase();
+  const exact = VALIDATOR_CANONICAL_NAME_BY_LOWER.get(lowered);
+  if (exact) return exact;
+  if (lowered.includes("image")) return "Image";
+  if (lowered.includes("text")) return "Text";
+  if (lowered.includes("container")) return "Container";
+  if (lowered.includes("page")) return "Page";
+  if (lowered.includes("viewport")) return "Viewport";
+  return "Container";
 }
 
 function withResolverFallback<T extends Record<string, React.ComponentType>>(base: T): T {
@@ -172,7 +189,7 @@ function withResolverFallback<T extends Record<string, React.ComponentType>>(bas
         Reflect.get(target, normalized, receiver) ||
         Reflect.get(target, VALIDATOR_CANONICAL_NAME_BY_LOWER.get(normalized) ?? "", receiver);
 
-      return resolved || target.Container || Container;
+      return resolved || target.Container || SAFE_CONTAINER;
     },
   }) as T;
 }
@@ -2074,40 +2091,42 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       (typeof FrameComponentFromFile === "function" ? FrameComponentFromFile : null) ??
       (typeof RenderBlocks?.Frame === "function" ? RenderBlocks.Frame : null) ??
       CRAFT_RESOLVER.Frame ??
-      Container;
+      SAFE_CONTAINER;
 
     const base: Record<string, any> = {
       ...RenderBlocks,
       ...CRAFT_RESOLVER,
-      Button: (typeof Button === "function" ? Button : null) ?? Container,
-      button: (typeof Button === "function" ? Button : null) ?? Container,
-      Text: Text || Container,
-      text: Text || Container,
-      Image: Image || Container,
-      image: Image || Container,
-      Circle: Circle || Container,
-      Square: Square || Container,
-      Triangle: Triangle || Container,
-      circle: Circle || Container,
-      square: Square || Container,
-      triangle: Triangle || Container,
+      Button: asComponent(Button),
+      button: asComponent(Button),
+      Text: asComponent(Text),
+      text: asComponent(Text),
+      Image: asComponent(Image),
+      image: asComponent(Image),
+      Circle: asComponent(Circle),
+      Square: asComponent(Square),
+      Triangle: asComponent(Triangle),
+      circle: asComponent(Circle),
+      square: asComponent(Square),
+      triangle: asComponent(Triangle),
     };
     // Force Frame to always exist; Craft looks up by "Frame" and sometimes "frame"
     base.Frame = FrameForResolver;
     base.frame = FrameForResolver;
     // Ensure Container always exists in resolver (serialized nodes often use this)
     // Prefer the locally imported Container component so we never end up with an undefined value
-    base.Container = Container;
-    base.container = Container;
+    base.Container = SAFE_CONTAINER;
+    base.container = SAFE_CONTAINER;
+    base.CONTAINER = SAFE_CONTAINER;
     // Ensure Page and Viewport always in resolver (serialized drafts reference these by type)
-    base.Page = CRAFT_RESOLVER.Page ?? Page;
-    base.page = CRAFT_RESOLVER.Page ?? Page;
-    base.Viewport = CRAFT_RESOLVER.Viewport ?? Viewport;
-    base.viewport = CRAFT_RESOLVER.Viewport ?? Viewport;
-    base.Image = (typeof Image === "function" ? Image : null) ?? Container;
-    base.image = (typeof Image === "function" ? Image : null) ?? Container;
-    base.Text = (typeof Text === "function" ? Text : null) ?? Container;
-    base.text = (typeof Text === "function" ? Text : null) ?? Container;
+    base.Page = asComponent(CRAFT_RESOLVER.Page ?? Page);
+    base.page = asComponent(CRAFT_RESOLVER.Page ?? Page);
+    base.Viewport = asComponent(CRAFT_RESOLVER.Viewport ?? Viewport);
+    base.viewport = asComponent(CRAFT_RESOLVER.Viewport ?? Viewport);
+    base.Image = asComponent(CRAFT_RESOLVER.Image ?? Image);
+    base.image = asComponent(CRAFT_RESOLVER.image ?? Image);
+    base.IMAGE = asComponent(CRAFT_RESOLVER.IMAGE ?? CRAFT_RESOLVER.Image ?? Image);
+    base.Text = asComponent(CRAFT_RESOLVER.Text ?? Text);
+    base.text = asComponent(CRAFT_RESOLVER.text ?? Text);
     return withResolverFallback(base);
   }, []);
 

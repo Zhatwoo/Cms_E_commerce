@@ -17,7 +17,7 @@ function fluidSpace(value: number, min = 0): string {
 }
 
 export const Container = ({
-  background,
+  background = "#ffffff",
   padding,
   paddingLeft,
   paddingRight,
@@ -99,10 +99,6 @@ export const Container = ({
   const pr = paddingRight !== undefined ? paddingRight : p;
   const pt = paddingTop !== undefined ? paddingTop : p;
   const pb = paddingBottom !== undefined ? paddingBottom : p;
-  const effectivePl = pl;
-  const effectivePr = pr;
-  const effectivePt = pt;
-  const effectivePb = pb;
 
   // Resolve margin
   const m = typeof margin === 'number' ? margin : 0;
@@ -110,6 +106,32 @@ export const Container = ({
   const mr = marginRight !== undefined ? marginRight : m;
   const mt = marginTop !== undefined ? marginTop : m;
   const mb = marginBottom !== undefined ? marginBottom : m;
+
+  const spacingStyle = React.useMemo(
+    () => ({
+      paddingLeft: fluidSpace(pl, 0),
+      paddingRight: fluidSpace(pr, 0),
+      paddingTop: fluidSpace(pt, 0),
+      paddingBottom: fluidSpace(pb, 0),
+      marginLeft: fluidSpace(ml, 0),
+      marginRight: fluidSpace(mr, 0),
+      marginTop: fluidSpace(mt, 0),
+      marginBottom: fluidSpace(mb, 0),
+    }),
+    [pl, pr, pt, pb, ml, mr, mt, mb]
+  );
+
+  const transformStyle = React.useMemo(
+    () =>
+      [
+        rotation ? `rotate(${rotation}deg)` : null,
+        flipHorizontal ? "scaleX(-1)" : null,
+        flipVertical ? "scaleY(-1)" : null,
+      ]
+        .filter(Boolean)
+        .join(" ") || undefined,
+    [rotation, flipHorizontal, flipVertical]
+  );
 
   // Resolve border radius
   const br = borderRadius || 0;
@@ -135,7 +157,7 @@ export const Container = ({
       }}
       className={`relative ${hasChildren ? "" : "min-h-[120px]"} ${customClassName}`}
       style={{
-        backgroundColor: childCount === 0 ? "#f4f5f7" : background,
+        backgroundColor: background,
         backgroundImage: backgroundImage
           ? backgroundOverlay
             ? `linear-gradient(${backgroundOverlay}, ${backgroundOverlay}), url(${backgroundImage})`
@@ -144,14 +166,7 @@ export const Container = ({
         backgroundSize: backgroundImage ? backgroundSize : undefined,
         backgroundPosition: backgroundImage ? backgroundPosition : undefined,
         backgroundRepeat: backgroundImage ? backgroundRepeat : undefined,
-        paddingLeft: fluidSpace(effectivePl, 0),
-        paddingRight: fluidSpace(effectivePr, 0),
-        paddingTop: fluidSpace(effectivePt, 0),
-        paddingBottom: fluidSpace(effectivePb, 0),
-        marginLeft: fluidSpace(ml, 0),
-        marginRight: fluidSpace(mr, 0),
-        marginTop: fluidSpace(mt, 0),
-        marginBottom: fluidSpace(mb, 0),
+        ...spacingStyle,
         width,
         height,
         flex: shouldFlexFill ? "1 1 0%" : undefined,
@@ -197,7 +212,7 @@ export const Container = ({
         opacity,
         overflow,
         cursor,
-        transform: [rotation ? `rotate(${rotation}deg)` : null, flipHorizontal ? "scaleX(-1)" : null, flipVertical ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined,
+        transform: transformStyle,
         transformOrigin: "center center",
       }}
     >

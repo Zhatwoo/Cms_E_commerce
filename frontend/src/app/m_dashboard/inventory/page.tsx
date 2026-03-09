@@ -230,6 +230,7 @@ export default function InventoryPage() {
   const [loadingAllMovements, setLoadingAllMovements]     = useState(false);
   const [allMovementsError, setAllMovementsError]         = useState<string | null>(null);
   const [deletingMovementId, setDeletingMovementId]       = useState<string | null>(null);
+  const [deleteConfirmMovement, setDeleteConfirmMovement] = useState<InventoryMovement | null>(null);
   const [loading, setLoading]                     = useState(true);
   const [error, setError]                         = useState<string | null>(null);
   const [adjustingId, setAdjustingId]             = useState<string | null>(null);
@@ -246,6 +247,7 @@ export default function InventoryPage() {
   const [importPopup, setImportPopup] = useState<ImportPopupState>({ open: false, message: '', tone: 'success' });
   const importPopupTimerRef = useRef<number | null>(null);
   const fileInputRef        = useRef<HTMLInputElement>(null);
+  const inlineSaveLockRef   = useRef<string | null>(null);
 
   const showImportPopup = useCallback((message: string, tone: 'success' | 'error') => {
     if (importPopupTimerRef.current) window.clearTimeout(importPopupTimerRef.current);
@@ -369,20 +371,27 @@ export default function InventoryPage() {
     } finally { setAdjustingId(null); }
   }, [stockModal, getStockNumbers, loadData, showAllMovementsModal, loadAllMovements]);
 
-  const confirmDeleteMovement = useCallback(async (movement: InventoryMovement) => {
+  const openDeleteMovementConfirm = useCallback((movement: InventoryMovement) => {
     if (!movement?.id) return;
-    const confirmed = window.confirm(
-      `Delete this movement for "${movement.productName || 'this product'}"? This action cannot be undone.`
-    );
-    if (!confirmed) return;
+    setDeleteConfirmMovement(movement);
+  }, []);
+
+  const closeDeleteMovementConfirm = useCallback(() => {
+    if (deletingMovementId) return;
+    setDeleteConfirmMovement(null);
+  }, [deletingMovementId]);
+
+  const confirmDeleteMovement = useCallback(async () => {
+    if (!deleteConfirmMovement?.id) return;
 
     try {
-      setDeletingMovementId(movement.id);
-      await deleteInventoryMovement(movement.id);
+      setDeletingMovementId(deleteConfirmMovement.id);
+      await deleteInventoryMovement(deleteConfirmMovement.id);
       await loadData();
       if (showAllMovementsModal) {
         await loadAllMovements();
       }
+      setDeleteConfirmMovement(null);
       showImportPopup('Inventory movement deleted.', 'success');
     } catch (err) {
       showImportPopup(
@@ -392,7 +401,14 @@ export default function InventoryPage() {
     } finally {
       setDeletingMovementId(null);
     }
-  }, [loadAllMovements, loadData, showAllMovementsModal, showImportPopup]);
+  }, [deleteConfirmMovement, loadAllMovements, loadData, showAllMovementsModal, showImportPopup]);
+
+  useEffect(() => {
+    if (!deleteConfirmMovement) return;
+    const fn = (e: KeyboardEvent) => { if (e.key === 'Escape') closeDeleteMovementConfirm(); };
+    window.addEventListener('keydown', fn);
+    return () => window.removeEventListener('keydown', fn);
+  }, [closeDeleteMovementConfirm, deleteConfirmMovement]);
 
   const isAdjustingFromModal = Boolean(stockModal.product && adjustingId === stockModal.product.id);
   const modalOnHand = stockModal.product ? getStockNumbers(stockModal.product).onHand : 0;
@@ -409,13 +425,23 @@ export default function InventoryPage() {
     setEditingStockValue(String(currentOnHand));
   }, []);
 
-  const cancelInlineStockEdit = useCallback(() => {
-    if (savingStockId) return;
+  const clearInlineStockEdit = useCallback(() => {
     setEditingStockId(null);
     setEditingStockValue('');
-  }, [savingStockId]);
+  }, []);
+
+  const cancelInlineStockEdit = useCallback(() => {
+    if (savingStockId) return;
+    clearInlineStockEdit();
+  }, [clearInlineStockEdit, savingStockId]);
 
   const saveInlineStockEdit = useCallback(async (product: ApiProduct) => {
+    if (savingStockId === product.id || inlineSaveLockRef.current === product.id) return;
+    const normalizedValue = editingStockValue.trim();
+    if (!normalizedValue) {
+      clearInlineStockEdit();
+      return;
+    }
     const next = parseInt(editingStockValue, 10);
     if (!Number.isFinite(next) || next < 0) {
       showImportPopup('Stock must be a valid number 0 or greater.', 'error');
@@ -423,31 +449,47 @@ export default function InventoryPage() {
     }
     const { onHand } = getStockNumbers(product);
     if (next === onHand) {
-      setEditingStockId(null);
-      setEditingStockValue('');
+      clearInlineStockEdit();
       return;
     }
     const quantity = Math.abs(next - onHand);
-    const movementType = next > onHand ? 'IN' : 'OUT';
+    const movementType: StockAdjustmentType = next > onHand ? 'IN' : 'OUT';
+    const movementNotes =
+      movementType === 'IN'
+        ? 'Manual stock-in from inventory table input'
+        : 'Manual stock-out from inventory table input';
     try {
+      inlineSaveLockRef.current = product.id;
       setSavingStockId(product.id);
       await adjustInventoryStock({
         productId: product.id,
         movementType,
         quantity,
-        notes: 'Inline stock edit from inventory table',
+        notes: movementNotes,
+      });
+      prependLocalMovement({
+        id: `local-inline-${Date.now()}-${product.id}`,
+        productId: product.id,
+        productName: product.name || 'Product',
+        productSku: product.sku || null,
+        type: movementType,
+        quantity,
+        notes: movementNotes,
+        beforeOnHand: onHand,
+        afterOnHand: next,
+        createdAt: new Date().toISOString(),
       });
       await loadData();
       if (showAllMovementsModal) await loadAllMovements();
-      setEditingStockId(null);
-      setEditingStockValue('');
+      clearInlineStockEdit();
       showImportPopup('Stock updated.', 'success');
     } catch (err) {
       showImportPopup(err instanceof Error ? err.message : 'Failed to update stock.', 'error');
     } finally {
+      if (inlineSaveLockRef.current === product.id) inlineSaveLockRef.current = null;
       setSavingStockId(null);
     }
-  }, [editingStockValue, getStockNumbers, loadAllMovements, loadData, showAllMovementsModal, showImportPopup]);
+  }, [clearInlineStockEdit, editingStockValue, getStockNumbers, loadAllMovements, loadData, prependLocalMovement, savingStockId, showAllMovementsModal, showImportPopup]);
 
   const updateProductStatus = useCallback(async (product: ApiProduct, nextStatus: 'active' | 'inactive') => {
     try {
@@ -620,10 +662,10 @@ export default function InventoryPage() {
       <AnimatePresence>
         {importPopup.open && (
           <motion.div
-            initial={{ opacity: 0, y: -14, scale: 0.97 }}
-            animate={{ opacity: 1,  y: 0,   scale: 1 }}
-            exit={{   opacity: 0,  y: -14,  scale: 0.97 }}
-            transition={{ type: 'spring', stiffness: 380, damping: 28 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
             style={{
               position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 200,
               background: importPopup.tone === 'success' ? 'rgba(12,24,16,0.97)' : 'rgba(24,10,12,0.97)',
@@ -638,7 +680,7 @@ export default function InventoryPage() {
               : <AlertTriangle size={15} color={T.red} style={{ flexShrink: 0, marginTop: 1 }} />}
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: importPopup.tone === 'success' ? T.green : T.red, marginBottom: 3 }}>
-                {importPopup.tone === 'success' ? 'Import Successful' : 'Import Failed'}
+                {importPopup.tone === 'success' ? 'Success' : 'Action Failed'}
               </div>
               <div style={{ fontSize: 12, color: T.textSub, lineHeight: 1.5 }}>{importPopup.message}</div>
             </div>
@@ -844,7 +886,9 @@ export default function InventoryPage() {
                               cancelInlineStockEdit();
                             }
                           }}
-                          onBlur={() => cancelInlineStockEdit()}
+                          onBlur={() => {
+                            void saveInlineStockEdit(product);
+                          }}
                           disabled={savingStockId === product.id}
                           style={{
                             width: 68,
@@ -966,11 +1010,55 @@ export default function InventoryPage() {
                     <MovementRow
                       key={m.id}
                       m={m}
-                      onDelete={confirmDeleteMovement}
+                      onDelete={openDeleteMovementConfirm}
                       isDeleting={deletingMovementId === m.id}
                     />
                   ))
                 )}
+              </div>
+            </div>
+          </ModalBackdrop>
+        )}
+
+        {deleteConfirmMovement && (
+          <ModalBackdrop onClose={closeDeleteMovementConfirm}>
+            <div style={{
+              background: '#1a1535', border: `1px solid ${T.cardBorder}`,
+              borderRadius: 20, width: '100%', maxWidth: 520, overflow: 'hidden',
+              boxShadow: '0 30px 80px rgba(0,0,0,0.6)',
+            }}>
+              <div style={{ padding: '24px 28px 14px', borderBottom: `1px solid ${T.cardBorder}` }}>
+                <h3 style={{ color: T.text, fontWeight: 700, margin: 0 }}>Delete Movement</h3>
+                <p style={{ color: T.textMuted, fontSize: 13, margin: '8px 0 0' }}>
+                  Delete this movement for &quot;{deleteConfirmMovement.productName || 'this product'}&quot;? This action cannot be undone.
+                </p>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '16px 28px 22px' }}>
+                <button
+                  type="button"
+                  onClick={closeDeleteMovementConfirm}
+                  disabled={Boolean(deletingMovementId)}
+                  style={{
+                    background: 'transparent', border: 'none',
+                    color: T.textMuted, fontSize: 14, cursor: deletingMovementId ? 'not-allowed' : 'pointer',
+                    padding: '10px 16px', opacity: deletingMovementId ? 0.6 : 1,
+                  }}
+                >Cancel</button>
+                <button
+                  type="button"
+                  onClick={() => { void confirmDeleteMovement(); }}
+                  disabled={Boolean(deletingMovementId)}
+                  style={{
+                    ...brandActionButtonStyle,
+                    background: '#dc2626',
+                    cursor: deletingMovementId ? 'not-allowed' : 'pointer',
+                    opacity: deletingMovementId ? 0.6 : 1,
+                    height: 40,
+                    padding: '0 20px',
+                  }}
+                >
+                  {deletingMovementId ? 'Deletingâ€¦' : 'Delete'}
+                </button>
               </div>
             </div>
           </ModalBackdrop>

@@ -17,6 +17,31 @@ import { Row } from "../../_designComponents/Row/Row";
 import { Column } from "../../_designComponents/Column/Column";
 import { Icon } from "../../_designComponents/Icon/Icon";
 import { Frame as FrameComponent } from "../../_designComponents/Frame/Frame";
+
+const SAFE_CONTAINER: React.ComponentType<any> =
+  (typeof Container === "function" ? Container : null) ??
+  ((props: any) => React.createElement("div", props, props?.children));
+
+const asComponent = (value: unknown): React.ComponentType<any> =>
+  typeof value === "function" ? (value as React.ComponentType<any>) : SAFE_CONTAINER;
+
+function withResolverFallback<T extends Record<string, React.ComponentType<any>>>(base: T): T {
+  return new Proxy(base, {
+    get(target, prop, receiver) {
+      const direct = Reflect.get(target, prop, receiver);
+      if (direct) return direct;
+      if (typeof prop !== "string") return direct;
+
+      const normalized = prop.trim().toLowerCase();
+      const resolved =
+        Reflect.get(target, prop.trim(), receiver) ||
+        Reflect.get(target, normalized, receiver) ||
+        Reflect.get(target, normalized.charAt(0).toUpperCase() + normalized.slice(1), receiver);
+
+      return resolved || target.Container || SAFE_CONTAINER;
+    },
+  }) as T;
+}
 type AssetItem = {
   label: string;
   description?: string;
@@ -73,28 +98,33 @@ const ASSET_ICONS: Record<string, React.ReactNode> = {
   Shapes: <ShapesIcon className="w-5 h-5" />,
 };
 
-const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = {
+const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverFallback({
   ...CRAFT_RESOLVER,
-  Frame: (typeof FrameComponent === "function" ? FrameComponent : null) ?? Container,
-  frame: (typeof FrameComponent === "function" ? FrameComponent : null) ?? Container,
-  Container,
-  container: Container,
-  Text: (typeof Text === "function" ? Text : null) ?? Container,
-  text: (typeof Text === "function" ? Text : null) ?? Container,
-  Page: (typeof Page === "function" ? Page : null) ?? Container,
-  page: (typeof Page === "function" ? Page : null) ?? Container,
-  Viewport: (typeof Viewport === "function" ? Viewport : null) ?? Container,
-  viewport: (typeof Viewport === "function" ? Viewport : null) ?? Container,
-  Image: (typeof Image === "function" ? Image : null) ?? Container,
-  image: (typeof Image === "function" ? Image : null) ?? Container,
-  Button: (typeof Button === "function" ? Button : null) ?? Container,
-  button: (typeof Button === "function" ? Button : null) ?? Container,
-  Divider: (typeof Divider === "function" ? Divider : null) ?? Container,
-  Section: (typeof Section === "function" ? Section : null) ?? Container,
-  Row: (typeof Row === "function" ? Row : null) ?? Container,
-  Column: (typeof Column === "function" ? Column : null) ?? Container,
-  Icon: (typeof Icon === "function" ? Icon : null) ?? Container,
-};
+  Frame: asComponent(FrameComponent),
+  frame: asComponent(FrameComponent),
+  Container: SAFE_CONTAINER,
+  container: SAFE_CONTAINER,
+  CONTAINER: SAFE_CONTAINER,
+  Text: asComponent(Text),
+  text: asComponent(Text),
+  TEXT: asComponent(Text),
+  Page: asComponent(Page),
+  page: asComponent(Page),
+  PAGE: asComponent(Page),
+  Viewport: asComponent(Viewport),
+  viewport: asComponent(Viewport),
+  VIEWPORT: asComponent(Viewport),
+  Image: asComponent(Image),
+  image: asComponent(Image),
+  IMAGE: asComponent(Image),
+  Button: asComponent(Button),
+  button: asComponent(Button),
+  Divider: asComponent(Divider),
+  Section: asComponent(Section),
+  Row: asComponent(Row),
+  Column: asComponent(Column),
+  Icon: asComponent(Icon),
+});
 
 const AssetLivePreview = ({
   item,
@@ -109,7 +139,6 @@ const AssetLivePreview = ({
   const frameRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [previewHeight, setPreviewHeight] = useState(0);
-  const previewResolver = useMemo(() => buildCraftResolver(), []);
 
   useEffect(() => {
     const containerEl = previewRef.current;
@@ -139,9 +168,11 @@ const AssetLivePreview = ({
   if (previewMode === "icon") {
     return (
       <div className="h-16 w-full rounded-lg border border-dashed border-brand-medium/50 bg-brand-medium/10 flex items-center justify-center text-brand-light pointer-events-none group-hover:bg-brand-medium/20 transition-colors">
-        <Editor resolver={PREVIEW_RESOLVER} enabled={false}>
-          <Frame>{item.element}</Frame>
-        </Editor>
+        <AssetPreviewErrorBoundary fallback={<span className="text-[10px] opacity-70">Preview unavailable</span>}>
+          <Editor resolver={PREVIEW_RESOLVER} enabled={false}>
+            <Frame>{item.element}</Frame>
+          </Editor>
+        </AssetPreviewErrorBoundary>
       </div>
     );
   }
@@ -177,9 +208,11 @@ const AssetLivePreview = ({
           transform: `scale(${scale})`,
         }}
       >
-        <Editor resolver={PREVIEW_RESOLVER} enabled={false}>
-          <Frame>{item.element}</Frame>
-        </Editor>
+        <AssetPreviewErrorBoundary fallback={<div className="h-[100px] w-full flex items-center justify-center text-[10px] text-brand-light/70">Preview unavailable</div>}>
+          <Editor resolver={PREVIEW_RESOLVER} enabled={false}>
+            <Frame>{item.element}</Frame>
+          </Editor>
+        </AssetPreviewErrorBoundary>
       </div>
     </div>
   );
