@@ -471,6 +471,9 @@ function toDashboardProduct(product: ApiProduct): Product {
       return acc;
     }, {})
     : {};
+  const normalizedStock = typeof product.onHandStock === 'number'
+    ? product.onHandStock
+    : (typeof product.stock === 'number' ? product.stock : 0);
 
   return {
     id: product.id,
@@ -490,7 +493,7 @@ function toDashboardProduct(product: ApiProduct): Product {
     variantStocks,
     priceRangeMin,
     priceRangeMax,
-    stock: typeof product.stock === 'number' ? product.stock : 0,
+    stock: normalizedStock,
     lowStockThreshold: typeof product.lowStockThreshold === 'number' ? product.lowStockThreshold : DEFAULT_LOW_STOCK_THRESHOLD,
     status: toDashboardStatus(product.status),
     image: images[0] || '[product]',
@@ -580,6 +583,25 @@ export default function ProductsPage() {
 
   useEffect(() => {
     void loadProducts();
+  }, [loadProducts]);
+
+  useEffect(() => {
+    const handleRefreshOnFocus = () => {
+      void loadProducts();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void loadProducts();
+      }
+    };
+
+    window.addEventListener('focus', handleRefreshOnFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      window.removeEventListener('focus', handleRefreshOnFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [loadProducts]);
 
   const categories = ['All', ...Array.from(new Set(products.map((product) => product.category))).sort()];
@@ -794,15 +816,17 @@ export default function ProductsPage() {
           <p className="mt-2 text-xl" style={{ color: '#8A8FC4' }}>Track stock performance and catalog details.</p>
         </div>
 
-        <div className="mt-8 max-w-4xl mx-auto rounded-2xl border px-4 py-3 flex items-center gap-3" style={{ borderColor: '#2D3A90', backgroundColor: '#141446' }}>
-          <img src="/icons/products/Search.png" alt="Search" className="h-5 w-5 opacity-95" />
+        <div className="mt-8 max-w-4xl mx-auto rounded-2xl border px-5 py-3.5 flex items-center gap-3 bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]">
+          <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0" fill="none" style={{ color: colors.accent.yellow }}>
+            <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="1.8" />
+          </svg>
           <input
             type="text"
             placeholder="Search templates, designs, or actions"
             value={searchTerm}
             onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-            className="w-full bg-transparent outline-none text-base"
-            style={{ color: '#ffffff' }}
+            className="w-full bg-transparent outline-none text-base text-white placeholder:text-[#6F70A8]"
           />
         </div>
 

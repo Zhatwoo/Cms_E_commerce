@@ -157,6 +157,7 @@ const orderRoutes = require('./routes/orderRoutes');
 const templateRoutes = require('./routes/templateRoutes');
 const domainRoutes = require('./routes/domainRoutes');
 const projectRoutes = require('./routes/projectRoutes');
+const collaborationRoutes = require('./routes/collaborationRoutes');
 
 // Routes – public site by subdomain must be reachable
 app.use('/api/public', publicSiteRoutes);
@@ -171,6 +172,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/domains', domainRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/collaboration', collaborationRoutes);
 
 // Home route
 app.get('/', (req, res) => {
@@ -304,10 +306,111 @@ function onListenSuccess(port) {
 
 const Domain = require('./models/Domain');
 
+// ─── Socket.IO Collaboration ─────────────────────────────────────────────────
+// Tracks active collaborators per project room: { socketId -> presenceInfo }
+const projectRooms = new Map();
+
 function tryListen(port) {
   const server = http.createServer(app);
+
+  // Attach Socket.IO to the HTTP server
+  const { Server: SocketIOServer } = require('socket.io');
+  const io = new SocketIOServer(server, {
+    cors: {
+      origin(origin, cb) {
+        if (!origin) return cb(null, true);
+        if (allowedOrigins.includes(origin)) return cb(null, true);
+        if (subdomainLocalhostRegex.test(origin)) return cb(null, true);
+        return cb(null, false);
+      },
+      credentials: true,
+    },
+    path: '/socket.io',
+    transports: ['websocket', 'polling'],
+  });
+
+  io.on('connection', (socket) => {
+    let currentRoom = null;
+    let currentUser = null;
+
+    // User joins a project collaboration room
+    socket.on('collab:join', (data) => {
+      const { projectId, userId, displayName, color, permission } = data || {};
+      if (!projectId || !userId) return;
+
+      currentRoom = projectId;
+      currentUser = { userId, displayName, color, permission: permission || 'editor', socketId: socket.id };
+
+      socket.join(projectId);
+
+      if (!projectRooms.has(projectId)) projectRooms.set(projectId, new Map());
+      projectRooms.get(projectId).set(socket.id, currentUser);
+
+      // Notify room that this user joined
+      socket.to(projectId).emit('collab:user_joined', currentUser);
+
+      // Send current presence list to the newly joined user
+      const presenceList = Array.from(projectRooms.get(projectId).values());
+      socket.emit('collab:presence_list', presenceList);
+    });
+
+    // Broadcast cursor movement to others in the room
+    socket.on('collab:cursor_move', (data) => {
+      if (!currentRoom) return;
+      socket.to(currentRoom).emit('collab:cursor_move', {
+        ...data,
+        socketId: socket.id,
+        userId: currentUser?.userId,
+        displayName: currentUser?.displayName,
+        color: currentUser?.color,
+      });
+    });
+
+    // Broadcast canvas changes (move/resize/drop) to others in the room
+    socket.on('collab:canvas_change', (data) => {
+      if (!currentRoom) return;
+      // Only broadcast if the user has editor permission
+      if (currentUser?.permission !== 'editor') return;
+      socket.to(currentRoom).emit('collab:canvas_change', {
+        ...data,
+        socketId: socket.id,
+        userId: currentUser?.userId,
+        displayName: currentUser?.displayName,
+        color: currentUser?.color,
+      });
+    });
+
+    // Broadcast selection change
+    socket.on('collab:selection_change', (data) => {
+      if (!currentRoom) return;
+      socket.to(currentRoom).emit('collab:selection_change', {
+        ...data,
+        socketId: socket.id,
+        userId: currentUser?.userId,
+        displayName: currentUser?.displayName,
+        color: currentUser?.color,
+      });
+    });
+
+    // User left / disconnected
+    const handleLeave = () => {
+      if (!currentRoom || !socket.id) return;
+      const room = projectRooms.get(currentRoom);
+      if (room) {
+        room.delete(socket.id);
+        if (room.size === 0) projectRooms.delete(currentRoom);
+      }
+      io.to(currentRoom).emit('collab:user_left', { socketId: socket.id, userId: currentUser?.userId });
+      currentRoom = null;
+      currentUser = null;
+    };
+
+    socket.on('collab:leave', handleLeave);
+    socket.on('disconnect', handleLeave);
+  });
+
   server.on('error', (err) => {
-    if (err.code === 'EADDRINUSE' && port === 5000) {
+    if (err.code === 'EADDRINUSE' && Number(port) === 5000) {
       console.error(`Port ${port} in use. Trying 5001...`);
       tryListen(5001);
     } else {
@@ -329,6 +432,6 @@ function tryListen(port) {
   return server;
 }
 
-tryListen(PORT);
+tryListen(Number(PORT));
 
 module.exports = app;
