@@ -19,6 +19,7 @@ import {
   GridViewCard,
   ProductDescription,
   FeaturedProduct,
+  ProductDescriptionCard,
   CategoriesCard,
   BrowseCategory,
    ProductsOverview,
@@ -136,6 +137,7 @@ export const TEMPLATES: TemplateEntry[] = [
   ProductDetailViewV2,
   ProductDetailViewV3,
   ProductsOverview,
+  ProductDescriptionCard,
   SimpleFooter,
   MultiColumnFooter,
   NewsletterFooter,
@@ -191,6 +193,7 @@ export const GROUPED_TEMPLATES = [
     folder: "Cards",
     items: [
       ProductCard,
+      ProductDescriptionCard,
       TeamMemberCard,
       GridViewCard,
       ProductDescription,

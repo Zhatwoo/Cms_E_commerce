@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../context/theme-context';
-import { useProject } from '../context/project-context';
 const HomeIcon = () => <img src="/icons/home.png" alt="Home" className="h-5 w-5 object-contain" />;
 const WebBuilderIcon = () => <img src="/icons/monitor.png" alt="Web Builder" className="h-5 w-5 object-contain" />;
 const DomainsIcon = () => <img src="/icons/globe.png" alt="Domains" className="h-5 w-5 object-contain" />;
@@ -43,7 +42,7 @@ type SidebarItem = {
 
 const navItems: SidebarItem[] = [
   { id: 'home', label: 'Home', icon: <HomeIcon />, href: '/m_dashboard' },
-  { id: 'web-builder', label: 'Web Builder', icon: <WebBuilderIcon />, href: '/m_dashboard/web-builder' },
+  { id: 'web-builder', label: 'Web Builder', icon: <WebBuilderIcon />, href: '/m_dashboard/projects' },
   { id: 'products', label: 'Products', icon: <ProductsIcon />, href: '/m_dashboard/products' },
   { id: 'inventory', label: 'Inventory', icon: <InventoryIcon />, href: '/m_dashboard/inventory' },
   { id: 'orders', label: 'Orders', icon: <OrdersIcon />, href: '/m_dashboard/orders' },
@@ -56,15 +55,21 @@ const navItems: SidebarItem[] = [
 type DashboardSidebarProps = {
   mobile?: boolean;
   onClose?: () => void;
+  onNavigateStart?: () => void;
 };
 
-export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarProps) {
+export function DashboardSidebar({ mobile = false, onClose, onNavigateStart }: DashboardSidebarProps) {
   const [isHovered, setIsHovered] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const { colors, theme } = useTheme();
-  const { selectedProject, setSelectedProjectId } = useProject();
-  const hasSelectedWebsite = !!selectedProject;
+
+  useEffect(() => {
+    navItems.forEach((item) => {
+      if (!item.href) return;
+      router.prefetch(item.href);
+    });
+  }, [router]);
 
   const handleHomeClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     if (pathname === '/m_dashboard') {
@@ -74,7 +79,19 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
       return;
     }
 
+    event.preventDefault();
+    onNavigateStart?.();
     router.push('/m_dashboard', { scroll: true });
+    onClose?.();
+  };
+
+  const handleNavClick = (href?: string) => {
+    if (!href) return;
+    if (href === pathname) {
+      onClose?.();
+      return;
+    }
+    onNavigateStart?.();
     onClose?.();
   };
 
@@ -82,7 +99,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
   const COLLAPSED_WIDTH = 72;   // icon-only
   const EXPANDED_WIDTH = 280;  // full labels
 
-  const sidebarBg = '#000036';
+  const sidebarBg = colors.bg.sidebar;
   const accentYellow = (colors as { accent?: { yellow?: string } }).accent?.yellow ?? '#FFCE00';
   const sidebarStyle = {
     backgroundColor: sidebarBg,
@@ -100,7 +117,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
   };
 
   const itemHoverStyle = {
-    backgroundColor: 'rgba(92, 29, 143, 0.2)',
+    backgroundColor: theme === 'dark' ? 'rgba(92, 29, 143, 0.2)' : 'rgba(79, 70, 229, 0.08)',
     color: colors.text.primary,
   };
 
@@ -136,22 +153,12 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
         <nav className="flex-1 px-3 py-6 overflow-y-auto">
           {/* Full labels for mobile */}
           {navItems
-            .filter((item) => {
-              // Before a website/instance is selected, hide builder & commerce-specific items
-              if (
-                !hasSelectedWebsite &&
-                ['web-builder', 'products', 'inventory', 'orders', 'analytics', 'domains', 'subscription', 'settings'].includes(item.id)
-              ) {
-                return false;
-              }
-              return true;
-            })
             .map((item) => {
               const isActive =
                 item.id === 'home'
                   ? pathname === '/m_dashboard'
                   : item.id === 'web-builder'
-                    ? pathname.startsWith('/m_dashboard/web-builder')
+                    ? pathname.startsWith('/design') || pathname.startsWith('/m_dashboard/web-builder') || pathname.startsWith('/m_dashboard/projects')
                     : item.id === 'inventory'
                       ? pathname.startsWith('/m_dashboard/inventory')
                       : item.href
@@ -161,7 +168,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
             const content = (
               <div
                 className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg transition-colors`}
-                style={isActive ? { ...itemActiveStyle, color: '#FFFFFF' } : itemInactiveStyle}
+                style={isActive ? { ...itemActiveStyle, color: colors.text.primary } : itemInactiveStyle}
               >
                 <span className="flex h-6 w-6 items-center justify-center" style={{ opacity: isActive ? 1 : 0.5 }}>
                   {item.icon}
@@ -175,7 +182,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
                   key={item.id}
                   href={item.href}
                   className="block"
-                  onClick={item.id === 'home' ? handleHomeClick : onClose}
+                  onClick={item.id === 'home' ? handleHomeClick : () => handleNavClick(item.href)}
                 >
                   {content}
                 </Link>
@@ -190,28 +197,6 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
               );
             })}
         </nav>
-
-        {selectedProject && (
-          <div className="px-3 pb-4 shrink-0">
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedProjectId(null);
-                router.push('/m_dashboard/instances');
-                onClose?.();
-              }}
-              className="w-full rounded-xl border px-3 py-2 text-left transition-colors hover:opacity-95"
-              style={{ borderColor: colors.border.faint, color: colors.text.secondary, backgroundColor: colors.bg.elevated }}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-sm" style={{ color: colors.text.primary }}>{selectedProject.title || 'Untitled website'}</span>
-                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ backgroundColor: sidebarBg, color: colors.text.muted }}>
-                  Switch
-                </span>
-              </div>
-            </button>
-          </div>
-        )}
       </aside>
     );
   }
@@ -247,21 +232,12 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
       {/* Navigation */}
       <nav className="flex-1 py-6 flex flex-col">
         {navItems
-          .filter((item) => {
-            if (
-              !hasSelectedWebsite &&
-              ['web-builder', 'products', 'inventory', 'orders', 'analytics', 'domains', 'subscription', 'settings'].includes(item.id)
-            ) {
-              return false;
-            }
-            return true;
-          })
           .map((item) => {
             const isActive =
               item.id === 'home'
                 ? pathname === '/m_dashboard'
                 : item.id === 'web-builder'
-                  ? pathname.startsWith('/m_dashboard/web-builder')
+                  ? pathname.startsWith('/design') || pathname.startsWith('/m_dashboard/web-builder') || pathname.startsWith('/m_dashboard/projects')
                   : item.id === 'inventory'
                     ? pathname.startsWith('/m_dashboard/inventory')
                     : item.href
@@ -272,17 +248,17 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
               <Link
                 key={item.id}
                 href={item.href ?? '#'}
-                onClick={item.id === 'home' ? handleHomeClick : undefined}
+                onClick={item.id === 'home' ? handleHomeClick : () => handleNavClick(item.href)}
                 className={`
                 group relative flex items-center rounded-lg transition-all duration-200
                 w-full px-4 py-3
               `}
-              style={isActive ? { ...itemActiveStyle, color: '#F4F4F6' } : undefined}
+              style={isActive ? { ...itemActiveStyle, color: colors.text.primary } : undefined}
             >
               {/* Hover effect overlay */}
               {!isActive && (
                 <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                  style={{ backgroundColor: 'rgba(92, 29, 143, 0.2)' }}
+                  style={{ backgroundColor: itemHoverStyle.backgroundColor }}
                 />
               )}
 
@@ -305,7 +281,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
                     exit={{ opacity: 0, x: -12 }}
                     transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
                     className="relative z-10 ml-3 text-sm font-medium whitespace-nowrap"
-                    style={{ fontFamily: 'var(--font-outfit), sans-serif', color: isActive ? '#FFFFFF' : colors.text.muted }}
+                    style={{ fontFamily: 'var(--font-outfit), sans-serif', color: isActive ? colors.text.primary : colors.text.muted }}
                   >
                     {item.label}
                   </motion.span>
@@ -323,47 +299,6 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
           );
         })}
       </nav>
-
-      {selectedProject && (
-        <div className="px-3 pb-3 shrink-0">
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedProjectId(null);
-              router.push('/m_dashboard/instances');
-            }}
-            className="w-full rounded-xl border px-3 py-2 text-left transition-colors hover:opacity-95"
-            style={{ borderColor: colors.border.faint, color: colors.text.secondary, backgroundColor: colors.bg.elevated }}
-          >
-            <AnimatePresence>
-              {isHovered ? (
-                <motion.div
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -8 }}
-                  transition={{ duration: 0.2 }}
-                  className="flex items-center justify-between gap-2"
-                >
-                  <span className="truncate text-sm" style={{ color: colors.text.primary }}>{selectedProject.title || 'Untitled website'}</span>
-                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ backgroundColor: sidebarBg, color: colors.text.muted }}>
-                    Switch
-                  </span>
-                </motion.div>
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="flex items-center justify-center"
-                >
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: accentYellow }} />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </button>
-        </div>
-      )}
 
       <div
         className="border-t py-4 text-xs shrink-0 flex justify-center transition-colors duration-300"

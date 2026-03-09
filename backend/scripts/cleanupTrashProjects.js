@@ -1,5 +1,5 @@
 /**
- * CLEANUP SCRIPT: Purge trash projects older than 30 days.
+ * CLEANUP SCRIPT: Purge trash projects older than retention threshold.
  * Run this periodically via cron or scheduled task.
  * Usage: node backend/scripts/cleanupTrashProjects.js
  */
@@ -8,12 +8,14 @@ const { db } = require('../config/firebase');
 const Project = require('../models/Project');
 const User = require('../models/User');
 const { deleteProjectStorageFolder } = require('../utils/storageHelpers');
+const { getTrashRetentionDays, getTrashRetentionMs } = require('../utils/trashConfig');
 
 async function cleanupTrash() {
-  console.log('--- Starting Trash Cleanup ---');
+  const retentionDays = getTrashRetentionDays();
+  const retentionMs = getTrashRetentionMs();
+  console.log(`--- Starting Trash Cleanup (threshold: ${retentionDays} day(s)) ---`);
 
   const nowMs = Date.now();
-  const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
 
   try {
     // Find all docs under user/roles/client/{uid}/trash/{projectId}
@@ -43,7 +45,7 @@ async function cleanupTrash() {
       if (!deletedAtMs || Number.isNaN(deletedAtMs)) continue;
 
       const ageMs = nowMs - deletedAtMs;
-      if (ageMs > thirtyDaysInMs) {
+      if (ageMs > retentionMs) {
         const title = String(trashData.title || 'Untitled');
         console.log(`[CLEANUP] Purging expired project: ${title} (${projectId}) for user ${userId}`);
 

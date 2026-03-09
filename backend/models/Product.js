@@ -88,6 +88,18 @@ function sanitizeVariants(value) {
     .filter((variant) => variant.name || variant.options.length > 0);
 }
 
+function sanitizeVariantStocks(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+
+  return Object.entries(value).reduce((acc, [key, rawAmount]) => {
+    const normalizedKey = String(key || '').trim();
+    if (!normalizedKey) return acc;
+    const amount = toNonNegativeInt(rawAmount, 0);
+    acc[normalizedKey] = amount;
+    return acc;
+  }, {});
+}
+
 async function getOwnedSubdomains(userId, subdomain) {
   if (!userId) return [];
   const normalized = normalizeSubdomain(subdomain);
@@ -107,6 +119,7 @@ async function createForSubdomain({ subdomain, userId, projectId, domainId, data
   if (!userId) throw new Error('userId is required');
   const variants = sanitizeVariants(data.variants);
   const hasVariants = !!data.hasVariants && variants.length > 0;
+  const variantStocks = hasVariants ? sanitizeVariantStocks(data.variantStocks) : {};
 
   const initialInventory = resolveInventorySnapshot({
     onHandStock: data.onHandStock,
@@ -130,6 +143,7 @@ async function createForSubdomain({ subdomain, userId, projectId, domainId, data
     discount_type: data.discountType === 'fixed' ? 'fixed' : 'percentage',
     has_variants: hasVariants,
     variants: hasVariants ? variants : [],
+    variant_stocks: variantStocks,
     price_range_min: toNullableNumber(data.priceRangeMin),
     price_range_max: toNullableNumber(data.priceRangeMax),
     images: Array.isArray(data.images) ? data.images : [],
@@ -271,6 +285,14 @@ async function updateForUser(id, userId, data) {
     const hasVariants = data.hasVariants === undefined ? variants.length > 0 : !!data.hasVariants;
     updates.has_variants = hasVariants;
     updates.variants = hasVariants ? variants : [];
+    if (!hasVariants && data.variantStocks === undefined) updates.variant_stocks = {};
+  }
+  if (data.variantStocks !== undefined) {
+    const hasVariants =
+      updates.has_variants !== undefined
+        ? !!updates.has_variants
+        : (existing.hasVariants !== undefined ? !!existing.hasVariants : Array.isArray(existing.variants) && existing.variants.length > 0);
+    updates.variant_stocks = hasVariants ? sanitizeVariantStocks(data.variantStocks) : {};
   }
   if (data.priceRangeMin !== undefined) updates.price_range_min = toNullableNumber(data.priceRangeMin);
   if (data.priceRangeMax !== undefined) updates.price_range_max = toNullableNumber(data.priceRangeMax);

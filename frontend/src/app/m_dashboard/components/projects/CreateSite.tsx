@@ -25,7 +25,7 @@ export default function CreateSite({ show = false, onClose, onCreate }: Props) {
     } else {
       console.log('CreateSite:', payload);
       if (onClose) onClose();
-      window.location.href = '/m_dashboard/web-builder';
+      window.location.href = '/design';
     }
   };
 

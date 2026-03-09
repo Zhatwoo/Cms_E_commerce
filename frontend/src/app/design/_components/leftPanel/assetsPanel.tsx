@@ -5,18 +5,18 @@ import { Editor, Frame, useEditor } from "@craftjs/core";
 import { ChevronLeft, ChevronRight, Layout, Star, FileText, CreditCard, FormInput, PanelBottom, Smile, Shapes as ShapesIcon } from "lucide-react";
 import { GROUPED_TEMPLATES } from "../../../_assets";
 import { CRAFT_RESOLVER } from "../craftResolver";
-
-const ASSET_ICONS: Record<string, React.ReactNode> = {
-  Header: <Layout className="w-5 h-5" />,
-  Hero: <Star className="w-5 h-5" />,
-  Content: <FileText className="w-5 h-5" />,
-  Cards: <CreditCard className="w-5 h-5" />,
-  Forms: <FormInput className="w-5 h-5" />,
-  Footer: <PanelBottom className="w-5 h-5" />,
-  Icons: <Smile className="w-5 h-5" />,
-  Shapes: <ShapesIcon className="w-5 h-5" />,
-};
-
+import { Container } from "../../_designComponents/Container/Container";
+import { Text } from "../../_designComponents/Text/Text";
+import { Page } from "../../_designComponents/Page/Page";
+import { Viewport } from "../../_designComponents/Viewport/Viewport";
+import { Image } from "../../_designComponents/Image/Image";
+import { Button } from "../../_designComponents/Button/Button";
+import { Divider } from "../../_designComponents/Divider/Divider";
+import { Section } from "../../_designComponents/Section/Section";
+import { Row } from "../../_designComponents/Row/Row";
+import { Column } from "../../_designComponents/Column/Column";
+import { Icon } from "../../_designComponents/Icon/Icon";
+import { Frame as FrameComponent } from "../../_designComponents/Frame/Frame";
 type AssetItem = {
   label: string;
   description?: string;
@@ -24,6 +24,29 @@ type AssetItem = {
   element: React.ReactElement;
   category: string;
 };
+
+class AssetPreviewErrorBoundary extends React.Component<
+  { fallback: React.ReactNode; children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { fallback: React.ReactNode; children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch() {
+    // Prevent one bad asset preview from blocking later assets in the list.
+  }
+
+  render() {
+    if (this.state.hasError) return this.props.fallback;
+    return this.props.children;
+  }
+}
 
 const DESKTOP_PREVIEW_WIDTH = 1440;
 const MAX_PREVIEW_HEIGHT = 180;
@@ -39,6 +62,40 @@ const buildAssetKey = (folder: string, label: string, idx: number) => `${folder}
 const isIconFolder = (folder: string) => folder.toLowerCase() === "icons";
 const isShapeFolder = (folder: string) => folder.toLowerCase() === "shapes";
 
+const ASSET_ICONS: Record<string, React.ReactNode> = {
+  Header: <Layout className="w-5 h-5" />,
+  Hero: <Star className="w-5 h-5" />,
+  Content: <FileText className="w-5 h-5" />,
+  Cards: <CreditCard className="w-5 h-5" />,
+  Forms: <FormInput className="w-5 h-5" />,
+  Footer: <PanelBottom className="w-5 h-5" />,
+  Icons: <Smile className="w-5 h-5" />,
+  Shapes: <ShapesIcon className="w-5 h-5" />,
+};
+
+const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = {
+  ...CRAFT_RESOLVER,
+  Frame: (typeof FrameComponent === "function" ? FrameComponent : null) ?? Container,
+  frame: (typeof FrameComponent === "function" ? FrameComponent : null) ?? Container,
+  Container,
+  container: Container,
+  Text: (typeof Text === "function" ? Text : null) ?? Container,
+  text: (typeof Text === "function" ? Text : null) ?? Container,
+  Page: (typeof Page === "function" ? Page : null) ?? Container,
+  page: (typeof Page === "function" ? Page : null) ?? Container,
+  Viewport: (typeof Viewport === "function" ? Viewport : null) ?? Container,
+  viewport: (typeof Viewport === "function" ? Viewport : null) ?? Container,
+  Image: (typeof Image === "function" ? Image : null) ?? Container,
+  image: (typeof Image === "function" ? Image : null) ?? Container,
+  Button: (typeof Button === "function" ? Button : null) ?? Container,
+  button: (typeof Button === "function" ? Button : null) ?? Container,
+  Divider: (typeof Divider === "function" ? Divider : null) ?? Container,
+  Section: (typeof Section === "function" ? Section : null) ?? Container,
+  Row: (typeof Row === "function" ? Row : null) ?? Container,
+  Column: (typeof Column === "function" ? Column : null) ?? Container,
+  Icon: (typeof Icon === "function" ? Icon : null) ?? Container,
+};
+
 const AssetLivePreview = ({
   item,
   previewMode,
@@ -52,6 +109,7 @@ const AssetLivePreview = ({
   const frameRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [previewHeight, setPreviewHeight] = useState(0);
+  const previewResolver = useMemo(() => buildCraftResolver(), []);
 
   useEffect(() => {
     const containerEl = previewRef.current;
@@ -81,7 +139,7 @@ const AssetLivePreview = ({
   if (previewMode === "icon") {
     return (
       <div className="h-16 w-full rounded-lg border border-dashed border-brand-medium/50 bg-brand-medium/10 flex items-center justify-center text-brand-light pointer-events-none group-hover:bg-brand-medium/20 transition-colors">
-        <Editor resolver={CRAFT_RESOLVER} enabled={false}>
+        <Editor resolver={PREVIEW_RESOLVER} enabled={false}>
           <Frame>{item.element}</Frame>
         </Editor>
       </div>
@@ -119,7 +177,7 @@ const AssetLivePreview = ({
           transform: `scale(${scale})`,
         }}
       >
-        <Editor resolver={CRAFT_RESOLVER} enabled={false}>
+        <Editor resolver={PREVIEW_RESOLVER} enabled={false}>
           <Frame>{item.element}</Frame>
         </Editor>
       </div>
@@ -260,32 +318,34 @@ export const AssetsPanel = () => {
                       }}
                       className={`group bg-brand-white/5 p-3 rounded-xl hover:bg-brand-white/10 transition-all border cursor-move shadow-sm ${isSelected ? "border-brand-light bg-brand-white/10" : "border-brand-medium/30"
                         }`}
-                    >
-                      <div className="flex flex-col gap-2">
-                        {!iconFolder && (
-                          <div className="text-xs text-brand-white font-semibold leading-tight line-clamp-1">
-                            {item?.label ?? ""}
+                      >
+                        <div className="flex flex-col gap-2">
+                          {!iconFolder && (
+                            <div className="flex items-center justify-between gap-2 mb-1">
+                              <div className="text-sm text-brand-white font-medium leading-tight line-clamp-1">
+                                {item?.label ?? ""}
+                              </div>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-center">
+                            <AssetLivePreview
+                              item={item}
+                              previewMode={iconFolder ? "icon" : shapeFolder ? "shape" : "full"}
+                            />
                           </div>
-                        )}
-                        <div className="flex items-center justify-center">
-                          <AssetLivePreview
-                            item={item}
-                            previewMode={iconFolder ? "icon" : shapeFolder ? "shape" : "full"}
-                          />
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="rounded-xl border border-dashed border-white/10 bg-brand-white/5 p-8 text-center text-xs text-brand-light/50">
-                Select a category to view assets.
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-sm border border-white/10 bg-transparent p-4 text-center text-xs text-brand-light/65">
+                  Select a category.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
   );
 };

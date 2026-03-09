@@ -119,11 +119,22 @@ export const ButtonSettings = () => {
           {/* Variant */}
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-brand-lighter">Variant</label>
-            <div className="grid grid-cols-4 gap-1 bg-brand-dark/30 p-1 rounded-lg border border-brand-medium/20">
-              {(["primary", "secondary", "outline", "ghost"] as const).map((v) => (
+            <div className="grid grid-cols-5 gap-1 bg-brand-dark/30 p-1 rounded-lg border border-brand-medium/20">
+              {(["primary", "secondary", "outline", "ghost", "cta"] as const).map((v) => (
                 <button
                   key={v}
-                  onClick={() => typedSetProp((props) => { props.variant = v; })}
+                  onClick={() => typedSetProp((props) => {
+                    props.variant = v;
+                    if (v === "cta") {
+                      props.borderRadius = 0;
+                      props.fontWeight = "700";
+                      props.fontSize = 16;
+                      props.paddingTop = 8;
+                      props.paddingBottom = 8;
+                      props.paddingLeft = 22;
+                      props.paddingRight = 22;
+                    }
+                  })}
                   className={`text-[10px] py-1.5 rounded capitalize transition-colors ${variant === v
                     ? "bg-brand-medium/50 text-brand-lighter"
                     : "text-brand-light hover:text-brand-lighter"

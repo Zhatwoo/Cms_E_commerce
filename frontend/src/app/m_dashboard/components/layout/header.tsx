@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { getApiUrl, logout } from '@/lib/api';
 import { useTheme } from '../context/theme-context';
 import { useAuth } from '../context/auth-context';
-import { useProject } from '../context/project-context';
+import { AnimatePresence, motion } from 'framer-motion';
 
 const SunIcon = () => (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -85,14 +85,15 @@ type DashboardHeaderProps = {
 export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     const router = useRouter();
     const { user, setUser } = useAuth();
-    const { projects, loading, selectedProjectId, setSelectedProjectId } = useProject();
     const { theme, toggleTheme, colors } = useTheme();
     const [showMenu, setShowMenu] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
-    const [showSwitchModal, setShowSwitchModal] = useState(false);
     const [scrolled, setScrolled] = useState(false);
-    const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
-    const userName = user?.name || user?.email || '';
+    const [failedAvatarSrc, setFailedAvatarSrc] = useState<string | null>(null);
+    const emailPrefix = (user?.email || '').split('@')[0] || 'user';
+    const usernameValue = String(user?.username || emailPrefix || '').replace(/^@+/, '');
+    const headerIdentity = `@${usernameValue || 'user'}`;
+    const avatarAlt = user?.name || headerIdentity || 'User avatar';
 
     const resolveAvatarUrl = (raw?: string): string => {
         const value = String(raw || '').trim();
@@ -107,16 +108,13 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
         : user?.email
             ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user.email)}`
             : '';
+    const avatarLoadFailed = Boolean(avatarSrc && failedAvatarSrc === avatarSrc);
 
     useEffect(() => {
         const onScroll = () => setScrolled(window.scrollY > 10);
         window.addEventListener('scroll', onScroll, { passive: true });
         return () => window.removeEventListener('scroll', onScroll);
     }, []);
-
-    useEffect(() => {
-        setAvatarLoadFailed(false);
-    }, [user?.avatar]);
 
     const unreadCount = NOTIFICATIONS.filter((n) => n.unread).length;
 
@@ -151,7 +149,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                     <button
                         type="button"
                         className="lg:hidden p-2 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10"
-                        style={{ color: colors.text.secondary }}
+                        style={{ color: theme === 'light' ? '#475569' : colors.text.secondary }}
                         onClick={onMenuToggle}
                         aria-label="Open menu"
                     >
@@ -168,7 +166,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                         type="button"
                         onClick={toggleTheme}
                         className="p-2 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10"
-                        style={{ color: colors.text.secondary }}
+                        style={{ color: theme === 'light' ? '#475569' : colors.text.secondary }}
                         aria-label="Toggle theme"
                     >
                         {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
@@ -178,7 +176,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                             type="button"
                             onClick={() => setShowNotifications(!showNotifications)}
                             className="p-2 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10 relative"
-                            style={{ color: colors.text.secondary }}
+                            style={{ color: theme === 'light' ? '#475569' : colors.text.secondary }}
                             aria-label="Notifications"
                         >
                             <BellIcon />
@@ -217,8 +215,8 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
 
                     <div className="relative flex items-center gap-3">
                         <div className="text-right hidden sm:block" style={{ fontFamily: 'var(--font-outfit), sans-serif' }}>
-                            <p className="text-sm font-medium" style={{ color: colors.text.primary }}>{userName || 'Finding Neo'}</p>
-                            <p className="text-xs" style={{ color: colors.text.muted }}>Website Owner</p>
+                            <p className="text-sm font-medium" style={{ color: theme === 'light' ? '#0F172A' : colors.text.primary }}>{headerIdentity}</p>
+                            <p className="text-xs" style={{ color: theme === 'light' ? '#475569' : colors.text.secondary }}>Website Owner</p>
                         </div>
                         <div className="relative">
                             <button
@@ -231,7 +229,6 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                                     color: '#fff'
                                 }}
                                 aria-label="Profile menu"
-                                aria-expanded={showMenu}
                             >
                                 <div
                                     className="h-full w-full rounded-full overflow-hidden flex items-center justify-center"
@@ -240,124 +237,75 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                                     {avatarSrc && !avatarLoadFailed ? (
                                         <img
                                             src={avatarSrc}
-                                            alt={userName || 'User avatar'}
+                                            alt={avatarAlt}
                                             className="h-full w-full object-cover"
-                                            onError={() => setAvatarLoadFailed(true)}
+                                            onError={() => setFailedAvatarSrc(avatarSrc)}
                                         />
                                     ) : (
                                         <UserIcon />
                                     )}
                                 </div>
+
+                                <span
+                                    className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border flex items-center justify-center"
+                                    style={{
+                                        backgroundColor: theme === 'dark' ? '#0F172A' : '#E2E8F0',
+                                        borderColor: theme === 'dark' ? '#334155' : '#CBD5E1',
+                                        color: theme === 'dark' ? '#94A3B8' : '#475569',
+                                    }}
+                                >
+                                    <span className={`transition-transform duration-200 ${showMenu ? 'rotate-180' : 'rotate-0'}`}>
+                                        <ChevronDownIcon />
+                                    </span>
+                                </span>
                             </button>
-                            {showMenu && (
-                                <>
-                                    <div
-                                        className="fixed inset-0 z-10"
-                                        aria-hidden="true"
-                                        onClick={() => setShowMenu(false)}
-                                    />
-                                    <div
-                                        className="absolute right-0 mt-2 w-48 rounded-2xl border py-1.5 shadow-xl z-20 backdrop-blur-md"
-                                        style={{
-                                            backgroundColor: theme === 'dark' ? 'rgba(29, 29, 33, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-                                            borderColor: colors.border.faint
-                                        }}
-                                    >
-                                        <Link
-                                            href="/m_dashboard/profile"
-                                            className="block px-4 py-2 text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/10"
-                                            style={{ color: colors.text.primary }}
+                            <AnimatePresence>
+                                {showMenu && (
+                                    <>
+                                        <motion.div
+                                            className="fixed inset-0 z-10"
+                                            aria-hidden="true"
                                             onClick={() => setShowMenu(false)}
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            exit={{ opacity: 0 }}
+                                            transition={{ duration: 0.14 }}
+                                        />
+                                        <motion.div
+                                            className="absolute right-0 mt-2 w-48 rounded-2xl border py-1.5 shadow-xl z-20 backdrop-blur-md"
+                                            style={{
+                                                backgroundColor: theme === 'dark' ? 'rgba(29, 29, 33, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                                                borderColor: colors.border.faint
+                                            }}
+                                            initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                                            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
                                         >
-                                            Profile
-                                        </Link>
-                                        <button
-                                            type="button"
-                                            onClick={handleLogout}
-                                            className="block w-full text-left px-4 py-2 text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/10"
-                                            style={{ color: colors.status.error }}
-                                        >
-                                            Log out
-                                        </button>
-                                    </div>
-                                </>
-                            )}
+                                            <Link
+                                                href="/m_dashboard/profile"
+                                                className="block px-4 py-2 text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+                                                style={{ color: colors.text.primary }}
+                                                onClick={() => setShowMenu(false)}
+                                            >
+                                                Profile
+                                            </Link>
+                                            <button
+                                                type="button"
+                                                onClick={handleLogout}
+                                                className="block w-full text-left px-4 py-2 text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+                                                style={{ color: colors.status.error }}
+                                            >
+                                                Log out
+                                            </button>
+                                        </motion.div>
+                                    </>
+                                )}
+                            </AnimatePresence>
                         </div>
                     </div>
                 </div>
             </div>
-            {showSwitchModal && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-                    onClick={() => setShowSwitchModal(false)}
-                >
-                    <div
-                        className="w-full max-w-lg rounded-2xl border p-5 space-y-4"
-                        style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div>
-                            <h2 className="text-lg font-semibold" style={{ color: colors.text.primary }}>
-                                Switch website instance
-                            </h2>
-                            <p className="text-sm" style={{ color: colors.text.muted }}>
-                                Choose an instance to continue.
-                            </p>
-                        </div>
-
-                        {loading ? (
-                            <div className="rounded-lg border px-4 py-3 text-sm" style={{ borderColor: colors.border.faint, color: colors.text.secondary }}>
-                                Loading your instances…
-                            </div>
-                        ) : projects.length === 0 ? (
-                            <div className="rounded-lg border px-4 py-3 text-sm" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
-                                No instances available.
-                            </div>
-                        ) : (
-                            <div className="space-y-2 max-h-72 overflow-y-auto">
-                                {projects.map((project) => {
-                                    const isActive = project.id === selectedProjectId;
-                                    return (
-                                        <button
-                                            key={project.id}
-                                            type="button"
-                                            onClick={() => {
-                                                setSelectedProjectId(project.id);
-                                                setShowSwitchModal(false);
-                                            }}
-                                            className="w-full rounded-lg border px-3 py-2.5 text-left"
-                                            style={{
-                                                borderColor: isActive ? colors.status.info : colors.border.faint,
-                                                backgroundColor: isActive ? colors.bg.elevated : colors.bg.card,
-                                            }}
-                                        >
-                                            <p className="text-sm font-medium truncate" style={{ color: colors.text.primary }}>
-                                                {project.title || 'Untitled website'}
-                                            </p>
-                                            {project.subdomain && (
-                                                <p className="text-xs mt-0.5 truncate" style={{ color: colors.text.muted }}>
-                                                    {project.subdomain}
-                                                </p>
-                                            )}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        )}
-
-                        <div className="flex justify-end pt-1">
-                            <button
-                                type="button"
-                                onClick={() => setShowSwitchModal(false)}
-                                className="px-4 py-2 rounded-lg text-sm font-medium border"
-                                style={{ borderColor: colors.border.faint, color: colors.text.primary }}
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </header>
     );
 }

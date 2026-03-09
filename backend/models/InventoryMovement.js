@@ -101,7 +101,36 @@ async function listForUser(userId, filters = {}) {
     .slice(0, limit);
 }
 
+async function deleteForUser(userId, movementId, filters = {}) {
+  const normalizedMovementId = String(movementId || '').trim();
+  if (!userId || !normalizedMovementId) return { deleted: false };
+
+  const scopedSubdomain = normalizeSubdomain(filters.subdomain);
+  const scopedProjectId = String(filters.projectId || '').trim();
+  const subdomains = await getOwnedSubdomains(userId, scopedSubdomain);
+  if (!subdomains.length) return { deleted: false };
+
+  for (const subdomain of subdomains) {
+    const ref = getSubdomainMovementsRef(subdomain).doc(normalizedMovementId);
+    const snap = await ref.get();
+    if (!snap.exists) continue;
+
+    if (snap.get('user_id') !== userId) continue;
+    if (scopedProjectId) {
+      const movementProjectId = String(snap.get('project_id') || '').trim();
+      if (movementProjectId !== scopedProjectId) continue;
+    }
+
+    const item = docToObject(snap);
+    await ref.delete();
+    return { deleted: true, item };
+  }
+
+  return { deleted: false };
+}
+
 module.exports = {
   create,
   listForUser,
+  deleteForUser,
 };

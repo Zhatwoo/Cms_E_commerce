@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { AnimatePresence, motion } from 'framer-motion';
 import { DashboardSidebar } from './components/layout/sidebar';
 import { DashboardHeader } from './components/layout/header';
 import { ThemeProvider, useTheme } from './components/context/theme-context';
@@ -19,6 +20,8 @@ function DashboardLayoutContent({
     const pathname = usePathname();
     const { colors } = useTheme();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [routeLoadingEnabled, setRouteLoadingEnabled] = useState(false);
+    const [navigationStartPath, setNavigationStartPath] = useState<string | null>(null);
     const contentScrollRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
@@ -27,23 +30,17 @@ function DashboardLayoutContent({
         }
     }, [loading, user, router]);
 
-    // Only send users to instances page when they truly have no projects.
-    // If projects exist but selection is not yet hydrated, avoid forcing a prompt flow.
-    useEffect(() => {
-        if (!loading && !projectLoading && user && !selectedProject && projects.length === 0) {
-            const isInstancesPage = pathname.startsWith('/m_dashboard/instances');
-            const isInDashboard = pathname.startsWith('/m_dashboard');
-            if (isInDashboard && !isInstancesPage) {
-                router.replace('/m_dashboard/instances');
-            }
-        }
-    }, [loading, projectLoading, user, selectedProject, projects.length, pathname, router]);
-
     useEffect(() => {
         if (pathname === '/m_dashboard') {
             contentScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
         }
     }, [pathname]);
+
+    const routeLoading = routeLoadingEnabled && navigationStartPath === pathname;
+    const handleNavigateStart = () => {
+        setNavigationStartPath(pathname);
+        setRouteLoadingEnabled(true);
+    };
 
     useLayoutEffect(() => {
         const html = document.documentElement;
@@ -74,8 +71,8 @@ function DashboardLayoutContent({
 
     if (loading || !user) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white flex items-center justify-center">
-                <p className="text-white/70">Loading...</p>
+            <div className="min-h-screen flex items-center justify-center" style={{ background: `linear-gradient(180deg, ${colors.bg.primary} 0%, ${colors.bg.primaryEnd} 100%)`, color: colors.text.primary }}>
+                <p style={{ color: colors.text.muted }}>Loading...</p>
             </div>
         );
     }
@@ -106,13 +103,17 @@ function DashboardLayoutContent({
                             : '-translate-x-full duration-300 ease-in'
                         }`}
                 >
-                    <DashboardSidebar mobile onClose={() => setSidebarOpen(false)} />
+                    <DashboardSidebar
+                        mobile
+                        onClose={() => setSidebarOpen(false)}
+                        onNavigateStart={handleNavigateStart}
+                    />
                 </div>
             </div>
 
             {/* Desktop sidebar */}
             <div className="hidden lg:flex lg:shrink-0">
-                <DashboardSidebar />
+                <DashboardSidebar onNavigateStart={handleNavigateStart} />
             </div>
 
             {/* Main content area - ref: deep indigo/purple gradient (Color Palette) */}
@@ -125,9 +126,33 @@ function DashboardLayoutContent({
                     <DashboardHeader onMenuToggle={() => setSidebarOpen(true)} />
                 </div>
                 <main className="flex-1 min-w-0 max-w-full overflow-x-hidden px-4 sm:px-6 pt-5 sm:pt-7 pb-4 sm:pb-6">
-                    {children}
+                    <AnimatePresence mode="wait" initial={false}>
+                        <motion.div
+                            key={pathname}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+                        >
+                            {children}
+                        </motion.div>
+                    </AnimatePresence>
                 </main>
             </div>
+
+            {routeLoading && (
+                <div className="pointer-events-none fixed left-0 right-0 top-0 z-[120]">
+                    <div className="h-[2px] w-full" style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}>
+                        <motion.div
+                            className="h-full"
+                            initial={{ x: '-45%', width: '38%' }}
+                            animate={{ x: '180%', width: '22%' }}
+                            transition={{ duration: 0.75, repeat: Infinity, ease: 'linear' }}
+                            style={{ background: 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' }}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

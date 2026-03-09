@@ -1,7 +1,7 @@
 'use client';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { CheckCircle, Plus } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
 import { useProject } from '../components/context/project-context';
@@ -38,19 +38,109 @@ function isImageSource(value: string): boolean {
   return false;
 }
 
+function extractSizesAndColors(product: Product): { sizes: string[]; colors: string[] } {
+  const sizes = new Set<string>();
+  const colors = new Set<string>();
+
+  const fallbackSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+  const fallbackColors = ['#EAE3F9', '#F23939', '#2F49D8', '#D81CBF'];
+
+  if (Array.isArray(product.variants)) {
+    for (const variant of product.variants) {
+      const variantName = String(variant?.name || '').trim().toLowerCase();
+      const options = Array.isArray(variant?.options) ? variant.options : [];
+      for (const option of options) {
+        const optionName = String(option?.name || '').trim();
+        if (!optionName) continue;
+        if (variantName.includes('size')) {
+          sizes.add(optionName.toUpperCase());
+          continue;
+        }
+        if (variantName.includes('color') || /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(optionName)) {
+          const normalized = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(optionName) ? optionName : '';
+          if (normalized) colors.add(normalized);
+        }
+      }
+    }
+  }
+
+  return {
+    sizes: sizes.size > 0 ? Array.from(sizes).slice(0, 6) : fallbackSizes,
+    colors: colors.size > 0 ? Array.from(colors).slice(0, 6) : fallbackColors,
+  };
+}
+
+function getVariantGroups(product: Product): ProductVariant[] {
+  return Array.isArray(product.variants)
+    ? product.variants.filter((variant) => Array.isArray(variant.options) && variant.options.length > 0)
+    : [];
+}
+
+function buildVariantStockKey(variants: ProductVariant[], selectedOptions: Record<string, string>): string | null {
+  if (variants.length === 0) return null;
+  const keyParts: string[] = [];
+  for (const variant of variants) {
+    const selectedOptionId = selectedOptions[variant.id];
+    if (!selectedOptionId) return null;
+    keyParts.push(`${variant.id}:${selectedOptionId}`);
+  }
+  return keyParts.join('__');
+}
+
+function getInitialVariantSelection(product: Product): Record<string, string> {
+  const groups = getVariantGroups(product);
+  return groups.reduce<Record<string, string>>((acc, variant) => {
+    const firstOption = variant.options[0];
+    if (firstOption?.id) {
+      acc[variant.id] = firstOption.id;
+    }
+    return acc;
+  }, {});
+}
+
+function getCombinationStock(product: Product, selectedOptions: Record<string, string>): number | null {
+  if (!product.hasVariants || !product.variantStocks) return null;
+  const groups = getVariantGroups(product);
+  if (groups.length === 0) return null;
+  const stockKey = buildVariantStockKey(groups, selectedOptions);
+  if (!stockKey) return null;
+  const value = Number(product.variantStocks[stockKey]);
+  return Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
+function colorFromName(value: string): string {
+  const trimmed = value.trim();
+  if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(trimmed)) return trimmed;
+  const palette = ['#EAE3F9', '#F23939', '#2F49D8', '#D81CBF', '#22c55e', '#f59e0b', '#14b8a6'];
+  const hash = Array.from(trimmed.toLowerCase()).reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+  return palette[hash % palette.length];
+}
+
 type ThemeColors = ReturnType<typeof useTheme>['colors'];
 
-const ProductCard = ({ product, colors, onView, onEdit, onDelete, onToggleStatus, isTransitioningOut }: {
+const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitioningOut }: {
   product: Product;
   colors: ThemeColors;
   onView: (product: Product) => void;
   onEdit: (product: Product) => void;
   onDelete: (product: Product) => void;
-  onToggleStatus: (product: Product) => void;
   isTransitioningOut?: boolean;
 }) => {
   const imageValue = String(product.image || '').trim();
   const showImage = isImageSource(imageValue);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => getInitialVariantSelection(product));
+  const variantGroups = getVariantGroups(product);
+  const sizeVariant = variantGroups.find((variant) => variant.name.toLowerCase().includes('size'));
+  const colorVariant = variantGroups.find((variant) => variant.name.toLowerCase().includes('color'));
+  const { sizes, colors: variantColors } = extractSizesAndColors(product);
+  const selectedStock = getCombinationStock(product, selectedOptions);
+  const visibleStock = selectedStock ?? product.stock;
+  const lowStock = visibleStock > 0 && visibleStock < getLowStockThreshold(product);
+
+  useEffect(() => {
+    setSelectedOptions(getInitialVariantSelection(product));
+  }, [product.id, product.variants]);
 
   return (
     <motion.div
@@ -60,21 +150,36 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, onToggleStatus
       transition={{ duration: 0.12, ease: 'easeOut' }}
       className="border overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col h-full"
       style={{
-        backgroundColor: colors.bg.card,
-        borderColor: colors.border.faint,
-        borderRadius: '20px',
+        backgroundColor: '#131761',
+        borderColor: '#2D3A90',
+        borderRadius: '26px',
       }}
     >
-      {/* Large Image Area */}
-      <div
-        className="w-full h-40 md:h-48 lg:h-44 overflow-hidden flex items-center justify-center border-b"
-        style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}
-      >
+      <div className="relative w-full h-56 md:h-60 overflow-hidden flex items-center justify-center border-b" style={{ borderColor: '#2D3A90', backgroundColor: '#D9D9DC' }}>
+        <button
+          type="button"
+          onClick={() => setMenuOpen((prev) => !prev)}
+          className="absolute right-3 top-3 h-8 w-8 rounded-full bg-black text-white flex items-center justify-center"
+          title="Product actions"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <circle cx="6" cy="12" r="2" />
+            <circle cx="12" cy="12" r="2" />
+            <circle cx="18" cy="12" r="2" />
+          </svg>
+        </button>
+        {menuOpen && (
+          <div className="absolute right-3 top-12 z-20 w-32 rounded-lg border border-[#2D3A90] bg-[#12145A] py-1 shadow-xl">
+            <button type="button" onClick={() => { setMenuOpen(false); onView(product); }} className="w-full px-3 py-2 text-left text-xs text-white hover:bg-white/5">View</button>
+            <button type="button" onClick={() => { setMenuOpen(false); onEdit(product); }} className="w-full px-3 py-2 text-left text-xs text-white hover:bg-white/5">Edit</button>
+            <button type="button" onClick={() => { setMenuOpen(false); onDelete(product); }} className="w-full px-3 py-2 text-left text-xs text-red-300 hover:bg-red-500/10">Delete</button>
+          </div>
+        )}
         {showImage ? (
           <img
             src={imageValue}
             alt={product.name}
-            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+            className="w-full h-full object-contain p-4"
           />
         ) : (
           <div className="flex flex-col items-center justify-center text-center p-4">
@@ -86,93 +191,67 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, onToggleStatus
         )}
       </div>
 
-      {/* Content Area */}
-      <div className="p-3 md:p-4 flex-1 flex flex-col">
-        {/* Header with status badge */}
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex-1">
-            <h3 className="font-semibold text-sm md:text-base line-clamp-1" style={{ color: colors.text.primary }}>
-              {product.name}
-            </h3>
-            <p className="text-xs mt-1" style={{ color: colors.text.muted }}>
-              SKU: {product.sku}
-            </p>
-          </div>
-          <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${product.status === 'active' ? 'bg-green-100 text-green-800' :
-            product.status === 'inactive' ? 'bg-red-100 text-red-800' :
-              'bg-gray-100 text-gray-800'
-            }`}>
-            {product.status}
-          </span>
+      <div className="p-4 md:p-5 flex-1 flex flex-col" style={{ backgroundColor: '#131761' }}>
+        <h3 className="font-semibold text-[20px] leading-tight line-clamp-2 text-white">
+          {product.name}
+        </h3>
+        <p className="mt-1 text-xs" style={{ color: '#FFCC00' }}>{product.category} · SKU {product.sku || '-'}</p>
+
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {sizeVariant && sizeVariant.options.length > 0
+            ? sizeVariant.options.map((option) => {
+              const active = selectedOptions[sizeVariant.id] === option.id;
+              return (
+                <button
+                  key={`${product.id}-${sizeVariant.id}-${option.id}`}
+                  type="button"
+                  onClick={() => setSelectedOptions((prev) => ({ ...prev, [sizeVariant.id]: option.id }))}
+                  className="px-2 py-1 text-[10px] border text-white rounded-sm transition-all"
+                  style={{ borderColor: active ? '#ffffff' : '#6C72B2', backgroundColor: active ? 'rgba(255,255,255,0.12)' : 'transparent' }}
+                >
+                  {option.name.toUpperCase()}
+                </button>
+              );
+            })
+            : sizes.map((size) => (
+              <span key={`${product.id}-${size}`} className="px-2 py-1 text-[10px] border border-[#6C72B2] text-white rounded-sm">{size}</span>
+            ))}
         </div>
 
-        {/* Description */}
-        <p className="text-xs mb-4 line-clamp-2 flex-1" style={{ color: colors.text.secondary }}>
-          {product.description || 'No description'}
-        </p>
-
-        {/* Price & Stock Info */}
-        <div className="grid grid-cols-2 gap-3 mb-4 pb-4 border-b" style={{ borderColor: colors.border.faint }}>
-          <div>
-            <p className="text-xs mb-1" style={{ color: colors.text.muted }}>Price</p>
-            <p className="font-semibold text-sm" style={{ color: colors.text.primary }}>
-              ${product.price.toFixed(2)}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs mb-1" style={{ color: colors.text.muted }}>Stock</p>
-            <p className={`font-semibold text-sm ${product.stock === 0 ? 'text-red-500' : isLowStock(product) ? 'text-orange-500' : 'text-green-500'}`}>
-              {product.stock} Units
-            </p>
-          </div>
+        <div className="mt-2 text-[11px] text-[#BBC1E9] line-clamp-1">{product.description || 'No description'}</div>
+        <div className="mt-1 flex items-center gap-1.5">
+          {colorVariant && colorVariant.options.length > 0
+            ? colorVariant.options.map((option) => {
+              const active = selectedOptions[colorVariant.id] === option.id;
+              return (
+                <button
+                  key={`${product.id}-${colorVariant.id}-${option.id}`}
+                  type="button"
+                  onClick={() => setSelectedOptions((prev) => ({ ...prev, [colorVariant.id]: option.id }))}
+                  className="w-5 h-5 rounded-full border transition-all"
+                  style={{
+                    backgroundColor: colorFromName(option.name),
+                    borderColor: active ? '#ffffff' : 'rgba(255,255,255,0.4)',
+                    boxShadow: active ? '0 0 0 2px rgba(255,255,255,0.35)' : 'none',
+                  }}
+                  title={option.name}
+                />
+              );
+            })
+            : variantColors.map((color) => (
+              <span
+                key={`${product.id}-${color}`}
+                className="w-5 h-5 rounded-full border border-white/40"
+                style={{ backgroundColor: color }}
+              />
+            ))}
         </div>
 
-        {/* Category */}
-        <div className="mb-4">
-          <span className="text-xs px-2 py-1 rounded-md inline-block" style={{ backgroundColor: colors.bg.elevated, color: colors.text.muted }}>
-            {product.category}
-          </span>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex gap-2 mt-auto justify-end">
-          <button
-            onClick={() => onView(product)}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center justify-center"
-            style={{ color: colors.text.muted }}
-            title="View details"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M1.5 12s3.5-7 10.5-7 10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12z" />
-              <circle cx="12" cy="12" r="3" strokeWidth={2} />
-            </svg>
-          </button>
-          <button
-            onClick={() => onEdit(product)}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center justify-center"
-            style={{ color: colors.text.muted }}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-          </button>
-          <button
-            onClick={() => onToggleStatus(product)}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center justify-center"
-            style={{ color: colors.text.muted }}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-            </svg>
-          </button>
-          <button
-            onClick={() => onDelete(product)}
-            className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-red-500 flex items-center justify-center"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
+        <div className="mt-auto pt-4 flex items-end justify-between">
+          <p className="text-[16px] font-medium leading-none" style={{ color: '#FFCC00' }}>₱{Math.round(product.price).toLocaleString()}</p>
+          <p className={`text-[16px] font-semibold ${visibleStock === 0 ? 'text-red-400' : lowStock ? 'text-orange-300' : 'text-white'}`}>
+            Stock: {visibleStock}
+          </p>
         </div>
       </div>
     </motion.div>
@@ -303,17 +382,17 @@ const ProductDetailsModal = ({ product, onClose, colors }: {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>SKU</p>
-                  <p style={{ color: colors.text.primary }}>{product.sku || '-'}</p>
+                  <p style={{ color: '#FFCC00' }}>{product.sku || '-'}</p>
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Category</p>
-                  <p style={{ color: colors.text.primary }}>{product.category || '-'}</p>
+                  <p style={{ color: '#FFCC00' }}>{product.category || '-'}</p>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Price</p>
-                  <p className="font-semibold" style={{ color: colors.text.primary }}>${product.price.toFixed(2)}</p>
+                  <p className="font-semibold" style={{ color: '#FFCC00' }}>₱{product.price.toFixed(2)}</p>
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Stock</p>
@@ -385,6 +464,13 @@ function toDashboardProduct(product: ApiProduct): Product {
   const discount = typeof product.discount === 'number' ? product.discount : 0;
   const discountType = product.discountType === 'fixed' ? 'fixed' : 'percentage';
   const hasVariants = typeof product.hasVariants === 'boolean' ? product.hasVariants : variants.length > 0;
+  const variantStocks = product.variantStocks && typeof product.variantStocks === 'object'
+    ? Object.entries(product.variantStocks).reduce<Record<string, number>>((acc, [key, value]) => {
+      const parsed = Number(value);
+      acc[key] = Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 0;
+      return acc;
+    }, {})
+    : {};
 
   return {
     id: product.id,
@@ -401,6 +487,7 @@ function toDashboardProduct(product: ApiProduct): Product {
     discountType,
     hasVariants,
     variants,
+    variantStocks,
     priceRangeMin,
     priceRangeMax,
     stock: typeof product.stock === 'number' ? product.stock : 0,
@@ -423,24 +510,20 @@ export default function ProductsPage() {
   const { showConfirm, showAlert } = useAlert();
   const { selectedProject } = useProject();
   const selectedSubdomain = normalizeSubdomain(selectedProject?.subdomain);
-  const selectedProjectStatus = String(selectedProject?.status || '').toLowerCase();
-  const isPublishedProject = selectedProjectStatus === 'published';
-  const blockedAddProductMessage = !isPublishedProject
-    ? 'You cannot add products while this website is in draft. Only published domains can add products.'
-    : !selectedSubdomain
-      ? 'Publish this website first so products can be saved under published_subdomains/{subdomain}/products.'
-      : null;
-  const canAddProducts = Boolean(selectedSubdomain && isPublishedProject);
+  const blockedAddProductMessage = !selectedSubdomain
+    ? 'Set a subdomain for this website first to manage products.'
+    : null;
+  const canAddProducts = Boolean(selectedSubdomain);
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [sortMode, setSortMode] = useState<'status' | 'price-desc' | 'stock-desc'>('status');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | undefined>();
   const [viewingProduct, setViewingProduct] = useState<Product | undefined>();
   const [perPage, setPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [transitioningInactiveId, setTransitioningInactiveId] = useState<string | null>(null);
   const [productPopup, setProductPopup] = useState<ProductPopupState>({
     open: false,
     message: '',
@@ -514,7 +597,11 @@ export default function ProductsPage() {
     return 1;
   };
 
-  const sortedFilteredProducts = [...filteredProducts].sort((a, b) => statusRank(a.status) - statusRank(b.status));
+  const sortedFilteredProducts = [...filteredProducts].sort((a, b) => {
+    if (sortMode === 'price-desc') return b.price - a.price;
+    if (sortMode === 'stock-desc') return b.stock - a.stock;
+    return statusRank(a.status) - statusRank(b.status);
+  });
 
   const totalPages = Math.max(1, Math.ceil(sortedFilteredProducts.length / perPage));
   useEffect(() => {
@@ -546,27 +633,6 @@ export default function ProductsPage() {
     }
   };
 
-  const handleToggleStatus = async (product: Product) => {
-    const newStatus = product.status === 'active' ? 'inactive' : 'active';
-    const shouldFadeOut = newStatus === 'inactive';
-    if (shouldFadeOut) {
-      setTransitioningInactiveId(product.id);
-    }
-    try {
-      await updateProduct(product.id, { status: newStatus });
-      if (shouldFadeOut) {
-        window.setTimeout(() => {
-          setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, status: newStatus } : p)));
-          setTransitioningInactiveId(null);
-        }, 130);
-      } else {
-        setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, status: newStatus } : p)));
-      }
-    } catch (error) {
-      setTransitioningInactiveId(null);
-      showAlert(error instanceof Error ? error.message : 'Failed to update status', 'error');
-    }
-  };
 
   const handleSaveProduct = async (productData: Partial<Product> & Record<string, unknown>): Promise<boolean> => {
     try {
@@ -598,12 +664,22 @@ export default function ProductsPage() {
       const discount = Number(productData.discount || 0);
       const discountType = String(productData.discountType || 'percentage') === 'fixed' ? 'fixed' : 'percentage';
       const hasVariants = Boolean(productData.hasVariants) && variants.length > 0;
+      const variantStocks = hasVariants && productData.variantStocks && typeof productData.variantStocks === 'object'
+        ? Object.entries(productData.variantStocks as Record<string, unknown>).reduce<Record<string, number>>((acc, [key, value]) => {
+          const parsed = Number(value);
+          acc[key] = Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 0;
+          return acc;
+        }, {})
+        : {};
       const priceRangeMin = hasVariants
         ? Number(productData.priceRangeMin ?? finalPrice)
         : finalPrice;
       const priceRangeMax = hasVariants
         ? Number(productData.priceRangeMax ?? finalPrice)
         : finalPrice;
+      const computedStock = hasVariants
+        ? Object.values(variantStocks).reduce((sum, amount) => sum + amount, 0)
+        : Number(productData.stock || 0);
       const normalizedLowStockThreshold = Math.max(
         0,
         Number.isFinite(Number(productData.lowStockThreshold))
@@ -625,9 +701,10 @@ export default function ProductsPage() {
         discountType,
         hasVariants,
         variants: hasVariants ? variants : [],
+        variantStocks: hasVariants ? variantStocks : {},
         priceRangeMin,
         priceRangeMax,
-        stock: Number(productData.stock || 0),
+        stock: computedStock,
         lowStockThreshold: normalizedLowStockThreshold,
         status: toDashboardStatus(String(productData.status || 'draft')),
         images: Array.isArray(productData.images) ? (productData.images as string[]) : [],
@@ -636,12 +713,8 @@ export default function ProductsPage() {
       if (editingProduct) {
         await updateProduct(editingProduct.id, payload);
       } else {
-        if (!isPublishedProject) {
-          showAlert('You cannot add products while this website is in draft. Only published domains can add products.', 'error');
-          return false;
-        }
         if (!selectedSubdomain) {
-          showAlert('Publish this website first so products can be saved under published_subdomains/{subdomain}/products.', 'error');
+          showAlert('Set a subdomain for this website first to manage products.', 'error');
           return false;
         }
         await createProduct({
@@ -663,13 +736,6 @@ export default function ProductsPage() {
       showAlert(error instanceof Error ? error.message : 'Failed to save product', 'error');
       return false;
     }
-  };
-
-  const stats = {
-    total: products.length,
-    active: products.filter(p => p.status === 'active').length,
-    lowStock: products.filter((p) => isLowStock(p)).length,
-    outOfStock: products.filter(p => p.stock === 0).length
   };
 
   const hasProducts = products.length > 0;
@@ -710,108 +776,39 @@ export default function ProductsPage() {
         )}
       </AnimatePresence>
 
-      {/* Header */}
-      <section
-        className="rounded-2xl border p-5 md:p-6"
-        style={{
-          backgroundColor: colors.bg.card,
-          borderColor: colors.border.faint,
-          boxShadow: theme === 'dark'
-            ? 'inset 0 1px 0 rgba(255,255,255,0.06), 0 20px 50px rgba(2,6,23,0.55)'
-            : 'inset 0 1px 0 rgba(255,255,255,0.8), 0 12px 30px rgba(15,23,42,0.12)',
-        }}
-      >
-        <div className="relative">
-          <div
-            className="absolute -inset-x-6 -inset-y-4 rounded-3xl opacity-70 blur-2xl"
-            style={{
-              background: theme === 'dark'
-                ? 'radial-gradient(60% 60% at 20% 20%, rgba(99,102,241,0.2), transparent 60%), radial-gradient(55% 55% at 80% 20%, rgba(14,165,233,0.16), transparent 60%), radial-gradient(50% 50% at 40% 80%, rgba(16,185,129,0.14), transparent 60%)'
-                : 'radial-gradient(60% 60% at 20% 20%, rgba(99,102,241,0.14), transparent 60%), radial-gradient(55% 55% at 80% 20%, rgba(14,165,233,0.12), transparent 60%), radial-gradient(50% 50% at 40% 80%, rgba(16,185,129,0.1), transparent 60%)'
-            }}
-          />
-          <div className="relative z-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-            <div>
-              <motion.p
-                className="text-xs uppercase tracking-[0.2em] mb-2"
-                style={{ color: colors.text.muted }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.4 }}
-              >
-                Dashboard Insights
-              </motion.p>
-              <motion.h1
-                className="text-3xl font-bold tracking-tight bg-clip-text text-transparent"
-                style={{
-                  backgroundImage: theme === 'dark'
-                    ? 'linear-gradient(180deg, #ffffff 25%, #9ca3af 100%)'
-                    : 'linear-gradient(180deg, #111827 25%, #4b5563 100%)'
-                }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.45 }}
-              >
-                Products
-              </motion.h1>
-              <motion.p
-                className="mt-2 text-sm md:text-base"
-                style={{ color: colors.text.secondary }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.45, delay: 0.08 }}
-              >
-                Manage your product inventory and listings
-              </motion.p>
-              {blockedAddProductMessage && (
-                <p className="mt-2 text-xs" style={{ color: colors.text.muted }}>
-                  {blockedAddProductMessage}
-                </p>
-              )}
-            </div>
-            <button
-              onClick={() => setShowAddModal(true)}
-              disabled={!canAddProducts}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-white font-medium transition-colors shadow-sm ${canAddProducts ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-400 cursor-not-allowed'}`}
+      <section className="pt-4 pb-2">
+        <div className="text-center">
+          <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight text-white">
+            My{' '}
+            <span
+              style={{
+                backgroundImage: 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)',
+                WebkitBackgroundClip: 'text',
+                backgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
             >
-              <Plus className="w-4 h-4" />
-              Add Product
-            </button>
-          </div>
+              Products
+            </span>
+          </h1>
+          <p className="mt-2 text-xl" style={{ color: '#8A8FC4' }}>Track stock performance and catalog details.</p>
         </div>
-      </section>
 
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        {[
-          { label: 'Total products', value: stats.total },
-          { label: 'Active', value: stats.active },
-          { label: 'Low stock', value: stats.lowStock },
-          { label: 'Out of stock', value: stats.outOfStock },
-        ].map((item) => {
-          const labelColor = item.label === 'Active'
-            ? '#16a34a'
-            : item.label === 'Low stock'
-              ? '#f97316'
-              : item.label === 'Out of stock'
-                ? '#ef4444'
-                : colors.text.muted;
+        <div className="mt-8 max-w-4xl mx-auto rounded-2xl border px-4 py-3 flex items-center gap-3" style={{ borderColor: '#2D3A90', backgroundColor: '#141446' }}>
+          <img src="/icons/products/Search.png" alt="Search" className="h-5 w-5 opacity-95" />
+          <input
+            type="text"
+            placeholder="Search templates, designs, or actions"
+            value={searchTerm}
+            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+            className="w-full bg-transparent outline-none text-base"
+            style={{ color: '#ffffff' }}
+          />
+        </div>
 
-          return (
-          <motion.div
-            key={item.label}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="rounded-xl border p-4"
-            style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
-          >
-            <p className="text-xs uppercase tracking-wide" style={{ color: labelColor }}>
-              {item.label}
-            </p>
-            <p className="mt-1 text-2xl font-semibold" style={{ color: colors.text.primary }}>
-              {item.value}
-            </p>
-          </motion.div>
-        )})}
+        {blockedAddProductMessage && (
+          <p className="mt-3 text-center text-xs" style={{ color: '#8A8FC4' }}>{blockedAddProductMessage}</p>
+        )}
       </section>
 
       {loadingProducts ? (
@@ -820,56 +817,91 @@ export default function ProductsPage() {
         </section>
       ) : hasProducts ? (
         <>
-          <div id="inventory-section" className="flex flex-col sm:flex-row gap-4 items-center rounded-2xl border p-4" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
-            <div className="w-full sm:w-1/2">
-              <input
-                type="text"
-                placeholder="Search products by name or SKU..."
-                value={searchTerm}
-                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                className="w-full px-4 py-2 rounded-lg border focus:outline-none"
-                style={{
-                  backgroundColor: colors.bg.card,
-                  borderColor: colors.border.faint,
-                  color: colors.text.primary
-                }}
-              />
+          <div id="inventory-section" className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 mb-2">
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedCategory}
+                onChange={(e) => { setSelectedCategory(e.target.value); setCurrentPage(1); }}
+                className="h-11 px-4 rounded-xl border text-sm min-w-[150px]"
+                style={{ backgroundColor: '#141446', borderColor: '#2D3A90', color: '#ffffff' }}
+              >
+                {categories.map(category => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                onClick={() => setShowAddModal(true)}
+                disabled={!canAddProducts}
+                className={`h-11 px-3 rounded-xl border flex items-center justify-center gap-2 ${canAddProducts ? 'hover:opacity-90' : 'opacity-50 cursor-not-allowed'}`}
+                style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
+                title="Add product"
+              >
+                <img src="/icons/products/add%20product.png" alt="Add" className="h-5 w-5" />
+                <span className="text-xs font-semibold text-white">Add</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className="h-11 px-3 rounded-xl border flex items-center justify-center gap-2 hover:opacity-90"
+                style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
+                title="Manage products"
+              >
+                <img src="/icons/products/product-management.png" alt="Manage" className="h-5 w-5" />
+                <span className="text-xs font-semibold text-white">Manage</span>
+              </button>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <label className="text-sm" style={{ color: colors.text.muted }}>Category:</label>
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => { setSelectedCategory(e.target.value); setCurrentPage(1); }}
-                  className="px-3 py-2 rounded-lg text-sm border"
-                  style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, color: colors.text.primary }}
-                >
-                  {categories.map(category => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
-              </div>
+            <div className="flex items-center justify-center gap-2" style={{ color: '#D2D6F7' }}>
+              <button type="button" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 rounded-full disabled:opacity-40">‹</button>
+              {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
+                const page = i + 1;
+                const active = page === currentPage;
+                return (
+                  <button
+                    key={`page-dot-${page}`}
+                    type="button"
+                    onClick={() => setCurrentPage(page)}
+                    className={`h-8 w-8 rounded-full text-sm ${active ? 'bg-white/20 text-white' : 'bg-[#1A2165] text-[#BBC1E9]'}`}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+              {totalPages > 5 && <span className="px-1">...</span>}
+              {totalPages > 5 && (
+                <button type="button" onClick={() => setCurrentPage(totalPages)} className={`h-8 w-8 rounded-full text-sm ${currentPage === totalPages ? 'bg-white/20 text-white' : 'bg-[#1A2165] text-[#BBC1E9]'}`}>{totalPages}</button>
+              )}
+              <button type="button" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="h-8 w-8 rounded-full disabled:opacity-40">›</button>
+            </div>
 
-              <div className="flex items-center gap-2">
-                <label className="text-sm" style={{ color: colors.text.muted }}>Per page:</label>
-                <select
-                  value={perPage}
-                  onChange={(e) => { setPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                  className="px-2 py-1 rounded-lg text-sm border"
-                  style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, color: colors.text.primary }}
-                >
-                  {[5, 10, 15, 20].map(n => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
-              </div>
+            <div className="flex items-center gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setSortMode((prev) => prev === 'price-desc' ? 'stock-desc' : prev === 'stock-desc' ? 'status' : 'price-desc')}
+                className="h-11 w-11 rounded-xl border flex items-center justify-center hover:opacity-90"
+                style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
+                title="Sort products"
+              >
+                <img src="/icons/products/Sort%20Amount%20Up.png" alt="Sort" className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setPerPage((p) => p === 10 ? 15 : p === 15 ? 20 : 10)}
+                className="h-11 w-11 rounded-xl border flex items-center justify-center hover:opacity-90"
+                style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
+                title="Toggle density"
+              >
+                <img src="/icons/products/Bulleted%20List.png" alt="List" className="h-5 w-5" />
+              </button>
             </div>
           </div>
 
           {filteredProducts.length > 0 ? (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5 lg:gap-6">
+              <div id="products-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5 lg:gap-6">
                 <AnimatePresence>
                   {paginatedProducts.map((product) => (
                     <ProductCard
@@ -879,32 +911,10 @@ export default function ProductsPage() {
                       onView={handleView}
                       onEdit={handleEdit}
                       onDelete={handleDelete}
-                      onToggleStatus={handleToggleStatus}
-                      isTransitioningOut={transitioningInactiveId === product.id}
+                      isTransitioningOut={false}
                     />
                   ))}
                 </AnimatePresence>
-              </div>
-
-              <div className="flex items-center justify-between gap-4 mt-4">
-                <div style={{ color: colors.text.muted }}>
-                  Showing {(sortedFilteredProducts.length === 0) ? 0 : (startIndex + 1)} - {Math.min(endIndex, sortedFilteredProducts.length)} of {sortedFilteredProducts.length}
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="px-3 py-1 rounded border"
-                    style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, color: colors.text.primary }}
-                  >Prev</button>
-                  <div className="px-3 py-1 rounded text-sm" style={{ color: colors.text.primary }}>{currentPage}</div>
-                  <button
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    className="px-3 py-1 rounded border"
-                    style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, color: colors.text.primary }}
-                  >Next</button>
-                </div>
               </div>
             </>
           ) : (
@@ -970,6 +980,7 @@ export default function ProductsPage() {
         onSave={handleSaveProduct}
         editingProduct={editingProduct}
         uploadSubdomain={selectedSubdomain}
+        projectIndustry={selectedProject?.industry || null}
       />
 
       <AnimatePresence>

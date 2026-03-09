@@ -16,6 +16,20 @@ export const AutoLayoutGroup = ({
   setProp
 }: AutoLayoutGroupProps) => {
 
+  const normalizeAxisPos = (
+    value: unknown,
+    fallback: "flex-start" | "center" | "flex-end"
+  ): "flex-start" | "center" | "flex-end" => {
+    const raw = String(value ?? "").trim().toLowerCase();
+    if (raw === "start" || raw === "flex-start") return "flex-start";
+    if (raw === "end" || raw === "flex-end") return "flex-end";
+    if (raw === "center") return "center";
+    return fallback;
+  };
+
+  const resolvedAlignItems = normalizeAxisPos(alignItems, "flex-start");
+  const resolvedJustifyContent = normalizeAxisPos(justifyContent, "flex-start");
+
   const handleDirection = (dir: "row" | "column") => {
     setProp((props) => { props.flexDirection = dir; });
   };
@@ -41,7 +55,7 @@ export const AutoLayoutGroup = ({
     align: LayoutProps["alignItems"],
     justify: LayoutProps["justifyContent"]
   ) => {
-    return alignItems === align && justifyContent === justify;
+    return resolvedAlignItems === align && resolvedJustifyContent === justify;
   };
 
   const renderMatrixCell = (h: "start" | "center" | "end", v: "start" | "center" | "end") => {
@@ -60,8 +74,16 @@ export const AutoLayoutGroup = ({
 
     return (
       <button
+        type="button"
         key={`${h}-${v}`}
-        onClick={() => handleAlignment(targetAlign, targetJustify)}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handleAlignment(targetAlign, targetJustify);
+        }}
+        onClick={(e) => {
+          e.preventDefault();
+        }}
         className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${active
           ? "bg-brand-light text-brand-dark scale-110"
           : "bg-brand-medium/50 text-brand-light hover:bg-brand-medium/40"
@@ -78,6 +100,7 @@ export const AutoLayoutGroup = ({
       {/* Direction & Wrap */}
       <div className="flex items-center gap-2 bg-brand-medium-dark rounded-[10px] border-2 border-brand-medium-dark p-.1">
         <button
+          type="button"
           onClick={() => handleDirection("column")}
           className={`p-1.5 rounded-lg flex-1 flex justify-center ${flexDirection === "column" ? "bg-brand-medium/50 text-brand-lighter" : "text-brand-light hover:text-brand-lighter"}`}
           title="Vertical (Column)"
@@ -85,6 +108,7 @@ export const AutoLayoutGroup = ({
           <ArrowDown size={16} />
         </button>
         <button
+          type="button"
           onClick={() => handleDirection("row")}
           className={`p-1.5 rounded-lg flex-1 flex justify-center ${flexDirection === "row" ? "bg-brand-medium/50 text-brand-lighter" : "text-brand-light hover:text-brand-lighter"}`}
           title="Horizontal (Row)"
@@ -93,6 +117,7 @@ export const AutoLayoutGroup = ({
         </button>
         <div className="w-px h-4 bg-brand-medium mx-1" />
         <button
+          type="button"
           onClick={handleWrap}
           className={`p-1.5 rounded-lg flex-1 flex justify-center ${flexWrap === "wrap" ? "bg-brand-light text-brand-dark" : "text-brand-light hover:text-brand-lighter"}`}
           title="Wrap Items"
