@@ -70,6 +70,7 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
   const [subdomain, setSubdomain] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
 
   const goToDashboard = () => router.push('/m_dashboard');
 
@@ -207,8 +208,17 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
       action: async () => {
         try {
           setActioningProjectId(project.id);
+          setActionError('');
           const res = await deleteProject(project.id);
           if (res.success) setProjects((prev) => prev.filter((p) => p.id !== project.id));
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : '';
+          if (msg.includes('Project not found')) {
+            setProjects((prev) => prev.filter((p) => p.id !== project.id));
+          } else {
+            setActionError(msg || 'Failed to move to trash.');
+            setTimeout(() => setActionError(''), 4000);
+          }
         } finally {
           setActioningProjectId(null);
           setActiveMenuProjectId(null);
@@ -228,10 +238,19 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
       action: async () => {
         try {
           setActioningProjectId(project.id);
+          setActionError('');
           const res = await restoreProject(project.id);
           if (res.success) {
             setTrashedProjects((prev) => prev.filter((p) => p.id !== project.id));
             loadActiveProjects();
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : '';
+          if (msg.includes('Project not found')) {
+            setTrashedProjects((prev) => prev.filter((p) => p.id !== project.id));
+          } else {
+            setActionError(msg || 'Failed to restore project.');
+            setTimeout(() => setActionError(''), 4000);
           }
         } finally {
           setActioningProjectId(null);
@@ -261,9 +280,18 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
           action: async () => {
             try {
               setActioningProjectId(projectId);
+              setActionError('');
               const res = await permanentDeleteProject(projectId);
               if (!res.success) return;
               setTrashedProjects((prev) => prev.filter((p) => p.id !== projectId));
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : '';
+              if (msg.includes('Project not found') || msg.includes('not found')) {
+                setTrashedProjects((prev) => prev.filter((p) => p.id !== projectId));
+              } else {
+                setActionError(msg || 'Failed to delete permanently.');
+                setTimeout(() => setActionError(''), 4000);
+              }
             } finally {
               setActioningProjectId(null);
               setConfirmModal((prev) => ({ ...prev, isOpen: false }));
@@ -313,6 +341,12 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
             <button onClick={goToDashboard} className="flex items-center gap-1.5 text-sm font-medium text-[#8A8FC4] hover:text-white transition-colors mt-1"><svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg> Dashboard</button>
           )}
         </div>
+
+        {actionError && (
+          <div className="mx-7 mb-0 px-4 py-2 rounded-lg bg-red-500/15 border border-red-500/40 text-red-300 text-sm">
+            {actionError}
+          </div>
+        )}
 
         <div className={`flex-1 overflow-y-auto min-h-0 ${asPage ? 'px-0 pb-2 border-t border-[#1F1F51] pt-6' : 'p-7 pt-4'}`}>
           <div className={asPage ? 'w-full px-4 lg:px-[120px]' : ''}>

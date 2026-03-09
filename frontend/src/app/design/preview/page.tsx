@@ -16,7 +16,7 @@ import { getSubdomainSiteUrl } from "@/lib/siteUrls";
 import { getLimits } from "@/lib/subscriptionLimits";
 import { uploadClientFile } from "@/lib/firebaseStorage";
 import html2canvas from "html2canvas";
-//vdxvx
+
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 
@@ -192,14 +192,15 @@ function PreviewContent() {
   );
 
   const previewPages = useMemo(() => {
-    if (!cleanDoc?.pages?.length) return [] as Array<{ slug: string; name: string }>;
+    if (!cleanDoc?.pages?.length) return [] as Array<{ id: string; slug: string; name: string }>;
     return cleanDoc.pages.map((page, index) => {
       const pageProps = (page?.props ?? {}) as Record<string, unknown>;
+      const id = (page?.id as string) || `page-${index}`;
       const rawName = page?.name ?? pageProps.pageName;
       const name = typeof rawName === "string" && rawName.trim() ? rawName.trim() : `Page ${index + 1}`;
       const rawSlug = page?.slug ?? pageProps.pageSlug;
       const slug = typeof rawSlug === "string" && rawSlug.trim() ? rawSlug.trim() : `page-${index + 1}`;
-      return { slug, name };
+      return { id, slug, name };
     });
   }, [cleanDoc]);
 
@@ -710,8 +711,8 @@ function PreviewContent() {
                 disabled={previewPages.length === 0}
                 className="bg-[#111] border border-white/10 rounded-md px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-white/20 disabled:opacity-50"
               >
-                {previewPages.map((page) => (
-                  <option key={page.slug} value={page.slug}>
+                {previewPages.map((page, idx) => (
+                  <option key={page.id || `page-${idx}`} value={page.slug}>
                     {page.name}
                   </option>
                 ))}

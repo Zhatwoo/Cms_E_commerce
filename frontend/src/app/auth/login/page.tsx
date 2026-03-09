@@ -3,11 +3,13 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { login, setStoredUser } from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get('returnTo');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -27,7 +29,9 @@ export default function LoginPage() {
         // Sync current user to localStorage so Storage path and project folder use correct client name
         setStoredUser(data.user ?? null);
         const role = (data.user?.role || '').toLowerCase();
-        if (role === 'admin' || role === 'super_admin') {
+        if (returnTo && returnTo.startsWith('/')) {
+          router.push(returnTo);
+        } else if (role === 'admin' || role === 'super_admin') {
           router.push('/admindashboard');
         } else {
           router.push('/design');
