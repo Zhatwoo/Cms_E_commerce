@@ -62,7 +62,6 @@ function escapeCsvValue(val: string | number | undefined | null): string {
   if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) return `"${s.replace(/"/g,'""')}"`;
   return s;
 }
-
 function productsToCsv(items: ApiProduct[]): string {
   const header = EXPORT_COLUMNS.join(',');
   const rows = items.map((p) => {
@@ -206,6 +205,7 @@ export default function InventoryPage() {
   const [showAllMovementsModal, setShowAllMovementsModal] = useState(false);
   const [loadingAllMovements, setLoadingAllMovements]     = useState(false);
   const [allMovementsError, setAllMovementsError]         = useState<string | null>(null);
+  const [deletingMovementId, setDeletingMovementId]       = useState<string | null>(null);
   const [loading, setLoading]                     = useState(true);
   const [error, setError]                         = useState<string | null>(null);
   const [adjustingId, setAdjustingId]             = useState<string | null>(null);
@@ -341,33 +341,30 @@ export default function InventoryPage() {
     } finally { setAdjustingId(null); }
   }, [stockModal, getStockNumbers, loadData, showAllMovementsModal, loadAllMovements]);
 
-  const confirmDeleteMovement = useCallback(async () => {
-    const targetMovement = movementDeleteToast.movement;
-    if (!targetMovement?.id) return;
+  const confirmDeleteMovement = useCallback(async (movement: InventoryMovement) => {
+    if (!movement?.id) return;
+    const confirmed = window.confirm(
+      `Delete this movement for "${movement.productName || 'this product'}"? This action cannot be undone.`
+    );
+    if (!confirmed) return;
 
     try {
-      setDeletingMovementId(targetMovement.id);
-      await deleteInventoryMovement(targetMovement.id);
+      setDeletingMovementId(movement.id);
+      await deleteInventoryMovement(movement.id);
       await loadData();
       if (showAllMovementsModal) {
         await loadAllMovements();
       }
-      showMovementDeleteResultToast('Inventory movement deleted.', 'success');
+      showImportPopup('Inventory movement deleted.', 'success');
     } catch (err) {
-      showMovementDeleteResultToast(
+      showImportPopup(
         err instanceof Error ? err.message : 'Failed to delete movement',
         'error'
       );
     } finally {
       setDeletingMovementId(null);
     }
-  }, [
-    movementDeleteToast.movement,
-    loadAllMovements,
-    loadData,
-    showAllMovementsModal,
-    showMovementDeleteResultToast,
-  ]);
+  }, [loadAllMovements, loadData, showAllMovementsModal, showImportPopup]);
 
   const isAdjustingFromModal = Boolean(stockModal.product && adjustingId === stockModal.product.id);
   const modalOnHand = stockModal.product ? getStockNumbers(stockModal.product).onHand : 0;
@@ -442,7 +439,15 @@ export default function InventoryPage() {
   );
 
   // ENHANCED: movement row — badge + hover highlight
-  const MovementRow = ({ m }: { m: InventoryMovement }) => {
+  const MovementRow = ({
+    m,
+    onDelete,
+    isDeleting,
+  }: {
+    m: InventoryMovement;
+    onDelete?: (movement: InventoryMovement) => void;
+    isDeleting?: boolean;
+  }) => {
     const isIn  = String(m.type||'').toUpperCase() === 'IN';
     const color = isIn ? T.green : T.red;
     return (
@@ -469,13 +474,39 @@ export default function InventoryPage() {
             <div style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>{m.notes || 'Inventory movement'}</div>
           </div>
         </div>
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div style={{ color, fontWeight: 700, fontSize: 14 }}>
-            {isIn ? `+${m.quantity}` : m.quantity}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ color, fontWeight: 700, fontSize: 14 }}>
+              {isIn ? `+${m.quantity}` : m.quantity}
+            </div>
+            <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>
+              {m.createdAt ? new Date(m.createdAt).toLocaleString() : '--'}
+            </div>
           </div>
-          <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>
-            {m.createdAt ? new Date(m.createdAt).toLocaleString() : '—'}
-          </div>
+          {onDelete && (
+            <button
+              type="button"
+              onClick={() => onDelete(m)}
+              disabled={isDeleting}
+              title={isDeleting ? 'Deleting movement...' : 'Delete movement'}
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 8,
+                border: `1px solid ${T.redBorder}`,
+                background: 'rgba(239,68,68,0.08)',
+                color: T.red,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: isDeleting ? 'not-allowed' : 'pointer',
+                opacity: isDeleting ? 0.55 : 1,
+                padding: 0,
+              }}
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
         </div>
       </div>
     );
@@ -802,7 +833,14 @@ export default function InventoryPage() {
                 ) : allMovements.length === 0 ? (
                   <div style={{ textAlign: 'center', color: T.textMuted, padding: 32 }}>No movements recorded.</div>
                 ) : (
-                  allMovements.map((m) => <MovementRow key={m.id} m={m} />)
+                  allMovements.map((m) => (
+                    <MovementRow
+                      key={m.id}
+                      m={m}
+                      onDelete={confirmDeleteMovement}
+                      isDeleting={deletingMovementId === m.id}
+                    />
+                  ))
                 )}
               </div>
             </div>
@@ -891,3 +929,4 @@ export default function InventoryPage() {
     </div>
   );
 }
+
