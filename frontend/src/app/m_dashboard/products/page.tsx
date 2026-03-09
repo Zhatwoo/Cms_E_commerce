@@ -930,8 +930,6 @@ export default function ProductsPage() {
           })}
         </div>
 
-        <div className="mt-6 max-w-4xl mx-auto rounded-2xl border px-4 py-3 flex items-center gap-3" style={{ borderColor: '#2D3A90', backgroundColor: '#141446' }}>
-          <img src="/icons/products/Search.png" alt="Search" className="h-5 w-5 opacity-95" />
         <div className="mt-8 max-w-4xl mx-auto rounded-2xl border px-5 py-3.5 flex items-center gap-3 bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]">
           <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0" fill="none" style={{ color: colors.accent.yellow }}>
             <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
