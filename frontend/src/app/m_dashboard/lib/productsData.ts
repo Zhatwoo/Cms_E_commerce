@@ -16,6 +16,7 @@ export interface Product {
   id: string;
   name: string;
   category: string;
+  subcategory?: string;
   price: number;
   basePrice?: number;
   costPrice?: number | null;
