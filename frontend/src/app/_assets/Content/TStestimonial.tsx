@@ -46,7 +46,7 @@ export const Testimonial: TemplateEntry = {
 
       // Quote
       React.createElement(Text as any, {
-        text: '"Excellent service and support. Highly recommended!"',
+        text: '"Quality products and great experience. Will definitely be back."',
         fontSize: 24,
         fontWeight: "400",
         color: "#475569",
@@ -84,7 +84,7 @@ export const Testimonial: TemplateEntry = {
             gap: 0,
           },
           React.createElement(Text as any, {
-            text: "JD",
+            text: "HC",
             fontSize: 16,
             fontWeight: "700",
             color: "#ffffff",
@@ -103,13 +103,13 @@ export const Testimonial: TemplateEntry = {
             alignItems: "flex-start",
           },
           React.createElement(Text as any, {
-            text: "John Doe",
+            text: "Happy Customer",
             fontSize: 18,
             fontWeight: "600",
             color: "#1e293b",
           }),
           React.createElement(Text as any, {
-            text: "CEO, Company Name",
+            text: "Verified Buyer",
             fontSize: 14,
             fontWeight: "400",
             color: "#64748b",
