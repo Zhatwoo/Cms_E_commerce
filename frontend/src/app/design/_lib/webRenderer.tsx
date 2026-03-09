@@ -34,7 +34,7 @@ function getDefaultLinkForLabel(label: string): string {
   if (t === "products") return "#products";
   if (t === "contact") return "#contact";
   if (t === "services") return "#services";
-  if (t === "start building") return "/signup";
+  if (t === "learn more" || t === "start building") return "#";
   if (t === "logo") return "#";
   return "";
 }
@@ -2040,7 +2040,7 @@ function RenderNode({
       const mediaAspectRatio = imageWidthPx && imageHeightPx ? `${imageWidthPx} / ${imageHeightPx}` : undefined;
       return wrap(
         <img
-          src={(props.src as string) || "https://placehold.co/600x400?text=Image"}
+          src={(props.src as string) || "https://placehold.co/600x400?text=Photo"}
           alt={(props.alt as string) || "Image"}
           data-fluid-space="true"
           data-fluid-media="true"

@@ -329,6 +329,11 @@ body {
   font-family: var(--ff-Outfit), Arial, Helvetica, sans-serif;
 }
 
+/* Published site: always white background (ignore dark mode) */
+body:has(.published-site) {
+  background: #ffffff !important;
+}
+
 html.m-dashboard-scroll-lock,
 body.m-dashboard-scroll-lock {
   height: 100% !important;

@@ -91,7 +91,23 @@ export function PublishModal({
         const sessionRaw = window.sessionStorage.getItem(sessionKey);
         if (sessionRaw && sessionRaw.trim()) content = sessionRaw;
       }
-      const res = await publishProject(projectId, normalized, content);
+      if (!content) {
+        setError('Design your site in the editor first, then publish. Open the project in Design, add content, and try again.');
+        setPublishing(false);
+        return;
+      }
+      let contentToPublish: string | null = content;
+      try {
+        const parsed = typeof content === 'string' ? JSON.parse(content) : content;
+        if (parsed && typeof parsed === 'object' && parsed.nodes) {
+          const { migratePublishedContent } = await import('@/app/design/_lib/contentMigration');
+          const migrated = migratePublishedContent(parsed);
+          contentToPublish = JSON.stringify(migrated);
+        }
+      } catch {
+        // keep original content
+      }
+      const res = await publishProject(projectId, normalized, contentToPublish);
       if (res.success) {
         onSuccess(normalized);
         onClose();
@@ -135,7 +151,23 @@ export function PublishModal({
         const sessionRaw = window.sessionStorage.getItem(sessionKey);
         if (sessionRaw && sessionRaw.trim()) content = sessionRaw;
       }
-      const res = await schedulePublish(projectId, new Date(scheduledAt).toISOString(), normalized, content);
+      if (!content) {
+        setError('Design your site in the editor first. Open the project in Design, add content, and try again.');
+        setScheduling(false);
+        return;
+      }
+      let contentToPublish: string | null = content;
+      try {
+        const parsed = typeof content === 'string' ? JSON.parse(content) : content;
+        if (parsed && typeof parsed === 'object' && parsed.nodes) {
+          const { migratePublishedContent } = await import('@/app/design/_lib/contentMigration');
+          const migrated = migratePublishedContent(parsed);
+          contentToPublish = JSON.stringify(migrated);
+        }
+      } catch {
+        // keep original content
+      }
+      const res = await schedulePublish(projectId, new Date(scheduledAt).toISOString(), normalized, contentToPublish);
       if (res.success) {
         onSuccess(normalized);
         onClose();

@@ -5,6 +5,7 @@ import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload, 
 import { useRouter, useSearchParams } from "next/navigation";
 import { deserializeCleanToCraft } from "../_lib/serializer";
 import { parseContentToCleanDoc } from "../_lib/contentParser";
+import { migratePublishedContent } from "../_lib/contentMigration";
 import { autoSavePage, getDraft } from "../_lib/pageApi";
 import { WebPreview } from "../_lib/webRenderer";
 import { PREVIEW_MOBILE_BREAKPOINT } from "../_lib/viewportConstants";
@@ -481,7 +482,8 @@ function PreviewContent() {
     setPublishDomainError("");
     setPublishing(true);
     try {
-      const snapshot = cleanDoc ? JSON.stringify(cleanDoc) : null;
+      const docToPublish = cleanDoc ? migratePublishedContent(cleanDoc) : null;
+      const snapshot = docToPublish ? JSON.stringify(docToPublish) : null;
       if (snapshot) {
         await autoSavePage(snapshot, projectId);
       }
@@ -536,7 +538,8 @@ function PreviewContent() {
     setPublishDomainError("");
     setScheduling(true);
     try {
-      const snapshot = cleanDoc ? JSON.stringify(cleanDoc) : null;
+      const docToPublish = cleanDoc ? migratePublishedContent(cleanDoc) : null;
+      const snapshot = docToPublish ? JSON.stringify(docToPublish) : null;
       if (snapshot) {
         await autoSavePage(snapshot, projectId);
       }
@@ -814,8 +817,8 @@ function PreviewContent() {
             )}
             <p className="text-sm text-zinc-400 mb-4">
               {publishDomainName.trim()
-                ? "Your site will be published as a separate live domain. You can change the subdomain later in the dashboard."
-                : "Enter a subdomain to create your own live site. Each subdomain is a separate, publicly accessible website."}
+                ? "Your site will be published at the subdomain URL below. Design your site in the editor first—what you see in Preview is what gets published."
+                : "Enter a subdomain to create your live site. Design your site in the editor first—what you see in Preview is what gets published."}
             </p>
             <div className="space-y-2 mb-4">
               <label className="block text-sm font-medium text-gray-300">
