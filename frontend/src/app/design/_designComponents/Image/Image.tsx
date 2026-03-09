@@ -34,16 +34,27 @@ export const Image = ({
   const { id, connectors: { connect, drag }, parentId } = useNode((node) => ({
     parentId: node.data.parent,
   }));
-  const { parentDisplay } = useEditor((state) => ({
+  const { parentDisplay, parentDisplayName, parentHeight } = useEditor((state) => ({
     parentDisplay: parentId ? String(state.nodes[parentId]?.data?.props?.display ?? "") : "",
+    parentDisplayName: parentId ? String(state.nodes[parentId]?.data?.displayName ?? "") : "",
+    parentHeight: parentId ? state.nodes[parentId]?.data?.props?.height : undefined,
   }));
   const shouldFillParent = parentDisplay === "flex" || parentDisplay === "grid";
-  const resolvedHeight = height ?? "auto";
+  const isContainerLikeParent = parentDisplayName === "Container" || parentDisplayName === "Section";
+  const isAutoHeight = typeof height !== "string" || height.trim().toLowerCase() === "auto";
+  const parentHeightText = typeof parentHeight === "string" ? parentHeight.trim().toLowerCase() : "";
+  const parentHasExplicitHeight =
+    (typeof parentHeight === "number" && Number.isFinite(parentHeight) && parentHeight > 0) ||
+    (typeof parentHeight === "string" && parentHeightText !== "" && parentHeightText !== "auto");
+  const resolvedHeight =
+    isContainerLikeParent && isAutoHeight && parentHasExplicitHeight
+      ? "100%"
+      : (height ?? "auto");
 
   // Handle empty or invalid src
   const imageSrc = src && src.trim() !== ""
     ? src
-    : "https://placehold.co/600x400/27272a/a1a1aa?text=Image";
+    : "https://placehold.co/600x400?text=Photo";
 
   // Resolve spacing
   const p = typeof padding === "number" ? padding : 0;

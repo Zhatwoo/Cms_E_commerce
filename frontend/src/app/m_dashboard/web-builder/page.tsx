@@ -5,7 +5,7 @@ import { useTheme } from '../components/context/theme-context';
 import { useRouter, useSearchParams } from 'next/navigation';
 import DomeGallery from '../components/templates/DomeGallery';
 import { templateService, Template as FullTemplate } from '@/lib/templateService';
-import { createProject, listProjects, updateProject, deleteProject, listTrashedProjects, restoreProject, getMyDomains, getStoredUser, type Project } from '@/lib/api';
+import { createProject, listProjects, updateProject, deleteProject, listTrashedProjects, restoreProject, permanentDeleteProject, getMyDomains, getStoredUser, type Project } from '@/lib/api';
 import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
 import { getLimits } from '@/lib/subscriptionLimits';
 import { INDUSTRY_OPTIONS } from '@/lib/industryCatalog';
@@ -663,6 +663,31 @@ export default function WebBuilderPage() {
     }
   };
 
+  const handleProjectPermanentDelete = async (e: React.MouseEvent, p: Project) => {
+    e.stopPropagation();
+    const confirmed = await showConfirm(
+      `Are you sure you want to permanently delete "${p.title}"? This action cannot be undone.`
+    );
+    if (!confirmed) return;
+    const confirmedAgain = await showConfirm(
+      `Final confirmation: Permanently delete "${p.title}"? This will remove it from the database and cannot be undone.`
+    );
+    if (!confirmedAgain) return;
+    try {
+      const res = await permanentDeleteProject(p.id);
+      if (res.success) {
+        setTrashedProjects((prev) => prev.filter((x) => x.id !== p.id));
+        await refreshProjects();
+        showAlert(`"${p.title}" has been permanently deleted.`);
+      } else {
+        showAlert(res.message || 'Failed to delete project permanently.');
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to delete project permanently.';
+      showAlert(msg);
+    }
+  };
+
   const filteredTemplates = templates
     .filter(
       (t: GalleryTemplate) => selectedCategory === 'Type' || t.category === selectedCategory
@@ -1028,22 +1053,35 @@ export default function WebBuilderPage() {
                             {daysLeft ?? '—'}/{trashRetentionDays} days remaining in trash
                           </p>
                         </div>
-                        <div className="flex gap-1.5 relative z-10">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleProjectRestore(p);
-                            }}
-                            className="flex-1 py-1.5 rounded-md text-[10px] font-semibold border transition-all hover:bg-black/5 dark:hover:bg-white/10 whitespace-nowrap cursor-pointer relative z-50"
-                            style={{
-                              borderColor: colors.border.default,
-                              color: colors.text.primary,
-                              backgroundColor: 'transparent'
-                            }}
-                          >
-                            Restore Project
-                          </button>
-                          <span className="px-2 py-1.5 text-[10px] rounded-md border whitespace-nowrap" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
+                        <div className="flex flex-col gap-2 relative z-10">
+                          <div className="flex gap-1.5">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleProjectRestore(p);
+                              }}
+                              className="flex-1 py-1.5 rounded-md text-[10px] font-semibold border transition-all hover:bg-black/5 dark:hover:bg-white/10 whitespace-nowrap cursor-pointer relative z-50"
+                              style={{
+                                borderColor: colors.border.default,
+                                color: colors.text.primary,
+                                backgroundColor: 'transparent'
+                              }}
+                            >
+                              Restore
+                            </button>
+                            <button
+                              onClick={(e) => handleProjectPermanentDelete(e, p)}
+                              className="flex-1 py-1.5 rounded-md text-[10px] font-semibold border transition-all hover:bg-red-500/10 whitespace-nowrap cursor-pointer relative z-50"
+                              style={{
+                                borderColor: colors.status.error,
+                                color: colors.status.error,
+                                backgroundColor: 'transparent'
+                              }}
+                            >
+                              Delete Permanently
+                            </button>
+                          </div>
+                          <span className="px-2 py-1 text-[10px] rounded-md border self-start whitespace-nowrap" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
                             Auto-delete after {trashRetentionDays} days
                           </span>
                         </div>

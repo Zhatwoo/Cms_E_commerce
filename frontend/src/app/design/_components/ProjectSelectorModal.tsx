@@ -70,6 +70,7 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
   const [subdomain, setSubdomain] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
 
   const goToDashboard = () => router.push('/m_dashboard');
 
@@ -207,8 +208,17 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
       action: async () => {
         try {
           setActioningProjectId(project.id);
+          setActionError('');
           const res = await deleteProject(project.id);
           if (res.success) setProjects((prev) => prev.filter((p) => p.id !== project.id));
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : '';
+          if (msg.includes('Project not found')) {
+            setProjects((prev) => prev.filter((p) => p.id !== project.id));
+          } else {
+            setActionError(msg || 'Failed to move to trash.');
+            setTimeout(() => setActionError(''), 4000);
+          }
         } finally {
           setActioningProjectId(null);
           setActiveMenuProjectId(null);
@@ -228,10 +238,19 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
       action: async () => {
         try {
           setActioningProjectId(project.id);
+          setActionError('');
           const res = await restoreProject(project.id);
           if (res.success) {
             setTrashedProjects((prev) => prev.filter((p) => p.id !== project.id));
             loadActiveProjects();
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : '';
+          if (msg.includes('Project not found')) {
+            setTrashedProjects((prev) => prev.filter((p) => p.id !== project.id));
+          } else {
+            setActionError(msg || 'Failed to restore project.');
+            setTimeout(() => setActionError(''), 4000);
           }
         } finally {
           setActioningProjectId(null);
@@ -243,23 +262,42 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
 
   const handlePermanentDeleteProject = (project: Project) => {
     const projectId = project.id;
-    const projectTitle = project.title;
+    const projectTitle = project.title || 'Untitled Project';
     setConfirmModal({
       isOpen: true,
-      title: 'Delete',
-      message: `Are you sure you want to permanently delete "${projectTitle || 'Untitled Project'}"? This action cannot be undone.`,
-      confirmText: 'Delete',
+      title: 'Delete Permanently?',
+      message: `Are you sure you want to permanently delete "${projectTitle}"? This action cannot be undone.`,
+      confirmText: 'Yes, delete',
       variant: 'danger',
       action: async () => {
-        try {
-          setActioningProjectId(projectId);
-          const res = await permanentDeleteProject(projectId);
-          if (!res.success) return;
-          setTrashedProjects((prev) => prev.filter((p) => p.id !== projectId));
-        } finally {
-          setActioningProjectId(null);
-          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
-        }
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        setConfirmModal({
+          isOpen: true,
+          title: 'Final Confirmation',
+          message: `This will permanently remove "${projectTitle}" from the database. This cannot be undone. Delete anyway?`,
+          confirmText: 'Delete Permanently',
+          variant: 'danger',
+          action: async () => {
+            try {
+              setActioningProjectId(projectId);
+              setActionError('');
+              const res = await permanentDeleteProject(projectId);
+              if (!res.success) return;
+              setTrashedProjects((prev) => prev.filter((p) => p.id !== projectId));
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : '';
+              if (msg.includes('Project not found') || msg.includes('not found')) {
+                setTrashedProjects((prev) => prev.filter((p) => p.id !== projectId));
+              } else {
+                setActionError(msg || 'Failed to delete permanently.');
+                setTimeout(() => setActionError(''), 4000);
+              }
+            } finally {
+              setActioningProjectId(null);
+              setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+            }
+          }
+        });
       }
     });
   };
@@ -303,6 +341,12 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
             <button onClick={goToDashboard} className="flex items-center gap-1.5 text-sm font-medium text-[#8A8FC4] hover:text-white transition-colors mt-1"><svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg> Dashboard</button>
           )}
         </div>
+
+        {actionError && (
+          <div className="mx-7 mb-0 px-4 py-2 rounded-lg bg-red-500/15 border border-red-500/40 text-red-300 text-sm">
+            {actionError}
+          </div>
+        )}
 
         <div className={`flex-1 overflow-y-auto min-h-0 ${asPage ? 'px-0 pb-2 border-t border-[#1F1F51] pt-6' : 'p-7 pt-4'}`}>
           <div className={asPage ? 'w-full px-4 lg:px-[120px]' : ''}>
@@ -375,6 +419,7 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                                   {projectTab === 'trash' && (
                                     <div className={`flex items-center gap-2 ${viewMode === 'list' ? 'shrink-0' : 'mt-4'}`}>
                                       <button type="button" onClick={(e) => { e.stopPropagation(); handleRestoreProject(project); }} disabled={actioningProjectId === project.id} className="px-3 py-2 rounded-lg text-xs font-semibold text-white bg-[#2D3A90] hover:bg-[#3E4AA3] disabled:opacity-50 z-10 transition-colors shadow-md">Restore</button>
+                                      <button type="button" onClick={(e) => { e.stopPropagation(); handlePermanentDeleteProject(project); }} disabled={actioningProjectId === project.id} className="px-3 py-2 rounded-lg text-xs font-semibold text-red-400 border border-red-500/40 hover:bg-red-500/10 disabled:opacity-50 z-10 transition-colors">Delete Permanently</button>
                                     </div>
                                   )}
                                 </div>

@@ -918,7 +918,7 @@ export default function AnalyticsPage() {
         <h1 className="text-[42px] sm:text-[56px] lg:text-[74px] 2xl:text-[82px] font-extrabold leading-[0.98] tracking-tight">
           <span className="block text-white">Analytics</span>
           <span className="block text-transparent bg-clip-text"
-            style={{ backgroundImage: 'linear-gradient(90deg, #7E22CE 0%, #B7675A 50%, #FFD700 100%)' }}>
+            style={{ backgroundImage: 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)' }}>
             {toTitleCase(activeSectionTab)}
           </span>
         </h1>
@@ -951,8 +951,7 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="mx-auto mt-4 sm:mt-5 flex w-full max-w-[860px] flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
-          <div className="flex-1 rounded-2xl border px-4 py-3 flex items-center gap-2"
-            style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+          <div className="flex-1 rounded-2xl border px-5 py-3.5 flex items-center gap-3 bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]">
             <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" style={{ color: colors.accent.yellow }}>
               <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
               <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="1.8" />
@@ -961,8 +960,7 @@ export default function AnalyticsPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search orders or buyers"
-              className="w-full bg-transparent text-sm outline-none"
-              style={{ color: colors.text.primary }}
+              className="w-full bg-transparent text-sm outline-none text-white placeholder:text-[#6F70A8]"
             />
           </div>
           <button

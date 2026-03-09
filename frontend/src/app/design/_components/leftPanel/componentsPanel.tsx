@@ -81,7 +81,7 @@ export const ComponentsPanel = () => {
           name: "Core Layout",
           elements: [
             { name: "Section", icon: <Box className="w-4 h-4" />, variants: [{ label: "Section", preview: "━━ Section ━━", element: <Element is={Section} canvas /> }] },
-            { name: "Container", icon: <Layers className="w-4 h-4" />, variants: [{ label: "Container", preview: "Container Preview", element: <Element is={Container} background="#27272a" padding={20} canvas /> }] },
+            { name: "Container", icon: <Layers className="w-4 h-4" />, variants: [{ label: "Container", preview: "Container Preview", element: <Element is={Container} padding={20} canvas /> }] },
             { name: "Row", icon: <Minus className="w-4 h-4" />, variants: [{ label: "Row", preview: "[ ═ ║ ═ ║ ═ ]", element: <Element is={Row} canvas /> }] },
             { name: "Column", icon: <Columns className="w-4 h-4" />, variants: [{ label: "Column", preview: "║ Column ║", element: <Element is={Column} canvas /> }] },
             { name: "Grid", icon: <Grid className="w-4 h-4" />, variants: [{ label: "Grid", preview: "Grid Support", element: undefined }] },
@@ -223,7 +223,7 @@ export const ComponentsPanel = () => {
 
   const ESSENTIALS: (ComponentVariant & { icon: React.ReactNode; color?: string })[] = [
     { label: "Section", preview: "Section", element: <Element is={Section} canvas />, icon: <Box className="w-5 h-5" />, color: "bg-blue-500/10" },
-    { label: "Container", preview: "Container", element: <Element is={Container} background="#27272a" padding={20} canvas />, icon: <Layers className="w-5 h-5" />, color: "bg-purple-500/10" },
+    { label: "Container", preview: "Container", element: <Element is={Container} padding={20} canvas />, icon: <Layers className="w-5 h-5" />, color: "bg-purple-500/10" },
     { label: "Row", preview: "Row", element: <Element is={Row} canvas />, icon: <Minus className="w-5 h-5" />, color: "bg-orange-500/10" },
     { label: "Column", preview: "Column", element: <Element is={Column} canvas />, icon: <Columns className="w-5 h-5" />, color: "bg-emerald-500/10" },
     {

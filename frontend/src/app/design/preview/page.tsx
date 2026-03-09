@@ -5,6 +5,7 @@ import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload, 
 import { useRouter, useSearchParams } from "next/navigation";
 import { deserializeCleanToCraft } from "../_lib/serializer";
 import { parseContentToCleanDoc } from "../_lib/contentParser";
+import { migratePublishedContent } from "../_lib/contentMigration";
 import { autoSavePage, getDraft } from "../_lib/pageApi";
 import { WebPreview } from "../_lib/webRenderer";
 import { PREVIEW_MOBILE_BREAKPOINT } from "../_lib/viewportConstants";
@@ -37,8 +38,6 @@ function toPxNumber(value: unknown): number | null {
 
 type ViewMode = "Web-Preview" | "clean" | "raw";
 type PreviewViewport = "desktop" | "tablet" | "mobile";
-
-
 
 function PreviewContent() {
   const router = useRouter();
@@ -193,14 +192,15 @@ function PreviewContent() {
   );
 
   const previewPages = useMemo(() => {
-    if (!cleanDoc?.pages?.length) return [] as Array<{ slug: string; name: string }>;
+    if (!cleanDoc?.pages?.length) return [] as Array<{ id: string; slug: string; name: string }>;
     return cleanDoc.pages.map((page, index) => {
       const pageProps = (page?.props ?? {}) as Record<string, unknown>;
+      const id = (page?.id as string) || `page-${index}`;
       const rawName = page?.name ?? pageProps.pageName;
       const name = typeof rawName === "string" && rawName.trim() ? rawName.trim() : `Page ${index + 1}`;
       const rawSlug = page?.slug ?? pageProps.pageSlug;
       const slug = typeof rawSlug === "string" && rawSlug.trim() ? rawSlug.trim() : `page-${index + 1}`;
-      return { slug, name };
+      return { id, slug, name };
     });
   }, [cleanDoc]);
 
@@ -483,7 +483,8 @@ function PreviewContent() {
     setPublishDomainError("");
     setPublishing(true);
     try {
-      const snapshot = cleanDoc ? JSON.stringify(cleanDoc) : null;
+      const docToPublish = cleanDoc ? migratePublishedContent(cleanDoc) : null;
+      const snapshot = docToPublish ? JSON.stringify(docToPublish) : null;
       if (snapshot) {
         await autoSavePage(snapshot, projectId);
       }
@@ -538,7 +539,8 @@ function PreviewContent() {
     setPublishDomainError("");
     setScheduling(true);
     try {
-      const snapshot = cleanDoc ? JSON.stringify(cleanDoc) : null;
+      const docToPublish = cleanDoc ? migratePublishedContent(cleanDoc) : null;
+      const snapshot = docToPublish ? JSON.stringify(docToPublish) : null;
       if (snapshot) {
         await autoSavePage(snapshot, projectId);
       }
@@ -709,8 +711,8 @@ function PreviewContent() {
                 disabled={previewPages.length === 0}
                 className="bg-[#111] border border-white/10 rounded-md px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-white/20 disabled:opacity-50"
               >
-                {previewPages.map((page) => (
-                  <option key={page.slug} value={page.slug}>
+                {previewPages.map((page, idx) => (
+                  <option key={page.id || `page-${idx}`} value={page.slug}>
                     {page.name}
                   </option>
                 ))}
@@ -808,7 +810,7 @@ function PreviewContent() {
       {showPublishDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-semibold text-white mb-2">Publish site</h2>
+            <h2 className="text-xl font-semibold text-white mb-2">Publish to live domain</h2>
             {scheduleInfo && (
               <p className="text-sm text-amber-400/90 mb-2">
                 Already scheduled for {new Date(scheduleInfo.scheduledAt).toLocaleString()}. Setting a new date will replace it.
@@ -816,12 +818,12 @@ function PreviewContent() {
             )}
             <p className="text-sm text-zinc-400 mb-4">
               {publishDomainName.trim()
-                ? "Confirm your domain name. You can change it later in the dashboard."
-                : "Domain name (subdomain) is required. Set it here or in Create project."}
+                ? "Your site will be published at the subdomain URL below. Design your site in the editor first—what you see in Preview is what gets published."
+                : "Enter a subdomain to create your live site. Design your site in the editor first—what you see in Preview is what gets published."}
             </p>
             <div className="space-y-2 mb-4">
               <label className="block text-sm font-medium text-gray-300">
-                Domain name (subdomain) <span className="text-red-400">*</span>
+                Live domain (subdomain) <span className="text-red-400">*</span>
               </label>
               <input
                 type="text"
@@ -830,11 +832,16 @@ function PreviewContent() {
                   setPublishDomainName(e.target.value);
                   setPublishDomainError("");
                 }}
-                placeholder="e.g. mystore → mystore.yourdomain.com"
+                placeholder="e.g. mystore → mystore.localhost (dev) or mystore.websitelink (prod)"
                 className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 autoFocus
               />
               <p className="text-xs text-zinc-500">Only letters, numbers, and hyphens.</p>
+              {publishDomainName.trim() && (
+                <p className="text-xs text-emerald-400/90 mt-1">
+                  Your site will be live at: <span className="font-mono font-medium">{getSubdomainSiteUrl(publishDomainName.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || 'site', typeof window !== 'undefined' ? window.location.origin : null).replace(/^https?:\/\//, '')}</span>
+                </p>
+              )}
               {publishDomainError && (
                 <p className="text-xs text-red-400">{publishDomainError}</p>
               )}
@@ -909,12 +916,12 @@ function PreviewContent() {
       {showPublishedSuccessModal && publishedSubdomain && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-semibold text-white mb-2">Published successfully</h2>
-            <p className="text-sm text-zinc-400 mb-1">Do you want to open your website now?</p>
-            <p className="text-xs text-zinc-500 mb-5">
+            <h2 className="text-xl font-semibold text-white mb-2">Your site is now live!</h2>
+            <p className="text-sm text-zinc-400 mb-2">Visit your published website:</p>
+            <p className="text-sm font-mono font-medium text-emerald-400 mb-5 break-all">
               {typeof window !== 'undefined'
                 ? getSubdomainSiteUrl(publishedSubdomain, window.location.origin).replace(/^https?:\/\//, '')
-                : `${publishedSubdomain}.localhost`}
+                : `localhost/sites/${publishedSubdomain}`}
             </p>
 
             <div className="flex justify-end gap-3">
@@ -939,7 +946,7 @@ function PreviewContent() {
                 }}
                 className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
               >
-                Open website
+                Visit live site
               </button>
             </div>
           </div>

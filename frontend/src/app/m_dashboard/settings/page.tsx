@@ -58,57 +58,29 @@ export default function SettingsPage() {
                 />
             </div>
             {/* Header */}
-            <section
-                className="rounded-2xl border p-5 md:p-6"
-                style={{
-                    backgroundColor: colors.bg.card,
-                    borderColor: colors.border.faint,
-                    boxShadow: theme === 'dark'
-                        ? 'inset 0 1px 0 rgba(255,255,255,0.06), 0 20px 50px rgba(2,6,23,0.55)'
-                        : 'inset 0 1px 0 rgba(255,255,255,0.8), 0 12px 30px rgba(15,23,42,0.12)',
-                }}
-            >
-                <div className="relative">
-                    <div
-                        className="absolute -inset-x-6 -inset-y-4 rounded-3xl opacity-70 blur-2xl"
-                        style={{
-                            background: theme === 'dark'
-                                ? 'radial-gradient(60% 60% at 20% 20%, rgba(99,102,241,0.2), transparent 60%), radial-gradient(55% 55% at 80% 20%, rgba(14,165,233,0.16), transparent 60%), radial-gradient(50% 50% at 40% 80%, rgba(16,185,129,0.14), transparent 60%)'
-                                : 'radial-gradient(60% 60% at 20% 20%, rgba(99,102,241,0.14), transparent 60%), radial-gradient(55% 55% at 80% 20%, rgba(14,165,233,0.12), transparent 60%), radial-gradient(50% 50% at 40% 80%, rgba(16,185,129,0.1), transparent 60%)'
-                        }}
-                    />
-                    <div className="relative z-10 text-center">
-                        <motion.p
-                            className="text-xs uppercase tracking-[0.2em] mb-2"
-                            style={{ color: colors.text.muted }}
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.4 }}
-                        >
-                            Control Center
-                        </motion.p>
-                        <motion.h1
-                            className="text-3xl sm:text-4xl font-bold tracking-tight bg-clip-text text-transparent"
-                            style={{
-                                backgroundImage: 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)'
-                            }}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.45 }}
-                        >
-                            Settings
-                        </motion.h1>
-                        <motion.p
-                            className="mt-2 text-sm md:text-base"
-                            style={{ color: colors.text.secondary }}
-                            initial={{ opacity: 0, y: 12 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.45, delay: 0.08 }}
-                        >
-                            Manage your account settings and preferences with a unified dashboard theme.
-                        </motion.p>
-                    </div>
-                </div>
+            <section className="relative z-10 mb-3 text-center pt-2 pb-1">
+                <motion.h1
+                    className="text-[40px] sm:text-[54px] lg:text-[66px] font-extrabold leading-[0.98] tracking-tight"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4 }}
+                >
+                    <span
+                        className="text-transparent bg-clip-text"
+                        style={{ backgroundImage: 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)' }}
+                    >
+                        Settings
+                    </span>
+                </motion.h1>
+                <motion.p
+                    className="mx-auto mt-2 max-w-[760px] text-sm md:text-base"
+                    style={{ color: colors.text.secondary }}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.42, delay: 0.08 }}
+                >
+                    Manage your account settings and preferences in one place.
+                </motion.p>
             </section>
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">

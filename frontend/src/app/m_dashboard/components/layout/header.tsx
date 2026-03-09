@@ -155,7 +155,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                     <button
                         type="button"
                         className="lg:hidden p-2 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10"
-                        style={{ color: colors.text.secondary }}
+                        style={{ color: theme === 'light' ? '#475569' : colors.text.secondary }}
                         onClick={onMenuToggle}
                         aria-label="Open menu"
                     >
@@ -176,7 +176,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                         type="button"
                         onClick={toggleTheme}
                         className="p-2 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10"
-                        style={{ color: colors.text.secondary }}
+                        style={{ color: theme === 'light' ? '#475569' : colors.text.secondary }}
                         aria-label="Toggle theme"
                     >
                         {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
@@ -186,7 +186,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                             type="button"
                             onClick={() => setShowNotifications(!showNotifications)}
                             className="p-2 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10 relative"
-                            style={{ color: colors.text.secondary }}
+                            style={{ color: theme === 'light' ? '#475569' : colors.text.secondary }}
                             aria-label="Notifications"
                         >
                             <BellIcon />
@@ -225,8 +225,8 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
 
                     <div className="relative flex items-center gap-3">
                         <div className="text-right hidden sm:block" style={{ fontFamily: 'var(--font-outfit), sans-serif' }}>
-                            <p className="text-sm font-medium" style={{ color: '#FFFFFF' }}>{headerIdentity}</p>
-                            <p className="text-xs" style={{ color: '#8799C0' }}>Website Owner</p>
+                            <p className="text-sm font-medium" style={{ color: theme === 'light' ? '#0F172A' : colors.text.primary }}>{headerIdentity}</p>
+                            <p className="text-xs" style={{ color: theme === 'light' ? '#475569' : colors.text.secondary }}>Website Owner</p>
                         </div>
                         <div className="relative">
                             <button

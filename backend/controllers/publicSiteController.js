@@ -2,6 +2,33 @@
 const Domain = require('../models/Domain');
 const Product = require('../models/Product');
 
+const MIGRATIONS = [
+  ['Create Beautiful Websites', 'Welcome to Our Website'],
+  ['Our visual builder makes it easy to create stunning websites without writing a single line of code.', "We're here to help you discover what you need. Browse our offerings and get in touch."],
+  ['Start Building', 'Learn More'],
+  ['"Excellent service and support. Highly recommended!"', '"Quality products and great experience. Will definitely be back."'],
+  ['John Doe', 'Happy Customer'],
+  ['CEO, Company Name', 'Verified Buyer'],
+  ['JD', 'HC'],
+];
+
+function migrateContent(val) {
+  if (typeof val === 'string') {
+    let out = val;
+    for (const [oldText, newText] of MIGRATIONS) {
+      if (out.includes(oldText)) out = out.split(oldText).join(newText);
+    }
+    return out;
+  }
+  if (Array.isArray(val)) return val.map(migrateContent);
+  if (val && typeof val === 'object' && val.constructor === Object) {
+    const out = {};
+    for (const [k, v] of Object.entries(val)) out[k] = migrateContent(v);
+    return out;
+  }
+  return val;
+}
+
 exports.getBySubdomain = async (req, res) => {
   try {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -24,8 +51,9 @@ exports.getBySubdomain = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Site not found. Publish from Preview or sync domains in Dashboard.' });
     }
 
-    // Serve only the published snapshot
-    const content = domain.publishedContent ?? null;
+    // Serve the published snapshot with migration for old default template text
+    const raw = domain.publishedContent ?? null;
+    const content = raw ? migrateContent(raw) : null;
     res.status(200).json({
       success: true,
       data: { content },
