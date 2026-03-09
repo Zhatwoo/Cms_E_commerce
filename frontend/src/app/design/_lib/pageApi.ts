@@ -150,7 +150,14 @@ export async function getDraft(projectId: string): Promise<DraftResponse> {
         const data = await response.json();
 
         if (!response.ok) {
-            console.warn('⚠️ Database load failed:', data.message);
+            const msg = data?.message || '';
+            if (response.status === 401) {
+                return { success: false, data: null, error: 'auth' };
+            }
+            if (response.status === 403) {
+                return { success: false, data: null, error: 'forbidden' };
+            }
+            console.warn('⚠️ Database load failed:', msg);
             const fallback = { success: true, data: null };
             draftCache.set(projectId, { expiresAt: now + 4000, value: fallback });
             return fallback;

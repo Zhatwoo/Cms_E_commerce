@@ -4,6 +4,7 @@ const Domain = require('../models/Domain');
 const { deleteProjectStorageFolder } = require('../utils/storageHelpers');
 const { getLimits } = require('../utils/subscriptionLimits');
 const { getTrashRetentionDays } = require('../utils/trashConfig');
+const { resolveProjectOwner } = require('../utils/resolveProjectOwner');
 
 // @desc    List current user's projects
 // @route   GET /api/projects
@@ -118,7 +119,23 @@ exports.getBySubdomain = async (req, res) => {
 exports.getOne = async (req, res) => {
   try {
     const userId = req.user.id;
-    const project = await Project.get(userId, req.params.id);
+    const userEmail = (req.user.email || '').toLowerCase();
+    const projectId = req.params.id;
+
+    // Try direct ownership first (fast)
+    let project = await Project.get(userId, projectId);
+
+    // If not owned, check if user is a collaborator
+    if (!project) {
+      const resolved = await resolveProjectOwner(userId, projectId, userEmail);
+      if (resolved) {
+        project = await Project.get(resolved.ownerId, projectId);
+        if (project) {
+          project.collaboratorPermission = resolved.permission;
+        }
+      }
+    }
+
     if (!project) {
       return res.status(404).json({
         success: false,
