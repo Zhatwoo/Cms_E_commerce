@@ -160,6 +160,8 @@ export function FreeDropPlacementHandler() {
         const isLayoutLike = LAYOUT_LIKE_TYPES.has(displayName);
         const parentNode = nodes[parentId];
         const parentDisplayName = parentNode?.data?.displayName ?? "";
+        const shouldImageFillParent =
+          displayName === "Image" && parentDisplayName === "Section";
         const parentProps = (parentNode?.data?.props ?? {}) as Record<string, unknown>;
         const parentDisplay = String(parentProps.display ?? "flex").toLowerCase();
         const parentIsFreeform = parentProps.isFreeform === true;
@@ -326,7 +328,12 @@ export function FreeDropPlacementHandler() {
               props.width = "100%";
               props.maxWidth = "100%";
               props.minWidth = 0;
-              if (props.height == null || String(props.height).toLowerCase() === "100%") {
+              if (shouldImageFillParent) {
+                props.height = "100%";
+                props.maxHeight = "100%";
+                props.minHeight = 0;
+                if (!props.objectFit) props.objectFit = "cover";
+              } else if (props.height == null || String(props.height).toLowerCase() === "100%") {
                 props.height = "auto";
               }
             }
@@ -378,6 +385,21 @@ export function FreeDropPlacementHandler() {
           if (!isLayoutLike) {
             if (props.right == null) props.right = "auto";
             if (props.bottom == null) props.bottom = "auto";
+          }
+
+          if (shouldImageFillParent) {
+            props.position = "relative";
+            props.left = "auto";
+            props.top = "auto";
+            props.right = "auto";
+            props.bottom = "auto";
+            props.width = "100%";
+            props.height = "100%";
+            props.maxWidth = "100%";
+            props.maxHeight = "100%";
+            props.minWidth = 0;
+            props.minHeight = 0;
+            if (!props.objectFit) props.objectFit = "cover";
           }
         });
       });

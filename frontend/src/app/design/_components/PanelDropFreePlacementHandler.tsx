@@ -159,6 +159,8 @@ export function PanelDropFreePlacementHandler() {
 
           const displayName = latestNodes[nodeId]?.data?.displayName;
           const parentDisplayName = latestNodes[parentId]?.data?.displayName;
+          const shouldImageFillParent =
+            displayName === "Image" && parentDisplayName === "Section";
           if (displayName === "Column") {
             if (parentDisplayName && HORIZONTAL_COLUMN_PARENTS.has(parentDisplayName)) {
               actions.setProp(parentId, (props: Record<string, unknown>) => {
@@ -217,7 +219,7 @@ export function PanelDropFreePlacementHandler() {
               props.marginTop = 0;
               props.marginLeft = 0;
 
-              if (parentDisplayName === "Section" && displayName === "Image") {
+              if (shouldImageFillParent) {
                 props.width = "100%";
                 props.height = "100%";
                 props.maxWidth = "100%";
@@ -240,7 +242,7 @@ export function PanelDropFreePlacementHandler() {
               props.marginLeft = nextML;
               props.marginTop = nextMT;
 
-              if (parentDisplayName === "Section" && displayName === "Image") {
+              if (shouldImageFillParent) {
                 props.width = "100%";
                 props.height = "100%";
                 props.maxWidth = "100%";

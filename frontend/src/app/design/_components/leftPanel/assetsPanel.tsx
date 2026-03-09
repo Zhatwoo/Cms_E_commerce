@@ -22,6 +22,9 @@ const SAFE_CONTAINER: React.ComponentType<any> =
   (typeof Container === "function" ? Container : null) ??
   ((props: any) => React.createElement("div", props, props?.children));
 
+const asComponent = (value: unknown): React.ComponentType<any> =>
+  typeof value === "function" ? (value as React.ComponentType<any>) : SAFE_CONTAINER;
+
 function withResolverFallback<T extends Record<string, React.ComponentType<any>>>(base: T): T {
   return new Proxy(base, {
     get(target, prop, receiver) {
@@ -97,25 +100,30 @@ const ASSET_ICONS: Record<string, React.ReactNode> = {
 
 const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverFallback({
   ...CRAFT_RESOLVER,
-  Frame: (typeof FrameComponent === "function" ? FrameComponent : null) ?? SAFE_CONTAINER,
-  frame: (typeof FrameComponent === "function" ? FrameComponent : null) ?? SAFE_CONTAINER,
+  Frame: asComponent(FrameComponent),
+  frame: asComponent(FrameComponent),
   Container: SAFE_CONTAINER,
   container: SAFE_CONTAINER,
-  Text: (typeof Text === "function" ? Text : null) ?? SAFE_CONTAINER,
-  text: (typeof Text === "function" ? Text : null) ?? SAFE_CONTAINER,
-  Page: (typeof Page === "function" ? Page : null) ?? SAFE_CONTAINER,
-  page: (typeof Page === "function" ? Page : null) ?? SAFE_CONTAINER,
-  Viewport: (typeof Viewport === "function" ? Viewport : null) ?? SAFE_CONTAINER,
-  viewport: (typeof Viewport === "function" ? Viewport : null) ?? SAFE_CONTAINER,
-  Image: (typeof Image === "function" ? Image : null) ?? SAFE_CONTAINER,
-  image: (typeof Image === "function" ? Image : null) ?? SAFE_CONTAINER,
-  Button: (typeof Button === "function" ? Button : null) ?? SAFE_CONTAINER,
-  button: (typeof Button === "function" ? Button : null) ?? SAFE_CONTAINER,
-  Divider: (typeof Divider === "function" ? Divider : null) ?? SAFE_CONTAINER,
-  Section: (typeof Section === "function" ? Section : null) ?? SAFE_CONTAINER,
-  Row: (typeof Row === "function" ? Row : null) ?? SAFE_CONTAINER,
-  Column: (typeof Column === "function" ? Column : null) ?? SAFE_CONTAINER,
-  Icon: (typeof Icon === "function" ? Icon : null) ?? SAFE_CONTAINER,
+  CONTAINER: SAFE_CONTAINER,
+  Text: asComponent(Text),
+  text: asComponent(Text),
+  TEXT: asComponent(Text),
+  Page: asComponent(Page),
+  page: asComponent(Page),
+  PAGE: asComponent(Page),
+  Viewport: asComponent(Viewport),
+  viewport: asComponent(Viewport),
+  VIEWPORT: asComponent(Viewport),
+  Image: asComponent(Image),
+  image: asComponent(Image),
+  IMAGE: asComponent(Image),
+  Button: asComponent(Button),
+  button: asComponent(Button),
+  Divider: asComponent(Divider),
+  Section: asComponent(Section),
+  Row: asComponent(Row),
+  Column: asComponent(Column),
+  Icon: asComponent(Icon),
 });
 
 const AssetLivePreview = ({

@@ -128,21 +128,26 @@ const SAFE_CONTAINER: React.ComponentType<any> =
   (typeof Container === "function" ? Container : null) ??
   ((props: any) => React.createElement("div", props, props?.children));
 
+const asComponent = (value: unknown): React.ComponentType<any> =>
+  typeof value === "function" ? (value as React.ComponentType<any>) : SAFE_CONTAINER;
+
 const VALIDATOR_RESOLVER: Record<string, React.ComponentType<any>> = {
   ...RenderBlocks,
   ...CRAFT_RESOLVER,
   Container: SAFE_CONTAINER,
   container: SAFE_CONTAINER,
-  Button: (typeof Button === "function" ? Button : null) ?? SAFE_CONTAINER,
-  button: (typeof Button === "function" ? Button : null) ?? SAFE_CONTAINER,
-  Text: Text || SAFE_CONTAINER,
-  text: Text || SAFE_CONTAINER,
-  Image: Image || SAFE_CONTAINER,
-  image: Image || SAFE_CONTAINER,
-  Page: Page || SAFE_CONTAINER,
-  page: Page || SAFE_CONTAINER,
-  Viewport: Viewport || SAFE_CONTAINER,
-  viewport: Viewport || SAFE_CONTAINER,
+  CONTAINER: SAFE_CONTAINER,
+  Button: asComponent(Button),
+  button: asComponent(Button),
+  Text: asComponent(Text),
+  text: asComponent(Text),
+  Image: asComponent(Image),
+  image: asComponent(Image),
+  IMAGE: asComponent(Image),
+  Page: asComponent(Page),
+  page: asComponent(Page),
+  Viewport: asComponent(Viewport),
+  viewport: asComponent(Viewport),
 };
 
 const VALIDATOR_CANONICAL_NAME_BY_LOWER = new Map<string, string>();
@@ -156,7 +161,15 @@ for (const key of Object.keys(VALIDATOR_RESOLVER)) {
 function normalizeResolvedName(rawName: unknown): string {
   const name = typeof rawName === "string" ? rawName.trim() : "";
   if (!name) return "Container";
-  return VALIDATOR_CANONICAL_NAME_BY_LOWER.get(name.toLowerCase()) ?? "Container";
+  const lowered = name.toLowerCase();
+  const exact = VALIDATOR_CANONICAL_NAME_BY_LOWER.get(lowered);
+  if (exact) return exact;
+  if (lowered.includes("image")) return "Image";
+  if (lowered.includes("text")) return "Text";
+  if (lowered.includes("container")) return "Container";
+  if (lowered.includes("page")) return "Page";
+  if (lowered.includes("viewport")) return "Viewport";
+  return "Container";
 }
 
 function withResolverFallback<T extends Record<string, React.ComponentType>>(base: T): T {
@@ -1920,18 +1933,18 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     const base: Record<string, any> = {
       ...RenderBlocks,
       ...CRAFT_RESOLVER,
-      Button: (typeof Button === "function" ? Button : null) ?? SAFE_CONTAINER,
-      button: (typeof Button === "function" ? Button : null) ?? SAFE_CONTAINER,
-      Text: Text || SAFE_CONTAINER,
-      text: Text || SAFE_CONTAINER,
-      Image: Image || SAFE_CONTAINER,
-      image: Image || SAFE_CONTAINER,
-      Circle: Circle || SAFE_CONTAINER,
-      Square: Square || SAFE_CONTAINER,
-      Triangle: Triangle || SAFE_CONTAINER,
-      circle: Circle || SAFE_CONTAINER,
-      square: Square || SAFE_CONTAINER,
-      triangle: Triangle || SAFE_CONTAINER,
+      Button: asComponent(Button),
+      button: asComponent(Button),
+      Text: asComponent(Text),
+      text: asComponent(Text),
+      Image: asComponent(Image),
+      image: asComponent(Image),
+      Circle: asComponent(Circle),
+      Square: asComponent(Square),
+      Triangle: asComponent(Triangle),
+      circle: asComponent(Circle),
+      square: asComponent(Square),
+      triangle: asComponent(Triangle),
     };
     // Force Frame to always exist; Craft looks up by "Frame" and sometimes "frame"
     base.Frame = FrameForResolver;
@@ -1940,16 +1953,18 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     // Prefer the locally imported Container component so we never end up with an undefined value
     base.Container = SAFE_CONTAINER;
     base.container = SAFE_CONTAINER;
+    base.CONTAINER = SAFE_CONTAINER;
     // Ensure Page and Viewport always in resolver (serialized drafts reference these by type)
-    base.Page = CRAFT_RESOLVER.Page ?? Page ?? SAFE_CONTAINER;
-    base.page = CRAFT_RESOLVER.Page ?? Page ?? SAFE_CONTAINER;
-    base.Viewport = CRAFT_RESOLVER.Viewport ?? Viewport ?? SAFE_CONTAINER;
-    base.viewport = CRAFT_RESOLVER.Viewport ?? Viewport ?? SAFE_CONTAINER;
-    base.Image = (typeof Image === "function" ? Image : null) ?? SAFE_CONTAINER;
-    base.image = (typeof Image === "function" ? Image : null) ?? SAFE_CONTAINER;
-    base.Text = (typeof Text === "function" ? Text : null) ?? SAFE_CONTAINER;
-    base.text = (typeof Text === "function" ? Text : null) ?? SAFE_CONTAINER;
-    return base;
+    base.Page = asComponent(CRAFT_RESOLVER.Page ?? Page);
+    base.page = asComponent(CRAFT_RESOLVER.Page ?? Page);
+    base.Viewport = asComponent(CRAFT_RESOLVER.Viewport ?? Viewport);
+    base.viewport = asComponent(CRAFT_RESOLVER.Viewport ?? Viewport);
+    base.Image = asComponent(CRAFT_RESOLVER.Image ?? Image);
+    base.image = asComponent(CRAFT_RESOLVER.image ?? Image);
+    base.IMAGE = asComponent(CRAFT_RESOLVER.IMAGE ?? CRAFT_RESOLVER.Image ?? Image);
+    base.Text = asComponent(CRAFT_RESOLVER.Text ?? Text);
+    base.text = asComponent(CRAFT_RESOLVER.text ?? Text);
+    return withResolverFallback(base);
   }, []);
 
   resolverRef.current = resolver;

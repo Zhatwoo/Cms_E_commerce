@@ -34,11 +34,14 @@ export const Image = ({
   const { id, connectors: { connect, drag }, parentId } = useNode((node) => ({
     parentId: node.data.parent,
   }));
-  const { parentDisplay } = useEditor((state) => ({
+  const { parentDisplay, parentDisplayName } = useEditor((state) => ({
     parentDisplay: parentId ? String(state.nodes[parentId]?.data?.props?.display ?? "") : "",
+    parentDisplayName: parentId ? String(state.nodes[parentId]?.data?.displayName ?? "") : "",
   }));
   const shouldFillParent = parentDisplay === "flex" || parentDisplay === "grid";
-  const resolvedHeight = height ?? "auto";
+  const isContainerLikeParent = parentDisplayName === "Container" || parentDisplayName === "Section";
+  const isAutoHeight = typeof height !== "string" || height.trim().toLowerCase() === "auto";
+  const resolvedHeight = isContainerLikeParent && isAutoHeight ? "100%" : (height ?? "auto");
 
   // Handle empty or invalid src
   const imageSrc = src && src.trim() !== ""
