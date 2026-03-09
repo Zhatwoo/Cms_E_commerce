@@ -11,14 +11,14 @@ const THEME_STORAGE_KEY = 'm_dashboard_theme';
 export const THEMES = {
   dark: {
     bg: {
-      primary: '#1A1A4C',
-      primaryEnd: '#191E2D',
+      primary: '#110248',
+      primaryEnd: '#090029',
       dark: '#191E2D',
-      card: '#2C354F',
-      elevated: '#2C354F',
+      card: '#141446',
+      elevated: '#141446',
       fog: '#191E2D',
-      sidebar: '#1A1A4C',
-      searchBar: '#2C354F',
+      sidebar: '#0A002D',
+      searchBar: '#141446',
     },
     text: {
       primary: '#FFFFFF',
@@ -28,7 +28,7 @@ export const THEMES = {
     },
     border: {
       default: '#4C597D',
-      faint: 'rgba(135, 153, 192, 0.35)',
+      faint: '#1F1F51',
     },
     accent: {
       yellow: '#FFCE00',
