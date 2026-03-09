@@ -46,7 +46,7 @@ const createGridProductItem = (name: string, price: string, imageText: string) =
         gap: 0,
       },
       React.createElement(Image as any, {
-        src: `https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80&text=${encodeURIComponent(imageText)}`,
+        src: `https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80`,
         alt: name,
         width: "100%",
         height: "100%",

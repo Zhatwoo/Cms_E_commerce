@@ -40,6 +40,7 @@ import { ScrollToSelectedHandler } from "./ScrollToSelectedHandler";
 import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
+import { migratePublishedContent } from "../_lib/contentMigration";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 import { Circle } from "../../_assets/shapes/circle/circle";
 import { Square } from "../../_assets/shapes/square/square";
@@ -447,12 +448,13 @@ if (typeof window !== "undefined") {
     const originalError = win.__craftOriginalConsoleError__ ?? console.error.bind(console);
     win.__craftOriginalConsoleError__ = originalError;
     console.error = (...args: unknown[]) => {
-      if (typeof args[0] === "string") {
-        // React 19 removed element.ref access — craftjs still uses old API internally
-        if (args[0].includes("Accessing element.ref was removed")) return;
-        // craftjs store updates trigger setState during Frame render in React 19 concurrent mode
-        if (args[0].includes("Cannot update a component") && args[0].includes("while rendering a different component")) return;
-      }
+      const concat = args.map((a) => (typeof a === "string" ? a : String(a))).join(" ");
+      // React 19 removed element.ref access — craftjs still uses old API internally
+      if (concat.includes("Accessing element.ref was removed")) return;
+      // craftjs store updates trigger setState during Frame render in React 19 concurrent mode
+      if (concat.includes("Cannot update a component") && concat.includes("while rendering a different component")) return;
+      // Known broken Unsplash image (content migration replaces; suppress noisy load error)
+      if (concat.includes("Error loading image") && concat.includes("photo-1581093458791-9f3c3900df4b")) return;
       originalError(...args);
     };
     win.__craftConsoleErrorPatched__ = true;
@@ -1521,13 +1523,27 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           }
         };
 
+        const applyMigration = (raw: string | object): string => {
+          try {
+            const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+            const migrated = migratePublishedContent(parsed);
+            return typeof migrated === "string" ? migrated : JSON.stringify(migrated);
+          } catch {
+            return typeof raw === "string" ? raw : JSON.stringify(raw);
+          }
+        };
+
         const normalizeToCraftJson = (input: unknown): string | null => {
           try {
             if (input == null) return null;
-            if (typeof input === "string") {
-              const parsed = JSON.parse(input);
+            const migratedStr = typeof input === "string"
+              ? applyMigration(input)
+              : applyMigration(input as object);
+            const input2 = migratedStr;
+            if (typeof input2 === "string") {
+              const parsed = JSON.parse(input2);
               if (parsed && parsed.ROOT && Array.isArray(parsed.ROOT.nodes)) {
-                const validated = validateCraftData(input);
+                const validated = validateCraftData(input2);
                 return validated.valid && validated.data ? validated.data : null;
               }
               if (

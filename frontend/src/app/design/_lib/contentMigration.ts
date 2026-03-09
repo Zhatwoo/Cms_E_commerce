@@ -12,7 +12,14 @@ const MIGRATIONS: Array<[string, string]> = [
   ['John Doe', 'Happy Customer'],
   ['CEO, Company Name', 'Verified Buyer'],
   ['JD', 'HC'], // avatar initials
+  // Broken Unsplash URLs (invalid photo ID or unsupported text param)
+  ['https://images.unsplash.com/photo-1581093458791-9f3c3900df4b?auto=format&fit=crop&w=700&q=80&text=Accessories', 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=700&q=80'],
+  ['photo-1581093458791-9f3c3900df4b?auto=format&fit=crop&w=700&q=80&text=', 'photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=700&q=80'],
 ];
+
+// Match full Unsplash URL with broken photo ID (catches all param variations)
+const BROKEN_UNSPLASH_PATTERN = /https:\/\/images\.unsplash\.com\/photo-1581093458791-9f3c3900df4b[^"'\s]*/g;
+const FIXED_UNSPLASH = 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=700&q=80';
 
 function replaceInString(s: string): string {
   let out = s;
@@ -21,6 +28,7 @@ function replaceInString(s: string): string {
       out = out.split(oldText).join(newText);
     }
   }
+  out = out.replace(BROKEN_UNSPLASH_PATTERN, FIXED_UNSPLASH);
   return out;
 }
 

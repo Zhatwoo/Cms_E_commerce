@@ -39,7 +39,7 @@ const generatedImageIds = [
   "photo-1518770660439-4636190af475",
   "photo-1523170335258-f5ed11844a49",
   "photo-1548036328-c9fa89d128fa",
-  "photo-1581093458791-9f3c3900df4b",
+  "photo-1517336714731-489689fd1ca8",
   "photo-1587854692152-cbe660dbde88",
   "photo-1596462502278-27bfdc403348",
   "photo-1612872087720-bb876e2e67d1",
@@ -50,7 +50,7 @@ const generatedImageIds = [
 
 function getGeneratedImage(title: string, index: number) {
   const id = generatedImageIds[index % generatedImageIds.length];
-  return `https://images.unsplash.com/${id}?auto=format&fit=crop&w=700&q=80&text=${encodeURIComponent(title)}`;
+  return `https://images.unsplash.com/${id}?auto=format&fit=crop&w=700&q=80`;
 }
 
 function browseBtn() {
