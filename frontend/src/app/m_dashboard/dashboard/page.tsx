@@ -352,22 +352,32 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
 
   return (
     <section className="relative min-h-[calc(100vh-176px)] px-3 py-3 sm:px-5 sm:py-4 lg:px-[100px] [font-family:var(--font-outfit),sans-serif]">
-      <div className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full blur-3xl opacity-25 bg-[#5C1D8F]" />
-      <div className="pointer-events-none absolute top-44 right-20 h-56 w-56 rounded-full blur-3xl opacity-20 bg-[#3F2A9A]" />
-      <div className="pointer-events-none absolute -bottom-28 right-2 h-80 w-80 rounded-full blur-3xl opacity-30 bg-[#11144E]" />
-
       <div className="relative z-10 mx-auto w-full max-w-none flex flex-col gap-10">
         <div className="flex flex-col items-center text-center gap-6 pt-1">
           <h1
-            className={`text-4xl sm:text-6xl lg:text-[76px] font-extrabold leading-[1.06] tracking-tight max-w-5xl [font-family:var(--font-outfit),sans-serif] ${theme === 'dark' ? 'bg-clip-text text-transparent' : 'text-[#000000]'}`}
-            style={{
-              backgroundImage: theme === 'dark'
-                ? 'linear-gradient(90deg,rgba(255,255,255,1) 0%,rgba(255,255,255,0.81) 15%,rgba(216,157,255,0.63) 31%,rgba(167,139,250,1) 54%,rgba(217,173,143,0.89) 82%,rgba(255,242,191,0.78) 88%,rgba(255,255,255,0.81) 97%)'
-                : 'none',
-            }}
+            className="text-4xl sm:text-6xl lg:text-[76px] font-extrabold leading-[1.06] tracking-tight max-w-5xl [font-family:var(--font-outfit),sans-serif] text-white"
           >
-            <span className="block">What website will</span>
-            <span className="block">you build?</span>
+            <span className="block">
+              What{' '}
+              <span
+                style={theme === 'dark'
+                  ? { backgroundImage: 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }
+                  : { color: '#5B21B6' }}
+              >
+                website
+              </span>{' '}
+              will
+            </span>
+            <span className="block">
+              you{' '}
+              <span
+                style={theme === 'dark'
+                  ? { backgroundImage: 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }
+                  : { color: '#5B21B6' }}
+              >
+                build?
+              </span>
+            </span>
           </h1>
 
           <div className="flex items-center gap-8 text-xs uppercase font-bold tracking-widest [font-family:var(--font-outfit),sans-serif]">
