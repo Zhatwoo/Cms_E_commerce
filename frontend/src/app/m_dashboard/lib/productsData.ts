@@ -2,6 +2,7 @@ export interface ProductVariantOption {
   id: string;
   name: string;
   priceAdjustment: number;
+  image?: string;
 }
 
 export interface ProductVariant {
@@ -25,6 +26,7 @@ export interface Product {
   hasVariants?: boolean;
   variants?: ProductVariant[];
   variantStocks?: Record<string, number>;
+  variantPrices?: Record<string, number>;
   priceRangeMin?: number | null;
   priceRangeMax?: number | null;
   stock: number;

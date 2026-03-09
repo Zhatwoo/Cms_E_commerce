@@ -26,22 +26,47 @@ function cartesian<T>(arrays: T[][]): T[][] {
   );
 }
 
-interface VariantOption { id: string; name: string; priceAdjustment: number; }
+interface VariantOption { id: string; name: string; priceAdjustment: number; image?: string; }
 interface Variant { id: string; name: string; pricingMode: 'modifier' | 'override'; options: VariantOption[]; }
 interface ProductImage { id: string; src: string; file?: File; }
 type VariantStockMap = Record<string, number>;
+type VariantPriceMap = Record<string, number>;
 
 function buildVariantStockKey(parts: Array<{ variantId: string; optionId: string }>): string {
   return parts
     .map((part) => `${part.variantId}:${part.optionId}`)
     .join('__');
 }
+
+function generateAutoSku(name?: string): string {
+  const cleaned = String(name || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9\s-]/g, ' ')
+    .trim();
+  const prefix = cleaned
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 3)
+    .map((chunk) => chunk.slice(0, 3))
+    .join('')
+    .slice(0, 9) || 'ITEM';
+  const suffix = Math.floor(1000 + Math.random() * 9000);
+  return `${prefix}-${suffix}`;
+}
+
+const MAX_VARIANTS = 2;
+
+function isColorVariantName(name?: string): boolean {
+  return String(name || '').trim().toLowerCase().includes('color');
+}
+
 interface FormData {
   name: string; sku: string; category: string; description: string;
   status: 'active' | 'inactive' | 'draft';
   price: number; costPrice: number; discount: number; discountType: 'percentage' | 'fixed';
   images: string[]; stock: number; lowStockThreshold: number;
-  hasVariants: boolean; variants: Variant[]; variantStocks: VariantStockMap;
+  trackInventory: boolean; inventoryStatus: 'in_stock' | 'out_of_stock';
+  hasVariants: boolean; variants: Variant[]; variantStocks: VariantStockMap; variantPrices: VariantPriceMap;
 }
 
 export default function ProductAddModal({ isOpen, onClose, onSave, editingProduct, uploadSubdomain, projectIndustry }: {
@@ -56,6 +81,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
 
   const [images, setImages] = useState<ProductImage[]>([]);
   const [saving, setSaving] = useState(false);
+  const [enableVariationImages, setEnableVariationImages] = useState(false);
   const [slide, setSlide] = useState(0);
   const [slideDir, setSlideDir] = useState<1 | -1>(1);
   const [dragging, setDragging] = useState(false);
@@ -64,9 +90,9 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [fd, setFd] = useState<FormData>({
-    name: '', sku: '', category: '', description: '',
+    name: '', sku: generateAutoSku(''), category: '', description: '',
     status: 'active', price: 0, costPrice: 0, discount: 0, discountType: 'percentage',
-    images: [], stock: 100, lowStockThreshold: 20, hasVariants: false, variants: [], variantStocks: {},
+    images: [], stock: 100, lowStockThreshold: 20, trackInventory: true, inventoryStatus: 'in_stock', hasVariants: false, variants: [], variantStocks: {}, variantPrices: {},
   });
   const [customCategoryInput, setCustomCategoryInput] = useState('');
   const [customCategories, setCustomCategories] = useState<string[]>([]);
@@ -96,6 +122,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
               id: String(option?.id || `opt-${variantIndex + 1}-${optionIndex + 1}`),
               name: String(option?.name || ''),
               priceAdjustment: Number(option?.priceAdjustment || 0),
+              image: String(option?.image || '').trim(),
             }))
             : [],
         }))
@@ -124,25 +151,46 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
             return acc;
           }, {})
           : {};
+      const existingVariantPrices: VariantPriceMap =
+        (editingProduct as Product & { variantPrices?: unknown } | undefined)?.variantPrices
+        && typeof (editingProduct as Product & { variantPrices?: unknown }).variantPrices === 'object'
+          ? Object.entries(((editingProduct as Product & { variantPrices?: Record<string, unknown> }).variantPrices || {})).reduce<VariantPriceMap>((acc, [key, value]) => {
+            const parsed = Number(value);
+            acc[key] = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+            return acc;
+          }, {})
+          : {};
+      const inferredInventoryStatus: 'in_stock' | 'out_of_stock' = (editingProduct?.stock ?? 0) > 0 ? 'in_stock' : 'out_of_stock';
 
       setImages(imageList.map((src) => ({ id: uid(), src })));
       setSlide(0);
+      setEnableVariationImages(existingVariants.some((variant) =>
+        variant.options.some((option) => Boolean(String(option.image || '').trim()))
+      ));
       setCustomCategoryInput('');
       setCustomCategories([]);
       setFd({
-        name: editingProduct?.name || '', sku: editingProduct?.sku || String(Math.floor(100000 + Math.random() * 900000)),
+        name: editingProduct?.name || '', sku: editingProduct?.sku || generateAutoSku(editingProduct?.name || ''),
         category: editingProduct?.category || '', description: editingProduct?.description || '',
         status: editingProduct?.status || 'active', price: basePrice,
         costPrice: typeof editingProduct?.costPrice === 'number' ? editingProduct.costPrice : 0,
         discount, discountType, images: imageList,
         stock: editingProduct?.stock ?? 100,
         lowStockThreshold: typeof editingProduct?.lowStockThreshold === 'number' ? editingProduct.lowStockThreshold : 20,
+        trackInventory: true,
+        inventoryStatus: inferredInventoryStatus,
         hasVariants,
         variants: existingVariants,
         variantStocks: existingVariantStocks,
+        variantPrices: existingVariantPrices,
       });
     }
   }, [isOpen, editingProduct]);
+
+  useEffect(() => {
+    if (!fd.hasVariants) return;
+    setFd((prev) => (prev.trackInventory ? prev : { ...prev, trackInventory: true }));
+  }, [fd.hasVariants]);
 
   // Lock body scroll when open
   useEffect(() => {
@@ -225,35 +273,45 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
     if (!av.length) return [];
     const groups = av.map(v => v.options.map(o => ({ variant: v, option: o })));
     return cartesian(groups).map(combo => {
-      let base = discBase;
-      combo.forEach(({ variant, option }) => { if (variant.pricingMode === 'override' && option.priceAdjustment > 0) base = option.priceAdjustment; });
-      combo.forEach(({ variant, option }) => { if (variant.pricingMode === 'modifier') base += option.priceAdjustment; });
       const stockKey = buildVariantStockKey(
         combo.map((item) => ({ variantId: item.variant.id, optionId: item.option.id }))
       );
-      return { label: combo.map(c => `${c.variant.name}: ${c.option.name}`).join(' / '), price: Math.max(0, base), stockKey };
+      const nonColorParts = combo
+        .filter((item) => !isColorVariantName(item.variant.name))
+        .map((item) => ({ variantId: item.variant.id, optionId: item.option.id }));
+      const priceGroupKey = nonColorParts.length > 0 ? buildVariantStockKey(nonColorParts) : 'all';
+      const mappedPrice = Number(fd.variantPrices?.[stockKey]);
+      const price = Number.isFinite(mappedPrice) && mappedPrice >= 0 ? mappedPrice : Math.max(0, discBase);
+      return { label: combo.map(c => c.option.name).join(' / '), price, stockKey, priceGroupKey };
     });
-  }, [fd.variants, fd.hasVariants, discBase]);
+  }, [fd.variants, fd.hasVariants, discBase, fd.variantPrices]);
 
   useEffect(() => {
     if (!fd.hasVariants || combos.length === 0) return;
 
     setFd((prev) => {
       const nextVariantStocks: VariantStockMap = {};
+      const nextVariantPrices: VariantPriceMap = {};
       for (const combo of combos) {
         const current = Number(prev.variantStocks?.[combo.stockKey] ?? 0);
         nextVariantStocks[combo.stockKey] = Number.isFinite(current) && current > 0 ? Math.floor(current) : 0;
+        const currentPrice = Number(prev.variantPrices?.[combo.stockKey]);
+        nextVariantPrices[combo.stockKey] = Number.isFinite(currentPrice) && currentPrice >= 0 ? currentPrice : Math.max(0, discBase);
       }
 
-      const prevKeys = Object.keys(prev.variantStocks || {});
-      const nextKeys = Object.keys(nextVariantStocks);
-      if (prevKeys.length === nextKeys.length && nextKeys.every((key) => prev.variantStocks[key] === nextVariantStocks[key])) {
+      const prevStockKeys = Object.keys(prev.variantStocks || {});
+      const nextStockKeys = Object.keys(nextVariantStocks);
+      const prevPriceKeys = Object.keys(prev.variantPrices || {});
+      const nextPriceKeys = Object.keys(nextVariantPrices);
+      const sameStocks = prevStockKeys.length === nextStockKeys.length && nextStockKeys.every((key) => prev.variantStocks[key] === nextVariantStocks[key]);
+      const samePrices = prevPriceKeys.length === nextPriceKeys.length && nextPriceKeys.every((key) => prev.variantPrices[key] === nextVariantPrices[key]);
+      if (sameStocks && samePrices) {
         return prev;
       }
 
-      return { ...prev, variantStocks: nextVariantStocks };
+      return { ...prev, variantStocks: nextVariantStocks, variantPrices: nextVariantPrices };
     });
-  }, [combos, fd.hasVariants]);
+  }, [combos, fd.hasVariants, discBase]);
 
   const range = useMemo(() => {
     if (!combos.length) return null;
@@ -262,20 +320,55 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
   }, [combos]);
 
   // Variant helpers
-  const addVariant = () => patch({ variants: [...fd.variants, { id: uid(), name: '', pricingMode: 'modifier', options: [] }] });
-  const remVariant = (id: string) => patch({ variants: fd.variants.filter(v => v.id !== id) });
+  const addVariant = () => {
+    if (fd.variants.length >= MAX_VARIANTS) {
+      showAlert(`You can only add up to ${MAX_VARIANTS} variants.`, 'error');
+      return;
+    }
+    patch({ variants: [...fd.variants, { id: uid(), name: '', pricingMode: 'modifier', options: [] }] });
+  };
+  const remVariant = (id: string) => {
+    const nextVariants = fd.variants.filter(v => v.id !== id);
+    patch({ variants: nextVariants, hasVariants: nextVariants.length > 0 ? fd.hasVariants : false });
+  };
   const updVariant = (id: string, f: keyof Variant, v: any) => patch({ variants: fd.variants.map(x => x.id === id ? { ...x, [f]: v } : x) });
-  const addOpt = (vid: string) => patch({ variants: fd.variants.map(v => v.id === vid ? { ...v, options: [...v.options, { id: uid(), name: '', priceAdjustment: 0 }] } : v) });
+  const addOpt = (vid: string) => patch({ variants: fd.variants.map(v => v.id === vid ? { ...v, options: [...v.options, { id: uid(), name: '', priceAdjustment: 0, image: '' }] } : v) });
   const remOpt = (vid: string, oid: string) => patch({ variants: fd.variants.map(v => v.id === vid ? { ...v, options: v.options.filter(o => o.id !== oid) } : v) });
   const updOpt = (vid: string, oid: string, f: keyof VariantOption, v: any) => patch({ variants: fd.variants.map(x => x.id === vid ? { ...x, options: x.options.map(o => o.id === oid ? { ...o, [f]: v } : o) } : x) });
+  const [uploadingOptionImage, setUploadingOptionImage] = useState<Record<string, boolean>>({});
+
+  const uploadOptionImage = async (variantId: string, optionId: string, file: File) => {
+    if (!file.type.startsWith('image/')) {
+      showAlert('Invalid file type', 'error');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      showAlert('Max 8MB per image', 'error');
+      return;
+    }
+
+    const key = `${variantId}:${optionId}`;
+    setUploadingOptionImage((prev) => ({ ...prev, [key]: true }));
+    try {
+      const response = await uploadProductImageApi(file, uploadSubdomain || undefined);
+      if (!response?.url) {
+        throw new Error(response?.message || 'Failed to upload option image');
+      }
+      updOpt(variantId, optionId, 'image', response.url);
+    } catch (error) {
+      showAlert(error instanceof Error ? error.message : 'Failed to upload option image', 'error');
+    } finally {
+      setUploadingOptionImage((prev) => ({ ...prev, [key]: false }));
+    }
+  };
 
   const save = async () => {
     if (saving) return;
     if (!fd.name.trim()) { showAlert('Please enter a product name', 'error'); return; }
-    if (!fd.sku.trim()) { showAlert('Please enter a SKU', 'error'); return; }
     if (fd.price <= 0) { showAlert('Please enter a valid price', 'error'); return; }
     setSaving(true);
     try {
+      const normalizedSku = fd.sku.trim() || generateAutoSku(fd.name);
       const variants: Variant[] = fd.variants
         .map((variant): Variant => ({
           id: String(variant.id || uid()),
@@ -286,12 +379,18 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
               id: String(option.id || uid()),
               name: String(option.name || '').trim(),
               priceAdjustment: Number(option.priceAdjustment || 0),
+              image: String(option.image || '').trim(),
             }))
-            .filter((option) => option.name || option.priceAdjustment !== 0),
+            .filter((option) => option.name || option.priceAdjustment !== 0 || option.image),
         }))
         .filter((variant) => variant.name || variant.options.length > 0);
 
       const hasVariants = fd.hasVariants && variants.length > 0;
+      if (hasVariants && combos.length === 0) {
+        showAlert('Add at least one option to generate variant combinations.', 'error');
+        setSaving(false);
+        return;
+      }
       const combinationStockMap: VariantStockMap = hasVariants
         ? combos.reduce<VariantStockMap>((acc, combo) => {
           const amount = Number(fd.variantStocks?.[combo.stockKey] ?? 0);
@@ -299,15 +398,25 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
           return acc;
         }, {})
         : {};
+      const combinationPriceMap: VariantPriceMap = hasVariants
+        ? combos.reduce<VariantPriceMap>((acc, combo) => {
+          const amount = Number(fd.variantPrices?.[combo.stockKey] ?? Math.max(0, discBase));
+          acc[combo.stockKey] = Number.isFinite(amount) && amount >= 0 ? amount : Math.max(0, discBase);
+          return acc;
+        }, {})
+        : {};
       const combinationTotalStock = hasVariants
         ? Object.values(combinationStockMap).reduce((sum, amount) => sum + amount, 0)
         : 0;
       const basePrice = Number(fd.price || 0);
+      const combinationPrices = hasVariants ? Object.values(combinationPriceMap) : [];
       const finalPrice = hasVariants
-        ? Number(range?.min ?? Math.max(0, discBase))
+        ? Number((combinationPrices.length ? Math.min(...combinationPrices) : Math.max(0, discBase)))
         : Math.max(0, discBase);
-      const priceRangeMin = hasVariants ? Number(range?.min ?? finalPrice) : finalPrice;
-      const priceRangeMax = hasVariants ? Number(range?.max ?? finalPrice) : finalPrice;
+      const priceRangeMin = hasVariants ? Number((combinationPrices.length ? Math.min(...combinationPrices) : finalPrice)) : finalPrice;
+      const priceRangeMax = hasVariants ? Number((combinationPrices.length ? Math.max(...combinationPrices) : finalPrice)) : finalPrice;
+      const computedStock = hasVariants ? combinationTotalStock : Math.max(0, fd.stock);
+      const computedInventoryStatus: 'in_stock' | 'out_of_stock' = computedStock > 0 ? 'in_stock' : 'out_of_stock';
 
       const uploadedImages: string[] = [];
       for (const image of images) {
@@ -324,6 +433,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
 
       const saved = await Promise.resolve(onSave({
         ...fd,
+        sku: normalizedSku,
         price: finalPrice,
         basePrice,
         finalPrice,
@@ -335,9 +445,13 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
         priceRangeMin,
         priceRangeMax,
         variantStocks: hasVariants ? combinationStockMap : {},
+        variantPrices: hasVariants ? combinationPriceMap : {},
         images: uploadedImages,
         image: uploadedImages[0] || '[product]',
-        stock: hasVariants ? combinationTotalStock : fd.stock,
+        stock: computedStock,
+        lowStockThreshold: fd.lowStockThreshold,
+        trackInventory: true,
+        inventoryStatus: computedInventoryStatus,
         id: editingProduct?.id || uid(),
         createdAt: editingProduct?.createdAt || new Date().toISOString(),
       }));
@@ -356,7 +470,6 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
   const hasDraft = () => {
     return (
       fd.name.trim() !== '' ||
-      fd.sku.trim() !== '' ||
       fd.category !== '' ||
       fd.description !== '' ||
       fd.price > 0 ||
@@ -373,66 +486,10 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
     () => fd.variants.filter((variant) => variant.options.length > 0),
     [fd.variants]
   );
-  const [selectedVariantOptions, setSelectedVariantOptions] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    if (!stockVariants.length) {
-      setSelectedVariantOptions((prev) => (Object.keys(prev).length ? {} : prev));
-      return;
-    }
-
-    setSelectedVariantOptions((prev) => {
-      const next: Record<string, string> = {};
-      for (const variant of stockVariants) {
-        const current = prev[variant.id];
-        const hasCurrent = current ? variant.options.some((option) => option.id === current) : false;
-        next[variant.id] = hasCurrent ? current : '';
-      }
-      const prevKeys = Object.keys(prev);
-      const nextKeys = Object.keys(next);
-      if (prevKeys.length === nextKeys.length && nextKeys.every((key) => prev[key] === next[key])) {
-        return prev;
-      }
-      return next;
-    });
-  }, [stockVariants]);
-
-  const selectedVariantStockKey = useMemo(() => {
-    if (!stockVariants.length) return null;
-    const parts: Array<{ variantId: string; optionId: string }> = [];
-    for (const variant of stockVariants) {
-      const optionId = selectedVariantOptions[variant.id];
-      if (!optionId) return null;
-      parts.push({ variantId: variant.id, optionId });
-    }
-    return buildVariantStockKey(parts);
-  }, [stockVariants, selectedVariantOptions]);
-
-  const selectedVariantLabel = useMemo(() => {
-    if (!stockVariants.length) return '';
-    const labels: string[] = [];
-    for (const variant of stockVariants) {
-      const optionId = selectedVariantOptions[variant.id];
-      if (!optionId) return '';
-      const option = variant.options.find((item) => item.id === optionId);
-      labels.push(`${variant.name}: ${option?.name || '-'}`);
-    }
-    return labels.join(' / ');
-  }, [stockVariants, selectedVariantOptions]);
-
-  const [variantStockDraft, setVariantStockDraft] = useState('');
-  const [savedStockKey, setSavedStockKey] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!selectedVariantStockKey) {
-      setVariantStockDraft('');
-      setSavedStockKey(null);
-      return;
-    }
-    const current = Number(fd.variantStocks?.[selectedVariantStockKey] ?? 0);
-    setVariantStockDraft(current > 0 ? String(current) : '');
-    setSavedStockKey(null);
-  }, [selectedVariantStockKey]);
+  const totalVariantStock = useMemo(
+    () => combos.reduce((sum, combo) => sum + Math.max(0, Number(fd.variantStocks?.[combo.stockKey] ?? 0)), 0),
+    [combos, fd.variantStocks]
+  );
 
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [colorDraftHex, setColorDraftHex] = useState('#DBD5D5');
@@ -584,7 +641,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
 
   const iCls = 'w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/40 transition-all';
   const iSt = { backgroundColor: '#191A69', borderColor: '#3140A6', color: '#FFFFFF' };
-  const lCls = 'block text-[14px] font-medium mb-2';
+  const lCls = 'block text-xs tracking-[0.12em] font-semibold uppercase mb-2';
 
   const colorVariant = fd.variants.find((variant) => variant.name.toLowerCase().includes('color'));
   const sizeVariant = fd.variants.find((variant) => variant.name.toLowerCase().includes('size'));
@@ -601,11 +658,16 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
   };
 
   const addColorOptionByHex = (hex: string) => {
+    let limitHit = false;
     setFd((prev) => {
       const normalizedHex = normalizeHex(hex);
       if (!normalizedHex) return prev;
       const index = prev.variants.findIndex((variant) => variant.name.toLowerCase().includes('color'));
       if (index === -1) {
+        if (prev.variants.length >= MAX_VARIANTS) {
+          limitHit = true;
+          return prev;
+        }
         return {
           ...prev,
           hasVariants: true,
@@ -615,7 +677,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
               id: uid(),
               name: 'Color',
               pricingMode: 'modifier',
-              options: [{ id: uid(), name: normalizedHex, priceAdjustment: 0 }],
+              options: [{ id: uid(), name: normalizedHex, priceAdjustment: 0, image: '' }],
             },
           ],
         };
@@ -627,10 +689,11 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
       const nextVariants = [...prev.variants];
       nextVariants[index] = {
         ...current,
-        options: [...current.options, { id: uid(), name: normalizedHex, priceAdjustment: 0 }],
+        options: [...current.options, { id: uid(), name: normalizedHex, priceAdjustment: 0, image: '' }],
       };
       return { ...prev, hasVariants: true, variants: nextVariants };
     });
+    if (limitHit) showAlert(`You can only add up to ${MAX_VARIANTS} variants.`, 'error');
   };
 
   const addColorOption = () => {
@@ -640,9 +703,14 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
 
   const addSizeOptionsByList = (parsedSizes: string[]) => {
     if (!parsedSizes.length) return;
+    let limitHit = false;
     setFd((prev) => {
       const index = prev.variants.findIndex((variant) => variant.name.toLowerCase().includes('size'));
       if (index === -1) {
+        if (prev.variants.length >= MAX_VARIANTS) {
+          limitHit = true;
+          return prev;
+        }
         return {
           ...prev,
           hasVariants: true,
@@ -652,7 +720,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
               id: uid(),
               name: 'Size',
               pricingMode: 'modifier',
-              options: parsedSizes.map((size) => ({ id: uid(), name: size, priceAdjustment: 0 })),
+              options: parsedSizes.map((size) => ({ id: uid(), name: size, priceAdjustment: 0, image: '' })),
             },
           ],
         };
@@ -662,7 +730,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
       const existing = new Set(current.options.map((option) => option.name.toLowerCase()));
       const additions = parsedSizes
         .filter((size) => !existing.has(size.toLowerCase()))
-        .map((size) => ({ id: uid(), name: size, priceAdjustment: 0 }));
+        .map((size) => ({ id: uid(), name: size, priceAdjustment: 0, image: '' }));
       if (!additions.length) return prev;
 
       const nextVariants = [...prev.variants];
@@ -672,6 +740,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
       };
       return { ...prev, hasVariants: true, variants: nextVariants };
     });
+    if (limitHit) showAlert(`You can only add up to ${MAX_VARIANTS} variants.`, 'error');
   };
 
   const addSizeOption = () => {
@@ -695,6 +764,15 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
     };
     return map[v.toLowerCase()] || '#DBD5D5';
   };
+
+  const displayStock = (fd.hasVariants && stockVariants.length > 0)
+    ? totalVariantStock
+    : Math.max(0, fd.stock);
+  const isStatusInStock = displayStock > 0;
+  const stockSummaryText = displayStock > 0
+    ? `In Stock - ${displayStock} ${displayStock === 1 ? 'unit' : 'units'}`
+    : 'Out of Stock';
+  const globalPricingRule: 'modifier' | 'override' = fd.variants[0]?.pricingMode === 'override' ? 'override' : 'modifier';
 
   return (
     <AnimatePresence>
@@ -736,155 +814,184 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
             <div
               className="flex flex-col relative"
               style={{
-                width: 460,
-                minWidth: 460,
-                backgroundColor: 'transparent',
-                borderRight: '1px solid #211D69',
+                width: 430,
+                minWidth: 430,
+                backgroundColor: '#28335B',
+                borderRight: '1px solid #3A4473',
               }}
             >
-              <div className="px-8 pt-9 pb-4 flex-shrink-0">
-                <div>
-                  <h3 className="text-[42px] leading-none font-bold" style={{ color: '#B18AF2' }}>Product Image</h3>
-                  <p className="text-[14px] mt-2" style={{ color: '#FFFFFF' }}>Upload photos to showcase your product</p>
+              <div className="px-8 pt-8 pb-4 flex-shrink-0">
+                <p className="text-xs tracking-[0.12em] font-semibold uppercase" style={{ color: '#9FB3DF' }}>Product Images</p>
+                <div className="mt-1">
+                  <p className="text-[30px] leading-none font-semibold" style={{ color: '#EAF1FF' }}>
+                    {images.length} of 5 images added
+                  </p>
                 </div>
               </div>
 
-              <div className="flex-1 px-8 pb-8 flex flex-col gap-5 overflow-hidden min-h-0">
+              <div className="px-8 pb-8 flex-1 min-h-0">
                 <div
-                  onDragEnter={() => setDragging(true)}
-                  onDragLeave={() => setDragging(false)}
-                  onDragOver={e => e.preventDefault()}
-                  onDrop={e => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer.files); }}
+                  onDragEnter={() => {
+                    if (thumbDrag !== null) return;
+                    setDragging(true);
+                  }}
+                  onDragLeave={() => {
+                    if (thumbDrag !== null) return;
+                    setDragging(false);
+                  }}
+                  onDragOver={e => {
+                    e.preventDefault();
+                  }}
+                  onDrop={e => {
+                    e.preventDefault();
+                    if (thumbDrag !== null) {
+                      // Prevent treating thumbnail reordering as a fresh file upload.
+                      setThumbDrag(null);
+                      setThumbOver(null);
+                      setDragging(false);
+                      return;
+                    }
+                    setDragging(false);
+                    addFiles(e.dataTransfer.files);
+                  }}
                   onClick={() => fileRef.current?.click()}
-                  className="relative mx-auto mt-2 rounded-[30px] cursor-pointer transition-all select-none overflow-hidden"
+                  className="relative h-full rounded-[28px] border-2 border-dashed cursor-pointer transition-colors overflow-hidden"
                   style={{
-                    width: 360,
-                    height: 252,
-                    border: `2px dashed ${dragging ? '#7F6BDA' : '#211D69'}`,
-                    backgroundColor: dragging ? 'rgba(127,107,218,0.12)' : '#2A1E66',
+                    borderColor: dragging ? '#7E9CFF' : '#54658E',
+                    backgroundColor: '#2E3B63',
                   }}
                 >
                   {images.length > 0 ? (
-                    <>
-                      <AnimatePresence mode="wait">
-                        <motion.img
-                          key={slide}
-                          src={images[slide]?.src}
-                          alt=""
-                          className="absolute inset-0 w-full h-full object-contain"
-                          initial={{ opacity: 0, scale: 1.04 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.96 }}
-                          transition={{ duration: 0.3 }}
-                        />
-                      </AnimatePresence>
-                      <div className="absolute inset-x-0 bottom-0 px-4 py-2 text-center text-xs font-medium"
-                        style={{ backgroundColor: 'rgba(9,0,41,0.55)', color: '#D8CCFF' }}>
-                        Drop more images here or click to add
+                    <div className="h-full flex flex-col">
+                      <div className="relative flex-1 min-h-0">
+                        <AnimatePresence mode="wait">
+                          <motion.img
+                            key={slide}
+                            src={images[slide]?.src}
+                            alt=""
+                            className="absolute inset-0 w-full h-full object-contain p-6"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                          />
+                        </AnimatePresence>
+                        <div className="absolute left-4 top-4 px-2.5 py-1 rounded-full text-xs font-semibold" style={{ backgroundColor: 'rgba(0,0,0,0.5)', color: '#FFFFFF' }}>
+                          {`${slide + 1}/${images.length}`}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeImage(slide);
+                          }}
+                          className="absolute right-4 top-3 w-8 h-8 rounded-full flex items-center justify-center"
+                          style={{ backgroundColor: 'rgba(0,0,0,0.5)', color: '#FFFFFF' }}
+                          title="Remove current image"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M6 6l12 12M18 6L6 18" />
+                          </svg>
+                        </button>
+                        {images.length > 1 && (
+                          <div className="absolute top-3 right-14 flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); moveSlide(-1); }}
+                              className="w-8 h-8 rounded-full flex items-center justify-center"
+                              style={{ backgroundColor: 'rgba(16,22,45,0.82)', color: '#DCE7FF' }}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M15 19l-7-7 7-7" /></svg>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); moveSlide(1); }}
+                              className="w-8 h-8 rounded-full flex items-center justify-center"
+                              style={{ backgroundColor: 'rgba(16,22,45,0.82)', color: '#DCE7FF' }}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M9 5l7 7-7 7" /></svg>
+                            </button>
+                          </div>
+                        )}
                       </div>
-                    </>
+
+                      <div className="border-t px-4 pt-3 pb-3" style={{ borderColor: '#3A4473', backgroundColor: 'rgba(24,31,57,0.9)' }}>
+                        <div className="flex items-center gap-2 overflow-x-auto pb-2" onClick={(e) => e.stopPropagation()}>
+                          {images.map((img, idx) => {
+                            const isActive = idx === slide;
+                            const isDropTarget = thumbOver === idx;
+                            return (
+                              <button
+                                key={img.id}
+                                type="button"
+                                draggable
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSlideDir(idx >= slide ? 1 : -1);
+                                  setSlide(idx);
+                                }}
+                                onDragStart={(e) => {
+                                  e.stopPropagation();
+                                  setThumbDrag(idx);
+                                  setThumbOver(idx);
+                                }}
+                                onDragOver={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setThumbOver(idx);
+                                }}
+                                onDrop={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  dropThumb(idx);
+                                }}
+                                onDragEnd={() => {
+                                  setThumbDrag(null);
+                                  setThumbOver(null);
+                                }}
+                                className="relative h-14 w-14 rounded-lg border overflow-hidden shrink-0"
+                                style={{
+                                  borderColor: isActive ? '#4F93FF' : isDropTarget ? '#7E9CFF' : '#54658E',
+                                  boxShadow: isActive ? '0 0 0 2px rgba(79,147,255,0.35)' : 'none',
+                                  opacity: thumbDrag === idx ? 0.65 : 1,
+                                }}
+                                title="Drag to reorder"
+                              >
+                                <img src={img.src} alt="" className="w-full h-full object-cover" />
+                              </button>
+                            );
+                          })}
+                          {images.length < 5 && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                fileRef.current?.click();
+                              }}
+                              className="h-14 w-14 rounded-lg border-2 border-dashed shrink-0 flex flex-col items-center justify-center"
+                              style={{ borderColor: '#54658E', color: '#9FB3DF' }}
+                              title="Add image"
+                            >
+                              <span className="text-xl leading-none">+</span>
+                            </button>
+                          )}
+                        </div>
+                        <div className="text-[11px]" style={{ color: '#9FB3DF' }}>
+                          Drag to reorder - First image is the cover photo
+                        </div>
+                      </div>
+                    </div>
                   ) : (
-                    <motion.div animate={{ y: dragging ? -6 : 0 }} transition={{ type: 'spring', stiffness: 260 }}
-                      className="h-full flex flex-col items-center justify-center gap-3 px-8 text-center">
-                      <div className="w-20 h-20 rounded-3xl flex items-center justify-center" style={{ backgroundColor: 'transparent' }}>
-                        <img src="/icons/products/add%20image.png" alt="Add image" className="w-12 h-12 object-contain" />
+                    <div className="h-full flex flex-col items-center justify-center text-center px-10">
+                      <div className="w-20 h-20 rounded-3xl flex items-center justify-center mb-4" style={{ backgroundColor: '#324A82' }}>
+                        <img src="/icons/products/add%20image.png" alt="Add image" className="w-11 h-11 object-contain" />
                       </div>
-                      <div>
-                        <p className="font-semibold text-[20px]" style={{ color: '#FFFFFF' }}>Drop images here</p>
-                        <p className="text-[12px] mt-1" style={{ color: '#B9B9E9' }}>or click to browse file</p>
-                      </div>
-                    </motion.div>
+                      <p className="text-[34px] leading-none font-semibold" style={{ color: '#FFFFFF' }}>Drop images here</p>
+                      <p className="text-base mt-2" style={{ color: '#9FB3DF' }}>or click to browse files</p>
+                      <p className="text-xs mt-10" style={{ color: '#7F93C1' }}>PNG, JPG, WEBP - Up to 5 images - Max 8MB each</p>
+                    </div>
                   )}
                 </div>
-
-                <div className="mt-2">
-                  <h4 className="text-[42px] leading-none font-bold" style={{ color: '#B18AF2' }}>Image Preview</h4>
-                  <p className="text-[14px] mt-2" style={{ color: '#FFFFFF' }}>Review the arrangement of uploaded photos</p>
-                </div>
-
-                {images.length > 0 ? (
-                  <div className="relative flex items-center">
-                    {images.length > 1 && (
-                      <button
-                        onClick={() => moveSlide(-1)}
-                        className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full flex items-center justify-center transition-colors"
-                        style={{ backgroundColor: '#8B6AD8', color: '#130952' }}
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
-                        </svg>
-                      </button>
-                    )}
-
-                    <div className="mx-12 w-[calc(100%-96px)] max-w-[390px] flex items-center justify-center flex-shrink-0 h-[145px] overflow-hidden">
-                      <AnimatePresence mode="wait" initial={false}>
-                        <motion.div
-                          key={slide}
-                          initial={{ x: slideDir * 36, opacity: 0.7 }}
-                          animate={{ x: 0, opacity: 1 }}
-                          exit={{ x: slideDir * -36, opacity: 0.7 }}
-                          transition={{ duration: 0.25, ease: 'easeOut' }}
-                          className="w-full h-full flex items-center justify-center"
-                        >
-                          {(() => {
-                            const visibleCount = Math.min(images.length, 3);
-                            const startOffset = -Math.floor(visibleCount / 2);
-                            const offsets = Array.from({ length: visibleCount }, (_, index) => startOffset + index);
-
-                            return offsets.map((offset) => {
-                              const idx = (slide + offset + images.length) % images.length;
-                              const img = images[idx];
-                              if (!img) return null;
-
-                              const depth = Math.abs(offset);
-                              const width = depth === 0 ? 116 : depth === 1 ? 104 : 86;
-                              const opacity = depth === 0 ? 1 : depth === 1 ? 0.92 : 0.3;
-                              const scale = depth === 0 ? 1 : depth === 1 ? 0.95 : 0.88;
-
-                              return (
-                                <button
-                                  key={`${img.id}-${offset}`}
-                                  type="button"
-                                  onClick={() => {
-                                    setSlideDir(idx >= slide ? 1 : -1);
-                                    setSlide(idx);
-                                  }}
-                                  className="relative h-full border-r border-[#32419D] overflow-hidden transition-all"
-                                  style={{
-                                    width,
-                                    opacity,
-                                    transform: `scale(${scale})`,
-                                    boxShadow: depth === 0 ? 'inset 0 0 0 2px #8A6ADF' : 'none',
-                                  }}
-                                >
-                                  <img src={img.src} alt="" className="w-full h-full object-cover" />
-                                  {depth >= 2 && <div className="absolute inset-0 bg-[#090029]/45" />}
-                                </button>
-                              );
-                            });
-                          })()}
-                        </motion.div>
-                      </AnimatePresence>
-                    </div>
-
-                    {images.length > 1 && (
-                      <button
-                        onClick={() => moveSlide(1)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full flex items-center justify-center transition-colors"
-                        style={{ backgroundColor: '#8B6AD8', color: '#130952' }}
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="border border-dashed border-[#32419D] h-[145px] flex items-center justify-center text-sm"
-                    style={{ color: '#8A8FC4' }}>
-                    No images to preview yet
-                  </div>
-                )}
               </div>
 
               <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={e => addFiles(e.target.files)} />
@@ -892,393 +999,429 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
 
             {/* Right */}
             <div className="flex flex-col flex-1 overflow-hidden">
-              <div className="flex items-center justify-end px-8 pt-6 pb-2 flex-shrink-0">
+              <div className="flex items-start justify-between px-8 pt-7 pb-4 flex-shrink-0">
+                <div>
+                  <h2 className="text-[44px] leading-none font-bold" style={{ color: '#FFFFFF' }}>
+                    {editingProduct ? 'Edit Product' : 'New Product'}
+                  </h2>
+                  <p className="text-base mt-2" style={{ color: '#9FB3DF' }}>Fill in the details to add a new product</p>
+                </div>
                 <button
                   onClick={handleClose}
                   className="w-10 h-10 rounded-full flex items-center justify-center"
-                  style={{ color: '#FFFFFF' }}
+                  style={{ color: '#9FB3DF' }}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
 
               <div className="flex-1 overflow-y-auto px-8 pb-4 space-y-4" style={{ scrollbarWidth: 'thin' }}>
-                <div className="grid grid-cols-[1fr_250px] gap-4 items-end">
-                  <div>
-                    <label className={lCls} style={{ color: '#BFA6EC' }}>Product Name</label>
-                    <input type="text" value={fd.name} onChange={e => set('name', e.target.value)}
-                      placeholder="" className={iCls} style={iSt} />
-                  </div>
-                  <div>
-                    <label className={lCls} style={{ color: '#BFA6EC' }}>Item Code</label>
-                    <div className="h-[46px] flex items-center text-[34px] font-semibold leading-none" style={{ color: '#FFFFFF' }}>
-                      {fd.sku || '123456'}
-                    </div>
-                  </div>
+                <div>
+                  <label className={lCls} style={{ color: '#9FB3DF' }}>Product Name *</label>
+                  <input
+                    type="text"
+                    value={fd.name}
+                    onChange={e => {
+                      const nextName = e.target.value;
+                      setFd((prev) => ({
+                        ...prev,
+                        name: nextName,
+                        sku: editingProduct ? prev.sku : generateAutoSku(nextName),
+                      }));
+                    }}
+                    placeholder="e.g. Classic White Tee"
+                    className={iCls}
+                    style={iSt}
+                  />
                 </div>
 
                 <div>
-                  <label className={lCls} style={{ color: '#BFA6EC' }}>Description</label>
+                  <label className={lCls} style={{ color: '#9FB3DF' }}>Category</label>
+                  <select value={fd.category} onChange={e => set('category', e.target.value)} className={iCls} style={iSt}>
+                    <option value="" disabled hidden>Select Category</option>
+                    {availableCategories.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className={lCls} style={{ color: '#9FB3DF' }}>Description</label>
                   <textarea value={fd.description} onChange={e => set('description', e.target.value)}
-                    placeholder="Product description...."
+                    placeholder="e.g. High quality white cotton t-shirt, comfortable and durable..."
                     rows={3}
                     className={`${iCls} resize-none`} style={{ ...iSt, minHeight: 116 }} />
                 </div>
 
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="relative">
-                    <label className="block text-[18px] font-semibold mb-3" style={{ color: '#B18AF2' }}>Product Variants</label>
-                    <div ref={colorPickerWrapRef} className="relative mb-3">
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={addColorOption}
-                          className="w-9 h-9 rounded-full border flex items-center justify-center"
-                          style={{ borderColor: '#4952AF', backgroundColor: '#1A1D6E', color: '#FFFFFF' }}
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.8} d="M12 5v14M5 12h14" /></svg>
-                        </button>
-                        {(colorVariant?.options || []).slice(0, 5).map((option) => (
-                          <button
-                            key={option.id}
-                            type="button"
-                            onClick={() => {
-                              if (!colorVariant) return;
-                              setSelectedVariantOptions((prev) => ({ ...prev, [colorVariant.id]: option.id }));
-                            }}
-                            className="w-9 h-9 rounded-full border"
-                            style={{
-                              borderColor: selectedVariantOptions[colorVariant?.id || ''] === option.id ? '#FFFFFF' : '#E6DBFF',
-                              backgroundColor: colorToBg(option.name),
-                              boxShadow: selectedVariantOptions[colorVariant?.id || ''] === option.id ? '0 0 0 2px rgba(177,138,242,0.8)' : 'none',
-                            }}
-                          />
-                        ))}
-                      </div>
+                <div className="flex items-center justify-center gap-3">
+                  <div className="flex-1 h-px" style={{ backgroundColor: '#3A4473' }} />
+                  <div className="text-xs font-semibold uppercase tracking-[0.12em]" style={{ color: '#9FB3DF' }}>Pricing</div>
+                  <div className="flex-1 h-px" style={{ backgroundColor: '#3A4473' }} />
+                </div>
 
-                      {showColorPicker && (
-                        <div className="absolute left-0 top-full mt-2 w-[320px] rounded-xl border p-3 z-40 shadow-2xl" style={{ borderColor: '#3140A6', backgroundColor: '#14145C' }}>
-                        <p className="text-xs mb-2" style={{ color: '#BFA6EC' }}>Pick color and confirm</p>
-
-                        <div
-                          ref={paletteRef}
-                          className="relative w-full h-[155px] rounded-lg border overflow-hidden cursor-crosshair"
-                          style={{ borderColor: '#4952AF', backgroundColor: `hsl(${pickerHue}, 100%, 50%)` }}
-                          onMouseDown={(e) => {
-                            updateSvFromPointer(e.clientX, e.clientY);
-                            setPickingSv(true);
-                          }}
-                        >
-                          <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, #ffffff, rgba(255,255,255,0))' }} />
-                          <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, #000000, rgba(0,0,0,0))' }} />
-                          <div
-                            className="absolute w-3.5 h-3.5 rounded-full border-2 border-white shadow"
-                            style={{
-                              left: `calc(${pickerSat}% - 7px)`,
-                              top: `calc(${100 - pickerVal}% - 7px)`,
-                              boxShadow: '0 0 0 1px rgba(0,0,0,0.35)',
-                            }}
-                          />
-                        </div>
-
-                        <input
-                          type="range"
-                          min={0}
-                          max={360}
-                          value={pickerHue}
-                          onChange={(e) => updatePickerColor(parseInt(e.target.value, 10) || 0, pickerSat, pickerVal)}
-                          className="figma-hue-slider w-full mt-3"
-                        />
-
-                        <div className="flex items-center gap-2 mt-3">
-                          <div className="w-9 h-9 rounded-md border" style={{ borderColor: '#4952AF', backgroundColor: colorDraftHex }} />
-                          <input
-                            type="text"
-                            value={colorDraftHex}
-                            onChange={(e) => {
-                              const next = e.target.value.toUpperCase();
-                              setColorDraftHex(next);
-                              const hsv = hexToHsv(next);
-                              if (hsv) {
-                                setPickerHue(hsv.h);
-                                setPickerSat(hsv.s);
-                                setPickerVal(hsv.v);
-                              }
-                            }}
-                            placeholder="#FFFFFF"
-                            className="flex-1 px-3 py-2 rounded-lg border text-sm"
-                            style={{ backgroundColor: '#191A69', borderColor: '#3140A6', color: '#FFFFFF' }}
-                          />
-                        </div>
-
-                        <div className="flex items-center justify-end gap-2 mt-3">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const normalizedHex = normalizeHex(colorDraftHex);
-                              if (!normalizedHex) {
-                                showAlert('Enter a valid hex color (example: #FFAA00)', 'error');
-                                return;
-                              }
-                              addColorOptionByHex(normalizedHex);
-                              setShowColorPicker(false);
-                            }}
-                            className="px-3 h-9 rounded-lg text-sm font-medium"
-                            style={{ backgroundColor: '#A58DF3', color: '#FFFFFF' }}
-                          >
-                            Add
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setShowColorPicker(false)}
-                            className="px-3 h-9 rounded-lg text-sm font-medium"
-                            style={{ backgroundColor: '#262B72', color: '#969AC5' }}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div ref={sizePickerWrapRef} className="relative">
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={addSizeOption}
-                          className="w-9 h-9 border flex items-center justify-center text-[24px]"
-                          style={{ borderColor: '#C7CBF2', color: '#FFFFFF' }}
-                        >
-                          +
-                        </button>
-                        {(sizeVariant?.options || []).slice(0, 5).map((option) => (
-                          <button
-                            key={option.id}
-                            type="button"
-                            onClick={() => {
-                              if (!sizeVariant) return;
-                              setSelectedVariantOptions((prev) => ({ ...prev, [sizeVariant.id]: option.id }));
-                            }}
-                            className="w-9 h-9 border flex items-center justify-center text-[22px] font-medium uppercase"
-                            style={{
-                              borderColor: selectedVariantOptions[sizeVariant?.id || ''] === option.id ? '#B18AF2' : '#C7CBF2',
-                              color: '#FFFFFF',
-                              backgroundColor: selectedVariantOptions[sizeVariant?.id || ''] === option.id ? 'rgba(177,138,242,0.22)' : 'transparent',
-                            }}
-                          >
-                            {option.name}
-                          </button>
-                        ))}
-                      </div>
-
-                      {showSizePicker && (
-                        <div className="absolute left-0 top-full mt-2 w-[320px] rounded-xl border p-3 z-40 shadow-2xl" style={{ borderColor: '#3140A6', backgroundColor: '#14145C' }}>
-                          <p className="text-xs mb-2" style={{ color: '#BFA6EC' }}>Select size(s)</p>
-                          <div className="grid grid-cols-3 gap-2">
-                            {sizePresetOptions.map((size) => {
-                              const selected = sizeDraftSelection.includes(size);
-                              const exists = Boolean(sizeVariant?.options?.some((option) => option.name.toLowerCase() === size.toLowerCase()));
-                              return (
-                                <button
-                                  key={size}
-                                  type="button"
-                                  disabled={exists}
-                                  onClick={() => {
-                                    setSizeDraftSelection((prev) => (
-                                      prev.includes(size)
-                                        ? prev.filter((item) => item !== size)
-                                        : [...prev, size]
-                                    ));
-                                  }}
-                                  className="h-9 rounded-lg border text-sm font-semibold uppercase"
-                                  style={{
-                                    borderColor: exists ? '#4A4F98' : (selected ? '#B18AF2' : '#C7CBF2'),
-                                    color: exists ? '#7F84B3' : '#FFFFFF',
-                                    backgroundColor: exists ? 'rgba(74,79,152,0.2)' : (selected ? 'rgba(177,138,242,0.22)' : 'transparent'),
-                                    cursor: exists ? 'not-allowed' : 'pointer',
-                                  }}
-                                >
-                                  {size}
-                                </button>
-                              );
-                            })}
-                          </div>
-                          <div className="flex items-center justify-end gap-2 mt-3">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                addSizeOptionsByList(sizeDraftSelection);
-                                setSizeDraftSelection([]);
-                                setShowSizePicker(false);
-                              }}
-                              disabled={sizeDraftSelection.length === 0}
-                              className="px-3 h-9 rounded-lg text-sm font-medium"
-                              style={{
-                                backgroundColor: sizeDraftSelection.length === 0 ? '#4A4F98' : '#A58DF3',
-                                color: '#FFFFFF',
-                                opacity: sizeDraftSelection.length === 0 ? 0.6 : 1,
-                              }}
-                            >
-                              Add Selected
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSizeDraftSelection([]);
-                                setShowSizePicker(false);
-                              }}
-                              className="px-3 h-9 rounded-lg text-sm font-medium"
-                              style={{ backgroundColor: '#262B72', color: '#969AC5' }}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      )}
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className={lCls} style={{ color: '#9FB3DF' }}>Price *</label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: '#D6CEFF' }}>₱</span>
+                      <input type="number" value={fd.price || ''} onChange={e => set('price', parseFloat(e.target.value) || 0)}
+                        placeholder="0.00" step="0.01" className={iCls} style={{ ...iSt, paddingLeft: '1.8rem' }} />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[18px] font-semibold mb-3" style={{ color: '#B18AF2' }}>Product Category</label>
-                    <select value={fd.category} onChange={e => set('category', e.target.value)} className={iCls} style={iSt}>
-                      <option value="" disabled hidden>Select Category</option>
-                      {availableCategories.map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                    <div className="mt-2 flex items-center gap-2">
+                    <label className={lCls} style={{ color: '#9FB3DF' }}>Cost Price</label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: '#D6CEFF' }}>₱</span>
                       <input
-                        value={customCategoryInput}
-                        onChange={(e) => setCustomCategoryInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            addCustomCategory();
-                          }
-                        }}
-                        placeholder="Add custom category"
-                        className="flex-1 px-3 py-2 rounded-lg border"
-                        style={{
-                          backgroundColor: '#0F145A',
-                          borderColor: '#3140A6',
-                          color: '#FFFFFF',
-                        }}
+                        type="number"
+                        value={fd.costPrice || ''}
+                        onChange={e => set('costPrice', parseFloat(e.target.value) || 0)}
+                        placeholder="0.00"
+                        step="0.01"
+                        className={iCls}
+                        style={{ ...iSt, paddingLeft: '1.8rem' }}
                       />
-                      <button
-                        type="button"
-                        onClick={addCustomCategory}
-                        className="px-3 py-2 rounded-lg text-sm font-semibold"
-                        style={{ backgroundColor: '#A58DF3', color: '#FFFFFF' }}
-                      >
-                        Add
-                      </button>
                     </div>
-                    {industryPresetCategories.length === 0 && (
-                      <p className="text-xs mt-2" style={{ color: '#A9ADD8' }}>
-                        No preset categories for this project yet. Add your own category above.
-                      </p>
-                    )}
+                  </div>
+                  <div>
+                    <label className={lCls} style={{ color: '#9FB3DF' }}>Discount</label>
+                    <div className="flex items-center rounded-xl border overflow-hidden" style={iSt}>
+                      <select
+                        value={fd.discountType}
+                        onChange={e => set('discountType', e.target.value === 'fixed' ? 'fixed' : 'percentage')}
+                        className="px-3 py-2.5 text-sm font-semibold focus:outline-none bg-transparent border-0"
+                        style={{ color: '#D6CEFF', width: 64 }}
+                      >
+                        <option value="percentage">%</option>
+                        <option value="fixed">₱</option>
+                      </select>
+                      <div className="w-px self-stretch" style={{ backgroundColor: '#3140A6' }} />
+                      <input
+                        type="number"
+                        value={fd.discount || ''}
+                        onChange={e => set('discount', parseFloat(e.target.value) || 0)}
+                        placeholder="0"
+                        step="0.01"
+                        className="flex-1 px-3 py-2.5 bg-transparent text-white focus:outline-none"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-6 pt-1">
-                  <div>
-                    <div className="flex items-center justify-center gap-3 mb-2">
-                      <div className="flex-1 h-px bg-[#4A4F98]" />
-                      <span className="inline-block px-2 text-[28px] leading-none font-medium" style={{ color: '#B18AF2', backgroundColor: '#0D0143' }}>Pricing</span>
-                      <div className="flex-1 h-px bg-[#4A4F98]" />
+                <div className="flex items-center justify-center gap-3">
+                  <div className="flex-1 h-px" style={{ backgroundColor: '#3A4473' }} />
+                  <div className="text-xs font-semibold uppercase tracking-[0.12em]" style={{ color: '#9FB3DF' }}>Variants</div>
+                  <div className="flex-1 h-px" style={{ backgroundColor: '#3A4473' }} />
+                </div>
+
+                <div className="rounded-xl border p-3 space-y-3" style={{ borderColor: '#3140A6', backgroundColor: '#0F145A' }}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold" style={{ color: '#DCE7FF' }}>Enable Variants</p>
+                      <p className="text-[11px]" style={{ color: '#9FB3DF' }}>Use options like size, color, or material.</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className={lCls} style={{ color: '#BFA6EC' }}>Price</label>
-                        <div className="relative">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: '#D6CEFF' }}>₱</span>
-                          <input type="number" value={fd.price || ''} onChange={e => set('price', parseFloat(e.target.value) || 0)}
-                            placeholder="123,123" step="0.01" className={iCls} style={{ ...iSt, paddingLeft: '1.8rem' }} />
-                        </div>
-                      </div>
-                      <div>
-                        <label className={lCls} style={{ color: '#BFA6EC' }}>Discount</label>
-                        <div className="flex items-center rounded-xl border overflow-hidden" style={iSt}>
-                          <select
-                            value={fd.discountType}
-                            onChange={e => set('discountType', e.target.value === 'fixed' ? 'fixed' : 'percentage')}
-                            className="px-3 py-2.5 text-sm font-semibold focus:outline-none bg-transparent border-0"
-                            style={{ color: '#D6CEFF', width: 72 }}
-                          >
-                            <option value="percentage">%</option>
-                            <option value="fixed">₱</option>
-                          </select>
-                          <div className="w-px self-stretch" style={{ backgroundColor: '#3140A6' }} />
-                          <input
-                            type="number"
-                            value={fd.discount || ''}
-                            onChange={e => set('discount', parseFloat(e.target.value) || 0)}
-                            placeholder="50"
-                            step="0.01"
-                            className="flex-1 px-3 py-2.5 bg-transparent text-white focus:outline-none"
-                          />
-                        </div>
-                      </div>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (fd.hasVariants) {
+                          set('hasVariants', false);
+                          return;
+                        }
+                        if (fd.variants.length === 0) {
+                          addVariant();
+                        }
+                        set('hasVariants', true);
+                      }}
+                      className="relative h-7 w-14 rounded-full border transition-all"
+                      style={{
+                        borderColor: '#4952AF',
+                        backgroundColor: fd.hasVariants ? '#32C870' : '#4A4F98',
+                      }}
+                      aria-label="Toggle variants"
+                    >
+                      <span
+                        className="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all"
+                        style={{ left: fd.hasVariants ? '1.65rem' : '0.2rem' }}
+                      />
+                    </button>
                   </div>
 
-                  <div>
-                    <div className="flex items-center justify-center gap-3 mb-2">
-                      <div className="flex-1 h-px bg-[#4A4F98]" />
-                      <span className="inline-block px-2 text-[28px] leading-none font-medium" style={{ color: '#B18AF2', backgroundColor: '#0D0143' }}>Stock</span>
-                      <div className="flex-1 h-px bg-[#4A4F98]" />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold" style={{ color: '#DCE7FF' }}>Add Variation Images</p>
+                      <p className="text-[11px]" style={{ color: '#A9ADD8' }}>Show image upload tiles next to option names.</p>
                     </div>
-                    {fd.hasVariants && stockVariants.length > 0 ? (
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setEnableVariationImages((prev) => !prev)}
+                      className="relative h-7 w-14 rounded-full border transition-all"
+                      style={{
+                        borderColor: '#4952AF',
+                        backgroundColor: enableVariationImages ? '#32C870' : '#4A4F98',
+                      }}
+                      aria-label="Toggle variation images"
+                    >
+                      <span
+                        className="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all"
+                        style={{ left: enableVariationImages ? '1.65rem' : '0.2rem' }}
+                      />
+                    </button>
+                  </div>
+
+                  {fd.hasVariants ? (
+                    <div className="space-y-3">
+                      {fd.variants.map((variant, variantIndex) => (
+                        <div key={variant.id} className="rounded-xl border p-3 space-y-3" style={{ borderColor: '#3A4473', backgroundColor: '#121A63' }}>
                           <div>
-                            <label className={lCls} style={{ color: '#BFA6EC' }}>Stock (Selected)</label>
+                            <label className={lCls} style={{ color: '#9FB3DF' }}>Variant Name</label>
                             <input
                               type="text"
-                              inputMode="numeric"
-                              value={variantStockDraft}
-                              onChange={(e) => {
-                                const normalized = e.target.value.replace(/[^0-9]/g, '');
-                                setVariantStockDraft(normalized);
-                                setSavedStockKey(null);
-                              }}
-                              disabled={!selectedVariantStockKey}
-                              placeholder={selectedVariantStockKey ? '0' : 'Select color/size first'}
+                              value={variant.name}
+                              onChange={(e) => updVariant(variant.id, 'name', e.target.value)}
+                              placeholder={`e.g. ${variantIndex === 0 ? 'Size' : 'Color'}`}
                               className={iCls}
                               style={iSt}
                             />
-                            <div className="mt-2 flex items-center gap-2">
+                          </div>
+
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs font-semibold uppercase" style={{ color: '#BFA6EC' }}>Options</p>
                               <button
                                 type="button"
-                                onClick={() => {
-                                  if (!selectedVariantStockKey) return;
-                                  const amount = variantStockDraft === '' ? 0 : parseInt(variantStockDraft, 10);
-                                  patch({
-                                    variantStocks: {
-                                      ...fd.variantStocks,
-                                      [selectedVariantStockKey]: Number.isFinite(amount) && amount > 0 ? amount : 0,
-                                    },
-                                  });
-                                  setSavedStockKey(selectedVariantStockKey);
-                                }}
-                                disabled={!selectedVariantStockKey}
-                                className={`px-3 h-8 rounded-lg text-xs font-semibold ${selectedVariantStockKey ? 'opacity-100' : 'opacity-60 cursor-not-allowed'}`}
-                                style={{ backgroundColor: '#A58DF3', color: '#FFFFFF' }}
+                                onClick={() => addOpt(variant.id)}
+                                className="px-3 h-8 rounded-lg text-xs font-semibold"
+                                style={{ backgroundColor: '#24327A', color: '#DCE7FF' }}
                               >
-                                Save Stock
+                                + Add Option
                               </button>
-                              {selectedVariantStockKey && savedStockKey === selectedVariantStockKey && (
-                                <span className="text-xs" style={{ color: '#7FE0B4' }}>Saved</span>
-                              )}
                             </div>
-                            {selectedVariantLabel && (
-                              <p className="mt-1 text-[11px]" style={{ color: '#BFA6EC' }}>{selectedVariantLabel}</p>
+
+                            {variant.options.map((option) => (
+                              <div key={option.id} className="grid grid-cols-[1fr_auto] gap-2 items-end">
+                                <div className="flex items-end gap-2">
+                                  {enableVariationImages && variant.name.trim().toLowerCase() !== 'size' ? (
+                                    <div className="relative h-14 w-14 shrink-0">
+                                      <label
+                                        className="h-14 w-14 rounded-lg shrink-0 flex items-center justify-center cursor-pointer overflow-hidden"
+                                        style={{ color: '#9FB3DF', backgroundColor: '#1A2577' }}
+                                        title="Upload variation image"
+                                      >
+                                        {isImageSource(String(option.image || '').trim()) ? (
+                                          <img
+                                            src={String(option.image || '').trim()}
+                                            alt={`${option.name || 'option'} image`}
+                                            className="w-full h-full object-cover"
+                                          />
+                                        ) : (
+                                          <img src="/icons/products/add%20image.png" alt="Add image" className="w-7 h-7 object-contain opacity-90" />
+                                        )}
+                                        <input
+                                          type="file"
+                                          accept="image/*"
+                                          className="hidden"
+                                          disabled={Boolean(uploadingOptionImage[`${variant.id}:${option.id}`])}
+                                          onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                              void uploadOptionImage(variant.id, option.id, file);
+                                            }
+                                            e.currentTarget.value = '';
+                                          }}
+                                        />
+                                      </label>
+                                      {isImageSource(String(option.image || '').trim()) ? (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            updOpt(variant.id, option.id, 'image', '');
+                                          }}
+                                          className="absolute -top-1 -right-1 h-4 w-4 rounded-full flex items-center justify-center text-[10px] font-bold"
+                                          style={{ backgroundColor: '#DC2626', color: '#FFFFFF' }}
+                                          title="Remove variation image"
+                                        >
+                                          X
+                                        </button>
+                                      ) : null}
+                                    </div>
+                                  ) : null}
+
+                                  <div className="flex-1">
+                                    <label className={lCls} style={{ color: '#9FB3DF' }}>Option Name</label>
+                                    <input
+                                      type="text"
+                                      value={option.name}
+                                      onChange={(e) => updOpt(variant.id, option.id, 'name', e.target.value)}
+                                      placeholder="e.g. Small"
+                                      className={iCls}
+                                      style={iSt}
+                                    />
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => remOpt(variant.id, option.id)}
+                                  className="h-11 w-11 flex items-center justify-center"
+                                  style={{ color: '#F87171' }}
+                                  title="Remove option"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-7 0v12a1 1 0 001 1h6a1 1 0 001-1V7" />
+                                  </svg>
+                                </button>
+                              </div>
+                            ))}
+
+                            {variant.options.length === 0 ? (
+                              <p className="text-xs" style={{ color: '#9FB3DF' }}>No options yet. Add one to build combinations.</p>
+                            ) : null}
+                          </div>
+
+                          <div className="flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => remVariant(variant.id)}
+                              className="h-9 px-3 rounded-lg text-xs font-semibold"
+                              style={{ backgroundColor: 'rgba(239,68,68,0.2)', color: '#FCA5A5' }}
+                            >
+                              Delete Variant
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                      <button
+                        type="button"
+                        onClick={addVariant}
+                        disabled={fd.variants.length >= MAX_VARIANTS}
+                        className={`w-full h-10 rounded-xl text-sm font-semibold ${fd.variants.length >= MAX_VARIANTS ? 'opacity-60 cursor-not-allowed' : ''}`}
+                        style={{ backgroundColor: '#24327A', color: '#DCE7FF' }}
+                      >
+                        + Add Another Variant
+                      </button>
+
+                      {range ? (
+                        <p className="text-xs" style={{ color: '#BFA6EC' }}>
+                          Variant price range: P{Number(range.min).toFixed(2)} - P{Number(range.max).toFixed(2)}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <p className="text-xs" style={{ color: '#9FB3DF' }}>
+                      Keep variants off for simple single-item products.
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-center gap-3">
+                  <div className="flex-1 h-px" style={{ backgroundColor: '#3A4473' }} />
+                  <div className="text-xs font-semibold uppercase tracking-[0.12em]" style={{ color: '#9FB3DF' }}>Stock</div>
+                  <div className="flex-1 h-px" style={{ backgroundColor: '#3A4473' }} />
+                </div>
+
+                <div>
+                    {fd.hasVariants && fd.variants.length > 0 ? (
+                      <div className="space-y-3">
+                        <div className="rounded-xl border p-3 space-y-2" style={{ borderColor: '#3A4473', backgroundColor: '#121A63' }}>
+                            <p className="text-xs font-semibold uppercase" style={{ color: '#BFA6EC' }}>Variant Stocks and Pricing</p>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className={lCls} style={{ color: '#9FB3DF' }}>Pricing Rule</label>
+                                <select
+                                  value={globalPricingRule}
+                                  onChange={(e) => {
+                                    const nextRule: 'modifier' | 'override' = e.target.value === 'override' ? 'override' : 'modifier';
+                                    patch({
+                                      variants: fd.variants.map((variant) => ({ ...variant, pricingMode: nextRule })),
+                                    });
+                                  }}
+                                  className={iCls}
+                                  style={iSt}
+                                >
+                                  <option value="modifier">Add from base price</option>
+                                  <option value="override">Replace base price</option>
+                                </select>
+                              </div>
+                            </div>
+                            {combos.length > 0 ? (
+                              <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                                {combos.map((combo) => (
+                                  <div key={combo.stockKey} className="grid grid-cols-[1fr_130px_130px] gap-2 items-end">
+                                    <div>
+                                      <label className={lCls} style={{ color: '#9FB3DF' }}>Variant</label>
+                                      <div className="h-11 rounded-xl border px-3 flex items-center text-xs" style={{ borderColor: '#3140A6', backgroundColor: '#1A2577', color: '#C9D8FF' }}>
+                                        {combo.label || 'Unnamed Variant'}
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <label className={lCls} style={{ color: '#9FB3DF' }}>Price</label>
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        step="0.01"
+                                        value={fd.variantPrices?.[combo.stockKey] ?? 0}
+                                        onChange={(e) => {
+                                          const amount = Math.max(0, Number.parseFloat(e.target.value || '0') || 0);
+                                          const targetGroupKey = combo.priceGroupKey;
+                                          const nextPrices = { ...fd.variantPrices };
+                                          combos.forEach((entry) => {
+                                            if (entry.priceGroupKey === targetGroupKey) {
+                                              nextPrices[entry.stockKey] = amount;
+                                            }
+                                          });
+                                          patch({
+                                            variantPrices: nextPrices,
+                                          });
+                                        }}
+                                        className={iCls}
+                                        style={iSt}
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className={lCls} style={{ color: '#9FB3DF' }}>Stock</label>
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        value={fd.variantStocks?.[combo.stockKey] ?? 0}
+                                        onChange={(e) => {
+                                          const amount = Math.max(0, parseInt(e.target.value || '0', 10) || 0);
+                                          patch({
+                                            variantStocks: {
+                                              ...fd.variantStocks,
+                                              [combo.stockKey]: amount,
+                                            },
+                                          });
+                                        }}
+                                        className={iCls}
+                                        style={iSt}
+                                      />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-xs" style={{ color: '#9FB3DF' }}>
+                                Add options under Variants to generate stock rows.
+                              </p>
                             )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className={lCls} style={{ color: '#9FB3DF' }}>Total Stock (Auto)</label>
+                            <input
+                              type="text"
+                              value={totalVariantStock}
+                              readOnly
+                              className={iCls}
+                              style={{ ...iSt, opacity: 0.85 }}
+                            />
                           </div>
                           <div>
-                            <label className={lCls} style={{ color: '#BFA6EC' }}>Low Stock Alert</label>
+                            <label className={lCls} style={{ color: '#9FB3DF' }}>Low Stock Alert</label>
                             <input type="number" value={fd.lowStockThreshold} onChange={e => set('lowStockThreshold', parseInt(e.target.value) || 0)}
                               placeholder="50" className={iCls} style={iSt} />
                           </div>
@@ -1287,62 +1430,72 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                     ) : (
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className={lCls} style={{ color: '#BFA6EC' }}>Initial Stock</label>
+                          <label className={lCls} style={{ color: '#9FB3DF' }}>Initial Stock</label>
                           <input type="number" value={fd.stock} onChange={e => set('stock', parseInt(e.target.value) || 0)}
-                            placeholder="500" className={iCls} style={iSt} />
+                            placeholder="100" className={iCls} style={iSt} />
                         </div>
                         <div>
-                          <label className={lCls} style={{ color: '#BFA6EC' }}>Low Stock Alert</label>
+                          <label className={lCls} style={{ color: '#9FB3DF' }}>Low Stock Alert</label>
                           <input type="number" value={fd.lowStockThreshold} onChange={e => set('lowStockThreshold', parseInt(e.target.value) || 0)}
-                            placeholder="50" className={iCls} style={iSt} />
+                            placeholder="20" className={iCls} style={iSt} />
                         </div>
                       </div>
                     )}
-                  </div>
+
+                    <div className="mt-3">
+                      <div>
+                        <label className={lCls} style={{ color: '#9FB3DF' }}>SKU *</label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={fd.sku}
+                            readOnly
+                            className={iCls}
+                            style={{ ...iSt, opacity: 0.9, paddingRight: '2.75rem' }}
+                          />
+                          {!editingProduct && (
+                            <button
+                              type="button"
+                              onClick={() => set('sku', generateAutoSku(fd.name))}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg flex items-center justify-center"
+                              style={{ backgroundColor: '#24327A', color: '#C9D8FF' }}
+                              title="Regenerate SKU"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v6h6M20 20v-6h-6M20 8a8 8 0 0 0-14.9-3M4 16a8 8 0 0 0 14.9 3" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-6 items-end">
-                  <div>
-                    <div className="flex items-center justify-center gap-3 mb-2">
-                      <div className="flex-1 h-px bg-[#4A4F98]" />
-                      <span className="inline-block px-2 text-[28px] leading-none font-medium" style={{ color: '#B18AF2', backgroundColor: '#0D0143' }}>Status</span>
-                      <div className="flex-1 h-px bg-[#4A4F98]" />
-                    </div>
-                    <select
-                      value={fd.status}
-                      onChange={(e) => set('status', e.target.value as FormData['status'])}
-                      className={iCls}
-                      style={iSt}
-                    >
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                      <option value="draft">Draft</option>
-                    </select>
-                  </div>
+                <div className="inline-flex items-center rounded-full px-3 h-9 text-sm font-semibold" style={{ backgroundColor: isStatusInStock ? 'rgba(16,185,129,0.2)' : 'rgba(248,113,113,0.2)', color: isStatusInStock ? '#34D399' : '#F87171' }}>
+                  {stockSummaryText}
                 </div>
 
                 <div className="hidden">
                   <input type="text" value={fd.sku} onChange={e => set('sku', e.target.value)} />
-                  <input type="number" value={fd.costPrice || ''} onChange={e => set('costPrice', parseFloat(e.target.value) || 0)} />
                 </div>
+              </div>
 
-                <div className="flex items-end justify-end gap-2 pt-3 pb-1">
-                  <button
-                    onClick={save}
-                    disabled={saving}
-                    className={`px-5 h-10 rounded-xl font-semibold text-sm leading-none transition-all ${saving ? 'opacity-70 cursor-not-allowed' : 'hover:opacity-90'}`}
-                    style={{ backgroundColor: '#A58DF3', color: '#FFFFFF' }}
-                  >
-                    {saving ? (editingProduct ? 'Updating' : 'Saving') : (editingProduct ? 'Update' : 'Add')}
-                  </button>
-                  <button
-                    onClick={handleClose}
-                    className="px-4 h-10 rounded-xl font-medium text-sm leading-none"
-                    style={{ backgroundColor: '#262B72', color: '#969AC5' }}
-                  >
-                    Cancel
-                  </button>
-                </div>
+              <div className="px-8 py-4 border-t flex items-center justify-between" style={{ borderColor: '#3A4473', backgroundColor: 'rgba(21,27,79,0.88)' }}>
+                <button
+                  onClick={handleClose}
+                  className="px-1 h-10 rounded-xl font-medium text-sm leading-none"
+                  style={{ color: '#B6C5EB' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={save}
+                  disabled={saving}
+                  className={`px-8 h-10 rounded-2xl font-semibold text-sm leading-none transition-all ${saving ? 'opacity-70 cursor-not-allowed' : 'hover:opacity-90'}`}
+                  style={{ backgroundColor: '#3B82F6', color: '#FFFFFF', boxShadow: '0 10px 24px rgba(59,130,246,0.35)' }}
+                >
+                  {saving ? (editingProduct ? 'Updating...' : 'Saving...') : (editingProduct ? 'Update Product' : 'Add Product')}
+                </button>
               </div>
             </div>
           </motion.div>

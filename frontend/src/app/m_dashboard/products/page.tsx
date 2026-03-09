@@ -1,7 +1,7 @@
 'use client';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { CheckCircle } from 'lucide-react';
+import { AlertTriangle, ArrowDownUp, CheckCircle, Package } from 'lucide-react';
 import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
 import { useProject } from '../components/context/project-context';
@@ -17,6 +17,13 @@ type ProductPopupState = {
   message: string;
   tone: 'success' | 'error';
 };
+
+const PRODUCT_INSIGHT_CARDS = [
+  { id: 'total', label: 'Total Products', icon: Package },
+  { id: 'active', label: 'Active', icon: CheckCircle },
+  { id: 'low', label: 'Low Stock', icon: AlertTriangle },
+  { id: 'out', label: 'Out of Stock', icon: ArrowDownUp },
+] as const;
 
 function getLowStockThreshold(product: Product): number {
   const threshold = Number(product.lowStockThreshold);
@@ -108,6 +115,29 @@ function getCombinationStock(product: Product, selectedOptions: Record<string, s
   return Number.isFinite(value) && value >= 0 ? value : 0;
 }
 
+function getCombinationPrice(product: Product, selectedOptions: Record<string, string>): number | null {
+  if (!product.hasVariants || !product.variantPrices) return null;
+  const groups = getVariantGroups(product);
+  if (groups.length === 0) return null;
+  const stockKey = buildVariantStockKey(groups, selectedOptions);
+  if (!stockKey) return null;
+  const value = Number(product.variantPrices[stockKey]);
+  return Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+function getSelectedVariantImage(product: Product, selectedOptions: Record<string, string>): string | null {
+  const groups = getVariantGroups(product);
+  for (const variant of groups) {
+    if (variant.name.trim().toLowerCase() === 'size') continue;
+    const selectedOptionId = selectedOptions[variant.id];
+    if (!selectedOptionId) continue;
+    const selectedOption = variant.options.find((option) => option.id === selectedOptionId);
+    const image = String(selectedOption?.image || '').trim();
+    if (isImageSource(image)) return image;
+  }
+  return null;
+}
+
 function colorFromName(value: string): string {
   const trimmed = value.trim();
   if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(trimmed)) return trimmed;
@@ -126,16 +156,19 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
   onDelete: (product: Product) => void;
   isTransitioningOut?: boolean;
 }) => {
-  const imageValue = String(product.image || '').trim();
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => getInitialVariantSelection(product));
+  const selectedVariantImage = getSelectedVariantImage(product, selectedOptions);
+  const imageValue = String(selectedVariantImage || product.image || '').trim();
   const showImage = isImageSource(imageValue);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => getInitialVariantSelection(product));
   const variantGroups = getVariantGroups(product);
   const sizeVariant = variantGroups.find((variant) => variant.name.toLowerCase().includes('size'));
   const colorVariant = variantGroups.find((variant) => variant.name.toLowerCase().includes('color'));
   const { sizes, colors: variantColors } = extractSizesAndColors(product);
   const selectedStock = getCombinationStock(product, selectedOptions);
+  const selectedPrice = getCombinationPrice(product, selectedOptions);
   const visibleStock = selectedStock ?? product.stock;
+  const visiblePrice = selectedPrice ?? product.price;
   const lowStock = visibleStock > 0 && visibleStock < getLowStockThreshold(product);
 
   useEffect(() => {
@@ -248,7 +281,7 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
         </div>
 
         <div className="mt-auto pt-4 flex items-end justify-between">
-          <p className="text-[16px] font-medium leading-none" style={{ color: '#FFCC00' }}>₱{Math.round(product.price).toLocaleString()}</p>
+          <p className="text-[16px] font-medium leading-none" style={{ color: '#FFCC00' }}>₱{Math.round(visiblePrice).toLocaleString()}</p>
           <p className={`text-[16px] font-semibold ${visibleStock === 0 ? 'text-red-400' : lowStock ? 'text-orange-300' : 'text-white'}`}>
             Stock: {visibleStock}
           </p>
@@ -445,6 +478,7 @@ function toDashboardProduct(product: ApiProduct): Product {
             id: String(option?.id || ''),
             name: String(option?.name || ''),
             priceAdjustment: Number(option?.priceAdjustment || 0),
+            image: String(option?.image || '').trim(),
           }))
           : [],
       }))
@@ -471,6 +505,13 @@ function toDashboardProduct(product: ApiProduct): Product {
       return acc;
     }, {})
     : {};
+  const variantPrices = product.variantPrices && typeof product.variantPrices === 'object'
+    ? Object.entries(product.variantPrices).reduce<Record<string, number>>((acc, [key, value]) => {
+      const parsed = Number(value);
+      acc[key] = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+      return acc;
+    }, {})
+    : {};
   const normalizedStock = typeof product.onHandStock === 'number'
     ? product.onHandStock
     : (typeof product.stock === 'number' ? product.stock : 0);
@@ -491,6 +532,7 @@ function toDashboardProduct(product: ApiProduct): Product {
     hasVariants,
     variants,
     variantStocks,
+    variantPrices,
     priceRangeMin,
     priceRangeMax,
     stock: normalizedStock,
@@ -521,7 +563,10 @@ export default function ProductsPage() {
   const [loadingProducts, setLoadingProducts] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [sortMode, setSortMode] = useState<'status' | 'price-desc' | 'stock-desc'>('status');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'low-stock' | 'out-of-stock'>('all');
+  const [viewMode, setViewMode] = useState<'tile' | 'list'>('tile');
+  const [showStatusFilterMenu, setShowStatusFilterMenu] = useState(false);
+  const statusMenuRef = useRef<HTMLDivElement | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | undefined>();
   const [viewingProduct, setViewingProduct] = useState<Product | undefined>();
@@ -554,6 +599,18 @@ export default function ProductsPage() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!showStatusFilterMenu) return;
+    const onMouseDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (statusMenuRef.current?.contains(target)) return;
+      setShowStatusFilterMenu(false);
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, [showStatusFilterMenu]);
 
   const loadProducts = useCallback(async () => {
     setLoadingProducts(true);
@@ -610,20 +667,16 @@ export default function ProductsPage() {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.sku.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'active' && product.status === 'active') ||
+      (statusFilter === 'inactive' && product.status === 'inactive') ||
+      (statusFilter === 'low-stock' && isLowStock(product)) ||
+      (statusFilter === 'out-of-stock' && product.stock <= 0);
+    return matchesSearch && matchesCategory && matchesStatus;
   });
 
-  const statusRank = (status: Product['status']) => {
-    if (status === 'active') return 0;
-    if (status === 'inactive') return 2;
-    return 1;
-  };
-
-  const sortedFilteredProducts = [...filteredProducts].sort((a, b) => {
-    if (sortMode === 'price-desc') return b.price - a.price;
-    if (sortMode === 'stock-desc') return b.stock - a.stock;
-    return statusRank(a.status) - statusRank(b.status);
-  });
+  const sortedFilteredProducts = [...filteredProducts];
 
   const totalPages = Math.max(1, Math.ceil(sortedFilteredProducts.length / perPage));
   useEffect(() => {
@@ -670,8 +723,9 @@ export default function ProductsPage() {
               id: String((option as { id?: string })?.id || ''),
               name: String((option as { name?: string })?.name || '').trim(),
               priceAdjustment: Number((option as { priceAdjustment?: number })?.priceAdjustment || 0),
+              image: String((option as { image?: string })?.image || '').trim(),
             }))
-            .filter((option) => option.name || option.priceAdjustment !== 0);
+            .filter((option) => option.name || option.priceAdjustment !== 0 || option.image);
           return {
             id: String((variant as { id?: string })?.id || ''),
             name: String((variant as { name?: string })?.name || '').trim(),
@@ -690,6 +744,13 @@ export default function ProductsPage() {
         ? Object.entries(productData.variantStocks as Record<string, unknown>).reduce<Record<string, number>>((acc, [key, value]) => {
           const parsed = Number(value);
           acc[key] = Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 0;
+          return acc;
+        }, {})
+        : {};
+      const variantPrices = hasVariants && productData.variantPrices && typeof productData.variantPrices === 'object'
+        ? Object.entries(productData.variantPrices as Record<string, unknown>).reduce<Record<string, number>>((acc, [key, value]) => {
+          const parsed = Number(value);
+          acc[key] = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
           return acc;
         }, {})
         : {};
@@ -724,6 +785,7 @@ export default function ProductsPage() {
         hasVariants,
         variants: hasVariants ? variants : [],
         variantStocks: hasVariants ? variantStocks : {},
+        variantPrices: hasVariants ? variantPrices : {},
         priceRangeMin,
         priceRangeMax,
         stock: computedStock,
@@ -761,6 +823,12 @@ export default function ProductsPage() {
   };
 
   const hasProducts = products.length > 0;
+  const productInsights = {
+    total: products.length,
+    active: products.filter((product) => product.status === 'active').length,
+    low: products.filter((product) => isLowStock(product)).length,
+    out: products.filter((product) => product.stock <= 0).length,
+  };
 
   return (
     <div className="space-y-6">
@@ -816,6 +884,52 @@ export default function ProductsPage() {
           <p className="mt-2 text-xl" style={{ color: '#8A8FC4' }}>Track stock performance and catalog details.</p>
         </div>
 
+        <div className="mt-8 grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {PRODUCT_INSIGHT_CARDS.map((card, idx) => {
+            const Icon = card.icon;
+            const labelColor = card.id === 'low'
+              ? '#f97316'
+              : card.id === 'out'
+                ? '#ef4444'
+                : card.id === 'active'
+                  ? '#22c55e'
+                  : colors.text.muted;
+            const value = card.id === 'total'
+              ? productInsights.total
+              : card.id === 'active'
+                ? productInsights.active
+                : card.id === 'low'
+                  ? productInsights.low
+                  : productInsights.out;
+
+            return (
+              <motion.div
+                key={card.id}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.06 }}
+                className="rounded-xl border p-5 flex flex-col gap-2"
+                style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium uppercase tracking-wider" style={{ color: labelColor }}>
+                    {card.label}
+                  </span>
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center"
+                    style={{ backgroundColor: colors.bg.elevated }}
+                  >
+                    <Icon className="w-4 h-4" style={{ color: colors.text.muted }} />
+                  </div>
+                </div>
+                <span className="text-2xl font-bold" style={{ color: colors.text.primary }}>
+                  {value}
+                </span>
+              </motion.div>
+            );
+          })}
+        </div>
+
         <div className="mt-8 max-w-4xl mx-auto rounded-2xl border px-5 py-3.5 flex items-center gap-3 bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]">
           <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0" fill="none" style={{ color: colors.accent.yellow }}>
             <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -841,8 +955,8 @@ export default function ProductsPage() {
         </section>
       ) : hasProducts ? (
         <>
-          <div id="inventory-section" className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 mb-2">
-            <div className="flex items-center gap-2">
+          <div id="inventory-section" className="grid grid-cols-1 xl:grid-cols-[1fr_auto_1fr] items-center gap-4 mb-2">
+            <div className="flex items-center gap-2 justify-start">
               <select
                 value={selectedCategory}
                 onChange={(e) => { setSelectedCategory(e.target.value); setCurrentPage(1); }}
@@ -902,30 +1016,74 @@ export default function ProductsPage() {
             </div>
 
             <div className="flex items-center gap-2 justify-end">
+              <div ref={statusMenuRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowStatusFilterMenu((prev) => !prev)}
+                  className="h-11 w-11 rounded-xl border flex items-center justify-center hover:opacity-90"
+                  style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
+                  title="Filter products"
+                >
+                  <img src="/icons/products/Sort%20Amount%20Up.png" alt="Filter" className="h-5 w-5" />
+                </button>
+                {showStatusFilterMenu && (
+                  <div
+                    className="absolute right-0 top-full mt-2 w-56 rounded-xl border p-2 z-30"
+                    style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
+                  >
+                    {[
+                      { value: 'all', label: 'All' },
+                      { value: 'active', label: 'Active' },
+                      { value: 'inactive', label: 'Inactive' },
+                      { value: 'low-stock', label: 'Low Stock' },
+                      { value: 'out-of-stock', label: 'Out of Stock' },
+                    ].map((item) => {
+                      const checked = statusFilter === item.value;
+                      return (
+                        <button
+                          key={item.value}
+                          type="button"
+                          onClick={() => {
+                            setStatusFilter(item.value as typeof statusFilter);
+                            setCurrentPage(1);
+                            setShowStatusFilterMenu(false);
+                          }}
+                          className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm hover:bg-white/5"
+                          style={{ color: '#D2D6F7' }}
+                        >
+                          <span>{item.label}</span>
+                          <span>{checked ? '✓' : ''}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               <button
                 type="button"
-                onClick={() => setSortMode((prev) => prev === 'price-desc' ? 'stock-desc' : prev === 'stock-desc' ? 'status' : 'price-desc')}
+                onClick={() => setViewMode((prev) => (prev === 'tile' ? 'list' : 'tile'))}
                 className="h-11 w-11 rounded-xl border flex items-center justify-center hover:opacity-90"
                 style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
-                title="Sort products"
+                title={viewMode === 'tile' ? 'Switch to list view' : 'Switch to tile view'}
               >
-                <img src="/icons/products/Sort%20Amount%20Up.png" alt="Sort" className="h-5 w-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setPerPage((p) => p === 10 ? 15 : p === 15 ? 20 : 10)}
-                className="h-11 w-11 rounded-xl border flex items-center justify-center hover:opacity-90"
-                style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
-                title="Toggle density"
-              >
-                <img src="/icons/products/Bulleted%20List.png" alt="List" className="h-5 w-5" />
+                {viewMode === 'tile' ? (
+                  <img src="/icons/products/Bulleted%20List.png" alt="List view" className="h-5 w-5" />
+                ) : (
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <rect x="4" y="4" width="6" height="6" rx="1" />
+                    <rect x="14" y="4" width="6" height="6" rx="1" />
+                    <rect x="4" y="14" width="6" height="6" rx="1" />
+                    <rect x="14" y="14" width="6" height="6" rx="1" />
+                  </svg>
+                )}
               </button>
             </div>
           </div>
 
           {filteredProducts.length > 0 ? (
             <>
-              <div id="products-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5 lg:gap-6">
+              <div id="products-grid" className={`grid gap-4 md:gap-5 lg:gap-6 ${viewMode === 'tile' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5' : 'grid-cols-1'}`}>
                 <AnimatePresence>
                   {paginatedProducts.map((product) => (
                     <ProductCard
