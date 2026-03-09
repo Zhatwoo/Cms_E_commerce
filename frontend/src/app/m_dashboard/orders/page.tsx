@@ -12,10 +12,10 @@ type CheckoutTab = 'all' | 'pending' | 'transit' | 'completed';
 type ViewMode = 'list' | 'grid';
 
 const CHECKOUT_TABS: { id: CheckoutTab; label: string }[] = [
-  { id: 'all', label: 'All Checkouts' },
-  { id: 'pending', label: 'Pending' },
-  { id: 'transit', label: 'In Transit' },
-  { id: 'completed', label: 'Completed' },
+  { id: 'all', label: 'ALL CHECKOUTS' },
+  { id: 'pending', label: 'PENDING' },
+  { id: 'transit', label: 'IN TRANSIT' },
+  { id: 'completed', label: 'COMPLETED' },
 ];
 
 const ORDER_CATEGORIES = [
@@ -262,7 +262,7 @@ export default function OrdersPage() {
           <span
             className="block text-transparent bg-clip-text"
             style={{
-              backgroundImage: 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)',
+              backgroundImage: 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)',
             }}
           >
             Checkouts
@@ -281,7 +281,7 @@ export default function OrdersPage() {
                     tabRefs.current[tab.id] = el;
                   }}
                   onClick={() => setActiveTab(tab.id)}
-                  className="relative whitespace-nowrap px-1 pb-2 text-[11px] max-[390px]:text-[10px] sm:text-[12px] font-semibold transition-colors duration-200"
+                  className="relative whitespace-nowrap px-1 pb-2 text-[9px] max-[390px]:text-[9px] sm:text-[10px] lg:text-[11px] font-bold uppercase tracking-[0.12em] sm:tracking-[0.14em] [font-family:var(--font-outfit),sans-serif] transition-colors duration-200"
                   style={{ color: isActive ? colors.accent.yellow : colors.text.muted }}
                 >
                   {tab.label}
@@ -301,7 +301,7 @@ export default function OrdersPage() {
           </div>
         </div>
 
-        <div className="mx-auto mt-7 sm:mt-8 max-w-[760px] rounded-xl sm:rounded-2xl border px-3 max-[390px]:px-2.5 sm:px-5 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-3 shadow-[0_10px_34px_rgba(16,11,62,0.36)]" style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.card }}>
+        <div className="mx-auto mt-7 sm:mt-8 max-w-[860px] rounded-2xl border px-5 py-3.5 flex items-center gap-3 bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]">
           <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0" fill="none" style={{ color: colors.accent.yellow }}>
             <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
             <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="1.8" />
@@ -310,8 +310,7 @@ export default function OrdersPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search templates, designs, or actions"
-            className="w-full bg-transparent text-[13px] sm:text-sm outline-none placeholder:opacity-70"
-            style={{ color: colors.text.primary }}
+            className="w-full bg-transparent text-sm outline-none text-white placeholder:text-[#6F70A8]"
           />
         </div>
       </section>

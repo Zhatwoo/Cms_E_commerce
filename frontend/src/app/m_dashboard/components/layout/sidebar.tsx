@@ -1,7 +1,7 @@
 // eto yung main navigation ni user
 
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -55,13 +55,21 @@ const navItems: SidebarItem[] = [
 type DashboardSidebarProps = {
   mobile?: boolean;
   onClose?: () => void;
+  onNavigateStart?: () => void;
 };
 
-export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarProps) {
+export function DashboardSidebar({ mobile = false, onClose, onNavigateStart }: DashboardSidebarProps) {
   const [isHovered, setIsHovered] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const { colors, theme } = useTheme();
+
+  useEffect(() => {
+    navItems.forEach((item) => {
+      if (!item.href) return;
+      router.prefetch(item.href);
+    });
+  }, [router]);
 
   const handleHomeClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     if (pathname === '/m_dashboard') {
@@ -71,7 +79,19 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
       return;
     }
 
+    event.preventDefault();
+    onNavigateStart?.();
     router.push('/m_dashboard', { scroll: true });
+    onClose?.();
+  };
+
+  const handleNavClick = (href?: string) => {
+    if (!href) return;
+    if (href === pathname) {
+      onClose?.();
+      return;
+    }
+    onNavigateStart?.();
     onClose?.();
   };
 
@@ -162,7 +182,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
                   key={item.id}
                   href={item.href}
                   className="block"
-                  onClick={item.id === 'home' ? handleHomeClick : onClose}
+                  onClick={item.id === 'home' ? handleHomeClick : () => handleNavClick(item.href)}
                 >
                   {content}
                 </Link>
@@ -228,7 +248,7 @@ export function DashboardSidebar({ mobile = false, onClose }: DashboardSidebarPr
               <Link
                 key={item.id}
                 href={item.href ?? '#'}
-                onClick={item.id === 'home' ? handleHomeClick : undefined}
+                onClick={item.id === 'home' ? handleHomeClick : () => handleNavClick(item.href)}
                 className={`
                 group relative flex items-center rounded-lg transition-all duration-200
                 w-full px-4 py-3

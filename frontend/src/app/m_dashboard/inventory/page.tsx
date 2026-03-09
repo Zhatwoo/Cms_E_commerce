@@ -7,16 +7,16 @@ import {
   TrendingUp,
   ArrowDownUp,
   CheckCircle,
-  Search,
   Filter,
   Plus,
   Download,
   Upload,
   Minus,
+  Trash2,
 } from 'lucide-react';
-import { useTheme } from '../components/context/theme-context';
 import {
   adjustInventoryStock,
+  deleteInventoryMovement,
   getInventorySummary,
   importInventoryCsv,
   listInventory,
@@ -28,73 +28,49 @@ import {
 } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 
-const EXPORT_COLUMNS = ['name', 'sku', 'category', 'onHandStock', 'reservedStock', 'lowStockThreshold', 'status'] as const;
+// ─── Design tokens (original — unchanged) ────────────────────────────────────
+const T = {
+  bg:           'radial-gradient(120% 100% at 50% 0%, #24104b 0%, #140836 42%, #0a0624 100%)',
+  card:         '#141446',
+  cardBorder:   '#1F1F51',
+  elevated:     '#141446',
+  input:        '#141446',
+  inputBorder:  '#1F1F51',
+  text:         '#ffffff',
+  textMuted:    'rgba(219,212,255,0.45)',
+  textSub:      'rgba(234,229,255,0.72)',
+  accent:       '#a855f7',
+  brandGradient:'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)',
+  green:        '#22c55e',
+  greenBg:      'rgba(34,197,94,0.12)',
+  greenBorder:  'rgba(34,197,94,0.28)',
+  red:          '#ef4444',
+  redBg:        'rgba(239,68,68,0.12)',
+  redBorder:    'rgba(239,68,68,0.28)',
+  yellow:       '#eab308',
+  yellowBg:     'rgba(234,179,8,0.12)',
+  yellowBorder: 'rgba(234,179,8,0.28)',
+  radius:       22,
+  font:         "'DM Sans', 'Segoe UI', sans-serif",
+};
+
+// ─── CSV helpers (unchanged) ──────────────────────────────────────────────────
+const EXPORT_COLUMNS = ['name','sku','category','onHandStock','reservedStock','lowStockThreshold','status'] as const;
 
 function escapeCsvValue(val: string | number | undefined | null): string {
   const s = String(val ?? '');
-  if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
-    return `"${s.replace(/"/g, '""')}"`;
-  }
+  if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) return `"${s.replace(/"/g,'""')}"`;
   return s;
 }
-
 function productsToCsv(items: ApiProduct[]): string {
   const header = EXPORT_COLUMNS.join(',');
   const rows = items.map((p) => {
-    const onHand = p.onHandStock ?? p.stock ?? 0;
+    const onHand   = p.onHandStock ?? p.stock ?? 0;
     const reserved = p.reservedStock ?? 0;
-    const low = p.lowStockThreshold ?? 5;
-    return [
-      escapeCsvValue(p.name),
-      escapeCsvValue(p.sku),
-      escapeCsvValue(p.category),
-      escapeCsvValue(onHand),
-      escapeCsvValue(reserved),
-      escapeCsvValue(low),
-      escapeCsvValue(p.status),
-    ].join(',');
+    const low      = p.lowStockThreshold ?? 5;
+    return [escapeCsvValue(p.name),escapeCsvValue(p.sku),escapeCsvValue(p.category),escapeCsvValue(onHand),escapeCsvValue(reserved),escapeCsvValue(low),escapeCsvValue(p.status)].join(',');
   });
-  return [header, ...rows].join('\n');
-}
-
-function parseCsvToRows(text: string): ImportInventoryRow[] {
-  const lines = text.split(/\r?\n/).filter((line) => line.trim());
-  if (lines.length < 2) return [];
-
-  const headerCols = parseCsvLine(lines[0]).map((c) => c.trim().toLowerCase().replace(/_/g, ''));
-  const skuIdx = headerCols.findIndex((c) => c === 'sku');
-  const onHandIdx = headerCols.findIndex((c) =>
-    ['onhandstock', 'stock'].includes(c)
-  );
-  const reservedIdx = headerCols.findIndex((c) =>
-    ['reservedstock', 'reserved'].includes(c)
-  );
-  const lowIdx = headerCols.findIndex((c) =>
-    ['lowstockthreshold', 'lowthreshold'].includes(c)
-  );
-
-  const rows: ImportInventoryRow[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cols = parseCsvLine(lines[i]);
-    const sku = skuIdx >= 0 ? (cols[skuIdx] ?? '').trim() : '';
-    if (!sku) continue;
-
-    const row: ImportInventoryRow = { sku };
-    if (onHandIdx >= 0) {
-      const v = parseInt(String(cols[onHandIdx] ?? '0'), 10);
-      if (Number.isFinite(v)) row.onHandStock = Math.max(0, v);
-    }
-    if (reservedIdx >= 0) {
-      const v = parseInt(String(cols[reservedIdx] ?? '0'), 10);
-      if (Number.isFinite(v)) row.reservedStock = Math.max(0, v);
-    }
-    if (lowIdx >= 0) {
-      const v = parseInt(String(cols[lowIdx] ?? '5'), 10);
-      if (Number.isFinite(v)) row.lowStockThreshold = Math.max(0, v);
-    }
-    rows.push(row);
-  }
-  return rows;
+  return [header,...rows].join('\n');
 }
 
 function parseCsvLine(line: string): string[] {
@@ -102,252 +78,255 @@ function parseCsvLine(line: string): string[] {
   let i = 0;
   while (i < line.length) {
     if (line[i] === '"') {
-      let cell = '';
-      i++;
+      let cell = ''; i++;
       while (i < line.length) {
-        if (line[i] === '"') {
-          if (line[i + 1] === '"') {
-            cell += '"';
-            i += 2;
-          } else {
-            i++;
-            break;
-          }
-        } else {
-          cell += line[i];
-          i++;
-        }
+        if (line[i] === '"') { if (line[i+1]==='"'){cell+='"';i+=2;} else {i++;break;} } else {cell+=line[i];i++;}
       }
       result.push(cell);
     } else {
       let cell = '';
-      while (i < line.length && line[i] !== ',') {
-        cell += line[i];
-        i++;
-      }
+      while (i < line.length && line[i] !== ',') {cell+=line[i];i++;}
       result.push(cell.trim());
-      if (line[i] === ',') i++;
+      if (line[i]===',') i++;
     }
   }
   return result;
 }
 
-type StockStatus = 'all' | 'in-stock' | 'low-stock' | 'out-of-stock';
+function parseCsvToRows(text: string): ImportInventoryRow[] {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim());
+  if (lines.length < 2) return [];
+  const headerCols  = parseCsvLine(lines[0]).map((c) => c.trim().toLowerCase().replace(/_/g,''));
+  const skuIdx      = headerCols.findIndex((c) => c === 'sku');
+  const onHandIdx   = headerCols.findIndex((c) => ['onhandstock','stock'].includes(c));
+  const reservedIdx = headerCols.findIndex((c) => ['reservedstock','reserved'].includes(c));
+  const lowIdx      = headerCols.findIndex((c) => ['lowstockthreshold','lowthreshold'].includes(c));
+  const rows: ImportInventoryRow[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseCsvLine(lines[i]);
+    const sku = skuIdx >= 0 ? (cols[skuIdx]??'').trim() : '';
+    if (!sku) continue;
+    const row: ImportInventoryRow = { sku };
+    if (onHandIdx >= 0)   { const v = parseInt(String(cols[onHandIdx]??'0'),10);   if (Number.isFinite(v)) row.onHandStock = Math.max(0,v); }
+    if (reservedIdx >= 0) { const v = parseInt(String(cols[reservedIdx]??'0'),10); if (Number.isFinite(v)) row.reservedStock = Math.max(0,v); }
+    if (lowIdx >= 0)      { const v = parseInt(String(cols[lowIdx]??'5'),10);       if (Number.isFinite(v)) row.lowStockThreshold = Math.max(0,v); }
+    rows.push(row);
+  }
+  return rows;
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 type StockAdjustmentType = 'IN' | 'OUT';
 
 type StockAdjustmentModalState = {
-  open: boolean;
-  product: ApiProduct | null;
-  movementType: StockAdjustmentType;
-  quantity: string;
-  notes: string;
-  error: string | null;
+  open: boolean; product: ApiProduct | null; movementType: StockAdjustmentType;
+  quantity: string; notes: string; error: string | null;
 };
 
-type ImportPopupState = {
-  open: boolean;
-  message: string;
-  tone: 'success' | 'error';
-};
+type ImportPopupState = { open: boolean; message: string; tone: 'success' | 'error' };
 
-const getDefaultAdjustmentNote = (movementType: StockAdjustmentType) =>
-  movementType === 'IN' ? 'Manual stock-in from inventory page' : 'Manual stock-out from inventory page';
+const getDefaultAdjustmentNote = (t: StockAdjustmentType) =>
+  t === 'IN' ? 'Manual stock-in from inventory page' : 'Manual stock-out from inventory page';
 
-const STAT_CARDS = [
-  { id: 'total', label: 'Total Products', icon: Package, valueKey: 'total' as const },
-  { id: 'low', label: 'Low Stock', icon: AlertTriangle, valueKey: 'lowStock' as const },
-  { id: 'out', label: 'Out of Stock', icon: ArrowDownUp, valueKey: 'outOfStock' as const },
-  { id: 'value', label: 'Stock Value', icon: TrendingUp, valueKey: 'stockValue' as const },
-];
 const RECENT_MOVEMENTS_LIMIT = 5;
-const ALL_MOVEMENTS_LIMIT = 500;
+const ALL_MOVEMENTS_LIMIT    = 500;
 
+// ─── Shared UI helpers ────────────────────────────────────────────────────────
+const Card = ({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) => (
+  <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: T.radius, ...style }}>
+    {children}
+  </div>
+);
+
+const GhostBtn = ({
+  onClick, disabled, children, title, style,
+}: { onClick?: () => void; disabled?: boolean; children: React.ReactNode; title?: string; style?: React.CSSProperties }) => (
+  <button
+    type="button" onClick={onClick} disabled={disabled} title={title}
+    style={{
+      background: 'rgba(255,255,255,0.05)', border: `1px solid ${T.cardBorder}`,
+      borderRadius: 8, color: T.textSub, fontSize: 13,
+      cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1,
+      display: 'inline-flex', alignItems: 'center', gap: 6,
+      padding: '7px 14px', transition: 'opacity 0.15s', ...style,
+    }}
+  >{children}</button>
+);
+
+// ENHANCED: pill now has a subtle border for better legibility
+const StatusPill = ({ stock, lowThreshold }: { stock: number; lowThreshold: number }) => {
+  const outOfStock = stock <= 0;
+  const lowStock   = !outOfStock && stock < lowThreshold;
+  const { color, bg, border, label } = outOfStock
+    ? { color: T.red,    bg: T.redBg,    border: T.redBorder,    label: 'Out of Stock' }
+    : lowStock
+    ? { color: T.yellow, bg: T.yellowBg, border: T.yellowBorder, label: 'Low Stock' }
+    : { color: T.green,  bg: T.greenBg,  border: T.greenBorder,  label: '✦ In Stock' };
+  return (
+    <span style={{
+      background: bg, border: `1px solid ${border}`, color,
+      padding: '3px 10px', borderRadius: 20, fontSize: 11,
+      fontWeight: 600, display: 'inline-block',
+    }}>{label}</span>
+  );
+};
+
+const brandActionButtonStyle: React.CSSProperties = {
+  background: T.brandGradient, border: 'none', borderRadius: 10, color: '#fff',
+  fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex',
+  alignItems: 'center', justifyContent: 'center', gap: 6,
+  height: 34, padding: '0 16px', boxShadow: '0 10px 28px rgba(112,21,214,0.35)',
+};
+
+// ENHANCED: movement type badge replaces plain colored text
+const MovTypeBadge = ({ type }: { type: string }) => {
+  const isIn = String(type).toUpperCase() === 'IN';
+  return (
+    <span style={{
+      background: isIn ? T.greenBg : T.redBg,
+      border: `1px solid ${isIn ? T.greenBorder : T.redBorder}`,
+      color: isIn ? T.green : T.red,
+      borderRadius: 5, fontSize: 10, fontWeight: 700,
+      padding: '2px 7px', letterSpacing: 0.6, flexShrink: 0,
+    }}>{isIn ? 'IN' : 'OUT'}</span>
+  );
+};
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function InventoryPage() {
   const router = useRouter();
-  const { colors, theme } = useTheme();
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StockStatus>('all');
-  const [items, setItems] = useState<ApiProduct[]>([]);
-  const [summary, setSummary] = useState<InventorySummary | null>(null);
-  const [movements, setMovements] = useState<InventoryMovement[]>([]);
-  const [allMovements, setAllMovements] = useState<InventoryMovement[]>([]);
+
+  const [search, setSearch]                       = useState('');
+  const [categoryFilter, setCategoryFilter]       = useState<string>('all');
+  const [items, setItems]                         = useState<ApiProduct[]>([]);
+  const [summary, setSummary]                     = useState<InventorySummary | null>(null);
+  const [movements, setMovements]                 = useState<InventoryMovement[]>([]);
+  const [allMovements, setAllMovements]           = useState<InventoryMovement[]>([]);
   const [showAllMovementsModal, setShowAllMovementsModal] = useState(false);
-  const [loadingAllMovements, setLoadingAllMovements] = useState(false);
-  const [allMovementsError, setAllMovementsError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [adjustingId, setAdjustingId] = useState<string | null>(null);
-  const [stockModal, setStockModal] = useState<StockAdjustmentModalState>({
-    open: false,
-    product: null,
-    movementType: 'IN',
-    quantity: '1',
-    notes: getDefaultAdjustmentNote('IN'),
-    error: null,
+  const [loadingAllMovements, setLoadingAllMovements]     = useState(false);
+  const [allMovementsError, setAllMovementsError]         = useState<string | null>(null);
+  const [deletingMovementId, setDeletingMovementId]       = useState<string | null>(null);
+  const [loading, setLoading]                     = useState(true);
+  const [error, setError]                         = useState<string | null>(null);
+  const [adjustingId, setAdjustingId]             = useState<string | null>(null);
+  const [stockModal, setStockModal]               = useState<StockAdjustmentModalState>({
+    open: false, product: null, movementType: 'IN', quantity: '1',
+    notes: getDefaultAdjustmentNote('IN'), error: null,
   });
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [importPopup, setImportPopup] = useState<ImportPopupState>({
-    open: false,
-    message: '',
-    tone: 'success',
-  });
+  const [importPopup, setImportPopup] = useState<ImportPopupState>({ open: false, message: '', tone: 'success' });
   const importPopupTimerRef = useRef<number | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef        = useRef<HTMLInputElement>(null);
 
   const showImportPopup = useCallback((message: string, tone: 'success' | 'error') => {
-    if (importPopupTimerRef.current) {
-      window.clearTimeout(importPopupTimerRef.current);
-    }
-
-    setImportPopup({
-      open: true,
-      message,
-      tone,
-    });
-
+    if (importPopupTimerRef.current) window.clearTimeout(importPopupTimerRef.current);
+    setImportPopup({ open: true, message, tone });
     importPopupTimerRef.current = window.setTimeout(() => {
-      setImportPopup((prev) => ({ ...prev, open: false }));
+      setImportPopup((p) => ({ ...p, open: false }));
       importPopupTimerRef.current = null;
-    }, 3000);
+    }, 3500);
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (importPopupTimerRef.current) {
-        window.clearTimeout(importPopupTimerRef.current);
-      }
-    };
-  }, []);
+  useEffect(() => () => { if (importPopupTimerRef.current) window.clearTimeout(importPopupTimerRef.current); }, []);
 
-  const formatStat = (value: string | number) => (typeof value === 'number' ? String(value) : value);
   const stockValueLabel = useMemo(() => `₱${(summary?.stockValue || 0).toLocaleString()}`, [summary?.stockValue]);
 
   const loadData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    setLoading(true); setError(null);
     try {
       const [invRes, summaryRes, movementRes] = await Promise.all([
         listInventory({ limit: 500, search: search || undefined }),
         getInventorySummary({ search: search || undefined }),
         listInventoryMovements({ limit: RECENT_MOVEMENTS_LIMIT }),
       ]);
-
-      const inventoryItems = Array.isArray(invRes.items) ? invRes.items : [];
-      setItems(inventoryItems);
+      setItems(Array.isArray(invRes.items) ? invRes.items : []);
       setSummary(summaryRes.data || null);
       setMovements(Array.isArray(movementRes.items) ? movementRes.items : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load inventory');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }, [search]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const loadAllMovements = useCallback(async () => {
-    setLoadingAllMovements(true);
-    setAllMovementsError(null);
+    setLoadingAllMovements(true); setAllMovementsError(null);
     try {
       const res = await listInventoryMovements({ limit: ALL_MOVEMENTS_LIMIT });
       setAllMovements(Array.isArray(res.items) ? res.items : []);
     } catch (err) {
       setAllMovementsError(err instanceof Error ? err.message : 'Failed to load movement history');
-    } finally {
-      setLoadingAllMovements(false);
-    }
+    } finally { setLoadingAllMovements(false); }
   }, []);
 
-  const openAllMovementsModal = useCallback(() => {
-    setShowAllMovementsModal(true);
-    void loadAllMovements();
-  }, [loadAllMovements]);
-
-  const closeAllMovementsModal = useCallback(() => {
-    setShowAllMovementsModal(false);
-  }, []);
+  const openAllMovementsModal  = useCallback(() => { setShowAllMovementsModal(true); void loadAllMovements(); }, [loadAllMovements]);
+  const closeAllMovementsModal = useCallback(() => setShowAllMovementsModal(false), []);
 
   useEffect(() => {
     if (!showAllMovementsModal) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeAllMovementsModal();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    const fn = (e: KeyboardEvent) => { if (e.key === 'Escape') closeAllMovementsModal(); };
+    window.addEventListener('keydown', fn);
+    return () => window.removeEventListener('keydown', fn);
   }, [showAllMovementsModal, closeAllMovementsModal]);
 
   const getStockNumbers = useCallback((p: ApiProduct) => {
-    const onHand = Number(p.onHandStock ?? p.stock ?? 0);
-    const reserved = Number(p.reservedStock ?? 0);
-    const available = Number(p.availableStock ?? Math.max(0, onHand - reserved));
+    const onHand       = Number(p.onHandStock ?? p.stock ?? 0);
+    const reserved     = Number(p.reservedStock ?? 0);
+    const available    = Number(p.availableStock ?? Math.max(0, onHand - reserved));
     const lowThreshold = Number(p.lowStockThreshold ?? 5);
     return { onHand, reserved, available, lowThreshold };
   }, []);
 
-  const filteredItems = useMemo(() => {
-    return items.filter((p) => {
-      const name = String(p.name || '').toLowerCase();
-      const sku = String(p.sku || '').toLowerCase();
-      const category = String(p.category || '').toLowerCase();
-      const q = search.trim().toLowerCase();
-      const matchesSearch = !q || name.includes(q) || sku.includes(q) || category.includes(q);
-
-      const { onHand, lowThreshold } = getStockNumbers(p);
-      const matchesStatus =
-        statusFilter === 'all' ||
-        (statusFilter === 'out-of-stock' && onHand <= 0) ||
-        (statusFilter === 'low-stock' && onHand > 0 && onHand < lowThreshold) ||
-        (statusFilter === 'in-stock' && onHand >= lowThreshold);
-
-      return matchesSearch && matchesStatus;
+  const categoryOptions = useMemo(() => {
+    const uniq = new Set<string>();
+    items.forEach((p) => {
+      const c = String(p.category || '').trim();
+      if (c) uniq.add(c);
     });
-  }, [items, search, statusFilter, getStockNumbers]);
+    return Array.from(uniq).sort((a, b) => a.localeCompare(b));
+  }, [items]);
+
+  const filteredItems = useMemo(() => items.filter((p) => {
+    const q = search.trim().toLowerCase();
+    const matchesSearch = !q ||
+      String(p.name||'').toLowerCase().includes(q) ||
+      String(p.sku||'').toLowerCase().includes(q) ||
+      String(p.category||'').toLowerCase().includes(q);
+    const category = String(p.category || '').trim();
+    const matchesCategory = categoryFilter === 'all' || category === categoryFilter;
+    return matchesSearch && matchesCategory;
+  }), [items, search, categoryFilter]);
 
   const openStockModal = useCallback((product: ApiProduct, movementType: StockAdjustmentType) => {
-    setStockModal({
-      open: true,
-      product,
-      movementType,
-      quantity: '1',
-      notes: getDefaultAdjustmentNote(movementType),
-      error: null,
-    });
+    setStockModal({ open: true, product, movementType, quantity: '1', notes: getDefaultAdjustmentNote(movementType), error: null });
   }, []);
 
   const closeStockModal = useCallback(() => {
     if (adjustingId) return;
-    setStockModal((prev) => ({ ...prev, open: false, product: null, error: null }));
+    setStockModal((p) => ({ ...p, open: false, product: null, error: null }));
   }, [adjustingId]);
 
   useEffect(() => {
     if (!stockModal.open) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeStockModal();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    const fn = (e: KeyboardEvent) => { if (e.key === 'Escape') closeStockModal(); };
+    window.addEventListener('keydown', fn);
+    return () => window.removeEventListener('keydown', fn);
   }, [stockModal.open, closeStockModal]);
 
   const submitStockAdjustment = useCallback(async () => {
     if (!stockModal.product) return;
     const qty = parseInt(stockModal.quantity, 10);
     if (!Number.isFinite(qty) || qty <= 0) {
-      setStockModal((prev) => ({ ...prev, error: 'Please enter a valid quantity greater than zero.' }));
-      return;
+      setStockModal((p) => ({ ...p, error: 'Please enter a valid quantity greater than zero.' })); return;
     }
-
     const { onHand } = getStockNumbers(stockModal.product);
     if (stockModal.movementType === 'OUT' && qty > onHand) {
-      setStockModal((prev) => ({ ...prev, error: `Cannot deduct ${qty}. Current stock is ${onHand}.` }));
-      return;
+      setStockModal((p) => ({ ...p, error: `Cannot deduct ${qty}. Current stock is ${onHand}.` })); return;
     }
-
     try {
       setAdjustingId(stockModal.product.id);
-      setStockModal((prev) => ({ ...prev, error: null }));
+      setStockModal((p) => ({ ...p, error: null }));
       await adjustInventoryStock({
         productId: stockModal.product.id,
         movementType: stockModal.movementType,
@@ -355,19 +334,37 @@ export default function InventoryPage() {
         notes: stockModal.notes.trim() || getDefaultAdjustmentNote(stockModal.movementType),
       });
       await loadData();
+      if (showAllMovementsModal) await loadAllMovements();
+      setStockModal((p) => ({ ...p, open: false, product: null, error: null }));
+    } catch (err) {
+      setStockModal((p) => ({ ...p, error: err instanceof Error ? err.message : 'Failed to adjust stock' }));
+    } finally { setAdjustingId(null); }
+  }, [stockModal, getStockNumbers, loadData, showAllMovementsModal, loadAllMovements]);
+
+  const confirmDeleteMovement = useCallback(async (movement: InventoryMovement) => {
+    if (!movement?.id) return;
+    const confirmed = window.confirm(
+      `Delete this movement for "${movement.productName || 'this product'}"? This action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    try {
+      setDeletingMovementId(movement.id);
+      await deleteInventoryMovement(movement.id);
+      await loadData();
       if (showAllMovementsModal) {
         await loadAllMovements();
       }
-      setStockModal((prev) => ({ ...prev, open: false, product: null, error: null }));
+      showImportPopup('Inventory movement deleted.', 'success');
     } catch (err) {
-      setStockModal((prev) => ({
-        ...prev,
-        error: err instanceof Error ? err.message : 'Failed to adjust stock',
-      }));
+      showImportPopup(
+        err instanceof Error ? err.message : 'Failed to delete movement',
+        'error'
+      );
     } finally {
-      setAdjustingId(null);
+      setDeletingMovementId(null);
     }
-  }, [stockModal, getStockNumbers, loadData, showAllMovementsModal, loadAllMovements]);
+  }, [loadAllMovements, loadData, showAllMovementsModal, showImportPopup]);
 
   const isAdjustingFromModal = Boolean(stockModal.product && adjustingId === stockModal.product.id);
   const modalOnHand = stockModal.product ? getStockNumbers(stockModal.product).onHand : 0;
@@ -377,615 +374,556 @@ export default function InventoryPage() {
     try {
       const res = await listInventory({ limit: 5000, search: search || undefined });
       const data = Array.isArray(res.items) ? res.items : [];
-      if (data.length === 0) {
-        window.alert('No inventory to export.');
-        return;
-      }
+      if (data.length === 0) { window.alert('No inventory to export.'); return; }
       const csv = productsToCsv(data);
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = `inventory-export-${new Date().toISOString().slice(0, 10)}.csv`;
-      a.click();
+      a.href = url; a.download = `inventory-export-${new Date().toISOString().slice(0,10)}.csv`; a.click();
       URL.revokeObjectURL(url);
-    } catch (err) {
-      window.alert(err instanceof Error ? err.message : 'Export failed');
-    } finally {
-      setExporting(false);
-    }
+    } catch (err) { window.alert(err instanceof Error ? err.message : 'Export failed'); }
+    finally { setExporting(false); }
   }, [search]);
 
-  const handleImport = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
+  const handleImport = useCallback(() => { fileInputRef.current?.click(); }, []);
 
-  const handleFileChange = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      e.target.value = '';
-      if (!file) return;
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; e.target.value = ''; if (!file) return;
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const rows = parseCsvToRows(text);
+      if (rows.length === 0) { showImportPopup('Import failed: No valid rows in CSV. Use header "sku" and optionally "onHandStock", "reservedStock", "lowStockThreshold".', 'error'); return; }
+      const result = await importInventoryCsv({ rows });
+      if (result.updated && result.updated > 0) await loadData();
+      if (result.errors && result.errors.length > 0) {
+        const s = result.errors.slice(0,2).map((e) => `Row ${e.row} (${e.sku}): ${e.message}`).join(' | ');
+        showImportPopup(`Import completed with errors. ${s}${result.errors.length > 2 ? ` | +${result.errors.length - 2} more` : ''}`, 'error');
+      } else { showImportPopup(result.message ?? `Import successful. Updated ${result.updated ?? 0} product(s).`, 'success'); }
+    } catch (err) { showImportPopup(err instanceof Error ? `Import failed: ${err.message}` : 'Import failed', 'error'); }
+    finally { setImporting(false); }
+  }, [loadData, showImportPopup]);
 
-      setImporting(true);
-      try {
-        const text = await file.text();
-        const rows = parseCsvToRows(text);
-        if (rows.length === 0) {
-          showImportPopup(
-            'Import failed: No valid rows in CSV. Use header "sku" and optionally "onHandStock", "reservedStock", "lowStockThreshold".',
-            'error'
-          );
-          return;
-        }
+  // ─── Config ─────────────────────────────────────────────────────────────────
+  const statCards = [
+    { id: 'total', label: 'TOTAL PRODUCTS', icon: <Package size={12} />,      accent: '#86a8ff', value: summary?.totalProducts ?? 0 },
+    { id: 'low',   label: 'LOW STOCK',      icon: <AlertTriangle size={12} />, accent: '#b178ff', value: summary?.lowStock ?? 0 },
+    { id: 'out',   label: 'OUT OF STOCK',   icon: <Filter size={12} />,        accent: '#ff4f8c', value: summary?.outOfStock ?? 0 },
+    { id: 'value', label: 'STOCK VALUE',    icon: <TrendingUp size={12} />,    accent: '#22d3a4', value: stockValueLabel },
+  ];
 
-        const result = await importInventoryCsv({ rows });
+  const inputStyle: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box',
+    background: T.input, border: `1px solid ${T.inputBorder}`,
+    borderRadius: 10, color: T.text, padding: '11px 14px',
+    fontSize: 14, outline: 'none',
+  };
 
-        if (result.updated && result.updated > 0) {
-          await loadData();
-        }
+  // ─── Modal backdrop ──────────────────────────────────────────────────────────
+  const ModalBackdrop = ({ onClose, children }: { onClose: () => void; children: React.ReactNode }) => (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 120, display: 'flex',
+        alignItems: 'center', justifyContent: 'center', padding: 16,
+        background: 'rgba(10,8,28,0.75)', backdropFilter: 'blur(6px)',
+      }}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 18, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 18, scale: 0.98 }} transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+        onClick={(e) => e.stopPropagation()}
+      >{children}</motion.div>
+    </motion.div>
+  );
 
-        if (result.errors && result.errors.length > 0) {
-          const errorSummary = result.errors
-            .slice(0, 2)
-            .map((e) => `Row ${e.row} (${e.sku}): ${e.message}`)
-            .join(' | ');
-          showImportPopup(
-            `Import completed with errors. ${errorSummary}${result.errors.length > 2 ? ` | +${result.errors.length - 2} more` : ''}`,
-            'error'
-          );
-        } else {
-          showImportPopup(result.message ?? `Import successful. Updated ${result.updated ?? 0} product(s).`, 'success');
-        }
-      } catch (err) {
-        showImportPopup(err instanceof Error ? `Import failed: ${err.message}` : 'Import failed', 'error');
-      } finally {
-        setImporting(false);
-      }
-    },
-    [loadData, showImportPopup]
+  // ENHANCED: movement row — badge + hover highlight
+  const MovementRow = ({
+    m,
+    onDelete,
+    isDeleting,
+  }: {
+    m: InventoryMovement;
+    onDelete?: (movement: InventoryMovement) => void;
+    isDeleting?: boolean;
+  }) => {
+    const isIn  = String(m.type||'').toUpperCase() === 'IN';
+    const color = isIn ? T.green : T.red;
+    return (
+      <div
+        style={{
+          background: T.elevated, border: `1px solid ${T.cardBorder}`,
+          borderRadius: 10, padding: '11px 16px',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          marginBottom: 8, transition: 'border-color 0.15s, background 0.15s',
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(135,153,192,0.6)';
+          (e.currentTarget as HTMLDivElement).style.background  = 'rgba(255,255,255,0.03)';
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLDivElement).style.borderColor = T.cardBorder;
+          (e.currentTarget as HTMLDivElement).style.background  = T.elevated;
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <MovTypeBadge type={m.type || ''} />
+          <div>
+            <div style={{ fontSize: 13, color: T.text, fontWeight: 500 }}>{m.productName || 'Product'}</div>
+            <div style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>{m.notes || 'Inventory movement'}</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ color, fontWeight: 700, fontSize: 14 }}>
+              {isIn ? `+${m.quantity}` : m.quantity}
+            </div>
+            <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>
+              {m.createdAt ? new Date(m.createdAt).toLocaleString() : '--'}
+            </div>
+          </div>
+          {onDelete && (
+            <button
+              type="button"
+              onClick={() => onDelete(m)}
+              disabled={isDeleting}
+              title={isDeleting ? 'Deleting movement...' : 'Delete movement'}
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 8,
+                border: `1px solid ${T.redBorder}`,
+                background: 'rgba(239,68,68,0.08)',
+                color: T.red,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: isDeleting ? 'not-allowed' : 'pointer',
+                opacity: isDeleting ? 0.55 : 1,
+                padding: 0,
+              }}
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // ENHANCED: skeleton rows while loading
+  const SkeletonRow = ({ idx }: { idx: number }) => (
+    <div style={{
+      display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr 100px',
+      gap: 16, padding: '16px 24px', minWidth: 760,
+      borderBottom: '1px solid rgba(255,255,255,0.04)', alignItems: 'center',
+    }}>
+      {[110, 55, 35, 35, 72, 54].map((w, j) => (
+        <motion.div
+          key={j}
+          animate={{ opacity: [0.25, 0.55, 0.25] }}
+          transition={{ duration: 1.5, repeat: Infinity, delay: idx * 0.1 + j * 0.05 }}
+          style={{ height: 11, width: w, background: 'rgba(255,255,255,0.1)', borderRadius: 6 }}
+        />
+      ))}
+    </div>
   );
 
   return (
-    <div className="relative space-y-6 md:space-y-8 max-w-full overflow-x-hidden">
+    <div style={{ fontFamily: T.font, color: T.text, minHeight: '100%', position: 'relative' }}>
+      <input ref={fileInputRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={handleFileChange} />
+
+      {/* ── ENHANCED: corner toast (non-blocking) replaces full-screen overlay ── */}
       <AnimatePresence>
         {importPopup.open && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[140] flex items-center justify-center p-4"
-            style={{ backgroundColor: 'rgba(0, 0, 0, 0.35)', backdropFilter: 'blur(4px)' }}
+            initial={{ opacity: 0, y: -14, scale: 0.97 }}
+            animate={{ opacity: 1,  y: 0,   scale: 1 }}
+            exit={{   opacity: 0,  y: -14,  scale: 0.97 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 28 }}
+            style={{
+              position: 'fixed', top: 20, right: 20, zIndex: 200,
+              background: importPopup.tone === 'success' ? 'rgba(12,24,16,0.97)' : 'rgba(24,10,12,0.97)',
+              border: `1px solid ${importPopup.tone === 'success' ? T.greenBorder : T.redBorder}`,
+              borderRadius: 14, padding: '13px 17px',
+              maxWidth: 360, display: 'flex', alignItems: 'flex-start', gap: 10,
+              backdropFilter: 'blur(10px)', boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
+            }}
           >
-            <motion.div
-              initial={{ opacity: 0, y: 10, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.98 }}
-              transition={{ duration: 0.2 }}
-              className="w-auto max-w-sm rounded-xl border px-4 py-3 shadow-xl"
-              style={{
-                backgroundColor: colors.bg.card,
-                borderColor: colors.border.faint,
-              }}
-            >
-              <p className="text-sm text-center" style={{ color: importPopup.tone === 'success' ? '#ffffff' : '#ef4444' }}>
-                {importPopup.tone === 'success' ? 'File uploaded successfully' : importPopup.message}
-              </p>
-              {importPopup.tone === 'success' && (
-                <div className="mt-2 flex justify-center">
-                  <CheckCircle className="w-5 h-5" style={{ color: '#22c55e' }} />
-                </div>
-              )}
-            </motion.div>
+            {importPopup.tone === 'success'
+              ? <CheckCircle size={15} color={T.green} style={{ flexShrink: 0, marginTop: 1 }} />
+              : <AlertTriangle size={15} color={T.red} style={{ flexShrink: 0, marginTop: 1 }} />}
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: importPopup.tone === 'success' ? T.green : T.red, marginBottom: 3 }}>
+                {importPopup.tone === 'success' ? 'Import Successful' : 'Import Failed'}
+              </div>
+              <div style={{ fontSize: 12, color: T.textSub, lineHeight: 1.5 }}>{importPopup.message}</div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight" style={{ color: colors.text.primary }}>
-            Inventory Management
+      <div style={{ maxWidth: 1090, margin: '0 auto', padding: '36px 22px 30px', position: 'relative', zIndex: 1 }}>
+
+        {/* ── Title (original) ────────────────────────────────────────────── */}
+        <div style={{ textAlign: 'center', marginBottom: 26 }}>
+          <h1 style={{ fontSize: 'clamp(34px, 5vw, 56px)', fontWeight: 800, margin: 0, letterSpacing: -1.8, lineHeight: 1.06 }}>
+            <span style={{ color: T.text }}>My </span>
+            <span style={{ backgroundImage: T.brandGradient, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>
+              Inventory
+            </span>
           </h1>
-          <p className="text-sm mt-1" style={{ color: colors.text.secondary }}>
+          <p style={{ color: T.textMuted, fontSize: 14, marginTop: 8 }}>
             Track stock levels, movements, and alerts across your catalog.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv"
-            className="hidden"
-            onChange={handleFileChange}
-          />
-          <button
-            type="button"
-            onClick={handleImport}
-            disabled={importing}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors hover:opacity-90 disabled:opacity-50"
-            style={{ borderColor: colors.border.default, color: colors.text.primary, backgroundColor: colors.bg.elevated }}
-          >
-            <Upload className="w-4 h-4" />
-            {importing ? 'Importing...' : 'Import'}
-          </button>
-          <button
-            type="button"
-            onClick={handleExport}
-            disabled={exporting}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors hover:opacity-90 disabled:opacity-50"
-            style={{ borderColor: colors.border.default, color: colors.text.primary, backgroundColor: colors.bg.elevated }}
-          >
-            <Download className="w-4 h-4" />
-            {exporting ? 'Exporting...' : 'Export'}
-          </button>
-          <button
-            type="button"
-            onClick={() => router.push('/m_dashboard/products')}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20"
-          >
-            <Plus className="w-4 h-4" />
-            Add Product
-          </button>
-        </div>
-      </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {STAT_CARDS.map((card, idx) => {
-          const Icon = card.icon;
-          const labelColor = card.id === 'low'
-            ? '#f97316'
-            : card.id === 'out'
-              ? '#ef4444'
-              : card.id === 'value'
-                ? '#16a34a'
-                : colors.text.muted;
-          return (
-            <motion.div
-              key={card.id}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.06 }}
-              className="rounded-xl border p-5 flex flex-col gap-2"
-              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium uppercase tracking-wider" style={{ color: labelColor }}>
-                  {card.label}
-                </span>
-                <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center"
-                  style={{ backgroundColor: colors.bg.elevated }}
-                >
-                  <Icon className="w-4 h-4" style={{ color: colors.text.muted }} />
-                </div>
-              </div>
-              <span className="text-2xl font-bold" style={{ color: colors.text.primary }}>
-                {formatStat(
-                  card.valueKey === 'total'
-                    ? summary?.totalProducts ?? 0
-                    : card.valueKey === 'lowStock'
-                      ? summary?.lowStock ?? 0
-                      : card.valueKey === 'outOfStock'
-                        ? summary?.outOfStock ?? 0
-                        : stockValueLabel
-                )}
-              </span>
-            </motion.div>
-          );
-        })}
-      </div>
-
-      {/* Filters & Search */}
-      <div
-        className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 rounded-xl border p-4"
-        style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
-      >
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: colors.text.muted }} />
+        {/* ── Search bar (original) ───────────────────────────────────────── */}
+        <div
+          style={{ position: 'relative', maxWidth: 860, margin: '0 auto 28px' }}
+          className="rounded-2xl border px-5 py-3.5 flex items-center gap-3 bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]"
+        >
+          <svg
+            viewBox="0 0 20 20"
+            width="16"
+            height="16"
+            fill="none"
+            style={{ color: T.yellow, flexShrink: 0 }}
+          >
+            <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="1.8" />
+          </svg>
           <input
             type="text"
-            placeholder="Search by name, SKU, or category..."
+            placeholder="Search templates, designs, or actions"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-lg border bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-            style={{ borderColor: colors.border.default, color: colors.text.primary }}
+            style={{
+              ...inputStyle,
+              padding: 0,
+              border: 'none',
+              background: 'transparent',
+              boxShadow: 'none',
+              fontSize: 14,
+              color: '#ffffff',
+            }}
+            className="placeholder:text-[#6F70A8]"
           />
         </div>
-        <div className="flex items-center gap-2">
-          {(['all', 'in-stock', 'low-stock', 'out-of-stock'] as StockStatus[]).map((status) => (
-            <button
-              key={status}
-              onClick={() => setStatusFilter(status)}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors capitalize"
-              style={{
-                borderColor: statusFilter === status ? 'transparent' : colors.border.default,
-                backgroundColor: statusFilter === status ? (theme === 'dark' ? 'rgba(59,130,246,0.2)' : 'rgba(59,130,246,0.1)') : 'transparent',
-                color: statusFilter === status ? colors.status.info : colors.text.secondary,
-              }}
-            >
-              {status === 'all' ? 'All' : status.replace('-', ' ')}
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => window.alert('Additional filters can be added here (warehouse, category, date).')}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors"
-            style={{ borderColor: colors.border.default, color: colors.text.secondary }}
-          >
-            <Filter className="w-3.5 h-3.5" />
-            More Filters
-          </button>
-        </div>
-      </div>
 
-      {/* Inventory Table Placeholder */}
-      <div
-        className="rounded-xl border overflow-hidden"
-        style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
-      >
-        {/* Table Header */}
-        <div
-          className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_100px] gap-4 px-5 py-3 text-xs font-semibold uppercase tracking-wider border-b"
-          style={{ color: colors.text.muted, borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}
-        >
-          <span>Product</span>
-          <span>SKU</span>
-          <span>Stock</span>
-          <span>Pre Orders</span>
-          <span>Status</span>
-          <span className="text-right">Actions</span>
-        </div>
-
-        {loading ? (
-          <div className="py-16 text-center text-sm" style={{ color: colors.text.muted }}>
-            Loading inventory...
-          </div>
-        ) : error ? (
-          <div className="py-16 text-center text-sm" style={{ color: '#ef4444' }}>
-            {error}
-          </div>
-        ) : filteredItems.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <div
-              className="w-16 h-16 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: colors.bg.elevated }}
-            >
-              <Package className="w-8 h-8" style={{ color: colors.text.muted }} />
-            </div>
-            <div className="text-center">
-              <p className="text-base font-semibold" style={{ color: colors.text.primary }}>
-                No inventory items yet
-              </p>
-              <p className="text-sm mt-1 max-w-sm" style={{ color: colors.text.muted }}>
-                Add your first product or import a CSV to start tracking stock levels, movements, and alerts.
-              </p>
+        {/* ── Toolbar (original layout) ───────────────────────────────────── */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ position: 'relative' }}>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                style={{
+                  appearance: 'none',
+                  background: T.card,
+                  border: `1px solid ${T.cardBorder}`,
+                  borderRadius: 14,
+                  color: '#ddd1ff',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  height: 46,
+                  minWidth: 156,
+                  padding: '0 38px 0 16px',
+                  outline: 'none',
+                  cursor: 'pointer',
+                }}
+                aria-label="Category filter"
+              >
+                <option value="all">Category</option>
+                {categoryOptions.map((category) => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+              <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: '#b6abd6', fontSize: 10, pointerEvents: 'none' }}>▼</span>
             </div>
             <button
               type="button"
               onClick={() => router.push('/m_dashboard/products')}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Add Your First Product
-            </button>
+              title="Add Product"
+              style={{
+                width: 40, height: 40, borderRadius: 12,
+                border: `1px solid ${T.cardBorder}`, color: '#d9cbff',
+                background: T.card, display: 'inline-flex',
+                alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+              }}
+            ><Plus size={15} /></button>
           </div>
-        ) : (
-          <div className="divide-y" style={{ borderColor: colors.border.faint }}>
-            {filteredItems.map((product) => {
-              const { onHand, reserved, lowThreshold } = getStockNumbers(product);
-              const statusLabel = onHand <= 0 ? 'Out of stock' : onHand < lowThreshold ? 'Low stock' : 'In stock';
-              const statusColor = onHand <= 0 ? '#ef4444' : onHand < lowThreshold ? '#f97316' : '#16a34a';
-              return (
-                <div
-                  key={product.id}
-                  className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_100px] gap-4 px-5 py-3 items-center text-sm"
-                >
-                  <span className="font-medium" style={{ color: colors.text.primary }}>
-                    {product.name || 'Untitled Product'}
-                  </span>
-                  <span style={{ color: colors.text.secondary }}>{product.sku || '—'}</span>
-                  <span style={{ color: colors.text.primary }}>{onHand}</span>
-                  <span style={{ color: colors.text.secondary }}>{reserved}</span>
-                  <span style={{ color: statusColor }}>{statusLabel}</span>
-                  <div className="flex items-center justify-end gap-1">
-                    <button
-                      type="button"
-                      onClick={() => openStockModal(product, 'IN')}
-                      disabled={adjustingId === product.id}
-                      className="p-1.5 rounded border"
-                      style={{ borderColor: colors.border.default, color: colors.text.secondary }}
-                      title="Add stock"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openStockModal(product, 'OUT')}
-                      disabled={adjustingId === product.id}
-                      className="p-1.5 rounded border"
-                      style={{ borderColor: colors.border.default, color: colors.text.secondary }}
-                      title="Deduct stock"
-                    >
-                      <Minus className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
 
-      {/* Stock Movements Section */}
-      <div
-        className="rounded-xl border p-5"
-        style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-lg font-semibold" style={{ color: colors.text.primary }}>
-              Recent Stock Movements
-            </h2>
-            <p className="text-xs mt-0.5" style={{ color: colors.text.muted }}>
-              Audit trail of all inventory changes.
-            </p>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <button
+              type="button" onClick={handleImport} disabled={importing}
+              title={importing ? 'Importing…' : 'Import CSV'}
+              style={{
+                width: 40, height: 40, borderRadius: 12,
+                border: `1px solid ${T.cardBorder}`, color: '#ddd1ff', background: T.card,
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                cursor: importing ? 'not-allowed' : 'pointer', opacity: importing ? 0.55 : 1,
+              }}
+            ><Upload size={15} /></button>
+            <button
+              type="button" onClick={handleExport} disabled={exporting}
+              title={exporting ? 'Exporting…' : 'Export CSV'}
+              style={{
+                width: 40, height: 40, borderRadius: 12,
+                border: `1px solid ${T.cardBorder}`, color: '#ddd1ff', background: T.card,
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                cursor: exporting ? 'not-allowed' : 'pointer', opacity: exporting ? 0.55 : 1,
+              }}
+            ><Download size={15} /></button>
           </div>
-          <button
-            type="button"
-            onClick={openAllMovementsModal}
-            disabled={loading}
-            className="text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors hover:opacity-90"
-            style={{ borderColor: colors.border.default, color: colors.text.secondary }}
-          >
-            See All
-          </button>
         </div>
 
-        {loading ? (
-          <div className="py-8 text-center text-sm" style={{ color: colors.text.muted }}>
-            Loading movement feed...
-          </div>
-        ) : movements.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 gap-3">
-            <ArrowDownUp className="w-8 h-8" style={{ color: colors.text.muted }} />
-            <p className="text-sm" style={{ color: colors.text.muted }}>
-              No stock movements recorded yet.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {movements.map((m) => {
-              const isIn = String(m.type || '').toUpperCase() === 'IN';
-              const isOut = String(m.type || '').toUpperCase() === 'OUT';
-              const typeColor = isIn ? '#16a34a' : isOut ? '#ef4444' : colors.text.primary;
-              const quantityColor = m.quantity > 0 ? '#16a34a' : m.quantity < 0 ? '#ef4444' : colors.text.primary;
+        {/* ── Stat cards (original) ───────────────────────────────────────── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10, marginBottom: 18 }}>
+          {statCards.map((card, i) => (
+            <motion.div
+              key={card.id}
+              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
+              style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: '10px 14px 12px', minHeight: 72 }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
+                <span style={{ color: card.accent, display: 'inline-flex', alignItems: 'center' }}>{card.icon}</span>
+                <span style={{ color: '#7e72a9', fontSize: 10, letterSpacing: 0.8 }}>{card.label}</span>
+              </div>
+              <div style={{ color: '#f2ecff', fontSize: 24, fontWeight: 700, letterSpacing: -0.8, lineHeight: 1.2 }}>
+                {typeof card.value === 'number' ? String(card.value).padStart(3,'0') : card.value}
+              </div>
+            </motion.div>
+          ))}
+        </div>
 
-              return (
-                <div
-                  key={m.id}
-                  className="flex items-center justify-between rounded-lg border px-3 py-2 text-xs"
-                  style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}
-                >
-                  <div>
-                    <div style={{ color: colors.text.primary }}>
-                      {m.productName || 'Product'} - <span style={{ color: typeColor }}>{m.type}</span>
-                    </div>
-                    <div style={{ color: colors.text.muted }}>
-                      {m.notes || 'Inventory movement'}
+        {/* ── Product table (original layout + skeleton loading) ───────────── */}
+        <Card style={{ overflow: 'hidden', marginBottom: 18, borderRadius: 24 }}>
+          <div style={{ overflowX: 'auto' }}>
+            {/* Header */}
+            <div style={{
+              display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr 100px',
+              gap: 16, padding: '13px 24px', minWidth: 760,
+              borderBottom: `1px solid ${T.cardBorder}`,
+              background: T.card, color: '#8273a8', fontSize: 11, letterSpacing: 0.9, textTransform: 'uppercase',
+            }}>
+              <span>Product</span><span>SKU</span><span>Stock</span>
+              <span>Pre Orders</span><span>Status</span><span style={{ textAlign: 'right' }}>Actions</span>
+            </div>
+
+            {/* Rows */}
+            {loading ? (
+              Array.from({ length: 4 }).map((_, i) => <SkeletonRow key={i} idx={i} />)
+            ) : error ? (
+              <div style={{ padding: '60px 24px', textAlign: 'center', color: T.red, fontSize: 14 }}>{error}</div>
+            ) : filteredItems.length === 0 ? (
+              <div style={{ padding: '60px 24px', textAlign: 'center' }}>
+                <Package size={40} color={T.textMuted} style={{ margin: '0 auto 16px', display: 'block' }} />
+                <p style={{ color: T.text, fontWeight: 600, marginBottom: 6 }}>No inventory items yet</p>
+                <p style={{ color: T.textMuted, fontSize: 13 }}>Add your first product or import a CSV to start tracking stock.</p>
+              </div>
+            ) : (
+              filteredItems.map((product, i) => {
+                const { onHand, reserved, lowThreshold } = getStockNumbers(product);
+                return (
+                  <div
+                    key={product.id}
+                    style={{
+                      display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr 100px',
+                      gap: 16, padding: '15px 24px', alignItems: 'center', fontSize: 14, minWidth: 760,
+                      borderBottom: i < filteredItems.length - 1 ? `1px solid rgba(255,255,255,0.055)` : 'none',
+                      transition: 'background 0.15s',
+                    }}
+                    onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.018)')}
+                    onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.background = 'transparent')}
+                  >
+                    <span style={{ color: T.text, fontWeight: 500 }}>{product.name || 'Untitled Product'}</span>
+                    <span style={{ color: T.textMuted }}>{product.sku || '—'}</span>
+                    <span style={{ color: T.text }}>{onHand}</span>
+                    <span style={{ color: T.textMuted }}>{reserved}</span>
+                    <StatusPill stock={onHand} lowThreshold={lowThreshold} />
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+                      <button
+                        type="button" onClick={() => openStockModal(product, 'OUT')}
+                        disabled={adjustingId === product.id} title="Deduct stock"
+                        style={{
+                          background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(138,110,228,0.35)',
+                          borderRadius: 8, color: '#d5c5ff', width: 28, height: 28,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          cursor: adjustingId === product.id ? 'not-allowed' : 'pointer',
+                          opacity: adjustingId === product.id ? 0.5 : 1, padding: 0,
+                        }}
+                      ><Minus size={13} /></button>
+                      <button
+                        type="button" onClick={() => openStockModal(product, 'IN')}
+                        disabled={adjustingId === product.id} title="Add stock"
+                        style={{
+                          background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(138,110,228,0.35)',
+                          borderRadius: 8, color: '#d5c5ff', width: 28, height: 28,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          cursor: adjustingId === product.id ? 'not-allowed' : 'pointer',
+                          opacity: adjustingId === product.id ? 0.5 : 1, padding: 0,
+                        }}
+                      ><Plus size={13} /></button>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div style={{ color: quantityColor }}>{m.quantity > 0 ? `+${m.quantity}` : m.quantity}</div>
-                    <div style={{ color: colors.text.muted }}>{m.createdAt ? new Date(m.createdAt).toLocaleString() : '-'}</div>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
-        )}
+        </Card>
+
+        {/* ── Recent movements (original layout) ─────────────────────────── */}
+        <Card style={{ padding: '22px', borderRadius: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+            <div>
+              <h3 style={{ color: T.textSub, fontSize: 13, fontWeight: 600, letterSpacing: 0.5, margin: 0 }}>Recent Stock Movements</h3>
+              <p style={{ color: T.textMuted, fontSize: 12, marginTop: 3 }}>Audit trail of all inventory changes.</p>
+            </div>
+            <GhostBtn onClick={openAllMovementsModal} disabled={loading} style={{ fontSize: 12, padding: '5px 12px' }}>See All</GhostBtn>
+          </div>
+
+          {loading ? (
+            <div style={{ padding: '32px 0', textAlign: 'center', color: T.textMuted, fontSize: 14 }}>Loading…</div>
+          ) : movements.length === 0 ? (
+            <div style={{ padding: '40px 0', textAlign: 'center', color: T.textMuted, fontSize: 13 }}>
+              <ArrowDownUp size={28} color={T.textMuted} style={{ margin: '0 auto 10px', display: 'block' }} />
+              No stock movements recorded yet.
+            </div>
+          ) : (
+            movements.map((m) => <MovementRow key={m.id} m={m} />)
+          )}
+        </Card>
       </div>
 
+      {/* ── Modals ─────────────────────────────────────────────────────────── */}
       <AnimatePresence>
+
+        {/* All movements modal (original) */}
         {showAllMovementsModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[110] flex items-center justify-center p-4"
-            style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }}
-            onClick={closeAllMovementsModal}
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 18, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 18, scale: 0.98 }}
-              transition={{ type: 'spring', stiffness: 320, damping: 30 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-3xl rounded-2xl border overflow-hidden"
-              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.default }}
-            >
-              <div className="px-6 py-4 border-b flex items-center justify-between" style={{ borderColor: colors.border.faint }}>
+          <ModalBackdrop onClose={closeAllMovementsModal}>
+            <div style={{
+              background: '#1a1535', border: `1px solid ${T.cardBorder}`,
+              borderRadius: 20, width: '100%', maxWidth: 720, overflow: 'hidden',
+              boxShadow: '0 30px 80px rgba(0,0,0,0.6)',
+            }}>
+              <div style={{
+                padding: '20px 28px', borderBottom: `1px solid ${T.cardBorder}`,
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}>
                 <div>
-                  <h3 className="text-lg font-semibold" style={{ color: colors.text.primary }}>
-                    All Stock Movements
-                  </h3>
-                  <p className="text-xs mt-1" style={{ color: colors.text.muted }}>
-                    Complete movement history (latest first)
-                  </p>
+                  <h3 style={{ color: T.text, fontWeight: 700, margin: 0 }}>All Stock Movements</h3>
+                  <p style={{ color: T.textMuted, fontSize: 12, marginTop: 3 }}>Complete movement history (latest first)</p>
                 </div>
                 <button
-                  type="button"
                   onClick={closeAllMovementsModal}
-                  className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-black/10 dark:hover:bg-white/10"
-                  style={{ color: colors.text.muted }}
-                  title="Close"
+                  style={{ background: 'transparent', border: 'none', color: T.textMuted, cursor: 'pointer', padding: 6, display: 'flex' }}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
                   </svg>
                 </button>
               </div>
-
-              <div className="max-h-[70vh] overflow-y-auto p-5">
+              <div style={{ maxHeight: '65vh', overflowY: 'auto', padding: '20px 28px' }}>
                 {loadingAllMovements ? (
-                  <div className="py-8 text-center text-sm" style={{ color: colors.text.muted }}>
-                    Loading movement history...
-                  </div>
+                  <div style={{ textAlign: 'center', color: T.textMuted, padding: 32 }}>Loading…</div>
                 ) : allMovementsError ? (
-                  <div className="py-8 text-center text-sm" style={{ color: '#ef4444' }}>
-                    {allMovementsError}
-                  </div>
+                  <div style={{ textAlign: 'center', color: T.red, padding: 32 }}>{allMovementsError}</div>
                 ) : allMovements.length === 0 ? (
-                  <div className="py-8 text-center text-sm" style={{ color: colors.text.muted }}>
-                    No stock movements recorded yet.
-                  </div>
+                  <div style={{ textAlign: 'center', color: T.textMuted, padding: 32 }}>No movements recorded.</div>
                 ) : (
-                  <div className="space-y-2">
-                    {allMovements.map((m) => {
-                      const isIn = String(m.type || '').toUpperCase() === 'IN';
-                      const isOut = String(m.type || '').toUpperCase() === 'OUT';
-                      const typeColor = isIn ? '#16a34a' : isOut ? '#ef4444' : colors.text.primary;
-                      const quantityColor = m.quantity > 0 ? '#16a34a' : m.quantity < 0 ? '#ef4444' : colors.text.primary;
-
-                      return (
-                        <div
-                          key={m.id}
-                          className="flex items-center justify-between rounded-lg border px-3 py-2 text-xs"
-                          style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}
-                        >
-                          <div>
-                            <div style={{ color: colors.text.primary }}>
-                              {m.productName || 'Product'} - <span style={{ color: typeColor }}>{m.type}</span>
-                            </div>
-                            <div style={{ color: colors.text.muted }}>
-                              {m.notes || 'Inventory movement'}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div style={{ color: quantityColor }}>{m.quantity > 0 ? `+${m.quantity}` : m.quantity}</div>
-                            <div style={{ color: colors.text.muted }}>{m.createdAt ? new Date(m.createdAt).toLocaleString() : '-'}</div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  allMovements.map((m) => (
+                    <MovementRow
+                      key={m.id}
+                      m={m}
+                      onDelete={confirmDeleteMovement}
+                      isDeleting={deletingMovementId === m.id}
+                    />
+                  ))
                 )}
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </ModalBackdrop>
         )}
 
+        {/* Stock adjustment modal (original structure) */}
         {stockModal.open && stockModal.product && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[120] flex items-center justify-center p-4"
-            style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }}
-            onClick={closeStockModal}
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 18, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 18, scale: 0.98 }}
-              transition={{ type: 'spring', stiffness: 320, damping: 30 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-lg rounded-2xl border overflow-hidden"
-              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.default }}
-            >
-              <div className="px-6 py-5 border-b" style={{ borderColor: colors.border.faint }}>
-                <h3 className="text-lg font-semibold" style={{ color: colors.text.primary }}>
-                  {stockModal.movementType === 'IN' ? 'Add stock' : 'Deduct stock'} for {stockModal.product.name}
+          <ModalBackdrop onClose={closeStockModal}>
+            <div style={{
+              background: '#1a1535', border: `1px solid ${T.cardBorder}`,
+              borderRadius: 20, width: '100%', maxWidth: 440,
+              boxShadow: '0 30px 80px rgba(0,0,0,0.6)', overflow: 'hidden',
+            }}>
+              <div style={{ padding: '24px 32px 20px', borderBottom: `1px solid ${T.cardBorder}` }}>
+                {/* ENHANCED: show IN/OUT badge in modal header */}
+                <div style={{ marginBottom: 8 }}>
+                  <MovTypeBadge type={stockModal.movementType} />
+                </div>
+                <h3 style={{ color: T.text, fontWeight: 800, fontSize: 18, letterSpacing: 0.5, textTransform: 'uppercase', margin: 0 }}>
+                  {stockModal.product.name}
                 </h3>
-                <p className="text-sm mt-1" style={{ color: colors.text.secondary }}>
-                  Current on-hand stock: {modalOnHand}
-                </p>
+                <p style={{ color: T.textMuted, fontSize: 13, marginTop: 4 }}>Current on-hand stock: {modalOnHand}</p>
               </div>
 
               <form
-                className="px-6 py-5 space-y-4"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  submitStockAdjustment();
-                }}
+                style={{ padding: '24px 32px 28px' }}
+                onSubmit={(e) => { e.preventDefault(); submitStockAdjustment(); }}
               >
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: colors.text.muted }}>
-                    Quantity
-                  </label>
-                  <input
-                    autoFocus
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={stockModal.quantity}
-                    onChange={(e) =>
-                      setStockModal((prev) => ({
-                        ...prev,
-                        quantity: e.target.value,
-                        error: null,
-                      }))
-                    }
-                    className="w-full rounded-lg border px-3 py-2.5 text-sm bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-                    style={{ borderColor: colors.border.default, color: colors.text.primary }}
-                    placeholder="Enter quantity"
-                  />
-                </div>
+                <label style={{ color: T.textSub, fontSize: 13, display: 'block', marginBottom: 8 }}>Quantity</label>
+                <input
+                  autoFocus type="number" min={1} step={1} placeholder="Enter quantity…"
+                  value={stockModal.quantity}
+                  onChange={(e) => setStockModal((p) => ({ ...p, quantity: e.target.value, error: null }))}
+                  style={{ ...inputStyle, marginBottom: 20 }}
+                />
 
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: colors.text.muted }}>
-                    Notes
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={stockModal.notes}
-                    onChange={(e) =>
-                      setStockModal((prev) => ({
-                        ...prev,
-                        notes: e.target.value,
-                      }))
-                    }
-                    className="w-full rounded-lg border px-3 py-2.5 text-sm bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"
-                    style={{ borderColor: colors.border.default, color: colors.text.primary }}
-                    placeholder="Reason for this adjustment"
-                  />
-                </div>
+                <label style={{ color: T.textSub, fontSize: 13, display: 'block', marginBottom: 8 }}>Notes</label>
+                <textarea
+                  rows={4} placeholder="Enter your additional notes here…"
+                  value={stockModal.notes}
+                  onChange={(e) => setStockModal((p) => ({ ...p, notes: e.target.value }))}
+                  style={{ ...inputStyle, resize: 'none', marginBottom: stockModal.error ? 12 : 28 }}
+                />
 
-                {stockModal.error && (
-                  <p className="text-sm" style={{ color: '#ef4444' }}>
-                    {stockModal.error}
-                  </p>
-                )}
+                {/* ENHANCED: animated error banner instead of plain red text */}
+                <AnimatePresence>
+                  {stockModal.error && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                      style={{
+                        background: T.redBg, border: `1px solid ${T.redBorder}`,
+                        borderRadius: 8, padding: '9px 13px',
+                        color: T.red, fontSize: 13, marginBottom: 18,
+                        display: 'flex', alignItems: 'center', gap: 8,
+                      }}
+                    >
+                      <AlertTriangle size={13} style={{ flexShrink: 0 }} />
+                      {stockModal.error}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
-                <div className="pt-2 flex justify-end gap-2">
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
                   <button
-                    type="button"
-                    onClick={closeStockModal}
-                    disabled={isAdjustingFromModal}
-                    className="px-4 py-2 rounded-lg text-sm font-medium border transition-colors hover:opacity-90 disabled:opacity-60"
-                    style={{ borderColor: colors.border.default, color: colors.text.secondary }}
-                  >
-                    Cancel
-                  </button>
+                    type="button" onClick={closeStockModal} disabled={isAdjustingFromModal}
+                    style={{ background: 'transparent', border: 'none', color: T.textMuted, fontSize: 14, cursor: 'pointer', padding: '10px 16px' }}
+                  >Cancel</button>
                   <button
-                    type="submit"
-                    disabled={isAdjustingFromModal}
-                    className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors bg-blue-600 hover:bg-blue-700 disabled:opacity-60"
+                    type="submit" disabled={isAdjustingFromModal}
+                    style={{
+                      ...brandActionButtonStyle,
+                      background: stockModal.movementType === 'OUT' ? T.brandGradient : '#16a34a',
+                      cursor: isAdjustingFromModal ? 'not-allowed' : 'pointer',
+                      opacity: isAdjustingFromModal ? 0.6 : 1, height: 38, padding: '0 20px',
+                    }}
                   >
-                    {isAdjustingFromModal
-                      ? 'Saving...'
-                      : stockModal.movementType === 'IN'
-                        ? 'Add Stock'
-                        : 'Deduct Stock'}
+                    {isAdjustingFromModal ? 'Saving…' : stockModal.movementType === 'OUT' ? 'Deduct Stock' : 'Add Stock'}
                   </button>
                 </div>
               </form>
-            </motion.div>
-          </motion.div>
+            </div>
+          </ModalBackdrop>
         )}
       </AnimatePresence>
     </div>

@@ -243,23 +243,33 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
 
   const handlePermanentDeleteProject = (project: Project) => {
     const projectId = project.id;
-    const projectTitle = project.title;
+    const projectTitle = project.title || 'Untitled Project';
     setConfirmModal({
       isOpen: true,
-      title: 'Delete',
-      message: `Are you sure you want to permanently delete "${projectTitle || 'Untitled Project'}"? This action cannot be undone.`,
-      confirmText: 'Delete',
+      title: 'Delete Permanently?',
+      message: `Are you sure you want to permanently delete "${projectTitle}"? This action cannot be undone.`,
+      confirmText: 'Yes, delete',
       variant: 'danger',
       action: async () => {
-        try {
-          setActioningProjectId(projectId);
-          const res = await permanentDeleteProject(projectId);
-          if (!res.success) return;
-          setTrashedProjects((prev) => prev.filter((p) => p.id !== projectId));
-        } finally {
-          setActioningProjectId(null);
-          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
-        }
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        setConfirmModal({
+          isOpen: true,
+          title: 'Final Confirmation',
+          message: `This will permanently remove "${projectTitle}" from the database. This cannot be undone. Delete anyway?`,
+          confirmText: 'Delete Permanently',
+          variant: 'danger',
+          action: async () => {
+            try {
+              setActioningProjectId(projectId);
+              const res = await permanentDeleteProject(projectId);
+              if (!res.success) return;
+              setTrashedProjects((prev) => prev.filter((p) => p.id !== projectId));
+            } finally {
+              setActioningProjectId(null);
+              setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+            }
+          }
+        });
       }
     });
   };
@@ -375,6 +385,7 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                                   {projectTab === 'trash' && (
                                     <div className={`flex items-center gap-2 ${viewMode === 'list' ? 'shrink-0' : 'mt-4'}`}>
                                       <button type="button" onClick={(e) => { e.stopPropagation(); handleRestoreProject(project); }} disabled={actioningProjectId === project.id} className="px-3 py-2 rounded-lg text-xs font-semibold text-white bg-[#2D3A90] hover:bg-[#3E4AA3] disabled:opacity-50 z-10 transition-colors shadow-md">Restore</button>
+                                      <button type="button" onClick={(e) => { e.stopPropagation(); handlePermanentDeleteProject(project); }} disabled={actioningProjectId === project.id} className="px-3 py-2 rounded-lg text-xs font-semibold text-red-400 border border-red-500/40 hover:bg-red-500/10 disabled:opacity-50 z-10 transition-colors">Delete Permanently</button>
                                     </div>
                                   )}
                                 </div>

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Auth: only HttpOnly cookie (mercato_token). No confidential data in localStorage or cookies.
  * User profile is kept in memory only; fetched via GET /api/auth/me when needed.
  */
@@ -277,10 +277,13 @@ export async function getMe(): Promise<{ success: boolean; user?: User }> {
   return apiFetch<{ success: boolean; user?: User }>('/api/auth/me');
 }
 
-/** Update user profile (Name, Avatar) */
+/** Update user profile (Full Name, Avatar, Username, Website, Bio) */
 export async function updateProfile(data: {
   name?: string;
   avatar?: string;
+  username?: string;
+  website?: string;
+  bio?: string;
 }): Promise<{ success: boolean; message?: string; user?: User }> {
   return apiFetch<{ success: boolean; message?: string; user?: User }>('/api/auth/profile', {
     method: 'PUT',
@@ -775,6 +778,29 @@ export async function listInventoryMovements(params?: {
   const qs = query.toString();
   return apiFetch<{ success: boolean; items: InventoryMovement[] }>(
     qs ? `/api/inventory/movements?${qs}` : '/api/inventory/movements'
+  );
+}
+
+export async function deleteInventoryMovement(
+  movementId: string,
+  params?: { subdomain?: string; projectId?: string }
+): Promise<{ success: boolean; message?: string; data?: InventoryMovement }> {
+  const normalizedId = String(movementId || '').trim();
+  if (!normalizedId) {
+    throw new Error('movementId is required');
+  }
+
+  const query = new URLSearchParams();
+  if (params?.subdomain) query.set('subdomain', params.subdomain);
+  if (params?.projectId) query.set('projectId', params.projectId);
+  const qs = query.toString();
+  const encodedId = encodeURIComponent(normalizedId);
+
+  return apiFetch<{ success: boolean; message?: string; data?: InventoryMovement }>(
+    qs ? `/api/inventory/movements/${encodedId}?${qs}` : `/api/inventory/movements/${encodedId}`,
+    {
+      method: 'DELETE',
+    }
   );
 }
 

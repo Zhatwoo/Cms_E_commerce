@@ -38,21 +38,6 @@ function toPxNumber(value: unknown): number | null {
 type ViewMode = "Web-Preview" | "clean" | "raw";
 type PreviewViewport = "desktop" | "tablet" | "mobile";
 
-const toPxNumber = (value: unknown): number | undefined => {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value !== "string") return undefined;
-  const normalized = value.trim().toLowerCase();
-  if (!normalized) return undefined;
-  if (normalized.endsWith("px")) {
-    const parsed = Number(normalized.slice(0, -2));
-    return Number.isFinite(parsed) ? parsed : undefined;
-  }
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : undefined;
-};
-
-
-
 function PreviewContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -295,7 +280,6 @@ function PreviewContent() {
   }, [rawJson]);
 
   const activeJson = viewMode === "clean" ? cleanJson : viewMode === "raw" ? rawFormatted : null;
-  const useBuilderParityMode = false;
 
   const desktopResponsiveViewportWidth = useMemo(() => {
     if (!cleanDoc?.pages?.length) return undefined;
@@ -822,7 +806,7 @@ function PreviewContent() {
       {showPublishDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-semibold text-white mb-2">Publish site</h2>
+            <h2 className="text-xl font-semibold text-white mb-2">Publish to live domain</h2>
             {scheduleInfo && (
               <p className="text-sm text-amber-400/90 mb-2">
                 Already scheduled for {new Date(scheduleInfo.scheduledAt).toLocaleString()}. Setting a new date will replace it.
@@ -830,12 +814,12 @@ function PreviewContent() {
             )}
             <p className="text-sm text-zinc-400 mb-4">
               {publishDomainName.trim()
-                ? "Confirm your domain name. You can change it later in the dashboard."
-                : "Domain name (subdomain) is required. Set it here or in Create project."}
+                ? "Your site will be published as a separate live domain. You can change the subdomain later in the dashboard."
+                : "Enter a subdomain to create your own live site. Each subdomain is a separate, publicly accessible website."}
             </p>
             <div className="space-y-2 mb-4">
               <label className="block text-sm font-medium text-gray-300">
-                Domain name (subdomain) <span className="text-red-400">*</span>
+                Live domain (subdomain) <span className="text-red-400">*</span>
               </label>
               <input
                 type="text"
@@ -844,11 +828,16 @@ function PreviewContent() {
                   setPublishDomainName(e.target.value);
                   setPublishDomainError("");
                 }}
-                placeholder="e.g. mystore → mystore.yourdomain.com"
+                placeholder="e.g. mystore → mystore.localhost (dev) or mystore.websitelink (prod)"
                 className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 autoFocus
               />
               <p className="text-xs text-zinc-500">Only letters, numbers, and hyphens.</p>
+              {publishDomainName.trim() && (
+                <p className="text-xs text-emerald-400/90 mt-1">
+                  Your site will be live at: <span className="font-mono font-medium">{getSubdomainSiteUrl(publishDomainName.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || 'site', typeof window !== 'undefined' ? window.location.origin : null).replace(/^https?:\/\//, '')}</span>
+                </p>
+              )}
               {publishDomainError && (
                 <p className="text-xs text-red-400">{publishDomainError}</p>
               )}
@@ -923,12 +912,12 @@ function PreviewContent() {
       {showPublishedSuccessModal && publishedSubdomain && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-semibold text-white mb-2">Published successfully</h2>
-            <p className="text-sm text-zinc-400 mb-1">Do you want to open your website now?</p>
-            <p className="text-xs text-zinc-500 mb-5">
+            <h2 className="text-xl font-semibold text-white mb-2">Your site is now live!</h2>
+            <p className="text-sm text-zinc-400 mb-2">Visit your published website:</p>
+            <p className="text-sm font-mono font-medium text-emerald-400 mb-5 break-all">
               {typeof window !== 'undefined'
                 ? getSubdomainSiteUrl(publishedSubdomain, window.location.origin).replace(/^https?:\/\//, '')
-                : `${publishedSubdomain}.localhost`}
+                : `localhost/sites/${publishedSubdomain}`}
             </p>
 
             <div className="flex justify-end gap-3">
@@ -953,7 +942,7 @@ function PreviewContent() {
                 }}
                 className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
               >
-                Open website
+                Visit live site
               </button>
             </div>
           </div>

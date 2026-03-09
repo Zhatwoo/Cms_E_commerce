@@ -399,7 +399,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         const flowParents = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame"]);
         const isFlowParent = !!dropParentName && flowParents.has(dropParentName);
         const index = Array.isArray(dropParent?.data?.nodes)
-          ? dropParent.data.nodes.length
+          ? (isFlowParent ? 0 : dropParent.data.nodes.length)
           : 0;
 
         actions.move(nodeId, dropParentId, index);
