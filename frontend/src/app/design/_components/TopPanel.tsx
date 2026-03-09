@@ -17,6 +17,9 @@ import {
 } from "lucide-react";
 import { MIN_SCALE, MAX_SCALE, ZOOM_STEP, ZOOM_PRESETS } from "./zoomConstants";
 import { selectedToIds } from "../_lib/canvasActions";
+import { useCollaboration } from "../_context/CollaborationContext";
+import { ShareModal } from "./ShareModal";
+import { getStoredUser } from "@/lib/api";
 
 export type DevicePreset = {
   name: string;
@@ -75,6 +78,8 @@ interface TopPanelProps {
   onDevicePresetSelect?: (preset: DevicePreset) => void;
   showDualView?: boolean;
   onDualViewToggle?: () => void;
+  projectId?: string;
+  projectTitle?: string;
 }
 
 export const TopPanel: React.FC<TopPanelProps> = ({
@@ -90,12 +95,21 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   onDevicePresetSelect,
   showDualView = false,
   onDualViewToggle,
+  projectId,
+  projectTitle,
 }) => {
   const { actions, query } = useEditor();
   const [showSizeDropdown, setShowSizeDropdown] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<DevicePreset | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const sizeDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Get collaboration state
+  const { collaborators, myColor, myPermission, connected } = useCollaboration();
+  let selfUser: { name?: string; username?: string; email?: string } | null = null;
+  try { selfUser = getStoredUser(); } catch { }
+  const selfInitial = (selfUser?.name || selfUser?.username || selfUser?.email || "?").charAt(0).toUpperCase();
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -353,11 +367,10 @@ export const TopPanel: React.FC<TopPanelProps> = ({
                             onScaleChange(presetScale);
                             setShowSizeDropdown(false);
                           }}
-                          className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-                            isActive
-                              ? "bg-brand-medium text-brand-light"
-                              : "bg-brand-medium-dark hover:bg-brand-medium text-brand-lighter"
-                          }`}
+                          className={`px-2 py-1 rounded text-xs font-medium transition-colors ${isActive
+                            ? "bg-brand-medium text-brand-light"
+                            : "bg-brand-medium-dark hover:bg-brand-medium text-brand-lighter"
+                            }`}
                         >
                           {pct}%
                         </button>
@@ -370,14 +383,71 @@ export const TopPanel: React.FC<TopPanelProps> = ({
           </div>
         </div>
 
-        {/* Right Section - Mobile view toggle + Display size presets */}
+        {/* Right Section - Collaboration + Mobile view toggle + Display size presets */}
         <div className="flex items-center gap-2">
+          {/* Collaborator Avatar Stack */}
+          <div className="flex items-center">
+            {/* Self avatar */}
+            <div
+              className="relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-brand-dark cursor-default z-10"
+              style={{ background: myColor }}
+              title={`You (${myPermission})`}
+            >
+              {selfInitial}
+              {/* Online indicator */}
+              {connected && (
+                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-1 ring-brand-dark" />
+              )}
+            </div>
+            {/* Remote collaborators (max 3 visible) */}
+            {collaborators.slice(0, 3).map((collab, i) => (
+              <div
+                key={collab.socketId}
+                className="relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-brand-dark -ml-2 cursor-default"
+                style={{ background: collab.color, zIndex: 9 - i }}
+                title={`${collab.displayName} (${collab.permission})`}
+              >
+                {(collab.displayName || "?").charAt(0).toUpperCase()}
+              </div>
+            ))}
+            {collaborators.length > 3 && (
+              <div
+                className="relative w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white/70 ring-2 ring-brand-dark -ml-2 bg-brand-medium cursor-default"
+                title={`${collaborators.length - 3} more collaborators`}
+              >
+                +{collaborators.length - 3}
+              </div>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="w-px h-6 bg-white/10" />
+
+          {/* Share Button */}
+          <button
+            onClick={() => setShowShareModal(true)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all hover:opacity-90 active:scale-95"
+            style={{
+              background: "linear-gradient(135deg, #6c8fff, #a78bfa)",
+              color: "white",
+              boxShadow: "0 2px 8px rgba(108,143,255,0.35)",
+            }}
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
+            </svg>
+            Share
+          </button>
+
+          {/* Divider */}
+          <div className="w-px h-6 bg-white/10" />
+
           {/* Device Preview Toggle Button */}
           <button
             onClick={onDualViewToggle}
             className={`p-2 rounded-lg transition-colors border border-white/10 flex items-center gap-2 ${showDualView
-                ? "bg-blue-500/30 text-blue-400 border-blue-400/30"
-                : "bg-brand-medium-dark hover:bg-brand-medium text-brand-lighter"
+              ? "bg-blue-500/30 text-blue-400 border-blue-400/30"
+              : "bg-brand-medium-dark hover:bg-brand-medium text-brand-lighter"
               }`}
             title={showDualView ? "Hide Device Preview" : "Show Device Preview"}
           >
@@ -392,8 +462,8 @@ export const TopPanel: React.FC<TopPanelProps> = ({
                 key={index}
                 onClick={() => handlePresetSelect(preset)}
                 className={`p-2 rounded transition-colors ${selectedPreset?.name === preset.name
-                    ? "bg-brand-medium text-brand-light"
-                    : "hover:bg-brand-medium-dark text-brand-lighter"
+                  ? "bg-brand-medium text-brand-light"
+                  : "hover:bg-brand-medium-dark text-brand-lighter"
                   }`}
                 title={preset.name}
               >
@@ -403,6 +473,16 @@ export const TopPanel: React.FC<TopPanelProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Share Modal */}
+      {projectId && (
+        <ShareModal
+          projectId={projectId}
+          projectTitle={projectTitle}
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+        />
+      )}
     </div>
   );
 };
