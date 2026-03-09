@@ -6,6 +6,7 @@ import { useEditor } from "@craftjs/core";
 import { useCanvasTool } from "./CanvasToolContext";
 import { useInlineTextEdit } from "./InlineTextEditContext";
 import { Text } from "../_designComponents/Text/Text";
+import { CRAFT_RESOLVER } from "./craftResolver";
 
 const DRAG_THRESHOLD = 8;
 const TEXT_ADDING_FLAG = "textAdding";
@@ -220,9 +221,13 @@ export const TextToolHandler = () => {
                     const shouldUseAbsolute = forceAbsoluteForClick || parentIsFreeform || (!parentIsFlexOrGrid && parentIsPositioned);
 
                     const flowWidth = !shouldUseAbsolute ? `${finalWidth}px` : undefined;
+                    const ResolverText =
+                        (typeof CRAFT_RESOLVER.Text === "function" ? CRAFT_RESOLVER.Text : null) ??
+                        (typeof CRAFT_RESOLVER.text === "function" ? CRAFT_RESOLVER.text : null) ??
+                        Text;
 
                     const tree = queryRef.current.parseReactElement(
-                        <Text
+                        <ResolverText
                             text=""
                             fontSize={18}
                             position={shouldUseAbsolute ? "absolute" : "relative"}

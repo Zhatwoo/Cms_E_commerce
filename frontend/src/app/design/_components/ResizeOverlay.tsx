@@ -899,30 +899,17 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
           ? computeTextFontSizeForResize(h, startW, startH, newW, newH, startFontSize)
           : null;
 
-        if (isTextNode) {
-          actions.setProp(nodeId, (props: Record<string, unknown>) => {
-            props.width = `${newW}px`;
-            props.height = `${newH}px`;
-            if (nextFontSize != null) {
-              props.fontSize = Math.round(nextFontSize * 10) / 10;
-            }
-            if (extraMT !== 0) {
-              props.marginTop = nextMarginTop;
-            }
-            if (extraML !== 0) {
-              props.marginLeft = nextMarginLeft;
-            }
-          });
-        } else {
-          // Smooth preview: apply direct DOM style during drag, commit once on mouseup.
-          dom.style.width = `${newW}px`;
-          dom.style.height = `${newH}px`;
-          if (extraMT !== 0) {
-            dom.style.marginTop = `${nextMarginTop}px`;
-          }
-          if (extraML !== 0) {
-            dom.style.marginLeft = `${nextMarginLeft}px`;
-          }
+        // Smooth preview: apply direct DOM style during drag, commit once on mouseup.
+        dom.style.width = `${newW}px`;
+        dom.style.height = isTextNode ? "auto" : `${newH}px`;
+        if (extraMT !== 0) {
+          dom.style.marginTop = `${nextMarginTop}px`;
+        }
+        if (extraML !== 0) {
+          dom.style.marginLeft = `${nextMarginLeft}px`;
+        }
+        if (isTextNode && nextFontSize != null) {
+          dom.style.fontSize = `${Math.round(nextFontSize * 10) / 10}px`;
         }
       } else if (d.type === "rotate" && d.startAngle != null) {
         const cx = d.startRect.left + d.startRect.width / 2;
@@ -1153,7 +1140,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
 
           actions.setProp(nodeId, (props: Record<string, unknown>) => {
             props.width = `${Math.round(newW)}px`;
-            props.height = `${Math.round(newH)}px`;
+            props.height = isTextNode ? "auto" : `${Math.round(newH)}px`;
             if (isTextNode && nextFontSize != null) {
               props.fontSize = Math.round(nextFontSize * 10) / 10;
             }
