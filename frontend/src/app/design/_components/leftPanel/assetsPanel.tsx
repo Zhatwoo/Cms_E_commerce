@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Editor, Frame, useEditor } from "@craftjs/core";
 import { ChevronLeft, ChevronRight, Layout, Star, FileText, CreditCard, FormInput, PanelBottom, Smile, Shapes as ShapesIcon } from "lucide-react";
 import { GROUPED_TEMPLATES } from "../../../_assets";
-import { CRAFT_RESOLVER } from "../craftResolver";
+import { buildCraftResolver, CRAFT_RESOLVER } from "../craftResolver";
 import { Container } from "../../_designComponents/Container/Container";
 import { Text } from "../../_designComponents/Text/Text";
 import { Page } from "../../_designComponents/Page/Page";
@@ -42,7 +42,7 @@ function withResolverFallback<T extends Record<string, React.ComponentType<any>>
     },
   }) as T;
 }
-type AssetItem = {
+export type AssetItem = {
   label: string;
   description?: string;
   preview: React.ReactNode;
@@ -126,7 +126,7 @@ const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverF
   Icon: asComponent(Icon),
 });
 
-const AssetLivePreview = ({
+export const AssetLivePreview = ({
   item,
   previewMode,
   maxHeight = MAX_PREVIEW_HEIGHT,
@@ -253,9 +253,6 @@ export const AssetsPanel = () => {
           className={`absolute inset-0 overflow-y-auto space-y-2 transition-transform duration-250 ease-out py-2 ${panelView === "folders" ? "translate-x-0" : "-translate-x-full"
             }`}
         >
-          <span className="text-[10px] font-bold text-brand-medium uppercase tracking-widest px-1">
-            Asset Library
-          </span>
           <div className="grid grid-cols-1 gap-2">
             {GROUPED_TEMPLATES.map((group) => (
               <button
@@ -351,34 +348,34 @@ export const AssetsPanel = () => {
                       }}
                       className={`group bg-brand-white/5 p-3 rounded-xl hover:bg-brand-white/10 transition-all border cursor-move shadow-sm ${isSelected ? "border-brand-light bg-brand-white/10" : "border-brand-medium/30"
                         }`}
-                      >
-                        <div className="flex flex-col gap-2">
-                          {!iconFolder && (
-                            <div className="flex items-center justify-between gap-2 mb-1">
-                              <div className="text-sm text-brand-white font-medium leading-tight line-clamp-1">
-                                {item?.label ?? ""}
-                              </div>
+                    >
+                      <div className="flex flex-col gap-2">
+                        {!iconFolder && (
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <div className="text-sm text-brand-white font-medium leading-tight line-clamp-1">
+                              {item?.label ?? ""}
                             </div>
-                          )}
-                          <div className="flex items-center justify-center">
-                            <AssetLivePreview
-                              item={item}
-                              previewMode={iconFolder ? "icon" : shapeFolder ? "shape" : "full"}
-                            />
                           </div>
+                        )}
+                        <div className="flex items-center justify-center">
+                          <AssetLivePreview
+                            item={item}
+                            previewMode={iconFolder ? "icon" : shapeFolder ? "shape" : "full"}
+                          />
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="rounded-sm border border-white/10 bg-transparent p-4 text-center text-xs text-brand-light/65">
-                  Select a category.
-                </div>
-              )}
-            </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="rounded-sm border border-white/10 bg-transparent p-4 text-center text-xs text-brand-light/65">
+                Select a category.
+              </div>
+            )}
           </div>
         </div>
       </div>
+    </div>
   );
 };
