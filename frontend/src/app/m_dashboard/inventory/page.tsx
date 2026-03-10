@@ -122,8 +122,14 @@ function parseCsvToRows(text: string): ImportInventoryRow[] {
 type StockAdjustmentType = 'IN' | 'OUT';
 
 type StockAdjustmentModalState = {
-  open: boolean; product: ApiProduct | null; movementType: StockAdjustmentType;
+  open: boolean; product: InventoryRow | null; movementType: StockAdjustmentType;
   quantity: string; notes: string; error: string | null;
+};
+
+type InventoryRow = ApiProduct & {
+  _baseProductId: string;
+  _variantKey?: string;
+  _variantLabel?: string;
 };
 
 type ImportPopupState = { open: boolean; message: string; tone: 'success' | 'error' };
@@ -140,6 +146,30 @@ type ProductCreatePayload = Omit<Parameters<typeof createProduct>[0], 'subdomain
 // ─── Subdomain normalization ──────────────────────────────────────────────────
 function normalizeSubdomain(value?: string | null): string {
   return (value || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+}
+
+function parseVariantKey(key: string): Array<{ variantId: string; optionId: string }> {
+  if (!key) return [];
+  return key.split('__').map((pair) => {
+    const [variantId, optionId] = pair.split(':');
+    return { variantId: variantId || '', optionId: optionId || '' };
+  });
+}
+
+function buildVariantLabel(product: ApiProduct, variantKey: string): string {
+  const pairs = parseVariantKey(variantKey);
+  if (pairs.length === 0) return '';
+  const names = pairs
+    .map(({ variantId, optionId }) => {
+      const variant = product.variants?.find((v) => String(v.id) === String(variantId));
+      const option = variant?.options?.find((o) => String(o.id) === String(optionId));
+      if (variant && option) return `${variant.name || 'Variant'}: ${option.name || optionId}`;
+      if (option) return option.name || optionId;
+      if (variant) return `${variant.name || 'Variant'} ${optionId}`;
+      return optionId;
+    })
+    .filter(Boolean);
+  return names.join(' / ');
 }
 
 // ─── Shared UI helpers ────────────────────────────────────────────────────────
@@ -325,11 +355,11 @@ export default function InventoryPage() {
     return () => window.removeEventListener('keydown', fn);
   }, [showAllMovementsModal, closeAllMovementsModal]);
 
-  const getStockNumbers = useCallback((p: ApiProduct) => {
+  const getStockNumbers = useCallback((p: InventoryRow) => {
     const onHand       = Number(p.onHandStock ?? p.stock ?? 0);
     const reserved     = Number(p.reservedStock ?? 0);
     const available    = Number(p.availableStock ?? Math.max(0, onHand - reserved));
-    const lowThreshold = Number(p.lowStockThreshold ?? 5);
+    const lowThreshold = Number(p.lowStockThreshold ?? DEFAULT_LOW_STOCK_THRESHOLD);
     return { onHand, reserved, available, lowThreshold };
   }, []);
 
@@ -342,19 +372,58 @@ export default function InventoryPage() {
     return Array.from(uniq).sort((a, b) => a.localeCompare(b));
   }, [items]);
 
-  const filteredItems = useMemo(() => items.filter((p) => {
+  const tableRows = useMemo<InventoryRow[]>(() => {
+    const rows: InventoryRow[] = [];
+    items.forEach((p) => {
+      if (p.hasVariants && p.variantStocks && Object.keys(p.variantStocks).length > 0) {
+        const baseLow = Number(p.lowStockThreshold ?? DEFAULT_LOW_STOCK_THRESHOLD);
+        Object.entries(p.variantStocks).forEach(([key, rawValue]) => {
+          const amount = Number(rawValue);
+          const onHand = Number.isFinite(amount) && amount >= 0 ? amount : 0;
+          const label = buildVariantLabel(p, key) || key;
+          rows.push({
+            ...p,
+            id: `${p.id}::${key}`,
+            _baseProductId: p.id,
+            _variantKey: key,
+            _variantLabel: label,
+            onHandStock: onHand,
+            stock: onHand,
+            reservedStock: 0,
+            availableStock: onHand,
+            lowStockThreshold: baseLow,
+          });
+        });
+        return;
+      }
+      rows.push({ ...p, _baseProductId: p.id });
+    });
+    return rows;
+  }, [items]);
+
+  const filteredItems = useMemo(() => tableRows.filter((p) => {
     const q = search.trim().toLowerCase();
     const matchesSearch = !q ||
       String(p.name||'').toLowerCase().includes(q) ||
       String(p.sku||'').toLowerCase().includes(q) ||
-      String(p.category||'').toLowerCase().includes(q);
+      String(p.category||'').toLowerCase().includes(q) ||
+      String(p._variantLabel || '').toLowerCase().includes(q);
     const category = String(p.category || '').trim();
     const matchesCategory = categoryFilter === 'all' || category === categoryFilter;
     return matchesSearch && matchesCategory;
-  }), [items, search, categoryFilter]);
+  }), [tableRows, search, categoryFilter]);
 
-  const openStockModal = useCallback((product: ApiProduct, movementType: StockAdjustmentType) => {
-    setStockModal({ open: true, product, movementType, quantity: '1', notes: getDefaultAdjustmentNote(movementType), error: null });
+  const openStockModal = useCallback((product: InventoryRow, movementType: StockAdjustmentType) => {
+    const baseId = product._baseProductId || product.id;
+    const normalizedProduct: InventoryRow = { ...product, id: baseId, _baseProductId: baseId };
+    setStockModal({
+      open: true,
+      product: normalizedProduct,
+      movementType,
+      quantity: '1',
+      notes: getDefaultAdjustmentNote(movementType),
+      error: null,
+    });
   }, []);
 
   const closeStockModal = useCallback(() => {
@@ -445,7 +514,7 @@ export default function InventoryPage() {
     }
   }, [showAllMovementsModal]);
 
-  const startInlineStockEdit = useCallback((product: ApiProduct, currentOnHand: number) => {
+  const startInlineStockEdit = useCallback((product: InventoryRow, currentOnHand: number) => {
     setEditingStockId(product.id);
     setEditingStockValue(String(currentOnHand));
   }, []);
@@ -460,7 +529,7 @@ export default function InventoryPage() {
     clearInlineStockEdit();
   }, [clearInlineStockEdit, savingStockId]);
 
-  const saveInlineStockEdit = useCallback(async (product: ApiProduct) => {
+  const saveInlineStockEdit = useCallback(async (product: InventoryRow) => {
     if (savingStockId === product.id || inlineSaveLockRef.current === product.id) return;
     const normalizedValue = editingStockValue.trim();
     if (!normalizedValue) {
@@ -477,6 +546,56 @@ export default function InventoryPage() {
       clearInlineStockEdit();
       return;
     }
+
+    const baseProductId = product._baseProductId || product.id;
+
+    // Variant row: update variantStocks map via inventory adjust endpoint (logs movement)
+    if (product._variantKey) {
+      const baseProduct = items.find((p) => p.id === baseProductId);
+      if (!baseProduct) {
+        showImportPopup('Base product not found for this variant.', 'error');
+        clearInlineStockEdit();
+        return;
+      }
+      const beforeValue = Number(baseProduct.variantStocks?.[product._variantKey] ?? 0);
+      const nextValue = Math.max(0, next);
+
+      try {
+        inlineSaveLockRef.current = product.id;
+        setSavingStockId(product.id);
+        await adjustInventoryStock({
+          productId: baseProductId,
+          variantKey: product._variantKey,
+          setVariantStock: nextValue,
+          movementType: nextValue >= beforeValue ? 'IN' : 'OUT',
+          notes: `Variant stock updated (${product._variantLabel || product._variantKey})`,
+        });
+        prependLocalMovement({
+          id: `local-inline-${Date.now()}-${product.id}`,
+          productId: baseProductId,
+          productName: baseProduct.name || 'Product',
+          productSku: baseProduct.sku || null,
+          type: nextValue >= beforeValue ? 'IN' : 'OUT',
+          quantity: Math.abs(nextValue - beforeValue),
+          notes: `Variant stock updated (${product._variantLabel || product._variantKey})`,
+          beforeOnHand: beforeValue,
+          afterOnHand: nextValue,
+          createdAt: new Date().toISOString(),
+        });
+        await loadData();
+        if (showAllMovementsModal) await loadAllMovements();
+        clearInlineStockEdit();
+        showImportPopup('Variant stock updated.', 'success');
+      } catch (err) {
+        showImportPopup(err instanceof Error ? err.message : 'Failed to update variant stock.', 'error');
+      } finally {
+        if (inlineSaveLockRef.current === product.id) inlineSaveLockRef.current = null;
+        setSavingStockId(null);
+      }
+      return;
+    }
+
+    // Base product row: keep previous behavior
     const quantity = Math.abs(next - onHand);
     const movementType: StockAdjustmentType = next > onHand ? 'IN' : 'OUT';
     const movementNotes =
@@ -487,14 +606,14 @@ export default function InventoryPage() {
       inlineSaveLockRef.current = product.id;
       setSavingStockId(product.id);
       await adjustInventoryStock({
-        productId: product.id,
+        productId: baseProductId,
         movementType,
         quantity,
         notes: movementNotes,
       });
       prependLocalMovement({
         id: `local-inline-${Date.now()}-${product.id}`,
-        productId: product.id,
+        productId: baseProductId,
         productName: product.name || 'Product',
         productSku: product.sku || null,
         type: movementType,
@@ -514,16 +633,17 @@ export default function InventoryPage() {
       if (inlineSaveLockRef.current === product.id) inlineSaveLockRef.current = null;
       setSavingStockId(null);
     }
-  }, [clearInlineStockEdit, editingStockValue, getStockNumbers, loadAllMovements, loadData, prependLocalMovement, savingStockId, showAllMovementsModal, showImportPopup]);
+  }, [clearInlineStockEdit, editingStockValue, getStockNumbers, items, loadAllMovements, loadData, prependLocalMovement, savingStockId, showAllMovementsModal, showImportPopup]);
 
-  const updateProductStatus = useCallback(async (product: ApiProduct, nextStatus: 'active' | 'inactive') => {
+  const updateProductStatus = useCallback(async (product: InventoryRow, nextStatus: 'active' | 'inactive') => {
     try {
-      setUpdatingProductStatusId(product.id);
-      await updateProduct(product.id, { status: nextStatus });
+      const baseProductId = product._baseProductId || product.id;
+      setUpdatingProductStatusId(baseProductId);
+      await updateProduct(baseProductId, { status: nextStatus });
       await loadData();
       prependLocalMovement({
-        id: `local-status-${Date.now()}-${product.id}`,
-        productId: product.id,
+        id: `local-status-${Date.now()}-${baseProductId}`,
+        productId: baseProductId,
         productName: product.name || 'Product',
         type: 'STATUS',
         quantity: 0,
@@ -993,8 +1113,15 @@ export default function InventoryPage() {
                     onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.018)')}
                     onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.background = 'transparent')}
                   >
-                    <span style={{ color: T.text, fontWeight: 500 }}>{product.name || 'Untitled Product'}</span>
-                    <span style={{ color: T.textMuted }}>{product.sku || '—'}</span>
+                    <span style={{ color: T.text, fontWeight: 500, display: 'flex', flexDirection: 'column' }}>
+                      {product.name || 'Untitled Product'}
+                      {product._variantLabel && (
+                        <span style={{ color: T.textMuted, fontSize: 12, fontWeight: 400, marginTop: 2 }}>
+                          {product._variantLabel}
+                        </span>
+                      )}
+                    </span>
+                    <span style={{ color: T.textMuted }}>{product.sku || '-'}</span>
                     <div
                       onDoubleClick={() => startInlineStockEdit(product, onHand)}
                       title="Double-click stock to edit, press Enter to save"
@@ -1047,7 +1174,7 @@ export default function InventoryPage() {
                         return (
                           <select
                             value={productStatus}
-                            disabled={updatingProductStatusId === product.id}
+                            disabled={updatingProductStatusId === (product._baseProductId || product.id)}
                             onChange={(e) => {
                               const next = e.target.value as 'active' | 'inactive';
                               if (next !== productStatus) void updateProductStatus(product, next);

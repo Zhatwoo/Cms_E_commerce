@@ -891,6 +891,8 @@ export async function adjustInventoryStock(params: {
   referenceId?: string;
   setOnHandStock?: number;
   setReservedStock?: number;
+  variantKey?: string;
+  setVariantStock?: number;
 }): Promise<{ success: boolean; message?: string; data?: ApiProduct }> {
   return apiFetch<{ success: boolean; message?: string; data?: ApiProduct }>('/api/inventory/adjust', {
     method: 'POST',
