@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import {
   adjustInventoryStock,
+  createProduct,
   deleteInventoryMovement,
   getInventorySummary,
   importInventoryCsv,
@@ -26,8 +27,9 @@ import {
   type InventoryMovement,
   type InventorySummary,
 } from '@/lib/api';
-import { useRouter } from 'next/navigation';
 import { useProject } from '../components/context/project-context';
+import ProductAddModal from '../products/components/productAddModal';
+import { type Product, type ProductVariant } from '../lib/productsData';
 
 // ─── Design tokens (original — unchanged) ────────────────────────────────────
 const T = {
@@ -131,6 +133,9 @@ const getDefaultAdjustmentNote = (t: StockAdjustmentType) =>
 
 const RECENT_MOVEMENTS_LIMIT = 5;
 const ALL_MOVEMENTS_LIMIT    = 500;
+const DEFAULT_LOW_STOCK_THRESHOLD = 5;
+
+type ProductCreatePayload = Omit<Parameters<typeof createProduct>[0], 'subdomain'>;
 
 // ─── Subdomain normalization ──────────────────────────────────────────────────
 function normalizeSubdomain(value?: string | null): string {
@@ -224,7 +229,6 @@ const ModalBackdrop = ({ onClose, children }: { onClose: () => void; children: R
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function InventoryPage() {
-  const router = useRouter();
   const { selectedProject } = useProject();
   const selectedSubdomain = normalizeSubdomain(selectedProject?.subdomain);
 
@@ -252,6 +256,7 @@ export default function InventoryPage() {
   const [updatingProductStatusId, setUpdatingProductStatusId] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [showAddProductModal, setShowAddProductModal] = useState(false);
   const [importPopup, setImportPopup] = useState<ImportPopupState>({ open: false, message: '', tone: 'success' });
   const importPopupTimerRef = useRef<number | null>(null);
   const fileInputRef        = useRef<HTMLInputElement>(null);
@@ -568,6 +573,110 @@ export default function InventoryPage() {
     finally { setImporting(false); }
   }, [loadData, showImportPopup, selectedSubdomain]);
 
+  const handleSaveProduct = useCallback(async (productData: Partial<Product> & Record<string, unknown>): Promise<boolean> => {
+    if (!selectedSubdomain) {
+      showImportPopup('Set a subdomain for this website first to manage products.', 'error');
+      return false;
+    }
+
+    try {
+      const rawVariants = Array.isArray(productData.variants) ? productData.variants : [];
+      const variants: ProductVariant[] = rawVariants
+        .map((variant): ProductVariant => {
+          const optionsRaw = Array.isArray((variant as { options?: unknown[] })?.options)
+            ? (variant as { options: unknown[] }).options
+            : [];
+          const options = optionsRaw
+            .map((option) => ({
+              id: String((option as { id?: string })?.id || ''),
+              name: String((option as { name?: string })?.name || '').trim(),
+              priceAdjustment: Number((option as { priceAdjustment?: number })?.priceAdjustment || 0),
+              image: String((option as { image?: string })?.image || '').trim(),
+            }))
+            .filter((option) => option.name || option.priceAdjustment !== 0 || option.image);
+          return {
+            id: String((variant as { id?: string })?.id || ''),
+            name: String((variant as { name?: string })?.name || '').trim(),
+            pricingMode: (variant as { pricingMode?: string })?.pricingMode === 'override' ? 'override' : 'modifier',
+            options,
+          };
+        })
+        .filter((variant) => variant.name || variant.options.length > 0);
+
+      const basePrice = Number(productData.basePrice ?? productData.price ?? 0);
+      const finalPrice = Number(productData.finalPrice ?? productData.price ?? 0);
+      const discount = Number(productData.discount || 0);
+      const discountType = String(productData.discountType || 'percentage') === 'fixed' ? 'fixed' : 'percentage';
+      const hasVariants = Boolean(productData.hasVariants) && variants.length > 0;
+      const variantStocks = hasVariants && productData.variantStocks && typeof productData.variantStocks === 'object'
+        ? Object.entries(productData.variantStocks as Record<string, unknown>).reduce<Record<string, number>>((acc, [key, value]) => {
+          const parsed = Number(value);
+          acc[key] = Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 0;
+          return acc;
+        }, {})
+        : {};
+      const variantPrices = hasVariants && productData.variantPrices && typeof productData.variantPrices === 'object'
+        ? Object.entries(productData.variantPrices as Record<string, unknown>).reduce<Record<string, number>>((acc, [key, value]) => {
+          const parsed = Number(value);
+          acc[key] = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+          return acc;
+        }, {})
+        : {};
+      const priceRangeMin = hasVariants ? Number(productData.priceRangeMin ?? finalPrice) : finalPrice;
+      const priceRangeMax = hasVariants ? Number(productData.priceRangeMax ?? finalPrice) : finalPrice;
+      const computedStock = hasVariants
+        ? Object.values(variantStocks).reduce((sum, amount) => sum + amount, 0)
+        : Number(productData.stock || 0);
+      const normalizedLowStockThreshold = Math.max(
+        0,
+        Number.isFinite(Number(productData.lowStockThreshold))
+          ? Number(productData.lowStockThreshold)
+          : DEFAULT_LOW_STOCK_THRESHOLD
+      );
+
+      const payload: ProductCreatePayload = {
+        name: String(productData.name || ''),
+        sku: String(productData.sku || ''),
+        category: String(productData.category || ''),
+        subcategory: String(productData.subcategory || ''),
+        subCategory: String(productData.subcategory || ''),
+        sub_category: String(productData.subcategory || ''),
+        description: String(productData.description || ''),
+        price: finalPrice,
+        basePrice,
+        costPrice: productData.costPrice !== undefined ? Number(productData.costPrice || 0) : null,
+        finalPrice,
+        compareAtPrice: discount > 0 ? basePrice : null,
+        discount,
+        discountType,
+        hasVariants,
+        variants: hasVariants ? variants : [],
+        variantStocks: hasVariants ? variantStocks : {},
+        variantPrices: hasVariants ? variantPrices : {},
+        priceRangeMin,
+        priceRangeMax,
+        stock: computedStock,
+        lowStockThreshold: normalizedLowStockThreshold,
+        status: String(productData.status || 'draft'),
+        images: Array.isArray(productData.images) ? (productData.images as string[]) : [],
+      };
+
+      await createProduct({
+        subdomain: selectedSubdomain,
+        ...payload,
+        slug: payload.name.toLowerCase().trim().replace(/\s+/g, '-'),
+      });
+
+      await loadData();
+      setShowAddProductModal(false);
+      showImportPopup('Product added successfully!', 'success');
+      return true;
+    } catch (err) {
+      showImportPopup(err instanceof Error ? err.message : 'Failed to save product', 'error');
+      return false;
+    }
+  }, [loadData, selectedSubdomain, showImportPopup]);
+
   // ─── Config ─────────────────────────────────────────────────────────────────
   const statCards = [
     { id: 'total', label: 'TOTAL PRODUCTS', icon: <Package size={12} />,      accent: '#86a8ff', value: summary?.totalProducts ?? 0 },
@@ -788,7 +897,7 @@ export default function InventoryPage() {
             </div>
             <button
               type="button"
-              onClick={() => router.push('/m_dashboard/products')}
+              onClick={() => setShowAddProductModal(true)}
               title="Add Product"
               style={{
                 height: 46, borderRadius: 12,
@@ -991,6 +1100,14 @@ export default function InventoryPage() {
           )}
         </Card>
       </div>
+
+      <ProductAddModal
+        isOpen={showAddProductModal}
+        onClose={() => setShowAddProductModal(false)}
+        onSave={handleSaveProduct}
+        uploadSubdomain={selectedSubdomain}
+        projectIndustry={selectedProject?.industry || null}
+      />
 
       {/* ── Modals ─────────────────────────────────────────────────────────── */}
       <AnimatePresence>
