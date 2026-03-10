@@ -26,6 +26,7 @@ import {
   type InventoryMovement,
   type InventorySummary,
 } from '@/lib/api';
+import { getIndustryCategories } from '@/lib/industryCatalog';
 import { useRouter } from 'next/navigation';
 import { useProject } from '../components/context/project-context';
 
@@ -135,6 +136,11 @@ const ALL_MOVEMENTS_LIMIT    = 500;
 // ─── Subdomain normalization ──────────────────────────────────────────────────
 function normalizeSubdomain(value?: string | null): string {
   return (value || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+}
+
+function getProductSubcategory(product: ApiProduct): string {
+  const record = product as ApiProduct & { subCategory?: unknown; sub_category?: unknown };
+  return String(product.subcategory ?? record.subCategory ?? record.sub_category ?? '').trim();
 }
 
 // ─── Shared UI helpers ────────────────────────────────────────────────────────
@@ -329,22 +335,28 @@ export default function InventoryPage() {
   }, []);
 
   const categoryOptions = useMemo(() => {
+    const projectSubcategories = getIndustryCategories(selectedProject?.industry);
+    if (projectSubcategories.length > 0) {
+      return projectSubcategories;
+    }
+
     const uniq = new Set<string>();
     items.forEach((p) => {
-      const c = String(p.category || '').trim();
-      if (c) uniq.add(c);
+      const sub = getProductSubcategory(p);
+      if (sub) uniq.add(sub);
     });
     return Array.from(uniq).sort((a, b) => a.localeCompare(b));
-  }, [items]);
+  }, [items, selectedProject?.industry]);
 
   const filteredItems = useMemo(() => items.filter((p) => {
     const q = search.trim().toLowerCase();
     const matchesSearch = !q ||
       String(p.name||'').toLowerCase().includes(q) ||
       String(p.sku||'').toLowerCase().includes(q) ||
-      String(p.category||'').toLowerCase().includes(q);
-    const category = String(p.category || '').trim();
-    const matchesCategory = categoryFilter === 'all' || category === categoryFilter;
+      String(p.category||'').toLowerCase().includes(q) ||
+      getProductSubcategory(p).toLowerCase().includes(q);
+    const subcategory = getProductSubcategory(p);
+    const matchesCategory = categoryFilter === 'all' || subcategory === categoryFilter;
     return matchesSearch && matchesCategory;
   }), [items, search, categoryFilter]);
 
@@ -777,7 +789,7 @@ export default function InventoryPage() {
                   outline: 'none',
                   cursor: 'pointer',
                 }}
-                aria-label="Category filter"
+                aria-label="Subcategory filter"
               >
                 <option value="all">Category</option>
                 {categoryOptions.map((category) => (
