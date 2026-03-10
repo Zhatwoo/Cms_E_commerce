@@ -1273,9 +1273,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   }, [scale]);
 
   // Center camera on the current page element
-  const centerCanvasInView = useCallback(() => {
+  const centerCanvasInView = useCallback((options?: { behavior?: ScrollBehavior }) => {
     const container = containerRef.current;
     if (!container) return;
+
+    const behavior = options?.behavior ?? "auto";
 
     const pageEl =
       (currentPageId
@@ -1295,13 +1297,22 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
       const pageCenterX = container.scrollLeft + (pageRect.left - contRect.left) + pageRect.width / 2;
       const pageCenterY = container.scrollTop + (pageRect.top - contRect.top) + pageRect.height / 2;
 
-      container.scrollLeft = pageCenterX - container.clientWidth / 2;
-      container.scrollTop = pageCenterY - container.clientHeight / 2;
+      container.scrollTo({
+        left: pageCenterX - container.clientWidth / 2,
+        top: pageCenterY - container.clientHeight / 2,
+        behavior
+      });
     } else {
       // Fallback: center of the "infinite" area roughly where origin is
-      centerOnWorldPoint(INFINITE_CANVAS_PADDING_PX + PAGE_BASE_WIDTH / 2, INFINITE_CANVAS_PADDING_PX + PAGE_BASE_HEIGHT / 2);
+      const targetX = INFINITE_CANVAS_PADDING_PX + PAGE_BASE_WIDTH / 2 - container.clientWidth / 2;
+      const targetY = INFINITE_CANVAS_PADDING_PX + PAGE_BASE_HEIGHT / 2 - container.clientHeight / 2;
+      container.scrollTo({
+        left: targetX,
+        top: targetY,
+        behavior
+      });
     }
-  }, [currentPageId, centerOnWorldPoint]);
+  }, [currentPageId, scale]);
 
   // Center immediately on first mount
   useLayoutEffect(() => {
@@ -1337,6 +1348,39 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
       window.clearTimeout(t2);
     };
   }, [frameReady, initialJson, centerCanvasInView]);
+
+  // Relative shifting for the right panel to match the left panel's natural behavior.
+  // When the right panel expands, it "pushes" the content left by adjusting the scroll position.
+  const prevRightPanelEffectiveWidthRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!panelsReady || !frameReady) {
+      prevRightPanelEffectiveWidthRef.current = null;
+      return;
+    }
+
+    const currentWidth = rightPanelOpen ? rightPanelWidth : 0;
+
+    // Initialize on first ready state without shifting
+    if (prevRightPanelEffectiveWidthRef.current === null) {
+      prevRightPanelEffectiveWidthRef.current = currentWidth;
+      return;
+    }
+
+    const delta = currentWidth - prevRightPanelEffectiveWidthRef.current;
+    prevRightPanelEffectiveWidthRef.current = currentWidth;
+
+    if (delta === 0) return;
+
+    const container = containerRef.current;
+    if (container) {
+      // Use smooth behavior for manual toggles, immediate for dragging
+      container.scrollBy({
+        left: delta,
+        behavior: isPanelDragging ? "auto" : "smooth"
+      });
+    }
+  }, [rightPanelOpen, rightPanelWidth, panelsReady, frameReady, isPanelDragging]);
 
   // Listen for center-on-node events from ScrollToSelectedHandler / FloatingMobilePreview
   useEffect(() => {
