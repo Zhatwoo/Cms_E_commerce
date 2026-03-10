@@ -941,9 +941,29 @@ export default function InventoryPage() {
 
         {/* ── Title (original) ────────────────────────────────────────────── */}
         <div style={{ textAlign: 'center', marginBottom: 26 }}>
-          <h1 style={{ fontSize: 'clamp(34px, 5vw, 56px)', fontWeight: 800, margin: 0, letterSpacing: -1.8, lineHeight: 1.06 }}>
+          <h1
+            style={{
+              fontSize: 'clamp(34px, 5vw, 56px)',
+              fontWeight: 800,
+              margin: 0,
+              letterSpacing: -1.8,
+              lineHeight: 1.06,
+            }}
+          >
             <span style={{ color: T.text }}>My </span>
-            <span style={{ backgroundImage: T.brandGradient, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>
+            <span
+              style={{
+                backgroundImage: T.brandGradient,
+                WebkitBackgroundClip: 'text',
+                backgroundClip: 'text',
+                color: 'transparent',
+                WebkitTextFillColor: 'transparent',
+                display: 'inline-block',
+                paddingRight: '0.08em',
+                lineHeight: 1.18,
+                paddingBottom: '0.08em',
+              }}
+            >
               Inventory
             </span>
           </h1>
