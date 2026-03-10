@@ -90,8 +90,10 @@ export const Container = ({
   const wPx = parsePx(width);
   const hPx = parsePx(height);
   const canScale = false;
-  const scaleX = canScale ? wPx / designWidth : 1;
-  const scaleY = canScale ? hPx / designHeight : 1;
+  const safeDesignWidth = typeof designWidth === "number" && designWidth > 0 ? designWidth : 1;
+  const safeDesignHeight = typeof designHeight === "number" && designHeight > 0 ? designHeight : 1;
+  const scaleX = canScale && wPx != null ? wPx / safeDesignWidth : 1;
+  const scaleY = canScale && hPx != null ? hPx / safeDesignHeight : 1;
 
   // Resolve padding
   const p = typeof padding === 'number' ? padding : 0;

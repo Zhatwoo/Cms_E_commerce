@@ -7,14 +7,14 @@ import { Page } from "../../_designComponents/Page/Page";
 import { Viewport } from "../../_designComponents/Viewport/Viewport";
 import { CRAFT_RESOLVER } from "../craftResolver";
 
-const SAFE_CONTAINER: React.ComponentType<unknown> =
+const SAFE_CONTAINER: React.ComponentType<any> =
   (typeof Container === "function" ? Container : null) ??
-  ((props: unknown) => React.createElement("div", null, (props as any)?.children));
+  ((props: any) => React.createElement("div", null, props?.children));
 
-const asComponent = (value: unknown): React.ComponentType<unknown> =>
-  typeof value === "function" ? (value as React.ComponentType<unknown>) : SAFE_CONTAINER;
+const asComponent = (value: unknown): React.ComponentType<any> =>
+  typeof value === "function" ? (value as React.ComponentType<any>) : SAFE_CONTAINER;
 
-const VALIDATOR_RESOLVER: Record<string, React.ComponentType<unknown>> = {
+const VALIDATOR_RESOLVER: Record<string, React.ComponentType<any>> = {
   ...RenderBlocks,
   ...CRAFT_RESOLVER,
   Container: SAFE_CONTAINER,

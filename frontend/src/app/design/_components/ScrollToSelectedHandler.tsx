@@ -19,6 +19,10 @@ export function ScrollToSelectedHandler() {
       return;
     }
 
+    // Avoid accidental auto-centering when selecting regular components.
+    // We only center when the selection is explicitly a single Page node.
+    if (ids.length !== 1) return;
+
     const targetId = ids[0];
     if (!targetId) return;
     if (lastCenteredNodeIdRef.current === targetId) return;

@@ -58,10 +58,6 @@ const T = {
 // ─── CSV helpers (unchanged) ──────────────────────────────────────────────────
 const EXPORT_COLUMNS = ['name','sku','category','onHandStock','reservedStock','lowStockThreshold','status'] as const;
 
-function normalizeSubdomain(value?: string | null): string {
-  return (value || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
-}
-
 function escapeCsvValue(val: string | number | undefined | null): string {
   const s = String(val ?? '');
   if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) return `"${s.replace(/"/g,'""')}"`;
@@ -285,15 +281,9 @@ export default function InventoryPage() {
     }
     try {
       const [invRes, summaryRes, movementRes] = await Promise.all([
-<<<<<<< HEAD
         listInventory({ subdomain: selectedSubdomain, limit: 500, search: search || undefined }),
         getInventorySummary({ subdomain: selectedSubdomain, search: search || undefined }),
         listInventoryMovements({ subdomain: selectedSubdomain, limit: RECENT_MOVEMENTS_LIMIT }),
-=======
-        listInventory({ subdomain: selectedSubdomain || undefined, limit: 500, search: search || undefined }),
-        getInventorySummary({ subdomain: selectedSubdomain || undefined, search: search || undefined }),
-        listInventoryMovements({ subdomain: selectedSubdomain || undefined, limit: RECENT_MOVEMENTS_LIMIT }),
->>>>>>> 5c24cb57b5990d02e75bfd8600d9ba3bc1126c53
       ]);
       setItems(Array.isArray(invRes.items) ? invRes.items : []);
       setSummary(summaryRes.data || null);
@@ -313,11 +303,7 @@ export default function InventoryPage() {
       return;
     }
     try {
-<<<<<<< HEAD
       const res = await listInventoryMovements({ subdomain: selectedSubdomain, limit: ALL_MOVEMENTS_LIMIT });
-=======
-      const res = await listInventoryMovements({ subdomain: selectedSubdomain || undefined, limit: ALL_MOVEMENTS_LIMIT });
->>>>>>> 5c24cb57b5990d02e75bfd8600d9ba3bc1126c53
       setAllMovements(Array.isArray(res.items) ? res.items : []);
     } catch (err) {
       setAllMovementsError(err instanceof Error ? err.message : 'Failed to load movement history');

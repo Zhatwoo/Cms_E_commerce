@@ -245,7 +245,7 @@ export const ImageSettings = () => {
         />
       </DesignSection>
 
-      <DesignSection title="Corners">
+      <DesignSection title="Appearance">
         <AppearanceGroup
           radiusTopLeft={radiusTopLeft}
           radiusTopRight={radiusTopRight}
