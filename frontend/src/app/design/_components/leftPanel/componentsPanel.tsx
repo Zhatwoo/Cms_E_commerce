@@ -63,7 +63,7 @@ export const ComponentsPanel = () => {
       return element;
     }
 
-    return React.cloneElement(element, {
+    return React.cloneElement<any>(element as React.ReactElement<any>, {
       position: "absolute",
       top: "0px",
       left: "0px",

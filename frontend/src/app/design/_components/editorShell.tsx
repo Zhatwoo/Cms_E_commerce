@@ -738,7 +738,7 @@ const CollabCursorBroadcaster = ({
   containerRef,
   scale,
 }: {
-  containerRef: React.RefObject<HTMLDivElement>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
   scale: number;
 }) => {
   const { emitCursorMove } = useCollaboration();
@@ -1693,8 +1693,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
         const applyLoadedContent = (content: string | null) => {
           setInitialJson(content);
-          if (!content) return;
           draftLoadedRef.current = true;
+          if (!content) return;
           loadPages(content);
           try {
             const parsed = JSON.parse(content);
@@ -1766,32 +1766,41 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           }
         };
 
-        const isEmptyCraftContent = (craftJson: string): boolean => {
+        const isLegacyStarterContent = (craftJson: string): boolean => {
           try {
             const p = JSON.parse(craftJson) as Record<string, unknown>;
-            const keys = Object.keys(p).filter((k) => k !== "ROOT");
             const root = p?.ROOT as { nodes?: string[] } | undefined;
-            if (!root || !Array.isArray(root.nodes)) return true;
-            const hasAnyChildren = root.nodes.some((id) => {
-              const n = p[id] as { nodes?: string[] } | undefined;
-              return n && Array.isArray(n.nodes) && n.nodes.length > 0;
-            });
-            return !hasAnyChildren && keys.length <= 4;
+            if (!root || !Array.isArray(root.nodes)) return false;
+
+            // Ignore only the old starter template (one page + one empty container).
+            // A truly empty page (no children) is still valid user work and must be preserved.
+            if (root.nodes.length === 1) {
+              const pageId = root.nodes[0];
+              const page = (p[pageId] as { nodes?: string[]; displayName?: string } | undefined) ?? null;
+              const pageNodes = Array.isArray(page?.nodes) ? page.nodes : [];
+              if ((page?.displayName === "Page" || page?.displayName == null) && pageNodes.length === 1) {
+                const onlyChildId = pageNodes[0];
+                const onlyChild = (p[onlyChildId] as { nodes?: string[]; displayName?: string } | undefined) ?? null;
+                const childNodes = Array.isArray(onlyChild?.nodes) ? onlyChild.nodes : [];
+                if (onlyChild?.displayName === "Container" && childNodes.length === 0) {
+                  return true;
+                }
+              }
+            }
+            return false;
           } catch {
-            return true;
+            return false;
           }
         };
 
-        // 1. Check sessionStorage (skip empty cache so API can override for collaborators)
+        // 1. Check sessionStorage first (latest local edits should win on refresh)
         if (sessionSaved) {
           const normalized = normalizeToCraftJson(sessionSaved);
-          if (normalized && !isEmptyCraftContent(normalized)) {
+          if (normalized && !isLegacyStarterContent(normalized)) {
             contentToLoad = normalized;
             if (normalized !== sessionSaved) safeSessionSet(storageKey, normalized);
             safeLocalSet(persistentKey, normalized);
             applyLoadedContent(contentToLoad);
-          } else if (normalized) {
-            safeSessionRemove(storageKey);
           } else {
             safeSessionRemove(storageKey);
           }
@@ -1800,7 +1809,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         // 2. Check persistent local cache
         if (!contentToLoad && persistentSaved) {
           const normalized = normalizeToCraftJson(persistentSaved);
-          if (normalized && !isEmptyCraftContent(normalized)) {
+          if (normalized && !isLegacyStarterContent(normalized)) {
             contentToLoad = normalized;
             safeSessionSet(storageKey, normalized);
             if (normalized !== persistentSaved) safeLocalSet(persistentKey, normalized);
@@ -1828,11 +1837,15 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         // 4. Check Database (fallback)
         if (!contentToLoad && result.success && result.data && result.data.content) {
           const normalized = normalizeToCraftJson(result.data.content);
-          if (normalized) {
+          if (normalized && !isLegacyStarterContent(normalized)) {
             contentToLoad = normalized;
             safeSessionSet(storageKey, normalized);
             safeLocalSet(persistentKey, normalized);
             applyLoadedContent(contentToLoad);
+          } else if (normalized) {
+            // Drop legacy starter payloads so user lands on true empty state.
+            safeSessionRemove(storageKey);
+            safeLocalRemove(persistentKey);
           } else {
             console.warn('⚠️ Draft content could not be parsed — check structure.');
             showAlert('Could not load project content. Try refreshing.', 'error');
@@ -1850,6 +1863,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
       } catch {
         setInitialJson(null);
+        draftLoadedRef.current = true;
         isReadyRef.current = true; // Allow editing even if load failed
       }
     }
@@ -1976,7 +1990,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         try {
           snapshot = JSON.stringify(serializeCraftToClean(next));
         } catch {
-          snapshot = null;
+          snapshot = next;
         }
 
         const toStore = snapshot ?? next;
@@ -1993,7 +2007,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           safeLocalSet(getPersistentStorageKey(projectId), toStore);
         }
 
-        if (snapshot) lastSnapshotRef.current = snapshot;
+        lastSnapshotRef.current = toStore;
         return snapshot;
       } catch {
         return null;
