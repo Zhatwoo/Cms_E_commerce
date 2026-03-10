@@ -138,7 +138,9 @@ export function DashboardSidebar({ mobile = false, onClose, onNavigateStart }: D
           style={{ borderColor: colors.border.faint, height: '85px', paddingTop: '4px' }}
         >
           <div className="flex items-center gap-3">
-            <img src="/images/logo.svg" alt="Logo" className="h-9 w-auto" />
+            <Link href="/m_dashboard" onClick={handleHomeClick} aria-label="Go to dashboard home">
+              <img src="/images/logo.svg" alt="Logo" className="h-9 w-auto" />
+            </Link>
           </div>
           <button
             onClick={onClose}
@@ -226,7 +228,9 @@ export function DashboardSidebar({ mobile = false, onClose, onNavigateStart }: D
         className="flex items-center justify-center shrink-0 transition-colors duration-300"
         style={{ borderColor: colors.border.faint, height: '85px', paddingTop: '4px' }}
       >
-        <img src="/images/logo.svg" alt="Logo" className="h-9 w-auto max-w-[48px]" />
+        <Link href="/m_dashboard" onClick={handleHomeClick} aria-label="Go to dashboard home">
+          <img src="/images/logo.svg" alt="Logo" className="h-9 w-auto max-w-[48px]" />
+        </Link>
       </div>
 
       {/* Navigation */}
