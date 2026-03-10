@@ -1205,12 +1205,12 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
 
                     <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <div className="mb-2 flex items-center gap-1.5">
-                      <label className={`${lCls} mb-0`} style={{ color: '#9FB3DF' }}>Price *</label>
+                    <div className="mb-2 flex items-center gap-1.5 leading-none">
+                      <label className="text-xs tracking-[0.12em] font-semibold uppercase leading-none" style={{ color: '#9FB3DF' }}>Price*</label>
                       <div className="relative group">
                         <span className="h-4 w-4 rounded-full border text-[10px] font-bold leading-none inline-flex items-center justify-center cursor-help" style={{ color: '#C9D8FF', borderColor: '#4D5EC8', backgroundColor: '#1A2577' }}>i</span>
                         <div className="pointer-events-none absolute left-0 top-full z-50 mt-2 w-56 rounded-xl border p-3 opacity-0 transition-opacity group-hover:opacity-100" style={{ backgroundColor: '#121A63', borderColor: '#3140A6', boxShadow: '0 18px 34px rgba(0,0,0,0.45)' }}>
-                          <p className="text-xs" style={{ color: '#DCE7FF' }}><span className="font-semibold">Price:</span> The default price of this product.</p>
+                          <p className="text-xs" style={{ color: '#DCE7FF' }}><span className="font-semibold"></span> The default price of this product.</p>
                         </div>
                       </div>
                     </div>
@@ -1221,12 +1221,12 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                     </div>
                   </div>
                   <div>
-                    <div className="mb-2 flex items-center gap-1.5">
-                      <label className={`${lCls} mb-0`} style={{ color: '#9FB3DF' }}>Cost of Goods</label>
+                    <div className="mb-2 flex items-center gap-1.5 leading-none">
+                      <label className="text-xs tracking-[0.12em] font-semibold uppercase leading-none" style={{ color: '#9FB3DF' }}>Cost of Goods</label>
                       <div className="relative group">
                         <span className="h-4 w-4 rounded-full border text-[10px] font-bold leading-none inline-flex items-center justify-center cursor-help" style={{ color: '#C9D8FF', borderColor: '#4D5EC8', backgroundColor: '#1A2577' }}>i</span>
                         <div className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 w-72 -translate-x-1/2 rounded-xl border p-3 opacity-0 transition-opacity group-hover:opacity-100" style={{ backgroundColor: '#121A63', borderColor: '#3140A6', boxShadow: '0 18px 34px rgba(0,0,0,0.45)' }}>
-                          <p className="text-xs" style={{ color: '#DCE7FF' }}><span className="font-semibold">Cost of goods:</span> The amount you're spending to produce and sell this product. Your customers won't see this.</p>
+                          <p className="text-xs" style={{ color: '#DCE7FF' }}><span className="font-semibold"></span> The amount you're spending to produce and sell this product. Your customers won't see this.</p>
                         </div>
                       </div>
                     </div>
@@ -1244,12 +1244,12 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                     </div>
                   </div>
                   <div>
-                    <div className="mb-2 flex items-center gap-1.5">
-                      <label className="text-xs tracking-[0.12em] font-semibold uppercase" style={{ color: '#9FB3DF' }}>Strikethrough Price</label>
+                    <div className="mb-2 flex items-center gap-1.5 leading-none">
+                      <label className="text-xs tracking-[0.12em] font-semibold uppercase leading-none" style={{ color: '#9FB3DF' }}>Strikethrough Price</label>
                       <div className="relative group">
                         <span className="h-4 w-4 rounded-full border text-[10px] font-bold leading-none inline-flex items-center justify-center cursor-help" style={{ color: '#C9D8FF', borderColor: '#4D5EC8', backgroundColor: '#1A2577' }}>i</span>
                         <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border p-3 opacity-0 transition-opacity group-hover:opacity-100" style={{ backgroundColor: '#121A63', borderColor: '#3140A6', boxShadow: '0 18px 34px rgba(0,0,0,0.45)' }}>
-                          <p className="text-xs" style={{ color: '#DCE7FF' }}><span className="font-semibold">Strikethrough price:</span> Appears crossed out next to the product's price. Used to show customers the original or market price of a product.</p>
+                          <p className="text-xs" style={{ color: '#DCE7FF' }}><span className="font-semibold"></span> Appears crossed out next to the product's price. Used to show customers the original or market price of a product.</p>
                         </div>
                       </div>
                     </div>
@@ -1549,12 +1549,12 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                               <div>
-                                <div className="mb-2 flex items-center gap-1.5">
-                                  <label className="text-xs tracking-[0.12em] font-semibold uppercase" style={{ color: '#9FB3DF' }}>Strikethrough Price</label>
+                                <div className="mb-2 flex items-center gap-1.5 leading-none">
+                                  <label className="text-xs tracking-[0.12em] font-semibold uppercase leading-none" style={{ color: '#9FB3DF' }}>Strikethrough Price</label>
                                   <div className="relative group">
                                     <span className="h-4 w-4 rounded-full border text-[10px] font-bold leading-none inline-flex items-center justify-center cursor-help" style={{ color: '#C9D8FF', borderColor: '#4D5EC8', backgroundColor: '#1A2577' }}>i</span>
                                     <div className="pointer-events-none absolute left-0 top-full z-50 mt-2 w-56 rounded-xl border p-3 opacity-0 transition-opacity group-hover:opacity-100" style={{ backgroundColor: '#121A63', borderColor: '#3140A6', boxShadow: '0 18px 34px rgba(0,0,0,0.45)' }}>
-                                      <p className="text-xs" style={{ color: '#DCE7FF' }}><span className="font-semibold">Strikethrough price:</span> Appears crossed out next to the product's price. Used to show customers the original or market price of a product.</p>
+                                      <p className="text-xs" style={{ color: '#DCE7FF' }}><span className="font-semibold"></span> Appears crossed out next to the product's price. Used to show customers the original or market price of a product.</p>
                                     </div>
                                   </div>
                                 </div>
