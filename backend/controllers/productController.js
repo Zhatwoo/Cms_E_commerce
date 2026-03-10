@@ -114,6 +114,9 @@ exports.create = async (req, res) => {
       onHandStock,
       reservedStock,
       lowStockThreshold,
+      subcategory,
+      subCategory,
+      sub_category,
       subdomain,
     } = req.body;
     if (!name) {
@@ -150,6 +153,7 @@ exports.create = async (req, res) => {
         priceRangeMax: priceRangeMax ?? null,
         images: Array.isArray(images) ? images : [],
         status: status || 'draft',
+        subcategory: String(subcategory ?? subCategory ?? sub_category ?? '').trim(),
         stock: stock ?? null,
         onHandStock: onHandStock ?? undefined,
         reservedStock: reservedStock ?? undefined,
@@ -189,6 +193,9 @@ exports.update = async (req, res) => {
       onHandStock,
       reservedStock,
       lowStockThreshold,
+      subcategory,
+      subCategory,
+      sub_category,
     } = req.body;
     const existing = await Product.findByIdForUser(req.params.id, req.user.id);
     if (!existing) {
@@ -199,6 +206,13 @@ exports.update = async (req, res) => {
     if (name !== undefined) updates.name = name;
     if (sku !== undefined) updates.sku = sku;
     if (category !== undefined) updates.category = category;
+    if (
+      subcategory !== undefined ||
+      subCategory !== undefined ||
+      sub_category !== undefined
+    ) {
+      updates.subcategory = String(subcategory ?? subCategory ?? sub_category ?? '').trim();
+    }
     if (slug !== undefined) updates.slug = slug;
     if (description !== undefined) updates.description = description;
     if (price !== undefined) updates.price = price;
