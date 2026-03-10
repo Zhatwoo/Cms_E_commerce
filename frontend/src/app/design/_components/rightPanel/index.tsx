@@ -181,12 +181,13 @@ const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeT
                 </div>
 
                 {/* Tab Bar - Modern Pill Style */}
-                <div className="w-full mb-8">
-                  <div className="grid grid-cols-4 w-full p-1 bg-black/30 backdrop-blur-md rounded-2xl border border-white/5">
+                <div className="w-full mb-8 px-0.5">
+                  <div className="grid grid-cols-4 w-full p-1 bg-black/40 backdrop-blur-xl rounded-2xl border border-white/5 shadow-2xl">
                     {(() => {
                       const limits = getLimits(user?.subscriptionPlan);
                       return TABS.map((tab) => {
                         const isRestricted = tab.id === 'code' && !limits.codeEditor;
+                        const isActive = activeTab === tab.id;
 
                         return (
                           <button
@@ -198,16 +199,33 @@ const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeT
                               }
                               setActiveTab(tab.id);
                             }}
-                            className={`relative z-10 w-full px-1.5 py-2.5 rounded-xl transition-all duration-300 text-[10px] font-semibold tracking-normal whitespace-nowrap flex items-center justify-center gap-1 ${activeTab === tab.id
+                            className={`relative group z-10 w-full px-1 py-2.5 rounded-xl transition-all duration-300 flex flex-col items-center justify-center gap-1 min-w-0 ${isActive
                               ? "text-white"
-                              : isRestricted || (permission === "viewer" && tab.id === "code") ? "text-white/20 hover:text-white/40" : "text-white/40 hover:text-white/60"
+                              : isRestricted || (permission === "viewer" && tab.id === "code") 
+                                ? "text-white/20 hover:text-white/40" 
+                                : "text-white/40 hover:text-white/60"
                               }`}
                           >
-                            {activeTab === tab.id && (
-                              <div className="absolute inset-0 bg-blue-600 rounded-xl shadow-lg shadow-blue-500/20 animate-in fade-in zoom-in-95 duration-200" style={{ zIndex: -1 }} />
+                            {isActive && (
+                              <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl shadow-[0_0_15px_rgba(37,99,235,0.3)] animate-in fade-in zoom-in-95 duration-300" style={{ zIndex: -1 }} />
                             )}
-                            {isRestricted && <Lock size={10} className="text-amber-500/60" />}
-                            {tab.label}
+                            
+                            <div className="flex items-center gap-1.5 min-w-0 w-full justify-center px-1">
+                              {isRestricted ? (
+                                <Lock size={10} className="text-amber-500/60 shrink-0" />
+                              ) : (
+                                <div className={`shrink-0 transition-transform duration-300 ${isActive ? "scale-110" : "group-hover:scale-105"}`}>
+                                  {React.cloneElement(tab.icon as React.ReactElement<any>, { size: 12 })}
+                                </div>
+                              )}
+                              <span className={`text-[9px] font-bold tracking-tight truncate transition-all duration-300 ${isActive ? "opacity-100" : "opacity-80 group-hover:opacity-100"}`}>
+                                {tab.label}
+                              </span>
+                            </div>
+
+                            {isActive && (
+                              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-white rounded-full shadow-[0_0_8px_white]" />
+                            )}
                           </button>
                         );
                       });

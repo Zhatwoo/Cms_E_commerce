@@ -138,9 +138,29 @@ function normalizeSubdomain(value?: string | null): string {
   return (value || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
 }
 
+function normalizeFilterValue(value?: string | null): string {
+  return String(value || '').trim().toLowerCase();
+}
+
 function getProductSubcategory(product: ApiProduct): string {
-  const record = product as ApiProduct & { subCategory?: unknown; sub_category?: unknown };
-  return String(product.subcategory ?? record.subCategory ?? record.sub_category ?? '').trim();
+  const record = product as ApiProduct & {
+    subCategory?: unknown;
+    sub_category?: unknown;
+    details?: { subcategory?: unknown; subCategory?: unknown; sub_category?: unknown };
+    specifications?: { subcategory?: unknown; subCategory?: unknown; sub_category?: unknown };
+  };
+  return String(
+    product.subcategory
+    ?? record.subCategory
+    ?? record.sub_category
+    ?? record.details?.subcategory
+    ?? record.details?.subCategory
+    ?? record.details?.sub_category
+    ?? record.specifications?.subcategory
+    ?? record.specifications?.subCategory
+    ?? record.specifications?.sub_category
+    ?? ''
+  ).trim();
 }
 
 // ─── Shared UI helpers ────────────────────────────────────────────────────────
@@ -349,14 +369,16 @@ export default function InventoryPage() {
   }, [items, selectedProject?.industry]);
 
   const filteredItems = useMemo(() => items.filter((p) => {
-    const q = search.trim().toLowerCase();
-    const matchesSearch = !q ||
-      String(p.name||'').toLowerCase().includes(q) ||
-      String(p.sku||'').toLowerCase().includes(q) ||
-      String(p.category||'').toLowerCase().includes(q) ||
-      getProductSubcategory(p).toLowerCase().includes(q);
+    const q = normalizeFilterValue(search);
     const subcategory = getProductSubcategory(p);
-    const matchesCategory = categoryFilter === 'all' || subcategory === categoryFilter;
+    const normalizedSubcategory = normalizeFilterValue(subcategory);
+    const normalizedCategoryFilter = normalizeFilterValue(categoryFilter);
+    const matchesSearch = !q ||
+      normalizeFilterValue(String(p.name || '')).includes(q) ||
+      normalizeFilterValue(String(p.sku || '')).includes(q) ||
+      normalizeFilterValue(String(p.category || '')).includes(q) ||
+      normalizedSubcategory.includes(q);
+    const matchesCategory = normalizedCategoryFilter === 'all' || normalizedSubcategory === normalizedCategoryFilter;
     return matchesSearch && matchesCategory;
   }), [items, search, categoryFilter]);
 
@@ -791,7 +813,7 @@ export default function InventoryPage() {
                 }}
                 aria-label="Subcategory filter"
               >
-                <option value="all">Category</option>
+                <option value="all">All</option>
                 {categoryOptions.map((category) => (
                   <option key={category} value={category}>{category}</option>
                 ))}

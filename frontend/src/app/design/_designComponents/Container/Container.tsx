@@ -93,6 +93,12 @@ export const Container = ({
   const hasChildren = childCount > 0 || React.Children.count(children) > 0;
   const isFlexRowParent = parentDisplay === "flex" && parentFlexDirection === "row";
 
+  const wPx = parsePx(width);
+  const hPx = parsePx(height);
+  const canScale = false;
+  const scaleX = canScale ? wPx / designWidth : 1;
+  const scaleY = canScale ? hPx / designHeight : 1;
+
   // Resolve padding
   const p = typeof padding === 'number' ? padding : 0;
   const pl = paddingLeft !== undefined ? paddingLeft : p;
