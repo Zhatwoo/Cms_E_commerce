@@ -790,7 +790,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   const [currentPageId, setCurrentPageId] = useState<string | null>(initialPageId ?? null);
   const [pages, setPages] = useState<Array<{ id: string; name: string }>>([]);
   const [projectFiles, setProjectFiles] = useState<any[]>([]);
-  const lastQueryRef = useRef<{ serialize: () => string } | null>(null);
+
   const containerRef = useRef<HTMLDivElement>(null!);
   const previousScaleRef = useRef(1);
   const wheelZoomDeltaRef = useRef(0);
@@ -1943,10 +1943,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
    * Immediately save and navigate to preview page
    */
   const handlePreview = useCallback(async () => {
-    if (!projectId || !editorQueryRef.current) return;
+    const query = editorQueryRef.current;
+    if (!projectId || !query) return;
+
     setIsPreviewing(true);
     try {
-      const query = editorQueryRef.current;
       const snapshot = mirrorToSession(query);
       if (snapshot) {
         await autoSavePage(snapshot, projectId);
@@ -2082,8 +2083,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
 
   // Clean up on unmount
   useEffect(() => {
-    if (projectFiles.length > 0 && lastQueryRef.current) {
-      handleNodesChange(lastQueryRef.current);
+    if (projectFiles.length > 0 && editorQueryRef.current) {
+      handleNodesChange(editorQueryRef.current);
     }
   }, [projectFiles, handleNodesChange]);
 
@@ -2191,7 +2192,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
         onRender={RenderNode}
         onNodesChange={(query) => requestAnimationFrame(() => handleNodesChangeRef.current?.(query))}
       >
-        <QueryStasher onQuery={(q) => { lastQueryRef.current = q; }} />
+        <QueryStasher onQuery={(q) => { editorQueryRef.current = q; }} />
         <CollabSyncHandler />
         <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
           <CanvasToolProvider value={activeTool} onToolChange={handleToolChange}>
