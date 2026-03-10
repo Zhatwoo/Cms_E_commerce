@@ -335,9 +335,9 @@ export const TopPanel: React.FC<TopPanelProps> = ({
           <DesignTooltip content="Preview" position="bottom">
             <button
               onClick={onPreview}
-              className="p-2 rounded-lg transition-all hover:bg-white/10 active:scale-95 text-brand-light"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all hover:bg-white/10 active:scale-95 text-brand-light group/preview"
             >
-              <Play className="w-4 h-4 fill-current" />
+              <Play className="w-3.5 h-3.5 fill-current transition-transform group-hover/preview:scale-110" />
             </button>
           </DesignTooltip>
 
