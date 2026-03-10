@@ -45,38 +45,6 @@ function isImageSource(value: string): boolean {
   return false;
 }
 
-function extractSizesAndColors(product: Product): { sizes: string[]; colors: string[] } {
-  const sizes = new Set<string>();
-  const colors = new Set<string>();
-
-  const fallbackSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
-  const fallbackColors = ['#EAE3F9', '#F23939', '#2F49D8', '#D81CBF'];
-
-  if (Array.isArray(product.variants)) {
-    for (const variant of product.variants) {
-      const variantName = String(variant?.name || '').trim().toLowerCase();
-      const options = Array.isArray(variant?.options) ? variant.options : [];
-      for (const option of options) {
-        const optionName = String(option?.name || '').trim();
-        if (!optionName) continue;
-        if (variantName.includes('size')) {
-          sizes.add(optionName.toUpperCase());
-          continue;
-        }
-        if (variantName.includes('color') || /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(optionName)) {
-          const normalized = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(optionName) ? optionName : '';
-          if (normalized) colors.add(normalized);
-        }
-      }
-    }
-  }
-
-  return {
-    sizes: sizes.size > 0 ? Array.from(sizes).slice(0, 6) : fallbackSizes,
-    colors: colors.size > 0 ? Array.from(colors).slice(0, 6) : fallbackColors,
-  };
-}
-
 function getVariantGroups(product: Product): ProductVariant[] {
   return Array.isArray(product.variants)
     ? product.variants.filter((variant) => Array.isArray(variant.options) && variant.options.length > 0)
@@ -162,14 +130,35 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
   const showImage = isImageSource(imageValue);
   const [menuOpen, setMenuOpen] = useState(false);
   const variantGroups = getVariantGroups(product);
-  const sizeVariant = variantGroups.find((variant) => variant.name.toLowerCase().includes('size'));
   const colorVariant = variantGroups.find((variant) => variant.name.toLowerCase().includes('color'));
-  const { sizes, colors: variantColors } = extractSizesAndColors(product);
-  const selectedStock = getCombinationStock(product, selectedOptions);
+  const hasColorVariant = Boolean(colorVariant);
+  const colorVariantCount = colorVariant?.options?.length ?? 0;
+  const isSingleVariantGroup = variantGroups.length === 1;
+  const singleVariantGroup = isSingleVariantGroup ? variantGroups[0] : null;
+  const singleVariantId = singleVariantGroup?.id || '';
+  const singleVariantOptions = singleVariantGroup?.options ?? [];
   const selectedPrice = getCombinationPrice(product, selectedOptions);
-  const visibleStock = selectedStock ?? product.stock;
+  const overallStock = Number(product.stock ?? 0);
   const visiblePrice = selectedPrice ?? product.price;
-  const lowStock = visibleStock > 0 && visibleStock < getLowStockThreshold(product);
+  const lowStock = overallStock > 0 && overallStock < getLowStockThreshold(product);
+  const subcategoryLabel = String(product.subcategory || '').trim();
+  const priceRangeMin = Number(product.priceRangeMin);
+  const priceRangeMax = Number(product.priceRangeMax);
+  const hasPriceRange = Number.isFinite(priceRangeMin)
+    && Number.isFinite(priceRangeMax)
+    && priceRangeMin >= 0
+    && priceRangeMax >= 0
+    && priceRangeMax >= priceRangeMin;
+  const formattedPrice = hasPriceRange
+    ? (priceRangeMin === priceRangeMax
+      ? `₱${Math.round(priceRangeMin).toLocaleString()}`
+      : `₱${Math.round(priceRangeMin).toLocaleString()} - ₱${Math.round(priceRangeMax).toLocaleString()}`)
+    : `₱${Math.round(visiblePrice).toLocaleString()}`;
+  const originalPriceCandidate = Number(product.compareAtPrice ?? product.basePrice ?? 0);
+  const hasOriginalPrice = Number.isFinite(originalPriceCandidate) && originalPriceCandidate > 0;
+  const formattedOriginalPrice = hasOriginalPrice
+    ? `₱${Math.round(originalPriceCandidate).toLocaleString()}`
+    : null;
 
   useEffect(() => {
     setSelectedOptions(getInitialVariantSelection(product));
@@ -181,42 +170,42 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
       animate={{ opacity: isTransitioningOut ? 0 : 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.12, ease: 'easeOut' }}
-      className="border overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col h-full"
+      className="border overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col h-full"
       style={{
         backgroundColor: '#131761',
         borderColor: '#2D3A90',
-        borderRadius: '26px',
+        borderRadius: '20px',
       }}
     >
-      <div className="relative w-full h-56 md:h-60 overflow-hidden flex items-center justify-center border-b" style={{ borderColor: '#2D3A90', backgroundColor: '#D9D9DC' }}>
+      <div className="relative w-full h-44 md:h-48 overflow-hidden flex items-center justify-center border-b" style={{ borderColor: '#2D3A90', backgroundColor: '#D9D9DC' }}>
         <button
           type="button"
           onClick={() => setMenuOpen((prev) => !prev)}
-          className="absolute right-3 top-3 h-8 w-8 rounded-full bg-black text-white flex items-center justify-center"
+          className="absolute right-2.5 top-2.5 h-7 w-7 rounded-full bg-black text-white flex items-center justify-center"
           title="Product actions"
         >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <circle cx="6" cy="12" r="2" />
             <circle cx="12" cy="12" r="2" />
             <circle cx="18" cy="12" r="2" />
           </svg>
         </button>
         {menuOpen && (
-          <div className="absolute right-3 top-12 z-20 w-32 rounded-lg border border-[#2D3A90] bg-[#12145A] py-1 shadow-xl">
-            <button type="button" onClick={() => { setMenuOpen(false); onView(product); }} className="w-full px-3 py-2 text-left text-xs text-white hover:bg-white/5">View</button>
-            <button type="button" onClick={() => { setMenuOpen(false); onEdit(product); }} className="w-full px-3 py-2 text-left text-xs text-white hover:bg-white/5">Edit</button>
-            <button type="button" onClick={() => { setMenuOpen(false); onDelete(product); }} className="w-full px-3 py-2 text-left text-xs text-red-300 hover:bg-red-500/10">Delete</button>
+          <div className="absolute right-2.5 top-10 z-20 w-28 rounded-lg border border-[#2D3A90] bg-[#12145A] py-1 shadow-xl">
+            <button type="button" onClick={() => { setMenuOpen(false); onView(product); }} className="w-full px-2.5 py-1.5 text-left text-[11px] text-white hover:bg-white/5">View</button>
+            <button type="button" onClick={() => { setMenuOpen(false); onEdit(product); }} className="w-full px-2.5 py-1.5 text-left text-[11px] text-white hover:bg-white/5">Edit</button>
+            <button type="button" onClick={() => { setMenuOpen(false); onDelete(product); }} className="w-full px-2.5 py-1.5 text-left text-[11px] text-red-300 hover:bg-red-500/10">Delete</button>
           </div>
         )}
         {showImage ? (
           <img
             src={imageValue}
             alt={product.name}
-            className="w-full h-full object-contain p-4"
+            className="w-full h-full object-contain p-3"
           />
         ) : (
-          <div className="flex flex-col items-center justify-center text-center p-4">
-            <svg className="w-16 h-16 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: colors.border.faint }}>
+          <div className="flex flex-col items-center justify-center text-center p-3">
+            <svg className="w-12 h-12 mb-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: colors.border.faint }}>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             <span className="text-xs" style={{ color: colors.text.muted }}>No image</span>
@@ -224,66 +213,45 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
         )}
       </div>
 
-      <div className="p-4 md:p-5 flex-1 flex flex-col" style={{ backgroundColor: '#131761' }}>
-        <h3 className="font-semibold text-[20px] leading-tight line-clamp-2 text-white">
+      <div className="p-3.5 md:p-4 flex-1 flex flex-col" style={{ backgroundColor: '#131761' }}>
+        <h3 className="font-semibold text-[18px] leading-tight line-clamp-2 text-white">
           {product.name}
         </h3>
-        <p className="mt-1 text-xs" style={{ color: '#FFCC00' }}>{product.category} · SKU {product.sku || '-'}</p>
+        <p className="mt-1 text-xs" style={{ color: '#FFCC00' }}>
+          {subcategoryLabel ? `${subcategoryLabel} · ` : ''}{product.sku || '-'}
+        </p>
 
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {sizeVariant && sizeVariant.options.length > 0
-            ? sizeVariant.options.map((option) => {
-              const active = selectedOptions[sizeVariant.id] === option.id;
-              return (
-                <button
-                  key={`${product.id}-${sizeVariant.id}-${option.id}`}
-                  type="button"
-                  onClick={() => setSelectedOptions((prev) => ({ ...prev, [sizeVariant.id]: option.id }))}
-                  className="px-2 py-1 text-[10px] border text-white rounded-sm transition-all"
-                  style={{ borderColor: active ? '#ffffff' : '#6C72B2', backgroundColor: active ? 'rgba(255,255,255,0.12)' : 'transparent' }}
-                >
-                  {option.name.toUpperCase()}
-                </button>
-              );
-            })
-            : sizes.map((size) => (
-              <span key={`${product.id}-${size}`} className="px-2 py-1 text-[10px] border border-[#6C72B2] text-white rounded-sm">{size}</span>
-            ))}
-        </div>
+        {variantGroups.length > 1 && hasColorVariant && (
+          <p className="mt-2 text-[11px] text-white/90">
+            Color Variants: {colorVariantCount}
+          </p>
+        )}
 
-        <div className="mt-2 text-[11px] text-[#BBC1E9] line-clamp-1">{product.description || 'No description'}</div>
-        <div className="mt-1 flex items-center gap-1.5">
-          {colorVariant && colorVariant.options.length > 0
-            ? colorVariant.options.map((option) => {
-              const active = selectedOptions[colorVariant.id] === option.id;
-              return (
-                <button
-                  key={`${product.id}-${colorVariant.id}-${option.id}`}
-                  type="button"
-                  onClick={() => setSelectedOptions((prev) => ({ ...prev, [colorVariant.id]: option.id }))}
-                  className="w-5 h-5 rounded-full border transition-all"
-                  style={{
-                    backgroundColor: colorFromName(option.name),
-                    borderColor: active ? '#ffffff' : 'rgba(255,255,255,0.4)',
-                    boxShadow: active ? '0 0 0 2px rgba(255,255,255,0.35)' : 'none',
-                  }}
-                  title={option.name}
-                />
-              );
-            })
-            : variantColors.map((color) => (
+        {isSingleVariantGroup && singleVariantOptions.length > 0 && (
+          <div className="mt-2.5 flex flex-wrap gap-1">
+            {singleVariantOptions.map((option) => (
               <span
-                key={`${product.id}-${color}`}
-                className="w-5 h-5 rounded-full border border-white/40"
-                style={{ backgroundColor: color }}
-              />
+                key={`${product.id}-${singleVariantId}-${option.id}`}
+                className="px-1.5 py-0.5 text-[9px] border text-white rounded-sm"
+                style={{ borderColor: '#6C72B2', backgroundColor: 'transparent' }}
+              >
+                {option.name}
+              </span>
             ))}
-        </div>
+          </div>
+        )}
 
-        <div className="mt-auto pt-4 flex items-end justify-between">
-          <p className="text-[16px] font-medium leading-none" style={{ color: '#FFCC00' }}>₱{Math.round(visiblePrice).toLocaleString()}</p>
-          <p className={`text-[16px] font-semibold ${visibleStock === 0 ? 'text-red-400' : lowStock ? 'text-orange-300' : 'text-white'}`}>
-            Stock: {visibleStock}
+        <div className="mt-auto pt-3 flex items-end justify-between">
+          <div className="flex flex-col">
+            {formattedOriginalPrice && (
+              <p className="text-[11px] leading-none line-through" style={{ color: '#8f94b8' }}>
+                {formattedOriginalPrice}
+              </p>
+            )}
+            <p className="text-[15px] font-medium leading-none mt-1" style={{ color: '#FFCC00' }}>{formattedPrice}</p>
+          </div>
+          <p className={`text-[15px] font-semibold ${overallStock === 0 ? 'text-red-400' : lowStock ? 'text-orange-300' : 'text-white'}`}>
+            Stock: {overallStock}
           </p>
         </div>
       </div>
@@ -422,6 +390,10 @@ const ProductDetailsModal = ({ product, onClose, colors }: {
                   <p style={{ color: '#FFCC00' }}>{product.category || '-'}</p>
                 </div>
               </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Subcategory</p>
+                <p style={{ color: '#FFCC00' }}>{product.subcategory || '-'}</p>
+              </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Price</p>
@@ -436,11 +408,13 @@ const ProductDetailsModal = ({ product, onClose, colors }: {
                   <p className="font-semibold capitalize" style={{ color: colors.text.primary }}>{product.status}</p>
                 </div>
               </div>
-              <div>
+              <div className="pt-3 border-t" style={{ borderColor: colors.border.faint }}>
                 <p className="text-xs uppercase tracking-wide mb-1" style={{ color: colors.text.muted }}>Description</p>
-                <p className="text-sm leading-6 whitespace-pre-wrap" style={{ color: colors.text.secondary }}>
-                  {product.description || 'No description.'}
-                </p>
+                <div className="max-h-36 overflow-y-auto pr-1">
+                  <p className="text-sm leading-6 whitespace-pre-wrap" style={{ color: colors.text.secondary }}>
+                    {product.description || 'No description.'}
+                  </p>
+                </div>
               </div>
               <div>
                 <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Created</p>
@@ -464,6 +438,24 @@ function toDashboardStatus(status?: string): Product['status'] {
 }
 
 function toDashboardProduct(product: ApiProduct): Product {
+  const productRecord = product as ApiProduct & {
+    subCategory?: unknown;
+    sub_category?: unknown;
+    details?: { subcategory?: unknown; subCategory?: unknown; sub_category?: unknown };
+    specifications?: { subcategory?: unknown; subCategory?: unknown; sub_category?: unknown };
+  };
+  const normalizedSubcategory = String(
+    product.subcategory
+    ?? productRecord.subCategory
+    ?? productRecord.sub_category
+    ?? productRecord.details?.subcategory
+    ?? productRecord.details?.subCategory
+    ?? productRecord.details?.sub_category
+    ?? productRecord.specifications?.subcategory
+    ?? productRecord.specifications?.subCategory
+    ?? productRecord.specifications?.sub_category
+    ?? ''
+  ).trim();
   const images = Array.isArray(product.images)
     ? product.images.filter((img): img is string => typeof img === 'string' && img.trim().length > 0)
     : [];
@@ -521,7 +513,7 @@ function toDashboardProduct(product: ApiProduct): Product {
     name: product.name || 'Untitled Product',
     sku: product.sku || '',
     category: product.category || 'General',
-    subcategory: product.subcategory || '',
+    subcategory: normalizedSubcategory,
     description: product.description || '',
     price: finalPrice,
     basePrice,
@@ -645,10 +637,12 @@ export default function ProductsPage() {
 
   useEffect(() => {
     const handleRefreshOnFocus = () => {
+      if (showAddModal || Boolean(editingProduct) || Boolean(viewingProduct)) return;
       void loadProducts();
     };
 
     const handleVisibilityChange = () => {
+      if (showAddModal || Boolean(editingProduct) || Boolean(viewingProduct)) return;
       if (document.visibilityState === 'visible') {
         void loadProducts();
       }
@@ -660,7 +654,7 @@ export default function ProductsPage() {
       window.removeEventListener('focus', handleRefreshOnFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [loadProducts]);
+  }, [loadProducts, showAddModal, editingProduct, viewingProduct]);
 
   const categoryOptions = Array.from(
     new Set(
@@ -800,6 +794,8 @@ export default function ProductsPage() {
         sku: String(productData.sku || ''),
         category: String(productData.category || ''),
         subcategory: String(productData.subcategory || ''),
+        subCategory: String(productData.subcategory || ''),
+        sub_category: String(productData.subcategory || ''),
         description: String(productData.description || ''),
         price: finalPrice,
         basePrice,
@@ -892,9 +888,9 @@ export default function ProductsPage() {
         )}
       </AnimatePresence>
 
-      <section className="pt-4 pb-2">
+      <section className="max-w-[1090px] mx-auto pt-6 pb-2">
         <div className="text-center">
-          <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight text-white">
+          <h1 className="text-[clamp(34px,5vw,56px)] font-extrabold tracking-[-1.8px] text-white leading-[1.06]">
             My{' '}
             <span
               style={{
@@ -907,19 +903,37 @@ export default function ProductsPage() {
               Products
             </span>
           </h1>
-          <p className="mt-2 text-xl" style={{ color: '#8A8FC4' }}>Track stock performance and catalog details.</p>
+          <p className="mt-2 text-sm" style={{ color: '#8A8FC4' }}>Track stock performance and catalog details.</p>
         </div>
 
-        <div className="mt-8 grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="mt-6 mb-7 max-w-[860px] mx-auto rounded-2xl border px-5 py-3.5 flex items-center gap-3 bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]">
+          <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0" fill="none" style={{ color: colors.accent.yellow }}>
+            <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="1.8" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search templates, designs, or actions"
+            value={searchTerm}
+            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+            className="w-full bg-transparent outline-none text-sm text-white placeholder:text-[#6F70A8]"
+          />
+        </div>
+
+        {blockedAddProductMessage && (
+          <p className="mt-2 text-center text-xs" style={{ color: '#8A8FC4' }}>{blockedAddProductMessage}</p>
+        )}
+
+        <div className="mt-0 grid grid-cols-2 lg:grid-cols-4 gap-[10px]">
           {PRODUCT_INSIGHT_CARDS.map((card, idx) => {
             const Icon = card.icon;
-            const labelColor = card.id === 'low'
-              ? '#f97316'
+            const accentColor = card.id === 'low'
+              ? '#b178ff'
               : card.id === 'out'
-                ? '#ef4444'
+                ? '#ff4f8c'
                 : card.id === 'active'
-                  ? '#22c55e'
-                  : colors.text.muted;
+                  ? '#22d3a4'
+                  : '#86a8ff';
             const value = card.id === 'total'
               ? productInsights.total
               : card.id === 'active'
@@ -934,182 +948,152 @@ export default function ProductsPage() {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.06 }}
-                className="rounded-xl border p-5 flex flex-col gap-2"
-                style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+                className="rounded-2xl border"
+                style={{ backgroundColor: '#141446', borderColor: '#2D3A90', minHeight: 72, padding: '10px 14px 12px' }}
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium uppercase tracking-wider" style={{ color: labelColor }}>
+                <div className="flex items-center gap-[7px] mb-1">
+                  <Icon className="w-3 h-3" style={{ color: accentColor }} />
+                  <span className="text-[10px] uppercase tracking-[0.08em]" style={{ color: '#7e72a9', letterSpacing: '0.8px' }}>
                     {card.label}
                   </span>
-                  <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: colors.bg.elevated }}
-                  >
-                    <Icon className="w-4 h-4" style={{ color: colors.text.muted }} />
-                  </div>
                 </div>
-                <span className="text-2xl font-bold" style={{ color: colors.text.primary }}>
-                  {value}
+                <span className="text-2xl font-bold" style={{ color: '#f2ecff', letterSpacing: '-0.8px', lineHeight: 1.2 }}>
+                  {String(value)}
                 </span>
               </motion.div>
             );
           })}
         </div>
-
-        <div className="mt-8 max-w-4xl mx-auto rounded-2xl border px-5 py-3.5 flex items-center gap-3 bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]">
-          <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0" fill="none" style={{ color: colors.accent.yellow }}>
-            <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="1.8" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Search templates, designs, or actions"
-            value={searchTerm}
-            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-            className="w-full bg-transparent outline-none text-base text-white placeholder:text-[#6F70A8]"
-          />
-        </div>
-
-        {blockedAddProductMessage && (
-          <p className="mt-3 text-center text-xs" style={{ color: '#8A8FC4' }}>{blockedAddProductMessage}</p>
-        )}
       </section>
 
       {loadingProducts ? (
-        <section className="text-center py-16 rounded-2xl border" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+        <section className="max-w-[1090px] mx-auto text-center py-16 rounded-2xl border" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
           <p style={{ color: colors.text.secondary }}>Loading products...</p>
         </section>
       ) : hasProducts ? (
         <>
-          <div id="inventory-section" className="grid grid-cols-1 xl:grid-cols-[1fr_auto_1fr] items-center gap-4 mb-2">
-            <div className="flex items-center gap-2 justify-start">
-              <select
-                value={selectedCategory}
-                onChange={(e) => { setSelectedCategory(e.target.value); setCurrentPage(1); }}
-                className="h-11 px-4 rounded-xl border text-sm min-w-[150px]"
-                style={{ backgroundColor: '#141446', borderColor: '#2D3A90', color: '#ffffff' }}
-              >
-                {filterOptions.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-
-              <button
-                type="button"
-                onClick={() => setShowAddModal(true)}
-                disabled={!canAddProducts}
-                className={`h-11 px-3 rounded-xl border flex items-center justify-center gap-2 ${canAddProducts ? 'hover:opacity-90' : 'opacity-50 cursor-not-allowed'}`}
-                style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
-                title="Add product"
-              >
-                <img src="/icons/products/add%20product.png" alt="Add" className="h-5 w-5" />
-                <span className="text-xs font-semibold text-white">Add</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                className="h-11 px-3 rounded-xl border flex items-center justify-center gap-2 hover:opacity-90"
-                style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
-                title="Manage products"
-              >
-                <img src="/icons/products/product-management.png" alt="Manage" className="h-5 w-5" />
-                <span className="text-xs font-semibold text-white">Manage</span>
-              </button>
-            </div>
-
-            <div className="flex items-center justify-center gap-2" style={{ color: '#D2D6F7' }}>
-              <button type="button" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 rounded-full disabled:opacity-40">‹</button>
-              {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
-                const page = i + 1;
-                const active = page === currentPage;
-                return (
-                  <button
-                    key={`page-dot-${page}`}
-                    type="button"
-                    onClick={() => setCurrentPage(page)}
-                    className={`h-8 w-8 rounded-full text-sm ${active ? 'bg-white/20 text-white' : 'bg-[#1A2165] text-[#BBC1E9]'}`}
+          <div id="inventory-section" className="max-w-[1090px] mx-auto mb-5">
+            <div className="flex items-center justify-between gap-[10px] flex-wrap">
+              <div className="flex items-center gap-2 justify-start">
+                <div className="relative">
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => { setSelectedCategory(e.target.value); setCurrentPage(1); }}
+                    className="h-[46px] px-4 rounded-xl border text-[13px] font-semibold min-w-[156px] appearance-none pr-9"
+                    style={{ backgroundColor: '#141446', borderColor: '#2D3A90', color: '#ddd1ff' }}
                   >
-                    {page}
-                  </button>
-                );
-              })}
-              {totalPages > 5 && <span className="px-1">...</span>}
-              {totalPages > 5 && (
-                <button type="button" onClick={() => setCurrentPage(totalPages)} className={`h-8 w-8 rounded-full text-sm ${currentPage === totalPages ? 'bg-white/20 text-white' : 'bg-[#1A2165] text-[#BBC1E9]'}`}>{totalPages}</button>
-              )}
-              <button type="button" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="h-8 w-8 rounded-full disabled:opacity-40">›</button>
-            </div>
+                    {filterOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px]" style={{ color: '#b6abd6' }}>▼</span>
+                </div>
 
-            <div className="flex items-center gap-2 justify-end">
-              <div ref={statusMenuRef} className="relative">
                 <button
                   type="button"
-                  onClick={() => setShowStatusFilterMenu((prev) => !prev)}
-                  className="h-11 w-11 rounded-xl border flex items-center justify-center hover:opacity-90"
+                  onClick={() => setShowAddModal(true)}
+                  disabled={!canAddProducts}
+                  className={`h-[46px] px-4 rounded-xl border flex items-center justify-center text-[13px] font-bold ${canAddProducts ? 'hover:opacity-90' : 'opacity-50 cursor-not-allowed'}`}
                   style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
-                  title="Filter products"
+                  title="Add product"
                 >
-                  <img src="/icons/products/Sort%20Amount%20Up.png" alt="Filter" className="h-5 w-5" />
+                  + Add Product
                 </button>
-                {showStatusFilterMenu && (
-                  <div
-                    className="absolute right-0 top-full mt-2 w-56 rounded-xl border p-2 z-30"
-                    style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
-                  >
-                    {[
-                      { value: 'all', label: 'All' },
-                      { value: 'active', label: 'Active' },
-                      { value: 'inactive', label: 'Inactive' },
-                      { value: 'low-stock', label: 'Low Stock' },
-                      { value: 'out-of-stock', label: 'Out of Stock' },
-                    ].map((item) => {
-                      const checked = statusFilter === item.value;
-                      return (
-                        <button
-                          key={item.value}
-                          type="button"
-                          onClick={() => {
-                            setStatusFilter(item.value as typeof statusFilter);
-                            setCurrentPage(1);
-                            setShowStatusFilterMenu(false);
-                          }}
-                          className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm hover:bg-white/5"
-                          style={{ color: '#D2D6F7' }}
-                        >
-                          <span>{item.label}</span>
-                          <span>{checked ? '✓' : ''}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
               </div>
 
-              <button
-                type="button"
-                onClick={() => setViewMode((prev) => (prev === 'tile' ? 'list' : 'tile'))}
-                className="h-11 w-11 rounded-xl border flex items-center justify-center hover:opacity-90"
-                style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
-                title={viewMode === 'tile' ? 'Switch to list view' : 'Switch to tile view'}
-              >
-                {viewMode === 'tile' ? (
-                  <img src="/icons/products/Bulleted%20List.png" alt="List view" className="h-5 w-5" />
-                ) : (
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <rect x="4" y="4" width="6" height="6" rx="1" />
-                    <rect x="14" y="4" width="6" height="6" rx="1" />
-                    <rect x="4" y="14" width="6" height="6" rx="1" />
-                    <rect x="14" y="14" width="6" height="6" rx="1" />
-                  </svg>
-                )}
-              </button>
+              <div className="flex items-center gap-2 justify-end">
+                <div ref={statusMenuRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowStatusFilterMenu((prev) => !prev)}
+                    className="h-10 w-10 rounded-xl border flex items-center justify-center hover:opacity-90"
+                    style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
+                    title="Filter products"
+                  >
+                    <img src="/icons/products/Sort%20Amount%20Up.png" alt="Filter" className="h-5 w-5" />
+                  </button>
+                  {showStatusFilterMenu && (
+                    <div
+                      className="absolute right-0 top-full mt-2 w-56 rounded-xl border p-2 z-30"
+                      style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
+                    >
+                      {[
+                        { value: 'all', label: 'All' },
+                        { value: 'active', label: 'Active' },
+                        { value: 'inactive', label: 'Inactive' },
+                        { value: 'low-stock', label: 'Low Stock' },
+                        { value: 'out-of-stock', label: 'Out of Stock' },
+                      ].map((item) => {
+                        const checked = statusFilter === item.value;
+                        return (
+                          <button
+                            key={item.value}
+                            type="button"
+                            onClick={() => {
+                              setStatusFilter(item.value as typeof statusFilter);
+                              setCurrentPage(1);
+                              setShowStatusFilterMenu(false);
+                            }}
+                            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm hover:bg-white/5"
+                            style={{ color: '#D2D6F7' }}
+                          >
+                            <span>{item.label}</span>
+                            <span>{checked ? '✓' : ''}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setViewMode((prev) => (prev === 'tile' ? 'list' : 'tile'))}
+                  className="h-10 w-10 rounded-xl border flex items-center justify-center hover:opacity-90"
+                  style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
+                  title={viewMode === 'tile' ? 'Switch to list view' : 'Switch to tile view'}
+                >
+                  {viewMode === 'tile' ? (
+                    <img src="/icons/products/Bulleted%20List.png" alt="List view" className="h-5 w-5" />
+                  ) : (
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <rect x="4" y="4" width="6" height="6" rx="1" />
+                      <rect x="14" y="4" width="6" height="6" rx="1" />
+                      <rect x="4" y="14" width="6" height="6" rx="1" />
+                      <rect x="14" y="14" width="6" height="6" rx="1" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
+          </div>
+
+          <div className="mt-4 flex items-center justify-center gap-2" style={{ color: '#D2D6F7' }}>
+            <button type="button" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 rounded-full text-sm disabled:opacity-40">‹</button>
+            {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
+              const page = i + 1;
+              const active = page === currentPage;
+              return (
+                <button
+                  key={`page-dot-${page}`}
+                  type="button"
+                  onClick={() => setCurrentPage(page)}
+                  className={`h-8 w-8 rounded-full text-sm ${active ? 'bg-white/20 text-white' : 'bg-[#1A2165] text-[#BBC1E9]'}`}
+                >
+                  {page}
+                </button>
+              );
+            })}
+            {totalPages > 5 && <span className="px-1">...</span>}
+            {totalPages > 5 && (
+              <button type="button" onClick={() => setCurrentPage(totalPages)} className={`h-8 w-8 rounded-full text-sm ${currentPage === totalPages ? 'bg-white/20 text-white' : 'bg-[#1A2165] text-[#BBC1E9]'}`}>{totalPages}</button>
+            )}
+            <button type="button" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="h-8 w-8 rounded-full text-sm disabled:opacity-40">›</button>
           </div>
 
           {filteredProducts.length > 0 ? (
             <>
-              <div id="products-grid" className={`grid gap-4 md:gap-5 lg:gap-6 ${viewMode === 'tile' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5' : 'grid-cols-1'}`}>
+              <div id="products-grid" className={`max-w-[1090px] mx-auto grid gap-3 md:gap-4 lg:gap-5 ${viewMode === 'tile' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4' : 'grid-cols-1'}`}>
                 <AnimatePresence>
                   {paginatedProducts.map((product) => (
                     <ProductCard
@@ -1126,7 +1110,7 @@ export default function ProductsPage() {
               </div>
             </>
           ) : (
-            <section className="text-center py-16 rounded-2xl border" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+            <section className="max-w-[1090px] mx-auto text-center py-16 rounded-2xl border" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
               <div className="mx-auto w-14 h-14 rounded-2xl border flex items-center justify-center" style={{ borderColor: colors.border.default, backgroundColor: colors.bg.elevated }}>
                 <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: colors.text.muted }}>
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M20 7.5L12 3 4 7.5M20 7.5v9L12 21m8-13.5L12 12M4 7.5v9L12 21M4 7.5L12 12" />
@@ -1154,7 +1138,7 @@ export default function ProductsPage() {
           )}
         </>
       ) : (
-        <section className="text-center py-20 rounded-2xl border" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+        <section className="max-w-[1090px] mx-auto text-center py-20 rounded-2xl border" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
           <div className="mx-auto w-16 h-16 rounded-2xl border flex items-center justify-center" style={{ borderColor: colors.border.default, backgroundColor: colors.bg.elevated }}>
             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: colors.text.muted }}>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M20 7.5L12 3 4 7.5M20 7.5v9L12 21m8-13.5L12 12M4 7.5v9L12 21M4 7.5L12 12" />

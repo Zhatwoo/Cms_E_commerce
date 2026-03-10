@@ -27,6 +27,7 @@ import {
   type InventorySummary,
 } from '@/lib/api';
 import { useRouter } from 'next/navigation';
+import { useProject } from '../components/context/project-context';
 
 // ─── Design tokens (original — unchanged) ────────────────────────────────────
 const T = {
@@ -56,6 +57,10 @@ const T = {
 
 // ─── CSV helpers (unchanged) ──────────────────────────────────────────────────
 const EXPORT_COLUMNS = ['name','sku','category','onHandStock','reservedStock','lowStockThreshold','status'] as const;
+
+function normalizeSubdomain(value?: string | null): string {
+  return (value || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+}
 
 function escapeCsvValue(val: string | number | undefined | null): string {
   const s = String(val ?? '');
@@ -219,6 +224,8 @@ const ModalBackdrop = ({ onClose, children }: { onClose: () => void; children: R
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function InventoryPage() {
   const router = useRouter();
+  const { selectedProject } = useProject();
+  const selectedSubdomain = normalizeSubdomain(selectedProject?.subdomain);
 
   const [search, setSearch]                       = useState('');
   const [categoryFilter, setCategoryFilter]       = useState<string>('all');
@@ -264,11 +271,18 @@ export default function InventoryPage() {
 
   const loadData = useCallback(async () => {
     setLoading(true); setError(null);
+    if (!selectedSubdomain) {
+      setItems([]);
+      setSummary(null);
+      setMovements([]);
+      setLoading(false);
+      return;
+    }
     try {
       const [invRes, summaryRes, movementRes] = await Promise.all([
-        listInventory({ limit: 500, search: search || undefined }),
-        getInventorySummary({ search: search || undefined }),
-        listInventoryMovements({ limit: RECENT_MOVEMENTS_LIMIT }),
+        listInventory({ subdomain: selectedSubdomain, limit: 500, search: search || undefined }),
+        getInventorySummary({ subdomain: selectedSubdomain, search: search || undefined }),
+        listInventoryMovements({ subdomain: selectedSubdomain, limit: RECENT_MOVEMENTS_LIMIT }),
       ]);
       setItems(Array.isArray(invRes.items) ? invRes.items : []);
       setSummary(summaryRes.data || null);
@@ -276,19 +290,24 @@ export default function InventoryPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load inventory');
     } finally { setLoading(false); }
-  }, [search]);
+  }, [search, selectedSubdomain]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
   const loadAllMovements = useCallback(async () => {
     setLoadingAllMovements(true); setAllMovementsError(null);
+    if (!selectedSubdomain) {
+      setAllMovements([]);
+      setLoadingAllMovements(false);
+      return;
+    }
     try {
-      const res = await listInventoryMovements({ limit: ALL_MOVEMENTS_LIMIT });
+      const res = await listInventoryMovements({ subdomain: selectedSubdomain, limit: ALL_MOVEMENTS_LIMIT });
       setAllMovements(Array.isArray(res.items) ? res.items : []);
     } catch (err) {
       setAllMovementsError(err instanceof Error ? err.message : 'Failed to load movement history');
     } finally { setLoadingAllMovements(false); }
-  }, []);
+  }, [selectedSubdomain]);
 
   const openAllMovementsModal  = useCallback(() => { setShowAllMovementsModal(true); void loadAllMovements(); }, [loadAllMovements]);
   const closeAllMovementsModal = useCallback(() => setShowAllMovementsModal(false), []);
@@ -771,12 +790,14 @@ export default function InventoryPage() {
               onClick={() => router.push('/m_dashboard/products')}
               title="Add Product"
               style={{
-                width: 40, height: 40, borderRadius: 12,
+                height: 46, borderRadius: 12,
+                padding: '0 14px',
                 border: `1px solid ${T.cardBorder}`, color: '#d9cbff',
                 background: T.card, display: 'inline-flex',
                 alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                fontSize: 13, fontWeight: 700,
               }}
-            ><Plus size={15} /></button>
+            >+ Add Product</button>
           </div>
 
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -816,7 +837,7 @@ export default function InventoryPage() {
                 <span style={{ color: '#7e72a9', fontSize: 10, letterSpacing: 0.8 }}>{card.label}</span>
               </div>
               <div style={{ color: '#f2ecff', fontSize: 24, fontWeight: 700, letterSpacing: -0.8, lineHeight: 1.2 }}>
-                {typeof card.value === 'number' ? String(card.value).padStart(3,'0') : card.value}
+                {typeof card.value === 'number' ? String(card.value) : card.value}
               </div>
             </motion.div>
           ))}

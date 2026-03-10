@@ -525,6 +525,8 @@ export type ApiProduct = {
   sku?: string;
   category?: string;
   subcategory?: string;
+  subCategory?: string;
+  sub_category?: string;
   slug?: string;
   description?: string;
   price: number;
@@ -621,6 +623,8 @@ export async function createProduct(params: {
   sku?: string;
   category?: string;
   subcategory?: string;
+  subCategory?: string;
+  sub_category?: string;
   slug?: string;
   description?: string;
   price?: number;
@@ -664,6 +668,8 @@ export async function updateProduct(
     sku?: string;
     category?: string;
     subcategory?: string;
+    subCategory?: string;
+    sub_category?: string;
     slug?: string;
     description?: string;
     price?: number;
