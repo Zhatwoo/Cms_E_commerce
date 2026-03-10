@@ -23,7 +23,7 @@ import { FilesPanel } from "./filesPanel";
 import { ComponentsPanel } from "./componentsPanel";
 import { AssetsPanel } from "./assetsPanel";
 import { TemplatePanel } from "./templatePanel";
-import { uploadClientFileWithProgress } from "@/lib/firebaseStorage";
+import { uploadMediaApi } from "@/lib/api";
 
 import { deleteDraft } from "../../_lib/pageApi";
 
@@ -184,6 +184,10 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
   const handleUploadFiles = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
     if (permission === "viewer") return;
+    if (!projectId) {
+      setUploadError("No project selected.");
+      return;
+    }
 
     const files = Array.from(fileList).filter((file) => file.type.startsWith("image/"));
     if (files.length === 0) {
@@ -199,10 +203,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
     try {
       for (let index = 0; index < files.length; index += 1) {
         const file = files[index];
-        const url = await uploadClientFileWithProgress(file, {
-          clientName: clientName ?? undefined,
-          websiteName: websiteName ?? undefined,
-          projectId: projectId ?? undefined,
+        const { url } = await uploadMediaApi(projectId, file, {
           folder: "images",
           onProgress: (percent) => {
             const overall = Math.round(((index + percent / 100) / files.length) * 100);

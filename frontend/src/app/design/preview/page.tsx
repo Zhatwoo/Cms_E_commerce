@@ -11,10 +11,9 @@ import { WebPreview } from "../_lib/webRenderer";
 import { PREVIEW_MOBILE_BREAKPOINT } from "../_lib/viewportConstants";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
-import { getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, getMyDomains, getMe, type Project } from "@/lib/api";
+import { getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, getMyDomains, getMe, uploadMediaApi, type Project } from "@/lib/api";
 import { getSubdomainSiteUrl } from "@/lib/siteUrls";
 import { getLimits } from "@/lib/subscriptionLimits";
-import { uploadClientFile } from "@/lib/firebaseStorage";
 import html2canvas from "html2canvas";
 
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
@@ -324,15 +323,7 @@ function PreviewContent() {
       if (!blob) throw new Error("Thumbnail capture failed");
 
       const file = new File([blob], `preview-${projectId}.jpg`, { type: "image/jpeg" });
-      const user = getStoredUser();
-      const clientName = user?.name || user?.email || "client";
-      const websiteName = project?.title || "project";
-
-      const url = await uploadClientFile(file, {
-        clientName,
-        websiteName,
-        folder: "images",
-      });
+      const { url } = await uploadMediaApi(projectId, file, { folder: "images" });
 
       const updated = await updateProject(projectId, { thumbnail: url });
       if (updated.success) {

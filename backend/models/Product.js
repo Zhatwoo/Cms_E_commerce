@@ -121,6 +121,10 @@ async function createForSubdomain({ subdomain, userId, projectId, domainId, data
   const hasVariants = !!data.hasVariants && variants.length > 0;
   const variantStocks = hasVariants ? sanitizeVariantStocks(data.variantStocks) : {};
 
+  const normalizedSubcategory = String(
+    data.subcategory ?? data.subCategory ?? data.sub_category ?? ''
+  ).trim();
+
   const initialInventory = resolveInventorySnapshot({
     onHandStock: data.onHandStock,
     stock: data.stock,
@@ -132,6 +136,7 @@ async function createForSubdomain({ subdomain, userId, projectId, domainId, data
     name: data.name || '',
     sku: data.sku || '',
     category: data.category || '',
+    subcategory: normalizedSubcategory,
     slug: data.slug || '',
     description: data.description || '',
     price: toNumber(data.price, 0),
@@ -265,6 +270,15 @@ async function updateForUser(id, userId, data) {
   if (data.name !== undefined) updates.name = data.name;
   if (data.sku !== undefined) updates.sku = data.sku;
   if (data.category !== undefined) updates.category = data.category;
+  if (
+    data.subcategory !== undefined ||
+    data.subCategory !== undefined ||
+    data.sub_category !== undefined
+  ) {
+    updates.subcategory = String(
+      data.subcategory ?? data.subCategory ?? data.sub_category ?? ''
+    ).trim();
+  }
   if (data.slug !== undefined) updates.slug = data.slug;
   if (data.description !== undefined) updates.description = data.description;
   if (data.price !== undefined) updates.price = toNumber(data.price, 0);
