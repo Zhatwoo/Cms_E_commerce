@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTheme } from '../components/context/theme-context';
+import { useProject } from '../components/context/project-context';
 import { listMyPublishedOrders, updatePublishedOrderStatus, type ApiPublishedOrder } from '@/lib/api';
 
 type OrderStatus = 'Pending' | 'Processing' | 'Paid' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Returned';
@@ -31,6 +32,11 @@ const ORDER_CATEGORIES = [
   { id: 'sports-fitness', label: 'Sports & Fitness', keywords: ['sports', 'fitness', 'gym', 'workout', 'running', 'yoga', 'dumbbell'] },
   { id: 'creative-handmade', label: 'Creative & Handmade', keywords: ['creative', 'handmade', 'craft', 'art', 'custom', 'diy'] },
 ] as const;
+
+// ─── Subdomain normalization ──────────────────────────────────────────────────
+function normalizeSubdomain(value?: string | null): string {
+  return (value || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+}
 
 function orderNumber(order: ApiPublishedOrder): string {
   return `ORD-${order.id.slice(-8).toUpperCase()}`;
@@ -121,6 +127,8 @@ function rowBadge(status: string, colors: ReturnType<typeof useTheme>['colors'])
 
 export default function OrdersPage() {
   const { colors } = useTheme();
+  const { selectedProject } = useProject();
+  const selectedSubdomain = normalizeSubdomain(selectedProject?.subdomain);
   const [orders, setOrders] = useState<ApiPublishedOrder[]>([]);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<CheckoutTab>('all');
@@ -145,14 +153,14 @@ export default function OrdersPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await listMyPublishedOrders({ limit: 200, page: 1 });
+      const res = await listMyPublishedOrders({ subdomain: selectedSubdomain || undefined, limit: 200, page: 1 });
       setOrders(Array.isArray(res.items) ? res.items : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load orders');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedSubdomain]);
 
   useEffect(() => {
     loadOrders();
