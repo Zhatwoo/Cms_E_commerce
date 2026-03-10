@@ -9,7 +9,7 @@ import {
   Trash2,
   FileStack,
   Layout,
-  Image,
+  Image as ImageIcon,
   LayoutTemplate,
   ChevronRight,
   ChevronLeft,
@@ -23,10 +23,12 @@ import { FilesPanel } from "./filesPanel";
 import { ComponentsPanel } from "./componentsPanel";
 import { AssetsPanel } from "./assetsPanel";
 import { TemplatePanel } from "./templatePanel";
+import { uploadClientFileWithProgress } from "@/lib/firebaseStorage";
 
 import { deleteDraft } from "../../_lib/pageApi";
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
+const MEDIA_LIBRARY_KEY_PREFIX = "craftjs_media_library";
 const VIEWPORT_EDGE_PADDING = 100000;
 const PAGE_GRID_ORIGIN_X = VIEWPORT_EDGE_PADDING;
 const PAGE_GRID_ORIGIN_Y = VIEWPORT_EDGE_PADDING;
@@ -74,29 +76,190 @@ interface LeftPanelProps {
   width?: number;
 }
 
+type MediaLibraryItem = {
+  id: string;
+  name: string;
+  url: string;
+  mimeType: string;
+  size: number;
+  createdAt: number;
+};
+
 export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePanel: setControlledPanel, frameReady = true, width = 320 }: LeftPanelProps) => {
   const [internalPanel, setInternalPanel] = useState<LeftPanelTabId>("files");
   const activePanel = controlledPanel ?? internalPanel;
   const setActivePanel = setControlledPanel ?? setInternalPanel;
   const [menuOpen, setMenuOpen] = useState(false);
   const [saveFlash, setSaveFlash] = useState(false);
+  const [mediaItems, setMediaItems] = useState<MediaLibraryItem[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   // Delay mounting FilesPanel to avoid "setState during render" warnings
   // caused by Craft.js internal synchronous updates while Frame is rendering.
   const [filesPanelReady, setFilesPanelReady] = useState(false);
   const canMountFilesPanel = frameReady && filesPanelReady;
   const menuRef = useRef<HTMLDivElement>(null);
+  const mediaInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectId = searchParams?.get("projectId") || null;
   const STORAGE_KEY = projectId ? `${STORAGE_KEY_PREFIX}_${projectId}` : STORAGE_KEY_PREFIX;
-  const { websiteName, permission } = useDesignProject();
+  const { clientName, websiteName, permission } = useDesignProject();
 
   const { query, actions } = useEditor();
+
+  const mediaStorageKey = projectId
+    ? `${MEDIA_LIBRARY_KEY_PREFIX}_${projectId}`
+    : MEDIA_LIBRARY_KEY_PREFIX;
+
+  const persistMediaItems = (items: MediaLibraryItem[]) => {
+    if (typeof window === "undefined") return;
+    try {
+      const serialized = JSON.stringify(items);
+      window.localStorage.setItem(mediaStorageKey, serialized);
+      window.sessionStorage.setItem(mediaStorageKey, serialized);
+    } catch {
+      // Ignore quota/storage errors for media library cache.
+    }
+  };
+
+  const generateNodeId = (existing: Set<string>) => {
+    let id = "";
+    do {
+      id = `node-${Math.random().toString(36).slice(2, 10)}`;
+    } while (existing.has(id));
+    return id;
+  };
+
+  const addMediaToCanvas = (item: MediaLibraryItem) => {
+    if (permission === "viewer") return;
+    try {
+      const raw = query.serialize();
+      const parsed = JSON.parse(raw) as Record<string, any>;
+      const root = parsed.ROOT as { nodes?: string[] } | undefined;
+      const pageId = root?.nodes?.find((id) => parsed[id]?.displayName === "Page") ?? root?.nodes?.[0];
+      if (!pageId || !parsed[pageId]) return;
+
+      const existingIds = new Set(Object.keys(parsed));
+      const imageNodeId = generateNodeId(existingIds);
+      const pageNode = parsed[pageId];
+      const pageChildren = Array.isArray(pageNode.nodes) ? pageNode.nodes : [];
+
+      parsed[imageNodeId] = {
+        type: { resolvedName: "Image" },
+        isCanvas: false,
+        props: {
+          src: item.url,
+          alt: item.name,
+          width: "320px",
+          height: "220px",
+          objectFit: "cover",
+          marginTop: 16,
+          marginLeft: 16,
+        },
+        displayName: "Image",
+        custom: {},
+        parent: pageId,
+        hidden: false,
+        nodes: [],
+        linkedNodes: {},
+      };
+
+      pageNode.nodes = [...pageChildren, imageNodeId];
+      actions.deserialize(JSON.stringify(parsed));
+    } catch {
+      // Ignore add-to-canvas failures to avoid breaking panel UX.
+    }
+  };
+
+  const removeMediaItem = (id: string) => {
+    setMediaItems((prev) => {
+      const next = prev.filter((item) => item.id !== id);
+      persistMediaItems(next);
+      return next;
+    });
+  };
+
+  const handleUploadFiles = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    if (permission === "viewer") return;
+
+    const files = Array.from(fileList).filter((file) => file.type.startsWith("image/"));
+    if (files.length === 0) {
+      setUploadError("Please select image files only.");
+      return;
+    }
+
+    setUploading(true);
+    setUploadError(null);
+    setUploadProgress(0);
+
+    const uploadedItems: MediaLibraryItem[] = [];
+    try {
+      for (let index = 0; index < files.length; index += 1) {
+        const file = files[index];
+        const url = await uploadClientFileWithProgress(file, {
+          clientName: clientName ?? undefined,
+          websiteName: websiteName ?? undefined,
+          projectId: projectId ?? undefined,
+          folder: "images",
+          onProgress: (percent) => {
+            const overall = Math.round(((index + percent / 100) / files.length) * 100);
+            setUploadProgress(overall);
+          },
+        });
+
+        uploadedItems.push({
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          name: file.name,
+          url,
+          mimeType: file.type,
+          size: file.size,
+          createdAt: Date.now(),
+        });
+      }
+
+      setMediaItems((prev) => {
+        const next = [...uploadedItems, ...prev].slice(0, 200);
+        persistMediaItems(next);
+        return next;
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Upload failed";
+      setUploadError(message);
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+      if (mediaInputRef.current) mediaInputRef.current.value = "";
+    }
+  };
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setFilesPanelReady(true));
     return () => cancelAnimationFrame(id);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const fromSession = window.sessionStorage.getItem(mediaStorageKey);
+      const fromLocal = window.localStorage.getItem(mediaStorageKey);
+      const raw = fromSession || fromLocal;
+      if (!raw) {
+        setMediaItems([]);
+        return;
+      }
+      const parsed = JSON.parse(raw) as MediaLibraryItem[];
+      if (Array.isArray(parsed)) {
+        setMediaItems(parsed);
+      } else {
+        setMediaItems([]);
+      }
+    } catch {
+      setMediaItems([]);
+    }
+  }, [mediaStorageKey]);
 
   // Close dropdown on click outside or Escape
   useEffect(() => {
@@ -316,7 +479,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
               ? "text-brand-lighter bg-brand-medium/50 shadow-sm"
               : "text-brand-light hover:text-brand-lighter"}`}
           >
-            <Image className="w-4 h-4 shrink-0" />
+            <ImageIcon className="w-4 h-4 shrink-0" />
             <span>Media</span>
           </button>
         </div>
@@ -327,19 +490,77 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
         {activePanel === "files" && (canMountFilesPanel ? <FilesPanel /> : null)}
         {activePanel === "components" && <ComponentsPanel />}
         {activePanel === "media" && (
-          <div className="flex flex-col items-center justify-center h-full p-8 text-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-brand-medium/20 flex items-center justify-center text-brand-light">
-              <Image className="w-8 h-8 opacity-50" />
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-sm font-bold text-brand-lighter tracking-tight">Media Library</span>
-              <p className="text-[10px] text-brand-light leading-relaxed max-w-[160px] mx-auto opacity-60">
-                Drag and drop your images here to use them in your projects.
-              </p>
-            </div>
-            <button className="mt-4 px-6 py-2 bg-brand-medium/30 hover:bg-brand-medium/50 text-brand-lighter text-[10px] font-bold uppercase tracking-widest rounded-full transition-all border border-white/5">
-              Upload Files
+          <div className="h-full flex flex-col gap-3 p-2">
+            <input
+              ref={mediaInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => handleUploadFiles(e.target.files)}
+            />
+
+            <button
+              type="button"
+              onClick={() => mediaInputRef.current?.click()}
+              disabled={uploading || permission === "viewer"}
+              className="w-full px-4 py-2 bg-brand-medium/30 hover:bg-brand-medium/50 disabled:opacity-50 disabled:cursor-not-allowed text-brand-lighter text-[10px] font-bold uppercase tracking-widest rounded-full transition-all border border-white/5"
+            >
+              {uploading ? `Uploading ${uploadProgress}%` : "Upload Files"}
             </button>
+
+            {uploadError && (
+              <p className="text-[10px] text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg p-2">
+                {uploadError}
+              </p>
+            )}
+
+            {mediaItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full p-6 text-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-brand-medium/20 flex items-center justify-center text-brand-light">
+                  <ImageIcon className="w-8 h-8 opacity-50" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-bold text-brand-lighter tracking-tight">Media Library</span>
+                  <p className="text-[10px] text-brand-light leading-relaxed max-w-[180px] mx-auto opacity-60">
+                    Upload images here, then click Add to Canvas.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 overflow-y-auto pb-4">
+                {mediaItems.map((item) => (
+                  <div key={item.id} className="rounded-lg border border-white/10 bg-brand-white/5 p-2 flex flex-col gap-2">
+                    <div className="aspect-square rounded-md overflow-hidden bg-brand-dark/60 border border-white/5">
+                      <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
+                    </div>
+                    <p className="text-[10px] text-brand-lighter truncate" title={item.name}>{item.name}</p>
+                    <div className="flex gap-1">
+                      <button
+                        type="button"
+                        onClick={() => addMediaToCanvas(item)}
+                        disabled={permission === "viewer"}
+                        className="flex-1 text-[9px] font-bold uppercase tracking-wide px-2 py-1 rounded-md bg-brand-medium/35 hover:bg-brand-medium/55 disabled:opacity-50 disabled:cursor-not-allowed text-brand-lighter"
+                      >
+                        Add
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeMediaItem(item.id)}
+                        className="text-[9px] px-2 py-1 rounded-md border border-white/10 hover:bg-white/5 text-brand-light"
+                        title="Remove from library"
+                      >
+                        X
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {permission === "viewer" && (
+              <p className="text-[10px] text-brand-light/80 text-center">Viewer mode: upload and canvas insert are disabled.</p>
+            )}
           </div>
         )}
       </div>
