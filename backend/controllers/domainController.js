@@ -5,6 +5,7 @@ const Page = require('../models/Page');
 const User = require('../models/User');
 const { getRealtimeDb, db } = require('../config/firebase');
 const { getLimits } = require('../utils/subscriptionLimits');
+const { resolveProjectOwner } = require('../utils/resolveProjectOwner');
 
 const BASE_DOMAIN = process.env.BASE_DOMAIN || process.env.NEXT_PUBLIC_BASE_DOMAIN || 'cms.com';
 
@@ -151,14 +152,26 @@ exports.publish = async (req, res) => {
       return res.status(400).json({ success: false, message: 'projectId is required' });
     }
     const userId = req.user.id;
+    const userEmail = (req.user.email || '').toLowerCase();
 
-    // Check subscription limits
-    const user = await User.findById(userId);
+    // Verify ownership/permissions
+    const resolved = await resolveProjectOwner(userId, String(projectId).trim(), userEmail);
+    if (!resolved) {
+      return res.status(404).json({ success: false, message: 'Project not found' });
+    }
+    if (resolved.permission !== 'owner') {
+      return res.status(403).json({ success: false, message: 'Only the project owner can publish this project' });
+    }
+
+    const ownerId = resolved.ownerId;
+    const project = await Project.get(ownerId, String(projectId).trim());
+
+    // Check subscription limits using owner's plan
+    const user = await User.findById(ownerId);
     const limits = getLimits(user?.subscriptionPlan);
-    const publishedList = await Domain.listByClient(userId);
-    const existingDomain = await Domain.findByProjectId(userId, projectId);
+    const publishedList = await Domain.listByClient(ownerId);
+    const existingDomain = await Domain.findByProjectId(ownerId, projectId);
 
-    const project = await Project.get(userId, String(projectId).trim());
     if (!project) {
       return res.status(404).json({ success: false, message: 'Project not found' });
     }
@@ -241,19 +254,30 @@ exports.unpublish = async (req, res) => {
       return res.status(400).json({ success: false, message: 'projectId is required' });
     }
     const userId = req.user.id;
-    const project = await Project.get(userId, String(projectId).trim());
+    const userEmail = (req.user.email || '').toLowerCase();
+
+    const resolved = await resolveProjectOwner(userId, String(projectId).trim(), userEmail);
+    if (!resolved) {
+      return res.status(404).json({ success: false, message: 'Project not found' });
+    }
+    if (resolved.permission !== 'owner') {
+      return res.status(403).json({ success: false, message: 'Only the project owner can unpublish this site' });
+    }
+
+    const ownerId = resolved.ownerId;
+    const project = await Project.get(ownerId, String(projectId).trim());
     if (!project) {
       return res.status(404).json({ success: false, message: 'Project not found' });
     }
-    const data = await Domain.unpublishForClient(userId, String(projectId).trim());
+    const data = await Domain.unpublishForClient(ownerId, String(projectId).trim());
     if (!data) {
       return res.status(400).json({ success: false, message: 'Domain not found or already in draft' });
     }
-    await Project.update(userId, projectId, { status: 'draft' });
+    await Project.update(ownerId, projectId, { status: 'draft' });
     const rtdb = getRealtimeDb();
     if (rtdb) {
       try {
-        const rtdbRef = rtdb.ref(`user/roles/client/${userId}/projects/${projectId}`);
+        const rtdbRef = rtdb.ref(`user/roles/client/${ownerId}/projects/${projectId}`);
         await rtdbRef.update({ status: 'draft' });
       } catch (e) {
         console.warn('unpublish: Realtime DB sync failed:', e.message);
@@ -280,19 +304,30 @@ exports.updateSubdomain = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Subdomain must contain only letters, numbers, and hyphens' });
     }
     const userId = req.user.id;
-    const project = await Project.get(userId, String(projectId).trim());
+    const userEmail = (req.user.email || '').toLowerCase();
+
+    const resolved = await resolveProjectOwner(userId, String(projectId).trim(), userEmail);
+    if (!resolved) {
+      return res.status(404).json({ success: false, message: 'Project not found' });
+    }
+    if (resolved.permission !== 'owner') {
+      return res.status(403).json({ success: false, message: 'Only the project owner can update the subdomain' });
+    }
+
+    const ownerId = resolved.ownerId;
+    const project = await Project.get(ownerId, String(projectId).trim());
     if (!project) {
       return res.status(404).json({ success: false, message: 'Project not found' });
     }
-    const data = await Domain.updateSubdomainForClient(userId, String(projectId).trim(), normalized);
+    const data = await Domain.updateSubdomainForClient(ownerId, String(projectId).trim(), normalized);
     if (!data) {
       return res.status(400).json({ success: false, message: 'Domain not found. Publish the site first.' });
     }
-    await Project.update(userId, projectId, { subdomain: normalized });
+    await Project.update(ownerId, projectId, { subdomain: normalized });
     const rtdb = getRealtimeDb();
     if (rtdb) {
       try {
-        const rtdbRef = rtdb.ref(`user/roles/client/${userId}/projects/${projectId}`);
+        const rtdbRef = rtdb.ref(`user/roles/client/${ownerId}/projects/${projectId}`);
         await rtdbRef.update({ subdomain: normalized });
       } catch (e) {
         console.warn('updateSubdomain: Realtime DB sync failed:', e.message);
@@ -315,7 +350,18 @@ exports.schedulePublish = async (req, res) => {
       return res.status(400).json({ success: false, message: 'scheduledAt is required (ISO date string)' });
     }
     const userId = req.user.id;
-    const project = await Project.get(userId, String(projectId).trim());
+    const userEmail = (req.user.email || '').toLowerCase();
+
+    const resolved = await resolveProjectOwner(userId, String(projectId).trim(), userEmail);
+    if (!resolved) {
+      return res.status(404).json({ success: false, message: 'Project not found' });
+    }
+    if (resolved.permission !== 'owner') {
+      return res.status(403).json({ success: false, message: 'Only the project owner can schedule publishing' });
+    }
+
+    const ownerId = resolved.ownerId;
+    const project = await Project.get(ownerId, String(projectId).trim());
     if (!project) {
       return res.status(404).json({ success: false, message: 'Project not found' });
     }
@@ -326,14 +372,14 @@ exports.schedulePublish = async (req, res) => {
     let scheduledContent = requestedContent ?? null;
     if (scheduledContent == null) {
       try {
-        const draft = await Page.getPageData(userId, String(projectId).trim(), userId);
+        const draft = await Page.getPageData(ownerId, String(projectId).trim(), ownerId);
         if (draft && draft.content) scheduledContent = draft.content;
       } catch (e) {
         console.warn('schedulePublish: could not read draft:', e.message);
       }
     }
 
-    const data = await Domain.schedulePublish(userId, {
+    const data = await Domain.schedulePublish(ownerId, {
       projectId: String(projectId).trim(),
       projectTitle: project.title,
       subdomain,

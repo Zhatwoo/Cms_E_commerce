@@ -376,7 +376,7 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                         return (
                           <div key={project.id} className={`relative border border-[#2A2A60] bg-[#141140] overflow-hidden ${asPage ? 'rounded-2xl' : 'rounded-2xl'} hover:bg-[#1A1750] hover:border-[#6B72D8] transition-all ${activeMenuProjectId === project.id ? 'z-40' : 'z-0'} 
                             ${editingProjectId === project.id ? 'flex flex-col h-auto p-0 overflow-visible' : (viewMode === 'list' ? 'flex flex-row items-center h-[96px] p-0' : 'flex flex-col h-full p-0')}`}>
-                            {projectTab === 'active' && editingProjectId !== project.id && (
+                            {projectTab === 'active' && editingProjectId !== project.id && !project.isShared && (
                               <div className="absolute top-3 right-3 z-50" onClick={(e) => e.stopPropagation()}>
                                 <button type="button" onClick={(e) => { e.stopPropagation(); setActiveMenuProjectId((prev) => (prev === project.id ? null : project.id)); }} className={asPage ? 'h-8 w-8 rounded-md border border-[#2A2A60] bg-[#0E0D3D]/90 text-white flex items-center justify-center hover:text-[#FFCE00] hover:border-[#6B72D8] transition-colors' : 'h-8 w-8 rounded-md bg-[#0E0D3D]/80 backdrop-blur-md text-[#8A8FC4] border border-[#2A2A60] hover:text-[#FFCE00] hover:border-[#6B72D8] transition-colors flex items-center justify-center'}><svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="12" cy="18" r="1.8" /></svg></button>
                                 {activeMenuProjectId === project.id && (
@@ -410,11 +410,14 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                                 </div>
                                 <div className={`${viewMode === 'list' ? 'px-6 py-4 flex-1 flex flex-row items-center justify-between min-w-0' : 'px-5 py-4 flex flex-col flex-1'}`}>
                                   <div className={`${viewMode === 'list' ? 'flex-1 min-w-0 pr-4' : 'w-full'}`}>
-                                    <div className="flex items-center gap-2.5 mb-1.5">
+                                    <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
                                       <p className="text-[17px] font-bold text-white leading-tight truncate group-hover:text-[#FFCE00] transition-colors">{project.title || 'Untitled Project'}</p>
                                       {(project.status === 'published' || project.status === 'live') ? <span className="flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-green-500/15 text-green-400 border border-green-500/20">Published</span> : <span className="flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-[#3A3A7A]/30 text-[#8A8FC4] border border-[#3A3A7A]/40">Draft</span>}
+                                      {project.isShared && <span className="flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/20">Shared with me</span>}
                                     </div>
-                                    <p className="text-[13px] text-[#6B6FA0] truncate">{projectTab === 'trash' ? (daysLeft == null ? 'Unavailable' : `${daysLeft} days until permanent deletion`) : formatEdited(project.updatedAt ?? project.createdAt)}</p>
+                                    <p className="text-[13px] text-[#6B6FA0] truncate">
+                                      {project.isShared ? `by ${project.ownerName || 'Unknown'}` : (projectTab === 'trash' ? (daysLeft == null ? 'Unavailable' : `${daysLeft} days until permanent deletion`) : formatEdited(project.updatedAt ?? project.createdAt))}
+                                    </p>
                                   </div>
                                   {projectTab === 'trash' && (
                                     <div className={`flex items-center gap-2 ${viewMode === 'list' ? 'shrink-0' : 'mt-4'}`}>

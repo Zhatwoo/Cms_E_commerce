@@ -253,6 +253,43 @@ async function countWithSubdomain(userId) {
   return projects.filter((p) => p.subdomain != null && String(p.subdomain).trim() !== '').length;
 }
 
+async function listShared(userId, userEmail) {
+  const normalizedEmail = (userEmail || '').toLowerCase();
+  const roles = ['client', 'admin', 'support'];
+  const sharedProjects = [];
+
+  for (const role of roles) {
+    const roleCollSnap = await db.collection('user').doc('roles').collection(role).get();
+
+    for (const ownerDoc of roleCollSnap.docs) {
+      const ownerId = ownerDoc.id;
+      if (ownerId === userId) continue;
+
+      const projectsSnap = await ownerDoc.ref.collection('projects').get();
+      for (const projectDoc of projectsSnap.docs) {
+        const collabSnap = await projectDoc.ref.collection('collaborators').get();
+        for (const collabDoc of collabSnap.docs) {
+          const data = collabDoc.data();
+          const matchEmail = (data.email || '').toLowerCase() === normalizedEmail;
+          const matchId = data.userId === userId;
+
+          if (matchEmail || matchId) {
+            const ownerData = ownerDoc.data();
+            sharedProjects.push({
+              ...sanitizeProject(docToObject(projectDoc)),
+              ownerId,
+              ownerName: ownerData.full_name || ownerData.displayName || ownerData.username || 'Unknown',
+              collaboratorPermission: data.permission,
+              isShared: true,
+            });
+          }
+        }
+      }
+    }
+  }
+  return sharedProjects;
+}
+
 async function countAll() {
   const clientSnap = await db.collection('user').doc('roles').collection('client').get();
   let total = 0;
@@ -272,6 +309,7 @@ module.exports = {
   delete: deleteProject,
   moveToTrash,
   listTrash,
+  listShared,
   restore,
   permanentDelete,
   getTrashRef, // Exported for controller usage

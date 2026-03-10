@@ -897,111 +897,111 @@ export default function WebBuilderPage() {
               </div>
             </div>
           ) : (
-              <div className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
-                {visibleProjects.map((p) => (
-                  <motion.div
-                    key={p.id}
-                    className="relative min-w-0 rounded-lg border overflow-hidden cursor-pointer hover:border-opacity-80 transition-colors"
-                    style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => router.push(`/design?projectId=${p.id}`)}
-                  >
-                    {/* Thumbnail: first-page draft preview */}
-                    <div className="relative w-full min-h-[100px]" style={{ backgroundColor: colors.bg.elevated, borderBottom: `1px solid ${colors.border.faint}` }}>
-                      <DraftPreviewThumbnail
-                        projectId={p.id}
-                        borderColor={colors.border.faint}
-                        bgColor={colors.bg.elevated}
-                      />
-                    </div>
-                    <div className="p-2">
-                      {/* 3-dots menu */}
-                      <div className="absolute top-1.5 right-1.5 z-10" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          aria-label="Project options"
-                          className="p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
-                          style={{ color: colors.text.muted }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setProjectMenuId((id) => (id === p.id ? null : p.id));
-                          }}
-                        >
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                            <circle cx="12" cy="6" r="1.5" />
-                            <circle cx="12" cy="12" r="1.5" />
-                            <circle cx="12" cy="18" r="1.5" />
-                          </svg>
-                        </button>
-                        <AnimatePresence>
-                          {projectMenuId === p.id && (
-                            <motion.div
-                              initial={{ opacity: 0, scale: 0.95 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              exit={{ opacity: 0, scale: 0.95 }}
-                              className="absolute right-0 top-full mt-0.5 py-1 min-w-[140px] rounded-md border shadow-xl z-20 text-xs"
-                              style={{ backgroundColor: colors.bg.elevated, borderColor: colors.border.default }}
+            <div className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+              {visibleProjects.map((p) => (
+                <motion.div
+                  key={p.id}
+                  className="relative min-w-0 rounded-lg border overflow-hidden cursor-pointer hover:border-opacity-80 transition-colors"
+                  style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => router.push(`/design?projectId=${p.id}`)}
+                >
+                  {/* Thumbnail: first-page draft preview */}
+                  <div className="relative w-full min-h-[100px]" style={{ backgroundColor: colors.bg.elevated, borderBottom: `1px solid ${colors.border.faint}` }}>
+                    <DraftPreviewThumbnail
+                      projectId={p.id}
+                      borderColor={colors.border.faint}
+                      bgColor={colors.bg.elevated}
+                    />
+                  </div>
+                  <div className="p-2">
+                    {/* 3-dots menu */}
+                    <div className="absolute top-1.5 right-1.5 z-10" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        aria-label="Project options"
+                        className="p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                        style={{ color: colors.text.muted }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setProjectMenuId((id) => (id === p.id ? null : p.id));
+                        }}
+                      >
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                          <circle cx="12" cy="6" r="1.5" />
+                          <circle cx="12" cy="12" r="1.5" />
+                          <circle cx="12" cy="18" r="1.5" />
+                        </svg>
+                      </button>
+                      <AnimatePresence>
+                        {projectMenuId === p.id && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="absolute right-0 top-full mt-0.5 py-1 min-w-[140px] rounded-md border shadow-xl z-20 text-xs"
+                            style={{ backgroundColor: colors.bg.elevated, borderColor: colors.border.default }}
+                          >
+                            <button
+                              type="button"
+                              className="w-full px-3 py-1.5 text-left flex items-center gap-1.5 hover:bg-black/5 dark:hover:bg-white/5"
+                              style={{ color: colors.text.primary }}
+                              onClick={(e) => handleProjectRename(e, p)}
                             >
-                              <button
-                                type="button"
-                                className="w-full px-3 py-1.5 text-left flex items-center gap-1.5 hover:bg-black/5 dark:hover:bg-white/5"
-                                style={{ color: colors.text.primary }}
-                                onClick={(e) => handleProjectRename(e, p)}
-                              >
-                                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" /></svg>
-                                Rename
-                              </button>
-                              <button
-                                type="button"
-                                className="w-full px-3 py-1.5 text-left flex items-center gap-1.5 hover:bg-black/5 dark:hover:bg-white/5"
-                                style={{ color: colors.text.primary }}
-                                onClick={(e) => handleProjectDuplicate(e, p)}
-                              >
-                                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h2m8 0h2a2 2 0 012 2v2m0 8a2 2 0 01-2 2h-8a2 2 0 01-2-2v-8a2 2 0 012-2h2" /></svg>
-                                Duplicate
-                              </button>
-                              <button
-                                type="button"
-                                disabled={p.status === 'published'}
-                                className={`w-full px-3 py-1.5 text-left flex items-center gap-1.5 transition-colors ${p.status === 'published' ? 'opacity-40 cursor-not-allowed grayscale' : 'hover:bg-red-500/10 text-red-500'}`}
-                                style={{ color: p.status === 'published' ? colors.text.muted : '#ef4444' }}
-                                onClick={(e) => handleProjectDelete(e, p)}
-                                title={p.status === 'published' ? "Unpublish this site first to delete it" : "Move to trash"}
-                              >
-                                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                {p.status === 'published' ? 'Published' : 'Delete'}
-                              </button>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                      <h3 className="font-medium truncate pr-6 text-xs" style={{ color: colors.text.primary }}>{p.title}</h3>
-                      <p className="text-[9px] mt-0.5" style={{ color: colors.text.muted }}>
-                        {p.status} · {p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : '—'}
-                      </p>
-                      {p.status !== 'published' && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setPublishModalProject(p);
-                          }}
-                          className="mt-2 w-full py-1.5 rounded-md text-[10px] font-medium flex items-center justify-center gap-1 transition-colors"
-                          style={{
-                            backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                            color: 'rgb(59, 130, 246)',
-                          }}
-                        >
-                          <Upload size={12} />
-                          Go live
-                        </button>
-                      )}
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" /></svg>
+                              Rename
+                            </button>
+                            <button
+                              type="button"
+                              className="w-full px-3 py-1.5 text-left flex items-center gap-1.5 hover:bg-black/5 dark:hover:bg-white/5"
+                              style={{ color: colors.text.primary }}
+                              onClick={(e) => handleProjectDuplicate(e, p)}
+                            >
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h2m8 0h2a2 2 0 012 2v2m0 8a2 2 0 01-2 2h-8a2 2 0 01-2-2v-8a2 2 0 012-2h2" /></svg>
+                              Duplicate
+                            </button>
+                            <button
+                              type="button"
+                              disabled={p.status === 'published'}
+                              className={`w-full px-3 py-1.5 text-left flex items-center gap-1.5 transition-colors ${p.status === 'published' ? 'opacity-40 cursor-not-allowed grayscale' : 'hover:bg-red-500/10 text-red-500'}`}
+                              style={{ color: p.status === 'published' ? colors.text.muted : '#ef4444' }}
+                              onClick={(e) => handleProjectDelete(e, p)}
+                              title={p.status === 'published' ? "Unpublish this site first to delete it" : "Move to trash"}
+                            >
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                              {p.status === 'published' ? 'Published' : 'Delete'}
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
-                  </motion.div>
-                ))}
-              </div>
-            )
+                    <h3 className="font-medium truncate pr-6 text-xs" style={{ color: colors.text.primary }}>{p.title}</h3>
+                    <p className="text-[9px] mt-0.5" style={{ color: colors.text.muted }}>
+                      {p.status} · {p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : '—'}
+                    </p>
+                    {p.status !== 'published' && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPublishModalProject(p);
+                        }}
+                        className="mt-2 w-full py-1.5 rounded-md text-[10px] font-medium flex items-center justify-center gap-1 transition-colors"
+                        style={{
+                          backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                          color: 'rgb(59, 130, 246)',
+                        }}
+                      >
+                        <Upload size={12} />
+                        Go live
+                      </button>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )
         ) : (
           <>
             {trashedProjectsLoading ? (
