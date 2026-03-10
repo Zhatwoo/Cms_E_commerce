@@ -18,16 +18,16 @@ function fluidSpace(value: number, min = 0): string {
 
 export const Container = ({
   background = "#ffffff",
-  padding,
-  paddingLeft,
-  paddingRight,
+  padding = 0,
   paddingTop,
+  paddingRight,
   paddingBottom,
+  paddingLeft,
   margin = 0,
-  marginLeft,
-  marginRight,
   marginTop,
+  marginRight,
   marginBottom,
+  marginLeft,
   width = "100%",
   height = "auto",
   borderRadius = 0,
@@ -43,21 +43,20 @@ export const Container = ({
   borderColor = "transparent",
   borderWidth = 0,
   borderStyle = "solid",
-  strokePlacement = "mid",
   flexDirection = "column",
   flexWrap = "nowrap",
-  alignItems = "center",
-  justifyContent = "center",
+  alignItems = "flex-start",
+  justifyContent = "flex-start",
   gap = 0,
   gridTemplateColumns = "1fr 1fr",
   gridTemplateRows = "auto",
   gridGap = 0,
-  gridColumnGap,
-  gridRowGap,
+  gridColumnGap = 0,
+  gridRowGap = 0,
   gridAutoRows = "auto",
   gridAutoFlow = "row",
-  position = "static",
   display = "flex",
+  position = "static",
   zIndex = 0,
   top = "auto",
   right: posRight = "auto",
@@ -71,27 +70,28 @@ export const Container = ({
   rotation = 0,
   flipHorizontal = false,
   flipVertical = false,
-  designWidth,
-  designHeight,
+  designWidth = 1440,
+  designHeight = 900,
   customClassName = "",
-  children
+  children,
 }: ContainerProps) => {
-  const { id, connectors: { connect, drag }, childCount, parentId } = useNode((node) => ({
+  const {
+    id,
+    connectors: { connect, drag },
+    childCount,
+    parentId,
+  } = useNode((node) => ({
     childCount: node.data.nodes.length,
     parentId: node.data.parent,
   }));
+
   const { parentDisplay, parentFlexDirection } = useEditor((state) => ({
     parentDisplay: parentId ? String(state.nodes[parentId]?.data?.props?.display ?? "") : "",
     parentFlexDirection: parentId ? String(state.nodes[parentId]?.data?.props?.flexDirection ?? "") : "",
   }));
+
   const hasChildren = childCount > 0 || React.Children.count(children) > 0;
   const isFlexRowParent = parentDisplay === "flex" && parentFlexDirection === "row";
-
-  const wPx = parsePx(width);
-  const hPx = parsePx(height);
-  const canScale = false;
-  const scaleX = canScale ? wPx / designWidth : 1;
-  const scaleY = canScale ? hPx / designHeight : 1;
 
   // Resolve padding
   const p = typeof padding === 'number' ? padding : 0;
@@ -139,12 +139,14 @@ export const Container = ({
   const rtr = radiusTopRight !== undefined ? radiusTopRight : br;
   const rbr = radiusBottomRight !== undefined ? radiusBottomRight : br;
   const rbl = radiusBottomLeft !== undefined ? radiusBottomLeft : br;
+
   const effectiveDisplay =
     editorVisibility === "hide"
       ? "none"
       : editorVisibility === "show" && display === "none"
         ? "flex"
         : display;
+
   const shouldFlexFill = width === "100%" && isFlexRowParent;
 
   return (
@@ -216,40 +218,7 @@ export const Container = ({
         transformOrigin: "center center",
       }}
     >
-      {canScale ? (
-        <div
-          style={{
-            width: designWidth,
-            height: designHeight,
-            transform: `scale(${scaleX}, ${scaleY})`,
-            transformOrigin: "0 0",
-            flexShrink: 0,
-            boxSizing: "border-box",
-            display: effectiveDisplay === "flex" ? "flex" : effectiveDisplay === "grid" ? "grid" : "block",
-            flexDirection: effectiveDisplay === "flex" ? flexDirection : undefined,
-            flexWrap: effectiveDisplay === "flex" ? flexWrap : undefined,
-            alignItems: effectiveDisplay === "flex" || effectiveDisplay === "grid" ? alignItems : undefined,
-            justifyContent: effectiveDisplay === "flex" || effectiveDisplay === "grid" ? justifyContent : undefined,
-            columnGap: effectiveDisplay === "flex"
-              ? `${gap}px`
-              : effectiveDisplay === "grid"
-                ? `${gridColumnGap ?? gridGap}px`
-                : undefined,
-            rowGap: effectiveDisplay === "flex"
-              ? `${gap}px`
-              : effectiveDisplay === "grid"
-                ? `${gridRowGap ?? gridGap}px`
-                : undefined,
-            gridTemplateColumns: effectiveDisplay === "grid" ? gridTemplateColumns : undefined,
-            gridTemplateRows: effectiveDisplay === "grid" ? gridTemplateRows : undefined,
-          }}
-        >
-          {children}
-        </div>
-      ) : (
-        <>{children}</>
-      )}
-
+      {children}
     </div>
   );
 };
