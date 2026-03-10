@@ -27,6 +27,7 @@ import {
   type InventorySummary,
 } from '@/lib/api';
 import { useRouter } from 'next/navigation';
+import { useProject } from '../components/context/project-context';
 
 // ─── Design tokens (original — unchanged) ────────────────────────────────────
 const T = {
@@ -131,6 +132,11 @@ const getDefaultAdjustmentNote = (t: StockAdjustmentType) =>
 const RECENT_MOVEMENTS_LIMIT = 5;
 const ALL_MOVEMENTS_LIMIT    = 500;
 
+// ─── Subdomain normalization ──────────────────────────────────────────────────
+function normalizeSubdomain(value?: string | null): string {
+  return (value || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+}
+
 // ─── Shared UI helpers ────────────────────────────────────────────────────────
 const Card = ({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) => (
   <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: T.radius, ...style }}>
@@ -219,6 +225,8 @@ const ModalBackdrop = ({ onClose, children }: { onClose: () => void; children: R
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function InventoryPage() {
   const router = useRouter();
+  const { selectedProject } = useProject();
+  const selectedSubdomain = normalizeSubdomain(selectedProject?.subdomain);
 
   const [search, setSearch]                       = useState('');
   const [categoryFilter, setCategoryFilter]       = useState<string>('all');
@@ -266,9 +274,9 @@ export default function InventoryPage() {
     setLoading(true); setError(null);
     try {
       const [invRes, summaryRes, movementRes] = await Promise.all([
-        listInventory({ limit: 500, search: search || undefined }),
-        getInventorySummary({ search: search || undefined }),
-        listInventoryMovements({ limit: RECENT_MOVEMENTS_LIMIT }),
+        listInventory({ subdomain: selectedSubdomain || undefined, limit: 500, search: search || undefined }),
+        getInventorySummary({ subdomain: selectedSubdomain || undefined, search: search || undefined }),
+        listInventoryMovements({ subdomain: selectedSubdomain || undefined, limit: RECENT_MOVEMENTS_LIMIT }),
       ]);
       setItems(Array.isArray(invRes.items) ? invRes.items : []);
       setSummary(summaryRes.data || null);
@@ -276,19 +284,19 @@ export default function InventoryPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load inventory');
     } finally { setLoading(false); }
-  }, [search]);
+  }, [search, selectedSubdomain]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
   const loadAllMovements = useCallback(async () => {
     setLoadingAllMovements(true); setAllMovementsError(null);
     try {
-      const res = await listInventoryMovements({ limit: ALL_MOVEMENTS_LIMIT });
+      const res = await listInventoryMovements({ subdomain: selectedSubdomain || undefined, limit: ALL_MOVEMENTS_LIMIT });
       setAllMovements(Array.isArray(res.items) ? res.items : []);
     } catch (err) {
       setAllMovementsError(err instanceof Error ? err.message : 'Failed to load movement history');
     } finally { setLoadingAllMovements(false); }
-  }, []);
+  }, [selectedSubdomain]);
 
   const openAllMovementsModal  = useCallback(() => { setShowAllMovementsModal(true); void loadAllMovements(); }, [loadAllMovements]);
   const closeAllMovementsModal = useCallback(() => setShowAllMovementsModal(false), []);
@@ -516,7 +524,7 @@ export default function InventoryPage() {
   const handleExport = useCallback(async () => {
     setExporting(true);
     try {
-      const res = await listInventory({ limit: 5000, search: search || undefined });
+      const res = await listInventory({ subdomain: selectedSubdomain || undefined, limit: 5000, search: search || undefined });
       const data = Array.isArray(res.items) ? res.items : [];
       if (data.length === 0) { window.alert('No inventory to export.'); return; }
       const csv = productsToCsv(data);
@@ -527,7 +535,7 @@ export default function InventoryPage() {
       URL.revokeObjectURL(url);
     } catch (err) { window.alert(err instanceof Error ? err.message : 'Export failed'); }
     finally { setExporting(false); }
-  }, [search]);
+  }, [search, selectedSubdomain]);
 
   const handleImport = useCallback(() => { fileInputRef.current?.click(); }, []);
 
@@ -538,7 +546,7 @@ export default function InventoryPage() {
       const text = await file.text();
       const rows = parseCsvToRows(text);
       if (rows.length === 0) { showImportPopup('Import failed: No valid rows in CSV. Use header "sku" and optionally "onHandStock", "reservedStock", "lowStockThreshold".', 'error'); return; }
-      const result = await importInventoryCsv({ rows });
+      const result = await importInventoryCsv({ rows, subdomain: selectedSubdomain || undefined });
       if (result.updated && result.updated > 0) await loadData();
       if (result.errors && result.errors.length > 0) {
         const s = result.errors.slice(0,2).map((e) => `Row ${e.row} (${e.sku}): ${e.message}`).join(' | ');
@@ -546,7 +554,7 @@ export default function InventoryPage() {
       } else { showImportPopup(result.message ?? `Import successful. Updated ${result.updated ?? 0} product(s).`, 'success'); }
     } catch (err) { showImportPopup(err instanceof Error ? `Import failed: ${err.message}` : 'Import failed', 'error'); }
     finally { setImporting(false); }
-  }, [loadData, showImportPopup]);
+  }, [loadData, showImportPopup, selectedSubdomain]);
 
   // ─── Config ─────────────────────────────────────────────────────────────────
   const statCards = [
