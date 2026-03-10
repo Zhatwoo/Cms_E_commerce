@@ -42,12 +42,13 @@ interface RightPanelProps {
   onClose?: () => void;
   files?: any[];
   onFilesChange?: (files: any[]) => void;
+  permission?: "editor" | "viewer" | "owner";
 }
 
 // Inner panel that subscribes to Craft editor.
 // Mounted lazily by RightPanel to avoid "setState during render" warnings
 // when Frame is rendering initial data.
-const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeTab: controlledTab, setActiveTab: setControlledTab, onClose, files, onFilesChange }: RightPanelProps) => {
+const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeTab: controlledTab, setActiveTab: setControlledTab, onClose, files, onFilesChange, permission = "editor" }: RightPanelProps) => {
   const { user } = useAuth();
   const { showAlert } = useAlert();
   const [internalTab, setInternalTab] = useState<TabId>("design");
@@ -166,7 +167,15 @@ const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeT
           <div className="flex items-center justify-between mb-6 gap-2">
             <h3 className="text-brand-lighter font-bold text-lg">Configs</h3>
             <div className="flex items-center gap-1">
-              {onClose && (
+              <button
+                onClick={handlePreview}
+                disabled={isPreviewing}
+                className={`p-1 rounded-lg transition-colors cursor-pointer ${isPreviewing ? 'opacity-50 cursor-wait' : 'hover:bg-brand-medium/40'}`}
+                title="Preview (Web / Clean / Raw)"
+              >
+                <Play strokeWidth={2} className={`w-5 h-5 transition-colors ${isPreviewing ? 'text-yellow-400 animate-pulse' : 'text-brand-light hover:text-brand-lighter'}`} />
+              </button>
+              {permission !== "viewer" && onClose && (
                 <button
                   type="button"
                   onClick={onClose}
@@ -190,7 +199,7 @@ const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeT
                         ? primary.name
                         : `${selectedIds.length} components selected`}
                     </span>
-                    {primary && (
+                    {primary && permission !== "viewer" && (
                       <div className="flex items-center gap-0.5">
                         <button
                           type="button"
@@ -247,7 +256,7 @@ const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeT
                             }}
                             className={`relative z-10 w-full px-1.5 py-2.5 rounded-xl transition-all duration-300 text-[10px] font-semibold tracking-normal whitespace-nowrap flex items-center justify-center gap-1 ${activeTab === tab.id
                               ? "text-white"
-                              : isRestricted ? "text-white/20 hover:text-white/40" : "text-white/40 hover:text-white/60"
+                              : isRestricted || (permission === "viewer" && tab.id === "code") ? "text-white/20 hover:text-white/40" : "text-white/40 hover:text-white/60"
                               }`}
                           >
                             {activeTab === tab.id && (
@@ -285,13 +294,20 @@ const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeT
 
                   {activeTab === "code" && (
                     <div className="h-full min-h-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                      <CodeEditor
-                        mode="design"
-                        projectId={projectId}
-                        files={files || []}
-                        onFilesChange={onFilesChange}
-                        className="h-full border-none shadow-none rounded-none"
-                      />
+                      {permission === "viewer" ? (
+                        <div className="flex flex-col items-center justify-center h-full text-brand-light/40 text-center px-4">
+                          <Lock className="w-8 h-8 mb-2 opacity-20" />
+                          <p className="text-sm">Code editor is disabled in view-only mode</p>
+                        </div>
+                      ) : (
+                        <CodeEditor
+                          mode="design"
+                          projectId={projectId}
+                          files={files || []}
+                          onFilesChange={onFilesChange}
+                          className="h-full border-none shadow-none rounded-none"
+                        />
+                      )}
                     </div>
                   )}
                 </div>

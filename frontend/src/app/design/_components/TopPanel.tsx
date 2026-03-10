@@ -20,6 +20,7 @@ import {
 import { MIN_SCALE, MAX_SCALE, ZOOM_STEP, ZOOM_PRESETS } from "./zoomConstants";
 import { selectedToIds } from "../_lib/canvasActions";
 import { useCollaboration } from "../_context/CollaborationContext";
+import { useDesignProject } from "../_context/DesignProjectContext";
 import { ShareModal } from "./ShareModal";
 import { getStoredUser } from "@/lib/api";
 import { DesignTooltip } from "./DesignTooltip";
@@ -105,7 +106,8 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   const sizeDropdownRef = useRef<HTMLDivElement>(null);
 
   // Get collaboration state
-  const { collaborators, myColor, myPermission, connected } = useCollaboration();
+  const { collaborators, myColor, connected } = useCollaboration();
+  const { permission: projectPermission } = useDesignProject();
   let selfUser: { name?: string; username?: string; email?: string } | null = null;
   try { selfUser = getStoredUser(); } catch { }
   const selfInitial = (selfUser?.name || selfUser?.username || selfUser?.email || "?").charAt(0).toUpperCase();
@@ -278,7 +280,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
             <div
               className="relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-brand-dark cursor-default z-10"
               style={{ background: myColor }}
-              title={`You (${myPermission})`}
+              title={`You (${projectPermission})`}
             >
               {selfInitial}
               {/* Online indicator */}
@@ -403,6 +405,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
           projectTitle={projectTitle}
           isOpen={showShareModal}
           onClose={() => setShowShareModal(false)}
+          myPermission={projectPermission}
         />
       )}
     </div>

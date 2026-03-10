@@ -40,6 +40,7 @@ interface BottomPanelProps {
   /** Zoom: set scale (e.g. 1 for 100%) */
   onScaleChange?: (scale: number) => void;
   onRotateCanvas?: () => void;
+  permission?: "owner" | "editor" | "viewer";
 }
 
 export const BottomPanel: React.FC<BottomPanelProps> = ({
@@ -55,6 +56,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
   scale = 1,
   onScaleChange,
   onRotateCanvas,
+  permission = "editor",
 }) => {
   const { actions, query } = useEditor();
   const [isShapesPickerOpen, setIsShapesPickerOpen] = React.useState(false);
@@ -196,8 +198,8 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
               type="button"
               onClick={() => setShowSelectionMenu(!showSelectionMenu)}
               className={`h-9 flex items-center gap-1.5 px-2.5 rounded-lg transition-all ${activeTool === "move" || activeTool === "hand"
-                  ? "bg-blue-500/20 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.1)] border border-blue-500/20"
-                  : "text-white/70 hover:text-white hover:bg-white/[0.08] border border-transparent"
+                ? "bg-blue-500/20 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.1)] border border-blue-500/20"
+                : "text-white/70 hover:text-white hover:bg-white/[0.08] border border-transparent"
                 }`}
             >
               <div className="flex items-center justify-center">
@@ -261,8 +263,8 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
                 }
               }}
               className={`h-9 flex items-center gap-1.5 px-2.5 rounded-lg transition-all ${activeTool === "shape"
-                  ? "bg-blue-500/20 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.1)] border border-blue-500/20"
-                  : "text-white/70 hover:text-white hover:bg-white/[0.08] border border-transparent"
+                ? "bg-blue-500/20 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.1)] border border-blue-500/20"
+                : "text-white/70 hover:text-white hover:bg-white/[0.08] border border-transparent"
                 }`}
             >
               <Shapes className="w-4 h-4" strokeWidth={1.8} />
@@ -322,8 +324,8 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
               type="button"
               onClick={() => setShowViewMenu(!showViewMenu)}
               className={`flex items-center gap-1.5 px-3 h-9 rounded-lg transition-all ${showViewMenu || is100
-                  ? "bg-blue-500/20 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.1)] border border-blue-500/20"
-                  : "text-white/70 hover:text-white hover:bg-white/[0.08] border border-transparent"
+                ? "bg-blue-500/20 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.1)] border border-blue-500/20"
+                : "text-white/70 hover:text-white hover:bg-white/[0.08] border border-transparent"
                 }`}
             >
               <span>{Math.round(scale * 100)}%</span>

@@ -333,6 +333,10 @@ export type Project = {
   updatedAt?: string;
   deletedAt?: string;
   daysLeft?: number;
+  isShared?: boolean;
+  ownerName?: string;
+  ownerId?: string;
+  collaboratorPermission?: "editor" | "viewer";
 };
 
 export async function listProjects(): Promise<{ success: boolean; projects: Project[] }> {
@@ -520,6 +524,7 @@ export type ApiProduct = {
   name: string;
   sku?: string;
   category?: string;
+  subcategory?: string;
   slug?: string;
   description?: string;
   price: number;
@@ -615,6 +620,7 @@ export async function createProduct(params: {
   name: string;
   sku?: string;
   category?: string;
+  subcategory?: string;
   slug?: string;
   description?: string;
   price?: number;
@@ -657,6 +663,7 @@ export async function updateProduct(
     name?: string;
     sku?: string;
     category?: string;
+    subcategory?: string;
     slug?: string;
     description?: string;
     price?: number;
@@ -842,10 +849,14 @@ export type ImportInventoryResult = {
 
 export async function importInventoryCsv(params: {
   rows: ImportInventoryRow[];
+  subdomain?: string;
 }): Promise<ImportInventoryResult> {
-  return apiFetch<ImportInventoryResult>('/api/inventory/import', {
+  const query = new URLSearchParams();
+  if (params.subdomain) query.set('subdomain', params.subdomain);
+  const qs = query.toString();
+  return apiFetch<ImportInventoryResult>(qs ? `/api/inventory/import?${qs}` : '/api/inventory/import', {
     method: 'POST',
-    body: JSON.stringify(params),
+    body: JSON.stringify({ rows: params.rows }),
   });
 }
 

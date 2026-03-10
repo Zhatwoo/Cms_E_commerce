@@ -4,6 +4,7 @@ const { db } = require('../config/firebase');
 const User = require('../models/User');
 const nodemailer = require('nodemailer');
 const { resolveProjectOwner } = require('../utils/resolveProjectOwner');
+const { sendCollaborationInviteEmail } = require('../utils/emailService');
 
 const COLLAB_COLORS = [
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
@@ -23,13 +24,27 @@ function getCollabRef(projectOwnerId, projectId) {
 // @access Private (project owner only)
 exports.invite = async (req, res) => {
     try {
-        const ownerId = req.user.id;
+        const userId = req.user.id;
+        const userEmail = (req.user.email || '').toLowerCase();
         const { projectId } = req.params;
         const { email, permission = 'editor' } = req.body || {};
+
+        console.log(`[Collab] Invite request by user ${userId} (${userEmail}) for project ${projectId}`);
 
         if (!email) {
             return res.status(400).json({ success: false, message: 'Email is required.' });
         }
+
+        // Check if the current user has permission to invite
+        const resolved = await resolveProjectOwner(userId, projectId, userEmail);
+        console.log(`[Collab] Resolved permission for ${userId}:`, resolved);
+
+        if (!resolved || (resolved.permission !== 'owner' && resolved.permission !== 'editor')) {
+            console.log(`[Collab] Permission denied for invite.`);
+            return res.status(403).json({ success: false, message: 'You do not have permission to invite collaborators to this project.' });
+        }
+        const ownerId = resolved.ownerId;
+        console.log(`[Collab] Using ownerId: ${ownerId}`);
 
         // Validate permission value
         const allowed = ['viewer', 'editor'];
@@ -71,9 +86,28 @@ exports.invite = async (req, res) => {
         const docId = email.toLowerCase().replace(/[^a-z0-9]/g, '_');
         await collabRef.doc(docId).set(collabData, { merge: true });
 
-        // Send email invite
+        // Fetch project title to include in email
+        let projectTitle = 'Untitled Project';
         try {
-            await sendInviteEmail(email, req.user, projectId, permission);
+            const projectSnap = await db.collection('user').doc('roles')
+                .collection('client').doc(ownerId)
+                .collection('projects').doc(projectId).get();
+            if (projectSnap.exists) {
+                projectTitle = projectSnap.data().title || projectSnap.data().name || projectTitle;
+            }
+        } catch (pErr) {
+            console.warn('[Collab] Could not fetch project title:', pErr.message);
+        }
+
+        // Send email invite using emailService (uses GMAIL_USER/GMAIL_APP_PASSWORD)
+        try {
+            await sendCollaborationInviteEmail({
+                to: email,
+                fromName: req.user.displayName || req.user.username || 'A collaborator',
+                projectId,
+                projectTitle,
+                permission
+            });
         } catch (emailErr) {
             console.warn('[Collab] Email send failed:', emailErr.message);
         }
@@ -118,16 +152,33 @@ exports.list = async (req, res) => {
 // @access Private (project owner only)
 exports.updatePermission = async (req, res) => {
     try {
-        const ownerId = req.user.id;
+        const userId = req.user.id;
+        const userEmail = (req.user.email || '').toLowerCase();
         const { projectId, collabId } = req.params;
         const { permission } = req.body || {};
+
+        console.log(`[Collab] Update permission request by user ${userId} for collab ${collabId} in project ${projectId}`);
 
         const allowed = ['viewer', 'editor'];
         if (!allowed.includes(permission)) {
             return res.status(400).json({ success: false, message: 'Invalid permission.' });
         }
 
+        const resolved = await resolveProjectOwner(userId, projectId, userEmail);
+        console.log(`[Collab] Update perm - Resolved permission for requester ${userId}:`, resolved);
+
+        if (!resolved || resolved.permission !== 'owner') {
+            console.log(`[Collab] Denied: permission is ${resolved?.permission}`);
+            return res.status(403).json({ success: false, message: 'Only the project owner can change permissions.' });
+        }
+        const ownerId = resolved.ownerId;
+
         const collabRef = getCollabRef(ownerId, projectId).doc(collabId);
+        const collabDoc = await collabRef.get();
+        if (!collabDoc.exists) {
+            return res.status(404).json({ success: false, message: 'Collaborator not found.' });
+        }
+
         await collabRef.update({ permission });
 
         res.status(200).json({ success: true, message: 'Permission updated.' });
@@ -142,11 +193,38 @@ exports.updatePermission = async (req, res) => {
 // @access Private (project owner only)
 exports.remove = async (req, res) => {
     try {
-        const ownerId = req.user.id;
+        const userId = req.user.id;
+        const userEmail = (req.user.email || '').toLowerCase();
         const { projectId, collabId } = req.params;
 
-        const collabRef = getCollabRef(ownerId, projectId).doc(collabId);
-        await collabRef.delete();
+        console.log(`[Collab] Remove request by user ${userId} for collab ${collabId} in project ${projectId}`);
+
+        const resolved = await resolveProjectOwner(userId, projectId, userEmail);
+        console.log(`[Collab] Remove - Resolved permission for requester ${userId}:`, resolved);
+
+        if (!resolved) {
+            return res.status(403).json({ success: false, message: 'You do not have access to this project.' });
+        }
+
+        const ownerId = resolved.ownerId;
+        const isOwner = resolved.permission === 'owner';
+
+        // Find if this collabId belongs to the current user
+        const collabDoc = await getCollabRef(ownerId, projectId).doc(collabId).get();
+        if (!collabDoc.exists) {
+            return res.status(404).json({ success: false, message: 'Collaborator not found.' });
+        }
+
+        const collabData = collabDoc.data();
+        const isSelf = collabData.userId === userId || collabData.email.toLowerCase() === userEmail.toLowerCase();
+
+        if (!isOwner && !isSelf) {
+            console.log(`[Collab] Denied remove: not owner and not self.`);
+            return res.status(403).json({ success: false, message: 'Only the project owner can remove others. You can only remove yourself.' });
+        }
+
+        console.log(`[Collab] Deleting collaborator ${collabId} from owner ${ownerId} project ${projectId}. Reason: ${isOwner ? 'Owner action' : 'Self removal'}`);
+        await getCollabRef(ownerId, projectId).doc(collabId).delete();
 
         res.status(200).json({ success: true, message: 'Collaborator removed.' });
     } catch (err) {
@@ -200,34 +278,3 @@ exports.sharedWithMe = async (req, res) => {
     }
 };
 
-// Helper: send email invite
-async function sendInviteEmail(toEmail, fromUser, projectId, permission) {
-    const smtpHost = process.env.SMTP_HOST;
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
-    if (!smtpHost || !smtpUser || !smtpPass) return; // Skip if SMTP not configured
-
-    const transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: Number(process.env.SMTP_PORT || 587),
-        secure: false,
-        auth: { user: smtpUser, pass: smtpPass },
-    });
-
-    const fromName = fromUser.name || fromUser.username || fromUser.email || 'A collaborator';
-    const appUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-
-    await transporter.sendMail({
-        from: `"Vera Builder" <${smtpUser}>`,
-        to: toEmail,
-        subject: `${fromName} invited you to collaborate`,
-        html: `
-      <div style="font-family: sans-serif; max-width: 480px; margin: auto; padding: 24px; background: #1a1a2e; color: #e0e0e0; border-radius: 12px;">
-        <h2 style="color: #6c8fff;">You've been invited to collaborate!</h2>
-        <p><strong>${fromName}</strong> has invited you to join a project on <strong>Vera Builder</strong> as a <em>${permission}</em>.</p>
-        <a href="${appUrl}/design?invite=${projectId}" style="display: inline-block; margin-top: 16px; padding: 12px 24px; background: #6c8fff; color: #fff; border-radius: 8px; text-decoration: none;">Open Project</a>
-        <p style="margin-top: 24px; color: #888; font-size: 12px;">If you don't have an account yet, create one using this email address to accept the invite.</p>
-      </div>
-    `
-    });
-}

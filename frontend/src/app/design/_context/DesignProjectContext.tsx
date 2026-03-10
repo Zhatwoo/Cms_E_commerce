@@ -12,6 +12,8 @@ type DesignProjectContextType = {
   clientName: string | null;
   /** Project name for Storage path: {clientName}/{websiteName}/... */
   websiteName: string | null;
+  /** User permission for this project */
+  permission: "editor" | "viewer" | "owner";
 };
 
 const DesignProjectContext = createContext<DesignProjectContextType>({
@@ -19,6 +21,7 @@ const DesignProjectContext = createContext<DesignProjectContextType>({
   pageId: null,
   clientName: null,
   websiteName: null,
+  permission: "editor",
 });
 
 export function DesignProjectProvider({
@@ -32,6 +35,7 @@ export function DesignProjectProvider({
 }) {
   const [clientName, setClientName] = useState<string | null>(null);
   const [websiteName, setWebsiteName] = useState<string | null>(null);
+  const [permission, setPermission] = useState<"editor" | "viewer" | "owner">("editor");
 
   // Sync Firebase Auth when user has backend session (so Storage uploads work)
   useEffect(() => {
@@ -50,6 +54,11 @@ export function DesignProjectProvider({
         if (cancelled) return;
         const title = (res.project?.title || "website")?.trim() || "website";
         setWebsiteName(title);
+        if (res.project?.collaboratorPermission) {
+          setPermission(res.project.collaboratorPermission as any);
+        } else {
+          setPermission("owner");
+        }
       })
       .catch(() => {
         if (!cancelled) setWebsiteName("website");
@@ -59,7 +68,7 @@ export function DesignProjectProvider({
   }, [projectId]);
 
   return (
-    <DesignProjectContext.Provider value={{ projectId, pageId: pageId || null, clientName, websiteName }}>
+    <DesignProjectContext.Provider value={{ projectId, pageId: pageId || null, clientName, websiteName, permission }}>
       {children}
     </DesignProjectContext.Provider>
   );

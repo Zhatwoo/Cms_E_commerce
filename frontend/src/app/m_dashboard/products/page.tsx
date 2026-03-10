@@ -521,6 +521,7 @@ function toDashboardProduct(product: ApiProduct): Product {
     name: product.name || 'Untitled Product',
     sku: product.sku || '',
     category: product.category || 'General',
+    subcategory: product.subcategory || '',
     description: product.description || '',
     price: finalPrice,
     basePrice,
@@ -562,7 +563,7 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'low-stock' | 'out-of-stock'>('all');
   const [viewMode, setViewMode] = useState<'tile' | 'list'>('tile');
   const [showStatusFilterMenu, setShowStatusFilterMenu] = useState(false);
@@ -661,12 +662,36 @@ export default function ProductsPage() {
     };
   }, [loadProducts]);
 
-  const categories = ['All', ...Array.from(new Set(products.map((product) => product.category))).sort()];
+  const categoryOptions = Array.from(
+    new Set(
+      products
+        .map((product) => String(product.category || '').trim())
+        .filter((value) => value.length > 0)
+    )
+  ).sort();
+
+  const subcategoryOptions = Array.from(
+    new Set(
+      products
+        .map((product) => String(product.subcategory || '').trim())
+        .filter((value) => value.length > 0)
+    )
+  ).sort();
+
+  const filterOptions = [
+    { value: 'all', label: 'All' },
+    ...categoryOptions.map((category) => ({ value: `category:${category}`, label: category })),
+    ...subcategoryOptions.map((subcategory) => ({ value: `subcategory:${subcategory}`, label: `Subcategory: ${subcategory}` })),
+  ];
 
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.sku.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
+    const matchesCategory = selectedCategory === 'all'
+      || (selectedCategory.startsWith('category:')
+        && product.category === selectedCategory.slice('category:'.length))
+      || (selectedCategory.startsWith('subcategory:')
+        && String(product.subcategory || '').trim() === selectedCategory.slice('subcategory:'.length));
     const matchesStatus =
       statusFilter === 'all' ||
       (statusFilter === 'active' && product.status === 'active') ||
@@ -774,6 +799,7 @@ export default function ProductsPage() {
         name: String(productData.name || ''),
         sku: String(productData.sku || ''),
         category: String(productData.category || ''),
+        subcategory: String(productData.subcategory || ''),
         description: String(productData.description || ''),
         price: finalPrice,
         basePrice,
@@ -963,8 +989,8 @@ export default function ProductsPage() {
                 className="h-11 px-4 rounded-xl border text-sm min-w-[150px]"
                 style={{ backgroundColor: '#141446', borderColor: '#2D3A90', color: '#ffffff' }}
               >
-                {categories.map(category => (
-                  <option key={category} value={category}>{category}</option>
+                {filterOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
 
@@ -1116,7 +1142,7 @@ export default function ProductsPage() {
                 type="button"
                 onClick={() => {
                   setSearchTerm('');
-                  setSelectedCategory('All');
+                  setSelectedCategory('all');
                   setCurrentPage(1);
                 }}
                 className="mt-5 px-4 py-2 rounded-lg border text-sm"

@@ -274,6 +274,7 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 type EditorShellProps = {
   projectId: string;
   pageId?: string | null;
+  permission?: "editor" | "viewer" | "owner";
 };
 
 const LEFT_PANEL_DEFAULT_WIDTH = 320;
@@ -782,7 +783,7 @@ const CollabCursorBroadcaster = ({
 const COLLAB_EMIT_DEBOUNCE_MS = 400;
 
 /** Editor Shell */
-export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellProps) => {
+export const EditorShell = ({ projectId, pageId: initialPageId, permission = "editor" }: EditorShellProps) => {
   const router = useRouter();
   const { showAlert, showConfirm } = useAlert();
   const { emitCanvasChange, setOnRemoteCanvasChange } = useCollaboration();
@@ -2001,6 +2002,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   // Auto-save: mirror to sessionStorage on every change, save to DB right after
   const handleNodesChange = useCallback(
     (query: { serialize: () => string }) => {
+      if (permission === "viewer") return; // Viewer cannot change anything!
       editorQueryRef.current = query;
 
       if (!isReadyRef.current) return;

@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useDesignProject } from "../../_context/DesignProjectContext";
+import { apiFetch } from "@/lib/api";
 import { createPortal } from "react-dom";
 import {
     X,
@@ -16,7 +18,6 @@ import {
     Eye,
 } from "lucide-react";
 
-const API_BASE = `${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "")}/api`;
 
 type Permission = "editor" | "viewer";
 
@@ -34,18 +35,7 @@ interface Props {
     projectTitle?: string;
     isOpen: boolean;
     onClose: () => void;
-}
-
-async function apiFetch(path: string, init?: RequestInit) {
-    const res = await fetch(`${API_BASE}${path}`, {
-        credentials: "include",
-        ...init,
-        headers: {
-            "Content-Type": "application/json",
-            ...(init?.headers ?? {}),
-        },
-    });
-    return res.json();
+    myPermission?: "owner" | "editor" | "viewer";
 }
 
 const PERMISSION_LABELS: Record<Permission, { label: string; icon: React.ReactNode }> = {
@@ -53,7 +43,7 @@ const PERMISSION_LABELS: Record<Permission, { label: string; icon: React.ReactNo
     viewer: { label: "Can view", icon: <Eye className="w-3.5 h-3.5" /> },
 };
 
-export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, onClose }) => {
+export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, onClose, myPermission = "editor" }) => {
     const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
     const [email, setEmail] = useState("");
     const [permission, setPermission] = useState<Permission>("editor");
@@ -62,14 +52,15 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
     const [inviteSuccess, setInviteSuccess] = useState(false);
     const [copiedLink, setCopiedLink] = useState(false);
     const [permDropdown, setPermDropdown] = useState<string | null>(null);
+    const [removingCollab, setRemovingCollab] = useState<Collaborator | null>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const loadCollaborators = useCallback(async () => {
         try {
-            const data = await apiFetch(`/collaboration/${projectId}/collaborators`);
+            const data = await apiFetch<{ success: boolean; collaborators: Collaborator[] }>(`/api/collaboration/${projectId}/collaborators`);
             if (data.success) setCollaborators(data.collaborators || []);
-        } catch {
-            // silent
+        } catch (err) {
+            console.error("Failed to load collaborators:", err);
         }
     }, [projectId]);
 
@@ -96,7 +87,7 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
         setInviteError(null);
         setInviteSuccess(false);
         try {
-            const data = await apiFetch(`/collaboration/${projectId}/invite`, {
+            const data = await apiFetch<{ success: boolean; message?: string }>(`/api/collaboration/${projectId}/invite`, {
                 method: "POST",
                 body: JSON.stringify({ email: email.trim(), permission }),
             });
@@ -108,8 +99,8 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
             } else {
                 setInviteError(data.message || "Failed to invite");
             }
-        } catch {
-            setInviteError("Network error");
+        } catch (err: any) {
+            setInviteError(err.message || "Network error");
         } finally {
             setLoading(false);
         }
@@ -117,20 +108,39 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
 
     const handleChangePermission = async (collabId: string, perm: Permission) => {
         setPermDropdown(null);
-        await apiFetch(`/collaboration/${projectId}/collaborators/${collabId}`, {
-            method: "PATCH",
-            body: JSON.stringify({ permission: perm }),
-        });
-        setCollaborators(prev =>
-            prev.map(c => c.id === collabId ? { ...c, permission: perm } : c)
-        );
+        setInviteError(null);
+        try {
+            const data = await apiFetch<{ success: boolean; message?: string }>(`/api/collaboration/${projectId}/collaborators/${collabId}`, {
+                method: "PATCH",
+                body: JSON.stringify({ permission: perm }),
+            });
+            if (data.success) {
+                setCollaborators(prev =>
+                    prev.map(c => c.id === collabId ? { ...c, permission: perm } : c)
+                );
+            } else {
+                setInviteError(data.message || "Failed to update permission");
+            }
+        } catch (err: any) {
+            setInviteError(err.message || "Network error while updating permission");
+        }
     };
 
     const handleRemove = async (collabId: string) => {
-        await apiFetch(`/collaboration/${projectId}/collaborators/${collabId}`, {
-            method: "DELETE",
-        });
-        setCollaborators(prev => prev.filter(c => c.id !== collabId));
+        setPermDropdown(null);
+        setInviteError(null);
+        try {
+            const data = await apiFetch<{ success: boolean; message?: string }>(`/api/collaboration/${projectId}/collaborators/${collabId}`, {
+                method: "DELETE",
+            });
+            if (data.success) {
+                setCollaborators(prev => prev.filter(c => c.id !== collabId));
+            } else {
+                setInviteError(data.message || "Failed to remove collaborator");
+            }
+        } catch (err: any) {
+            setInviteError(err.message || "Network error while removing collaborator");
+        }
     };
 
     const handleCopyLink = () => {
@@ -185,74 +195,89 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
                 </div>
 
                 <div className="px-6 py-5 space-y-5">
-                    {/* Invite form */}
-                    <form onSubmit={handleInvite} className="space-y-3">
-                        <label className="text-xs font-medium text-white/50 uppercase tracking-wider">
-                            Invite by email
-                        </label>
-                        <div className="flex gap-2">
-                            <div className="flex-1 relative">
-                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-                                <input
-                                    type="email"
-                                    value={email}
-                                    onChange={e => setEmail(e.target.value)}
-                                    placeholder="collaborator@email.com"
-                                    className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 focus:bg-white/8 transition-all"
-                                />
-                            </div>
+                    {/* Invite Section (Owners only) */}
+                    {myPermission === "owner" ? (
+                        <form onSubmit={handleInvite} className="space-y-3">
+                            <label className="text-xs font-medium text-white/50 uppercase tracking-wider">
+                                Invite collaborators
+                            </label>
+                            <div className="flex gap-2">
+                                <div className="relative flex-1 group">
+                                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-blue-400/50 transition-colors" />
+                                    <input
+                                        autoFocus
+                                        type="email"
+                                        placeholder="friend@example.com"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value.toLowerCase())}
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-3.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all"
+                                    />
+                                </div>
 
-                            {/* Permission selector */}
-                            <div className="relative" ref={dropdownRef}>
+                                {/* Permission Selector */}
+                                <div className="relative" ref={permDropdown === "selector" ? dropdownRef : null}>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setPermDropdown(permDropdown === "selector" ? null : "selector");
+                                        }}
+                                        className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-medium text-white/70 hover:bg-white/10 transition-colors h-full"
+                                    >
+                                        {PERMISSION_LABELS[permission].icon}
+                                        <span>{PERMISSION_LABELS[permission].label}</span>
+                                        <ChevronDown className="w-3.5 h-3.5 opacity-40" />
+                                    </button>
+
+                                    {permDropdown === "selector" && (
+                                        <div className="absolute right-0 top-full mt-2 bg-[#1a1a2e] border border-white/10 rounded-xl shadow-2xl z-[110] min-w-[140px] py-1 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                            {(["editor", "viewer"] as Permission[]).map((p) => (
+                                                <button
+                                                    key={p}
+                                                    type="button"
+                                                    onMouseDown={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        setPermission(p);
+                                                        setPermDropdown(null);
+                                                    }}
+                                                    className={`w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-white/5 transition-colors ${permission === p ? "text-blue-400" : "text-white/70"}`}
+                                                >
+                                                    {PERMISSION_LABELS[p].icon}
+                                                    {PERMISSION_LABELS[p].label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
                                 <button
-                                    type="button"
-                                    onClick={() => setPermDropdown(permDropdown === "invite" ? null : "invite")}
-                                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white/70 hover:bg-white/10 transition-colors whitespace-nowrap"
+                                    type="submit"
+                                    disabled={loading || !email.trim()}
+                                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    style={{
+                                        background: "linear-gradient(135deg, #6c8fff, #a78bfa)",
+                                        color: "white",
+                                    }}
                                 >
-                                    {PERMISSION_LABELS[permission].icon}
-                                    <span className="text-xs">{PERMISSION_LABELS[permission].label}</span>
-                                    <ChevronDown className="w-3 h-3" />
+                                    <UserPlus className="w-4 h-4" />
+                                    {loading ? "…" : "Invite"}
                                 </button>
-                                {permDropdown === "invite" && (
-                                    <div className="absolute top-full right-0 mt-1 bg-[#1a1a2e] border border-white/10 rounded-xl shadow-2xl z-[100] min-w-[140px] py-1 overflow-hidden">
-                                        {(["editor", "viewer"] as Permission[]).map(p => (
-                                            <button
-                                                key={p}
-                                                type="button"
-                                                onClick={() => { setPermission(p); setPermDropdown(null); }}
-                                                className={`w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-white/5 transition-colors ${permission === p ? "text-blue-400" : "text-white/70"}`}
-                                            >
-                                                {PERMISSION_LABELS[p].icon}
-                                                {PERMISSION_LABELS[p].label}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
                             </div>
 
-                            <button
-                                type="submit"
-                                disabled={loading || !email.trim()}
-                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                style={{
-                                    background: "linear-gradient(135deg, #6c8fff, #a78bfa)",
-                                    color: "white",
-                                }}
-                            >
-                                <UserPlus className="w-4 h-4" />
-                                {loading ? "…" : "Invite"}
-                            </button>
-                        </div>
-
-                        {inviteError && (
-                            <p className="text-red-400 text-xs">{inviteError}</p>
-                        )}
-                        {inviteSuccess && (
-                            <p className="text-emerald-400 text-xs flex items-center gap-1">
-                                <Check className="w-3.5 h-3.5" /> Invitation sent!
+                            {inviteSuccess && (
+                                <p className="text-emerald-400 text-xs flex items-center gap-1">
+                                    <Check className="w-3.5 h-3.5" /> Invitation sent!
+                                </p>
+                            )}
+                        </form>
+                    ) : (
+                        <div className="p-4 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-center">
+                            <p className="text-xs text-white/40 italic">
+                                Only the project owner can invite new collaborators.
                             </p>
-                        )}
-                    </form>
+                        </div>
+                    )}
 
                     {/* Copy link */}
                     <div className="flex items-center gap-2 p-3 rounded-xl bg-white/5 border border-white/10">
@@ -300,41 +325,67 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
                                             </p>
                                         </div>
 
-                                        {/* Permission dropdown */}
-                                        <div className="relative">
-                                            <button
-                                                onClick={() => setPermDropdown(permDropdown === c.id ? null : c.id)}
-                                                className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-xs text-white/50"
-                                            >
-                                                {PERMISSION_LABELS[c.permission]?.icon}
-                                                <ChevronDown className="w-3 h-3" />
-                                            </button>
-                                            {permDropdown === c.id && (
-                                                <div className="absolute right-0 top-full mt-1 bg-[#1a1a2e] border border-white/10 rounded-xl shadow-2xl z-[110] min-w-[130px] py-1">
-                                                    {(["editor", "viewer"] as Permission[]).map(p => (
-                                                        <button
-                                                            key={p}
-                                                            onClick={() => handleChangePermission(c.id, p)}
-                                                            className={`w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-white/5 transition-colors ${c.permission === p ? "text-blue-400" : "text-white/70"}`}
-                                                        >
-                                                            {PERMISSION_LABELS[p].icon}
-                                                            {PERMISSION_LABELS[p].label}
-                                                        </button>
-                                                    ))}
-                                                    <div className="h-px bg-white/10 my-1" />
+                                        {/* Permission Actions (Owners only) */}
+                                        <div className="relative" ref={permDropdown === c.id ? dropdownRef : null}>
+                                            {myPermission === "owner" ? (
+                                                <>
                                                     <button
-                                                        onClick={() => { setPermDropdown(null); handleRemove(c.id); }}
-                                                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-white/5 transition-colors"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setPermDropdown(permDropdown === c.id ? null : c.id);
+                                                        }}
+                                                        className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-xs text-white/50"
                                                     >
-                                                        <Trash2 className="w-3.5 h-3.5" />
-                                                        Remove
+                                                        {PERMISSION_LABELS[c.permission]?.icon}
+                                                        <ChevronDown className="w-3 h-3" />
                                                     </button>
+                                                    {permDropdown === c.id && (
+                                                        <div className="absolute right-0 top-full mt-1 bg-[#1a1a2e] border border-white/10 rounded-xl shadow-2xl z-[110] min-w-[130px] py-1">
+                                                            {(["editor", "viewer"] as Permission[]).map(p => (
+                                                                <button
+                                                                    key={p}
+                                                                    onMouseDown={(e) => {
+                                                                        e.preventDefault();
+                                                                        e.stopPropagation();
+                                                                        handleChangePermission(c.id, p);
+                                                                    }}
+                                                                    className={`w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-white/5 transition-colors ${c.permission === p ? "text-blue-400" : "text-white/70"}`}
+                                                                >
+                                                                    {PERMISSION_LABELS[p].icon}
+                                                                    {PERMISSION_LABELS[p].label}
+                                                                </button>
+                                                            ))}
+                                                            <div className="h-px bg-white/10 my-1" />
+                                                            <button
+                                                                onMouseDown={(e) => {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    setPermDropdown(null);
+                                                                    setRemovingCollab(c);
+                                                                }}
+                                                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-white/5 transition-colors"
+                                                            >
+                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                                Remove
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <div className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs text-white/30 italic">
+                                                    {PERMISSION_LABELS[c.permission]?.label}
                                                 </div>
                                             )}
                                         </div>
                                     </div>
                                 ))}
                             </div>
+                        </div>
+                    )}
+                    {/* General Error Message */}
+                    {inviteError && (
+                        <div className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                            <p className="text-red-400 text-xs text-center">{inviteError}</p>
                         </div>
                     )}
                 </div>
@@ -346,6 +397,47 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
                     </p>
                 </div>
             </div>
+
+            {/* Remove Confirmation Modal */}
+            {removingCollab && (
+                <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setRemovingCollab(null)} />
+                    <div
+                        className="relative w-full max-w-sm bg-[#1a1a2e] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200"
+                        style={{
+                            background: "linear-gradient(145deg, #1a1a2e 0%, #16213e 100%)",
+                        }}
+                    >
+                        <div className="p-6 text-center">
+                            <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
+                                <Trash2 className="w-6 h-6 text-red-400" />
+                            </div>
+                            <h3 className="text-white font-semibold text-lg mb-2">Remove collaborator?</h3>
+                            <p className="text-white/40 text-sm mb-6">
+                                Are you sure you want to remove <span className="text-white/70 font-medium">{removingCollab.displayName || removingCollab.email}</span>? They will lose all access to this project.
+                            </p>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setRemovingCollab(null)}
+                                    className="flex-1 px-4 py-2.5 rounded-xl border border-white/10 text-white/60 hover:bg-white/5 transition-colors text-sm font-medium"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        const collabId = removingCollab.id;
+                                        setRemovingCollab(null);
+                                        await handleRemove(collabId);
+                                    }}
+                                    className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-colors text-sm font-medium shadow-lg shadow-red-500/20"
+                                >
+                                    Remove
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>,
         document.body
     );

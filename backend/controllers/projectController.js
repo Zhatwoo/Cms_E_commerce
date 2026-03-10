@@ -12,7 +12,17 @@ const { resolveProjectOwner } = require('../utils/resolveProjectOwner');
 exports.list = async (req, res) => {
   try {
     const userId = req.user.id;
-    const projects = await Project.list(userId);
+    const userEmail = req.user.email;
+    const owned = await Project.list(userId);
+    const shared = await Project.listShared(userId, userEmail);
+
+    // Merge and sort by updatedAt desc
+    const projects = [...owned, ...shared].sort((a, b) => {
+      const tA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const tB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      return tB - tA;
+    });
+
     res.status(200).json({
       success: true,
       projects,
@@ -132,6 +142,8 @@ exports.getOne = async (req, res) => {
         project = await Project.get(resolved.ownerId, projectId);
         if (project) {
           project.collaboratorPermission = resolved.permission;
+          project.isShared = true;
+          project.ownerId = resolved.ownerId;
         }
       }
     }

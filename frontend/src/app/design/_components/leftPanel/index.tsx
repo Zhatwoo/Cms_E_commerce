@@ -100,7 +100,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
   const searchParams = useSearchParams();
   const projectId = searchParams?.get("projectId") || null;
   const STORAGE_KEY = projectId ? `${STORAGE_KEY_PREFIX}_${projectId}` : STORAGE_KEY_PREFIX;
-  const { websiteName } = useDesignProject();
+  const { websiteName, permission } = useDesignProject();
 
   const { query, actions } = useEditor();
 
@@ -211,35 +211,38 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                   {websiteName ?? "Project Title"}
                 </h3>
                 <ChevronDown
-                  className={`w-4 h-4 text-brand-light transition-transform duration-200 shrink-0 ${menuOpen ? "rotate-180" : ""
-                    }`}
+                  className={`w-4 h-4 text-brand-light transition-transform duration-200 shrink-0 ${menuOpen ? "rotate-180" : ""}`}
                 />
               </button>
 
               {/* Dropdown menu */}
               {menuOpen && (
                 <div className="absolute left-0 top-full mt-2 w-56 bg-brand-darker border border-white/10 rounded-xl shadow-2xl py-1 z-50 animate-slideDownItem">
-                  {/* Save */}
-                  <button
-                    onClick={handleSave}
-                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-brand-lighter hover:bg-white/5 transition-colors cursor-pointer"
-                  >
-                    <Save className="w-4 h-4 text-brand-light" />
-                    Save project
-                    <span className="ml-auto text-[10px] text-brand-light/50">Ctrl+S</span>
-                  </button>
+                  {permission !== "viewer" && (
+                    <>
+                      {/* Save */}
+                      <button
+                        onClick={handleSave}
+                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-brand-lighter hover:bg-white/5 transition-colors cursor-pointer"
+                      >
+                        <Save className="w-4 h-4 text-brand-light" />
+                        Save project
+                        <span className="ml-auto text-[10px] text-brand-light/50">Ctrl+S</span>
+                      </button>
 
-                  {/* Export JSON */}
-                  <button
-                    onClick={handleExportJson}
-                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-brand-lighter hover:bg-white/5 transition-colors cursor-pointer"
-                  >
-                    <FileDown className="w-4 h-4 text-brand-light" />
-                    Export JSON
-                  </button>
+                      {/* Export JSON */}
+                      <button
+                        onClick={handleExportJson}
+                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-brand-lighter hover:bg-white/5 transition-colors cursor-pointer"
+                      >
+                        <FileDown className="w-4 h-4 text-brand-light" />
+                        Export JSON
+                      </button>
 
-                  {/* Divider */}
-                  <div className="border-t border-white/5 my-1" />
+                      {/* Divider */}
+                      <div className="border-t border-white/5 my-1" />
+                    </>
+                  )}
 
                   {/* Project settings (placeholder) */}
                   <button
@@ -254,15 +257,21 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                   {/* Divider */}
                   <div className="border-t border-white/5 my-1" />
 
-                  {/* Clear canvas */}
-                  <button
-                    onClick={handleClearCanvas}
-                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Clear canvas
-                  </button>
+                  {permission !== "viewer" && (
+                    <>
+                      {/* Clear canvas */}
+                      <button
+                        onClick={handleClearCanvas}
+                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Clear canvas
+                      </button>
 
+                      {/* Divider */}
+                      <div className="border-t border-white/5 my-1" />
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -296,8 +305,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
             onClick={() => setActivePanel("files")}
             className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "files"
               ? "text-brand-lighter bg-brand-medium/50 shadow-sm"
-              : "text-brand-light hover:text-brand-lighter"
-              }`}
+              : "text-brand-light hover:text-brand-lighter"}`}
           >
             <FileStack className="w-4 h-4 shrink-0" />
             <span>Files</span>
@@ -307,8 +315,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
             onClick={() => setActivePanel("components")}
             className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "components"
               ? "text-brand-lighter bg-brand-medium/50 shadow-sm"
-              : "text-brand-light hover:text-brand-lighter"
-              }`}
+              : "text-brand-light hover:text-brand-lighter"}`}
           >
             <Component className="w-4 h-4 shrink-0" />
             <span>Components</span>
@@ -318,8 +325,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
             onClick={() => setActivePanel("media")}
             className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "media"
               ? "text-brand-lighter bg-brand-medium/50 shadow-sm"
-              : "text-brand-light hover:text-brand-lighter"
-              }`}
+              : "text-brand-light hover:text-brand-lighter"}`}
           >
             <Image className="w-4 h-4 shrink-0" />
             <span>Media</span>

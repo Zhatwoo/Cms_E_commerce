@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { duplicateNodes, groupSelection, ungroupSelection, selectedToIds } from "../../_lib/canvasActions";
 import { useCanvasTool } from "../CanvasToolContext";
+import { useDesignProject } from "../../_context/DesignProjectContext";
 
 /** Node types that cannot be deleted, duplicated, or dragged */
 const PROTECTED = new Set(["Viewport"]);
@@ -83,6 +84,7 @@ export const FilesPanel = () => {
     selected: state.events.selected,
   }));
   const { activeTool } = useCanvasTool();
+  const { permission } = useDesignProject();
 
   const [isPending, startTransition] = useTransition();
 
@@ -342,8 +344,8 @@ export const FilesPanel = () => {
   ) {
     // Only left-click
     if (e.button !== 0) return;
-    // Hand tool = pan only, no layer reordering
-    if (activeTool === "hand") return;
+    // Hand tool or view-only mode = no layer reordering
+    if (activeTool === "hand" || permission === "viewer") return;
     // Don't drag protected nodes
     if (UNDRAGGABLE.has(nodeId)) return;
     const node = nodesRef.current[nodeId];
@@ -645,7 +647,7 @@ export const FilesPanel = () => {
           className={`
             group flex items-center gap-1 py-2 px-1 rounded-lg transition-colors relative
             ${isSel ? "bg-blue-400/20 text-white" : "text-white/80 hover:bg-brand-medium/20 hover:text-white"}
-            cursor-pointer
+            ${permission === "viewer" ? "cursor-default" : "cursor-pointer"}
           `}
           style={{ paddingLeft: `${depth * 10 + 5}px` }}
         >
@@ -666,37 +668,39 @@ export const FilesPanel = () => {
           <span className="text-sm font-medium truncate flex-1 min-w-0">
             {name || "Node"}
           </span>
-          {/* Visibility and Lock toggles (visible on hover or when selected) */}
-          <div className={`flex items-center gap-0 shrink-0 ${isSel ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}>
-            <button
-              type="button"
-              title={visibility === "hidden" ? "Show" : "Hide"}
-              onClick={(e) => {
-                e.stopPropagation();
-                const next = visibility === "hidden" ? "visible" : "hidden";
-                try {
-                  actions.setProp(nodeId, (p: Record<string, unknown>) => { p.visibility = next; });
-                } catch { /* skip */ }
-              }}
-              className={`p-1 rounded transition-colors ${visibility === "hidden" ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
-            >
-              {visibility === "hidden" ? <EyeOff size={14} /> : <Eye size={14} />}
-            </button>
-            <button
-              type="button"
-              title={locked ? "Unlock" : "Lock"}
-              onClick={(e) => {
-                e.stopPropagation();
-                const next = !locked;
-                try {
-                  actions.setProp(nodeId, (p: Record<string, unknown>) => { p.locked = next; });
-                } catch { /* skip */ }
-              }}
-              className={`p-1 rounded transition-colors ${locked ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
-            >
-              {locked ? <Lock size={14} /> : <LockOpen size={14} />}
-            </button>
-          </div>
+          {/* Visibility and Lock toggles (visible on hover or when selected, hidden for viewers) */}
+          {permission !== "viewer" && (
+            <div className={`flex items-center gap-0 shrink-0 ${isSel ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}>
+              <button
+                type="button"
+                title={visibility === "hidden" ? "Show" : "Hide"}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const next = visibility === "hidden" ? "visible" : "hidden";
+                  try {
+                    actions.setProp(nodeId, (p: Record<string, unknown>) => { p.visibility = next; });
+                  } catch { /* skip */ }
+                }}
+                className={`p-1 rounded transition-colors ${visibility === "hidden" ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
+              >
+                {visibility === "hidden" ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+              <button
+                type="button"
+                title={locked ? "Unlock" : "Lock"}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const next = !locked;
+                  try {
+                    actions.setProp(nodeId, (p: Record<string, unknown>) => { p.locked = next; });
+                  } catch { /* skip */ }
+                }}
+                className={`p-1 rounded transition-colors ${locked ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
+              >
+                {locked ? <Lock size={14} /> : <LockOpen size={14} />}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Children */}
@@ -764,27 +768,27 @@ export const FilesPanel = () => {
           Select
         </button>
         <button
-          onClick={() => !nodeProtected && handleDuplicate(contextMenu.nodeId)}
-          disabled={nodeProtected}
-          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${nodeProtected ? "text-brand-light/30 cursor-not-allowed" : "text-brand-lighter hover:bg-white/10 cursor-pointer"
+          onClick={() => !nodeProtected && permission !== "viewer" && handleDuplicate(contextMenu.nodeId)}
+          disabled={nodeProtected || permission === "viewer"}
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${nodeProtected || permission === "viewer" ? "text-brand-light/30 cursor-not-allowed" : "text-brand-lighter hover:bg-white/10 cursor-pointer"
             }`}
         >
           <Copy className="w-3.5 h-3.5" />
           Duplicate
         </button>
         <button
-          onClick={() => canGroup && handleGroup()}
-          disabled={!canGroup}
-          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${!canGroup ? "text-brand-light/30 cursor-not-allowed" : "text-brand-lighter hover:bg-white/10 cursor-pointer"
+          onClick={() => canGroup && permission !== "viewer" && handleGroup()}
+          disabled={!canGroup || permission === "viewer"}
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${!canGroup || permission === "viewer" ? "text-brand-light/30 cursor-not-allowed" : "text-brand-lighter hover:bg-white/10 cursor-pointer"
             }`}
         >
           <Group className="w-3.5 h-3.5" />
           Group
         </button>
         <button
-          onClick={() => canUngroup && handleUngroup()}
-          disabled={!canUngroup}
-          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${!canUngroup ? "text-brand-light/30 cursor-not-allowed" : "text-brand-lighter hover:bg-white/10 cursor-pointer"
+          onClick={() => canUngroup && permission !== "viewer" && handleUngroup()}
+          disabled={!canUngroup || permission === "viewer"}
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${!canUngroup || permission === "viewer" ? "text-brand-light/30 cursor-not-allowed" : "text-brand-lighter hover:bg-white/10 cursor-pointer"
             }`}
         >
           <Ungroup className="w-3.5 h-3.5" />
@@ -792,9 +796,9 @@ export const FilesPanel = () => {
         </button>
         <div className="border-t border-white/5 my-0.5" />
         <button
-          onClick={() => !nodeProtected && handleDelete(contextMenu.nodeId)}
-          disabled={nodeProtected}
-          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${nodeProtected ? "text-brand-light/30 cursor-not-allowed" : "text-red-400 hover:bg-red-500/10 cursor-pointer"
+          onClick={() => !nodeProtected && permission !== "viewer" && handleDelete(contextMenu.nodeId)}
+          disabled={nodeProtected || permission === "viewer"}
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${nodeProtected || permission === "viewer" ? "text-brand-light/30 cursor-not-allowed" : "text-red-400 hover:bg-red-500/10 cursor-pointer"
             }`}
         >
           <Trash2 className="w-3.5 h-3.5" />
