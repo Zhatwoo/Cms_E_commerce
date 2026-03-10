@@ -405,7 +405,19 @@ const ProductDetailsModal = ({ product, onClose, colors }: {
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Status</p>
-                  <p className="font-semibold capitalize" style={{ color: colors.text.primary }}>{product.status}</p>
+                  <p
+                    className="font-semibold capitalize"
+                    style={{
+                      color:
+                        product.status === 'active'
+                          ? '#22c55e'
+                          : product.status === 'inactive'
+                            ? '#ef4444'
+                            : colors.text.primary,
+                    }}
+                  >
+                    {product.status}
+                  </p>
                 </div>
               </div>
               <div className="pt-3 border-t" style={{ borderColor: colors.border.faint }}>

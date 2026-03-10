@@ -60,7 +60,7 @@ const MAX_VARIANTS = 2;
 interface FormData {
   name: string; sku: string; category: string; subcategory: string; description: string;
   status: 'active' | 'inactive' | 'draft';
-  price: number; costPrice: number; discount: number; discountType: 'percentage' | 'fixed';
+  price: number; costPrice: number; discount: number;
   images: string[]; stock: number; lowStockThreshold: number;
   trackInventory: boolean; inventoryStatus: 'in_stock' | 'out_of_stock';
   hasVariants: boolean; variants: Variant[]; variantStocks: VariantStockMap; variantPrices: VariantPriceMap;
@@ -84,6 +84,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
   const [dragging, setDragging] = useState(false);
   const [thumbDrag, setThumbDrag] = useState<number | null>(null);
   const [thumbOver, setThumbOver] = useState<number | null>(null);
+  const [removedVariantRows, setRemovedVariantRows] = useState<string[]>([]);
   const [showSubcategoryDropdown, setShowSubcategoryDropdown] = useState(false);
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -91,7 +92,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
 
   const [fd, setFd] = useState<FormData>({
     name: '', sku: generateAutoSku(''), category: '', subcategory: '', description: '',
-    status: 'active', price: 0, costPrice: 0, discount: 0, discountType: 'percentage',
+    status: 'active', price: 0, costPrice: 0, discount: 0,
     images: [], stock: 100, lowStockThreshold: 20, trackInventory: true, inventoryStatus: 'in_stock', hasVariants: false, variants: [], variantStocks: {}, variantPrices: {},
   });
 
@@ -142,13 +143,8 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
       const imageList = existingImages.length > 0
         ? existingImages
         : (editingProduct?.image && isImageSource(editingProduct.image) ? [editingProduct.image] : []);
-      const basePrice = typeof editingProduct?.basePrice === 'number'
-        ? editingProduct.basePrice
-        : (typeof editingProduct?.compareAtPrice === 'number' && editingProduct.compareAtPrice > 0
-          ? editingProduct.compareAtPrice
-          : (editingProduct?.price ?? 0));
-      const discount = typeof editingProduct?.discount === 'number' ? editingProduct.discount : 0;
-      const discountType = editingProduct?.discountType === 'fixed' ? 'fixed' : 'percentage';
+      const basePrice = Number(editingProduct?.price ?? 0);
+      const discount = Number(editingProduct?.compareAtPrice ?? editingProduct?.basePrice ?? 0);
       const hasVariants = typeof editingProduct?.hasVariants === 'boolean'
         ? editingProduct.hasVariants
         : existingVariants.length > 0;
@@ -172,6 +168,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
       const inferredInventoryStatus: 'in_stock' | 'out_of_stock' = (editingProduct?.stock ?? 0) > 0 ? 'in_stock' : 'out_of_stock';
 
       setImages(imageList.map((src) => ({ id: uid(), src })));
+      setRemovedVariantRows([]);
       setSlide(0);
       setEnableVariationImages(existingVariants.some((variant) =>
         variant.options.some((option) => Boolean(String(option.image || '').trim()))
@@ -182,7 +179,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
         category: initialCategory, subcategory: editingProduct?.subcategory || '', description: editingProduct?.description || '',
         status: editingProduct?.status || 'active', price: basePrice,
         costPrice: typeof editingProduct?.costPrice === 'number' ? editingProduct.costPrice : 0,
-        discount, discountType, images: imageList,
+        discount, images: imageList,
         stock: editingProduct?.stock ?? 100,
         lowStockThreshold: typeof editingProduct?.lowStockThreshold === 'number' ? editingProduct.lowStockThreshold : 20,
         trackInventory: true,
@@ -292,9 +289,10 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
   const patch = (p: Partial<FormData>) => setFd(prev => ({ ...prev, ...p }));
 
   // Pricing
-  const discBase = useMemo(() =>
-    fd.discountType === 'percentage' ? fd.price * (1 - fd.discount / 100) : fd.price - fd.discount,
-    [fd.price, fd.discount, fd.discountType]);
+  const basePrice = useMemo(() => Math.max(0, Number(fd.price || 0)), [fd.price]);
+  const costOfGoods = useMemo(() => Math.max(0, Number(fd.costPrice || 0)), [fd.costPrice]);
+  const profitValue = useMemo(() => basePrice - costOfGoods, [basePrice, costOfGoods]);
+  const marginValue = useMemo(() => (basePrice > 0 ? (profitValue / basePrice) * 100 : 0), [basePrice, profitValue]);
 
   const combos = useMemo(() => {
     if (!fd.hasVariants) return [];
@@ -306,22 +304,33 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
         combo.map((item) => ({ variantId: item.variant.id, optionId: item.option.id }))
       );
       const mappedPrice = Number(fd.variantPrices?.[stockKey]);
-      const price = Number.isFinite(mappedPrice) && mappedPrice >= 0 ? mappedPrice : Math.max(0, discBase);
+      const price = Number.isFinite(mappedPrice) && mappedPrice >= 0 ? mappedPrice : basePrice;
       return { label: combo.map(c => c.option.name).join(' / '), price, stockKey };
     });
-  }, [fd.variants, fd.hasVariants, discBase, fd.variantPrices]);
+  }, [fd.variants, fd.hasVariants, basePrice, fd.variantPrices]);
+
+  const visibleCombos = useMemo(
+    () => combos.filter((combo) => !removedVariantRows.includes(combo.stockKey)),
+    [combos, removedVariantRows]
+  );
 
   useEffect(() => {
-    if (!fd.hasVariants || combos.length === 0) return;
+    if (removedVariantRows.length === 0) return;
+    const validKeys = new Set(combos.map((combo) => combo.stockKey));
+    setRemovedVariantRows((prev) => prev.filter((key) => validKeys.has(key)));
+  }, [combos, removedVariantRows.length]);
+
+  useEffect(() => {
+    if (!fd.hasVariants || visibleCombos.length === 0) return;
 
     setFd((prev) => {
       const nextVariantStocks: VariantStockMap = {};
       const nextVariantPrices: VariantPriceMap = {};
-      for (const combo of combos) {
+      for (const combo of visibleCombos) {
         const current = Number(prev.variantStocks?.[combo.stockKey] ?? 0);
         nextVariantStocks[combo.stockKey] = Number.isFinite(current) && current > 0 ? Math.floor(current) : 0;
         const currentPrice = Number(prev.variantPrices?.[combo.stockKey]);
-        nextVariantPrices[combo.stockKey] = Number.isFinite(currentPrice) && currentPrice >= 0 ? currentPrice : Math.max(0, discBase);
+        nextVariantPrices[combo.stockKey] = Number.isFinite(currentPrice) && currentPrice >= 0 ? currentPrice : basePrice;
       }
 
       const prevStockKeys = Object.keys(prev.variantStocks || {});
@@ -336,13 +345,13 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
 
       return { ...prev, variantStocks: nextVariantStocks, variantPrices: nextVariantPrices };
     });
-  }, [combos, fd.hasVariants, discBase]);
+  }, [visibleCombos, fd.hasVariants, basePrice]);
 
   const range = useMemo(() => {
-    if (!combos.length) return null;
-    const prices = combos.map(c => c.price);
+    if (!visibleCombos.length) return null;
+    const prices = visibleCombos.map(c => c.price);
     return { min: Math.min(...prices), max: Math.max(...prices) };
-  }, [combos]);
+  }, [visibleCombos]);
 
   // Variant helpers
   const addVariant = () => {
@@ -402,7 +411,6 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
   const save = async () => {
     if (saving) return;
     if (!fd.name.trim()) { showAlert('Please enter a product name', 'error'); return; }
-    if (fd.price <= 0) { showAlert('Please enter a valid price', 'error'); return; }
     setSaving(true);
     try {
       const normalizedSku = fd.sku.trim() || generateAutoSku(fd.name);
@@ -425,33 +433,37 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
         .filter((variant) => variant.name || variant.options.length > 0);
 
       const hasVariants = fd.hasVariants && variants.length > 0;
-      if (hasVariants && combos.length === 0) {
+      if (!hasVariants && fd.price <= 0) {
+        showAlert('Please enter a valid price', 'error');
+        setSaving(false);
+        return;
+      }
+      if (hasVariants && visibleCombos.length === 0) {
         showAlert('Add at least one option to generate variant combinations.', 'error');
         setSaving(false);
         return;
       }
       const combinationStockMap: VariantStockMap = hasVariants
-        ? combos.reduce<VariantStockMap>((acc, combo) => {
+        ? visibleCombos.reduce<VariantStockMap>((acc, combo) => {
           const amount = Number(fd.variantStocks?.[combo.stockKey] ?? 0);
           acc[combo.stockKey] = Number.isFinite(amount) && amount > 0 ? Math.floor(amount) : 0;
           return acc;
         }, {})
         : {};
       const combinationPriceMap: VariantPriceMap = hasVariants
-        ? combos.reduce<VariantPriceMap>((acc, combo) => {
-          const amount = Number(fd.variantPrices?.[combo.stockKey] ?? Math.max(0, discBase));
-          acc[combo.stockKey] = Number.isFinite(amount) && amount >= 0 ? amount : Math.max(0, discBase);
+        ? visibleCombos.reduce<VariantPriceMap>((acc, combo) => {
+          const amount = Number(fd.variantPrices?.[combo.stockKey] ?? basePrice);
+          acc[combo.stockKey] = Number.isFinite(amount) && amount >= 0 ? amount : basePrice;
           return acc;
         }, {})
         : {};
       const combinationTotalStock = hasVariants
         ? Object.values(combinationStockMap).reduce((sum, amount) => sum + amount, 0)
         : 0;
-      const basePrice = Number(fd.price || 0);
       const combinationPrices = hasVariants ? Object.values(combinationPriceMap) : [];
       const finalPrice = hasVariants
-        ? Number((combinationPrices.length ? Math.min(...combinationPrices) : Math.max(0, discBase)))
-        : Math.max(0, discBase);
+        ? Number((combinationPrices.length ? Math.min(...combinationPrices) : basePrice))
+        : basePrice;
       const priceRangeMin = hasVariants ? Number((combinationPrices.length ? Math.min(...combinationPrices) : finalPrice)) : finalPrice;
       const priceRangeMax = hasVariants ? Number((combinationPrices.length ? Math.max(...combinationPrices) : finalPrice)) : finalPrice;
       const computedStock = hasVariants ? combinationTotalStock : Math.max(0, fd.stock);
@@ -478,9 +490,8 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
         price: finalPrice,
         basePrice,
         finalPrice,
-        compareAtPrice: fd.discount > 0 ? basePrice : null,
-        discount: Number(fd.discount || 0),
-        discountType: fd.discountType,
+        compareAtPrice: hasVariants && Number(fd.discount || 0) > 0 ? Number(fd.discount) : null,
+        discount: 0,
         hasVariants,
         variants: hasVariants ? variants : [],
         priceRangeMin,
@@ -529,8 +540,8 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
     [fd.variants]
   );
   const totalVariantStock = useMemo(
-    () => combos.reduce((sum, combo) => sum + Math.max(0, Number(fd.variantStocks?.[combo.stockKey] ?? 0)), 0),
-    [combos, fd.variantStocks]
+    () => visibleCombos.reduce((sum, combo) => sum + Math.max(0, Number(fd.variantStocks?.[combo.stockKey] ?? 0)), 0),
+    [visibleCombos, fd.variantStocks]
   );
   const [expandVariantStocksPanel, setExpandVariantStocksPanel] = useState(false);
 
@@ -819,7 +830,6 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
   const stockSummaryText = displayStock > 0
     ? `In Stock - ${displayStock} ${displayStock === 1 ? 'unit' : 'units'}`
     : 'Out of Stock';
-  const globalPricingRule: 'modifier' | 'override' = fd.variants[0]?.pricingMode === 'override' ? 'override' : 'modifier';
 
   return createPortal(
     <AnimatePresence>
@@ -1185,15 +1195,25 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                     className={`${iCls} resize-none`} style={{ ...iSt, minHeight: 116 }} />
                 </div>
 
-                <div className="flex items-center justify-center gap-3">
-                  <div className="flex-1 h-px" style={{ backgroundColor: '#3A4473' }} />
-                  <div className="text-xs font-semibold uppercase tracking-[0.12em]" style={{ color: '#9FB3DF' }}>Pricing</div>
-                  <div className="flex-1 h-px" style={{ backgroundColor: '#3A4473' }} />
-                </div>
+                {!fd.hasVariants && (
+                  <>
+                    <div className="flex items-center justify-center gap-3">
+                      <div className="flex-1 h-px" style={{ backgroundColor: '#3A4473' }} />
+                      <div className="text-xs font-semibold uppercase tracking-[0.12em]" style={{ color: '#9FB3DF' }}>Pricing</div>
+                      <div className="flex-1 h-px" style={{ backgroundColor: '#3A4473' }} />
+                    </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className={lCls} style={{ color: '#9FB3DF' }}>Price *</label>
+                    <div className="mb-2 flex items-center gap-1.5 leading-none">
+                      <label className="text-xs tracking-[0.12em] font-semibold uppercase leading-none" style={{ color: '#9FB3DF' }}>Price*</label>
+                      <div className="relative group">
+                        <span className="h-4 w-4 rounded-full border text-[10px] font-bold leading-none inline-flex items-center justify-center cursor-help" style={{ color: '#C9D8FF', borderColor: '#4D5EC8', backgroundColor: '#1A2577' }}>i</span>
+                        <div className="pointer-events-none absolute left-0 top-full z-50 mt-2 w-56 rounded-xl border p-3 opacity-0 transition-opacity group-hover:opacity-100" style={{ backgroundColor: '#121A63', borderColor: '#3140A6', boxShadow: '0 18px 34px rgba(0,0,0,0.45)' }}>
+                          <p className="text-xs" style={{ color: '#DCE7FF' }}><span className="font-semibold"></span> The default price of this product.</p>
+                        </div>
+                      </div>
+                    </div>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: '#D6CEFF' }}>₱</span>
                       <input type="number" value={fd.price || ''} onChange={e => set('price', parseFloat(e.target.value) || 0)}
@@ -1201,7 +1221,15 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                     </div>
                   </div>
                   <div>
-                    <label className={lCls} style={{ color: '#9FB3DF' }}>Cost Price</label>
+                    <div className="mb-2 flex items-center gap-1.5 leading-none">
+                      <label className="text-xs tracking-[0.12em] font-semibold uppercase leading-none" style={{ color: '#9FB3DF' }}>Cost of Goods</label>
+                      <div className="relative group">
+                        <span className="h-4 w-4 rounded-full border text-[10px] font-bold leading-none inline-flex items-center justify-center cursor-help" style={{ color: '#C9D8FF', borderColor: '#4D5EC8', backgroundColor: '#1A2577' }}>i</span>
+                        <div className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 w-72 -translate-x-1/2 rounded-xl border p-3 opacity-0 transition-opacity group-hover:opacity-100" style={{ backgroundColor: '#121A63', borderColor: '#3140A6', boxShadow: '0 18px 34px rgba(0,0,0,0.45)' }}>
+                          <p className="text-xs" style={{ color: '#DCE7FF' }}><span className="font-semibold"></span> The amount you're spending to produce and sell this product. Your customers won't see this.</p>
+                        </div>
+                      </div>
+                    </div>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: '#D6CEFF' }}>₱</span>
                       <input
@@ -1216,29 +1244,46 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                     </div>
                   </div>
                   <div>
-                    <label className={lCls} style={{ color: '#9FB3DF' }}>Discount</label>
-                    <div className="flex items-center rounded-xl border overflow-hidden" style={iSt}>
-                      <select
-                        value={fd.discountType}
-                        onChange={e => set('discountType', e.target.value === 'fixed' ? 'fixed' : 'percentage')}
-                        className="px-3 py-2.5 text-sm font-semibold focus:outline-none bg-transparent border-0"
-                        style={{ color: '#D6CEFF', width: 64 }}
-                      >
-                        <option value="percentage">%</option>
-                        <option value="fixed">₱</option>
-                      </select>
-                      <div className="w-px self-stretch" style={{ backgroundColor: '#3140A6' }} />
+                    <div className="mb-2 flex items-center gap-1.5 leading-none">
+                      <label className="text-xs tracking-[0.12em] font-semibold uppercase leading-none" style={{ color: '#9FB3DF' }}>Strikethrough Price</label>
+                      <div className="relative group">
+                        <span className="h-4 w-4 rounded-full border text-[10px] font-bold leading-none inline-flex items-center justify-center cursor-help" style={{ color: '#C9D8FF', borderColor: '#4D5EC8', backgroundColor: '#1A2577' }}>i</span>
+                        <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border p-3 opacity-0 transition-opacity group-hover:opacity-100" style={{ backgroundColor: '#121A63', borderColor: '#3140A6', boxShadow: '0 18px 34px rgba(0,0,0,0.45)' }}>
+                          <p className="text-xs" style={{ color: '#DCE7FF' }}><span className="font-semibold"></span> Appears crossed out next to the product's price. Used to show customers the original or market price of a product.</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: '#D6CEFF' }}>₱</span>
                       <input
                         type="number"
                         value={fd.discount || ''}
                         onChange={e => set('discount', parseFloat(e.target.value) || 0)}
-                        placeholder="0"
+                        placeholder="0.00"
                         step="0.01"
-                        className="flex-1 px-3 py-2.5 bg-transparent text-white focus:outline-none"
+                        className={iCls}
+                        style={{ ...iSt, paddingLeft: '1.8rem' }}
                       />
                     </div>
                   </div>
-                </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-xl border px-4 py-2.5" style={{ borderColor: '#3140A6', backgroundColor: '#121A63' }}>
+                        <p className="text-[11px] uppercase tracking-[0.12em]" style={{ color: '#9FB3DF' }}>Profit</p>
+                        <p className="text-sm font-semibold" style={{ color: profitValue >= 0 ? '#34D399' : '#F87171' }}>
+                          P{profitValue.toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border px-4 py-2.5" style={{ borderColor: '#3140A6', backgroundColor: '#121A63' }}>
+                        <p className="text-[11px] uppercase tracking-[0.12em]" style={{ color: '#9FB3DF' }}>Margin</p>
+                        <p className="text-sm font-semibold" style={{ color: marginValue >= 0 ? '#34D399' : '#F87171' }}>
+                          {marginValue.toFixed(2)}%
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 <div className="flex items-center justify-center gap-3">
                   <div className="flex-1 h-px" style={{ backgroundColor: '#3A4473' }} />
@@ -1471,7 +1516,9 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
 
                 <div className="flex items-center justify-center gap-3">
                   <div className="flex-1 h-px" style={{ backgroundColor: '#3A4473' }} />
-                  <div className="text-xs font-semibold uppercase tracking-[0.12em]" style={{ color: '#9FB3DF' }}>Stock</div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.12em]" style={{ color: '#9FB3DF' }}>
+                    {fd.hasVariants ? 'Stock and Pricing' : 'Stock'}
+                  </div>
                   <div className="flex-1 h-px" style={{ backgroundColor: '#3A4473' }} />
                 </div>
 
@@ -1502,38 +1549,46 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                               <div>
-                                <label className={lCls} style={{ color: '#9FB3DF' }}>Pricing Rule</label>
-                                <select
-                                  value={globalPricingRule}
-                                  onChange={(e) => {
-                                    const nextRule: 'modifier' | 'override' = e.target.value === 'override' ? 'override' : 'modifier';
-                                    patch({
-                                      variants: fd.variants.map((variant) => ({ ...variant, pricingMode: nextRule })),
-                                    });
-                                  }}
-                                  className={iCls}
-                                  style={iSt}
-                                >
-                                  <option value="modifier">Add from base price</option>
-                                  <option value="override">Replace base price</option>
-                                </select>
+                                <div className="mb-2 flex items-center gap-1.5 leading-none">
+                                  <label className="text-xs tracking-[0.12em] font-semibold uppercase leading-none" style={{ color: '#9FB3DF' }}>Strikethrough Price</label>
+                                  <div className="relative group">
+                                    <span className="h-4 w-4 rounded-full border text-[10px] font-bold leading-none inline-flex items-center justify-center cursor-help" style={{ color: '#C9D8FF', borderColor: '#4D5EC8', backgroundColor: '#1A2577' }}>i</span>
+                                    <div className="pointer-events-none absolute left-0 top-full z-50 mt-2 w-56 rounded-xl border p-3 opacity-0 transition-opacity group-hover:opacity-100" style={{ backgroundColor: '#121A63', borderColor: '#3140A6', boxShadow: '0 18px 34px rgba(0,0,0,0.45)' }}>
+                                      <p className="text-xs" style={{ color: '#DCE7FF' }}><span className="font-semibold"></span> Appears crossed out next to the product's price. Used to show customers the original or market price of a product.</p>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="relative">
+                                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: '#D6CEFF' }}>₱</span>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    step="0.01"
+                                    value={fd.discount || ''}
+                                    onChange={(e) => set('discount', parseFloat(e.target.value) || 0)}
+                                    className={iCls}
+                                    style={{ ...iSt, paddingLeft: '1.8rem' }}
+                                    placeholder="0.00"
+                                  />
+                                </div>
                               </div>
                             </div>
-                            {combos.length > 0 ? (
+                            {visibleCombos.length > 0 ? (
                               <div
                                 className="overflow-auto pr-1 rounded-lg"
                                 style={{
                                   maxHeight: expandVariantStocksPanel ? 380 : 240,
                                 }}
                               >
-                                <div className="min-w-[520px] space-y-2">
-                                  <div className="grid grid-cols-[minmax(220px,1fr)_120px_120px] gap-2 px-1">
+                                <div className="min-w-[560px] space-y-2">
+                                  <div className="grid grid-cols-[minmax(220px,1fr)_120px_120px_36px] gap-2 px-1">
                                     <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: '#9FB3DF' }}>Variant</p>
                                     <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: '#9FB3DF' }}>Price</p>
                                     <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: '#9FB3DF' }}>Stock</p>
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-center" style={{ color: '#9FB3DF' }}>Del</p>
                                   </div>
-                                  {combos.map((combo) => (
-                                    <div key={combo.stockKey} className="grid grid-cols-[minmax(220px,1fr)_120px_120px] gap-2 items-center">
+                                  {visibleCombos.map((combo) => (
+                                    <div key={combo.stockKey} className="grid grid-cols-[minmax(220px,1fr)_120px_120px_36px] gap-2 items-center">
                                       <div className="h-11 rounded-xl border px-3 flex items-center text-xs" style={{ borderColor: '#3140A6', backgroundColor: '#1A2577', color: '#C9D8FF' }}>
                                         {combo.label || 'Unnamed Variant'}
                                       </div>
@@ -1570,6 +1625,18 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                                         className={iCls}
                                         style={iSt}
                                       />
+                                      <button
+                                        type="button"
+                                        onClick={() => setRemovedVariantRows((prev) => (prev.includes(combo.stockKey) ? prev : [...prev, combo.stockKey]))}
+                                        className="h-9 w-9 rounded-lg border inline-flex items-center justify-center"
+                                        style={{ borderColor: '#5A2F67', backgroundColor: 'rgba(127,29,29,0.22)', color: '#FCA5A5' }}
+                                        title={`Delete ${combo.label || 'variant'} row`}
+                                        aria-label={`Delete ${combo.label || 'variant'} row`}
+                                      >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-7 0v12a1 1 0 001 1h6a1 1 0 001-1V7" />
+                                        </svg>
+                                      </button>
                                     </div>
                                   ))}
                                 </div>
