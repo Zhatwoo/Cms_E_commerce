@@ -346,24 +346,38 @@ export const TopPanel: React.FC<TopPanelProps> = ({
           </DesignTooltip>
 
           {/* Device Preset Dropdown (Breakpoint) */}
-          <div className="relative group/presets">
+          <div className="relative" ref={sizeDropdownRef}>
             <DesignTooltip content="Breakpoints" position="bottom">
               <button
-                className="flex items-center gap-2 p-2 rounded-lg transition-colors border border-white/10 bg-brand-medium-dark hover:bg-brand-medium text-brand-lighter"
+                onClick={() => setShowSizeDropdown((prev) => !prev)}
+                className={`flex items-center gap-2 p-2 rounded-lg transition-colors border ${
+                  showSizeDropdown 
+                    ? "bg-blue-500/20 border-blue-500/50 text-blue-400" 
+                    : "bg-brand-medium-dark hover:bg-brand-medium border-white/10 text-brand-lighter"
+                }`}
               >
                 <MonitorSmartphone className="w-4 h-4" />
-                <ChevronDown className="w-3.5 h-3.5 opacity-50" />
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showSizeDropdown ? "rotate-180" : "opacity-50"}`} />
               </button>
             </DesignTooltip>
 
-            <div className="absolute top-full right-0 mt-2 w-48 bg-brand-dark/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl py-1 z-[100] opacity-0 translate-y-2 pointer-events-none group-hover/presets:opacity-100 group-hover/presets:translate-y-0 group-hover/presets:pointer-events-auto transition-all duration-200">
+            <div 
+              className={`absolute top-full right-0 mt-2 w-48 bg-brand-dark/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl py-1 z-[100] transition-all duration-200 ${
+                showSizeDropdown 
+                  ? "opacity-100 translate-y-0 pointer-events-auto" 
+                  : "opacity-0 translate-y-2 pointer-events-none"
+              }`}
+            >
               <div className="px-3 py-2 border-b border-white/5 bg-white/5">
                 <span className="text-[10px] uppercase tracking-widest font-black text-white/40">Breakpoints</span>
               </div>
               {DEVICE_PRESETS.map((preset, index) => (
                 <button
                   key={index}
-                  onClick={() => handlePresetSelect(preset)}
+                  onClick={() => {
+                    handlePresetSelect(preset);
+                    setShowSizeDropdown(false);
+                  }}
                   className={`w-full flex items-center justify-between px-3 py-2.5 text-xs transition-colors hover:bg-white/5 ${selectedPreset?.name === preset.name
                     ? "text-blue-400 font-bold bg-blue-500/10"
                     : "text-white/70"
