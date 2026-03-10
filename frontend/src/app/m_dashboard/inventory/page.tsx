@@ -272,11 +272,18 @@ export default function InventoryPage() {
 
   const loadData = useCallback(async () => {
     setLoading(true); setError(null);
+    if (!selectedSubdomain) {
+      setItems([]);
+      setSummary(null);
+      setMovements([]);
+      setLoading(false);
+      return;
+    }
     try {
       const [invRes, summaryRes, movementRes] = await Promise.all([
-        listInventory({ subdomain: selectedSubdomain || undefined, limit: 500, search: search || undefined }),
-        getInventorySummary({ subdomain: selectedSubdomain || undefined, search: search || undefined }),
-        listInventoryMovements({ subdomain: selectedSubdomain || undefined, limit: RECENT_MOVEMENTS_LIMIT }),
+        listInventory({ subdomain: selectedSubdomain, limit: 500, search: search || undefined }),
+        getInventorySummary({ subdomain: selectedSubdomain, search: search || undefined }),
+        listInventoryMovements({ subdomain: selectedSubdomain, limit: RECENT_MOVEMENTS_LIMIT }),
       ]);
       setItems(Array.isArray(invRes.items) ? invRes.items : []);
       setSummary(summaryRes.data || null);
@@ -290,8 +297,13 @@ export default function InventoryPage() {
 
   const loadAllMovements = useCallback(async () => {
     setLoadingAllMovements(true); setAllMovementsError(null);
+    if (!selectedSubdomain) {
+      setAllMovements([]);
+      setLoadingAllMovements(false);
+      return;
+    }
     try {
-      const res = await listInventoryMovements({ subdomain: selectedSubdomain || undefined, limit: ALL_MOVEMENTS_LIMIT });
+      const res = await listInventoryMovements({ subdomain: selectedSubdomain, limit: ALL_MOVEMENTS_LIMIT });
       setAllMovements(Array.isArray(res.items) ? res.items : []);
     } catch (err) {
       setAllMovementsError(err instanceof Error ? err.message : 'Failed to load movement history');
@@ -779,12 +791,14 @@ export default function InventoryPage() {
               onClick={() => router.push('/m_dashboard/products')}
               title="Add Product"
               style={{
-                width: 40, height: 40, borderRadius: 12,
+                height: 46, borderRadius: 12,
+                padding: '0 14px',
                 border: `1px solid ${T.cardBorder}`, color: '#d9cbff',
                 background: T.card, display: 'inline-flex',
                 alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                fontSize: 13, fontWeight: 700,
               }}
-            ><Plus size={15} /></button>
+            >+ Add Product</button>
           </div>
 
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -824,7 +838,7 @@ export default function InventoryPage() {
                 <span style={{ color: '#7e72a9', fontSize: 10, letterSpacing: 0.8 }}>{card.label}</span>
               </div>
               <div style={{ color: '#f2ecff', fontSize: 24, fontWeight: 700, letterSpacing: -0.8, lineHeight: 1.2 }}>
-                {typeof card.value === 'number' ? String(card.value).padStart(3,'0') : card.value}
+                {typeof card.value === 'number' ? String(card.value) : card.value}
               </div>
             </motion.div>
           ))}
