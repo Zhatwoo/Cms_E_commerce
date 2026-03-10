@@ -855,10 +855,14 @@ export type ImportInventoryResult = {
 
 export async function importInventoryCsv(params: {
   rows: ImportInventoryRow[];
+  subdomain?: string;
 }): Promise<ImportInventoryResult> {
-  return apiFetch<ImportInventoryResult>('/api/inventory/import', {
+  const query = new URLSearchParams();
+  if (params.subdomain) query.set('subdomain', params.subdomain);
+  const qs = query.toString();
+  return apiFetch<ImportInventoryResult>(qs ? `/api/inventory/import?${qs}` : '/api/inventory/import', {
     method: 'POST',
-    body: JSON.stringify(params),
+    body: JSON.stringify({ rows: params.rows }),
   });
 }
 

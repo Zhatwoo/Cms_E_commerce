@@ -790,8 +790,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   const [currentPageId, setCurrentPageId] = useState<string | null>(initialPageId ?? null);
   const [pages, setPages] = useState<Array<{ id: string; name: string }>>([]);
   const [projectFiles, setProjectFiles] = useState<any[]>([]);
-  const lastQueryRef = useRef<{ serialize: () => string } | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+
+  const containerRef = useRef<HTMLDivElement>(null!);
   const previousScaleRef = useRef(1);
   const wheelZoomDeltaRef = useRef(0);
   const wheelZoomRafRef = useRef<number | null>(null);
@@ -1369,10 +1369,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     return () => container.removeEventListener("center-on-node", handleCenterOnNode);
   }, []);
 
-  // Handle canvas rotation
-  const handleRotateCanvas = useCallback(() => {
-    // Rotation is handled per-page in TopPanel; keep callback for API compatibility.
-  }, []);
+  const handleRotateCanvas = useCallback(() => { }, []);
 
   // Handle fit to canvas: zoom so page fits with 10% margin, then center
   const handleFitToCanvas = useCallback(() => {
@@ -1940,6 +1937,29 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     [projectId],
   );
 
+  const [isPreviewing, setIsPreviewing] = useState(false);
+
+  /**
+   * Immediately save and navigate to preview page
+   */
+  const handlePreview = useCallback(async () => {
+    const query = editorQueryRef.current;
+    if (!projectId || !query) return;
+
+    setIsPreviewing(true);
+    try {
+      const snapshot = mirrorToSession(query);
+      if (snapshot) {
+        await autoSavePage(snapshot, projectId);
+        router.push(`/design/preview?projectId=${projectId}`);
+      }
+    } catch (e) {
+      console.error("[Editor] Preview failed:", e);
+    } finally {
+      setIsPreviewing(false);
+    }
+  }, [projectId, router, mirrorToSession]);
+
   const dbSaveInFlightRef = useRef(false);
   const dbSavePendingRef = useRef(false);
   const collabEmitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -2063,8 +2083,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
 
   // Clean up on unmount
   useEffect(() => {
-    if (projectFiles.length > 0 && lastQueryRef.current) {
-      handleNodesChange(lastQueryRef.current);
+    if (projectFiles.length > 0 && editorQueryRef.current) {
+      handleNodesChange(editorQueryRef.current);
     }
   }, [projectFiles, handleNodesChange]);
 
@@ -2160,7 +2180,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
         `}</style>
       <Editor
         resolver={resolver}
-        enabled={permission !== "viewer"}
         indicator={{
           success: "rgba(0,0,0,0)",
           error: "rgba(0,0,0,0)",
@@ -2173,7 +2192,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
         onRender={RenderNode}
         onNodesChange={(query) => requestAnimationFrame(() => handleNodesChangeRef.current?.(query))}
       >
-        <QueryStasher onQuery={(q) => { lastQueryRef.current = q; }} />
+        <QueryStasher onQuery={(q) => { editorQueryRef.current = q; }} />
         <CollabSyncHandler />
         <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
           <CanvasToolProvider value={activeTool} onToolChange={handleToolChange}>
@@ -2196,17 +2215,17 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                 {/* Top Panel */}
                 {panelsReady && (
                   <TopPanel
-                    scale={scale}
-                    onScaleChange={handleScaleChange}
-                    onRotateCanvas={handleRotateCanvas}
                     activePageId={currentPageId}
-                    onFitToCanvas={handleFitToCanvas}
-                    canvasWidth={canvasWidth}
-                    canvasHeight={canvasHeight}
                     onDevicePresetSelect={handleDevicePresetSelect}
                     showDualView={showDualView}
                     onDualViewToggle={() => setShowDualView((v) => !v)}
                     projectId={projectId}
+                    onPreview={handlePreview}
+                    canvasWidth={canvasWidth}
+                    canvasHeight={canvasHeight}
+                    scale={scale}
+                    onScaleChange={handleScaleChange}
+                    onZoomFit={handleFitToCanvas}
                   />
                 )}
                 {/* Canvas Area — Infinite Scroll Area */}
@@ -2345,7 +2364,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                           setActiveTab={setRightPanelTab}
                           frameReady={frameReady}
                           onClose={() => setRightPanelOpen(false)}
-                          permission={permission}
                         />
                       </div>
                     </div>
@@ -2363,7 +2381,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                     onZoomFit={handleFitToCanvas}
                     scale={scale}
                     onScaleChange={handleScaleChange}
-                    permission={permission}
+                    onRotateCanvas={handleRotateCanvas}
                   />
                 )}
                 {/* Floating Mobile Preview */}
