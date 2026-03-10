@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { createPortal } from 'react-dom';
 import { useTheme } from '../../components/context/theme-context';
 import { useAlert } from '../../components/context/alert-context';
 import { type Product } from '../../lib/productsData';
@@ -84,6 +85,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
   const [thumbDrag, setThumbDrag] = useState<number | null>(null);
   const [thumbOver, setThumbOver] = useState<number | null>(null);
   const [showSubcategoryDropdown, setShowSubcategoryDropdown] = useState(false);
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const subcategoryDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -219,6 +221,10 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
     return () => document.removeEventListener('mousedown', onMouseDown);
   }, [showSubcategoryDropdown]);
 
+  useEffect(() => {
+    setPortalTarget(document.body);
+  }, []);
+
   // Lock body scroll when open
   useEffect(() => {
     if (isOpen) {
@@ -273,6 +279,12 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
     if (images.length <= 1) return;
     setSlideDir(dir);
     setSlide((current) => (current + dir + images.length) % images.length);
+  };
+
+  const openFileBrowser = (event: React.MouseEvent<HTMLElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    fileRef.current?.click();
   };
 
   // Form helpers
@@ -668,7 +680,11 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
     }
   };
 
-  if (!isOpen) return null;
+  const requestClose = () => {
+    void handleClose();
+  };
+
+  if (!portalTarget) return null;
 
   const iCls = 'w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/40 transition-all';
   const iSt = { backgroundColor: '#191A69', borderColor: '#3140A6', color: '#FFFFFF' };
@@ -805,41 +821,40 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
     : 'Out of Stock';
   const globalPricingRule: 'modifier' | 'override' = fd.variants[0]?.pricingMode === 'override' ? 'override' : 'modifier';
 
-  return (
+  return createPortal(
     <AnimatePresence>
-      {/* Full-screen overlay — covers everything including top nav */}
-      <motion.div
-        key="modal-overlay"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.25 }}
-        className="fixed inset-0 z-[999]"
-        style={{
-          backgroundColor: 'rgba(0,0,0,0.55)',
-          backdropFilter: 'blur(10px)',
-          WebkitBackdropFilter: 'blur(10px)',
-        }}
-        onClick={handleClose}
-      >
-        {/* Modal container */}
-        <div className="absolute inset-0 flex items-center justify-center p-6">
-          <motion.div
-            onClick={e => e.stopPropagation()}
-            initial={{ opacity: 0, scale: 0.93, y: 24 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.93, y: 24 }}
-            transition={{ type: 'spring', damping: 26, stiffness: 280 }}
-            className="relative flex overflow-hidden w-full"
-            style={{
-              maxWidth: 1100,
-              height: 'min(820px, calc(100vh - 48px))',
-              borderRadius: 28,
-              background: 'linear-gradient(180deg, #110248 0%, #090029 100%)',
-              border: '3px solid #211D69',
-              boxShadow: '0 40px 80px rgba(0,0,0,0.45)',
-            }}
-          >
+      {isOpen ? (
+        <motion.div
+          key="modal-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.25 }}
+          className="fixed inset-0 z-[5000] backdrop-blur-[12px]"
+          style={{
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+          }}
+          onClick={requestClose}
+        >
+          <div className="absolute inset-0 flex items-center justify-center p-6">
+            <motion.div
+              onClick={e => e.stopPropagation()}
+              initial={{ opacity: 0, scale: 0.93, y: 24 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.93, y: 24 }}
+              transition={{ type: 'spring', damping: 26, stiffness: 280 }}
+              className="relative flex overflow-hidden w-full"
+              style={{
+                maxWidth: 1100,
+                height: 'min(820px, calc(100vh - 48px))',
+                borderRadius: 28,
+                background: 'linear-gradient(180deg, #110248 0%, #090029 100%)',
+                border: '3px solid #211D69',
+                boxShadow: '0 40px 80px rgba(0,0,0,0.45)',
+              }}
+            >
 
             {/* Left */}
             <div
@@ -885,7 +900,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                     setDragging(false);
                     addFiles(e.dataTransfer.files);
                   }}
-                  onClick={() => fileRef.current?.click()}
+                  onClick={openFileBrowser}
                   className="relative h-full rounded-[28px] border-2 border-dashed cursor-pointer transition-colors overflow-hidden"
                   style={{
                     borderColor: dragging ? '#7E9CFF' : '#54658E',
@@ -995,10 +1010,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                           {images.length < 5 && (
                             <button
                               type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                fileRef.current?.click();
-                              }}
+                              onClick={openFileBrowser}
                               className="h-14 w-14 rounded-lg border-2 border-dashed shrink-0 flex flex-col items-center justify-center"
                               style={{ borderColor: '#54658E', color: '#9FB3DF' }}
                               title="Add image"
@@ -1025,7 +1037,22 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                 </div>
               </div>
 
-              <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={e => addFiles(e.target.files)} />
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+                onChange={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  addFiles(e.target.files);
+                  e.currentTarget.value = '';
+                }}
+              />
             </div>
 
             {/* Right */}
@@ -1038,7 +1065,8 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                   <p className="text-base mt-2" style={{ color: '#9FB3DF' }}>Fill in the details to add a new product</p>
                 </div>
                 <button
-                  onClick={handleClose}
+                  type="button"
+                  onClick={requestClose}
                   className="w-10 h-10 rounded-full flex items-center justify-center"
                   style={{ color: '#9FB3DF' }}
                 >
@@ -1633,13 +1661,15 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
 
               <div className="px-8 py-4 border-t flex items-center justify-between" style={{ borderColor: '#3A4473', backgroundColor: 'rgba(21,27,79,0.88)' }}>
                 <button
-                  onClick={handleClose}
+                  type="button"
+                  onClick={requestClose}
                   className="px-1 h-10 rounded-xl font-medium text-sm leading-none"
                   style={{ color: '#B6C5EB' }}
                 >
                   Cancel
                 </button>
                 <button
+                  type="button"
                   onClick={save}
                   disabled={saving}
                   className={`px-8 h-10 rounded-2xl font-semibold text-sm leading-none transition-all ${saving ? 'opacity-70 cursor-not-allowed' : 'hover:opacity-90'}`}
@@ -1649,10 +1679,13 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                 </button>
               </div>
             </div>
-          </motion.div>
-        </div>
-      </motion.div>
+            </motion.div>
+          </div>
+        </motion.div>
+      ) : null}
     </AnimatePresence>
+    ,
+    portalTarget
   );
 }
 

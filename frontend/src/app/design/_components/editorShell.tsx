@@ -739,7 +739,7 @@ const CollabCursorBroadcaster = ({
   containerRef,
   scale,
 }: {
-  containerRef: React.RefObject<HTMLDivElement>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
   scale: number;
 }) => {
   const { emitCursorMove } = useCollaboration();
@@ -822,8 +822,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   const [activeTool, setActiveTool] = useState<CanvasTool>("move");
   const [frameReady, setFrameReady] = useState(false);
   const [showDualView, setShowDualView] = useState(false);
+  const [isDeviceSwitching, setIsDeviceSwitching] = useState(false);
   const hasInitialCenteringRef = useRef(false);
   const hasForcedRightPanelOpenRef = useRef(false);
+  const deviceSwitchRafRef = useRef<number | null>(null);
+  const deviceSwitchTimeoutRef = useRef<number | null>(null);
+  const deviceSwitchEndTimeoutRef = useRef<number | null>(null);
   const saveStatusRef = useRef(saveStatus);
   const panelDragRef = useRef<{
     side: "left" | "right";
@@ -1471,14 +1475,73 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     setScale((prev) => clampScale(nextScale, prev));
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (deviceSwitchRafRef.current != null) {
+        cancelAnimationFrame(deviceSwitchRafRef.current);
+      }
+      if (deviceSwitchTimeoutRef.current != null) {
+        window.clearTimeout(deviceSwitchTimeoutRef.current);
+      }
+      if (deviceSwitchEndTimeoutRef.current != null) {
+        window.clearTimeout(deviceSwitchEndTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Handle device preset selection - only width changes; preserve page height so it doesn't reset
+  // and keep the page visible by fitting/recentering with the selected preset dimensions.
   const handleDevicePresetSelect = useCallback((preset: DevicePreset) => {
+    if (deviceSwitchRafRef.current != null) {
+      cancelAnimationFrame(deviceSwitchRafRef.current);
+      deviceSwitchRafRef.current = null;
+    }
+    if (deviceSwitchTimeoutRef.current != null) {
+      window.clearTimeout(deviceSwitchTimeoutRef.current);
+      deviceSwitchTimeoutRef.current = null;
+    }
+    if (deviceSwitchEndTimeoutRef.current != null) {
+      window.clearTimeout(deviceSwitchEndTimeoutRef.current);
+      deviceSwitchEndTimeoutRef.current = null;
+    }
+
+    setIsDeviceSwitching(true);
     setCanvasWidth(preset.width);
-    // Do not set canvasHeight so existing page height is preserved when switching device sizes
-    setTimeout(() => {
-      handleFitToCanvas();
-    }, 100);
-  }, [handleFitToCanvas]);
+
+    const fitAndCenter = () => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      const effectiveWidth = Math.max(1, preset.width);
+      const effectiveHeight = Math.max(1, canvasHeight || PAGE_BASE_HEIGHT);
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+      if (containerWidth <= 0 || containerHeight <= 0) return;
+
+      // Keep interaction smooth: only zoom out as needed so the selected device always stays visible.
+      const fitScaleX = (containerWidth * 0.9) / effectiveWidth;
+      const fitScaleY = (containerHeight * 0.9) / effectiveHeight;
+      const fitScale = clampScale(Math.min(fitScaleX, fitScaleY, 1), 1);
+
+      setScale((prev) => {
+        const safePrev = clampScale(prev, 1);
+        return safePrev > fitScale ? fitScale : safePrev;
+      });
+
+      // Recenter after width/scale settle so page never appears "lost" off-screen.
+      requestAnimationFrame(() => {
+        centerCanvasInView();
+      });
+    };
+
+    deviceSwitchRafRef.current = requestAnimationFrame(() => {
+      fitAndCenter();
+      deviceSwitchTimeoutRef.current = window.setTimeout(fitAndCenter, 120);
+      deviceSwitchEndTimeoutRef.current = window.setTimeout(() => {
+        setIsDeviceSwitching(false);
+      }, 220);
+    });
+  }, [canvasHeight, centerCanvasInView]);
 
   const isSpacePanActive = isSpacePressed;
   const canPanWithPointerDrag = activeTool === "hand" || isSpacePanActive;
@@ -1672,8 +1735,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
 
         const applyLoadedContent = (content: string | null) => {
           setInitialJson(content);
-          if (!content) return;
           draftLoadedRef.current = true;
+          if (!content) return;
           loadPages(content);
           try {
             const parsed = JSON.parse(content);
@@ -1745,32 +1808,41 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
           }
         };
 
-        const isEmptyCraftContent = (craftJson: string): boolean => {
+        const isLegacyStarterContent = (craftJson: string): boolean => {
           try {
             const p = JSON.parse(craftJson) as Record<string, unknown>;
-            const keys = Object.keys(p).filter((k) => k !== "ROOT");
             const root = p?.ROOT as { nodes?: string[] } | undefined;
-            if (!root || !Array.isArray(root.nodes)) return true;
-            const hasAnyChildren = root.nodes.some((id) => {
-              const n = p[id] as { nodes?: string[] } | undefined;
-              return n && Array.isArray(n.nodes) && n.nodes.length > 0;
-            });
-            return !hasAnyChildren && keys.length <= 4;
+            if (!root || !Array.isArray(root.nodes)) return false;
+
+            // Ignore only the old starter template (one page + one empty container).
+            // A truly empty page (no children) is still valid user work and must be preserved.
+            if (root.nodes.length === 1) {
+              const pageId = root.nodes[0];
+              const page = (p[pageId] as { nodes?: string[]; displayName?: string } | undefined) ?? null;
+              const pageNodes = Array.isArray(page?.nodes) ? page.nodes : [];
+              if ((page?.displayName === "Page" || page?.displayName == null) && pageNodes.length === 1) {
+                const onlyChildId = pageNodes[0];
+                const onlyChild = (p[onlyChildId] as { nodes?: string[]; displayName?: string } | undefined) ?? null;
+                const childNodes = Array.isArray(onlyChild?.nodes) ? onlyChild.nodes : [];
+                if (onlyChild?.displayName === "Container" && childNodes.length === 0) {
+                  return true;
+                }
+              }
+            }
+            return false;
           } catch {
-            return true;
+            return false;
           }
         };
 
-        // 1. Check sessionStorage (skip empty cache so API can override for collaborators)
+        // 1. Check sessionStorage first (latest local edits should win on refresh)
         if (sessionSaved) {
           const normalized = normalizeToCraftJson(sessionSaved);
-          if (normalized && !isEmptyCraftContent(normalized)) {
+          if (normalized && !isLegacyStarterContent(normalized)) {
             contentToLoad = normalized;
             if (normalized !== sessionSaved) safeSessionSet(storageKey, normalized);
             safeLocalSet(persistentKey, normalized);
             applyLoadedContent(contentToLoad);
-          } else if (normalized) {
-            safeSessionRemove(storageKey);
           } else {
             safeSessionRemove(storageKey);
           }
@@ -1779,7 +1851,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
         // 2. Check persistent local cache
         if (!contentToLoad && persistentSaved) {
           const normalized = normalizeToCraftJson(persistentSaved);
-          if (normalized && !isEmptyCraftContent(normalized)) {
+          if (normalized && !isLegacyStarterContent(normalized)) {
             contentToLoad = normalized;
             safeSessionSet(storageKey, normalized);
             if (normalized !== persistentSaved) safeLocalSet(persistentKey, normalized);
@@ -1807,11 +1879,15 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
         // 4. Check Database (fallback)
         if (!contentToLoad && result.success && result.data && result.data.content) {
           const normalized = normalizeToCraftJson(result.data.content);
-          if (normalized) {
+          if (normalized && !isLegacyStarterContent(normalized)) {
             contentToLoad = normalized;
             safeSessionSet(storageKey, normalized);
             safeLocalSet(persistentKey, normalized);
             applyLoadedContent(contentToLoad);
+          } else if (normalized) {
+            // Drop legacy starter payloads so user lands on true empty state.
+            safeSessionRemove(storageKey);
+            safeLocalRemove(persistentKey);
           } else {
             console.warn('⚠️ Draft content could not be parsed — check structure.');
             showAlert('Could not load project content. Try refreshing.', 'error');
@@ -1829,6 +1905,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
 
       } catch {
         setInitialJson(null);
+        draftLoadedRef.current = true;
         isReadyRef.current = true; // Allow editing even if load failed
       }
     }
@@ -1955,7 +2032,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
         try {
           snapshot = JSON.stringify(serializeCraftToClean(next));
         } catch {
-          snapshot = null;
+          snapshot = next;
         }
 
         const toStore = snapshot ?? next;
@@ -1972,7 +2049,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
           safeLocalSet(getPersistentStorageKey(projectId), toStore);
         }
 
-        if (snapshot) lastSnapshotRef.current = snapshot;
+        lastSnapshotRef.current = toStore;
         return snapshot;
       } catch {
         return null;

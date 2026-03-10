@@ -98,8 +98,8 @@ export function ProjectProvider({ children }: ProviderProps) {
   }, [fetchProjects]);
 
   useEffect(() => {
-    setActiveProjectId(null);
-  }, []);
+    setActiveProjectId(selectedProjectId);
+  }, [selectedProjectId]);
 
   const selectedProject = useMemo(
     () => projects.find((p) => p.id === selectedProjectId) ?? null,
