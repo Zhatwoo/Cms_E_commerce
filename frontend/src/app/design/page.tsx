@@ -3,7 +3,7 @@
 import React, { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { EditorShell } from "./_components/editorShell";
-import { DesignProjectProvider } from "./_context/DesignProjectContext";
+import { DesignProjectProvider, useDesignProject } from "./_context/DesignProjectContext";
 import { CollaborationProvider } from "./_context/CollaborationContext";
 
 const LoadingPlaceholder = () => (
@@ -37,10 +37,18 @@ function DesignContent() {
 
   return (
     <DesignProjectProvider projectId={projectId} pageId={pageId}>
-      <CollaborationProvider projectId={projectId}>
-        <EditorShell projectId={projectId} pageId={pageId} />
-      </CollaborationProvider>
+      <DesignContentInner projectId={projectId} pageId={pageId} />
     </DesignProjectProvider>
+  );
+}
+
+function DesignContentInner({ projectId, pageId }: { projectId: string, pageId: string | null }) {
+  const { permission } = useDesignProject();
+
+  return (
+    <CollaborationProvider projectId={projectId} permission={permission === "owner" ? "editor" : permission}>
+      <EditorShell projectId={projectId} pageId={pageId} permission={permission} />
+    </CollaborationProvider>
   );
 }
 

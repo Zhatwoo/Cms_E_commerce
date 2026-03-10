@@ -26,12 +26,12 @@ import { getSubdomainSiteUrl } from '@/lib/siteUrls';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'websitelink';
-const SITE_HOST   = process.env.NEXT_PUBLIC_SITE_HOST   ?? 'localhost:3000';
+const SITE_HOST = process.env.NEXT_PUBLIC_SITE_HOST ?? 'localhost:3000';
 const GRAD = 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function toSlug(s: string) { return s.trim().toLowerCase().replace(/[^a-z0-9-]/g,'') || ''; }
+function toSlug(s: string) { return s.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || ''; }
 
 function getDisplayUrl(subdomain: string, origin: string | null) {
   const slug = toSlug(subdomain);
@@ -128,41 +128,41 @@ export default function DomainsPage() {
   }));
 
   const stats = {
-    total:     domainsList.length,
+    total: domainsList.length,
     published: domainsList.filter(d => isPublished(d.project.status)).length,
-    draft:     domainsList.filter(d => !isPublished(d.project.status)).length,
+    draft: domainsList.filter(d => !isPublished(d.project.status)).length,
   };
 
   // UI state
-  const [selectedDomain, setSelectedDomain]           = useState<DomainEntry | null>(null);
-  const [scheduleInfo, setScheduleInfo]               = useState<{ scheduledAt: string; subdomain: string | null } | null>(null);
-  const [publishHistory, setPublishHistory]           = useState<PublishHistoryEntry[]>([]);
-  const [unpublishingId, setUnpublishingId]           = useState<string | null>(null);
-  const [searchQuery, setSearchQuery]                 = useState('');
-  const [showAddModal, setShowAddModal]               = useState(false);
-  const [addModalProjectId, setAddModalProjectId]     = useState('');
-  const [addSiteLoading, setAddSiteLoading]           = useState(false);
-  const [historyExpanded, setHistoryExpanded]         = useState(false);
-  const [showEditSubdomain, setShowEditSubdomain]     = useState(false);
-  const [editSubdomainVal, setEditSubdomainVal]       = useState('');
-  const [editSubdomainErr, setEditSubdomainErr]       = useState('');
-  const [updatingSubdomain, setUpdatingSubdomain]     = useState(false);
-  const [viewMode, setViewMode]                       = useState<'grid'|'list'>('grid');
+  const [selectedDomain, setSelectedDomain] = useState<DomainEntry | null>(null);
+  const [scheduleInfo, setScheduleInfo] = useState<{ scheduledAt: string; subdomain: string | null } | null>(null);
+  const [publishHistory, setPublishHistory] = useState<PublishHistoryEntry[]>([]);
+  const [unpublishingId, setUnpublishingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addModalProjectId, setAddModalProjectId] = useState('');
+  const [addSiteLoading, setAddSiteLoading] = useState(false);
+  const [historyExpanded, setHistoryExpanded] = useState(false);
+  const [showEditSubdomain, setShowEditSubdomain] = useState(false);
+  const [editSubdomainVal, setEditSubdomainVal] = useState('');
+  const [editSubdomainErr, setEditSubdomainErr] = useState('');
+  const [updatingSubdomain, setUpdatingSubdomain] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   // Custom domain state
-  const [showCustomModal, setShowCustomModal]         = useState(false);
-  const [customDomainInput, setCustomDomainInput]     = useState('');
-  const [customDomainErr, setCustomDomainErr]         = useState('');
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [customDomainInput, setCustomDomainInput] = useState('');
+  const [customDomainErr, setCustomDomainErr] = useState('');
   const [customDomainLoading, setCustomDomainLoading] = useState(false);
-  const [dnsInstructions, setDnsInstructions]         = useState<DnsInstructions | null>(null);
-  const [verifying, setVerifying]                     = useState(false);
-  const [removingDomain, setRemovingDomain]           = useState(false);
-  const [customDomains, setCustomDomains]             = useState<Record<string, { domain: string; domainStatus: string; verifiedAt?: string | null }>>({});
+  const [dnsInstructions, setDnsInstructions] = useState<DnsInstructions | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [removingDomain, setRemovingDomain] = useState(false);
+  const [customDomains, setCustomDomains] = useState<Record<string, { domain: string; domainStatus: string; verifiedAt?: string | null }>>({});
 
   const filtered = searchQuery.trim()
     ? domainsList.filter(d =>
-        (d.project.title || '').toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
-        (d.subdomain || '').toLowerCase().includes(searchQuery.trim().toLowerCase()))
+      (d.project.title || '').toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+      (d.subdomain || '').toLowerCase().includes(searchQuery.trim().toLowerCase()))
     : domainsList;
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -215,7 +215,7 @@ export default function DomainsPage() {
           for (const d of res.data) if (d.projectId) map[d.projectId] = { domain: d.domain, domainStatus: d.domainStatus, verifiedAt: d.verifiedAt };
           setCustomDomains(map);
         }
-      } catch {}
+      } catch { }
     })();
     return () => { cancelled = true; };
   }, [selectedDomain?.project.id]);
@@ -307,7 +307,7 @@ export default function DomainsPage() {
     : '';
 
   // ── Modal helpers
-  const cardBg  = 'rgba(14,8,50,0.98)';
+  const cardBg = 'rgba(14,8,50,0.98)';
   const cardBdr = '1px solid rgba(255,255,255,0.1)';
 
   return (
@@ -325,21 +325,21 @@ export default function DomainsPage() {
       <section className="text-center py-4">
         <motion.p className="text-[10px] uppercase tracking-[0.25em] mb-3"
           style={{ color: 'rgba(255,255,255,0.35)' }}
-          initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.4 }}>
+          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
           Domain Control
         </motion.p>
         <motion.h1
           className="text-[42px] sm:text-[58px] font-extrabold leading-[0.95] tracking-tight bg-clip-text text-transparent"
           style={{ backgroundImage: GRAD }}
-          initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.45 }}>
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
           My Sites
         </motion.h1>
         <motion.p className="mt-2.5 text-sm" style={{ color: colors.text.muted }}
-          initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.45, delay:0.08 }}>
+          initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.08 }}>
           Manage and publish your websites
         </motion.p>
         <motion.div className="mt-5 inline-flex"
-          initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.15 }}>
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
           <button type="button" onClick={handleAddDomainClick} disabled={addSiteLoading}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-xs font-bold transition-opacity hover:opacity-85"
             style={{ background: GRAD, boxShadow: '0 6px 24px rgba(177,59,255,0.35)' }}>
@@ -352,18 +352,18 @@ export default function DomainsPage() {
       {!loading && domainsList.length > 0 && (
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label:'Total Sites',     value: stats.total,     icon: Globe,   accent:'#a78bfa' },
-            { label:'Published',       value: stats.published, icon: Check,   accent:'#4ade80' },
-            { label:'In Draft',        value: stats.draft,     icon: Clock,   accent:'#fb923c' },
+            { label: 'Total Sites', value: stats.total, icon: Globe, accent: '#a78bfa' },
+            { label: 'Published', value: stats.published, icon: Check, accent: '#4ade80' },
+            { label: 'In Draft', value: stats.draft, icon: Clock, accent: '#fb923c' },
           ].map((s, i) => {
             const Icon = s.icon;
             return (
               <motion.div key={s.label}
-                initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay: i*0.06 }}
+                initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
                 className="rounded-2xl p-4 flex items-center gap-3"
-                style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)' }}>
+                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor:`${s.accent}18` }}>
+                  style={{ backgroundColor: `${s.accent}18` }}>
                   <Icon className="w-4 h-4" style={{ color: s.accent }} />
                 </div>
                 <div>
@@ -378,12 +378,12 @@ export default function DomainsPage() {
 
       {/* ── MAIN CONTENT ───────────────────────────────────────────────────── */}
       {loading ? (
-        <div className="rounded-2xl p-10 text-center text-sm" style={{ color: colors.text.muted, background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.07)' }}>
+        <div className="rounded-2xl p-10 text-center text-sm" style={{ color: colors.text.muted, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
           Loading…
         </div>
       ) : domainsList.length === 0 ? (
         <div className="rounded-2xl p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-          style={{ background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.07)' }}>
+          style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
           <div>
             <p className="text-sm font-semibold" style={{ color: colors.text.primary }}>No sites yet</p>
             <p className="text-xs mt-1" style={{ color: colors.text.muted }}>Publish your first website from the Web Builder.</p>
@@ -391,7 +391,7 @@ export default function DomainsPage() {
           <div className="flex gap-2 shrink-0">
             <Link href="/m_dashboard/web-builder"
               className="px-4 py-2 text-xs font-semibold rounded-xl border transition-opacity hover:opacity-75"
-              style={{ borderColor:'rgba(255,255,255,0.1)', color: colors.text.secondary }}>
+              style={{ borderColor: 'rgba(255,255,255,0.1)', color: colors.text.secondary }}>
               Web Builder
             </Link>
             <button type="button" onClick={handleAddDomainClick} disabled={addSiteLoading}
@@ -414,13 +414,13 @@ export default function DomainsPage() {
                 <input type="text" placeholder="Search by title or subdomain…"
                   value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none"
-                  style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', color: colors.text.primary }} />
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: colors.text.primary }} />
               </div>
-              <div className="flex gap-1 p-1 rounded-xl" style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)' }}>
+              <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
                 {([['grid', LayoutGrid], ['list', List]] as const).map(([mode, Icon]) => (
                   <button key={mode} type="button" onClick={() => setViewMode(mode)}
                     className="p-1.5 rounded-lg transition-all"
-                    style={{ backgroundColor: viewMode===mode ? 'rgba(255,255,255,0.1)' : 'transparent', color: viewMode===mode ? colors.text.primary : colors.text.muted }}>
+                    style={{ backgroundColor: viewMode === mode ? 'rgba(255,255,255,0.1)' : 'transparent', color: viewMode === mode ? colors.text.primary : colors.text.muted }}>
                     <Icon size={15} />
                   </button>
                 ))}
@@ -447,10 +447,10 @@ export default function DomainsPage() {
                         border: isSelected ? '1px solid rgba(177,59,255,0.5)' : '1px solid rgba(255,255,255,0.07)',
                         boxShadow: isSelected ? '0 0 0 1px rgba(177,59,255,0.3)' : 'none',
                       }}
-                      whileHover={{ y:-2 }} whileTap={{ scale:0.98 }}
+                      whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}
                       onClick={() => setSelectedDomain({ project, subdomain })}>
                       {/* Thumbnail */}
-                      <div className="relative w-full" style={{ borderBottom:'1px solid rgba(255,255,255,0.07)' }}>
+                      <div className="relative w-full" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
                         <DraftPreviewThumbnail projectId={project.id} borderColor="rgba(255,255,255,0.07)" bgColor="rgba(255,255,255,0.03)" />
                         <div className="absolute top-2 right-2"><StatusBadge published={pub} /></div>
                       </div>
@@ -473,7 +473,7 @@ export default function DomainsPage() {
                           ) : (
                             <a href={`/design?projectId=${project.id}`} onClick={e => e.stopPropagation()}
                               className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[11px] font-semibold transition-opacity hover:opacity-75"
-                              style={{ backgroundColor:'rgba(167,139,250,0.12)', color:'#a78bfa' }}>
+                              style={{ backgroundColor: 'rgba(167,139,250,0.12)', color: '#a78bfa' }}>
                               <ExternalLink size={11} /> Publish to go live
                             </a>
                           )}
@@ -481,7 +481,7 @@ export default function DomainsPage() {
                             <button type="button" onClick={e => handleUnpublish(project.id, e)}
                               disabled={unpublishingId === project.id}
                               className="flex items-center justify-center p-1.5 rounded-xl border disabled:opacity-40 hover:opacity-75 transition-opacity"
-                              style={{ borderColor:'rgba(248,113,113,0.3)', backgroundColor:'rgba(248,113,113,0.08)', color:'#f87171' }}>
+                              style={{ borderColor: 'rgba(248,113,113,0.3)', backgroundColor: 'rgba(248,113,113,0.08)', color: '#f87171' }}>
                               <ArrowDownToLine size={12} />
                             </button>
                           )}
@@ -503,7 +503,7 @@ export default function DomainsPage() {
                   const isSelected = selectedDomain?.project.id === project.id;
                   return (
                     <motion.div key={project.id}
-                      initial={{ opacity:0 }} animate={{ opacity:1 }}
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                       className="rounded-2xl p-4 flex items-center justify-between gap-3 cursor-pointer transition-all hover:bg-white/[0.02]"
                       style={{
                         background: 'rgba(255,255,255,0.025)',
@@ -517,7 +517,7 @@ export default function DomainsPage() {
                             {subdomain ? getDisplayUrl(subdomain, origin) : 'No subdomain'}
                           </p>
                           {cardUrl && (
-                            <button type="button" onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(cardUrl).then(() => showAlert('Copied','Copied'),()=>{}); }}
+                            <button type="button" onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(cardUrl).then(() => showAlert('Copied', 'Copied'), () => { }); }}
                               className="p-0.5 rounded hover:opacity-70 flex-shrink-0" style={{ color: colors.text.muted }}>
                               <Copy size={11} />
                             </button>
@@ -530,14 +530,14 @@ export default function DomainsPage() {
                           target={canVisit ? '_blank' : '_self'} rel="noopener noreferrer"
                           onClick={e => e.stopPropagation()}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold rounded-xl transition-opacity hover:opacity-85"
-                          style={{ background: GRAD, color:'#fff' }}>
+                          style={{ background: GRAD, color: '#fff' }}>
                           <ExternalLink size={12} />{canVisit ? 'Visit' : 'Publish'}
                         </a>
                         {pub && (
                           <button type="button" onClick={e => handleUnpublish(project.id, e)}
                             disabled={unpublishingId === project.id}
                             className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] font-semibold rounded-xl border disabled:opacity-40 hover:opacity-75 transition-opacity"
-                            style={{ borderColor:'rgba(248,113,113,0.3)', color:'#f87171' }}>
+                            style={{ borderColor: 'rgba(248,113,113,0.3)', color: '#f87171' }}>
                             <ArrowDownToLine size={12} />
                             {unpublishingId === project.id ? 'Taking down…' : 'Take down'}
                           </button>
@@ -555,21 +555,21 @@ export default function DomainsPage() {
             {selectedDomain && (
               <motion.aside
                 key="sidebar"
-                initial={{ opacity:0, x:20 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:20 }}
-                transition={{ type:'spring', stiffness:320, damping:30 }}
+                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
+                transition={{ type: 'spring', stiffness: 320, damping: 30 }}
                 className="w-full md:w-80 shrink-0 rounded-2xl overflow-hidden flex flex-col"
-                style={{ background:'rgba(255,255,255,0.025)', border:'1px solid rgba(255,255,255,0.09)', maxHeight:700 }}>
+                style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.09)', maxHeight: 700 }}>
 
                 {/* Sidebar header */}
                 <div className="px-4 py-3.5 flex items-center justify-between flex-shrink-0"
-                  style={{ borderBottom:'1px solid rgba(255,255,255,0.07)' }}>
+                  style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
                   <div>
                     <p className="text-xs font-bold" style={{ color: colors.text.primary }}>Website Details</p>
                     <p className="text-[10px] mt-0.5 truncate max-w-[200px]" style={{ color: colors.text.muted }}>{selectedDomain.project.title}</p>
                   </div>
                   <button type="button" onClick={() => setSelectedDomain(null)}
                     className="w-7 h-7 rounded-xl flex items-center justify-center hover:opacity-70 transition-opacity"
-                    style={{ backgroundColor:'rgba(255,255,255,0.07)', color: colors.text.muted }}>
+                    style={{ backgroundColor: 'rgba(255,255,255,0.07)', color: colors.text.muted }}>
                     <X size={14} />
                   </button>
                 </div>
@@ -601,7 +601,7 @@ export default function DomainsPage() {
                     ) : undefined}>
                     {siteUrl ? (
                       <a href={siteUrl} target="_blank" rel="noopener noreferrer"
-                        className="text-xs font-mono break-all hover:underline" style={{ color:'#a78bfa' }}>
+                        className="text-xs font-mono break-all hover:underline" style={{ color: '#a78bfa' }}>
                         {siteUrl}
                       </a>
                     ) : (
@@ -616,7 +616,7 @@ export default function DomainsPage() {
                         <button type="button" onClick={() => handleUnpublish(selectedDomain.project.id)}
                           disabled={unpublishingId === selectedDomain.project.id}
                           className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold rounded-lg border disabled:opacity-40 hover:opacity-75 transition-opacity"
-                          style={{ borderColor:'rgba(248,113,113,0.3)', color:'#f87171' }}>
+                          style={{ borderColor: 'rgba(248,113,113,0.3)', color: '#f87171' }}>
                           <ArrowDownToLine size={11} />
                           {unpublishingId === selectedDomain.project.id ? 'Taking down…' : 'Take down'}
                         </button>
@@ -626,9 +626,9 @@ export default function DomainsPage() {
 
                   {/* Custom domain */}
                   {isPublished(selectedDomain.project.status) && (
-                    <div className="pt-3.5 space-y-2.5" style={{ borderTop:'1px solid rgba(255,255,255,0.07)' }}>
+                    <div className="pt-3.5 space-y-2.5" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
                       <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.1em]"
-                        style={{ color:'rgba(255,255,255,0.4)' }}>
+                        style={{ color: 'rgba(255,255,255,0.4)' }}>
                         <Link2 size={10} /> Custom Domain
                       </div>
 
@@ -652,26 +652,26 @@ export default function DomainsPage() {
                             {customDomains[selectedDomain.project.id].domainStatus !== 'verified' && (
                               <button type="button" onClick={handleVerifyDomain} disabled={verifying}
                                 className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-[10px] font-bold rounded-xl text-white disabled:opacity-50"
-                                style={{ background:'linear-gradient(135deg,#15803d,#22c55e)' }}>
+                                style={{ background: 'linear-gradient(135deg,#15803d,#22c55e)' }}>
                                 {verifying ? <><Loader2 size={11} className="animate-spin" /> Verifying…</> : <><ShieldCheck size={11} /> Verify DNS</>}
                               </button>
                             )}
                             <button type="button" onClick={handleRemoveCustomDomain} disabled={removingDomain}
                               className="flex items-center justify-center gap-1 px-3 py-1.5 text-[10px] font-semibold rounded-xl border disabled:opacity-40 hover:opacity-75 transition-opacity"
-                              style={{ borderColor:'rgba(248,113,113,0.3)', color:'#f87171' }}>
+                              style={{ borderColor: 'rgba(248,113,113,0.3)', color: '#f87171' }}>
                               {removingDomain ? <Loader2 size={11} className="animate-spin" /> : <><Unlink size={11} /> Remove</>}
                             </button>
                           </div>
                           {customDomains[selectedDomain.project.id].domainStatus !== 'verified' && dnsInstructions && (
                             <div className="p-3 rounded-xl text-[11px] space-y-2"
-                              style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)' }}>
+                              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
                               <p className="font-bold" style={{ color: colors.text.primary }}>DNS Setup</p>
                               <p style={{ color: colors.text.secondary }}>{dnsInstructions.message}</p>
                               {[['Option A — A Record', dnsInstructions.optionA], ['Option B — CNAME', dnsInstructions.optionB]].map(([label, opt]: any) => (
                                 <div key={label} className="space-y-1">
                                   <p className="font-semibold" style={{ color: colors.text.primary }}>{label}</p>
                                   <div className="font-mono p-2 rounded-lg text-[10px] space-y-0.5"
-                                    style={{ background:'rgba(255,255,255,0.04)', color: colors.text.secondary }}>
+                                    style={{ background: 'rgba(255,255,255,0.04)', color: colors.text.secondary }}>
                                     <p>Type: {opt.type}</p><p>Host: {opt.host}</p><p>Value: {opt.value}</p>
                                   </div>
                                 </div>
@@ -684,7 +684,7 @@ export default function DomainsPage() {
                         <button type="button"
                           onClick={() => { setCustomDomainInput(''); setCustomDomainErr(''); setDnsInstructions(null); setShowCustomModal(true); }}
                           className="w-full flex items-center justify-center gap-2 px-3 py-2 text-[11px] font-semibold rounded-xl border border-dashed hover:opacity-75 transition-opacity"
-                          style={{ borderColor:'rgba(255,255,255,0.15)', color: colors.text.muted }}>
+                          style={{ borderColor: 'rgba(255,255,255,0.15)', color: colors.text.muted }}>
                           <Link2 size={13} /> Connect custom domain
                         </button>
                       )}
@@ -703,7 +703,7 @@ export default function DomainsPage() {
                   )}
 
                   {/* Publish history */}
-                  <div className="pt-3.5" style={{ borderTop:'1px solid rgba(255,255,255,0.07)' }}>
+                  <div className="pt-3.5" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
                     <button type="button" onClick={() => setHistoryExpanded(!historyExpanded)}
                       className="flex items-center gap-2 w-full text-left text-xs font-bold hover:opacity-75 transition-opacity"
                       style={{ color: colors.text.primary }}>
@@ -712,7 +712,7 @@ export default function DomainsPage() {
                     </button>
                     <AnimatePresence>
                       {historyExpanded && (
-                        <motion.div initial={{ opacity:0, height:0 }} animate={{ opacity:1, height:'auto' }} exit={{ opacity:0, height:0 }}
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
                           className="mt-3 space-y-2 overflow-hidden">
                           <div className="flex items-center justify-between text-[11px]">
                             <span style={{ color: colors.text.muted }}>Status</span>
@@ -724,7 +724,7 @@ export default function DomainsPage() {
                               <span style={{ color: colors.text.primary }}>{new Date(scheduleInfo.scheduledAt).toLocaleString()}</span>
                             </div>
                           )}
-                          <p className="text-[10px] uppercase tracking-wider font-bold mt-2" style={{ color:'rgba(255,255,255,0.3)' }}>
+                          <p className="text-[10px] uppercase tracking-wider font-bold mt-2" style={{ color: 'rgba(255,255,255,0.3)' }}>
                             Last 10 changes
                           </p>
                           {publishHistory.length > 0 ? (
@@ -732,7 +732,7 @@ export default function DomainsPage() {
                               {publishHistory.map((entry, i) => (
                                 <li key={`${entry.at}-${i}`}
                                   className="flex items-center justify-between gap-2 py-1.5 px-2.5 rounded-xl text-[10px]"
-                                  style={{ background:'rgba(255,255,255,0.03)', borderLeft:'2px solid rgba(167,139,250,0.5)' }}>
+                                  style={{ background: 'rgba(255,255,255,0.03)', borderLeft: '2px solid rgba(167,139,250,0.5)' }}>
                                   <span className="capitalize font-semibold" style={{ color: colors.text.secondary }}>{entry.type}</span>
                                   <span style={{ color: colors.text.muted }}>{new Date(entry.at).toLocaleString()}</span>
                                 </li>
@@ -768,12 +768,12 @@ export default function DomainsPage() {
       <AnimatePresence>
         {/* Edit Subdomain */}
         {showEditSubdomain && selectedDomain && (
-          <motion.div key="edit-sub-bg" initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
+          <motion.div key="edit-sub-bg" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-            style={{ backgroundColor:'rgba(0,0,0,0.72)', backdropFilter:'blur(10px)' }}
+            style={{ backgroundColor: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(10px)' }}
             onClick={() => !updatingSubdomain && setShowEditSubdomain(false)}>
-            <motion.div initial={{ opacity:0, scale:0.96, y:14 }} animate={{ opacity:1, scale:1, y:0 }} exit={{ opacity:0, scale:0.96, y:14 }}
-              transition={{ type:'spring', stiffness:360, damping:32 }}
+            <motion.div initial={{ opacity: 0, scale: 0.96, y: 14 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 14 }}
+              transition={{ type: 'spring', stiffness: 360, damping: 32 }}
               onClick={e => e.stopPropagation()}
               className="w-full max-w-md rounded-2xl overflow-hidden"
               style={{ background: cardBg, border: cardBdr }}>
@@ -785,12 +785,12 @@ export default function DomainsPage() {
                 <input type="text" placeholder="e.g. newsite" value={editSubdomainVal}
                   onChange={e => { setEditSubdomainVal(e.target.value); setEditSubdomainErr(''); }}
                   className="w-full px-3 py-2.5 rounded-xl text-sm font-mono outline-none"
-                  style={{ background:'rgba(255,255,255,0.05)', border:`1px solid ${editSubdomainErr ? '#f87171' : 'rgba(255,255,255,0.1)'}`, color: colors.text.primary }} />
-                {editSubdomainErr && <p className="text-xs mt-1.5" style={{ color:'#f87171' }}>{editSubdomainErr}</p>}
+                  style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${editSubdomainErr ? '#f87171' : 'rgba(255,255,255,0.1)'}`, color: colors.text.primary }} />
+                {editSubdomainErr && <p className="text-xs mt-1.5" style={{ color: '#f87171' }}>{editSubdomainErr}</p>}
                 <div className="flex gap-2 mt-5">
                   <button type="button" onClick={() => !updatingSubdomain && setShowEditSubdomain(false)}
                     className="flex-1 px-4 py-2.5 rounded-xl text-xs font-semibold border hover:opacity-75"
-                    style={{ borderColor:'rgba(255,255,255,0.1)', color: colors.text.secondary }}>Cancel</button>
+                    style={{ borderColor: 'rgba(255,255,255,0.1)', color: colors.text.secondary }}>Cancel</button>
                   <button type="button" onClick={handleEditSubdomainConfirm} disabled={updatingSubdomain}
                     className="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-white disabled:opacity-50 hover:opacity-85"
                     style={{ background: GRAD }}>
@@ -804,12 +804,12 @@ export default function DomainsPage() {
 
         {/* Custom Domain */}
         {showCustomModal && selectedDomain && (
-          <motion.div key="custom-bg" initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
+          <motion.div key="custom-bg" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-            style={{ backgroundColor:'rgba(0,0,0,0.72)', backdropFilter:'blur(10px)' }}
+            style={{ backgroundColor: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(10px)' }}
             onClick={() => !customDomainLoading && setShowCustomModal(false)}>
-            <motion.div initial={{ opacity:0, scale:0.96, y:14 }} animate={{ opacity:1, scale:1, y:0 }} exit={{ opacity:0, scale:0.96, y:14 }}
-              transition={{ type:'spring', stiffness:360, damping:32 }}
+            <motion.div initial={{ opacity: 0, scale: 0.96, y: 14 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 14 }}
+              transition={{ type: 'spring', stiffness: 360, damping: 32 }}
               onClick={e => e.stopPropagation()}
               className="w-full max-w-md rounded-2xl overflow-hidden"
               style={{ background: cardBg, border: cardBdr }}>
@@ -823,13 +823,13 @@ export default function DomainsPage() {
                 <input type="text" placeholder="e.g. mybusiness.com" value={customDomainInput}
                   onChange={e => { setCustomDomainInput(e.target.value); setCustomDomainErr(''); }}
                   className="w-full px-3 py-2.5 rounded-xl text-sm font-mono outline-none"
-                  style={{ background:'rgba(255,255,255,0.05)', border:`1px solid ${customDomainErr ? '#f87171' : 'rgba(255,255,255,0.1)'}`, color: colors.text.primary }} />
+                  style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${customDomainErr ? '#f87171' : 'rgba(255,255,255,0.1)'}`, color: colors.text.primary }} />
                 <p className="text-[11px] mt-1.5" style={{ color: colors.text.muted }}>You&apos;ll configure DNS records after.</p>
-                {customDomainErr && <p className="text-xs mt-1.5" style={{ color:'#f87171' }}>{customDomainErr}</p>}
+                {customDomainErr && <p className="text-xs mt-1.5" style={{ color: '#f87171' }}>{customDomainErr}</p>}
                 <div className="flex gap-2 mt-5">
                   <button type="button" onClick={() => !customDomainLoading && setShowCustomModal(false)}
                     className="flex-1 px-4 py-2.5 rounded-xl text-xs font-semibold border hover:opacity-75"
-                    style={{ borderColor:'rgba(255,255,255,0.1)', color: colors.text.secondary }}>Cancel</button>
+                    style={{ borderColor: 'rgba(255,255,255,0.1)', color: colors.text.secondary }}>Cancel</button>
                   <button type="button" onClick={async () => { await handleAddCustomDomain(); if (!customDomainErr) setShowCustomModal(false); }}
                     disabled={customDomainLoading}
                     className="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-white disabled:opacity-50 hover:opacity-85"

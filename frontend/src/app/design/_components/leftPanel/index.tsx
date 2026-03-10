@@ -4,15 +4,19 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   ChevronDown,
   Save,
-  LayoutDashboard,
   Settings,
   FileDown,
   Trash2,
-  X,
   FileStack,
   Layout,
   Image,
   LayoutTemplate,
+  ChevronRight,
+  ChevronLeft,
+  Search,
+  Plus,
+  Component,
+  X,
 } from "lucide-react";
 import { useDesignProject } from "../../_context/DesignProjectContext";
 import { FilesPanel } from "./filesPanel";
@@ -59,7 +63,7 @@ const EMPTY_CANVAS_DATA = JSON.stringify({
   },
 });
 
-export type LeftPanelTabId = "files" | "components" | "assets" | "templates";
+export type LeftPanelTabId = "files" | "components" | "media";
 
 interface LeftPanelProps {
   onToggle?: () => void;
@@ -85,7 +89,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
   const searchParams = useSearchParams();
   const projectId = searchParams?.get("projectId") || null;
   const STORAGE_KEY = projectId ? `${STORAGE_KEY_PREFIX}_${projectId}` : STORAGE_KEY_PREFIX;
-  const { websiteName } = useDesignProject();
+  const { websiteName, permission } = useDesignProject();
 
   const { query, actions } = useEditor();
 
@@ -174,16 +178,6 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
     }
   };
 
-  const handleBackToDashboard = () => {
-    // Save before leaving
-    try {
-      const json = query.serialize();
-      sessionStorage.setItem(STORAGE_KEY, json);
-    } catch {
-      // ignore
-    }
-    router.push("/m_dashboard/web-builder#projects-section");
-  };
 
   return (
     <div
@@ -192,165 +186,162 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
       style={{ width: `${width}px` }}
     >
       <div className="flex flex-col gap-4 shrink-0 px-4 pt-4">
-      {/* Header + Title + Tabs: fixed at top, do not scroll */}
-      <div className="flex flex-col gap-4 shrink-0">
-      {/* Left Panel Header */}
-      <div className="flex items-start justify-between mb-2 gap-2">
-        {/* Project dropdown trigger */}
-        <div className="relative" ref={menuRef}>
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="flex items-center gap-2 hover:bg-white/5 rounded-lg px-2 py-1 -ml-2 transition-colors cursor-pointer"
-          >
-            <h3 className="text-brand-lighter font-bold text-lg truncate max-w-[200px]" title={websiteName ?? "Project Title"}>
-              {websiteName ?? "Project Title"}
-            </h3>
-            <ChevronDown
-              className={`w-4 h-4 text-brand-light transition-transform duration-200 shrink-0 ${menuOpen ? "rotate-180" : ""
-                }`}
-            />
-          </button>
-
-          {/* Dropdown menu */}
-          {menuOpen && (
-            <div className="absolute left-0 top-full mt-2 w-56 bg-brand-darker border border-white/10 rounded-xl shadow-2xl py-1 z-50 animate-slideDownItem">
-              {/* Save */}
+        {/* Header + Title + Tabs: fixed at top, do not scroll */}
+        <div className="flex flex-col gap-4 shrink-0">
+          {/* Left Panel Header */}
+          <div className="flex items-start justify-between mb-2 gap-2">
+            {/* Project dropdown trigger */}
+            <div className="relative" ref={menuRef}>
               <button
-                onClick={handleSave}
-                className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-brand-lighter hover:bg-white/5 transition-colors cursor-pointer"
+                onClick={() => setMenuOpen(!menuOpen)}
+                className="flex items-center gap-2 hover:bg-white/5 rounded-lg px-2 py-1 -ml-2 transition-colors cursor-pointer"
               >
-                <Save className="w-4 h-4 text-brand-light" />
-                Save project
-                <span className="ml-auto text-[10px] text-brand-light/50">Ctrl+S</span>
+                <h3 className="text-brand-lighter font-bold text-lg truncate max-w-[200px]" title={websiteName ?? "Project Title"}>
+                  {websiteName ?? "Project Title"}
+                </h3>
+                <ChevronDown
+                  className={`w-4 h-4 text-brand-light transition-transform duration-200 shrink-0 ${menuOpen ? "rotate-180" : ""}`}
+                />
               </button>
 
-              {/* Export JSON */}
-              <button
-                onClick={handleExportJson}
-                className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-brand-lighter hover:bg-white/5 transition-colors cursor-pointer"
-              >
-                <FileDown className="w-4 h-4 text-brand-light" />
-                Export JSON
-              </button>
+              {/* Dropdown menu */}
+              {menuOpen && (
+                <div className="absolute left-0 top-full mt-2 w-56 bg-brand-darker border border-white/10 rounded-xl shadow-2xl py-1 z-50 animate-slideDownItem">
+                  {permission !== "viewer" && (
+                    <>
+                      {/* Save */}
+                      <button
+                        onClick={handleSave}
+                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-brand-lighter hover:bg-white/5 transition-colors cursor-pointer"
+                      >
+                        <Save className="w-4 h-4 text-brand-light" />
+                        Save project
+                        <span className="ml-auto text-[10px] text-brand-light/50">Ctrl+S</span>
+                      </button>
 
-              {/* Divider */}
-              <div className="border-t border-white/5 my-1" />
+                      {/* Export JSON */}
+                      <button
+                        onClick={handleExportJson}
+                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-brand-lighter hover:bg-white/5 transition-colors cursor-pointer"
+                      >
+                        <FileDown className="w-4 h-4 text-brand-light" />
+                        Export JSON
+                      </button>
 
-              {/* Project settings (placeholder) */}
-              <button
-                disabled
-                className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-brand-light/30 cursor-not-allowed"
-              >
-                <Settings className="w-4 h-4" />
-                Project settings
-                <span className="ml-auto text-[10px] bg-brand-medium/30 rounded px-1.5 py-0.5">Soon</span>
-              </button>
+                      {/* Divider */}
+                      <div className="border-t border-white/5 my-1" />
+                    </>
+                  )}
 
-              {/* Divider */}
-              <div className="border-t border-white/5 my-1" />
+                  {/* Project settings (placeholder) */}
+                  <button
+                    disabled
+                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-brand-light/30 cursor-not-allowed"
+                  >
+                    <Settings className="w-4 h-4" />
+                    Project settings
+                    <span className="ml-auto text-[10px] bg-brand-medium/30 rounded px-1.5 py-0.5">Soon</span>
+                  </button>
 
-              {/* Clear canvas */}
-              <button
-                onClick={handleClearCanvas}
-                className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
-              >
-                <Trash2 className="w-4 h-4" />
-                Clear canvas
-              </button>
+                  {/* Divider */}
+                  <div className="border-t border-white/5 my-1" />
 
-              {/* Back to dashboard */}
-              <button
-                onClick={handleBackToDashboard}
-                className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-brand-lighter hover:bg-white/5 transition-colors cursor-pointer"
-              >
-                <LayoutDashboard className="w-4 h-4 text-brand-light" />
-                Back to dashboard
-              </button>
+                  {permission !== "viewer" && (
+                    <>
+                      {/* Clear canvas */}
+                      <button
+                        onClick={handleClearCanvas}
+                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Clear canvas
+                      </button>
+
+                      {/* Divider */}
+                      <div className="border-t border-white/5 my-1" />
+                    </>
+                  )}
+                </div>
+              )}
             </div>
-          )}
+
+            <div className="flex flex-col items-end gap-1">
+              {/* Close / Exit button */}
+              {onToggle && (
+                <button
+                  type="button"
+                  onClick={onToggle}
+                  className="p-1 rounded-lg hover:bg-white/5 text-brand-light transition-colors cursor-pointer"
+                  aria-label="Close left panel"
+                  title="Close panel"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+
+              {/* Save flash indicator */}
+              {saveFlash && (
+                <span className="text-[10px] text-emerald-400 font-medium animate-pulse">Saved</span>
+              )}
+            </div>
+          </div>
         </div>
 
-        <div className="flex flex-col items-end gap-1">
-          {/* Close / Exit button */}
-          {onToggle && (
-            <button
-              type="button"
-              onClick={onToggle}
-              className="p-1 rounded-lg hover:bg-white/5 text-brand-light transition-colors cursor-pointer"
-              aria-label="Close left panel"
-              title="Close panel"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
-
-          {/* Save flash indicator */}
-          {saveFlash && (
-            <span className="text-[10px] text-emerald-400 font-medium animate-pulse">Saved</span>
-          )}
+        {/* Navigation Tabs */}
+        <div className="flex text-[10px] font-bold uppercase tracking-widest items-stretch justify-center py-2 px-1 border-y border-brand-medium/30 gap-1 min-h-0 bg-brand-dark/20">
+          <button
+            type="button"
+            onClick={() => setActivePanel("files")}
+            className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "files"
+              ? "text-brand-lighter bg-brand-medium/50 shadow-sm"
+              : "text-brand-light hover:text-brand-lighter"}`}
+          >
+            <FileStack className="w-4 h-4 shrink-0" />
+            <span>Files</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActivePanel("components")}
+            className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "components"
+              ? "text-brand-lighter bg-brand-medium/50 shadow-sm"
+              : "text-brand-light hover:text-brand-lighter"}`}
+          >
+            <Component className="w-4 h-4 shrink-0" />
+            <span>Components</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActivePanel("media")}
+            className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "media"
+              ? "text-brand-lighter bg-brand-medium/50 shadow-sm"
+              : "text-brand-light hover:text-brand-lighter"}`}
+          >
+            <Image className="w-4 h-4 shrink-0" />
+            <span>Media</span>
+          </button>
         </div>
-      </div>
-      </div>
-
-      {/* Navigation Tabs */}
-      <div className="flex text-sm items-stretch justify-center py-1.5 px-1 border-y border-brand-medium gap-1 min-h-0">
-        <button
-          type="button"
-          onClick={() => setActivePanel("files")}
-          className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-colors cursor-pointer ${
-            activePanel === "files"
-              ? "text-brand-lighter bg-brand-medium/50"
-              : "text-brand-light"
-          }`}
-        >
-          <FileStack className="w-5 h-5 shrink-0" />
-          <span className="text-[10px] font-medium truncate w-full text-center">Files</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActivePanel("components")}
-          className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-colors cursor-pointer ${
-            activePanel === "components"
-              ? "text-brand-lighter bg-brand-medium/50"
-              : "text-brand-light"
-          }`}
-        >
-          <Layout className="w-5 h-5 shrink-0" />
-          <span className="text-[10px] font-medium truncate w-full text-center">Component</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActivePanel("assets")}
-          className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-colors cursor-pointer ${
-            activePanel === "assets"
-              ? "text-brand-lighter bg-brand-medium/50"
-              : "text-brand-light"
-          }`}
-        >
-          <Image className="w-5 h-5 shrink-0" />
-          <span className="text-[10px] font-medium truncate w-full text-center">Assets</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActivePanel("templates")}
-          className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-colors cursor-pointer ${
-            activePanel === "templates"
-              ? "text-brand-lighter bg-brand-medium/50"
-              : "text-brand-light"
-          }`}
-        >
-          <LayoutTemplate className="w-5 h-5 shrink-0" />
-          <span className="text-[10px] font-medium truncate w-full text-center">Templates</span>
-        </button>
-      </div>
       </div>
 
       {/* Panel content: scrollable; Files/Assets/Templates show scrollbar for full layer access */}
-      <div className={`editor-panel-scroll flex-1 min-h-0 overflow-y-auto overflow-x-hidden mt-4 px-4 pb-4 overscroll-contain ${activePanel === "components" ? "no-scrollbar" : ""}`}>
+      <div className={`editor-panel-scroll flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${activePanel === "components" ? "no-scrollbar" : "px-4 pb-4 mt-4"} overscroll-contain`}>
         {activePanel === "files" && (canMountFilesPanel ? <FilesPanel /> : null)}
-        {activePanel === "assets" && <AssetsPanel />}
         {activePanel === "components" && <ComponentsPanel />}
-        {activePanel === "templates" && <TemplatePanel />}
+        {activePanel === "media" && (
+          <div className="flex flex-col items-center justify-center h-full p-8 text-center gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-brand-medium/20 flex items-center justify-center text-brand-light">
+              <Image className="w-8 h-8 opacity-50" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-bold text-brand-lighter tracking-tight">Media Library</span>
+              <p className="text-[10px] text-brand-light leading-relaxed max-w-[160px] mx-auto opacity-60">
+                Drag and drop your images here to use them in your projects.
+              </p>
+            </div>
+            <button className="mt-4 px-6 py-2 bg-brand-medium/30 hover:bg-brand-medium/50 text-brand-lighter text-[10px] font-bold uppercase tracking-widest rounded-full transition-all border border-white/5">
+              Upload Files
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

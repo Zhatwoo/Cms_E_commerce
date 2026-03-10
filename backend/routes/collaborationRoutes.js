@@ -11,6 +11,11 @@ const { protect } = require('../middleware/auth');
 
 router.use(protect);
 
+router.use((req, res, next) => {
+    console.log(`[CollabRoute] ${req.method} ${req.originalUrl}`);
+    next();
+});
+
 router.get('/shared-with-me', sharedWithMe);
 router.post('/:projectId/invite', invite);
 router.get('/:projectId/collaborators', list);

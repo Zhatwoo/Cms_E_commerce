@@ -10,10 +10,6 @@ export const TemplatePanel = () => {
 
   return (
     <div className="flex flex-col gap-4 p-4">
-      <div>
-        <h3 className="text-sm font-semibold text-brand-light mb-1">Templates</h3>
-        <p className="text-xs text-brand-medium">Drag and drop templates to the canvas</p>
-      </div>
 
       <div className="flex flex-col gap-2">
         {GROUPED_TEMPLATES.map((group) => (

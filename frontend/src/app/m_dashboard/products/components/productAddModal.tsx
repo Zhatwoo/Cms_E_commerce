@@ -5,7 +5,7 @@ import { useTheme } from '../../components/context/theme-context';
 import { useAlert } from '../../components/context/alert-context';
 import { type Product } from '../../lib/productsData';
 import { uploadProductImageApi } from '@/lib/api';
-import { getIndustryCategories } from '@/lib/industryCatalog';
+import { getIndustryCategories, INDUSTRY_OPTIONS, normalizeIndustryKey } from '@/lib/industryCatalog';
 
 const uid = () => Math.random().toString(36).substr(2, 9);
 
@@ -56,12 +56,8 @@ function generateAutoSku(name?: string): string {
 
 const MAX_VARIANTS = 2;
 
-function isColorVariantName(name?: string): boolean {
-  return String(name || '').trim().toLowerCase().includes('color');
-}
-
 interface FormData {
-  name: string; sku: string; category: string; description: string;
+  name: string; sku: string; category: string; subcategory: string; description: string;
   status: 'active' | 'inactive' | 'draft';
   price: number; costPrice: number; discount: number; discountType: 'percentage' | 'fixed';
   images: string[]; stock: number; lowStockThreshold: number;
@@ -87,27 +83,38 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
   const [dragging, setDragging] = useState(false);
   const [thumbDrag, setThumbDrag] = useState<number | null>(null);
   const [thumbOver, setThumbOver] = useState<number | null>(null);
+  const [showSubcategoryDropdown, setShowSubcategoryDropdown] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const subcategoryDropdownRef = useRef<HTMLDivElement>(null);
 
   const [fd, setFd] = useState<FormData>({
-    name: '', sku: generateAutoSku(''), category: '', description: '',
+    name: '', sku: generateAutoSku(''), category: '', subcategory: '', description: '',
     status: 'active', price: 0, costPrice: 0, discount: 0, discountType: 'percentage',
     images: [], stock: 100, lowStockThreshold: 20, trackInventory: true, inventoryStatus: 'in_stock', hasVariants: false, variants: [], variantStocks: {}, variantPrices: {},
   });
-  const [customCategoryInput, setCustomCategoryInput] = useState('');
-  const [customCategories, setCustomCategories] = useState<string[]>([]);
 
-  const industryPresetCategories = useMemo(
+  const projectSubcategoryOptions = useMemo(
     () => getIndustryCategories(projectIndustry),
     [projectIndustry]
   );
 
-  const availableCategories = useMemo(() => {
-    const values = new Set<string>(industryPresetCategories);
-    for (const customCategory of customCategories) values.add(customCategory);
-    if (fd.category) values.add(fd.category);
+  const subcategoryOptions = useMemo(() => {
+    const values = new Set<string>(projectSubcategoryOptions);
+    if (fd.subcategory.trim()) values.add(fd.subcategory.trim());
     return Array.from(values);
-  }, [industryPresetCategories, customCategories, fd.category]);
+  }, [projectSubcategoryOptions, fd.subcategory]);
+
+  const lockedProjectCategory = useMemo(() => {
+    const normalizedIndustryKey = normalizeIndustryKey(projectIndustry);
+    if (!normalizedIndustryKey) return '';
+    const industryOption = INDUSTRY_OPTIONS.find((option) => option.key === normalizedIndustryKey);
+    if (industryOption?.label) return industryOption.label;
+    return normalizedIndustryKey
+      .split('-')
+      .filter(Boolean)
+      .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
+      .join(' ');
+  }, [projectIndustry]);
 
   // Reset on open
   useEffect(() => {
@@ -167,11 +174,10 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
       setEnableVariationImages(existingVariants.some((variant) =>
         variant.options.some((option) => Boolean(String(option.image || '').trim()))
       ));
-      setCustomCategoryInput('');
-      setCustomCategories([]);
+      const initialCategory = editingProduct?.category || lockedProjectCategory || '';
       setFd({
         name: editingProduct?.name || '', sku: editingProduct?.sku || generateAutoSku(editingProduct?.name || ''),
-        category: editingProduct?.category || '', description: editingProduct?.description || '',
+        category: initialCategory, subcategory: editingProduct?.subcategory || '', description: editingProduct?.description || '',
         status: editingProduct?.status || 'active', price: basePrice,
         costPrice: typeof editingProduct?.costPrice === 'number' ? editingProduct.costPrice : 0,
         discount, discountType, images: imageList,
@@ -185,12 +191,33 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
         variantPrices: existingVariantPrices,
       });
     }
-  }, [isOpen, editingProduct]);
+  }, [isOpen, editingProduct, lockedProjectCategory]);
+
+  useEffect(() => {
+    if (!isOpen || editingProduct) return;
+    if (!lockedProjectCategory) return;
+    setFd((prev) => {
+      if (prev.category === lockedProjectCategory) return prev;
+      return { ...prev, category: lockedProjectCategory };
+    });
+  }, [isOpen, editingProduct, lockedProjectCategory]);
 
   useEffect(() => {
     if (!fd.hasVariants) return;
     setFd((prev) => (prev.trackInventory ? prev : { ...prev, trackInventory: true }));
   }, [fd.hasVariants]);
+
+  useEffect(() => {
+    if (!showSubcategoryDropdown) return;
+    const onMouseDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (subcategoryDropdownRef.current?.contains(target)) return;
+      setShowSubcategoryDropdown(false);
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, [showSubcategoryDropdown]);
 
   // Lock body scroll when open
   useEffect(() => {
@@ -252,16 +279,6 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
   const set = (k: keyof FormData, v: any) => setFd(prev => ({ ...prev, [k]: v }));
   const patch = (p: Partial<FormData>) => setFd(prev => ({ ...prev, ...p }));
 
-  const addCustomCategory = () => {
-    const value = customCategoryInput.trim();
-    if (!value) return;
-    if (!availableCategories.includes(value)) {
-      setCustomCategories((prev) => [...prev, value]);
-    }
-    set('category', value);
-    setCustomCategoryInput('');
-  };
-
   // Pricing
   const discBase = useMemo(() =>
     fd.discountType === 'percentage' ? fd.price * (1 - fd.discount / 100) : fd.price - fd.discount,
@@ -276,13 +293,9 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
       const stockKey = buildVariantStockKey(
         combo.map((item) => ({ variantId: item.variant.id, optionId: item.option.id }))
       );
-      const nonColorParts = combo
-        .filter((item) => !isColorVariantName(item.variant.name))
-        .map((item) => ({ variantId: item.variant.id, optionId: item.option.id }));
-      const priceGroupKey = nonColorParts.length > 0 ? buildVariantStockKey(nonColorParts) : 'all';
       const mappedPrice = Number(fd.variantPrices?.[stockKey]);
       const price = Number.isFinite(mappedPrice) && mappedPrice >= 0 ? mappedPrice : Math.max(0, discBase);
-      return { label: combo.map(c => c.option.name).join(' / '), price, stockKey, priceGroupKey };
+      return { label: combo.map(c => c.option.name).join(' / '), price, stockKey };
     });
   }, [fd.variants, fd.hasVariants, discBase, fd.variantPrices]);
 
@@ -336,6 +349,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
   const remOpt = (vid: string, oid: string) => patch({ variants: fd.variants.map(v => v.id === vid ? { ...v, options: v.options.filter(o => o.id !== oid) } : v) });
   const updOpt = (vid: string, oid: string, f: keyof VariantOption, v: any) => patch({ variants: fd.variants.map(x => x.id === vid ? { ...x, options: x.options.map(o => o.id === oid ? { ...o, [f]: v } : o) } : x) });
   const [uploadingOptionImage, setUploadingOptionImage] = useState<Record<string, boolean>>({});
+  const [dragOverOptionImageKey, setDragOverOptionImageKey] = useState<string | null>(null);
 
   const uploadOptionImage = async (variantId: string, optionId: string, file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -362,6 +376,17 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
     }
   };
 
+  const dropOptionImage = (variantId: string, optionId: string, event: React.DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const key = `${variantId}:${optionId}`;
+    setDragOverOptionImageKey(null);
+    if (uploadingOptionImage[key]) return;
+    const file = event.dataTransfer.files?.[0];
+    if (!file) return;
+    void uploadOptionImage(variantId, optionId, file);
+  };
+
   const save = async () => {
     if (saving) return;
     if (!fd.name.trim()) { showAlert('Please enter a product name', 'error'); return; }
@@ -369,6 +394,8 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
     setSaving(true);
     try {
       const normalizedSku = fd.sku.trim() || generateAutoSku(fd.name);
+      const normalizedCategory = (lockedProjectCategory || fd.category || '').trim();
+      const normalizedSubcategory = String(fd.subcategory || '').trim();
       const variants: Variant[] = fd.variants
         .map((variant): Variant => ({
           id: String(variant.id || uid()),
@@ -434,6 +461,8 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
       const saved = await Promise.resolve(onSave({
         ...fd,
         sku: normalizedSku,
+        category: normalizedCategory,
+        subcategory: normalizedSubcategory,
         price: finalPrice,
         basePrice,
         finalPrice,
@@ -471,6 +500,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
     return (
       fd.name.trim() !== '' ||
       fd.category !== '' ||
+      fd.subcategory !== '' ||
       fd.description !== '' ||
       fd.price > 0 ||
       fd.costPrice > 0 ||
@@ -490,6 +520,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
     () => combos.reduce((sum, combo) => sum + Math.max(0, Number(fd.variantStocks?.[combo.stockKey] ?? 0)), 0),
     [combos, fd.variantStocks]
   );
+  const [expandVariantStocksPanel, setExpandVariantStocksPanel] = useState(false);
 
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [colorDraftHex, setColorDraftHex] = useState('#DBD5D5');
@@ -1037,14 +1068,85 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                   />
                 </div>
 
-                <div>
-                  <label className={lCls} style={{ color: '#9FB3DF' }}>Category</label>
-                  <select value={fd.category} onChange={e => set('category', e.target.value)} className={iCls} style={iSt}>
-                    <option value="" disabled hidden>Select Category</option>
-                    {availableCategories.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={lCls} style={{ color: '#9FB3DF' }}>Category</label>
+                    <input
+                      type="text"
+                      value={fd.category || 'No category set'}
+                      readOnly
+                      className={iCls}
+                      style={{ ...iSt, opacity: 0.9 }}
+                      title={lockedProjectCategory ? 'Category is set from your project industry and cannot be edited here.' : undefined}
+                    />
+                    <p className="mt-1 text-[11px]" style={{ color: '#9FB3DF' }}>
+                      Category is inherited from your project setup.
+                    </p>
+                  </div>
+                  <div>
+                    <label className={lCls} style={{ color: '#9FB3DF' }}>Subcategory</label>
+                    <div className="relative" ref={subcategoryDropdownRef}>
+                      <button
+                        type="button"
+                        onClick={() => setShowSubcategoryDropdown((prev) => !prev)}
+                        className={`${iCls} text-left flex items-center justify-between`}
+                        style={iSt}
+                      >
+                        <span className={`${fd.subcategory ? '' : 'opacity-70'}`}>
+                          {fd.subcategory || 'Select specific product type'}
+                        </span>
+                        <svg
+                          className={`w-4 h-4 transition-transform ${showSubcategoryDropdown ? 'rotate-180' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+
+                      {showSubcategoryDropdown ? (
+                        <div
+                          className="absolute z-40 mt-2 w-full rounded-xl border shadow-xl overflow-y-auto"
+                          style={{
+                            backgroundColor: '#121A63',
+                            borderColor: '#3140A6',
+                            maxHeight: 220,
+                          }}
+                        >
+                          {subcategoryOptions.length > 0 ? (
+                            <>
+                              {subcategoryOptions.map((subcategory) => (
+                                <button
+                                  key={subcategory}
+                                  type="button"
+                                  onClick={() => {
+                                    set('subcategory', subcategory);
+                                    setShowSubcategoryDropdown(false);
+                                  }}
+                                  className="w-full px-3 py-2.5 text-left text-sm transition-colors"
+                                  style={{
+                                    color: '#DCE7FF',
+                                    backgroundColor: fd.subcategory === subcategory ? 'rgba(79,147,255,0.18)' : 'transparent',
+                                  }}
+                                >
+                                  {subcategory}
+                                </button>
+                              ))}
+                            </>
+                          ) : (
+                            <p className="px-3 py-2.5 text-sm" style={{ color: '#9FB3DF' }}>
+                              No subcategories available for this project category.
+                            </p>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 text-[11px]" style={{ color: '#9FB3DF' }}>
+                      Use this for the specific product type under the selected category.
+                    </p>
+                  </div>
                 </div>
 
                 <div>
@@ -1204,10 +1306,36 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                                 <div className="flex items-end gap-2">
                                   {enableVariationImages && variant.name.trim().toLowerCase() !== 'size' ? (
                                     <div className="relative h-14 w-14 shrink-0">
+                                      {(() => {
+                                        const optionImageKey = `${variant.id}:${option.id}`;
+                                        const isDragOver = dragOverOptionImageKey === optionImageKey;
+                                        return (
                                       <label
                                         className="h-14 w-14 rounded-lg shrink-0 flex items-center justify-center cursor-pointer overflow-hidden"
-                                        style={{ color: '#9FB3DF', backgroundColor: '#1A2577' }}
+                                        style={{
+                                          color: '#9FB3DF',
+                                          backgroundColor: '#1A2577',
+                                          boxShadow: isDragOver ? '0 0 0 2px rgba(126,156,255,0.8)' : 'none',
+                                          border: isDragOver ? '1px solid #7E9CFF' : '1px solid transparent',
+                                        }}
                                         title="Upload variation image"
+                                        onDragOver={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          e.dataTransfer.dropEffect = 'copy';
+                                          setDragOverOptionImageKey(optionImageKey);
+                                        }}
+                                        onDragEnter={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          setDragOverOptionImageKey(optionImageKey);
+                                        }}
+                                        onDragLeave={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          setDragOverOptionImageKey((prev) => (prev === optionImageKey ? null : prev));
+                                        }}
+                                        onDrop={(e) => dropOptionImage(variant.id, option.id, e)}
                                       >
                                         {isImageSource(String(option.image || '').trim()) ? (
                                           <img
@@ -1222,7 +1350,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                                           type="file"
                                           accept="image/*"
                                           className="hidden"
-                                          disabled={Boolean(uploadingOptionImage[`${variant.id}:${option.id}`])}
+                                          disabled={Boolean(uploadingOptionImage[optionImageKey])}
                                           onChange={(e) => {
                                             const file = e.target.files?.[0];
                                             if (file) {
@@ -1232,6 +1360,8 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                                           }}
                                         />
                                       </label>
+                                        );
+                                      })()}
                                       {isImageSource(String(option.image || '').trim()) ? (
                                         <button
                                           type="button"
@@ -1303,11 +1433,6 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                         + Add Another Variant
                       </button>
 
-                      {range ? (
-                        <p className="text-xs" style={{ color: '#BFA6EC' }}>
-                          Variant price range: P{Number(range.min).toFixed(2)} - P{Number(range.max).toFixed(2)}
-                        </p>
-                      ) : null}
                     </div>
                   ) : (
                     <p className="text-xs" style={{ color: '#9FB3DF' }}>
@@ -1326,7 +1451,27 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                     {fd.hasVariants && fd.variants.length > 0 ? (
                       <div className="space-y-3">
                         <div className="rounded-xl border p-3 space-y-2" style={{ borderColor: '#3A4473', backgroundColor: '#121A63' }}>
-                            <p className="text-xs font-semibold uppercase" style={{ color: '#BFA6EC' }}>Variant Stocks and Pricing</p>
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-xs font-semibold uppercase" style={{ color: '#BFA6EC' }}>Variant Stocks and Pricing</p>
+                              <button
+                                type="button"
+                                onClick={() => setExpandVariantStocksPanel((prev) => !prev)}
+                                className="h-8 w-8 rounded-lg flex items-center justify-center border"
+                                style={{ borderColor: '#3140A6', color: '#C9D8FF', backgroundColor: 'rgba(26,37,119,0.7)' }}
+                                title={expandVariantStocksPanel ? 'Collapse table' : 'Expand table'}
+                                aria-label={expandVariantStocksPanel ? 'Collapse variant stock table' : 'Expand variant stock table'}
+                              >
+                                {expandVariantStocksPanel ? (
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10V6h4M16 14v4h-4M14 8h4v4M10 16H6v-4" />
+                                  </svg>
+                                ) : (
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6v4M14 6h4v4M10 18H6v-4M14 18h4v-4" />
+                                  </svg>
+                                )}
+                              </button>
+                            </div>
                             <div className="grid grid-cols-2 gap-2">
                               <div>
                                 <label className={lCls} style={{ color: '#9FB3DF' }}>Pricing Rule</label>
@@ -1347,17 +1492,23 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                               </div>
                             </div>
                             {combos.length > 0 ? (
-                              <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                                {combos.map((combo) => (
-                                  <div key={combo.stockKey} className="grid grid-cols-[1fr_130px_130px] gap-2 items-end">
-                                    <div>
-                                      <label className={lCls} style={{ color: '#9FB3DF' }}>Variant</label>
+                              <div
+                                className="overflow-auto pr-1 rounded-lg"
+                                style={{
+                                  maxHeight: expandVariantStocksPanel ? 380 : 240,
+                                }}
+                              >
+                                <div className="min-w-[520px] space-y-2">
+                                  <div className="grid grid-cols-[minmax(220px,1fr)_120px_120px] gap-2 px-1">
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: '#9FB3DF' }}>Variant</p>
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: '#9FB3DF' }}>Price</p>
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: '#9FB3DF' }}>Stock</p>
+                                  </div>
+                                  {combos.map((combo) => (
+                                    <div key={combo.stockKey} className="grid grid-cols-[minmax(220px,1fr)_120px_120px] gap-2 items-center">
                                       <div className="h-11 rounded-xl border px-3 flex items-center text-xs" style={{ borderColor: '#3140A6', backgroundColor: '#1A2577', color: '#C9D8FF' }}>
                                         {combo.label || 'Unnamed Variant'}
                                       </div>
-                                    </div>
-                                    <div>
-                                      <label className={lCls} style={{ color: '#9FB3DF' }}>Price</label>
                                       <input
                                         type="number"
                                         min={0}
@@ -1365,23 +1516,16 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                                         value={fd.variantPrices?.[combo.stockKey] ?? 0}
                                         onChange={(e) => {
                                           const amount = Math.max(0, Number.parseFloat(e.target.value || '0') || 0);
-                                          const targetGroupKey = combo.priceGroupKey;
-                                          const nextPrices = { ...fd.variantPrices };
-                                          combos.forEach((entry) => {
-                                            if (entry.priceGroupKey === targetGroupKey) {
-                                              nextPrices[entry.stockKey] = amount;
-                                            }
-                                          });
                                           patch({
-                                            variantPrices: nextPrices,
+                                            variantPrices: {
+                                              ...fd.variantPrices,
+                                              [combo.stockKey]: amount,
+                                            },
                                           });
                                         }}
                                         className={iCls}
                                         style={iSt}
                                       />
-                                    </div>
-                                    <div>
-                                      <label className={lCls} style={{ color: '#9FB3DF' }}>Stock</label>
                                       <input
                                         type="number"
                                         min={0}
@@ -1399,14 +1543,21 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                                         style={iSt}
                                       />
                                     </div>
-                                  </div>
-                                ))}
+                                  ))}
+                                </div>
                               </div>
                             ) : (
                               <p className="text-xs" style={{ color: '#9FB3DF' }}>
                                 Add options under Variants to generate stock rows.
                               </p>
                             )}
+                            {range ? (
+                              <div className="pt-2 mt-1 border-t" style={{ borderColor: '#2A367F' }}>
+                                <p className="text-xs" style={{ color: '#BFA6EC' }}>
+                                  Variant price range: P{Number(range.min).toFixed(2)} - P{Number(range.max).toFixed(2)}
+                                </p>
+                              </div>
+                            ) : null}
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
