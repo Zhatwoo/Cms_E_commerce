@@ -14,7 +14,10 @@ import { Row } from "../_designComponents/Row/Row";
 import { Column } from "../_designComponents/Column/Column";
 import { Icon } from "../_designComponents/Icon/Icon";
 import { Tabs } from "../_designComponents/Tabs/Tabs";
-import { TabContent } from "../_designComponents/Tabs/TabContent";
+import { Spacer } from "../_designComponents/Spacer/Spacer";
+import { Pagination } from "../_designComponents/Pagination/Pagination";
+import { Rating } from "../_designComponents/Rating/Rating";
+import { Banner } from "../_designComponents/Banner/banner";
 import { Circle } from "../../_assets/shapes/circle/circle";
 import { Square } from "../../_assets/shapes/square/square";
 import { Triangle } from "../../_assets/shapes/triangle/triangle";
@@ -69,13 +72,14 @@ export function buildCraftResolver(): Resolver {
   const RowComp = asComponent(Row, ContainerComp);
   const ColumnComp = asComponent(Column, ContainerComp);
   const IconComp = asComponent(Icon, ContainerComp);
+  const BannerComp = asComponent(Banner, ContainerComp);
   const CircleComp = asComponent(Circle, ContainerComp);
   const SquareComp = asComponent(Square, ContainerComp);
   const TriangleComp = asComponent(Triangle, ContainerComp);
   const ImportedBlockComp = asComponent(ImportedBlock, ContainerComp);
   const SpacerComp = asComponent(Spacer, ContainerComp);
   const PaginationComp = asComponent(Pagination, ContainerComp);
-  const AccordionComp = asComponent(Accordion, ContainerComp);
+  const RatingComp = asComponent(Rating, ContainerComp);
   const base: Resolver = {
     Container: ContainerComp,
     container: ContainerComp,
@@ -105,6 +109,8 @@ export function buildCraftResolver(): Resolver {
     row: RowComp,
     Column: ColumnComp,
     column: ColumnComp,
+    Banner: BannerComp,
+    banner: BannerComp,
     Icon: IconComp,
     icon: IconComp,
     Circle: CircleComp,
@@ -123,6 +129,9 @@ export function buildCraftResolver(): Resolver {
     Pagination: PaginationComp,
     pagination: PaginationComp,
     PAGINATION: PaginationComp,
+    Rating: RatingComp,
+    rating: RatingComp,
+    RATING: RatingComp,
   };
   base.Image = ImageComp;
   base.image = ImageComp;
