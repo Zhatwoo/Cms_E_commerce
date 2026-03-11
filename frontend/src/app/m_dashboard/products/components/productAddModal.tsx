@@ -508,9 +508,6 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
         createdAt: editingProduct?.createdAt || new Date().toISOString(),
       }));
       if (saved === false) return;
-      if (editingProduct) {
-        showAlert('Product updated successfully!', 'success');
-      }
       onClose();
     } catch (error) {
       showAlert(error instanceof Error ? error.message : 'Failed to save product', 'error');
