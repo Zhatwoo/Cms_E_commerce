@@ -1,6 +1,6 @@
-"use client";
+   "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNode } from "@craftjs/core";
 import { AccordionSettings } from "./AccordionSettings";
 
@@ -87,6 +87,9 @@ export const Accordion = ({
   iconColor = "#94a3b8",
 }: AccordionProps) => {
   const { id, connectors: { connect } } = useNode();
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const contentPanelRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const [contentHeights, setContentHeights] = useState<Record<number, number>>({});
   const safeDuration = Number.isFinite(animationDurationMs) ? Math.max(80, Math.min(1200, animationDurationMs)) : 280;
   const safeItems = useMemo(
     () => (items ?? DEFAULT_ITEMS).filter((item) => item && typeof item.title === "string" && typeof item.content === "string"),
@@ -126,6 +129,38 @@ export const Accordion = ({
     });
   }, [safeItems.length, clampedDefaultIndex, allowMultiple, allowCollapseAll, editorPreviewMode, safeItems]);
 
+  // Resize preview may leave inline height constraints on the host DOM node.
+  // Always normalize Accordion back to content-driven height.
+  useEffect(() => {
+    const el = hostRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.removeProperty("min-height");
+    el.style.removeProperty("max-height");
+  }, [width, openIndexes, safeItems.length]);
+
+  useEffect(() => {
+    const updateHeights = () => {
+      const next: Record<number, number> = {};
+      safeItems.forEach((_, idx) => {
+        const panel = contentPanelRefs.current[idx];
+        next[idx] = panel ? panel.scrollHeight : 0;
+      });
+      setContentHeights(next);
+    };
+
+    updateHeights();
+
+    const ro = new ResizeObserver(updateHeights);
+    if (hostRef.current) ro.observe(hostRef.current);
+    safeItems.forEach((_, idx) => {
+      const panel = contentPanelRefs.current[idx];
+      if (panel) ro.observe(panel);
+    });
+
+    return () => ro.disconnect();
+  }, [safeItems, openIndexes, contentFontSize, headerFontSize, width]);
+
   const swallowPointer = (e: React.SyntheticEvent) => {
     e.stopPropagation();
   };
@@ -155,9 +190,15 @@ export const Accordion = ({
       data-node-id={id}
       data-drop-block="true"
       data-drop-block-type="Accordion"
-      ref={(ref) => { if (ref) connect(ref); }}
+      ref={(ref) => {
+        if (!ref) return;
+        hostRef.current = ref;
+        connect(ref);
+      }}
       style={{
         width,
+        height: "auto",
+        alignSelf: "flex-start",
         backgroundColor,
         marginTop: `${marginTop}px`,
         marginRight: `${marginRight}px`,
@@ -191,6 +232,8 @@ export const Accordion = ({
               borderStyle: "solid",
               borderRadius: isWix ? "0px" : `${itemRadius}px`,
               position: "relative",
+              display: "flex",
+              flexDirection: "column",
               zIndex: open ? 1 : 0,
               overflow: "hidden",
               boxShadow: isWix
@@ -343,13 +386,16 @@ export const Accordion = ({
             <div
               style={{
                 overflow: "hidden",
-                maxHeight: open ? "900px" : "0px",
+                maxHeight: open ? `${contentHeights[index] ?? 0}px` : "0px",
                 transition: `max-height ${safeDuration}ms ease, opacity ${Math.max(120, safeDuration - 80)}ms ease`,
                 opacity: open ? 1 : 0,
               }}
             >
               <div
                 data-canvas-interactive="true"
+                ref={(el) => {
+                  contentPanelRefs.current[index] = el;
+                }}
                 style={{
                   backgroundColor: contentBg,
                   color: contentTextColor,
@@ -363,8 +409,8 @@ export const Accordion = ({
                 {mediaType !== "none" && mediaUrl && (
                   <div style={{ padding: isWix ? "0 44px 10px" : "0 16px 10px" }}>
                     {mediaType === "image"
-                      ? <img src={mediaUrl} alt={item.title} style={{ width: 280, height: 180, objectFit: "cover", borderRadius: 6, display: "block" }} />
-                      : <video src={mediaUrl} controls style={{ width: 280, height: 180, borderRadius: 6, display: "block" }} />
+                      ? <img src={mediaUrl} alt={item.title} style={{ width: "100%", maxWidth: 280, height: "auto", aspectRatio: "14 / 9", objectFit: "cover", borderRadius: 6, display: "block" }} />
+                      : <video src={mediaUrl} controls style={{ width: "100%", maxWidth: 280, height: "auto", aspectRatio: "14 / 9", borderRadius: 6, display: "block" }} />
                     }
                   </div>
                 )}

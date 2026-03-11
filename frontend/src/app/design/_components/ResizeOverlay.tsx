@@ -895,6 +895,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
 
         const currentNode = query.getState().nodes[nodeId];
         const isTextNode = currentNode?.data?.displayName === "Text";
+        const isAccordionNode = currentNode?.data?.displayName === "Accordion";
         const startFontSize = parsePxOrAuto(d.startProps.fontSize);
         const nextFontSize = isTextNode
           ? computeTextFontSizeForResize(h, startW, startH, newW, newH, startFontSize)
@@ -902,7 +903,13 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
 
         // Smooth preview: apply direct DOM style during drag, commit once on mouseup.
         dom.style.width = `${newW}px`;
-        dom.style.height = isTextNode ? "auto" : `${newH}px`;
+        if (isTextNode || isAccordionNode) {
+          dom.style.height = "auto";
+          dom.style.removeProperty("min-height");
+          dom.style.removeProperty("max-height");
+        } else {
+          dom.style.height = `${newH}px`;
+        }
         if (extraMT !== 0) {
           dom.style.marginTop = `${nextMarginTop}px`;
         }
@@ -1134,6 +1141,11 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
 
           const currentNode = query.getState().nodes[nodeId];
           const isTextNode = currentNode?.data?.displayName === "Text";
+          const isAccordionNode = currentNode?.data?.displayName === "Accordion";
+          if (isAccordionNode) {
+            newH = startH;
+            extraMT = 0;
+          }
           const startFontSize = parsePxOrAuto(d.startProps.fontSize);
           const nextFontSize = isTextNode
             ? computeTextFontSizeForResize(h, startW, startH, newW, newH, startFontSize)
@@ -1141,7 +1153,13 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
 
           actions.setProp(nodeId, (props: Record<string, unknown>) => {
             props.width = `${Math.round(newW)}px`;
-            props.height = isTextNode ? "auto" : `${Math.round(newH)}px`;
+            if (isTextNode || isAccordionNode) {
+              props.height = "auto";
+              delete props.minHeight;
+              delete props.maxHeight;
+            } else {
+              props.height = `${Math.round(newH)}px`;
+            }
             if (isTextNode && nextFontSize != null) {
               props.fontSize = Math.round(nextFontSize * 10) / 10;
             }
@@ -1156,6 +1174,17 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
               props.marginLeft = Math.round(nextML);
             }
           });
+
+          // Resize preview writes inline DOM styles during drag; ensure they do not linger
+          // and override committed Craft props (notably Accordion height:auto behavior).
+          dom.style.width = `${Math.round(newW)}px`;
+          if (isTextNode || isAccordionNode) {
+            dom.style.height = "auto";
+            dom.style.removeProperty("min-height");
+            dom.style.removeProperty("max-height");
+          } else {
+            dom.style.height = `${Math.round(newH)}px`;
+          }
         } else if (d.type === "rotate") {
           const startRot = typeof d.startProps.rotation === "number" ? d.startProps.rotation : 0;
           const finalRot = startRot + (d.accumulatedAngleDeg ?? 0);
