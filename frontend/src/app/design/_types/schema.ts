@@ -70,7 +70,7 @@ export type ComponentType =
   | "Circle"
   | "Square"
   | "Triangle"
-  | "ImportedBlock";
+  | "Tabs";
 
 /** A single node in the document. */
 export interface CleanNode {

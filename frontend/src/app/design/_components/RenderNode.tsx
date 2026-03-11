@@ -120,23 +120,59 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
     };
   }, [actions, dom, id, name, isHandTool]);
 
+  const [rect, setRect] = useState<DOMRect | null>(null);
+
+  useEffect(() => {
+    if (!dom) return;
+    const update = () => {
+      const next = dom.getBoundingClientRect();
+      setRect((prev) => {
+        if (!prev) return next;
+        if (
+          Math.abs(prev.left - next.left) < 0.5 &&
+          Math.abs(prev.top - next.top) < 0.5 &&
+          Math.abs(prev.width - next.width) < 0.5 &&
+          Math.abs(prev.height - next.height) < 0.5
+        ) return prev;
+        return next;
+      });
+    };
+    update();
+
+    const scrollUpdate = () => requestAnimationFrame(update);
+    window.addEventListener("scroll", scrollUpdate, true);
+    window.addEventListener("resize", scrollUpdate);
+
+    // Initial check and periodic poll for unexpected layout shifts
+    const interval = setInterval(update, 500);
+
+    return () => {
+      window.removeEventListener("scroll", scrollUpdate, true);
+      window.removeEventListener("resize", scrollUpdate);
+      clearInterval(interval);
+    };
+  }, [dom]);
+
   // Don't render overlays for ROOT/Viewport shells only
   if (id === "ROOT" || name === "Viewport") {
     return <>{render}</>;
   }
 
+  const isLabelVisible = !isHandTool && mounted && ((isDomHovered && !suppressPassiveHover) || isActive) && dom && rect;
+
   return (
     <>
       {/* Label overlay (portal) — hidden when Hand tool is active */}
-      {!isHandTool && mounted && ((isDomHovered && !suppressPassiveHover) || isActive) && dom ?
+      {isLabelVisible ?
         ReactDOM.createPortal(
           <div
             data-panel="node-label"
-            className={`fixed px-2 py-1 bg-blue-500 text-brand-lighter text-[10px] rounded-t-md z-40 pointer-events-none transition-opacity duration-200 uppercase font-bold tracking-wider ${isActive || (isDomHovered && !suppressPassiveHover) ? "opacity-100" : "opacity-0"
+            className={`fixed px-2 py-1 bg-blue-500/90 [backdrop-filter:blur(4px)] text-brand-lighter text-[10px] rounded-t-md z-40 pointer-events-none transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] uppercase font-bold tracking-wider shadow-lg ${isActive || (isDomHovered && !suppressPassiveHover) ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-1 scale-95"
               }`}
             style={{
-              left: dom.getBoundingClientRect().left,
-              top: dom.getBoundingClientRect().top - 24,
+              left: 0,
+              top: 0,
+              transform: `translate3d(${rect.left}px, ${rect.top - 24}px, 0)`,
             }}
           >
             {name}

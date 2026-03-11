@@ -395,8 +395,16 @@ body:has(.m-dashboard-shell) {
 /* Builder Styles */
 .component-selected {
   outline: 2px solid #3b82f6 !important;
-  /* Blue 500 */
+  outline-offset: -2px !important;
   position: relative;
+  transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+}
+
+.component-hovered:not(.component-selected) {
+  outline: 1px dashed rgba(59, 130, 246, 0.5) !important;
+  outline-offset: -1px !important;
+  transition: all 0.2s ease;
 }
 
 /* Hand tool: force hand cursor over entire canvas (including nodes) */
