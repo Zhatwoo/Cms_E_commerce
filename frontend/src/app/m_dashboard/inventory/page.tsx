@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import {
   adjustInventoryStock,
+  createProduct,
   deleteInventoryMovement,
   getInventorySummary,
   importInventoryCsv,
@@ -27,8 +28,10 @@ import {
   type InventorySummary,
 } from '@/lib/api';
 import { getIndustryCategories } from '@/lib/industryCatalog';
-import { useRouter } from 'next/navigation';
+import { useAlert } from '../components/context/alert-context';
 import { useProject } from '../components/context/project-context';
+import { type Product, type ProductVariant } from '../lib/productsData';
+import ProductAddModal from '../products/components/productAddModal';
 
 // ─── Design tokens (original — unchanged) ────────────────────────────────────
 const T = {
@@ -137,6 +140,15 @@ const getDefaultAdjustmentNote = (t: StockAdjustmentType) =>
   t === 'IN' ? 'Manual stock-in from inventory page' : 'Manual stock-out from inventory page';
 
 const DEFAULT_LOW_STOCK_THRESHOLD = 5;
+type ProductUpsertPayload = Omit<Parameters<typeof createProduct>[0], 'subdomain'>;
+
+function toDashboardStatus(status?: string): 'active' | 'inactive' | 'draft' {
+  const normalized = (status || '').toString().toLowerCase();
+  if (normalized === 'active' || normalized === 'published') return 'active';
+  if (normalized === 'inactive' || normalized === 'suspended') return 'inactive';
+  return 'draft';
+}
+
 const RECENT_MOVEMENTS_LIMIT = 5;
 const ALL_MOVEMENTS_LIMIT    = 500;
 
@@ -336,10 +348,11 @@ const ModalBackdrop = ({ onClose, children }: { onClose: () => void; children: R
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function InventoryPage() {
-  const router = useRouter();
   const { selectedProject } = useProject();
+  const { showAlert } = useAlert();
   const selectedSubdomain = normalizeSubdomain(selectedProject?.subdomain);
 
+  const [showAddModal, setShowAddModal] = useState(false);
   const [search, setSearch]                       = useState('');
   const [categoryFilter, setCategoryFilter]       = useState<string>('all');
   const [items, setItems]                         = useState<ApiProduct[]>([]);
@@ -381,6 +394,109 @@ export default function InventoryPage() {
   useEffect(() => () => { if (importPopupTimerRef.current) window.clearTimeout(importPopupTimerRef.current); }, []);
 
   const stockValueLabel = useMemo(() => `₱${(summary?.stockValue || 0).toLocaleString()}`, [summary?.stockValue]);
+
+  const handleSaveProduct = useCallback(async (productData: Partial<Product> & Record<string, unknown>): Promise<boolean> => {
+    if (!selectedSubdomain) {
+      showAlert('Set a subdomain for this website first to manage products.', 'error');
+      return false;
+    }
+    try {
+      const rawVariants = Array.isArray(productData.variants) ? productData.variants : [];
+      const variants: ProductVariant[] = rawVariants
+        .map((variant): ProductVariant => {
+          const optionsRaw = Array.isArray((variant as { options?: unknown[] })?.options)
+            ? (variant as { options: unknown[] }).options
+            : [];
+          const options = optionsRaw
+            .map((option) => ({
+              id: String((option as { id?: string })?.id || ''),
+              name: String((option as { name?: string })?.name || '').trim(),
+              priceAdjustment: Number((option as { priceAdjustment?: number })?.priceAdjustment || 0),
+              image: String((option as { image?: string })?.image || '').trim(),
+            }))
+            .filter((option) => option.name || option.priceAdjustment !== 0 || option.image);
+          return {
+            id: String((variant as { id?: string })?.id || ''),
+            name: String((variant as { name?: string })?.name || '').trim(),
+            pricingMode: (variant as { pricingMode?: string })?.pricingMode === 'override' ? 'override' : 'modifier',
+            options,
+          };
+        })
+        .filter((variant) => variant.name || variant.options.length > 0);
+
+      const basePrice = Number(productData.basePrice ?? productData.price ?? 0);
+      const finalPrice = Number(productData.finalPrice ?? productData.price ?? 0);
+      const discount = Number(productData.discount || 0);
+      const discountType = String(productData.discountType || 'percentage') === 'fixed' ? 'fixed' : 'percentage';
+      const hasVariants = Boolean(productData.hasVariants) && variants.length > 0;
+      const variantStocks = hasVariants && productData.variantStocks && typeof productData.variantStocks === 'object'
+        ? Object.entries(productData.variantStocks as Record<string, unknown>).reduce<Record<string, number>>((acc, [key, value]) => {
+          const parsed = Number(value);
+          acc[key] = Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 0;
+          return acc;
+        }, {})
+        : {};
+      const variantPrices = hasVariants && productData.variantPrices && typeof productData.variantPrices === 'object'
+        ? Object.entries(productData.variantPrices as Record<string, unknown>).reduce<Record<string, number>>((acc, [key, value]) => {
+          const parsed = Number(value);
+          acc[key] = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+          return acc;
+        }, {})
+        : {};
+      const priceRangeMin = hasVariants ? Number(productData.priceRangeMin ?? finalPrice) : finalPrice;
+      const priceRangeMax = hasVariants ? Number(productData.priceRangeMax ?? finalPrice) : finalPrice;
+      const computedStock = hasVariants
+        ? Object.values(variantStocks).reduce((sum, amount) => sum + amount, 0)
+        : Number(productData.stock || 0);
+      const normalizedLowStockThreshold = Math.max(
+        0,
+        Number.isFinite(Number(productData.lowStockThreshold))
+          ? Number(productData.lowStockThreshold)
+          : DEFAULT_LOW_STOCK_THRESHOLD
+      );
+
+      const payload: ProductUpsertPayload = {
+        name: String(productData.name || ''),
+        sku: String(productData.sku || ''),
+        category: String(productData.category || ''),
+        subcategory: String(productData.subcategory || ''),
+        subCategory: String(productData.subcategory || ''),
+        sub_category: String(productData.subcategory || ''),
+        description: String(productData.description || ''),
+        price: finalPrice,
+        basePrice,
+        costPrice: productData.costPrice !== undefined ? Number(productData.costPrice || 0) : null,
+        finalPrice,
+        compareAtPrice: discount > 0 ? basePrice : null,
+        discount,
+        discountType,
+        hasVariants,
+        variants: hasVariants ? variants : [],
+        variantStocks: hasVariants ? variantStocks : {},
+        variantPrices: hasVariants ? variantPrices : {},
+        priceRangeMin,
+        priceRangeMax,
+        stock: computedStock,
+        lowStockThreshold: normalizedLowStockThreshold,
+        status: toDashboardStatus(String(productData.status || 'draft')),
+        images: Array.isArray(productData.images) ? (productData.images as string[]) : [],
+      };
+
+      await createProduct({
+        subdomain: selectedSubdomain,
+        ...payload,
+        slug: payload.name.toLowerCase().replace(/\s+/g, '-'),
+      });
+      await loadData();
+      setShowAddModal(false);
+      showImportPopup('Product added successfully!', 'success');
+      return true;
+    } catch (error) {
+      showAlert(error instanceof Error ? error.message : 'Failed to save product', 'error');
+      return false;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSubdomain, showAlert, showImportPopup]);
 
   const loadData = useCallback(async () => {
     setLoading(true); setError(null);
@@ -991,7 +1107,7 @@ export default function InventoryPage() {
             </div>
             <button
               type="button"
-              onClick={() => router.push('/m_dashboard/products')}
+              onClick={() => setShowAddModal(true)}
               title="Add Product"
               style={{
                 height: 46, borderRadius: 12,
@@ -1073,7 +1189,8 @@ export default function InventoryPage() {
                 <p style={{ color: T.textMuted, fontSize: 13 }}>Add your first product or import a CSV to start tracking stock.</p>
               </div>
             ) : (
-              filteredItems.map((product, i) => {
+              filteredItems.map((rawProduct, i) => {
+                const product = rawProduct as InventoryRow;
                 const { onHand, reserved, lowThreshold } = getStockNumbers(product);
                 return (
                   <div
@@ -1375,6 +1492,14 @@ export default function InventoryPage() {
           </ModalBackdrop>
         )}
       </AnimatePresence>
+
+      <ProductAddModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSave={handleSaveProduct}
+        uploadSubdomain={selectedSubdomain}
+        projectIndustry={selectedProject?.industry || null}
+      />
     </div>
   );
 }
