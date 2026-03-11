@@ -105,7 +105,12 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'x-project-id']
 }));
 app.use(cookieParser());
-app.use(express.json({ limit: '20mb' }));
+app.use(express.json({
+  limit: '20mb',
+  verify: (req, _res, buf) => {
+    if (req.originalUrl === '/api/webhooks/paymongo') req.rawBody = buf;
+  }
+}));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
 // Domain & Subdomain detection middleware
@@ -158,6 +163,7 @@ const templateRoutes = require('./routes/templateRoutes');
 const domainRoutes = require('./routes/domainRoutes');
 const projectRoutes = require('./routes/projectRoutes');
 const collaborationRoutes = require('./routes/collaborationRoutes');
+const webhookRoutes = require('./routes/webhookRoutes');
 
 // Routes – public site by subdomain must be reachable
 app.use('/api/public', publicSiteRoutes);
@@ -173,6 +179,7 @@ app.use('/api/templates', templateRoutes);
 app.use('/api/domains', domainRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/collaboration', collaborationRoutes);
+app.use('/api/webhooks', webhookRoutes);
 
 // Home route
 app.get('/', (req, res) => {
