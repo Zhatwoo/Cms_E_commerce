@@ -3,7 +3,6 @@ import { useRef, useState, useEffect, useLayoutEffect, useCallback, startTransit
 import { Editor, Frame, Element, useEditor } from "@craftjs/core";
 import { PanelLeft, PanelRight } from "lucide-react";
 import { RenderBlocks } from "../_designComponents";
-import { Frame as FrameComponentFromFile } from "../_designComponents/Frame/Frame";
 import { LeftPanel } from "./leftPanel";
 import { RightPanel } from "./rightPanel";
 import { TopPanel, type DevicePreset } from "./TopPanel";
@@ -2240,12 +2239,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   const resolverRef = useRef<Record<string, React.ComponentType>>({});
 
   const resolver: Record<string, React.ComponentType> = React.useMemo(() => {
-    const FrameForResolver: React.ComponentType =
-      (typeof FrameComponentFromFile === "function" ? FrameComponentFromFile : null) ??
-      (typeof RenderBlocks?.Frame === "function" ? RenderBlocks.Frame : null) ??
-      CRAFT_RESOLVER.Frame ??
-      SAFE_CONTAINER;
-
     const base: Record<string, any> = {
       ...RenderBlocks,
       ...CRAFT_RESOLVER,
@@ -2263,8 +2256,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
       triangle: asComponent(Triangle),
     };
     // Force Frame to always exist; Craft looks up by "Frame" and sometimes "frame"
-    base.Frame = FrameForResolver;
-    base.frame = FrameForResolver;
+    base.Frame = SAFE_CONTAINER;
+    base.frame = SAFE_CONTAINER;
     // Ensure Container always exists in resolver (serialized nodes often use this)
     // Prefer the locally imported Container component so we never end up with an undefined value
     base.Container = SAFE_CONTAINER;

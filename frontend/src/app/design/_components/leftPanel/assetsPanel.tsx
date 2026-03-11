@@ -16,7 +16,6 @@ import { Section } from "../../_designComponents/Section/Section";
 import { Row } from "../../_designComponents/Row/Row";
 import { Column } from "../../_designComponents/Column/Column";
 import { Icon } from "../../_designComponents/Icon/Icon";
-import { Frame as FrameComponent } from "../../_designComponents/Frame/Frame";
 
 const SAFE_CONTAINER: React.ComponentType<any> =
   (typeof Container === "function" ? Container : null) ??
@@ -100,8 +99,6 @@ const ASSET_ICONS: Record<string, React.ReactNode> = {
 
 const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverFallback({
   ...CRAFT_RESOLVER,
-  Frame: asComponent(FrameComponent),
-  frame: asComponent(FrameComponent),
   Container: SAFE_CONTAINER,
   container: SAFE_CONTAINER,
   CONTAINER: SAFE_CONTAINER,
