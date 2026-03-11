@@ -2,6 +2,7 @@ export interface ProductVariantOption {
   id: string;
   name: string;
   priceAdjustment: number;
+  image?: string;
 }
 
 export interface ProductVariant {
@@ -15,6 +16,7 @@ export interface Product {
   id: string;
   name: string;
   category: string;
+  subcategory?: string;
   price: number;
   basePrice?: number;
   costPrice?: number | null;
@@ -25,6 +27,7 @@ export interface Product {
   hasVariants?: boolean;
   variants?: ProductVariant[];
   variantStocks?: Record<string, number>;
+  variantPrices?: Record<string, number>;
   priceRangeMin?: number | null;
   priceRangeMax?: number | null;
   stock: number;

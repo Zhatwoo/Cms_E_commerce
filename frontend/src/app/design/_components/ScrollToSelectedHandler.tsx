@@ -13,11 +13,20 @@ export function ScrollToSelectedHandler() {
   const lastCenteredNodeIdRef = useRef<string | null>(null);
 
   useEffect(() => {
+    // Centering should be explicit (e.g. from a future "focus in canvas" action),
+    // not triggered by normal selection changes from panel/canvas clicks.
+    const centerRequested = document.body.dataset.centerOnSelect === "true";
+    if (!centerRequested) return;
+
     const ids = selectedToIds(selected);
     if (ids.length === 0) {
       lastCenteredNodeIdRef.current = null;
       return;
     }
+
+    // Avoid accidental auto-centering when selecting regular components.
+    // We only center when the selection is explicitly a single Page node.
+    if (ids.length !== 1) return;
 
     const targetId = ids[0];
     if (!targetId) return;
@@ -38,6 +47,7 @@ export function ScrollToSelectedHandler() {
     canvasContainer.dispatchEvent(
       new CustomEvent("center-on-node", { detail: { nodeId: targetId } })
     );
+    delete document.body.dataset.centerOnSelect;
 
     lastCenteredNodeIdRef.current = targetId;
   }, [query, selected]);

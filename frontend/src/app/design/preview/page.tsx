@@ -1,21 +1,21 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState, Suspense } from "react";
-import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload, Monitor, Tablet, Smartphone } from "lucide-react";
+import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload, Monitor, Tablet, Smartphone, Lock, X, RotateCw } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { deserializeCleanToCraft } from "../_lib/serializer";
 import { parseContentToCleanDoc } from "../_lib/contentParser";
+import { migratePublishedContent } from "../_lib/contentMigration";
 import { autoSavePage, getDraft } from "../_lib/pageApi";
 import { WebPreview } from "../_lib/webRenderer";
 import { PREVIEW_MOBILE_BREAKPOINT } from "../_lib/viewportConstants";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
-import { getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, getMyDomains, type Project } from "@/lib/api";
+import { getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, getMyDomains, getMe, uploadMediaApi, type Project } from "@/lib/api";
 import { getSubdomainSiteUrl } from "@/lib/siteUrls";
 import { getLimits } from "@/lib/subscriptionLimits";
-import { uploadClientFile } from "@/lib/firebaseStorage";
 import html2canvas from "html2canvas";
-//vdxvx
+
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 
@@ -38,21 +38,6 @@ function toPxNumber(value: unknown): number | null {
 type ViewMode = "Web-Preview" | "clean" | "raw";
 type PreviewViewport = "desktop" | "tablet" | "mobile";
 
-const toPxNumber = (value: unknown): number | undefined => {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value !== "string") return undefined;
-  const normalized = value.trim().toLowerCase();
-  if (!normalized) return undefined;
-  if (normalized.endsWith("px")) {
-    const parsed = Number(normalized.slice(0, -2));
-    return Number.isFinite(parsed) ? parsed : undefined;
-  }
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : undefined;
-};
-
-
-
 function PreviewContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -71,6 +56,7 @@ function PreviewContent() {
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [showPublishDialog, setShowPublishDialog] = useState(false);
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [publishDomainName, setPublishDomainName] = useState("");
   const [publishDomainError, setPublishDomainError] = useState("");
   const [showPublishedSuccessModal, setShowPublishedSuccessModal] = useState(false);
@@ -80,10 +66,17 @@ function PreviewContent() {
   const [scheduleInfo, setScheduleInfo] = useState<{ scheduledAt: string; subdomain: string | null } | null>(null);
   const [scheduling, setScheduling] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [selectedPreviewPageSlug, setSelectedPreviewPageSlug] = useState<string | undefined>(initialPageSlug);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const thumbnailCaptureRef = useRef(false);
   const useBuilderParityMode = false;
+
+  useEffect(() => {
+    getMe().then((res: any) => {
+      if (res.success && res.user) setCurrentUser(res.user);
+    });
+  }, []);
 
   const readSessionSnapshot = (targetProjectId: string): string | null => {
     if (typeof window === "undefined") return null;
@@ -95,6 +88,28 @@ function PreviewContent() {
       return null;
     }
   };
+
+  const handleRefresh = React.useCallback(async () => {
+    const sessionSnapshot = readSessionSnapshot(projectId);
+    if (sessionSnapshot) {
+      setRawJson(sessionSnapshot);
+      console.log("Preview: Refreshed from sessionStorage (latest from editor)");
+      return;
+    }
+    setLoading(true);
+    try {
+      const result = await getDraft(projectId);
+      if (result.success && result.data?.content) {
+        const content = result.data.content;
+        setRawJson(typeof content === "object" ? JSON.stringify(content) : content);
+        console.log("Preview: Refreshed from API");
+      }
+    } catch (e) {
+      console.error("Preview refresh error:", e);
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -178,6 +193,18 @@ function PreviewContent() {
     };
   }, [projectId]);
 
+  // Re-read sessionStorage when tab becomes visible (user switched back from Editor)
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        const sessionSnapshot = readSessionSnapshot(projectId);
+        if (sessionSnapshot) setRawJson(sessionSnapshot);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [projectId]);
+
   useEffect(() => {
     let active = true;
     async function loadProject() {
@@ -206,14 +233,15 @@ function PreviewContent() {
   );
 
   const previewPages = useMemo(() => {
-    if (!cleanDoc?.pages?.length) return [] as Array<{ slug: string; name: string }>;
+    if (!cleanDoc?.pages?.length) return [] as Array<{ id: string; slug: string; name: string }>;
     return cleanDoc.pages.map((page, index) => {
       const pageProps = (page?.props ?? {}) as Record<string, unknown>;
+      const id = (page?.id as string) || `page-${index}`;
       const rawName = page?.name ?? pageProps.pageName;
       const name = typeof rawName === "string" && rawName.trim() ? rawName.trim() : `Page ${index + 1}`;
       const rawSlug = page?.slug ?? pageProps.pageSlug;
       const slug = typeof rawSlug === "string" && rawSlug.trim() ? rawSlug.trim() : `page-${index + 1}`;
-      return { slug, name };
+      return { id, slug, name };
     });
   }, [cleanDoc]);
 
@@ -295,7 +323,6 @@ function PreviewContent() {
   }, [rawJson]);
 
   const activeJson = viewMode === "clean" ? cleanJson : viewMode === "raw" ? rawFormatted : null;
-  const useBuilderParityMode = false;
 
   const desktopResponsiveViewportWidth = useMemo(() => {
     if (!cleanDoc?.pages?.length) return undefined;
@@ -303,9 +330,9 @@ function PreviewContent() {
     const targetSlug = initialPageSlug;
     const targetPage = targetSlug
       ? cleanDoc.pages.find((page, index) => {
-          const slug = (page.props?.pageSlug as string | undefined) || `page-${index}`;
-          return slug === targetSlug;
-        })
+        const slug = (page.props?.pageSlug as string | undefined) || `page-${index}`;
+        return slug === targetSlug;
+      })
       : cleanDoc.pages[0];
 
     return toPxNumber(targetPage?.props?.width) ?? 1920;
@@ -330,15 +357,7 @@ function PreviewContent() {
       if (!blob) throw new Error("Thumbnail capture failed");
 
       const file = new File([blob], `preview-${projectId}.jpg`, { type: "image/jpeg" });
-      const user = getStoredUser();
-      const clientName = user?.name || user?.email || "client";
-      const websiteName = project?.title || "project";
-
-      const url = await uploadClientFile(file, {
-        clientName,
-        websiteName,
-        folder: "images",
-      });
+      const { url } = await uploadMediaApi(projectId, file, { folder: "images" });
 
       const updated = await updateProject(projectId, { thumbnail: url });
       if (updated.success) {
@@ -409,6 +428,10 @@ function PreviewContent() {
   };
 
   const handleSaveTemplate = async () => {
+    if (project?.isShared) {
+      setShowPermissionModal(true);
+      return;
+    }
     if (!templateName.trim() || !templateDescription.trim()) {
       showAlert("Please fill in all fields");
       return;
@@ -446,6 +469,11 @@ function PreviewContent() {
   };
   //cjdhv
   const handlePublishClick = async () => {
+    const isCollaborator = project?.isShared || (project?.ownerId && currentUser?.id && project.ownerId !== currentUser.id);
+    if (isCollaborator) {
+      setShowPermissionModal(true);
+      return;
+    }
     setPublishDomainError("");
     try {
       const res = await getProject(projectId);
@@ -497,7 +525,8 @@ function PreviewContent() {
     setPublishDomainError("");
     setPublishing(true);
     try {
-      const snapshot = cleanDoc ? JSON.stringify(cleanDoc) : null;
+      const docToPublish = cleanDoc ? migratePublishedContent(cleanDoc) : null;
+      const snapshot = docToPublish ? JSON.stringify(docToPublish) : null;
       if (snapshot) {
         await autoSavePage(snapshot, projectId);
       }
@@ -552,7 +581,8 @@ function PreviewContent() {
     setPublishDomainError("");
     setScheduling(true);
     try {
-      const snapshot = cleanDoc ? JSON.stringify(cleanDoc) : null;
+      const docToPublish = cleanDoc ? migratePublishedContent(cleanDoc) : null;
+      const snapshot = docToPublish ? JSON.stringify(docToPublish) : null;
       if (snapshot) {
         await autoSavePage(snapshot, projectId);
       }
@@ -592,21 +622,36 @@ function PreviewContent() {
               <ArrowLeft size={16} />
               Back to Editor
             </button>
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              title="Reload latest from editor or database"
+              className="flex items-center gap-2 text-sm text-brand-light hover:text-brand-lighter transition-colors disabled:opacity-50"
+            >
+              <RotateCw size={16} className={loading ? "animate-spin" : ""} />
+              Refresh
+            </button>
             <div className="w-px h-5 bg-white/10" />
             <h1 className="text-lg font-semibold">Preview</h1>
           </div>
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setShowSaveDialog(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-400 transition-colors"
+              onClick={() => {
+                const isCollaborator = project?.isShared || (project?.ownerId && currentUser?.id && project.ownerId !== currentUser.id);
+                if (isCollaborator) setShowPermissionModal(true);
+                else if (project) setShowSaveDialog(true);
+              }}
+              disabled={loading || !project}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Save size={14} />
               Save Template
             </button>
             <button
               onClick={handlePublishClick}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 transition-colors"
+              disabled={loading || !project}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Upload size={14} />
               Publish
@@ -723,8 +768,8 @@ function PreviewContent() {
                 disabled={previewPages.length === 0}
                 className="bg-[#111] border border-white/10 rounded-md px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-white/20 disabled:opacity-50"
               >
-                {previewPages.map((page) => (
-                  <option key={page.slug} value={page.slug}>
+                {previewPages.map((page, idx) => (
+                  <option key={page.id || `page-${idx}`} value={page.slug}>
                     {page.name}
                   </option>
                 ))}
@@ -822,7 +867,7 @@ function PreviewContent() {
       {showPublishDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-semibold text-white mb-2">Publish site</h2>
+            <h2 className="text-xl font-semibold text-white mb-2">Publish to live domain</h2>
             {scheduleInfo && (
               <p className="text-sm text-amber-400/90 mb-2">
                 Already scheduled for {new Date(scheduleInfo.scheduledAt).toLocaleString()}. Setting a new date will replace it.
@@ -830,12 +875,12 @@ function PreviewContent() {
             )}
             <p className="text-sm text-zinc-400 mb-4">
               {publishDomainName.trim()
-                ? "Confirm your domain name. You can change it later in the dashboard."
-                : "Domain name (subdomain) is required. Set it here or in Create project."}
+                ? "Your site will be published at the subdomain URL below. Design your site in the editor first—what you see in Preview is what gets published."
+                : "Enter a subdomain to create your live site. Design your site in the editor first—what you see in Preview is what gets published."}
             </p>
             <div className="space-y-2 mb-4">
               <label className="block text-sm font-medium text-gray-300">
-                Domain name (subdomain) <span className="text-red-400">*</span>
+                Live domain (subdomain) <span className="text-red-400">*</span>
               </label>
               <input
                 type="text"
@@ -844,11 +889,16 @@ function PreviewContent() {
                   setPublishDomainName(e.target.value);
                   setPublishDomainError("");
                 }}
-                placeholder="e.g. mystore → mystore.yourdomain.com"
+                placeholder="e.g. mystore → mystore.localhost (dev) or mystore.websitelink (prod)"
                 className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 autoFocus
               />
               <p className="text-xs text-zinc-500">Only letters, numbers, and hyphens.</p>
+              {publishDomainName.trim() && (
+                <p className="text-xs text-emerald-400/90 mt-1">
+                  Your site will be live at: <span className="font-mono font-medium">{getSubdomainSiteUrl(publishDomainName.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || 'site', typeof window !== 'undefined' ? window.location.origin : null).replace(/^https?:\/\//, '')}</span>
+                </p>
+              )}
               {publishDomainError && (
                 <p className="text-xs text-red-400">{publishDomainError}</p>
               )}
@@ -923,12 +973,12 @@ function PreviewContent() {
       {showPublishedSuccessModal && publishedSubdomain && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-semibold text-white mb-2">Published successfully</h2>
-            <p className="text-sm text-zinc-400 mb-1">Do you want to open your website now?</p>
-            <p className="text-xs text-zinc-500 mb-5">
+            <h2 className="text-xl font-semibold text-white mb-2">Your site is now live!</h2>
+            <p className="text-sm text-zinc-400 mb-2">Visit your published website:</p>
+            <p className="text-sm font-mono font-medium text-emerald-400 mb-5 break-all">
               {typeof window !== 'undefined'
                 ? getSubdomainSiteUrl(publishedSubdomain, window.location.origin).replace(/^https?:\/\//, '')
-                : `${publishedSubdomain}.localhost`}
+                : `localhost/sites/${publishedSubdomain}`}
             </p>
 
             <div className="flex justify-end gap-3">
@@ -953,7 +1003,7 @@ function PreviewContent() {
                 }}
                 className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
               >
-                Open website
+                Visit live site
               </button>
             </div>
           </div>
@@ -1029,6 +1079,29 @@ function PreviewContent() {
                 className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving ? "Saving..." : "Save Template"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Permission Denied Modal */}
+      {showPermissionModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm bg-[#111] border border-white/10 rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center mb-4">
+                <Lock className="w-6 h-6 text-red-500" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Owner Access Required</h3>
+              <p className="text-sm text-gray-400 mb-6 leading-relaxed">
+                Only the project owner has permission to publish or save templates. Please contact the owner if you need these actions performed.
+              </p>
+              <button
+                onClick={() => setShowPermissionModal(false)}
+                className="w-full py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-sm font-semibold transition-all active:scale-[0.98]"
+              >
+                Got it
               </button>
             </div>
           </div>

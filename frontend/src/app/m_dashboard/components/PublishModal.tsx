@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from './context/theme-context';
 import { publishProject, schedulePublish } from '@/lib/api';
-
-const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'websitelink';
+import { getDraft } from '@/app/design/_lib/pageApi';
+import { getSubdomainSiteUrl } from '@/lib/siteUrls';
 
 const SUBDOMAIN_REGEX = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
 
@@ -51,9 +51,10 @@ export function PublishModal({
   const [scheduling, setScheduling] = useState(false);
   const [scheduledAt, setScheduledAt] = useState('');
 
-  const previewUrl = subdomain.trim()
-    ? `${subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || 'site'}.${BASE_DOMAIN}`
-    : `subdomain.${BASE_DOMAIN}`;
+  const normalizedSlug = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || 'site';
+  const previewUrl = typeof window !== 'undefined'
+    ? getSubdomainSiteUrl(normalizedSlug, window.location.origin).replace(/^https?:\/\//, '')
+    : `${normalizedSlug}.websitelink`;
 
   useEffect(() => {
     if (open) {
@@ -78,7 +79,35 @@ export function PublishModal({
     setError('');
     setPublishing(true);
     try {
-      const res = await publishProject(projectId, normalized, null);
+      let content: string | null = null;
+      const draftRes = await getDraft(projectId);
+      if (draftRes.success && draftRes.data?.content != null) {
+        content = typeof draftRes.data.content === 'string'
+          ? draftRes.data.content
+          : JSON.stringify(draftRes.data.content);
+      }
+      if (!content && typeof window !== 'undefined' && window.sessionStorage) {
+        const sessionKey = `craftjs_preview_json_${projectId}`;
+        const sessionRaw = window.sessionStorage.getItem(sessionKey);
+        if (sessionRaw && sessionRaw.trim()) content = sessionRaw;
+      }
+      if (!content) {
+        setError('Design your site in the editor first, then publish. Open the project in Design, add content, and try again.');
+        setPublishing(false);
+        return;
+      }
+      let contentToPublish: string | null = content;
+      try {
+        const parsed = typeof content === 'string' ? JSON.parse(content) : content;
+        if (parsed && typeof parsed === 'object' && parsed.nodes) {
+          const { migratePublishedContent } = await import('@/app/design/_lib/contentMigration');
+          const migrated = migratePublishedContent(parsed);
+          contentToPublish = JSON.stringify(migrated);
+        }
+      } catch {
+        // keep original content
+      }
+      const res = await publishProject(projectId, normalized, contentToPublish);
       if (res.success) {
         onSuccess(normalized);
         onClose();
@@ -110,7 +139,35 @@ export function PublishModal({
     setError('');
     setScheduling(true);
     try {
-      const res = await schedulePublish(projectId, new Date(scheduledAt).toISOString(), normalized, null);
+      let content: string | null = null;
+      const draftRes = await getDraft(projectId);
+      if (draftRes.success && draftRes.data?.content != null) {
+        content = typeof draftRes.data.content === 'string'
+          ? draftRes.data.content
+          : JSON.stringify(draftRes.data.content);
+      }
+      if (!content && typeof window !== 'undefined' && window.sessionStorage) {
+        const sessionKey = `craftjs_preview_json_${projectId}`;
+        const sessionRaw = window.sessionStorage.getItem(sessionKey);
+        if (sessionRaw && sessionRaw.trim()) content = sessionRaw;
+      }
+      if (!content) {
+        setError('Design your site in the editor first. Open the project in Design, add content, and try again.');
+        setScheduling(false);
+        return;
+      }
+      let contentToPublish: string | null = content;
+      try {
+        const parsed = typeof content === 'string' ? JSON.parse(content) : content;
+        if (parsed && typeof parsed === 'object' && parsed.nodes) {
+          const { migratePublishedContent } = await import('@/app/design/_lib/contentMigration');
+          const migrated = migratePublishedContent(parsed);
+          contentToPublish = JSON.stringify(migrated);
+        }
+      } catch {
+        // keep original content
+      }
+      const res = await schedulePublish(projectId, new Date(scheduledAt).toISOString(), normalized, contentToPublish);
       if (res.success) {
         onSuccess(normalized);
         onClose();
@@ -142,10 +199,10 @@ export function PublishModal({
           onClick={(e) => e.stopPropagation()}
         >
           <h3 className="text-lg font-semibold mb-4" style={{ color: colors.text.primary }}>
-            Publish site
+            Publish to live domain
           </h3>
           <p className="text-sm mb-4" style={{ color: colors.text.secondary }}>
-            Choose a subdomain for your site. You can change it later in My Sites.
+            Choose a subdomain to create your own live site. Each subdomain is a separate, publicly accessible website. You can change it later in My Sites.
           </p>
 
           <div className="space-y-4">
@@ -172,7 +229,7 @@ export function PublishModal({
             )}
             <div>
               <label className="block text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>
-                Subdomain <span style={{ color: '#ef4444' }}>*</span>
+                Live domain (subdomain) <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <input
                 type="text"
@@ -189,9 +246,11 @@ export function PublishModal({
                   color: colors.text.primary,
                 }}
               />
-              <p className="text-xs mt-1" style={{ color: colors.text.muted }}>
-                Live at <span className="font-mono">{previewUrl}</span>
-              </p>
+              {subdomain.trim() && (
+                <p className="text-xs mt-1" style={{ color: colors.text.muted }}>
+                  Your site will be live at <span className="font-mono">{previewUrl}</span>
+                </p>
+              )}
               {error && (
                 <p className="text-xs mt-1" style={{ color: '#ef4444' }}>{error}</p>
               )}

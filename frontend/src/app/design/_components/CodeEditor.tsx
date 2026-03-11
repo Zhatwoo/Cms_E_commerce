@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useEditor } from "@craftjs/core";
+import { useImportedComponents, parseImportedCode } from "../_context/ImportedComponentsContext";
 import { FileType, CodeFile } from "../_types/schema";
 import { autoSavePage } from "../_lib/pageApi";
 import { serializeCraftToClean } from "../_lib/serializer";
@@ -33,6 +34,17 @@ interface CodeEditorProps {
   files?: CodeFile[];
   onFilesChange?: (files: CodeFile[]) => void;
 }
+
+const IMPORT_PRESETS: { label: string; code: string }[] = [
+  { label: "React", code: "import React from 'react';\n" },
+  { label: "Next.js", code: "import Image from 'next/image';\nimport Link from 'next/link';\n" },
+  { label: "Tailwind", code: "// Tailwind classes work via className\n// import 'tailwindcss/tailwind.css';\n" },
+  { label: "Lucide Icons", code: "import { ChevronDown, Menu, X } from 'lucide-react';\n" },
+  { label: "shadcn/ui", code: "import { Button } from '@/components/ui/button';\nimport { Input } from '@/components/ui/input';\n" },
+  { label: "TypeScript", code: "import type { FC } from 'react';\n" },
+  { label: "CSS", code: "import './styles.css';\n// or: import styles from './Component.module.css';\n" },
+  { label: "HTML", code: "// Paste HTML below — use className in component, or dangerouslySetInnerHTML\n// <div class=\"container\">...</div> → <div className=\"container\">...</div>\n" },
+];
 
 // Template generators for different modes
 const TEMPLATES = {
@@ -226,8 +238,13 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [showImportPaste, setShowImportPaste] = useState(false);
+  const [importCodePaste, setImportCodePaste] = useState("");
+  const [importAddFeedback, setImportAddFeedback] = useState<"idle" | "success" | "error">("idle");
+  const { addItem } = useImportedComponents();
   const [mounted, setMounted] = useState(false);
   const editorRef = useRef<HTMLTextAreaElement>(null);
+  const importEditorRef = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLPreElement>(null);
   const lastAppliedContentRef = useRef<string>("");
   const smoothScrollRafRef = useRef<number | null>(null);
@@ -367,7 +384,7 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
 
   // Update instance content when selection changes
   useEffect(() => {
-    const isFocused = document.activeElement === editorRef.current;
+    const isFocused = document.activeElement === editorRef.current || document.activeElement === importEditorRef.current;
     if (isFocused && activeFileId === "instance-props") return;
 
     if (selectedNode && (activeFileId === "instance-props" || !selectedId)) {
@@ -433,9 +450,26 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
 
       if (selectedId) {
         const jsx = generateJSX(selectedId).trim();
-        const content = `export default function Page() {\n  return (\n    <div className="w-full h-full bg-white">\n      ${jsx}\n    </div>\n  );\n}`;
+        const newBody = `export default function Page() {
+  return (
+    <div className="w-full h-full bg-white">
+      ${jsx}
+    </div>
+  );
+}`;
+        const defaultImports = `// React · Next.js · Tailwind · TypeScript — use Import Codes button to add presets
+import React from 'react';
+
+`;
+        let content: string;
+        if (tailwindContent && /^\s*(\/\/.*|\s*import\s+.+)/m.test(tailwindContent)) {
+          const beforeExport = tailwindContent.replace(/\s*export\s+default\s+function\s+Page\s*\([^)]*\)\s*\{[\s\S]*$/m, "").trimEnd();
+          content = beforeExport ? `${beforeExport}\n\n${newBody}` : defaultImports + newBody;
+        } else {
+          content = defaultImports + newBody;
+        }
         setTailwindContent(content);
-        lastAppliedContentRef.current = content; // Sync ref so we don't immediately save back
+        lastAppliedContentRef.current = content;
       }
       setInstanceError(null);
     }
@@ -450,22 +484,77 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
     }
     : files.find((f) => f.id === activeFileId);
 
-  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newContent = e.target.value;
+  const parseInstanceContent = (content: string): { importBlock: string; componentBlock: string } => {
+    const exportMatch = content.match(/\s*export\s+default\s+function\s+Page\s*\([^)]*\)\s*\{/);
+    if (!exportMatch) {
+      return {
+        importBlock: content.trim() || "import React from 'react';",
+        componentBlock: `export default function Page() {\n  return (\n    <div className="w-full h-full bg-white">\n    </div>\n  );\n}`,
+      };
+    }
+    const idx = content.indexOf(exportMatch[0]);
+    return {
+      importBlock: content.slice(0, idx).trimEnd(),
+      componentBlock: content.slice(idx).trimStart(),
+    };
+  };
 
+  const handleImportChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (activeFileId !== "instance-props") return;
+    const { componentBlock } = parseInstanceContent(tailwindContent);
+    const full = (e.target.value.trim() ? e.target.value.trimEnd() + "\n\n" : "") + componentBlock;
+    setTailwindContent(full);
+    setInstanceError(componentBlock.includes('data-node-id="') ? null : "Missing data-node-id attributes");
+  };
+
+  const handleAddAsComponent = () => {
+    const parsed = parseImportedCode(importCodePaste);
+    if (!parsed) {
+      setImportAddFeedback("error");
+      setTimeout(() => setImportAddFeedback("idle"), 2000);
+      return;
+    }
+    addItem({ name: parsed.name, css: parsed.css, html: parsed.html });
+    setImportCodePaste("");
+    setImportAddFeedback("success");
+    setTimeout(() => setImportAddFeedback("idle"), 2000);
+  };
+
+  const handleInsertImportPreset = (code: string) => {
+    if (activeFileId !== "instance-props") return;
+    const { importBlock, componentBlock } = parseInstanceContent(tailwindContent);
+    const current = (importBlock || "").trim();
+    const sep = current && !current.endsWith("\n") ? "\n" : "";
+    const merged = current ? current + sep + code.trim() : code.trim();
+    setTailwindContent((merged ? merged + "\n\n" : "") + componentBlock);
+    setTimeout(() => importEditorRef.current?.focus(), 50);
+  };
+
+  const handleComponentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newComponent = e.target.value;
     if (activeFileId === "instance-props") {
-      setTailwindContent(newContent);
-      if (!newContent.includes('data-node-id="')) {
+      const { importBlock } = parseInstanceContent(tailwindContent);
+      const full = (importBlock ? importBlock + "\n\n" : "") + newComponent;
+      setTailwindContent(full);
+      if (!newComponent.includes('data-node-id="')) {
         setInstanceError("Missing data-node-id attributes");
       } else {
         setInstanceError(null);
       }
-    } else {
       const updated = files.map((f) =>
-        f.id === activeFileId ? { ...f, content: newContent } : f
+        f.id === activeFileId ? { ...f, content: newComponent } : f
       );
       setFiles(updated);
     }
+  };
+
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (activeFileId === "instance-props") return;
+    const newContent = e.target.value;
+    const updated = files.map((f) =>
+      f.id === activeFileId ? { ...f, content: newContent } : f
+    );
+    setFiles(updated);
   };
 
   // Autosave effect
@@ -503,13 +592,76 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
     });
   };
 
+  /** Extract only the JSX part (return (...) ) — prefers Page component when multiple returns exist. */
+  const extractJSXFromSource = (source: string): string => {
+    const pageIdx = source.indexOf("export default function Page");
+    if (pageIdx >= 0) {
+      const afterPage = source.slice(pageIdx);
+      const openBrace = afterPage.indexOf("{");
+      if (openBrace >= 0) {
+        const body = afterPage.slice(openBrace + 1);
+        const returnIdx = body.indexOf("return (");
+        if (returnIdx >= 0) {
+          const afterReturn = body.slice(returnIdx + 8);
+          let depth = 1, pos = 0;
+          for (let i = 0; i < afterReturn.length; i++) {
+            if (afterReturn[i] === "(") depth++;
+            else if (afterReturn[i] === ")") { depth--; if (depth === 0) { pos = i; break; } }
+          }
+          if (depth === 0) return afterReturn.slice(0, pos).trim();
+        }
+      }
+    }
+    const lines = source.split("\n");
+    let start = -1, depth = 0, end = -1;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (/return\s*\(/.test(line)) {
+        start = i;
+        depth = (line.match(/\(/g) || []).length - (line.match(/\)/g) || []).length;
+        if (depth <= 0) { end = i; break; }
+        continue;
+      }
+      if (start >= 0 && depth > 0) {
+        depth += (line.match(/\(/g) || []).length - (line.match(/\)/g) || []).length;
+        if (depth <= 0) { end = i; break; }
+      }
+    }
+    if (start >= 0 && end >= 0) {
+      const slice = lines.slice(start, end + 1).join("\n");
+      const m = slice.match(/return\s*\(\s*([\s\S]*)\s*\)\s*;?/);
+      return m ? m[1].trim() : slice;
+    }
+    return source;
+  };
+
+  /** Auto-detect and repair common invalid formats (extra braces, malformed style). */
+  const normalizeAndRepairJSX = (jsx: string): string => {
+    let s = jsx;
+    s = s.replace(/style=\{\{\{\{/g, "style={{");
+    s = s.replace(/style=\{\{\{/g, "style={{");
+    s = s.replace(/\}\}+(\s*\/?>)/g, "}}$1");
+    s = s.replace(/(\w+):\s*'(\d+(?:px|em|rem|%|vh|vw)?)'/g, "$1: '$2'");
+    return s;
+  };
+
   const handleApplyInstanceProps = () => {
     if (!selectedId || activeFileId !== "instance-props") return;
     try {
+      let jsxOnly = extractJSXFromSource(tailwindContent);
+      jsxOnly = normalizeAndRepairJSX(jsxOnly);
       const parser = new DOMParser();
-      const doc = parser.parseFromString(tailwindContent, "text/html");
-      const elements = doc.querySelectorAll("[data-node-id]");
+      let doc = parser.parseFromString(jsxOnly, "text/html");
+      let elements = doc.querySelectorAll("[data-node-id]");
 
+      if (elements.length === 0) {
+        const repaired = jsxOnly
+          .replace(/\}\}+/g, "}}")
+          .replace(/\{\{\{+/g, "{{")
+          .replace(/,\s*}/g, "}");
+        doc = parser.parseFromString(repaired, "text/html");
+        elements = doc.querySelectorAll("[data-node-id]");
+      }
       if (elements.length === 0) throw new Error("No components with data-node-id found");
 
       const presentIds = new Set<string>();
@@ -573,20 +725,20 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
           const styleAttr = el.getAttribute("style");
           if (styleAttr) {
             try {
-              const cleanStyle = styleAttr.replace(/^\{\{+/, "").replace(/\}\}+$/, "").trim();
+              let cleanStyle = styleAttr.replace(/^\{\{+/, "").replace(/\}\}+$/, "").trim();
+              cleanStyle = cleanStyle.replace(/;\s*/g, ",");
               if (cleanStyle) {
                 const pairs = cleanStyle.split(/,(?![^(]*\))/);
                 pairs.forEach(pair => {
-                  const [key, ...valParts] = pair.split(":");
-                  if (key && valParts.length > 0) {
-                    const k = key.trim();
-                    let v: any = valParts.join(":").trim();
-                    if (v.startsWith("'") && v.endsWith("'")) v = v.substring(1, v.length - 1);
-                    else if (!isNaN(Number(v))) v = Number(v);
-                    else if (v === "true") v = true;
-                    else if (v === "false") v = false;
-                    props[k] = v;
-                  }
+                  const colonIdx = pair.indexOf(":");
+                  if (colonIdx <= 0) return;
+                  const k = pair.slice(0, colonIdx).trim();
+                  let v: any = pair.slice(colonIdx + 1).trim();
+                  v = v.replace(/^["']|["']$/g, "");
+                  if (!isNaN(Number(v))) v = Number(v);
+                  else if (v === "true") v = true;
+                  else if (v === "false") v = false;
+                  props[k] = v;
                 });
               }
             } catch (err) { }
@@ -683,6 +835,19 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
 
           <div className="flex items-center gap-2 shrink-0">
             <div className="flex items-center bg-black/35 p-1 rounded-xl border border-white/10">
+              {activeFileId === "instance-props" && (
+                <button
+                  onClick={() => {
+                    setShowImportPaste((v) => !v);
+                    if (!showImportPaste) setTimeout(() => importEditorRef.current?.focus(), 50);
+                  }}
+                  className={`p-2 rounded-lg transition-all flex items-center gap-1.5 text-xs font-bold ${showImportPaste ? "bg-amber-500/20 text-amber-400" : "hover:bg-white/10 text-white/40 hover:text-white"}`}
+                  title="Import codes"
+                >
+                  <Code2 size={14} />
+                  Import Codes
+                </button>
+              )}
               <button onClick={handleCopyToClipboard} className="p-2 hover:bg-white/10 rounded-lg transition-all text-white/40 hover:text-white group relative">
                 {copySuccess ? <ClipboardCheck size={16} className="text-green-400" /> : <Copy size={16} />}
               </button>
@@ -718,19 +883,86 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
           </div>
         </div>
 
-        <div data-code-editor-scroll="true" className="flex-1 min-h-0 relative group overflow-hidden">
+        <div data-code-editor-scroll="true" className="flex-1 min-h-0 relative group overflow-hidden flex flex-col">
+          {activeFileId === "instance-props" && showImportPaste && (
+            <div className="shrink-0 border-b border-amber-500/20 bg-amber-500/5">
+              <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
+                <span className="text-[10px] text-amber-400/90 font-bold uppercase tracking-wider">React · Next.js · Tailwind · TypeScript · CSS · HTML</span>
+                <button
+                  onClick={() => setShowImportPaste(false)}
+                  className="text-[10px] text-white/50 hover:text-white font-bold uppercase"
+                >
+                  Close
+                </button>
+              </div>
+              <p className="text-[10px] text-white/50 px-4 py-1.5 bg-black/20 border-b border-white/5">
+                Imports are for exported code only — they do not show on the canvas. <strong className="text-amber-400/80">Add as Component</strong> below to turn React+styled-components into a draggable block in the Components panel.
+              </p>
+              <div className="flex flex-wrap gap-1.5 px-3 pt-2 pb-1 border-b border-white/5">
+                {IMPORT_PRESETS.map((preset) => (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => handleInsertImportPreset(preset.code)}
+                    className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-white/5 hover:bg-amber-500/20 text-white/70 hover:text-amber-300 border border-white/10 hover:border-amber-500/30 transition-colors"
+                  >
+                    + {preset.label}
+                  </button>
+                ))}
+              </div>
+              <div className="px-4 py-3 border-b border-amber-500/20 bg-emerald-500/5">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Add as Component</span>
+                  <button
+                    type="button"
+                    onClick={handleAddAsComponent}
+                    disabled={!importCodePaste.trim()}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 ${importAddFeedback === "success"
+                      ? "bg-emerald-500/30 text-emerald-400 border border-emerald-500/50"
+                      : importAddFeedback === "error"
+                        ? "bg-red-500/20 text-red-400 border border-red-500/50"
+                        : "bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                      }`}
+                  >
+                    {importAddFeedback === "success" ? <Check size={12} /> : null}
+                    {importAddFeedback === "success" ? "Added" : importAddFeedback === "error" ? "Invalid" : "Add as Component"}
+                  </button>
+                </div>
+                <textarea
+                  value={importCodePaste}
+                  onChange={(e) => setImportCodePaste(e.target.value)}
+                  spellCheck={false}
+                  placeholder="Paste React + styled-components code (e.g. Loader)..."
+                  className="w-full resize-none bg-black/30 text-white/90 font-mono text-[11px] p-3 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500/50 placeholder:text-white/20 min-h-[60px] border border-white/10"
+                  style={{ fontFamily: "'Fira Code', monospace" }}
+                  rows={3}
+                />
+              </div>
+              <textarea
+                ref={importEditorRef}
+                value={parseInstanceContent(tailwindContent || "").importBlock}
+                onChange={handleImportChange}
+                spellCheck={false}
+                placeholder="import React from 'react';&#10;import './styles.css';&#10;// Paste JS, CSS, or HTML imports"
+                className="w-full resize-none bg-black/20 text-white/90 font-mono text-xs p-4 focus:outline-none placeholder:text-white/20 min-h-[80px] custom-scrollbar border-0 focus:ring-0"
+                style={{ fontFamily: "'Fira Code', 'Courier New', monospace", lineHeight: "1.6" }}
+                rows={4}
+              />
+            </div>
+          )}
+          <div className="flex-1 min-h-0 relative">
           <pre
             ref={highlightRef}
             aria-hidden="true"
             data-code-editor-scroll="true"
             className="custom-scrollbar absolute inset-0 w-full h-full p-6 font-mono text-sm pointer-events-none whitespace-pre-wrap break-words select-none overflow-y-auto overflow-x-hidden"
             style={{ fontFamily: "'Fira Code', 'Courier New', monospace", backgroundColor: "#0a0d14", boxSizing: "border-box", lineHeight: "1.6", margin: 0, border: "1px solid transparent" }}
-            dangerouslySetInnerHTML={{ __html: highlightCode(activeFile?.content || "") }}
+            dangerouslySetInnerHTML={{ __html: highlightCode(activeFileId === "instance-props" ? parseInstanceContent(tailwindContent || "").componentBlock : (activeFile?.content || "")) }}
           />
           <textarea
             ref={editorRef}
-            value={activeFile?.content || ""}
-            onChange={handleContentChange}
+            value={activeFileId === "instance-props" ? parseInstanceContent(tailwindContent || "").componentBlock : (activeFile?.content || "")}
+            onChange={activeFileId === "instance-props" ? handleComponentChange : handleContentChange}
             onScroll={syncScroll}
             onWheel={handleEditorWheel}
             data-code-editor-scroll="true"
@@ -738,6 +970,7 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
             className="custom-scrollbar absolute inset-0 w-full h-full bg-transparent text-transparent caret-white p-6 font-mono text-sm resize-none focus:outline-none z-10 whitespace-pre-wrap break-words overflow-y-auto overflow-x-hidden"
             style={{ fontFamily: "'Fira Code', 'Courier New', monospace", boxSizing: "border-box", lineHeight: "1.6", margin: 0, border: "1px solid transparent", scrollBehavior: "smooth" }}
           />
+          </div>
 
           {instanceError && (
             <div className="absolute bottom-4 right-4 max-w-sm bg-red-500/10 border border-red-500/20 backdrop-blur-md p-3 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-bottom-4">

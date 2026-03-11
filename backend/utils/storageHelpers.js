@@ -46,6 +46,11 @@ const MIME_EXTENSION_MAP = {
   'image/webp': 'webp',
   'image/gif': 'gif',
   'image/avif': 'avif',
+  'image/svg+xml': 'svg',
+  'video/mp4': 'mp4',
+  'video/webm': 'webm',
+  'video/ogg': 'ogv',
+  'application/pdf': 'pdf',
 };
 
 function getFileExtension(originalName, mimeType) {
@@ -83,6 +88,56 @@ async function uploadProductImage({ buffer, userId, mimeType = 'application/octe
   const baseName = safeStorageFileBase(originalName);
   const fileName = `${Date.now()}-${baseName}.${ext}`;
   const filePath = `${PRODUCT_IMAGE_PREFIX}${userId}/products/${folder}/${fileName}`;
+  const token = crypto.randomUUID();
+
+  const file = bucket.file(filePath);
+  await file.save(buffer, {
+    metadata: {
+      contentType: mimeType,
+      metadata: {
+        firebaseStorageDownloadTokens: token,
+      },
+    },
+  });
+
+  const bucketName = bucket.name;
+  const encodedPath = encodeURIComponent(filePath);
+  return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedPath}?alt=media&token=${token}`;
+}
+
+/**
+ * Upload web builder media to Storage at:
+ * Clients/{clientSlug}/{websiteSlug}/{images|videos|files}/{timestamp}-{safeName}.{ext}
+ * Returns direct download URL with token.
+ * @param {Object} opts
+ * @param {Buffer} opts.buffer - File buffer
+ * @param {string} opts.mimeType - e.g. image/png, video/mp4
+ * @param {string} opts.originalName - Original filename
+ * @param {string} opts.clientName - Client/owner display name
+ * @param {string} opts.websiteName - Project title
+ * @param {string} [opts.folder] - 'images' | 'videos' | 'files'. Default: from mimeType
+ * @returns {Promise<string>} Public download URL
+ */
+async function uploadClientMedia({ buffer, mimeType = 'application/octet-stream', originalName = 'file', clientName, websiteName, folder }) {
+  const bucket = getStorageBucket();
+  if (!bucket) {
+    throw new Error('Firebase Storage bucket not configured. Set FIREBASE_STORAGE_BUCKET in backend .env');
+  }
+
+  let resolvedFolder = folder;
+  if (!resolvedFolder) {
+    const m = String(mimeType || '').toLowerCase();
+    if (m.startsWith('image/')) resolvedFolder = 'images';
+    else if (m.startsWith('video/')) resolvedFolder = 'videos';
+    else resolvedFolder = 'files';
+  }
+
+  const ext = getFileExtension(originalName, mimeType);
+  const baseName = safeStorageFileBase(originalName);
+  const fileName = `${Date.now()}-${baseName}.${ext}`;
+  const client = slugPathSegment(clientName || 'client');
+  const website = slugPathSegment(websiteName || 'project');
+  const filePath = `${STORAGE_PREFIX}${client}/${website}/${resolvedFolder}/${fileName}`;
   const token = crypto.randomUUID();
 
   const file = bucket.file(filePath);
@@ -281,6 +336,7 @@ module.exports = {
   deleteProjectStorageFolder,
   uploadAvatar,
   uploadProductImage,
+  uploadClientMedia,
   deleteStorageFilesByUrls,
   deleteAvatarByUrlForUser,
   getStoragePathFromUrl,

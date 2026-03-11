@@ -1,9 +1,10 @@
 const Project = require('../models/Project');
 const User = require('../models/User');
 const Domain = require('../models/Domain');
-const { deleteProjectStorageFolder } = require('../utils/storageHelpers');
+const { deleteProjectStorageFolder, uploadClientMedia } = require('../utils/storageHelpers');
 const { getLimits } = require('../utils/subscriptionLimits');
 const { getTrashRetentionDays } = require('../utils/trashConfig');
+const { resolveProjectOwner } = require('../utils/resolveProjectOwner');
 
 // @desc    List current user's projects
 // @route   GET /api/projects
@@ -11,7 +12,17 @@ const { getTrashRetentionDays } = require('../utils/trashConfig');
 exports.list = async (req, res) => {
   try {
     const userId = req.user.id;
-    const projects = await Project.list(userId);
+    const userEmail = req.user.email;
+    const owned = await Project.list(userId);
+    const shared = await Project.listShared(userId, userEmail);
+
+    // Merge and sort by updatedAt desc
+    const projects = [...owned, ...shared].sort((a, b) => {
+      const tA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const tB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      return tB - tA;
+    });
+
     res.status(200).json({
       success: true,
       projects,
@@ -118,7 +129,25 @@ exports.getBySubdomain = async (req, res) => {
 exports.getOne = async (req, res) => {
   try {
     const userId = req.user.id;
-    const project = await Project.get(userId, req.params.id);
+    const userEmail = (req.user.email || '').toLowerCase();
+    const projectId = req.params.id;
+
+    // Try direct ownership first (fast)
+    let project = await Project.get(userId, projectId);
+
+    // If not owned, check if user is a collaborator
+    if (!project) {
+      const resolved = await resolveProjectOwner(userId, projectId, userEmail);
+      if (resolved) {
+        project = await Project.get(resolved.ownerId, projectId);
+        if (project) {
+          project.collaboratorPermission = resolved.permission;
+          project.isShared = true;
+          project.ownerId = resolved.ownerId;
+        }
+      }
+    }
+
     if (!project) {
       return res.status(404).json({
         success: false,
@@ -264,6 +293,81 @@ exports.delete = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error',
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Upload media for web builder
+// @route   POST /api/projects/:id/media
+// @access  Private (owner or editor)
+exports.uploadMedia = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userEmail = (req.user.email || '').toLowerCase();
+    const projectId = req.params.id;
+
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded. Use field name "media".',
+      });
+    }
+
+    const resolved = await resolveProjectOwner(userId, projectId, userEmail);
+    if (!resolved) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found',
+      });
+    }
+    if (resolved.permission === 'viewer') {
+      return res.status(403).json({
+        success: false,
+        message: 'Viewers cannot upload media to this project.',
+      });
+    }
+
+    const project = await Project.get(resolved.ownerId, projectId);
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found',
+      });
+    }
+
+    let clientName = req.user.name || 'client';
+    try {
+      const user = await User.get(userId);
+      if (user) {
+        clientName = (user.displayName || user.username || user.email || clientName).trim() || clientName;
+      }
+    } catch {
+      // keep clientName from req.user.name
+    }
+
+    const websiteName = (project.title || 'project').trim() || 'project';
+    const mimeType = req.file.mimetype || 'application/octet-stream';
+    const originalName = req.file.originalname || 'file';
+
+    const url = await uploadClientMedia({
+      buffer: req.file.buffer,
+      mimeType,
+      originalName,
+      clientName,
+      websiteName,
+      folder: req.body?.folder || undefined,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Media uploaded',
+      url,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Upload failed',
       error: error.message,
     });
   }

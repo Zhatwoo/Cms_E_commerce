@@ -32,6 +32,7 @@ import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
 import { CanvasContextMenu } from "./CanvasContextMenu";
 import { CanvasDropGuide } from "./CanvasDropGuide";
 import { PrototypeTabProvider } from "./PrototypeTabContext";
+import { ImportedComponentsProvider } from "../_context/ImportedComponentsContext";
 import { PrototypeFlowLines } from "./PrototypeFlowLines";
 import { NewPageDropPlacementHandler } from "./NewPageDropPlacementHandler";
 import { HeaderFooterDropPlacementHandler } from "./HeaderFooterDropPlacementHandler";
@@ -40,6 +41,8 @@ import { ScrollToSelectedHandler } from "./ScrollToSelectedHandler";
 import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
+import { migratePublishedContent } from "../_lib/contentMigration";
+import { useRouter } from "next/navigation";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 import { Circle } from "../../_assets/shapes/circle/circle";
 import { Square } from "../../_assets/shapes/square/square";
@@ -52,6 +55,8 @@ import {
   ZOOM_STEP,
   ZOOM_SENSITIVITY,
 } from "./zoomConstants";
+import { useCollaboration } from "../_context/CollaborationContext";
+import CollaboratorCursors from "./CollaboratorCursors";
 
 /**
  * React Error Boundary to catch rendering errors in Frame component
@@ -124,21 +129,30 @@ const EMPTY_FRAME_DATA = JSON.stringify({
   },
 });
 
+const SAFE_CONTAINER: React.ComponentType<any> =
+  (typeof Container === "function" ? Container : null) ??
+  ((props: any) => React.createElement("div", props, props?.children));
+
+const asComponent = (value: unknown): React.ComponentType<any> =>
+  typeof value === "function" ? (value as React.ComponentType<any>) : SAFE_CONTAINER;
+
 const VALIDATOR_RESOLVER: Record<string, React.ComponentType<any>> = {
   ...RenderBlocks,
   ...CRAFT_RESOLVER,
-  Container,
-  container: Container,
-  Button: (typeof Button === "function" ? Button : null) ?? Container,
-  button: (typeof Button === "function" ? Button : null) ?? Container,
-  Text: Text || Container,
-  text: Text || Container,
-  Image: Image || Container,
-  image: Image || Container,
-  Page: Page || Container,
-  page: Page || Container,
-  Viewport: Viewport || Container,
-  viewport: Viewport || Container,
+  Container: SAFE_CONTAINER,
+  container: SAFE_CONTAINER,
+  CONTAINER: SAFE_CONTAINER,
+  Button: asComponent(Button),
+  button: asComponent(Button),
+  Text: asComponent(Text),
+  text: asComponent(Text),
+  Image: asComponent(Image),
+  image: asComponent(Image),
+  IMAGE: asComponent(Image),
+  Page: asComponent(Page),
+  page: asComponent(Page),
+  Viewport: asComponent(Viewport),
+  viewport: asComponent(Viewport),
 };
 
 const VALIDATOR_CANONICAL_NAME_BY_LOWER = new Map<string, string>();
@@ -152,7 +166,15 @@ for (const key of Object.keys(VALIDATOR_RESOLVER)) {
 function normalizeResolvedName(rawName: unknown): string {
   const name = typeof rawName === "string" ? rawName.trim() : "";
   if (!name) return "Container";
-  return VALIDATOR_CANONICAL_NAME_BY_LOWER.get(name.toLowerCase()) ?? "Container";
+  const lowered = name.toLowerCase();
+  const exact = VALIDATOR_CANONICAL_NAME_BY_LOWER.get(lowered);
+  if (exact) return exact;
+  if (lowered.includes("image")) return "Image";
+  if (lowered.includes("text")) return "Text";
+  if (lowered.includes("container")) return "Container";
+  if (lowered.includes("page")) return "Page";
+  if (lowered.includes("viewport")) return "Viewport";
+  return "Container";
 }
 
 function withResolverFallback<T extends Record<string, React.ComponentType>>(base: T): T {
@@ -168,7 +190,7 @@ function withResolverFallback<T extends Record<string, React.ComponentType>>(bas
         Reflect.get(target, normalized, receiver) ||
         Reflect.get(target, VALIDATOR_CANONICAL_NAME_BY_LOWER.get(normalized) ?? "", receiver);
 
-      return resolved || target.Container || Container;
+      return resolved || target.Container || SAFE_CONTAINER;
     },
   }) as T;
 }
@@ -253,6 +275,7 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 type EditorShellProps = {
   projectId: string;
   pageId?: string | null;
+  permission?: "editor" | "viewer" | "owner";
 };
 
 const LEFT_PANEL_DEFAULT_WIDTH = 320;
@@ -447,12 +470,13 @@ if (typeof window !== "undefined") {
     const originalError = win.__craftOriginalConsoleError__ ?? console.error.bind(console);
     win.__craftOriginalConsoleError__ = originalError;
     console.error = (...args: unknown[]) => {
-      if (typeof args[0] === "string") {
-        // React 19 removed element.ref access — craftjs still uses old API internally
-        if (args[0].includes("Accessing element.ref was removed")) return;
-        // craftjs store updates trigger setState during Frame render in React 19 concurrent mode
-        if (args[0].includes("Cannot update a component") && args[0].includes("while rendering a different component")) return;
-      }
+      const concat = args.map((a) => (typeof a === "string" ? a : String(a))).join(" ");
+      // React 19 removed element.ref access — craftjs still uses old API internally
+      if (concat.includes("Accessing element.ref was removed")) return;
+      // craftjs store updates trigger setState during Frame render in React 19 concurrent mode
+      if (concat.includes("Cannot update a component") && concat.includes("while rendering a different component")) return;
+      // Known broken Unsplash image (content migration replaces; suppress noisy load error)
+      if (concat.includes("Error loading image") && concat.includes("photo-1581093458791-9f3c3900df4b")) return;
       originalError(...args);
     };
     win.__craftConsoleErrorPatched__ = true;
@@ -671,14 +695,104 @@ const QueryStasher = ({ onQuery }: { onQuery: (query: any) => void }) => {
   return null;
 };
 
+const isApplyingRemoteRef = { current: false };
+
+/**
+ * Syncs remote canvas changes from collaborators into the local editor.
+ * Must be a child of <Editor />.
+ */
+const CollabSyncHandler = () => {
+  const { actions } = useEditor();
+  const { setOnRemoteCanvasChange } = useCollaboration();
+
+  useEffect(() => {
+    console.log("[CollabSync] Registering remote canvas change handler");
+    const handler = (data: { type?: string; json?: string }) => {
+      console.log("[CollabSync] Received remote change, type:", data.type, "hasJson:", !!data.json);
+      if (data.type !== "nodes_change" || !data.json) return;
+      try {
+        const validated = validateCraftData(data.json);
+        if (validated.valid && validated.data) {
+          console.log("[CollabSync] Applying remote deserialization");
+          isApplyingRemoteRef.current = true;
+          actions.deserialize(validated.data);
+          requestAnimationFrame(() => { isApplyingRemoteRef.current = false; });
+        } else {
+          console.warn("[CollabSync] Remote data validation failed");
+        }
+      } catch (err) {
+        console.error("[CollabSync] Error applying remote change:", err);
+        isApplyingRemoteRef.current = false;
+      }
+    };
+    setOnRemoteCanvasChange(handler);
+    return () => setOnRemoteCanvasChange(null);
+  }, [actions, setOnRemoteCanvasChange]);
+
+  return null;
+};
+
+/**
+ * Broadcasts cursor position to collaborators via socket.
+ * Mounted inside the canvas scroll container.
+ */
+const CollabCursorBroadcaster = ({
+  containerRef,
+  scale,
+}: {
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  scale: number;
+}) => {
+  const { emitCursorMove } = useCollaboration();
+  const rafRef = React.useRef<number | null>(null);
+  const pendingRef = React.useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleMove = (e: MouseEvent) => {
+      const rect = container.getBoundingClientRect();
+      // Convert viewport coords to canvas coords (accounting for scroll + scale)
+      const canvasX = (container.scrollLeft + e.clientX - rect.left) / scale;
+      const canvasY = (container.scrollTop + e.clientY - rect.top) / scale;
+      pendingRef.current = { x: canvasX, y: canvasY };
+
+      if (rafRef.current !== null) return;
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+        if (pendingRef.current) {
+          emitCursorMove(pendingRef.current);
+          pendingRef.current = null;
+        }
+      });
+    };
+
+    container.addEventListener("mousemove", handleMove, { passive: true });
+    return () => {
+      container.removeEventListener("mousemove", handleMove);
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
+  }, [containerRef, scale, emitCursorMove]);
+
+  return null;
+};
+
+const COLLAB_EMIT_DEBOUNCE_MS = 400;
+
 /** Editor Shell */
-export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellProps) => {
+export const EditorShell = ({ projectId, pageId: initialPageId, permission = "editor" }: EditorShellProps) => {
+  const router = useRouter();
   const { showAlert, showConfirm } = useAlert();
+  const { emitCanvasChange, setOnRemoteCanvasChange } = useCollaboration();
   const [currentPageId, setCurrentPageId] = useState<string | null>(initialPageId ?? null);
   const [pages, setPages] = useState<Array<{ id: string; name: string }>>([]);
   const [projectFiles, setProjectFiles] = useState<any[]>([]);
-  const lastQueryRef = useRef<{ serialize: () => string } | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+
+  const containerRef = useRef<HTMLDivElement>(null!);
   const previousScaleRef = useRef(1);
   const wheelZoomDeltaRef = useRef(0);
   const wheelZoomRafRef = useRef<number | null>(null);
@@ -709,8 +823,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   const [activeTool, setActiveTool] = useState<CanvasTool>("move");
   const [frameReady, setFrameReady] = useState(false);
   const [showDualView, setShowDualView] = useState(false);
+  const [isDeviceSwitching, setIsDeviceSwitching] = useState(false);
   const hasInitialCenteringRef = useRef(false);
   const hasForcedRightPanelOpenRef = useRef(false);
+  const deviceSwitchRafRef = useRef<number | null>(null);
+  const deviceSwitchTimeoutRef = useRef<number | null>(null);
+  const deviceSwitchEndTimeoutRef = useRef<number | null>(null);
   const saveStatusRef = useRef(saveStatus);
   const panelDragRef = useRef<{
     side: "left" | "right";
@@ -1160,9 +1278,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   }, [scale]);
 
   // Center camera on the current page element
-  const centerCanvasInView = useCallback(() => {
+  const centerCanvasInView = useCallback((options?: { behavior?: ScrollBehavior }) => {
     const container = containerRef.current;
     if (!container) return;
+
+    const behavior = options?.behavior ?? "auto";
 
     const pageEl =
       (currentPageId
@@ -1182,13 +1302,22 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       const pageCenterX = container.scrollLeft + (pageRect.left - contRect.left) + pageRect.width / 2;
       const pageCenterY = container.scrollTop + (pageRect.top - contRect.top) + pageRect.height / 2;
 
-      container.scrollLeft = pageCenterX - container.clientWidth / 2;
-      container.scrollTop = pageCenterY - container.clientHeight / 2;
+      container.scrollTo({
+        left: pageCenterX - container.clientWidth / 2,
+        top: pageCenterY - container.clientHeight / 2,
+        behavior
+      });
     } else {
       // Fallback: center of the "infinite" area roughly where origin is
-      centerOnWorldPoint(INFINITE_CANVAS_PADDING_PX + PAGE_BASE_WIDTH / 2, INFINITE_CANVAS_PADDING_PX + PAGE_BASE_HEIGHT / 2);
+      const targetX = INFINITE_CANVAS_PADDING_PX + PAGE_BASE_WIDTH / 2 - container.clientWidth / 2;
+      const targetY = INFINITE_CANVAS_PADDING_PX + PAGE_BASE_HEIGHT / 2 - container.clientHeight / 2;
+      container.scrollTo({
+        left: targetX,
+        top: targetY,
+        behavior
+      });
     }
-  }, [currentPageId, centerOnWorldPoint]);
+  }, [currentPageId, scale]);
 
   // Center immediately on first mount
   useLayoutEffect(() => {
@@ -1225,6 +1354,39 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     };
   }, [frameReady, initialJson, centerCanvasInView]);
 
+  // Relative shifting for the right panel to match the left panel's natural behavior.
+  // When the right panel expands, it "pushes" the content left by adjusting the scroll position.
+  const prevRightPanelEffectiveWidthRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!panelsReady || !frameReady) {
+      prevRightPanelEffectiveWidthRef.current = null;
+      return;
+    }
+
+    const currentWidth = rightPanelOpen ? rightPanelWidth : 0;
+
+    // Initialize on first ready state without shifting
+    if (prevRightPanelEffectiveWidthRef.current === null) {
+      prevRightPanelEffectiveWidthRef.current = currentWidth;
+      return;
+    }
+
+    const delta = currentWidth - prevRightPanelEffectiveWidthRef.current;
+    prevRightPanelEffectiveWidthRef.current = currentWidth;
+
+    if (delta === 0) return;
+
+    const container = containerRef.current;
+    if (container) {
+      // Use smooth behavior for manual toggles, immediate for dragging
+      container.scrollBy({
+        left: delta,
+        behavior: isPanelDragging ? "auto" : "smooth"
+      });
+    }
+  }, [rightPanelOpen, rightPanelWidth, panelsReady, frameReady, isPanelDragging]);
+
   // Listen for center-on-node events from ScrollToSelectedHandler / FloatingMobilePreview
   useEffect(() => {
     const container = containerRef.current;
@@ -1256,10 +1418,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     return () => container.removeEventListener("center-on-node", handleCenterOnNode);
   }, []);
 
-  // Handle canvas rotation
-  const handleRotateCanvas = useCallback(() => {
-    // Rotation is handled per-page in TopPanel; keep callback for API compatibility.
-  }, []);
+  const handleRotateCanvas = useCallback(() => { }, []);
 
   // Handle fit to canvas: zoom so page fits with 10% margin, then center
   const handleFitToCanvas = useCallback(() => {
@@ -1317,14 +1476,73 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     setScale((prev) => clampScale(nextScale, prev));
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (deviceSwitchRafRef.current != null) {
+        cancelAnimationFrame(deviceSwitchRafRef.current);
+      }
+      if (deviceSwitchTimeoutRef.current != null) {
+        window.clearTimeout(deviceSwitchTimeoutRef.current);
+      }
+      if (deviceSwitchEndTimeoutRef.current != null) {
+        window.clearTimeout(deviceSwitchEndTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Handle device preset selection - only width changes; preserve page height so it doesn't reset
+  // and keep the page visible by fitting/recentering with the selected preset dimensions.
   const handleDevicePresetSelect = useCallback((preset: DevicePreset) => {
+    if (deviceSwitchRafRef.current != null) {
+      cancelAnimationFrame(deviceSwitchRafRef.current);
+      deviceSwitchRafRef.current = null;
+    }
+    if (deviceSwitchTimeoutRef.current != null) {
+      window.clearTimeout(deviceSwitchTimeoutRef.current);
+      deviceSwitchTimeoutRef.current = null;
+    }
+    if (deviceSwitchEndTimeoutRef.current != null) {
+      window.clearTimeout(deviceSwitchEndTimeoutRef.current);
+      deviceSwitchEndTimeoutRef.current = null;
+    }
+
+    setIsDeviceSwitching(true);
     setCanvasWidth(preset.width);
-    // Do not set canvasHeight so existing page height is preserved when switching device sizes
-    setTimeout(() => {
-      handleFitToCanvas();
-    }, 100);
-  }, [handleFitToCanvas]);
+
+    const fitAndCenter = () => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      const effectiveWidth = Math.max(1, preset.width);
+      const effectiveHeight = Math.max(1, canvasHeight || PAGE_BASE_HEIGHT);
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+      if (containerWidth <= 0 || containerHeight <= 0) return;
+
+      // Keep interaction smooth: only zoom out as needed so the selected device always stays visible.
+      const fitScaleX = (containerWidth * 0.9) / effectiveWidth;
+      const fitScaleY = (containerHeight * 0.9) / effectiveHeight;
+      const fitScale = clampScale(Math.min(fitScaleX, fitScaleY, 1), 1);
+
+      setScale((prev) => {
+        const safePrev = clampScale(prev, 1);
+        return safePrev > fitScale ? fitScale : safePrev;
+      });
+
+      // Recenter after width/scale settle so page never appears "lost" off-screen.
+      requestAnimationFrame(() => {
+        centerCanvasInView();
+      });
+    };
+
+    deviceSwitchRafRef.current = requestAnimationFrame(() => {
+      fitAndCenter();
+      deviceSwitchTimeoutRef.current = window.setTimeout(fitAndCenter, 120);
+      deviceSwitchEndTimeoutRef.current = window.setTimeout(() => {
+        setIsDeviceSwitching(false);
+      }, 220);
+    });
+  }, [canvasHeight, centerCanvasInView]);
 
   const isSpacePanActive = isSpacePressed;
   const canPanWithPointerDrag = activeTool === "hand" || isSpacePanActive;
@@ -1435,6 +1653,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
   // Track if editor is fully loaded to prevent stale closure issues
   const isReadyRef = useRef(false);
+  // True only after draft content has been loaded (prevents auto-saving empty canvas over real content)
+  const draftLoadedRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1463,6 +1683,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     };
   }, []);
 
+  // Cleanup collab emit timer on unmount
+  useEffect(() => () => {
+    if (collabEmitTimerRef.current) clearTimeout(collabEmitTimerRef.current);
+    collabEmitTimerRef.current = null;
+  }, []);
+
   // One-time migration: clear legacy draft data from localStorage (now using sessionStorage only)
   useEffect(() => {
     if (typeof window === "undefined" || !window.localStorage) return;
@@ -1488,6 +1714,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     lastWheelZoomAtRef.current = 0;
     wheelZoomAnchorRef.current = null;
     wheelZoomingRef.current = false;
+    draftLoadedRef.current = false;
     setFrameReady(false);
     setPanelsReady(false);
 
@@ -1509,6 +1736,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
         const applyLoadedContent = (content: string | null) => {
           setInitialJson(content);
+          draftLoadedRef.current = true;
           if (!content) return;
           loadPages(content);
           try {
@@ -1521,102 +1749,149 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           }
         };
 
+        const applyMigration = (raw: string | object): string => {
+          try {
+            const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+            const migrated = migratePublishedContent(parsed);
+            return typeof migrated === "string" ? migrated : JSON.stringify(migrated);
+          } catch {
+            return typeof raw === "string" ? raw : JSON.stringify(raw);
+          }
+        };
+
         const normalizeToCraftJson = (input: unknown): string | null => {
           try {
             if (input == null) return null;
+            let obj = input as Record<string, unknown>;
             if (typeof input === "string") {
-              const parsed = JSON.parse(input);
-              if (parsed && parsed.ROOT && Array.isArray(parsed.ROOT.nodes)) {
-                const validated = validateCraftData(input);
-                return validated.valid && validated.data ? validated.data : null;
+              try {
+                obj = JSON.parse(input) as Record<string, unknown>;
+              } catch {
+                return null;
               }
-              if (
-                parsed &&
-                parsed.version !== undefined &&
-                Array.isArray(parsed.pages) &&
-                parsed.nodes &&
-                typeof parsed.nodes === "object"
-              ) {
-                const craftJson = deserializeCleanToCraft(parsed as Parameters<typeof deserializeCleanToCraft>[0]);
-                const validated = validateCraftData(craftJson);
-                return validated.valid && validated.data ? validated.data : null;
-              }
+            }
+            if (typeof obj !== "object") return null;
+
+            const unwrap = (o: Record<string, unknown>): Record<string, unknown> | null => {
+              if (!o) return null;
+              if (o.ROOT && Array.isArray((o.ROOT as Record<string, unknown>)?.nodes)) return o;
+              if (o.version !== undefined && Array.isArray(o.pages) && o.nodes && typeof o.nodes === "object") return o;
+              const nested = (o.page || o.content) as Record<string, unknown> | undefined;
+              if (nested && typeof nested === "object") return unwrap(nested);
               return null;
+            };
+
+            const target = unwrap(obj);
+            if (!target) return null;
+
+            const migratedStr = applyMigration(target);
+            const str = typeof migratedStr === "string" ? migratedStr : JSON.stringify(migratedStr);
+            const parsed = typeof str === "string" ? JSON.parse(str) : str;
+            if (!parsed || typeof parsed !== "object") return null;
+
+            if (parsed.ROOT && Array.isArray(parsed.ROOT?.nodes)) {
+              const validated = validateCraftData(JSON.stringify(parsed));
+              return validated.valid && validated.data ? validated.data : null;
             }
-
-            if (typeof input === "object") {
-              const obj = input as {
-                ROOT?: { nodes?: unknown[] };
-                version?: unknown;
-                pages?: unknown[];
-                nodes?: unknown;
-              };
-
-              if (obj.ROOT && Array.isArray(obj.ROOT.nodes)) {
-                const craftJson = JSON.stringify(obj);
-                const validated = validateCraftData(craftJson);
-                return validated.valid && validated.data ? validated.data : null;
-              }
-
-              if (obj.version !== undefined && Array.isArray(obj.pages) && obj.nodes && typeof obj.nodes === "object") {
-                const craftJson = deserializeCleanToCraft(obj as Parameters<typeof deserializeCleanToCraft>[0]);
-                const validated = validateCraftData(craftJson);
-                return validated.valid && validated.data ? validated.data : null;
-              }
+            if (
+              parsed.version !== undefined &&
+              Array.isArray(parsed.pages) &&
+              parsed.nodes &&
+              typeof parsed.nodes === "object"
+            ) {
+              const craftJson = deserializeCleanToCraft(parsed as Parameters<typeof deserializeCleanToCraft>[0]);
+              const validated = validateCraftData(craftJson);
+              return validated.valid && validated.data ? validated.data : null;
             }
-
             return null;
           } catch {
             return null;
           }
         };
 
-        // 1. Check sessionStorage first to preserve latest unsaved/preview snapshot
-        // Apply immediately so existing projects open without waiting for DB/network.
+        const isLegacyStarterContent = (craftJson: string): boolean => {
+          try {
+            const p = JSON.parse(craftJson) as Record<string, unknown>;
+            const root = p?.ROOT as { nodes?: string[] } | undefined;
+            if (!root || !Array.isArray(root.nodes)) return false;
+
+            // Ignore only the old starter template (one page + one empty container).
+            // A truly empty page (no children) is still valid user work and must be preserved.
+            if (root.nodes.length === 1) {
+              const pageId = root.nodes[0];
+              const page = (p[pageId] as { nodes?: string[]; displayName?: string } | undefined) ?? null;
+              const pageNodes = Array.isArray(page?.nodes) ? page.nodes : [];
+              if ((page?.displayName === "Page" || page?.displayName == null) && pageNodes.length === 1) {
+                const onlyChildId = pageNodes[0];
+                const onlyChild = (p[onlyChildId] as { nodes?: string[]; displayName?: string } | undefined) ?? null;
+                const childNodes = Array.isArray(onlyChild?.nodes) ? onlyChild.nodes : [];
+                if (onlyChild?.displayName === "Container" && childNodes.length === 0) {
+                  return true;
+                }
+              }
+            }
+            return false;
+          } catch {
+            return false;
+          }
+        };
+
+        // 1. Check sessionStorage first (latest local edits should win on refresh)
         if (sessionSaved) {
           const normalized = normalizeToCraftJson(sessionSaved);
-          if (normalized) {
+          if (normalized && !isLegacyStarterContent(normalized)) {
             contentToLoad = normalized;
-            if (normalized !== sessionSaved) {
-              safeSessionSet(storageKey, normalized);
-            }
+            if (normalized !== sessionSaved) safeSessionSet(storageKey, normalized);
             safeLocalSet(persistentKey, normalized);
             applyLoadedContent(contentToLoad);
           } else {
-            console.warn('⚠️ Invalid draft structure in session. Clearing session cache for this project.');
             safeSessionRemove(storageKey);
           }
         }
 
-        // 2. Check persistent local cache when session cache is unavailable
+        // 2. Check persistent local cache
         if (!contentToLoad && persistentSaved) {
           const normalized = normalizeToCraftJson(persistentSaved);
-          if (normalized) {
+          if (normalized && !isLegacyStarterContent(normalized)) {
             contentToLoad = normalized;
             safeSessionSet(storageKey, normalized);
-            if (normalized !== persistentSaved) {
-              safeLocalSet(persistentKey, normalized);
-            }
+            if (normalized !== persistentSaved) safeLocalSet(persistentKey, normalized);
             applyLoadedContent(contentToLoad);
           } else {
             safeLocalRemove(persistentKey);
           }
         }
 
-        // 3. Try to load from database
+        // 3. Always fetch from API — overrides empty cache (fixes collaborator view)
         const result = await getDraft(projectId);
+
+        if (result.success === false && result.error === "auth") {
+          showAlert("Please log in to view this project", "error");
+          router.replace(`/auth/login?returnTo=${encodeURIComponent(`/design?projectId=${projectId}`)}`);
+          isReadyRef.current = true;
+          return;
+        }
+        if (result.success === false && result.error === "forbidden") {
+          showAlert("You don't have access to this project", "error");
+          isReadyRef.current = true;
+          return;
+        }
 
         // 4. Check Database (fallback)
         if (!contentToLoad && result.success && result.data && result.data.content) {
           const normalized = normalizeToCraftJson(result.data.content);
-          if (normalized) {
+          if (normalized && !isLegacyStarterContent(normalized)) {
             contentToLoad = normalized;
             safeSessionSet(storageKey, normalized);
             safeLocalSet(persistentKey, normalized);
             applyLoadedContent(contentToLoad);
+          } else if (normalized) {
+            // Drop legacy starter payloads so user lands on true empty state.
+            safeSessionRemove(storageKey);
+            safeLocalRemove(persistentKey);
           } else {
-            console.warn('⚠️ Invalid draft structure in DB. Clearing invalid draft...');
-            await deleteDraft(projectId);
+            console.warn('⚠️ Draft content could not be parsed — check structure.');
+            showAlert('Could not load project content. Try refreshing.', 'error');
           }
         }
 
@@ -1631,12 +1906,13 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
       } catch {
         setInitialJson(null);
+        draftLoadedRef.current = true;
         isReadyRef.current = true; // Allow editing even if load failed
       }
     }
 
     loadDraft();
-  }, [projectId, loadPages]);
+  }, [projectId, loadPages, router, showAlert]);
 
   // Defer panel rendering until Frame has mounted to avoid setState-during-render warnings
   useEffect(() => {
@@ -1757,7 +2033,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         try {
           snapshot = JSON.stringify(serializeCraftToClean(next));
         } catch {
-          snapshot = null;
+          snapshot = next;
         }
 
         const toStore = snapshot ?? next;
@@ -1774,7 +2050,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           safeLocalSet(getPersistentStorageKey(projectId), toStore);
         }
 
-        if (snapshot) lastSnapshotRef.current = snapshot;
+        lastSnapshotRef.current = toStore;
         return snapshot;
       } catch {
         return null;
@@ -1783,12 +2059,37 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     [projectId],
   );
 
+  const [isPreviewing, setIsPreviewing] = useState(false);
+
+  /**
+   * Immediately save and navigate to preview page
+   */
+  const handlePreview = useCallback(async () => {
+    const query = editorQueryRef.current;
+    if (!projectId || !query) return;
+
+    setIsPreviewing(true);
+    try {
+      const snapshot = mirrorToSession(query);
+      if (snapshot) {
+        await autoSavePage(snapshot, projectId);
+        router.push(`/design/preview?projectId=${projectId}`);
+      }
+    } catch (e) {
+      console.error("[Editor] Preview failed:", e);
+    } finally {
+      setIsPreviewing(false);
+    }
+  }, [projectId, router, mirrorToSession]);
+
   const dbSaveInFlightRef = useRef(false);
   const dbSavePendingRef = useRef(false);
+  const collabEmitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleNodesChangeRef = useRef<((query: { serialize: () => string }) => void) | null>(null);
 
   const flushToDb = useCallback(async () => {
     const snapshot = lastSnapshotRef.current;
-    if (!snapshot || !projectId) {
+    if (!snapshot || !projectId || !draftLoadedRef.current) {
       setSaveStatus("idle");
       return;
     }
@@ -1824,6 +2125,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   // Auto-save: mirror to sessionStorage on every change, save to DB right after
   const handleNodesChange = useCallback(
     (query: { serialize: () => string }) => {
+      if (permission === "viewer") return; // Viewer cannot change anything!
       editorQueryRef.current = query;
 
       if (!isReadyRef.current) return;
@@ -1834,6 +2136,25 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
       // Always mirror to sessionStorage so refresh never loses work
       mirrorToSession(query);
+
+      // Emit to collaborators (debounced); skip when applying remote change to avoid echo
+      if (!isDragging && !isApplyingRemoteRef.current) {
+        if (collabEmitTimerRef.current) clearTimeout(collabEmitTimerRef.current);
+        collabEmitTimerRef.current = setTimeout(() => {
+          collabEmitTimerRef.current = null;
+          if (isApplyingRemoteRef.current) return;
+          try {
+            const json = query.serialize();
+            console.log("[EditorShell] Debounced emit — json length:", json?.length ?? 0);
+            if (json) emitCanvasChange({ type: "nodes_change", json });
+          } catch (err) {
+            console.error("[EditorShell] Error serializing for collab emit:", err);
+          }
+        }, COLLAB_EMIT_DEBOUNCE_MS);
+      } else {
+        if (isDragging) console.log("[EditorShell] Skipping collab emit — dragging");
+        if (isApplyingRemoteRef.current) console.log("[EditorShell] Skipping collab emit — applying remote");
+      }
 
       // During drag: skip DB write to keep the canvas responsive (drag-end handler will flush)
       if (isDragging) return;
@@ -1848,8 +2169,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       // Save to DB immediately (queued if a save is already in flight)
       flushToDb();
     },
-    [projectId, mirrorToSession, flushToDb],
+    [projectId, mirrorToSession, flushToDb, emitCanvasChange],
   );
+
+  // Keep a ref so the stable onNodesChange closure passed to Editor always calls the latest version
+  handleNodesChangeRef.current = handleNodesChange;
 
   // After a drag ends, do one final save (positions changed but no further onNodesChange fires)
   useEffect(() => {
@@ -1881,8 +2205,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
   // Clean up on unmount
   useEffect(() => {
-    if (projectFiles.length > 0 && lastQueryRef.current) {
-      handleNodesChange(lastQueryRef.current);
+    if (projectFiles.length > 0 && editorQueryRef.current) {
+      handleNodesChange(editorQueryRef.current);
     }
   }, [projectFiles, handleNodesChange]);
 
@@ -1911,40 +2235,42 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       (typeof FrameComponentFromFile === "function" ? FrameComponentFromFile : null) ??
       (typeof RenderBlocks?.Frame === "function" ? RenderBlocks.Frame : null) ??
       CRAFT_RESOLVER.Frame ??
-      Container;
+      SAFE_CONTAINER;
 
     const base: Record<string, any> = {
       ...RenderBlocks,
       ...CRAFT_RESOLVER,
-      Button: (typeof Button === "function" ? Button : null) ?? Container,
-      button: (typeof Button === "function" ? Button : null) ?? Container,
-      Text: Text || Container,
-      text: Text || Container,
-      Image: Image || Container,
-      image: Image || Container,
-      Circle: Circle || Container,
-      Square: Square || Container,
-      Triangle: Triangle || Container,
-      circle: Circle || Container,
-      square: Square || Container,
-      triangle: Triangle || Container,
+      Button: asComponent(Button),
+      button: asComponent(Button),
+      Text: asComponent(Text),
+      text: asComponent(Text),
+      Image: asComponent(Image),
+      image: asComponent(Image),
+      Circle: asComponent(Circle),
+      Square: asComponent(Square),
+      Triangle: asComponent(Triangle),
+      circle: asComponent(Circle),
+      square: asComponent(Square),
+      triangle: asComponent(Triangle),
     };
     // Force Frame to always exist; Craft looks up by "Frame" and sometimes "frame"
     base.Frame = FrameForResolver;
     base.frame = FrameForResolver;
     // Ensure Container always exists in resolver (serialized nodes often use this)
     // Prefer the locally imported Container component so we never end up with an undefined value
-    base.Container = Container;
-    base.container = Container;
+    base.Container = SAFE_CONTAINER;
+    base.container = SAFE_CONTAINER;
+    base.CONTAINER = SAFE_CONTAINER;
     // Ensure Page and Viewport always in resolver (serialized drafts reference these by type)
-    base.Page = CRAFT_RESOLVER.Page ?? Page;
-    base.page = CRAFT_RESOLVER.Page ?? Page;
-    base.Viewport = CRAFT_RESOLVER.Viewport ?? Viewport;
-    base.viewport = CRAFT_RESOLVER.Viewport ?? Viewport;
-    base.Image = (typeof Image === "function" ? Image : null) ?? Container;
-    base.image = (typeof Image === "function" ? Image : null) ?? Container;
-    base.Text = (typeof Text === "function" ? Text : null) ?? Container;
-    base.text = (typeof Text === "function" ? Text : null) ?? Container;
+    base.Page = asComponent(CRAFT_RESOLVER.Page ?? Page);
+    base.page = asComponent(CRAFT_RESOLVER.Page ?? Page);
+    base.Viewport = asComponent(CRAFT_RESOLVER.Viewport ?? Viewport);
+    base.viewport = asComponent(CRAFT_RESOLVER.Viewport ?? Viewport);
+    base.Image = asComponent(CRAFT_RESOLVER.Image ?? Image);
+    base.image = asComponent(CRAFT_RESOLVER.image ?? Image);
+    base.IMAGE = asComponent(CRAFT_RESOLVER.IMAGE ?? CRAFT_RESOLVER.Image ?? Image);
+    base.Text = asComponent(CRAFT_RESOLVER.Text ?? Text);
+    base.text = asComponent(CRAFT_RESOLVER.text ?? Text);
     return withResolverFallback(base);
   }, []);
 
@@ -1963,17 +2289,17 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   return (
     <div data-web-builder-root className="h-screen bg-brand-black text-brand-lighter overflow-hidden font-sans relative">
       <style>{`
-        div[style*="position: fixed"][style*="z-index: 99999"][style*="border-style: solid"],
-        div[style*="position: fixed"][style*="z-index: 99999"][style*="background-color: rgb(98, 196, 98)"],
-        div[style*="position: fixed"][style*="z-index: 99999"][style*="background-color: rgba(98, 196, 98"],
-        div[style*="position: fixed"][style*="z-index: 99999"][style*="height: 2px"],
-        div[style*="position: fixed"][style*="z-index: 99999"][style*="height: 3px"] {
-          display: none !important;
-          opacity: 0 !important;
-          border-width: 0 !important;
-          background: transparent !important;
-        }
-      `}</style>
+          div[style*="position: fixed"][style*="z-index: 99999"][style*="border-style: solid"],
+          div[style*="position: fixed"][style*="z-index: 99999"][style*="background-color: rgb(98, 196, 98)"],
+          div[style*="position: fixed"][style*="z-index: 99999"][style*="background-color: rgba(98, 196, 98"],
+          div[style*="position: fixed"][style*="z-index: 99999"][style*="height: 2px"],
+          div[style*="position: fixed"][style*="z-index: 99999"][style*="height: 3px"] {
+            display: none !important;
+            opacity: 0 !important;
+            border-width: 0 !important;
+            background: transparent !important;
+          }
+        `}</style>
       <Editor
         resolver={resolver}
         indicator={{
@@ -1986,9 +2312,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           },
         }}
         onRender={RenderNode}
-        onNodesChange={(query) => requestAnimationFrame(() => handleNodesChange(query))}
+        onNodesChange={(query) => requestAnimationFrame(() => handleNodesChangeRef.current?.(query))}
       >
-        <QueryStasher onQuery={(q) => { lastQueryRef.current = q; }} />
+        <QueryStasher onQuery={(q) => { editorQueryRef.current = q; }} />
+        <CollabSyncHandler />
+        <ImportedComponentsProvider>
         <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
           <CanvasToolProvider value={activeTool} onToolChange={handleToolChange}>
             <TransformModeProvider>
@@ -2010,16 +2338,17 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 {/* Top Panel */}
                 {panelsReady && (
                   <TopPanel
-                    scale={scale}
-                    onScaleChange={handleScaleChange}
-                    onRotateCanvas={handleRotateCanvas}
                     activePageId={currentPageId}
-                    onFitToCanvas={handleFitToCanvas}
-                    canvasWidth={canvasWidth}
-                    canvasHeight={canvasHeight}
                     onDevicePresetSelect={handleDevicePresetSelect}
                     showDualView={showDualView}
                     onDualViewToggle={() => setShowDualView((v) => !v)}
+                    projectId={projectId}
+                    onPreview={handlePreview}
+                    canvasWidth={canvasWidth}
+                    canvasHeight={canvasHeight}
+                    scale={scale}
+                    onScaleChange={handleScaleChange}
+                    onZoomFit={handleFitToCanvas}
                   />
                 )}
                 {/* Canvas Area — Infinite Scroll Area */}
@@ -2070,7 +2399,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                         }}
                       />
                     )}
+                    {/* Collaborator cursors overlay — inside the scaled canvas container */}
+                    <CollaboratorCursors />
                   </div>
+                  {/* Cursor broadcaster — picks up mousemove on the scroll container */}
+                  <CollabCursorBroadcaster containerRef={containerRef} scale={scale} />
                 </div>
                 {/* Docked Panels */}
                 {/* Right Panel Reopen Fallback */}
@@ -2171,6 +2504,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                     onZoomFit={handleFitToCanvas}
                     scale={scale}
                     onScaleChange={handleScaleChange}
+                    onRotateCanvas={handleRotateCanvas}
                   />
                 )}
                 {/* Floating Mobile Preview */}
@@ -2184,7 +2518,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
             </TransformModeProvider>
           </CanvasToolProvider>
         </PrototypeTabProvider>
+        </ImportedComponentsProvider>
       </Editor>
     </div>
   );
 };
+

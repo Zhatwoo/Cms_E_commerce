@@ -11,11 +11,12 @@ const MAX_RETRY_FRAMES = 20;
 const MAX_COLUMNS_PER_ROW = 5;
 const FLOW_LAYOUT_TYPES = new Set(["Row", "Section", "Container", "Viewport"]);
 const HORIZONTAL_COLUMN_PARENTS = new Set(["Row", "Section", "Container", "Column"]);
+const DROP_TARGET_CANVAS_TYPES = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame"]);
 
 function isPanelSource(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
   if (!el) return false;
-  const source = el.closest("[data-drag-source='asset'], [data-drag-source='component']") as HTMLElement | null;
+  const source = el.closest("[data-drag-source='asset'], [data-drag-source='component'], [data-drag-source='imported']") as HTMLElement | null;
   if (!source) return false;
   if (source.closest("[data-component-new-page='true']")) return false;
   return source.getAttribute("data-component-new-page") !== "true";
@@ -99,6 +100,41 @@ export function PanelDropFreePlacementHandler() {
         return !parentId || !newSet.has(parentId);
       });
 
+      let forcedDropTargetId: string | null = null;
+      try {
+        const elems = document.elementsFromPoint(pointerRef.current.x, pointerRef.current.y) as HTMLElement[];
+        for (const el of elems) {
+          const withNode = el.closest("[data-node-id]") as HTMLElement | null;
+          if (!withNode) continue;
+          const id = withNode.getAttribute("data-node-id");
+          if (!id || newSet.has(id)) continue;
+          const node = (query.getState()?.nodes ?? {})[id] as { data?: { isCanvas?: boolean; displayName?: string } } | undefined;
+          const displayName = node?.data?.displayName;
+          const isCanvas = node?.data?.isCanvas === true;
+          if (isCanvas || (displayName && DROP_TARGET_CANVAS_TYPES.has(displayName))) {
+            forcedDropTargetId = id;
+            break;
+          }
+        }
+      } catch {
+        forcedDropTargetId = null;
+      }
+
+      if (forcedDropTargetId) {
+        const latestState = query.getState();
+        const latestNodes = (latestState?.nodes ?? {}) as Record<string, { data?: { parent?: string; nodes?: string[] } }>;
+        const insertAt = ((latestNodes[forcedDropTargetId]?.data?.nodes as string[] | undefined) ?? []).length;
+        rootNewIds.forEach((id, idx) => {
+          const currentParent = latestNodes[id]?.data?.parent;
+          if (!currentParent || currentParent === forcedDropTargetId) return;
+          try {
+            actions.move(id, forcedDropTargetId as string, insertAt + idx);
+          } catch {
+            // ignore move failures and continue with best-effort placement
+          }
+        });
+      }
+
       for (const nodeId of rootNewIds) {
         try {
           const latest = query.getState();
@@ -122,9 +158,10 @@ export function PanelDropFreePlacementHandler() {
           const finalTop = Math.round(clamp(rawTop, 0, maxTop));
 
           const displayName = latestNodes[nodeId]?.data?.displayName;
+          const parentDisplayName = latestNodes[parentId]?.data?.displayName;
+          const shouldImageFillParent =
+            displayName === "Image" && parentDisplayName === "Section";
           if (displayName === "Column") {
-            const parentDisplayName = latestNodes[parentId]?.data?.displayName;
-
             if (parentDisplayName && HORIZONTAL_COLUMN_PARENTS.has(parentDisplayName)) {
               actions.setProp(parentId, (props: Record<string, unknown>) => {
                 props.flexDirection = "row";
@@ -181,20 +218,52 @@ export function PanelDropFreePlacementHandler() {
               props.bottom = "auto";
               props.marginTop = 0;
               props.marginLeft = 0;
+
+              if (shouldImageFillParent) {
+                props.width = "100%";
+                props.height = "100%";
+                props.maxWidth = "100%";
+                props.maxHeight = "100%";
+                props.minWidth = 0;
+                props.minHeight = 0;
+                if (!props.objectFit) props.objectFit = "cover";
+              }
             });
           } else {
             actions.setProp(nodeId, (props: Record<string, unknown>) => {
               const currentML = parsePxOrNumber(props.marginLeft);
               const currentMT = parsePxOrNumber(props.marginTop);
-              const nextML = Math.round(currentML + (finalLeft - (nodeRect.left - parentRect.left)));
-              const nextMT = Math.round(currentMT + (finalTop - (nodeRect.top - parentRect.top)));
+              const rawNextML = Math.round(currentML + (finalLeft - (nodeRect.left - parentRect.left)));
+              const rawNextMT = Math.round(currentMT + (finalTop - (nodeRect.top - parentRect.top)));
+
+              const nextML = parentDisplayName === "Section" ? Math.max(0, rawNextML) : rawNextML;
+              const nextMT = parentDisplayName === "Section" ? Math.max(0, rawNextMT) : rawNextMT;
 
               props.marginLeft = nextML;
               props.marginTop = nextMT;
+
+              if (shouldImageFillParent) {
+                props.width = "100%";
+                props.height = "100%";
+                props.maxWidth = "100%";
+                props.maxHeight = "100%";
+                props.minWidth = 0;
+                props.minHeight = 0;
+                if (!props.objectFit) props.objectFit = "cover";
+              }
             });
           }
         } catch {
           // ignore individual placement failures
+        }
+      }
+
+      const selectableNewIds = rootNewIds.filter((id) => !!query.getState()?.nodes?.[id]);
+      if (selectableNewIds.length > 0) {
+        try {
+          actions.selectNode(selectableNewIds.length === 1 ? selectableNewIds[0] : selectableNewIds);
+        } catch {
+          // ignore selection failures
         }
       }
 

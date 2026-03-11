@@ -8,11 +8,6 @@ const nextConfig: NextConfig = {
     optimizePackageImports: [
       'lucide-react',
       'framer-motion',
-      'firebase',
-      '@firebase/app',
-      '@firebase/auth',
-      '@firebase/database',
-      '@firebase/storage',
     ],
   },
   transpilePackages: ['firebase', '@firebase/app', '@firebase/auth', '@firebase/database', '@firebase/storage'],

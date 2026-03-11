@@ -104,6 +104,8 @@ exports.adjustStock = async (req, res) => {
       referenceId,
       setOnHandStock,
       setReservedStock,
+      variantKey,
+      setVariantStock,
     } = req.body || {};
 
     if (!productId) {
@@ -114,17 +116,29 @@ exports.adjustStock = async (req, res) => {
     const type = String(movementType || 'ADJUST').toUpperCase();
     const signedDelta = type === 'OUT' ? -Math.abs(delta) : type === 'IN' ? Math.abs(delta) : delta;
 
-    const result = await Product.applyInventoryDeltaForUser({
-      id: productId,
-      userId: req.user.id,
-      onHandDelta: setOnHandStock !== undefined ? 0 : signedDelta,
-      setOnHandStock,
-      setReservedStock,
-    });
+    const result = await (variantKey
+      ? Product.applyVariantInventoryDeltaForUser({
+          id: productId,
+          userId: req.user.id,
+          variantKey,
+          variantDelta: setVariantStock !== undefined ? 0 : signedDelta,
+          setVariantStock,
+        })
+      : Product.applyInventoryDeltaForUser({
+          id: productId,
+          userId: req.user.id,
+          onHandDelta: setOnHandStock !== undefined ? 0 : signedDelta,
+          setOnHandStock,
+          setReservedStock,
+        }));
 
     if (!result?.product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
+
+    const movementQuantity = variantKey
+      ? (result?.afterVariantStock ?? 0) - (result?.beforeVariantStock ?? 0)
+      : signedDelta;
 
     await InventoryMovement.create({
       userId: req.user.id,
@@ -134,7 +148,7 @@ exports.adjustStock = async (req, res) => {
       productName: result.product.name || null,
       productSku: result.product.sku || null,
       type: type || 'ADJUST',
-      quantity: signedDelta,
+      quantity: movementQuantity,
       beforeOnHand: result.before?.onHandStock ?? null,
       afterOnHand: result.after?.onHandStock ?? null,
       beforeReserved: result.before?.reservedStock ?? null,
@@ -142,7 +156,11 @@ exports.adjustStock = async (req, res) => {
       referenceType: referenceType || 'manual',
       referenceId: referenceId || null,
       actor: req.user?.email || req.user?.id || null,
-      notes: notes || null,
+      notes:
+        notes ||
+        (variantKey
+          ? `Variant ${variantKey} stock ${movementQuantity >= 0 ? 'added' : 'deducted'}`
+          : null),
     });
 
     res.status(200).json({ success: true, message: 'Inventory adjusted', data: result.product });

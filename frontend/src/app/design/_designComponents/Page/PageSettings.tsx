@@ -63,7 +63,7 @@ export const PageSettings = () => {
               <div className="flex items-center px-2.5 bg-brand-medium-dark rounded-lg overflow-hidden">
                 <input
                   type="text"
-                  value={width?.replace("px", "") ?? "1920"}
+                  value={String(width ?? "").replace("px", "") || "1920"}
                   onChange={(e) => {
                     const v = e.target.value;
                     if (/^\d*$/.test(v)) {
@@ -103,7 +103,7 @@ export const PageSettings = () => {
                   <div className="flex-1 flex items-center px-2.5 bg-brand-medium-dark rounded-lg overflow-hidden min-w-0">
                     <input
                       type="text"
-                      value={height?.replace("px", "") ?? "1200"}
+                      value={String(height ?? "").replace("px", "") || "1200"}
                       onChange={(e) => {
                         const v = e.target.value;
                         if (/^\d*$/.test(v)) {

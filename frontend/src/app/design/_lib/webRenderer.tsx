@@ -34,7 +34,7 @@ function getDefaultLinkForLabel(label: string): string {
   if (t === "products") return "#products";
   if (t === "contact") return "#contact";
   if (t === "services") return "#services";
-  if (t === "start building") return "/signup";
+  if (t === "learn more" || t === "start building") return "#";
   if (t === "logo") return "#";
   return "";
 }
@@ -1402,6 +1402,7 @@ function RenderNode({
     circle: "Circle",
     square: "Square",
     triangle: "Triangle",
+    importedblock: "ImportedBlock",
   };
   const type = (normalizedTypeMap[rawType.toLowerCase()] ?? rawType) as ComponentType;
   const props = mergeProps(type, node.props) as Record<string, unknown>;
@@ -2040,7 +2041,7 @@ function RenderNode({
       const mediaAspectRatio = imageWidthPx && imageHeightPx ? `${imageWidthPx} / ${imageHeightPx}` : undefined;
       return wrap(
         <img
-          src={(props.src as string) || "https://placehold.co/600x400?text=Image"}
+          src={(props.src as string) || "https://placehold.co/600x400?text=Photo"}
           alt={(props.alt as string) || "Image"}
           data-fluid-space="true"
           data-fluid-media="true"
@@ -2246,6 +2247,52 @@ function RenderNode({
       );
     }
 
+    case "ImportedBlock": {
+      const blockCss = (props.blockCss as string) ?? "";
+      const blockHtml = (props.blockHtml as string) ?? "<div>Empty</div>";
+      const scopeId = `imported-prev-${(nodeId ?? "").replace(/[^a-z0-9]/gi, "")}`;
+      const scopedCss = blockCss
+        ? blockCss.replace(/([^{}]+)\{/g, (_: string, sel: string) => {
+            const s = sel.trim();
+            if (s.startsWith("@keyframes") || s.startsWith("@media") || s.startsWith("@")) return `${s} {`;
+            return `.${scopeId} ${s} {`;
+          })
+        : "";
+      const m = toNumber(props.margin, 0);
+      const p = toNumber(props.padding, 0);
+      return wrap(
+        <div
+          className={`${scopeId} imported-block-preview ${((props.customClassName as string) || "").trim() || ""}`.trim() || undefined}
+          style={{
+            display: "inline-block",
+            minWidth: 1,
+            minHeight: 1,
+            position: (props.position as React.CSSProperties["position"]) ?? "relative",
+            top: props.top as string | undefined,
+            left: props.left as string | undefined,
+            right: props.right as string | undefined,
+            bottom: props.bottom as string | undefined,
+            margin: toNumber(props.margin, 0),
+            marginTop: toNumber(props.marginTop ?? m, 0),
+            marginRight: toNumber(props.marginRight ?? m, 0),
+            marginBottom: toNumber(props.marginBottom ?? m, 0),
+            marginLeft: toNumber(props.marginLeft ?? m, 0),
+            padding: toNumber(props.padding, 0),
+            paddingTop: toNumber(props.paddingTop ?? p, 0),
+            paddingRight: toNumber(props.paddingRight ?? p, 0),
+            paddingBottom: toNumber(props.paddingBottom ?? p, 0),
+            paddingLeft: toNumber(props.paddingLeft ?? p, 0),
+            width: (props.width as string) || undefined,
+            height: (props.height as string) || undefined,
+            opacity: toNumber(props.opacity, 1),
+          }}
+        >
+          {scopedCss && <style dangerouslySetInnerHTML={{ __html: scopedCss }} />}
+          <div dangerouslySetInnerHTML={{ __html: blockHtml }} />
+        </div>
+      );
+    }
+
     case "Circle":
     case "Square":
     case "Triangle": {
@@ -2440,6 +2487,7 @@ export function WebPreview({
   mobileBreakpoint,
   enableFormInputs = false,
   builderParityMode = false,
+  fillViewport = false,
 }: {
   doc: BuilderDocument;
   pageIndex?: number;
@@ -2453,6 +2501,8 @@ export function WebPreview({
   enableFormInputs?: boolean;
   /** When true, keep nodes visible like the editor canvas (skip showOn/collapsible filtering). */
   builderParityMode?: boolean;
+  /** When true, content fills full viewport width (no max-width box, no side margins). */
+  fillViewport?: boolean;
 }): React.ReactElement {
   const safePages = doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page));
   const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
@@ -2641,13 +2691,13 @@ export function WebPreview({
         key={currentPageSlug}
         className={`responsive-preview ${isNarrowBuilderPreview ? "builder-parity-narrow" : ""} ${isNarrowViewport ? "responsive-narrow" : ""}`.trim()}
         style={{
-          width: isDesktopMode ? (frameStyles.width ?? "100%") : width,
-          maxWidth: isDesktopMode ? frameStyles.maxWidth : undefined,
+          width: fillViewport ? "100%" : (isDesktopMode ? (frameStyles.width ?? "100%") : width),
+          maxWidth: fillViewport ? "none" : (isDesktopMode ? frameStyles.maxWidth : undefined),
           minHeight,
           backgroundColor: background,
-          margin: "0 auto",
-          boxShadow: isDesktopMode ? "none" : "0 25px 50px -12px rgba(0,0,0,0.25)",
-          borderRadius: isDesktopMode ? 0 : 8,
+          margin: fillViewport ? 0 : "0 auto",
+          boxShadow: isDesktopMode || fillViewport ? "none" : "0 25px 50px -12px rgba(0,0,0,0.25)",
+          borderRadius: isDesktopMode || fillViewport ? 0 : 8,
           overflow: "hidden",
           transform: pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
           transformOrigin: "center center",

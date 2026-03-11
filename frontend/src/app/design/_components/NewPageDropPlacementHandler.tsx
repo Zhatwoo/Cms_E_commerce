@@ -12,6 +12,42 @@ type DropPoint = {
 const NEW_PAGE_WIDTH = 1920;
 const NEW_PAGE_HEIGHT = 1200;
 
+function canonicalResolvedName(rawName: unknown): string {
+  const name = typeof rawName === "string" ? rawName.trim() : "";
+  if (!name) return "Container";
+  const lowered = name.toLowerCase();
+  if (lowered === "image") return "Image";
+  if (lowered === "text") return "Text";
+  if (lowered === "container") return "Container";
+  if (lowered === "page") return "Page";
+  if (lowered === "viewport") return "Viewport";
+  if (lowered.includes("image")) return "Image";
+  if (lowered.includes("text")) return "Text";
+  if (lowered.includes("container")) return "Container";
+  if (lowered.includes("page")) return "Page";
+  if (lowered.includes("viewport")) return "Viewport";
+  return name;
+}
+
+function sanitizeTreeTypes(tree: Record<string, any>): Record<string, any> {
+  Object.keys(tree).forEach((id) => {
+    const node = tree[id];
+    if (!node || typeof node !== "object") return;
+    const currentName = typeof node.type === "string" ? node.type : node?.type?.resolvedName;
+    const canonical = canonicalResolvedName(currentName);
+    if (typeof node.type === "string") {
+      node.type = { resolvedName: canonical };
+    } else if (node.type && typeof node.type === "object") {
+      node.type.resolvedName = canonical;
+    } else {
+      node.type = { resolvedName: canonical };
+    }
+    node.displayName = canonical;
+    if (!Array.isArray(node.nodes)) node.nodes = [];
+  });
+  return tree;
+}
+
 function resolveViewportId(nodes: Record<string, any>): string | null {
   const rootNode = nodes?.ROOT;
   const frameRootId = rootNode?.data?.nodes?.[0] ?? null;
@@ -184,7 +220,7 @@ export const NewPageDropPlacementHandler = () => {
       if (!Array.isArray(vp.nodes)) vp.nodes = [];
       vp.nodes = [...vp.nodes, pageId];
 
-      actions.deserialize(JSON.stringify(snapshot));
+      actions.deserialize(JSON.stringify(sanitizeTreeTypes(snapshot)));
       requestAnimationFrame(() => {
         try {
           actions.setProp(pageId, (props: Record<string, unknown>) => {
@@ -332,7 +368,7 @@ export const NewPageDropPlacementHandler = () => {
             if (!Array.isArray(vp.nodes)) vp.nodes = [];
             vp.nodes = [...vp.nodes, pageId];
 
-            actions.deserialize(JSON.stringify(snapshot));
+            actions.deserialize(JSON.stringify(sanitizeTreeTypes(snapshot)));
             requestAnimationFrame(() => {
               try {
                 actions.setProp(pageId, (props: Record<string, unknown>) => {
@@ -347,12 +383,12 @@ export const NewPageDropPlacementHandler = () => {
             preDropPageIdsRef.current = new Set([...currentPageIds, pageId]);
           } else {
             // Fallback to previous lightweight tree if we couldn't find serialized viewport
-            actions.deserialize(JSON.stringify(tree));
+            actions.deserialize(JSON.stringify(sanitizeTreeTypes(tree)));
             preDropPageIdsRef.current = new Set([...currentPageIds, pageId]);
           }
         } else {
           // No snapshot available — use direct deserialize of minimal tree
-          actions.deserialize(JSON.stringify(tree));
+          actions.deserialize(JSON.stringify(sanitizeTreeTypes(tree)));
           preDropPageIdsRef.current = new Set([...currentPageIds, pageId]);
         }
       } catch (error) {

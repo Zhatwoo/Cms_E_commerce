@@ -2,9 +2,11 @@
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTheme } from '../components/context/theme-context';
+import { useProject } from '../components/context/project-context';
 import { listMyPublishedOrders, updatePublishedOrderStatus, type ApiPublishedOrder } from '@/lib/api';
 
 type OrderStatus = 'Pending' | 'Processing' | 'Paid' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Returned';
+const ORDER_STATUSES: OrderStatus[] = ['Pending', 'Processing', 'Paid', 'Shipped', 'Delivered', 'Cancelled', 'Returned'];
 
 const THUMBNAILS = ['/images/template-saas.jpg', '/images/template-fashion.jpg', '/images/template-portfolio.jpg'];
 
@@ -12,10 +14,10 @@ type CheckoutTab = 'all' | 'pending' | 'transit' | 'completed';
 type ViewMode = 'list' | 'grid';
 
 const CHECKOUT_TABS: { id: CheckoutTab; label: string }[] = [
-  { id: 'all', label: 'All Checkouts' },
-  { id: 'pending', label: 'Pending' },
-  { id: 'transit', label: 'In Transit' },
-  { id: 'completed', label: 'Completed' },
+  { id: 'all', label: 'ALL CHECKOUTS' },
+  { id: 'pending', label: 'PENDING' },
+  { id: 'transit', label: 'IN TRANSIT' },
+  { id: 'completed', label: 'COMPLETED' },
 ];
 
 const ORDER_CATEGORIES = [
@@ -30,6 +32,11 @@ const ORDER_CATEGORIES = [
   { id: 'sports-fitness', label: 'Sports & Fitness', keywords: ['sports', 'fitness', 'gym', 'workout', 'running', 'yoga', 'dumbbell'] },
   { id: 'creative-handmade', label: 'Creative & Handmade', keywords: ['creative', 'handmade', 'craft', 'art', 'custom', 'diy'] },
 ] as const;
+
+// ─── Subdomain normalization ──────────────────────────────────────────────────
+function normalizeSubdomain(value?: string | null): string {
+  return (value || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+}
 
 function orderNumber(order: ApiPublishedOrder): string {
   return `ORD-${order.id.slice(-8).toUpperCase()}`;
@@ -51,6 +58,13 @@ function statusLabel(status: string): string {
   const normalized = String(status || '').toLowerCase();
   if (normalized === 'shipped') return 'In Transit';
   return status || 'Pending';
+}
+
+function normalizeOrderStatus(status: string): OrderStatus {
+  const matched = ORDER_STATUSES.find(
+    (value) => value.toLowerCase() === String(status || '').toLowerCase()
+  );
+  return matched || 'Pending';
 }
 
 function shippingSummary(address: ApiPublishedOrder['shippingAddress']): string {
@@ -113,6 +127,8 @@ function rowBadge(status: string, colors: ReturnType<typeof useTheme>['colors'])
 
 export default function OrdersPage() {
   const { colors } = useTheme();
+  const { selectedProject } = useProject();
+  const selectedSubdomain = normalizeSubdomain(selectedProject?.subdomain);
   const [orders, setOrders] = useState<ApiPublishedOrder[]>([]);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<CheckoutTab>('all');
@@ -122,6 +138,9 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [draftStatus, setDraftStatus] = useState<OrderStatus>('Pending');
   const tabRefs = useRef<Record<CheckoutTab, HTMLButtonElement | null>>({
     all: null,
     pending: null,
@@ -134,14 +153,14 @@ export default function OrdersPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await listMyPublishedOrders({ limit: 200, page: 1 });
+      const res = await listMyPublishedOrders({ subdomain: selectedSubdomain || undefined, limit: 200, page: 1 });
       setOrders(Array.isArray(res.items) ? res.items : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load orders');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedSubdomain]);
 
   useEffect(() => {
     loadOrders();
@@ -179,10 +198,10 @@ export default function OrdersPage() {
 
   const handleStatusUpdate = useCallback(
     async (order: ApiPublishedOrder, nextStatus: string) => {
-      if (!nextStatus || nextStatus === order.status) return;
+      if (!nextStatus || nextStatus === order.status) return true;
       if (!order.subdomain) {
         window.alert('Cannot update status for order without subdomain.');
-        return;
+        return false;
       }
       try {
         setUpdatingId(order.id);
@@ -192,8 +211,10 @@ export default function OrdersPage() {
           nextStatus as OrderStatus
         );
         await loadOrders();
+        return true;
       } catch (err) {
         window.alert(err instanceof Error ? err.message : 'Unable to update order status');
+        return false;
       } finally {
         setUpdatingId(null);
       }
@@ -201,8 +222,36 @@ export default function OrdersPage() {
     [loadOrders]
   );
 
+  const toggleDetails = useCallback((orderId: string) => {
+    setExpandedOrderId((current) => {
+      if (current === orderId) {
+        setEditingOrderId((editing) => (editing === orderId ? null : editing));
+        return null;
+      }
+      return orderId;
+    });
+  }, []);
+
+  const startEditStatus = useCallback((order: ApiPublishedOrder) => {
+    setExpandedOrderId(order.id);
+    setEditingOrderId(order.id);
+    setDraftStatus(normalizeOrderStatus(String(order.status || 'Pending')));
+  }, []);
+
+  const saveEditedStatus = useCallback(
+    async (order: ApiPublishedOrder) => {
+      const ok = await handleStatusUpdate(order, draftStatus);
+      if (ok) {
+        setEditingOrderId(null);
+      }
+    },
+    [draftStatus, handleStatusUpdate]
+  );
+
   useEffect(() => {
     setPage(1);
+    setExpandedOrderId(null);
+    setEditingOrderId(null);
   }, [activeTab, search, viewMode, categoryFilter]);
 
   const updateTabIndicator = useCallback(() => {
@@ -262,7 +311,7 @@ export default function OrdersPage() {
           <span
             className="block text-transparent bg-clip-text"
             style={{
-              backgroundImage: 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)',
+              backgroundImage: 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)',
             }}
           >
             Checkouts
@@ -281,7 +330,7 @@ export default function OrdersPage() {
                     tabRefs.current[tab.id] = el;
                   }}
                   onClick={() => setActiveTab(tab.id)}
-                  className="relative whitespace-nowrap px-1 pb-2 text-[11px] max-[390px]:text-[10px] sm:text-[12px] font-semibold transition-colors duration-200"
+                  className="relative whitespace-nowrap px-1 pb-2 text-[9px] max-[390px]:text-[9px] sm:text-[10px] lg:text-[11px] font-bold uppercase tracking-[0.12em] sm:tracking-[0.14em] [font-family:var(--font-outfit),sans-serif] transition-colors duration-200"
                   style={{ color: isActive ? colors.accent.yellow : colors.text.muted }}
                 >
                   {tab.label}
@@ -301,7 +350,7 @@ export default function OrdersPage() {
           </div>
         </div>
 
-        <div className="mx-auto mt-7 sm:mt-8 max-w-[760px] rounded-xl sm:rounded-2xl border px-3 max-[390px]:px-2.5 sm:px-5 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-3 shadow-[0_10px_34px_rgba(16,11,62,0.36)]" style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.card }}>
+        <div className="mx-auto mt-7 sm:mt-8 max-w-[860px] rounded-2xl border px-5 py-3.5 flex items-center gap-3 bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]">
           <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0" fill="none" style={{ color: colors.accent.yellow }}>
             <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
             <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="1.8" />
@@ -310,8 +359,7 @@ export default function OrdersPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search templates, designs, or actions"
-            className="w-full bg-transparent text-[13px] sm:text-sm outline-none placeholder:opacity-70"
-            style={{ color: colors.text.primary }}
+            className="w-full bg-transparent text-sm outline-none text-white placeholder:text-[#6F70A8]"
           />
         </div>
       </section>
@@ -454,7 +502,8 @@ export default function OrdersPage() {
 
           {pagedOrders.map((order, idx) => {
             const badge = rowBadge(String(order.status || 'Pending'), colors);
-            const isExpanded = idx === 0;
+            const isExpanded = expandedOrderId === order.id;
+            const isEditing = editingOrderId === order.id;
             return (
               <div key={order.id} className="px-2.5 max-[390px]:px-2 sm:px-4 py-3.5 sm:py-4 border-b" style={{ borderColor: colors.border.faint }}>
                 <div className="grid grid-cols-1 md:grid-cols-[1.2fr_1.05fr_1fr_0.8fr_0.9fr_0.9fr] items-start md:items-center gap-2.5 md:gap-3">
@@ -470,6 +519,14 @@ export default function OrdersPage() {
                       <p className="text-[12px] sm:text-[13px] font-semibold truncate" style={{ color: colors.text.primary }}>
                         {order.items?.[0]?.name || 'Product Name 0001'}
                       </p>
+                      <button
+                        type="button"
+                        onClick={() => toggleDetails(order.id)}
+                        className="mt-1 text-[11px] font-semibold underline-offset-2 hover:underline"
+                        style={{ color: colors.accent.purple }}
+                      >
+                        {isExpanded ? 'Close product details' : 'See product details'}
+                      </button>
                     </div>
                   </div>
 
@@ -485,7 +542,8 @@ export default function OrdersPage() {
                     <button
                       type="button"
                       className={actionButtonClass}
-                      title="Inspect"
+                      title={isExpanded ? 'Close product details' : 'See product details'}
+                      onClick={() => toggleDetails(order.id)}
                       style={{ borderColor: colors.border.faint, color: colors.text.secondary, backgroundColor: `${colors.bg.elevated}CC` }}
                     >
                       {renderIcon('eye')}
@@ -514,7 +572,76 @@ export default function OrdersPage() {
                 </div>
 
                 {isExpanded && (
-                  <div className="mt-3.5 sm:mt-4 grid grid-cols-1 lg:grid-cols-[1fr_1fr_1fr] gap-2.5 sm:gap-3 text-xs">
+                  <div className="mt-3.5 sm:mt-4">
+                    <div className="mb-2.5 flex flex-wrap items-center gap-2">
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: colors.text.muted }}>
+                        Product details
+                      </span>
+                      {!isEditing ? (
+                        <button
+                          type="button"
+                          onClick={() => startEditStatus(order)}
+                          className="h-8 px-3 rounded-md border text-[11px] font-semibold"
+                          style={{
+                            borderColor: colors.border.faint,
+                            color: colors.text.primary,
+                            backgroundColor: `${colors.bg.elevated}CC`,
+                          }}
+                        >
+                          Edit status
+                        </button>
+                      ) : (
+                        <>
+                          <label className="text-[11px]" style={{ color: colors.text.secondary }}>
+                            Status
+                          </label>
+                          <select
+                            value={draftStatus}
+                            onChange={(e) => setDraftStatus(e.target.value as OrderStatus)}
+                            disabled={updatingId === order.id}
+                            className="h-8 rounded-md border px-2.5 text-[11px] outline-none"
+                            style={{
+                              borderColor: colors.border.faint,
+                              color: colors.text.primary,
+                              backgroundColor: `${colors.bg.elevated}CC`,
+                            }}
+                          >
+                            {ORDER_STATUSES.map((status) => (
+                              <option key={status} value={status}>
+                                {status}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => void saveEditedStatus(order)}
+                            disabled={updatingId === order.id}
+                            className="h-8 px-3 rounded-md border text-[11px] font-semibold disabled:opacity-60"
+                            style={{
+                              borderColor: colors.border.faint,
+                              color: colors.status.good,
+                              backgroundColor: `${colors.bg.elevated}CC`,
+                            }}
+                          >
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingOrderId(null)}
+                            className="h-8 px-3 rounded-md border text-[11px] font-semibold"
+                            style={{
+                              borderColor: colors.border.faint,
+                              color: colors.text.secondary,
+                              backgroundColor: `${colors.bg.elevated}CC`,
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_1fr] gap-2.5 sm:gap-3 text-xs">
                     <div>
                       <p className="uppercase text-[10px] mb-1" style={{ color: colors.text.muted }}>Delivery Address</p>
                       <p style={{ color: colors.text.secondary }}>{shippingSummary(order.shippingAddress)}</p>
@@ -550,6 +677,7 @@ export default function OrdersPage() {
                       </div>
                     </div>
                   </div>
+                  </div>
                 )}
               </div>
             );
@@ -559,6 +687,8 @@ export default function OrdersPage() {
         <section className="relative z-10 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5">
           {pagedOrders.map((order, idx) => {
             const badge = rowBadge(String(order.status || 'Pending'), colors);
+            const isExpanded = expandedOrderId === order.id;
+            const isEditing = editingOrderId === order.id;
             return (
               <article
                 key={order.id}
@@ -592,7 +722,8 @@ export default function OrdersPage() {
                   <button
                     type="button"
                     className={`${actionButtonClass} w-full`}
-                    title="Inspect"
+                    title={isExpanded ? 'Close product details' : 'See product details'}
+                    onClick={() => toggleDetails(order.id)}
                     style={{ borderColor: colors.border.faint, color: colors.text.secondary, backgroundColor: `${colors.bg.elevated}CC` }}
                   >
                     {renderIcon('eye')}
@@ -618,6 +749,76 @@ export default function OrdersPage() {
                     {renderIcon('close')}
                   </button>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => toggleDetails(order.id)}
+                  className="mt-2 text-[11px] font-semibold underline-offset-2 hover:underline"
+                  style={{ color: colors.accent.purple }}
+                >
+                  {isExpanded ? 'Close product details' : 'See product details'}
+                </button>
+
+                {isExpanded && (
+                  <div className="mt-2.5 rounded-xl border p-2.5 text-xs" style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="uppercase text-[10px]" style={{ color: colors.text.muted }}>Order details</p>
+                      {!isEditing ? (
+                        <button
+                          type="button"
+                          onClick={() => startEditStatus(order)}
+                          className="h-7 px-2.5 rounded-md border text-[11px] font-semibold"
+                          style={{ borderColor: colors.border.faint, color: colors.text.primary }}
+                        >
+                          Edit status
+                        </button>
+                      ) : (
+                        <>
+                          <select
+                            value={draftStatus}
+                            onChange={(e) => setDraftStatus(e.target.value as OrderStatus)}
+                            disabled={updatingId === order.id}
+                            className="h-7 rounded-md border px-2 text-[11px] outline-none"
+                            style={{
+                              borderColor: colors.border.faint,
+                              color: colors.text.primary,
+                              backgroundColor: `${colors.bg.elevated}CC`,
+                            }}
+                          >
+                            {ORDER_STATUSES.map((status) => (
+                              <option key={status} value={status}>
+                                {status}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => void saveEditedStatus(order)}
+                            disabled={updatingId === order.id}
+                            className="h-7 px-2.5 rounded-md border text-[11px] font-semibold disabled:opacity-60"
+                            style={{ borderColor: colors.border.faint, color: colors.status.good }}
+                          >
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingOrderId(null)}
+                            className="h-7 px-2.5 rounded-md border text-[11px] font-semibold"
+                            style={{ borderColor: colors.border.faint, color: colors.text.secondary }}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    <p className="mt-2" style={{ color: colors.text.secondary }}>{shippingSummary(order.shippingAddress)}</p>
+                    {(order.items || []).slice(0, 3).map((item, itemIdx) => (
+                      <p key={`${order.id}-grid-spec-${itemIdx}`} className="mt-1" style={{ color: colors.text.secondary }}>
+                        Variant: {item.name || item.sku || 'Item'} â€¢ Qty {item.quantity}
+                      </p>
+                    ))}
+                  </div>
+                )}
               </article>
             );
           })}

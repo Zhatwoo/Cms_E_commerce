@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Auth: only HttpOnly cookie (mercato_token). No confidential data in localStorage or cookies.
  * User profile is kept in memory only; fetched via GET /api/auth/me when needed.
  */
@@ -333,6 +333,10 @@ export type Project = {
   updatedAt?: string;
   deletedAt?: string;
   daysLeft?: number;
+  isShared?: boolean;
+  ownerName?: string;
+  ownerId?: string;
+  collaboratorPermission?: "editor" | "viewer";
 };
 
 export async function listProjects(): Promise<{ success: boolean; projects: Project[] }> {
@@ -397,6 +401,65 @@ export async function permanentDeleteProject(id: string): Promise<{ success: boo
   return apiFetch<{ success: boolean; message?: string }>(`/api/projects/${id}/permanent`, {
     method: 'DELETE',
   });
+}
+
+/** Upload media file for web builder. Returns the public URL. */
+export async function uploadMediaApi(
+  projectId: string,
+  file: File,
+  options?: { onProgress?: (percent: number) => void; folder?: 'images' | 'videos' | 'files' }
+): Promise<{ url: string }> {
+  const base = getApiUrl().replace(/\/$/, '');
+  const url = `${base}/api/projects/${projectId}/media`;
+
+  if (options?.onProgress) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const formData = new FormData();
+      formData.append('media', file);
+      if (options.folder) formData.append('folder', options.folder);
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && options.onProgress) {
+          options.onProgress(Math.round((e.loaded / e.total) * 100));
+        }
+      };
+
+      xhr.onload = () => {
+        const data = JSON.parse(xhr.responseText || '{}');
+        if (xhr.status >= 200 && xhr.status < 300) {
+          if (data.success && data.url) resolve({ url: data.url });
+          else reject(new Error(data.message || 'Upload failed'));
+        } else {
+          reject(new Error(data.message || 'Upload failed'));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Upload failed'));
+      xhr.open('POST', url);
+      xhr.withCredentials = true;
+      if (activeProjectId) xhr.setRequestHeader('x-project-id', activeProjectId);
+      xhr.send(formData);
+    });
+  }
+
+  const formData = new FormData();
+  formData.append('media', file);
+  if (options?.folder) formData.append('folder', options.folder);
+
+  const headers: Record<string, string> = {};
+  if (activeProjectId) headers['x-project-id'] = activeProjectId;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    credentials: 'include',
+    headers,
+    body: formData,
+  });
+
+  const data = await handleResponse<{ success: boolean; url?: string; message?: string }>(res);
+  if (!data.url) throw new Error(data.message || 'Upload failed');
+  return { url: data.url };
 }
 
 /** Update subdomain for an existing published project. */
@@ -520,6 +583,9 @@ export type ApiProduct = {
   name: string;
   sku?: string;
   category?: string;
+  subcategory?: string;
+  subCategory?: string;
+  sub_category?: string;
   slug?: string;
   description?: string;
   price: number;
@@ -538,9 +604,11 @@ export type ApiProduct = {
       id: string;
       name: string;
       priceAdjustment: number;
+      image?: string;
     }>;
   }>;
   variantStocks?: Record<string, number>;
+  variantPrices?: Record<string, number>;
   priceRangeMin?: number | null;
   priceRangeMax?: number | null;
   images?: string[];
@@ -613,6 +681,9 @@ export async function createProduct(params: {
   name: string;
   sku?: string;
   category?: string;
+  subcategory?: string;
+  subCategory?: string;
+  sub_category?: string;
   slug?: string;
   description?: string;
   price?: number;
@@ -631,9 +702,11 @@ export async function createProduct(params: {
       id: string;
       name: string;
       priceAdjustment: number;
+      image?: string;
     }>;
   }>;
   variantStocks?: Record<string, number>;
+  variantPrices?: Record<string, number>;
   priceRangeMin?: number | null;
   priceRangeMax?: number | null;
   images?: string[];
@@ -653,6 +726,9 @@ export async function updateProduct(
     name?: string;
     sku?: string;
     category?: string;
+    subcategory?: string;
+    subCategory?: string;
+    sub_category?: string;
     slug?: string;
     description?: string;
     price?: number;
@@ -671,9 +747,11 @@ export async function updateProduct(
         id: string;
         name: string;
         priceAdjustment: number;
+        image?: string;
       }>;
     }>;
     variantStocks?: Record<string, number>;
+    variantPrices?: Record<string, number>;
     priceRangeMin?: number | null;
     priceRangeMax?: number | null;
     images?: string[];
@@ -813,6 +891,8 @@ export async function adjustInventoryStock(params: {
   referenceId?: string;
   setOnHandStock?: number;
   setReservedStock?: number;
+  variantKey?: string;
+  setVariantStock?: number;
 }): Promise<{ success: boolean; message?: string; data?: ApiProduct }> {
   return apiFetch<{ success: boolean; message?: string; data?: ApiProduct }>('/api/inventory/adjust', {
     method: 'POST',
@@ -836,10 +916,14 @@ export type ImportInventoryResult = {
 
 export async function importInventoryCsv(params: {
   rows: ImportInventoryRow[];
+  subdomain?: string;
 }): Promise<ImportInventoryResult> {
-  return apiFetch<ImportInventoryResult>('/api/inventory/import', {
+  const query = new URLSearchParams();
+  if (params.subdomain) query.set('subdomain', params.subdomain);
+  const qs = query.toString();
+  return apiFetch<ImportInventoryResult>(qs ? `/api/inventory/import?${qs}` : '/api/inventory/import', {
     method: 'POST',
-    body: JSON.stringify(params),
+    body: JSON.stringify({ rows: params.rows }),
   });
 }
 

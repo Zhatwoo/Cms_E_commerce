@@ -119,13 +119,20 @@ function DashboardLayoutContent({
             {/* Main content area - ref: deep indigo/purple gradient (Color Palette) */}
             <div
                 ref={contentScrollRef}
-                className="no-scrollbar flex min-w-0 flex-1 basis-0 flex-col h-screen overflow-y-auto overflow-x-hidden"
+                className="no-scrollbar relative flex min-w-0 flex-1 basis-0 flex-col h-screen overflow-y-auto overflow-x-hidden"
                 style={{ background: `linear-gradient(180deg, ${colors.bg.primary} 0%, ${colors.bg.primaryEnd} 100%)` }}
             >
+                <div
+                    className="pointer-events-none absolute inset-0 -z-0"
+                    style={{
+                        background: 'radial-gradient(62% 48% at 50% 38%, rgba(207, 152, 255, 0.2) 0%, rgba(94, 21, 205, 0.14) 38%, rgba(85, 40, 218, 0.06) 58%, rgba(85, 40, 218, 0) 76%)',
+                    }}
+                />
+
                 <div className="sticky top-0 z-50 shrink-0 bg-transparent">
                     <DashboardHeader onMenuToggle={() => setSidebarOpen(true)} />
                 </div>
-                <main className="flex-1 min-w-0 max-w-full overflow-x-hidden px-4 sm:px-6 pt-5 sm:pt-7 pb-4 sm:pb-6">
+                <main className="relative z-10 flex-1 min-w-0 max-w-full overflow-x-hidden px-4 sm:px-6 pt-5 sm:pt-7 pb-4 sm:pb-6">
                     <AnimatePresence mode="wait" initial={false}>
                         <motion.div
                             key={pathname}

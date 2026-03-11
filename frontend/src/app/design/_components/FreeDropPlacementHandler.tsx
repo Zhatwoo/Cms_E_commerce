@@ -17,7 +17,7 @@ type DropPoint = {
   clientY: number;
 };
 
-type DragSourceKind = "asset" | "component" | null;
+type DragSourceKind = "asset" | "component" | "imported" | null;
 
 const MAX_RETRY_FRAMES = 24;
 const LAYOUT_LIKE_TYPES = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame"]);
@@ -51,7 +51,7 @@ function isSupportedSource(target: EventTarget | null): boolean {
   const el = target instanceof Element ? target : null;
   if (!el) return false;
 
-  const source = el.closest("[data-drag-source='component'], [data-drag-source='asset']") as HTMLElement | null;
+  const source = el.closest("[data-drag-source='component'], [data-drag-source='asset'], [data-drag-source='imported']") as HTMLElement | null;
   if (!source) return false;
 
   if (source.getAttribute("data-component-new-page") === "true") return false;
@@ -61,11 +61,11 @@ function isSupportedSource(target: EventTarget | null): boolean {
 function getSourceKind(target: EventTarget | null): DragSourceKind {
   const el = target instanceof Element ? target : null;
   if (!el) return null;
-  const source = el.closest("[data-drag-source='component'], [data-drag-source='asset']") as HTMLElement | null;
+  const source = el.closest("[data-drag-source='component'], [data-drag-source='asset'], [data-drag-source='imported']") as HTMLElement | null;
   if (!source) return null;
   if (source.getAttribute("data-component-new-page") === "true") return null;
   const kind = source.getAttribute("data-drag-source");
-  return kind === "asset" || kind === "component" ? kind : null;
+  return kind === "asset" || kind === "component" || kind === "imported" ? kind : null;
 }
 
 function snapToGrid(value: number): number {
@@ -106,6 +106,7 @@ export function FreeDropPlacementHandler() {
       // Preserve template/asset internal layout exactly as-authored.
       // Asset drops can include nested Row/Column/Section structures that should not
       // be reordered or normalized by the generic free-drop placement logic.
+      // Imported blocks are single elements, treat like component.
       if (dragSourceKindRef.current === "asset") {
         if (newIds.length > 0 || attempt >= MAX_RETRY_FRAMES) {
           stopTracking();
@@ -160,6 +161,8 @@ export function FreeDropPlacementHandler() {
         const isLayoutLike = LAYOUT_LIKE_TYPES.has(displayName);
         const parentNode = nodes[parentId];
         const parentDisplayName = parentNode?.data?.displayName ?? "";
+        const shouldImageFillParent =
+          displayName === "Image" && parentDisplayName === "Section";
         const parentProps = (parentNode?.data?.props ?? {}) as Record<string, unknown>;
         const parentDisplay = String(parentProps.display ?? "flex").toLowerCase();
         const parentIsFreeform = parentProps.isFreeform === true;
@@ -326,7 +329,12 @@ export function FreeDropPlacementHandler() {
               props.width = "100%";
               props.maxWidth = "100%";
               props.minWidth = 0;
-              if (props.height == null || String(props.height).toLowerCase() === "100%") {
+              if (shouldImageFillParent) {
+                props.height = "100%";
+                props.maxHeight = "100%";
+                props.minHeight = 0;
+                if (!props.objectFit) props.objectFit = "cover";
+              } else if (props.height == null || String(props.height).toLowerCase() === "100%") {
                 props.height = "auto";
               }
             }
@@ -379,8 +387,32 @@ export function FreeDropPlacementHandler() {
             if (props.right == null) props.right = "auto";
             if (props.bottom == null) props.bottom = "auto";
           }
+
+          if (shouldImageFillParent) {
+            props.position = "relative";
+            props.left = "auto";
+            props.top = "auto";
+            props.right = "auto";
+            props.bottom = "auto";
+            props.width = "100%";
+            props.height = "100%";
+            props.maxWidth = "100%";
+            props.maxHeight = "100%";
+            props.minWidth = 0;
+            props.minHeight = 0;
+            if (!props.objectFit) props.objectFit = "cover";
+          }
         });
       });
+
+      const selectableNewIds = idsToPlace.filter((id) => !!query.getState()?.nodes?.[id]);
+      if (selectableNewIds.length > 0) {
+        try {
+          actions.selectNode(selectableNewIds.length === 1 ? selectableNewIds[0] : selectableNewIds);
+        } catch {
+          // ignore selection failures
+        }
+      }
 
       stopTracking();
     };

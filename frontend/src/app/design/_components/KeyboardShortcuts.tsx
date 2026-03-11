@@ -53,7 +53,7 @@ export const KeyboardShortcuts = () => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const ctrl = e.ctrlKey || e.metaKey;
-      const key = e.key.toLowerCase();
+      const key = typeof e.key === "string" ? e.key.toLowerCase() : "";
 
       // ── Save: Ctrl/Cmd + S ──
       if (ctrl && key === "s") {

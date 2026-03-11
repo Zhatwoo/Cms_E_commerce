@@ -419,6 +419,11 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
     pageName: "Page Name",
     pageSlug: "page",
   },
+  ImportedBlock: {
+    blockName: "Imported",
+    blockCss: "",
+    blockHtml: "<div>Empty</div>",
+  },
 };
 
 // ─── Props that are shorthand / redundant ────────────────────────────────────

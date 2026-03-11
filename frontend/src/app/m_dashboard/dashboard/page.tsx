@@ -284,22 +284,32 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
 
   return (
     <section className="relative min-h-[calc(100vh-176px)] px-3 py-3 sm:px-5 sm:py-4 lg:px-[100px] [font-family:var(--font-outfit),sans-serif]">
-      <div className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full blur-3xl opacity-25 bg-[#5C1D8F]" />
-      <div className="pointer-events-none absolute top-44 right-20 h-56 w-56 rounded-full blur-3xl opacity-20 bg-[#3F2A9A]" />
-      <div className="pointer-events-none absolute -bottom-28 right-2 h-80 w-80 rounded-full blur-3xl opacity-30 bg-[#11144E]" />
-
       <div className="relative z-10 mx-auto w-full max-w-none flex flex-col gap-10">
         <div className="flex flex-col items-center text-center gap-6 pt-1">
           <h1
-            className={`text-4xl sm:text-6xl lg:text-[76px] font-extrabold leading-[1.06] tracking-tight max-w-5xl [font-family:var(--font-outfit),sans-serif] ${theme === 'dark' ? 'bg-clip-text text-transparent' : 'text-[#000000]'}`}
-            style={{
-              backgroundImage: theme === 'dark'
-                ? 'linear-gradient(90deg,rgba(255,255,255,1) 0%,rgba(255,255,255,0.81) 15%,rgba(216,157,255,0.63) 31%,rgba(167,139,250,1) 54%,rgba(217,173,143,0.89) 82%,rgba(255,242,191,0.78) 88%,rgba(255,255,255,0.81) 97%)'
-                : 'none',
-            }}
+            className="text-4xl sm:text-6xl lg:text-[76px] font-extrabold leading-[1.06] tracking-tight max-w-5xl [font-family:var(--font-outfit),sans-serif] text-white"
           >
-            <span className="block">What website will</span>
-            <span className="block">you build?</span>
+            <span className="block">
+              What{' '}
+              <span
+                style={theme === 'dark'
+                  ? { backgroundImage: 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }
+                  : { color: '#5B21B6' }}
+              >
+                website
+              </span>{' '}
+              will
+            </span>
+            <span className="block">
+              you{' '}
+              <span
+                style={theme === 'dark'
+                  ? { backgroundImage: 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }
+                  : { color: '#5B21B6' }}
+              >
+                build?
+              </span>
+            </span>
           </h1>
 
           <div className="flex items-center gap-8 text-xs uppercase font-bold tracking-widest [font-family:var(--font-outfit),sans-serif]">
@@ -489,62 +499,64 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                       key={project.id}
                       className="relative rounded-[26px] border border-[#2D3A90] bg-[#12145A]/80 overflow-hidden text-left hover:translate-y-[-1px] transition-transform"
                     >
-                      <div className="absolute right-3 top-3 z-20" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setOpenProjectMenuId((prev) => (prev === project.id ? null : project.id));
-                          }}
-                          className="h-8 w-8 rounded-md border border-[#2D3A90] bg-[#0E0D3D]/90 text-white flex items-center justify-center"
-                          aria-label="Project actions"
-                          title="Project actions"
-                        >
-                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                            <circle cx="12" cy="6" r="1.8" />
-                            <circle cx="12" cy="12" r="1.8" />
-                            <circle cx="12" cy="18" r="1.8" />
-                          </svg>
-                        </button>
+                      {!project.isShared && (
+                        <div className="absolute right-3 top-3 z-20" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setOpenProjectMenuId((prev) => (prev === project.id ? null : project.id));
+                            }}
+                            className="h-8 w-8 rounded-md border border-[#2D3A90] bg-[#0E0D3D]/90 text-white flex items-center justify-center"
+                            aria-label="Project actions"
+                            title="Project actions"
+                          >
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                              <circle cx="12" cy="6" r="1.8" />
+                              <circle cx="12" cy="12" r="1.8" />
+                              <circle cx="12" cy="18" r="1.8" />
+                            </svg>
+                          </button>
 
-                        {openProjectMenuId === project.id && (
-                          <div className="absolute right-0 mt-1 w-36 rounded-lg border border-[#2D3A90] bg-[#12145A] py-1 shadow-xl">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleEditActiveProject(project);
-                              }}
-                              disabled={actioningProjectId === project.id}
-                              className="w-full px-3 py-2 text-left text-sm text-white flex items-center gap-2 hover:bg-white/5 disabled:opacity-50"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 3.487a1.875 1.875 0 1 1 2.652 2.652L8.25 17.403 4.5 18.75l1.347-3.75L16.862 3.487Z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 4.5l3.75 3.75" />
-                              </svg>
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleDeleteActiveProject(project);
-                              }}
-                              disabled={actioningProjectId === project.id || String(project.status || '').trim().toLowerCase() === 'published' || String(project.status || '').trim().toLowerCase() === 'live'}
-                              className="w-full px-3 py-2 text-left text-sm text-red-300 flex items-center gap-2 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
-                              title={String(project.status || '').trim().toLowerCase() === 'published' || String(project.status || '').trim().toLowerCase() === 'live' ? 'Take down (unpublish) this website first' : 'Move to trash'}
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                              {String(project.status || '').trim().toLowerCase() === 'published' || String(project.status || '').trim().toLowerCase() === 'live' ? 'Take down first' : 'Delete'}
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                          {openProjectMenuId === project.id && (
+                            <div className="absolute right-0 mt-1 w-36 rounded-lg border border-[#2D3A90] bg-[#12145A] py-1 shadow-xl">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleEditActiveProject(project);
+                                }}
+                                disabled={actioningProjectId === project.id}
+                                className="w-full px-3 py-2 text-left text-sm text-white flex items-center gap-2 hover:bg-white/5 disabled:opacity-50"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 3.487a1.875 1.875 0 1 1 2.652 2.652L8.25 17.403 4.5 18.75l1.347-3.75L16.862 3.487Z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 4.5l3.75 3.75" />
+                                </svg>
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleDeleteActiveProject(project);
+                                }}
+                                disabled={actioningProjectId === project.id || String(project.status || '').trim().toLowerCase() === 'published' || String(project.status || '').trim().toLowerCase() === 'live'}
+                                className="w-full px-3 py-2 text-left text-sm text-red-300 flex items-center gap-2 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                                title={String(project.status || '').trim().toLowerCase() === 'published' || String(project.status || '').trim().toLowerCase() === 'live' ? 'Take down (unpublish) this website first' : 'Move to trash'}
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                {String(project.status || '').trim().toLowerCase() === 'published' || String(project.status || '').trim().toLowerCase() === 'live' ? 'Take down first' : 'Delete'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       <div
                         role="button"
@@ -571,8 +583,15 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                           )}
                         </div>
                         <div className="px-4 py-3.5">
-                          <p className="text-2xl font-extrabold text-white leading-tight truncate">{project.title || 'Untitled Project'}</p>
-                          <p className="text-xs text-[#8A8FC4] mt-1 truncate">{formatEditedDate(project.updatedAt || project.createdAt)}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-2xl font-extrabold text-white leading-tight truncate">{project.title || 'Untitled Project'}</p>
+                            {project.isShared && (
+                              <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30 uppercase tracking-wider">Shared</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-[#8A8FC4] mt-1 truncate">
+                            {project.isShared ? `by ${project.ownerName || 'Unknown'}` : formatEditedDate(project.updatedAt || project.createdAt)}
+                          </p>
                         </div>
                       </div>
                     </div>
