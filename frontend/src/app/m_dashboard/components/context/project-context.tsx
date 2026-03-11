@@ -44,15 +44,25 @@ export function ProjectProvider({ children }: ProviderProps) {
   const storageKey = user?.id ? `md_selected_instance_${user.id}` : null;
 
   useEffect(() => {
-    setSelectionHydrated(false);
     if (!storageKey) {
       setSelectedProjectIdState(null);
       setSelectionHydrated(true);
       return;
     }
+    setSelectionHydrated(false);
     try {
       const saved = window.sessionStorage.getItem(storageKey);
       setSelectedProjectIdState(saved || null);
+      const cached = window.sessionStorage.getItem(storageKey + '_projects');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed)) {
+            setProjects(parsed);
+            setLoading(false);
+          }
+        } catch (_) {}
+      }
     } catch {
       setSelectedProjectIdState(null);
     } finally {
@@ -60,12 +70,17 @@ export function ProjectProvider({ children }: ProviderProps) {
     }
   }, [storageKey]);
 
-  const fetchProjects = useCallback(async (includeShared = false) => {
-    setLoading(true);
+  const fetchProjects = useCallback(async (includeShared = false, silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await listProjects({ includeShared });
       if (res?.success && Array.isArray(res.projects)) {
         setProjects(res.projects);
+        if (storageKey) {
+          try {
+            window.sessionStorage.setItem(storageKey + '_projects', JSON.stringify(res.projects));
+          } catch (_) {}
+        }
 
         // Keep last selected project when still available, otherwise fall back once.
         setSelectedProjectIdState((prev) => {
@@ -91,19 +106,19 @@ export function ProjectProvider({ children }: ProviderProps) {
         } catch {}
       }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [storageKey]);
 
   useEffect(() => {
-    if (!selectionHydrated) return;
     if (!storageKey) {
       setProjects([]);
       setLoading(false);
       return;
     }
-    void fetchProjects(false);
-  }, [fetchProjects, selectionHydrated, storageKey]);
+    const hasCache = typeof window !== 'undefined' && storageKey && window.sessionStorage.getItem(storageKey + '_projects');
+    void fetchProjects(false, !!hasCache);
+  }, [fetchProjects, storageKey]);
 
   useEffect(() => {
     setActiveProjectId(selectedProjectId);
