@@ -13,8 +13,11 @@ exports.list = async (req, res) => {
   try {
     const userId = req.user.id;
     const userEmail = req.user.email;
-    const owned = await Project.list(userId);
-    const shared = await Project.listShared(userId, userEmail);
+
+    const [owned, shared] = await Promise.all([
+      Project.list(userId),
+      Project.listShared(userId, userEmail),
+    ]);
 
     // Merge and sort by updatedAt desc
     const projects = [...owned, ...shared].sort((a, b) => {

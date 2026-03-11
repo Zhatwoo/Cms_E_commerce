@@ -62,15 +62,11 @@ export function ProjectProvider({ children }: ProviderProps) {
       if (res?.success && Array.isArray(res.projects)) {
         setProjects(res.projects);
 
-        // Ensure we always have a valid selected project when projects exist
-        if (res.projects.length === 0) {
-          setSelectedProjectIdState(null);
-        } else if (
-          !selectedProjectId ||
-          !res.projects.find((p) => p.id === selectedProjectId)
-        ) {
-          setSelectedProjectIdState(res.projects[0].id);
-        }
+        setSelectedProjectIdState((prev) => {
+          if (res.projects.length === 0) return null;
+          if (prev && res.projects.some((p) => p.id === prev)) return prev;
+          return res.projects[0].id;
+        });
       } else {
         setProjects([]);
         setSelectedProjectIdState(null);
@@ -91,11 +87,16 @@ export function ProjectProvider({ children }: ProviderProps) {
     } finally {
       setLoading(false);
     }
-  }, [selectedProjectId, storageKey]);
+  }, [storageKey]);
 
   useEffect(() => {
+    if (!storageKey) {
+      setProjects([]);
+      setLoading(false);
+      return;
+    }
     void fetchProjects();
-  }, [fetchProjects]);
+  }, [fetchProjects, storageKey]);
 
   useEffect(() => {
     setActiveProjectId(selectedProjectId);
