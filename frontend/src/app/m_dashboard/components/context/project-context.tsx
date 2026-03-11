@@ -102,11 +102,7 @@ export function ProjectProvider({ children }: ProviderProps) {
       setLoading(false);
       return;
     }
-<<<<<<< HEAD
-    void fetchProjects();
-=======
     void fetchProjects(false);
->>>>>>> bba4bed1054698c9bc9e06192096aa05f0d65c92
   }, [fetchProjects, selectionHydrated, storageKey]);
 
   useEffect(() => {
