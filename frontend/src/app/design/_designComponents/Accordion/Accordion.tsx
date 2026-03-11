@@ -153,6 +153,8 @@ export const Accordion = ({
   return (
     <div
       data-node-id={id}
+      data-drop-block="true"
+      data-drop-block-type="Accordion"
       ref={(ref) => { if (ref) connect(ref); }}
       style={{
         width,
@@ -349,7 +351,6 @@ export const Accordion = ({
               <div
                 data-canvas-interactive="true"
                 style={{
-                  padding: isWix ? "0 44px 14px" : "0 16px 14px",
                   backgroundColor: contentBg,
                   color: contentTextColor,
                   fontSize: `${contentFontSize}px`,
@@ -357,49 +358,15 @@ export const Accordion = ({
                   borderTop: `1px solid ${hexToRgba(borderColor, 0.45)}`,
                 }}
               >
-                <div style={{ paddingTop: "10px" }}>{item.content}</div>
-                {mediaType !== "none" && (
-                  mediaUrl ? (
-                    <div data-canvas-interactive="true" style={{ marginTop: "10px" }}>
-                      {mediaType === "image" ? (
-                        <img
-                          src={mediaUrl}
-                          alt={item.title || "Accordion image"}
-                          style={{
-                            width: "100%",
-                            maxWidth: "100%",
-                            borderRadius: "8px",
-                            display: "block",
-                          }}
-                        />
-                      ) : (
-                        <video
-                          src={mediaUrl}
-                          controls
-                          preload="metadata"
-                          style={{
-                            width: "100%",
-                            maxWidth: "100%",
-                            borderRadius: "8px",
-                            display: "block",
-                          }}
-                        />
-                      )}
-                    </div>
-                  ) : (
-                    <div
-                      style={{
-                        marginTop: "10px",
-                        padding: "8px 10px",
-                        borderRadius: "8px",
-                        border: `1px dashed ${hexToRgba(iconColor, 0.35)}`,
-                        color: hexToRgba(contentTextColor, 0.78),
-                        fontSize: `${Math.max(11, contentFontSize - 1)}px`,
-                      }}
-                    >
-                      {mediaType === "image" ? "Add an image URL in Configs to preview media here." : "Add a video URL in Configs to preview media here."}
-                    </div>
-                  )
+                {/* Text content — padded */}
+                <div style={{ padding: isWix ? "10px 44px 10px" : "10px 16px 10px" }}>{item.content}</div>
+                {mediaType !== "none" && mediaUrl && (
+                  <div style={{ padding: isWix ? "0 44px 10px" : "0 16px 10px" }}>
+                    {mediaType === "image"
+                      ? <img src={mediaUrl} alt={item.title} style={{ width: 280, height: 180, objectFit: "cover", borderRadius: 6, display: "block" }} />
+                      : <video src={mediaUrl} controls style={{ width: 280, height: 180, borderRadius: 6, display: "block" }} />
+                    }
+                  </div>
                 )}
               </div>
             </div>
@@ -440,6 +407,9 @@ export const AccordionDefaultProps: Partial<AccordionProps> = {
 Accordion.craft = {
   displayName: "Accordion",
   props: AccordionDefaultProps,
+  rules: {
+    canMoveIn: () => false,
+  },
   related: {
     settings: AccordionSettings,
   },

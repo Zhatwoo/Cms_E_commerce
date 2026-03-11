@@ -18,7 +18,9 @@ import { Section } from "../../_designComponents/Section/Section";
 import { Row } from "../../_designComponents/Row/Row";
 import { Column } from "../../_designComponents/Column/Column";
 import { Tabs } from "../../_designComponents/Tabs/Tabs";
+import { Accordion } from "../../_designComponents/Accordion/Accordion";
 import { Banner } from "../../_designComponents/Banner/banner";
+import { Badge as BadgeComponent } from "../../_designComponents/Badge/badge";
 import { CRAFT_RESOLVER } from "../craftResolver";
 import { ImportedBlock } from "../../_designComponents/ImportedBlock/ImportedBlock";
 import { Spacer } from "../../_designComponents/Spacer/Spacer";
@@ -51,6 +53,7 @@ export const ComponentsPanel = () => {
     Row,
     Column,
     Banner,
+    BadgeComponent,
     Spacer,
     pageComponent,
   ]);
@@ -83,6 +86,17 @@ export const ComponentsPanel = () => {
       ),
       icon: <AlertCircle className="w-5 h-5" />,
       color: "bg-rose-500/10",
+    },
+    {
+      label: "Badge",
+      preview: "Badge",
+      element: (
+        <Element is={BadgeComponent} canvas background="#16a34a" borderRadius={999} width="120px" height="36px" padding={8} gap={8}>
+          <Text text="Badge" fontSize={14} fontWeight="600" color="#ffffff" position="relative" width="100%" textAlign="center" lineHeight={1.2} />
+        </Element>
+      ),
+      icon: <Badge className="w-5 h-5" />,
+      color: "bg-emerald-500/10",
     },
     { label: "Column", preview: "Column", element: <Element is={Column} canvas />, icon: <Columns className="w-5 h-5" />, color: "bg-emerald-500/10" },
     {

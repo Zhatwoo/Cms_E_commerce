@@ -70,6 +70,10 @@ export type ComponentType =
   | "Square"
   | "Triangle"
   | "Tabs"
+  | "TabContent"
+  | "Banner"
+  | "Rating"
+  | "Accordion"
   | "ImportedBlock";
 
 /** A single node in the document. */

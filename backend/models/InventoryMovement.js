@@ -129,8 +129,121 @@ async function deleteForUser(userId, movementId, filters = {}) {
   return { deleted: false };
 }
 
+async function commitBatches(batches) {
+  for (const batch of batches) {
+    // Firestore batches are committed in order; caller ensures size constraints.
+    // eslint-disable-next-line no-await-in-loop
+    await batch.commit();
+  }
+}
+
+async function deleteManyForUser(userId, movementIds, filters = {}) {
+  const ids = Array.isArray(movementIds)
+    ? Array.from(new Set(movementIds.map((id) => String(id || '').trim()).filter(Boolean)))
+    : [];
+  if (!userId || ids.length === 0) return { deleted: 0, missing: ids };
+
+  const scopedSubdomain = normalizeSubdomain(filters.subdomain);
+  const scopedProjectId = String(filters.projectId || '').trim();
+  const subdomains = await getOwnedSubdomains(userId, scopedSubdomain);
+  if (!subdomains.length) return { deleted: 0, missing: ids };
+
+  const found = new Set();
+  let deleted = 0;
+  const batches = [];
+  let batch = db.batch();
+  let opCount = 0;
+
+  const flushBatch = async () => {
+    if (opCount === 0) return;
+    batches.push(batch);
+    batch = db.batch();
+    opCount = 0;
+  };
+
+  for (const subdomain of subdomains) {
+    const ref = getSubdomainMovementsRef(subdomain);
+    for (const movementId of ids) {
+      const docRef = ref.doc(movementId);
+      // eslint-disable-next-line no-await-in-loop
+      const snap = await docRef.get();
+      if (!snap.exists) continue;
+
+      if (snap.get('user_id') !== userId) continue;
+      if (scopedProjectId) {
+        const movementProjectId = String(snap.get('project_id') || '').trim();
+        if (movementProjectId !== scopedProjectId) continue;
+      }
+
+      batch.delete(docRef);
+      opCount += 1;
+      found.add(movementId);
+      deleted += 1;
+
+      // Keep batch size well under Firestore's 500 operations per batch cap
+      if (opCount >= 400) {
+        // eslint-disable-next-line no-await-in-loop
+        await flushBatch();
+      }
+    }
+  }
+
+  await flushBatch();
+  await commitBatches(batches);
+
+  const missing = ids.filter((id) => !found.has(id));
+  return { deleted, missing };
+}
+
+async function deleteAllForUser(userId, filters = {}) {
+  if (!userId) return { deleted: 0 };
+
+  const scopedSubdomain = normalizeSubdomain(filters.subdomain);
+  const scopedProjectId = String(filters.projectId || '').trim();
+  const subdomains = await getOwnedSubdomains(userId, scopedSubdomain);
+  if (!subdomains.length) return { deleted: 0 };
+
+  let deleted = 0;
+
+  for (const subdomain of subdomains) {
+    let query = getSubdomainMovementsRef(subdomain).where('user_id', '==', userId);
+    if (scopedProjectId) {
+      query = query.where('project_id', '==', scopedProjectId);
+    }
+
+    // eslint-disable-next-line no-await-in-loop
+    const snap = await query.get();
+    if (snap.empty) continue;
+
+    let batch = db.batch();
+    let opCount = 0;
+
+    for (const doc of snap.docs) {
+      batch.delete(doc.ref);
+      opCount += 1;
+      deleted += 1;
+
+      if (opCount >= 400) {
+        // eslint-disable-next-line no-await-in-loop
+        await batch.commit();
+        batch = db.batch();
+        opCount = 0;
+      }
+    }
+
+    if (opCount > 0) {
+      // eslint-disable-next-line no-await-in-loop
+      await batch.commit();
+    }
+  }
+
+  return { deleted };
+}
+
 module.exports = {
   create,
   listForUser,
   deleteForUser,
+  deleteManyForUser,
+  deleteAllForUser,
 };

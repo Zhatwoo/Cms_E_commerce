@@ -17,6 +17,7 @@ import { Row } from "../../_designComponents/Row/Row";
 import { Column } from "../../_designComponents/Column/Column";
 import { Icon } from "../../_designComponents/Icon/Icon";
 import { Rating } from "../../_designComponents/Rating/Rating";
+import { Accordion } from "../../_designComponents/Accordion/Accordion";
 
 const SAFE_CONTAINER: React.ComponentType<any> =
   (typeof Container === "function" ? Container : null) ??
@@ -124,6 +125,8 @@ const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverF
   Icon: asComponent(Icon),
   Rating: asComponent(Rating),
   rating: asComponent(Rating),
+  Accordion: asComponent(Accordion),
+  accordion: asComponent(Accordion),
 });
 
 export const AssetLivePreview = ({

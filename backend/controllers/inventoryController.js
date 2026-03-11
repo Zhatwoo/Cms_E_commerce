@@ -234,6 +234,55 @@ exports.deleteMovement = async (req, res) => {
   }
 };
 
+exports.bulkDeleteMovements = async (req, res) => {
+  try {
+    const { ids, deleteAll } = req.body || {};
+    const { subdomain, projectId } = req.query;
+    const headerProjectId = String(req.headers['x-project-id'] || '').trim();
+    const scopedSubdomain = await resolveScopedSubdomain(req.user.id, subdomain, headerProjectId);
+    const scopedProjectId = String(projectId || headerProjectId || '').trim() || undefined;
+
+    if (deleteAll) {
+      const result = await InventoryMovement.deleteAllForUser(req.user.id, {
+        subdomain: scopedSubdomain || undefined,
+        projectId: scopedProjectId,
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: result.deleted > 0 ? `Deleted ${result.deleted} movement(s)` : 'No movements to delete',
+        data: result,
+      });
+    }
+
+    const movementIds = Array.isArray(ids) ? ids : [];
+    const normalizedIds = movementIds.map((id) => String(id || '').trim()).filter(Boolean);
+    if (normalizedIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'ids array is required to delete selected movements',
+      });
+    }
+
+    const result = await InventoryMovement.deleteManyForUser(req.user.id, normalizedIds, {
+      subdomain: scopedSubdomain || undefined,
+      projectId: scopedProjectId,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: result.deleted > 0 ? `Deleted ${result.deleted} movement(s)` : 'No movements deleted',
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+      error: error.message,
+    });
+  }
+};
+
 function toIntOrNull(value) {
   if (value === undefined || value === null || value === '') return undefined;
   const n = parseInt(value, 10);

@@ -339,11 +339,8 @@ export type Project = {
   collaboratorPermission?: "editor" | "viewer";
 };
 
-export async function listProjects(options?: { includeShared?: boolean }): Promise<{ success: boolean; projects: Project[] }> {
-  const params = new URLSearchParams();
-  if (options?.includeShared === false) params.set('includeShared', 'false');
-  const qs = params.toString();
-  return apiFetch<{ success: boolean; projects: Project[] }>(qs ? `/api/projects?${qs}` : '/api/projects');
+export async function listProjects(): Promise<{ success: boolean; projects: Project[] }> {
+  return apiFetch<{ success: boolean; projects: Project[] }>('/api/projects');
 }
 
 export async function createProject(params: {
@@ -397,6 +394,11 @@ export async function restoreProject(id: string): Promise<{ success: boolean; pr
   return apiFetch<{ success: boolean; project: Project; message?: string }>(`/api/projects/${id}/restore`, {
     method: 'POST',
   });
+}
+
+/** Get project storage usage (bytes and human readable). */
+export async function getProjectStorage(id: string): Promise<{ success: boolean; storageBytes: number; storageReadable: string }> {
+  return apiFetch<{ success: boolean; storageBytes: number; storageReadable: string }>(`/api/projects/${id}/storage`);
 }
 
 /** Permanently purge a project from the database. This action cannot be undone. */
@@ -885,6 +887,34 @@ export async function deleteInventoryMovement(
   );
 }
 
+export async function bulkDeleteInventoryMovements(params: {
+  ids?: string[];
+  deleteAll?: boolean;
+  subdomain?: string;
+  projectId?: string;
+}): Promise<{ success: boolean; message?: string; data?: { deleted?: number; missing?: string[] } }> {
+  const body: Record<string, unknown> = {};
+  if (params.deleteAll) body.deleteAll = true;
+  if (Array.isArray(params.ids) && params.ids.length > 0) body.ids = params.ids;
+
+  if (!body.deleteAll && (!body.ids || (Array.isArray(body.ids) && body.ids.length === 0))) {
+    throw new Error('Provide ids array or set deleteAll=true to delete movements.');
+  }
+
+  const query = new URLSearchParams();
+  if (params.subdomain) query.set('subdomain', params.subdomain);
+  if (params.projectId) query.set('projectId', params.projectId);
+  const qs = query.toString();
+
+  return apiFetch<{ success: boolean; message?: string; data?: { deleted?: number; missing?: string[] } }>(
+    qs ? `/api/inventory/movements/bulk-delete?${qs}` : '/api/inventory/movements/bulk-delete',
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }
+  );
+}
+
 export async function adjustInventoryStock(params: {
   productId: string;
   quantity?: number;
@@ -1049,23 +1079,6 @@ export async function createPublishedOrder(params: {
         shippingAddress: params.shippingAddress ?? null,
         currency: params.currency ?? 'PHP',
       }),
-    }
-  );
-}
-
-export type PaymentMethod = 'gcash' | 'maya' | 'card';
-
-export async function createPaymentIntent(
-  subdomain: string,
-  orderId: string,
-  paymentMethod: PaymentMethod
-): Promise<{ success: boolean; redirectUrl?: string; clientKey?: string; publicKey?: string; message?: string }> {
-  const normalizedSubdomain = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
-  return apiFetch<{ success: boolean; redirectUrl?: string; clientKey?: string; publicKey?: string; message?: string }>(
-    `/api/orders/published/${encodeURIComponent(normalizedSubdomain)}/${encodeURIComponent(orderId)}/create-payment-intent`,
-    {
-      method: 'POST',
-      body: JSON.stringify({ paymentMethod }),
     }
   );
 }
@@ -1251,4 +1264,3 @@ export async function getAnalytics(period: '7days' | '30days' | '3months' = '7da
   }
   return apiFetch<AnalyticsResponse>(`/api/dashboard/analytics?period=${encodeURIComponent(period)}`);
 }
-

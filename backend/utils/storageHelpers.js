@@ -330,6 +330,93 @@ async function deleteStorageFilesByUrls(urls, { allowedPrefixes = [] } = {}) {
 
   return { deleted, skipped };
 }
+/**
+ * Calculate total storage usage (in bytes) for a specific project.
+ * Sums:
+ * 1) Media files in Firebase Storage (checking multiple possible path patterns)
+ * 2) Product images in Firebase Storage
+ * 3) Project and Page data in Firestore (estimated size)
+ */
+async function getProjectStorageUsage({ clientName, websiteName, userId, subdomain, projectId }) {
+  const db = require('../config/firebase').db;
+  const bucket = getStorageBucket();
+  if (!bucket) return 0;
+
+  let totalBytes = 0;
+
+  // --- 1. Firestore Data Size (Estimation) ---
+  if (userId && projectId) {
+    try {
+      const projRef = db.collection('user').doc('roles').collection('client').doc(userId).collection('projects').doc(projectId);
+      const projSnap = await projRef.get();
+      if (projSnap.exists) {
+        totalBytes += Buffer.byteLength(JSON.stringify(projSnap.data()));
+
+        // Count all pages in the project
+        const pagesSnap = await projRef.collection('pages').get();
+        pagesSnap.forEach(doc => {
+          totalBytes += Buffer.byteLength(JSON.stringify(doc.data()));
+        });
+      }
+    } catch (err) {
+      console.warn('[storageHelpers] Firestore size calculation failed:', err.message);
+    }
+  }
+
+  // --- 2. Firebase Storage Media ---
+  const client = slugPathSegment(clientName);
+  const website = slugPathSegment(websiteName);
+  const id = projectId ? String(projectId).toLowerCase() : null;
+  const sub = subdomain ? slugPathSegment(subdomain) : null;
+
+  // Possible client-level folder names
+  const clientFolders = [client];
+  if (userId) clientFolders.push(`${client}-${userId}`);
+
+  // Possible project-level folder names
+  const projectFolders = [website];
+  if (id) projectFolders.push(id);
+  if (sub) projectFolders.push(sub);
+  // Fallback: first word of a multi-word slug (common if project was renamed)
+  if (website.includes('-')) projectFolders.push(website.split('-')[0]);
+
+  const seenPaths = new Set();
+
+  for (const cFolder of clientFolders) {
+    for (const pFolder of projectFolders) {
+      const prefix = `${STORAGE_PREFIX}${cFolder}/${pFolder}/`;
+      if (seenPaths.has(prefix)) continue;
+      seenPaths.add(prefix);
+
+      try {
+        const [files] = await bucket.getFiles({ prefix, autoPaginate: true });
+        files.forEach((file) => {
+          const size = parseInt(file.metadata.size || 0, 10);
+          if (!isNaN(size)) totalBytes += size;
+        });
+      } catch (err) {
+        // Silently skip if path doesn't exist or weird error
+      }
+    }
+  }
+
+  // --- 3. Product images (Specific to e-commerce) ---
+  if (userId) {
+    const folder = sub || 'general';
+    const productPath = `${PRODUCT_IMAGE_PREFIX}${userId}/products/${folder}/`;
+    try {
+      const [files] = await bucket.getFiles({ prefix: productPath, autoPaginate: true });
+      files.forEach((file) => {
+        const size = parseInt(file.metadata.size || 0, 10);
+        if (!isNaN(size)) totalBytes += size;
+      });
+    } catch (err) {
+      // Ignore
+    }
+  }
+
+  return totalBytes;
+}
 
 module.exports = {
   slugPathSegment,
@@ -340,4 +427,5 @@ module.exports = {
   deleteStorageFilesByUrls,
   deleteAvatarByUrlForUser,
   getStoragePathFromUrl,
+  getProjectStorageUsage,
 };
