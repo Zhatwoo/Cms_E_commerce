@@ -14,6 +14,7 @@ import {
   getStoredUser,
   type Project,
 } from '@/lib/api';
+import { useProject } from '@/app/m_dashboard/components/context/project-context';
 import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
 import { getLimits } from '@/lib/subscriptionLimits';
 import { INDUSTRY_OPTIONS } from '@/lib/industryCatalog';
@@ -37,6 +38,7 @@ type View = 'select' | 'create';
 
 export function ProjectSelectorModal({ asPage = false }: Props) {
   const router = useRouter();
+  const { projects: contextProjects, loading: contextLoading, refreshProjects } = useProject();
 
   const [view, setView] = useState<View>('select');
   const [projects, setProjects] = useState<Project[]>([]);
@@ -75,20 +77,13 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
   const goToDashboard = () => router.push('/m_dashboard');
 
   const loadActiveProjects = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await listProjects();
-      if (res.success && res.projects) setProjects(res.projects);
-    } catch {
-      setProjects([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    await refreshProjects();
+  }, [refreshProjects]);
 
   useEffect(() => {
-    loadActiveProjects();
-  }, [loadActiveProjects]);
+    setProjects(contextProjects ?? []);
+    setLoading(contextLoading);
+  }, [contextProjects, contextLoading]);
 
   useEffect(() => {
     if (!activeMenuProjectId) return;
@@ -144,8 +139,7 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
         setEditError(res.message || 'Failed to update project.');
         return;
       }
-      setProjects((prev) => prev.map((p) => p.id === project.id ? { ...p, ...(res.project || { title: trimmedTitle, subdomain: trimmedSubdomain || null, updatedAt: new Date().toISOString() }) } : p));
-      if (!res.project) await loadActiveProjects();
+      await refreshProjects();
       cancelEditProject();
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
