@@ -12,6 +12,7 @@ const MAX_COLUMNS_PER_ROW = 5;
 const FLOW_LAYOUT_TYPES = new Set(["Row", "Section", "Container", "Viewport", "Tab Content"]);
 const HORIZONTAL_COLUMN_PARENTS = new Set(["Row", "Section", "Container", "Column", "Tab Content"]);
 const DROP_TARGET_CANVAS_TYPES = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame", "Tab Content"]);
+const BLOCKED_DROP_TYPES = new Set(["Accordion"]);
 
 function isPanelSource(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
@@ -40,6 +41,31 @@ function getMoveMode(displayName: string | undefined): MoveMode {
   const offsetMoveTypes = new Set(["Image", "Text", "Icon", "Button", "Circle", "Square", "Triangle"]);
   if (displayName && offsetMoveTypes.has(displayName)) return "offset";
   return "margin";
+}
+
+function isBlockedDropPoint(point: Point, newSet: Set<string>, query: ReturnType<typeof useEditor>["query"]): boolean {
+  try {
+    const elems = document.elementsFromPoint(point.x, point.y) as HTMLElement[];
+    for (const el of elems) {
+      const explicitBlocker = el.closest("[data-drop-block='true']") as HTMLElement | null;
+      if (explicitBlocker) {
+        const blockerNodeId = explicitBlocker.getAttribute("data-node-id");
+        if (!blockerNodeId || !newSet.has(blockerNodeId)) return true;
+      }
+
+      const withNode = el.closest("[data-node-id]") as HTMLElement | null;
+      if (!withNode) continue;
+      const nodeId = withNode.getAttribute("data-node-id");
+      if (!nodeId || newSet.has(nodeId)) continue;
+      const node = (query.getState()?.nodes ?? {})[nodeId] as { data?: { displayName?: string } } | undefined;
+      const displayName = node?.data?.displayName;
+      if (displayName && BLOCKED_DROP_TYPES.has(displayName)) return true;
+    }
+  } catch {
+    return false;
+  }
+
+  return false;
 }
 
 export function PanelDropFreePlacementHandler() {
@@ -99,6 +125,18 @@ export function PanelDropFreePlacementHandler() {
         const parentId = nodes[id]?.data?.parent;
         return !parentId || !newSet.has(parentId);
       });
+
+      if (isBlockedDropPoint(pointerRef.current, newSet, query)) {
+        rootNewIds.forEach((id) => {
+          try {
+            actions.delete(id);
+          } catch {
+            // ignore best-effort cleanup
+          }
+        });
+        reset();
+        return;
+      }
 
       let forcedDropTargetId: string | null = null;
       try {

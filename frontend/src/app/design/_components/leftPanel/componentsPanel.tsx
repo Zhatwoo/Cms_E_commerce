@@ -18,6 +18,7 @@ import { Section } from "../../_designComponents/Section/Section";
 import { Row } from "../../_designComponents/Row/Row";
 import { Column } from "../../_designComponents/Column/Column";
 import { Tabs } from "../../_designComponents/Tabs/Tabs";
+import { Accordion } from "../../_designComponents/Accordion/Accordion";
 import { Banner } from "../../_designComponents/Banner/banner";
 import { CRAFT_RESOLVER } from "../craftResolver";
 import { ImportedBlock } from "../../_designComponents/ImportedBlock/ImportedBlock";
