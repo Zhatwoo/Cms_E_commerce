@@ -157,6 +157,8 @@ const VALIDATOR_RESOLVER: Record<string, React.ComponentType<any>> = {
   page: asComponent(Page),
   Viewport: asComponent(Viewport),
   viewport: asComponent(Viewport),
+  Accordion: asComponent(Accordion),
+  accordion: asComponent(Accordion),
 };
 
 const VALIDATOR_CANONICAL_NAME_BY_LOWER = new Map<string, string>();
