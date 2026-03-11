@@ -17,12 +17,24 @@ import {
   Plus,
   Component,
   X,
+  Video as VideoIcon,
+  Check,
+  ListFilter,
+  ArrowUpDown,
+  Monitor,
+  Cloud,
+  HardDrive,
+  Share2,
+  Gamepad2,
+  Music,
 } from "lucide-react";
 import { useDesignProject } from "../../_context/DesignProjectContext";
 import { FilesPanel } from "./filesPanel";
 import { ComponentsPanel } from "./componentsPanel";
 import { AssetsPanel } from "./assetsPanel";
 import { TemplatePanel } from "./templatePanel";
+import { Image } from "../../_designComponents/Image/Image";
+import { Video } from "../../_designComponents/Video/Video";
 import { uploadMediaApi } from "@/lib/api";
 
 import { deleteDraft } from "../../_lib/pageApi";
@@ -92,9 +104,17 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
   const [menuOpen, setMenuOpen] = useState(false);
   const [saveFlash, setSaveFlash] = useState(false);
   const [mediaItems, setMediaItems] = useState<MediaLibraryItem[]>([]);
+  const [activeMediaCategory, setActiveMediaCategory] = useState<"all" | "images" | "videos" | "documents" | "audio">("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<"date" | "name">("date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   // Delay mounting FilesPanel to avoid "setState during render" warnings
   // caused by Craft.js internal synchronous updates while Frame is rendering.
   const [filesPanelReady, setFilesPanelReady] = useState(false);
@@ -107,7 +127,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
   const STORAGE_KEY = projectId ? `${STORAGE_KEY_PREFIX}_${projectId}` : STORAGE_KEY_PREFIX;
   const { clientName, websiteName, permission } = useDesignProject();
 
-  const { query, actions } = useEditor();
+  const { query, actions, connectors } = useEditor();
 
   const mediaStorageKey = projectId
     ? `${MEDIA_LIBRARY_KEY_PREFIX}_${projectId}`
@@ -142,23 +162,25 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
       if (!pageId || !parsed[pageId]) return;
 
       const existingIds = new Set(Object.keys(parsed));
-      const imageNodeId = generateNodeId(existingIds);
+      const nodeId = generateNodeId(existingIds);
       const pageNode = parsed[pageId];
       const pageChildren = Array.isArray(pageNode.nodes) ? pageNode.nodes : [];
 
-      parsed[imageNodeId] = {
-        type: { resolvedName: "Image" },
+      const isVideo = item.mimeType.startsWith("video/");
+
+      parsed[nodeId] = {
+        type: { resolvedName: isVideo ? "Video" : "Image" },
         isCanvas: false,
         props: {
           src: item.url,
-          alt: item.name,
           width: "320px",
           height: "220px",
           objectFit: "cover",
           marginTop: 16,
           marginLeft: 16,
+          ...(isVideo ? { controls: true, autoPlay: false, loop: false, muted: false } : { alt: item.name }),
         },
-        displayName: "Image",
+        displayName: isVideo ? "Video" : "Image",
         custom: {},
         parent: pageId,
         hidden: false,
@@ -166,7 +188,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
         linkedNodes: {},
       };
 
-      pageNode.nodes = [...pageChildren, imageNodeId];
+      pageNode.nodes = [...pageChildren, nodeId];
       actions.deserialize(JSON.stringify(parsed));
     } catch {
       // Ignore add-to-canvas failures to avoid breaking panel UX.
@@ -181,6 +203,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
     });
   };
 
+
   const handleUploadFiles = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
     if (permission === "viewer") return;
@@ -189,11 +212,8 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
       return;
     }
 
-    const files = Array.from(fileList).filter((file) => file.type.startsWith("image/"));
-    if (files.length === 0) {
-      setUploadError("Please select image files only.");
-      return;
-    }
+    const files = Array.from(fileList);
+    if (files.length === 0) return;
 
     setUploading(true);
     setUploadError(null);
@@ -203,8 +223,13 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
     try {
       for (let index = 0; index < files.length; index += 1) {
         const file = files[index];
+        let folder: "images" | "videos" | "files" = "images";
+        if (file.type.startsWith("video/")) folder = "videos";
+        else if (file.type.startsWith("audio/")) folder = "files";
+        else if (file.type.startsWith("application/pdf") || file.type.startsWith("text/")) folder = "files";
+
         const { url } = await uploadMediaApi(projectId, file, {
-          folder: "images",
+          folder,
           onProgress: (percent) => {
             const overall = Math.round(((index + percent / 100) / files.length) * 100);
             setUploadProgress(overall);
@@ -349,11 +374,11 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
       className="bg-brand-dark flex flex-col h-full border-r border-white/10 overflow-hidden transition-[width] duration-300 ease-out"
       style={{ width: `${width}px` }}
     >
-      <div className="flex flex-col gap-4 shrink-0 px-4 pt-4">
+      <div className="flex flex-col gap-3 shrink-0 px-4 pt-3">
         {/* Header + Title + Tabs: fixed at top, do not scroll */}
-        <div className="flex flex-col gap-4 shrink-0">
+        <div className="flex flex-col gap-3 shrink-0">
           {/* Left Panel Header */}
-          <div className="flex items-start justify-between mb-2 gap-2">
+          <div className="flex items-start justify-between mb-1 gap-2">
             {/* Project dropdown trigger */}
             <div className="relative" ref={menuRef}>
               <button
@@ -493,76 +518,294 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
         {activePanel === "files" && (canMountFilesPanel ? <FilesPanel /> : null)}
         {activePanel === "components" && <ComponentsPanel />}
         {activePanel === "media" && (
-          <div className="h-full flex flex-col gap-3 p-2">
-            <input
-              ref={mediaInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={(e) => handleUploadFiles(e.target.files)}
-            />
+          <div className="h-full flex flex-col gap-5 px-3 pb-4 bg-brand-dark">
+            {/* Search Bar - Integrated with Brand Theme */}
+            <div className="relative group shrink-0 mt-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-white/20 group-focus-within:text-brand-white transition-colors" />
+              <input
+                type="text"
+                placeholder="SEARCH MEDIA..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-white/5 border border-white/5 rounded-lg py-2.5 pl-9 pr-4 text-[10px] font-bold uppercase tracking-[0.2em] text-brand-white placeholder:text-white/10 focus:outline-none focus:bg-white/10 focus:border-white/20 transition-all"
+              />
+            </div>
 
-            <button
-              type="button"
-              onClick={() => mediaInputRef.current?.click()}
-              disabled={uploading || permission === "viewer"}
-              className="w-full px-4 py-2 bg-brand-medium/30 hover:bg-brand-medium/50 disabled:opacity-50 disabled:cursor-not-allowed text-brand-lighter text-[10px] font-bold uppercase tracking-widest rounded-full transition-all border border-white/5"
-            >
-              {uploading ? `Uploading ${uploadProgress}%` : "Upload Files"}
-            </button>
+            {/* Import Media Button (Brand Themed) */}
+            <div className="relative flex w-full shrink-0">
+              <input
+                ref={mediaInputRef}
+                type="file"
+                accept="image/*,video/*,audio/*,.svg,.pdf,.doc,.docx,.txt"
+                multiple
+                className="hidden"
+                onChange={(e) => handleUploadFiles(e.target.files)}
+              />
+              <button
+                type="button"
+                onClick={() => mediaInputRef.current?.click()}
+                disabled={uploading}
+                className="flex-1 bg-brand-medium hover:bg-brand-medium/80 text-brand-white text-[10px] font-black uppercase tracking-widest py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2"
+              >
+                {uploading ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white/50 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Plus className="w-4 h-4" />
+                )}
+                <span>Import media</span>
+              </button>
+            </div>
 
-            {uploadError && (
-              <p className="text-[10px] text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg p-2">
-                {uploadError}
-              </p>
-            )}
+            {/* Selection & Toolbar (Minimalist Style) */}
+            <div className="flex items-center justify-between py-2 border-b border-white/5 shrink-0">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => {
+                    if (selectedItems.size === mediaItems.length) setSelectedItems(new Set());
+                    else setSelectedItems(new Set(mediaItems.map(i => i.id)));
+                  }}
+                  className={`w-4 h-4 rounded border transition-all flex items-center justify-center ${selectedItems.size > 0 ? "bg-brand-medium border-brand-medium" : "border-white/10 hover:border-white/30"
+                    }`}
+                  title="Select all"
+                >
+                  {selectedItems.size > 0 && <Check className="w-2.5 h-2.5 text-white" />}
+                </button>
+                {selectedItems.size > 0 && (
+                  <span className="text-[9px] font-black uppercase tracking-widest text-brand-light">
+                    {selectedItems.size} Selected
+                  </span>
+                )}
+              </div>
 
-            {mediaItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full p-6 text-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-brand-medium/20 flex items-center justify-center text-brand-light">
-                  <ImageIcon className="w-8 h-8 opacity-50" />
+              <div className="flex items-center gap-1">
+                {/* Type Filter */}
+                <div className="relative">
+                  <button
+                    onClick={() => setFilterMenuOpen(!filterMenuOpen)}
+                    className="p-2 text-white/20 hover:text-white transition-colors"
+                  >
+                    <ListFilter className="w-4 h-4" />
+                  </button>
+                  {filterMenuOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-40 bg-brand-darker border border-white/10 rounded-xl shadow-2xl py-2 z-50 animate-slideDownItem">
+                      <div className="px-4 py-1.5 text-[9px] font-black text-white/20 uppercase tracking-widest">Media type</div>
+                      {[
+                        { id: "all", label: "All" },
+                        { id: "videos", label: "Video" },
+                        { id: "audio", label: "Audio" },
+                        { id: "images", label: "Images" },
+                      ].map((cat) => (
+                        <button
+                          key={cat.id}
+                          onClick={() => { setActiveMediaCategory(cat.id as any); setFilterMenuOpen(false); }}
+                          className="w-full px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/5 flex items-center justify-between transition-colors"
+                        >
+                          {cat.label}
+                          {activeMediaCategory === cat.id && <Check className="w-3 h-3 text-brand-light" />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-sm font-bold text-brand-lighter tracking-tight">Media Library</span>
-                  <p className="text-[10px] text-brand-light leading-relaxed max-w-[180px] mx-auto opacity-60">
-                    Upload images here, then click Add to Canvas.
-                  </p>
+
+                {/* Sort Toggle */}
+                <div className="relative">
+                  <button
+                    onClick={() => setSortMenuOpen(!sortMenuOpen)}
+                    className="p-2 text-white/20 hover:text-white transition-colors"
+                  >
+                    <ArrowUpDown className="w-4 h-4" />
+                  </button>
+                  {sortMenuOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-brand-darker border border-white/10 rounded-xl shadow-2xl py-2 z-50 animate-slideDownItem">
+                      {[
+                        { id: "date", label: "Date added" },
+                        { id: "name", label: "Name" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.id}
+                          onClick={() => { setSortBy(opt.id as any); setSortMenuOpen(false); }}
+                          className="w-full px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/5 flex items-center justify-between transition-colors"
+                        >
+                          {opt.label}
+                          {sortBy === opt.id && <Check className="w-3 h-3 text-brand-light" />}
+                        </button>
+                      ))}
+                      <div className="my-1 border-t border-white/5" />
+                      {[
+                        { id: "asc", label: "Ascending" },
+                        { id: "desc", label: "Descending" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.id}
+                          onClick={() => { setSortOrder(opt.id as any); setSortMenuOpen(false); }}
+                          className="w-full px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/5 flex items-center justify-between transition-colors"
+                        >
+                          {opt.label}
+                          {sortOrder === opt.id && <Check className="w-3 h-3 text-brand-light" />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-2 overflow-y-auto pb-4">
-                {mediaItems.map((item) => (
-                  <div key={item.id} className="rounded-lg border border-white/10 bg-brand-white/5 p-2 flex flex-col gap-2">
-                    <div className="aspect-square rounded-md overflow-hidden bg-brand-dark/60 border border-white/5">
-                      <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
-                    </div>
-                    <p className="text-[10px] text-brand-lighter truncate" title={item.name}>{item.name}</p>
-                    <div className="flex gap-1">
-                      <button
-                        type="button"
-                        onClick={() => addMediaToCanvas(item)}
-                        disabled={permission === "viewer"}
-                        className="flex-1 text-[9px] font-bold uppercase tracking-wide px-2 py-1 rounded-md bg-brand-medium/35 hover:bg-brand-medium/55 disabled:opacity-50 disabled:cursor-not-allowed text-brand-lighter"
-                      >
-                        Add
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeMediaItem(item.id)}
-                        className="text-[9px] px-2 py-1 rounded-md border border-white/10 hover:bg-white/5 text-brand-light"
-                        title="Remove from library"
-                      >
-                        X
-                      </button>
-                    </div>
+            </div>
+
+            {/* Media Items Scrollable Grid */}
+            <div className="flex-1 overflow-y-auto no-scrollbar min-h-0">
+              {mediaItems
+                .filter(item => {
+                  const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+                  if (!matchesSearch) return false;
+                  if (activeMediaCategory === "all") return true;
+                  if (activeMediaCategory === "images") return item.mimeType.startsWith("image/");
+                  if (activeMediaCategory === "videos") return item.mimeType.startsWith("video/");
+                  if (activeMediaCategory === "audio") return item.mimeType.startsWith("audio/");
+                  if (activeMediaCategory === "documents") return !item.mimeType.startsWith("image/") && !item.mimeType.startsWith("video/") && !item.mimeType.startsWith("audio/");
+                  return true;
+                })
+                .sort((a, b) => {
+                  let res = 0;
+                  if (sortBy === "name") res = a.name.localeCompare(b.name);
+                  else res = b.createdAt - a.createdAt;
+                  return sortOrder === "asc" ? -res : res;
+                })
+                .length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center py-20 opacity-10 text-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
+                    <ImageIcon className="w-6 h-6" />
                   </div>
-                ))}
-              </div>
-            )}
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white/40">
+                    {searchQuery ? "No matching media" : "No media found"}
+                  </span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 pb-20">
+                  {mediaItems
+                    .filter(item => {
+                      const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+                      if (!matchesSearch) return false;
+                      if (activeMediaCategory === "all") return true;
+                      if (activeMediaCategory === "images") return item.mimeType.startsWith("image/");
+                      if (activeMediaCategory === "videos") return item.mimeType.startsWith("video/");
+                      if (activeMediaCategory === "audio") return item.mimeType.startsWith("audio/");
+                      if (activeMediaCategory === "documents") return !item.mimeType.startsWith("image/") && !item.mimeType.startsWith("video/") && !item.mimeType.startsWith("audio/");
+                      return true;
+                    })
+                    .sort((a, b) => {
+                      let res = 0;
+                      if (sortBy === "name") res = a.name.localeCompare(b.name);
+                      else res = b.createdAt - a.createdAt;
+                      return sortOrder === "asc" ? -res : res;
+                    })
+                    .map((item) => {
+                      return (
+                        <div
+                          key={item.id}
+                          className={`group relative aspect-video rounded-lg overflow-hidden border transition-all duration-300 cursor-move ${selectedItems.has(item.id) ? "border-brand-medium ring-1 ring-brand-medium" : "border-white/5 bg-brand-darker"
+                            }`}
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData("media-library-url", item.url);
+                            e.dataTransfer.setData("media-library-name", item.name);
+                            e.dataTransfer.setData("text/plain", item.url);
+                          }}
+                          onClick={() => {
+                            const next = new Set(selectedItems);
+                            if (next.has(item.id)) next.delete(item.id);
+                            else next.add(item.id);
+                            setSelectedItems(next);
+                          }}
+                          ref={(ref) => {
+                            if (ref) {
+                              const isVideo = item.mimeType.startsWith("video/");
+                              connectors.create(
+                                ref,
+                                isVideo ? (
+                                  <Video
+                                    src={item.url}
+                                    width="220px"
+                                    height="180px"
+                                    objectFit="cover"
+                                    _isDraggingSource={true}
+                                  />
+                                ) : (
+                                  <Image
+                                    src={item.url}
+                                    alt={item.name}
+                                    width="220px"
+                                    height="180px"
+                                    objectFit="cover"
+                                    _isDraggingSource={true}
+                                  />
+                                )
+                              );
+                            }
+                          }}
+                        >
+                          {item.mimeType.startsWith("video/") ? (
+                            <div className="w-full h-full relative bg-black/40 overflow-hidden">
+                              <video
+                                src={`${item.url}#t=0.1`}
+                                className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity"
+                                preload="metadata"
+                                muted
+                                playsInline
+                              />
+                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none group-hover:opacity-0 transition-opacity">
+                                <VideoIcon className="w-5 h-5 text-white/50" />
+                              </div>
+                            </div>
+                          ) : item.mimeType.startsWith("audio/") ? (
+                            <div className="w-full h-full flex items-center justify-center bg-brand-dark/50">
+                              <Music className="w-5 h-5 text-brand-light" />
+                            </div>
+                          ) : item.mimeType.startsWith("image/") ? (
+                            <img src={item.url} alt={item.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <FileStack className="w-5 h-5 text-white/10" />
+                            </div>
+                          )}
 
+                          {/* Selection Checkbox */}
+                          <div className={`absolute top-2 left-2 transition-all duration-300 ${selectedItems.has(item.id) ? "opacity-100" : "opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100"}`}>
+                            <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shadow-lg ${selectedItems.has(item.id) ? "bg-brand-medium border-brand-medium" : "border-white bg-brand-dark/60"
+                              }`}>
+                              {selectedItems.has(item.id) && <Check className="w-2.5 h-2.5 text-white" />}
+                            </div>
+                          </div>
+
+                          {/* Hover Overlay */}
+                          <div className="absolute inset-0 bg-brand-dark/40 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                addMediaToCanvas(item);
+                              }}
+                              className="p-2.5 rounded-full bg-brand-medium text-white hover:scale-110 active:scale-95 transition-all shadow-xl"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                          {/* Info Tag */}
+                          <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-brand-dark/60 backdrop-blur-md rounded text-[8px] font-black uppercase tracking-tighter text-white/40">
+                            {Math.round(item.size / 1024)}KB
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+
+            {/* Read-only status */}
             {permission === "viewer" && (
-              <p className="text-[10px] text-brand-light/80 text-center">Viewer mode: upload and canvas insert are disabled.</p>
+              <div className="text-[9px] text-white/10 text-center uppercase tracking-[0.3em] py-2 border-t border-white/5">
+                Viewing mode only
+              </div>
             )}
           </div>
         )}
