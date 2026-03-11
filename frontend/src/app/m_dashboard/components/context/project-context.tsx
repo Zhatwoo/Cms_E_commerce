@@ -60,10 +60,10 @@ export function ProjectProvider({ children }: ProviderProps) {
     }
   }, [storageKey]);
 
-  const fetchProjects = useCallback(async () => {
+  const fetchProjects = useCallback(async (includeShared = false) => {
     setLoading(true);
     try {
-      const res = await listProjects();
+      const res = await listProjects({ includeShared });
       if (res?.success && Array.isArray(res.projects)) {
         setProjects(res.projects);
 
@@ -102,7 +102,11 @@ export function ProjectProvider({ children }: ProviderProps) {
       setLoading(false);
       return;
     }
+<<<<<<< HEAD
     void fetchProjects();
+=======
+    void fetchProjects(false);
+>>>>>>> bba4bed1054698c9bc9e06192096aa05f0d65c92
   }, [fetchProjects, selectionHydrated, storageKey]);
 
   useEffect(() => {
@@ -124,13 +128,15 @@ export function ProjectProvider({ children }: ProviderProps) {
     }
   };
 
+  const refreshProjects = useCallback(() => fetchProjects(true), [fetchProjects]);
+
   const value: ProjectContextType = {
     projects,
     loading,
     selectedProjectId,
     selectedProject,
     setSelectedProjectId: handleSetSelectedProjectId,
-    refreshProjects: fetchProjects,
+    refreshProjects,
   };
 
   return <ProjectContext.Provider value={value}>{children}</ProjectContext.Provider>;

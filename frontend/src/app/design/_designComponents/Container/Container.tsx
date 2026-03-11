@@ -85,7 +85,7 @@ export const Container = ({
     parentId: node.data.parent,
   }));
 
-  const { parentDisplay, parentFlexDirection } = useEditor((state) => ({
+  const { actions, parentDisplay, parentFlexDirection } = useEditor((state) => ({
     parentDisplay: parentId ? String(state.nodes[parentId]?.data?.props?.display ?? "") : "",
     parentFlexDirection: parentId ? String(state.nodes[parentId]?.data?.props?.flexDirection ?? "") : "",
   }));

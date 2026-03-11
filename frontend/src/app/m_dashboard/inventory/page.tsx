@@ -349,7 +349,7 @@ const ModalBackdrop = ({ onClose, children }: { onClose: () => void; children: R
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function InventoryPage() {
-  const { selectedProject } = useProject();
+  const { selectedProject, loading: projectLoading } = useProject();
   const { showAlert } = useAlert();
   const selectedSubdomain = normalizeSubdomain(selectedProject?.subdomain);
 
@@ -500,44 +500,52 @@ export default function InventoryPage() {
   }, [selectedSubdomain, showAlert, showImportPopup]);
 
   const loadData = useCallback(async () => {
-    setLoading(true); setError(null);
-    if (!selectedSubdomain) {
-      setItems([]);
-      setSummary(null);
-      setMovements([]);
-      setLoading(false);
-      return;
-    }
-    try {
-      const [invRes, summaryRes, movementRes] = await Promise.all([
-        listInventory({ subdomain: selectedSubdomain, limit: 500, search: search || undefined }),
+      if (projectLoading) {
+        setLoading(true);
+        return;
+      }
+      setLoading(true); setError(null);
+      if (!selectedSubdomain) {
+        setItems([]);
+        setSummary(null);
+        setMovements([]);
+        setLoading(false);
+        return;
+      }
+      try {
+        const [invRes, summaryRes, movementRes] = await Promise.all([
+          listInventory({ subdomain: selectedSubdomain, limit: 500, search: search || undefined }),
         getInventorySummary({ subdomain: selectedSubdomain, search: search || undefined }),
         listInventoryMovements({ subdomain: selectedSubdomain, limit: RECENT_MOVEMENTS_LIMIT }),
       ]);
       setItems(Array.isArray(invRes.items) ? (invRes.items as InventoryRow[]) : []);
       setSummary(summaryRes.data || null);
-      setMovements(Array.isArray(movementRes.items) ? movementRes.items : []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load inventory');
-    } finally { setLoading(false); }
-  }, [search, selectedSubdomain]);
-
-  useEffect(() => { loadData(); }, [loadData]);
+        setMovements(Array.isArray(movementRes.items) ? movementRes.items : []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load inventory');
+      } finally { setLoading(false); }
+    }, [projectLoading, search, selectedSubdomain]);
+  
+    useEffect(() => { void loadData(); }, [loadData]);
 
   const loadAllMovements = useCallback(async () => {
-    setLoadingAllMovements(true); setAllMovementsError(null);
-    if (!selectedSubdomain) {
-      setAllMovements([]);
-      setLoadingAllMovements(false);
-      return;
-    }
-    try {
-      const res = await listInventoryMovements({ subdomain: selectedSubdomain, limit: ALL_MOVEMENTS_LIMIT });
-      setAllMovements(Array.isArray(res.items) ? res.items : []);
-    } catch (err) {
-      setAllMovementsError(err instanceof Error ? err.message : 'Failed to load movement history');
-    } finally { setLoadingAllMovements(false); }
-  }, [selectedSubdomain]);
+      if (projectLoading) {
+        setLoadingAllMovements(true);
+        return;
+      }
+      setLoadingAllMovements(true); setAllMovementsError(null);
+      if (!selectedSubdomain) {
+        setAllMovements([]);
+        setLoadingAllMovements(false);
+        return;
+      }
+      try {
+        const res = await listInventoryMovements({ subdomain: selectedSubdomain, limit: ALL_MOVEMENTS_LIMIT });
+        setAllMovements(Array.isArray(res.items) ? res.items : []);
+      } catch (err) {
+        setAllMovementsError(err instanceof Error ? err.message : 'Failed to load movement history');
+      } finally { setLoadingAllMovements(false); }
+    }, [projectLoading, selectedSubdomain]);
 
   const openAllMovementsModal  = useCallback(() => { setShowAllMovementsModal(true); void loadAllMovements(); }, [loadAllMovements]);
   const closeAllMovementsModal = useCallback(() => setShowAllMovementsModal(false), []);
