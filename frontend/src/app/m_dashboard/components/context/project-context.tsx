@@ -40,11 +40,14 @@ export function ProjectProvider({ children }: ProviderProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProjectId, setSelectedProjectIdState] = useState<string | null>(null);
+  const [selectionHydrated, setSelectionHydrated] = useState(false);
   const storageKey = user?.id ? `md_selected_instance_${user.id}` : null;
 
   useEffect(() => {
+    setSelectionHydrated(false);
     if (!storageKey) {
       setSelectedProjectIdState(null);
+      setSelectionHydrated(true);
       return;
     }
     try {
@@ -52,6 +55,8 @@ export function ProjectProvider({ children }: ProviderProps) {
       setSelectedProjectIdState(saved || null);
     } catch {
       setSelectedProjectIdState(null);
+    } finally {
+      setSelectionHydrated(true);
     }
   }, [storageKey]);
 
@@ -62,6 +67,10 @@ export function ProjectProvider({ children }: ProviderProps) {
       if (res?.success && Array.isArray(res.projects)) {
         setProjects(res.projects);
 
+<<<<<<< HEAD
+        // Keep last selected project when still available, otherwise fall back once.
+=======
+>>>>>>> 1f4b3c48d5c1742a1cba1f0997cd936e0d0c0891
         setSelectedProjectIdState((prev) => {
           if (res.projects.length === 0) return null;
           if (prev && res.projects.some((p) => p.id === prev)) return prev;
@@ -90,6 +99,11 @@ export function ProjectProvider({ children }: ProviderProps) {
   }, [storageKey]);
 
   useEffect(() => {
+<<<<<<< HEAD
+    if (!selectionHydrated) return;
+    void fetchProjects();
+  }, [fetchProjects, selectionHydrated]);
+=======
     if (!storageKey) {
       setProjects([]);
       setLoading(false);
@@ -97,6 +111,7 @@ export function ProjectProvider({ children }: ProviderProps) {
     }
     void fetchProjects();
   }, [fetchProjects, storageKey]);
+>>>>>>> 1f4b3c48d5c1742a1cba1f0997cd936e0d0c0891
 
   useEffect(() => {
     setActiveProjectId(selectedProjectId);

@@ -151,6 +151,7 @@ function toDashboardStatus(status?: string): 'active' | 'inactive' | 'draft' {
 
 const RECENT_MOVEMENTS_LIMIT = 5;
 const ALL_MOVEMENTS_LIMIT    = 500;
+const DEFAULT_LOW_STOCK_THRESHOLD = 5;
 
 type VariantGroup = { id: string; name: string; options: Array<{ id: string; name: string }> };
 
@@ -355,7 +356,7 @@ export default function InventoryPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [search, setSearch]                       = useState('');
   const [categoryFilter, setCategoryFilter]       = useState<string>('all');
-  const [items, setItems]                         = useState<ApiProduct[]>([]);
+  const [items, setItems]                         = useState<InventoryRow[]>([]);
   const [summary, setSummary]                     = useState<InventorySummary | null>(null);
   const [movements, setMovements]                 = useState<InventoryMovement[]>([]);
   const [allMovements, setAllMovements]           = useState<InventoryMovement[]>([]);
@@ -513,7 +514,7 @@ export default function InventoryPage() {
         getInventorySummary({ subdomain: selectedSubdomain, search: search || undefined }),
         listInventoryMovements({ subdomain: selectedSubdomain, limit: RECENT_MOVEMENTS_LIMIT }),
       ]);
-      setItems(Array.isArray(invRes.items) ? invRes.items : []);
+      setItems(Array.isArray(invRes.items) ? (invRes.items as InventoryRow[]) : []);
       setSummary(summaryRes.data || null);
       setMovements(Array.isArray(movementRes.items) ? movementRes.items : []);
     } catch (err) {
