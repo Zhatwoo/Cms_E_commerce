@@ -5,6 +5,7 @@ const Project = require('../models/Project');
 const InventoryMovement = require('../models/InventoryMovement');
 const Domain = require('../models/Domain');
 const StorefrontOrder = require('../models/StorefrontOrder');
+const paymongoService = require('../services/paymongoService');
 
 function normalizeStatus(status) {
   return String(status || '')
@@ -465,6 +466,72 @@ exports.createPublicCheckout = async (req, res) => {
     res.status(201).json({ success: true, message: 'Checkout saved', data });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+// Public: get PayMongo public key (for card form)
+exports.getPaymongoPublicKey = (_req, res) => {
+  const key = (process.env.PAYMONGO_PUBLIC_KEY || '').trim();
+  if (!key) {
+    return res.status(503).json({ success: false, message: 'Payment not configured' });
+  }
+  res.status(200).json({ success: true, publicKey: key });
+};
+
+// Public: create payment intent for a published order (PayMongo)
+exports.createPaymentIntent = async (req, res) => {
+  try {
+    const subdomain = StorefrontOrder.normalizeSubdomain(req.params.subdomain || '');
+    const orderId = safeText(req.params.id);
+    const paymentMethod = safeText(req.body?.paymentMethod || 'card').toLowerCase();
+
+    if (!subdomain || !orderId) {
+      return res.status(400).json({ success: false, message: 'subdomain and order id are required' });
+    }
+
+    const order = await StorefrontOrder.findById(subdomain, orderId);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+    if (order.status !== 'Pending') {
+      return res.status(400).json({ success: false, message: 'Order is not pending payment' });
+    }
+
+    const baseUrl = (process.env.APP_BASE_URL || process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const successUrl = `${baseUrl}/sites/${subdomain}/checkout/result?order_id=${orderId}&status=success`;
+    const failedUrl = `${baseUrl}/sites/${subdomain}/checkout/result?order_id=${orderId}&status=failed`;
+
+    const amount = Math.round((order.total || 0) * 100);
+    const currency = order.currency || 'PHP';
+    const metadata = { order_id: orderId, subdomain };
+
+    if (paymentMethod === 'gcash' || paymentMethod === 'maya') {
+      const type = paymentMethod;
+      const { redirectUrl, id: sourceId } = await paymongoService.createSource({
+        amount: Math.max(10000, amount),
+        currency,
+        type,
+        successUrl,
+        failedUrl,
+        metadata,
+      });
+      await StorefrontOrder.updatePaymentFields(subdomain, orderId, { sourceId });
+      return res.status(200).json({ success: true, redirectUrl });
+    }
+
+    const { clientKey, id: paymentIntentId } = await paymongoService.createPaymentIntent({
+      amount: Math.max(2000, amount),
+      currency,
+      orderId,
+      subdomain,
+      description: `Order ${orderId}`,
+    });
+    await StorefrontOrder.updatePaymentFields(subdomain, orderId, { paymentIntentId });
+    const publicKey = process.env.PAYMONGO_PUBLIC_KEY || '';
+    return res.status(200).json({ success: true, clientKey, publicKey: publicKey || undefined });
+  } catch (error) {
+    const statusCode = /required|invalid|not found/i.test(error.message || '') ? 400 : 500;
+    res.status(statusCode).json({ success: false, message: error.message || 'Server error' });
   }
 };
 

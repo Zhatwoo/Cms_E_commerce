@@ -4,7 +4,6 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  listProjects,
   updateProject,
   deleteProject,
   restoreProject,
@@ -66,7 +65,7 @@ function toWorkspaceLabel(project?: Project | null) {
 
 export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const router = useRouter();
-  const { selectedProject } = useProject();
+  const { selectedProject, projects: contextProjects, loading: contextLoading, refreshProjects } = useProject();
   const { theme } = useTheme();
   const { showAlert, showConfirm } = useAlert();
   const [activeTab, setActiveTab] = useState<HeroTab>('designs');
@@ -90,46 +89,30 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   };
 
   useEffect(() => {
-    let cancelled = false;
-    if (!selectedProject?.id) {
+    if (!selectedProject?.id || contextLoading) {
+      setAllProjects([]);
+      setRecentProjects([]);
+      setLoading(contextLoading);
+      return;
+    }
+    if (!contextProjects?.length) {
       setAllProjects([]);
       setRecentProjects([]);
       setLoading(false);
-      return () => {
-        cancelled = true;
-      };
+      return;
     }
-    listProjects()
-      .then((res) => {
-        if (!res.success || cancelled || !res.projects?.length) {
-          setRecentProjects([]);
-          return;
-        }
-        const sorted = [...res.projects].sort((a, b) => {
-          const aDate = new Date(a.updatedAt || a.createdAt || 0).getTime();
-          const bDate = new Date(b.updatedAt || b.createdAt || 0).getTime();
-          return bDate - aDate;
-        });
-        setAllProjects(sorted);
-        setRecentProjects(sorted.slice(0, 3));
-        setActiveProjectIndex(0);
-        setIsSliderTransitionEnabled(true);
-        setShowAllOtherProjects(false);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setAllProjects([]);
-          setRecentProjects([]);
-          setShowAllOtherProjects(false);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedProject?.id]);
+    const sorted = [...contextProjects].sort((a, b) => {
+      const aDate = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const bDate = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return bDate - aDate;
+    });
+    setAllProjects(sorted);
+    setRecentProjects(sorted.slice(0, 3));
+    setActiveProjectIndex(0);
+    setIsSliderTransitionEnabled(true);
+    setShowAllOtherProjects(false);
+    setLoading(false);
+  }, [selectedProject?.id, contextProjects, contextLoading]);
 
   useEffect(() => {
     if (recentProjects.length <= 1) return;
@@ -245,10 +228,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
       const res = await deleteProject(project.id);
       if (!res.success) return;
 
-      const filtered = allProjects.filter((item) => item.id !== project.id);
-      const sorted = sortProjectsByUpdated(filtered);
-      setAllProjects(sorted);
-      setRecentProjects(sorted.slice(0, 3));
+      await refreshProjects();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to move project to trash.';
       showAlert(message);

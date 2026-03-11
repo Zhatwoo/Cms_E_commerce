@@ -64,6 +64,8 @@ async function update(userId, projectId, data) {
   if (data.industry !== undefined) updates.industry = (data.industry || '').toString().trim() || null;
   if (data.subdomain !== undefined) updates.subdomain = (data.subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || null;
   if (data.thumbnail !== undefined) updates.thumbnail = data.thumbnail || null;
+  if (data.general_access !== undefined) updates.general_access = data.general_access;
+  if (data.general_access_role !== undefined) updates.general_access_role = data.general_access_role;
   if (Object.keys(updates).length === 0) return get(userId, projectId);
   updates.updated_at = new Date();
   await ref.update(updates);
@@ -253,40 +255,80 @@ async function countWithSubdomain(userId) {
   return projects.filter((p) => p.subdomain != null && String(p.subdomain).trim() !== '').length;
 }
 
+/**
+ * List projects shared with the user via collaborators.
+ * Uses collectionGroup query for efficiency (O(1) query vs O(users*projects*collabs) scan).
+ */
 async function listShared(userId, userEmail) {
   const normalizedEmail = (userEmail || '').toLowerCase();
-  const roles = ['client', 'admin', 'support'];
+  const seen = new Set();
   const sharedProjects = [];
 
-  for (const role of roles) {
-    const roleCollSnap = await db.collection('user').doc('roles').collection(role).get();
-
-    for (const ownerDoc of roleCollSnap.docs) {
-      const ownerId = ownerDoc.id;
-      if (ownerId === userId) continue;
-
-      const projectsSnap = await ownerDoc.ref.collection('projects').get();
-      for (const projectDoc of projectsSnap.docs) {
-        const collabSnap = await projectDoc.ref.collection('collaborators').get();
-        for (const collabDoc of collabSnap.docs) {
-          const data = collabDoc.data();
-          const matchEmail = (data.email || '').toLowerCase() === normalizedEmail;
-          const matchId = data.userId === userId;
-
-          if (matchEmail || matchId) {
-            const ownerData = ownerDoc.data();
-            sharedProjects.push({
-              ...sanitizeProject(docToObject(projectDoc)),
-              ownerId,
-              ownerName: ownerData.full_name || ownerData.displayName || ownerData.username || 'Unknown',
-              collaboratorPermission: data.permission,
-              isShared: true,
-            });
-          }
-        }
+  const runQuery = async (field, value) => {
+    if (!value) return [];
+    try {
+      return await db.collectionGroup('collaborators')
+        .where(field, '==', value)
+        .limit(100)
+        .get();
+    } catch (e) {
+      if (/index|indexes/i.test(String(e.message))) {
+        console.warn('[Project.listShared] Run: firebase deploy --only firestore:indexes');
       }
+      return { docs: [] };
+    }
+  };
+
+  const [byEmailSnap, byUserIdSnap] = await Promise.all([
+    normalizedEmail ? runQuery('email', normalizedEmail) : { docs: [] },
+    userId ? runQuery('userId', userId) : { docs: [] },
+  ]);
+
+  const allCollabDocs = [
+    ...(byEmailSnap.docs || []),
+    ...(byUserIdSnap.docs || []),
+  ].filter(d => {
+    const projRef = d.ref.parent?.parent;
+    const key = projRef ? `${projRef.parent?.id || ''}/${projRef.id || ''}` : d.ref.path;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  for (const collabDoc of allCollabDocs) {
+    const data = collabDoc.data();
+    const projectRef = collabDoc.ref.parent?.parent;
+    const ownerId = projectRef?.parent?.id;
+    const projectId = projectRef?.id;
+    if (!ownerId || !projectId || ownerId === userId) continue;
+
+    try {
+      const projectSnap = await projectRef.get();
+      if (!projectSnap.exists) continue;
+
+      const role = data.role || data.permission || 'viewer';
+      let ownerName = 'Unknown';
+      try {
+        const ownerSnap = await db.collection('user').doc('roles').collection('client').doc(ownerId).get();
+        if (ownerSnap.exists) {
+          const o = ownerSnap.data();
+          ownerName = o.full_name || o.displayName || o.username || ownerName;
+        }
+      } catch (_) {}
+
+      sharedProjects.push({
+        ...sanitizeProject(docToObject(projectSnap)),
+        ownerId,
+        ownerName,
+        collaboratorRole: role,
+        collaboratorPermission: role,
+        isShared: true,
+      });
+    } catch (_) {
+      // skip if project fetch fails
     }
   }
+
   return sharedProjects;
 }
 

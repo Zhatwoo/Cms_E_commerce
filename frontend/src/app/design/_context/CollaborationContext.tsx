@@ -18,8 +18,9 @@ export interface Collaborator {
     socketId: string;
     userId: string;
     displayName: string;
+    email?: string;
     color: string;
-    permission: Permission;
+    role: Permission;
 }
 
 export interface CursorPosition {
@@ -62,8 +63,10 @@ interface CollaborationContextValue {
     connected: boolean;
     /** The current user's assigned color */
     myColor: string;
-    /** The current user's permission */
+    /** The current user's assigned role */
     myPermission: Permission;
+    /** The socket instance */
+    socket: Socket | null;
     /** Emit a cursor move event */
     emitCursorMove: (pos: CursorPosition) => void;
     /** Emit a canvas change event */
@@ -81,6 +84,7 @@ const CollaborationContext = createContext<CollaborationContextValue>({
     connected: false,
     myColor: "#6c8fff",
     myPermission: "editor",
+    socket: null,
     emitCursorMove: () => { },
     emitCanvasChange: () => { },
     emitSelectionChange: () => { },
@@ -132,8 +136,9 @@ export function CollaborationProvider({ projectId, permission = "editor", childr
                 projectId,
                 userId,
                 displayName,
+                email: user?.email || "",
                 color: myColor,
-                permission,
+                role: permission,
             });
         });
 
@@ -180,8 +185,9 @@ export function CollaborationProvider({ projectId, permission = "editor", childr
                     socketId: data.socketId,
                     userId: data.userId,
                     displayName: data.displayName,
+                    email: data.email,
                     color: data.color,
-                    permission: data.permission || "editor",
+                    role: data.role || "editor",
                     position: data.position,
                 },
             }));
@@ -242,6 +248,7 @@ export function CollaborationProvider({ projectId, permission = "editor", childr
                 connected,
                 myColor,
                 myPermission,
+                socket: socketRef.current,
                 emitCursorMove,
                 emitCanvasChange,
                 emitSelectionChange,
