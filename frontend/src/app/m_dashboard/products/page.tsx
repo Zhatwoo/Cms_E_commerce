@@ -1,6 +1,7 @@
 'use client';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, ArrowDownUp, CheckCircle, Package } from 'lucide-react';
 import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
@@ -758,7 +759,7 @@ export default function ProductsPage() {
     try {
       await deleteProduct(product.id);
       await loadProducts();
-      showAlert('Product deleted successfully', 'success');
+      showProductPopup('Product deleted successfully!', 'success');
     } catch (error) {
       showAlert(error instanceof Error ? error.message : 'Failed to delete product', 'error');
     }
@@ -767,7 +768,7 @@ export default function ProductsPage() {
 
   const handleSaveProduct = async (productData: Partial<Product> & Record<string, unknown>): Promise<boolean> => {
     try {
-      let shouldShowAddedPopup = false;
+      let successMessage: string | null = null;
       const rawVariants = Array.isArray(productData.variants) ? productData.variants : [];
       const variants: ProductVariant[] = rawVariants
         .map((variant): ProductVariant => {
@@ -855,6 +856,7 @@ export default function ProductsPage() {
 
       if (editingProduct) {
         await updateProduct(editingProduct.id, payload);
+        successMessage = 'Product updated successfully!';
       } else {
         if (!selectedSubdomain) {
           showAlert('Set a subdomain for this website first to manage products.', 'error');
@@ -865,14 +867,14 @@ export default function ProductsPage() {
           ...payload,
           slug: payload.name.toLowerCase().replace(/\s+/g, '-'),
         });
-        shouldShowAddedPopup = true;
+        successMessage = 'Product added successfully!';
       }
 
       await loadProducts();
       setShowAddModal(false);
       setEditingProduct(undefined);
-      if (shouldShowAddedPopup) {
-        showProductPopup('Product added successfully!', 'success');
+      if (successMessage) {
+        showProductPopup(successMessage, 'success');
       }
       return true;
     } catch (error) {
@@ -891,39 +893,43 @@ export default function ProductsPage() {
 
   return (
     <div className="space-y-6">
-      <AnimatePresence>
-        {productPopup.open && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[1200] flex items-center justify-center p-4"
-            style={{ backgroundColor: 'rgba(0, 0, 0, 0.35)', backdropFilter: 'blur(4px)' }}
-          >
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {productPopup.open && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="w-auto max-w-sm rounded-xl border px-4 py-3 shadow-xl"
-              style={{
-                backgroundColor: colors.bg.card,
-                borderColor: colors.border.faint,
-              }}
+              className="fixed inset-0 z-[2147483000] flex items-center justify-center p-4"
+              style={{ backgroundColor: 'rgba(10, 8, 28, 0.6)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
             >
-              <p className="text-sm text-center" style={{ color: productPopup.tone === 'success' ? '#ffffff' : '#ef4444' }}>
-                {productPopup.message}
-              </p>
-              {productPopup.tone === 'success' && (
+              <motion.div
+                initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 280, damping: 26 }}
+                className="w-full max-w-[250px] rounded-[14px] border px-4 py-3 shadow-xl"
+                style={{
+                  backgroundColor: '#181a59',
+                  borderColor: productPopup.tone === 'success' ? 'rgba(74,222,128,0.25)' : 'rgba(239,68,68,0.35)',
+                  boxShadow: '0 10px 28px rgba(0,0,0,0.5)',
+                }}
+              >
+                <p className="text-center" style={{ color: '#ffffff', fontSize: 'clamp(12px, 1.4vw, 16px)', fontWeight: 700, letterSpacing: -0.1, lineHeight: 1.25 }}>
+                  {productPopup.message}
+                </p>
                 <div className="mt-2 flex justify-center">
-                  <CheckCircle className="w-5 h-5" style={{ color: '#22c55e' }} />
+                  {productPopup.tone === 'success'
+                    ? <CheckCircle className="w-6 h-6" style={{ color: '#22c55e' }} />
+                    : <AlertTriangle className="w-6 h-6" style={{ color: '#ef4444' }} />}
                 </div>
-              )}
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
 
       <section className="max-w-[1090px] mx-auto pt-6 pb-2">
         <div className="text-center">

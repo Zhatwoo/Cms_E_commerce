@@ -172,7 +172,7 @@ type GuideState = {
 export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
   const { actions, query } = useEditor();
 
-  const MOVE_TARGET_TYPES = new Set(["Page", "Section", "Container", "Row", "Column", "Button", "Frame"]);
+  const MOVE_TARGET_TYPES = new Set(["Page", "Section", "Container", "Row", "Column", "Button", "Frame", "Tab Content"]);
 
   const dragRef = useRef<DragState | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
@@ -397,7 +397,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
 
         const dropParent = state.nodes[dropParentId];
         const dropParentName = dropParent?.data?.displayName as string | undefined;
-        const flowParents = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame"]);
+        const flowParents = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame", "Tab Content"]);
         const isFlowParent = !!dropParentName && flowParents.has(dropParentName);
         const index = Array.isArray(dropParent?.data?.nodes)
           ? (isFlowParent ? 0 : dropParent.data.nodes.length)

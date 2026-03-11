@@ -106,6 +106,7 @@ export const ComponentsPanel = () => {
       icon: <Layout className="w-5 h-5" />,
       color: "bg-cyan-500/10"
     },
+    { label: "Accordion", preview: "Accordion", element: <Accordion />, icon: <ChevronDown className="w-5 h-5" />, color: "bg-teal-500/10" },
     {
       label: "New Page",
       preview: "New Page",

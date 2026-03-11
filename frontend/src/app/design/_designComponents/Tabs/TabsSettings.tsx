@@ -160,14 +160,9 @@ export const TabsSettings = () => {
 
                   {activeTabId === tab.id && (
                     <div className="p-3 bg-brand-dark/40 border-t border-brand-medium/10 flex flex-col gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                      <span className="text-[10px] font-bold text-brand-medium uppercase tracking-wider">Content</span>
-                      <textarea
-                        value={tab.content || ""}
-                        onChange={(e) => handleContentChange(tab.id, e.target.value)}
-                        rows={3}
-                        className="w-full text-xs p-2 bg-brand-medium-dark/50 border border-brand-medium/20 rounded-md text-brand-lighter focus:border-brand-light outline-none resize-none placeholder:text-brand-medium/30"
-                        placeholder="Tab content..."
-                      />
+                      <span className="text-[10px] font-bold text-brand-medium uppercase tracking-wider italic opacity-70">
+                        Drag components into the tab content on the canvas
+                      </span>
                     </div>
                   )}
                 </div>

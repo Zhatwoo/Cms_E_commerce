@@ -7,7 +7,7 @@ import { useCanvasTool } from "./CanvasToolContext";
 
 const MARQUEE_THRESHOLD = 5;
 const BOX_SELECTING_FLAG = "boxSelecting";
-const MARQUEE_START_CANVAS_TYPES = new Set(["Page", "Viewport"]);
+const MARQUEE_START_CANVAS_TYPES = new Set(["Page", "Viewport", "Tab Content"]);
 
 type Rect = { left: number; top: number; right: number; bottom: number };
 
