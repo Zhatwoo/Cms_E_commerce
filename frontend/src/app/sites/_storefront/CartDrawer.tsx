@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useStorefront } from './StorefrontContext';
 import { CheckoutModal } from '@/app/sites/_storefront/CheckoutModal';
-import { createPublishedOrder } from '@/lib/api';
+import { createPublishedOrder, createPaymentIntent } from '@/lib/api';
 
 export function CartDrawer() {
   const {
@@ -81,16 +81,19 @@ export function CartDrawer() {
     setConfirmDeleteIds(null);
   };
 
-  const handleCheckoutConfirm = async (contact: {
-    fullName: string;
-    emailAddress: string;
-    contactNumber: string;
-    country: string;
-    state: string;
-    streetAddress: string;
-    city: string;
-    postalCode: string;
-  }) => {
+  const handleCheckoutConfirm = async (
+    contact: {
+      fullName: string;
+      emailAddress: string;
+      contactNumber: string;
+      country: string;
+      state: string;
+      streetAddress: string;
+      city: string;
+      postalCode: string;
+    },
+    paymentMethod: 'gcash' | 'maya' | 'card'
+  ) => {
     if (!subdomain) {
       window.alert('Checkout unavailable: missing subdomain context.');
       return;
@@ -143,10 +146,42 @@ export function CartDrawer() {
         throw new Error(res?.message || 'Unable to save checkout order.');
       }
 
+      const orderId = res?.data?.id;
+      if (!orderId) {
+        throw new Error('Order created but no order ID returned.');
+      }
+
+      const payRes = await createPaymentIntent(subdomain, orderId, paymentMethod);
+      if (!payRes?.success) {
+        throw new Error(payRes?.message || 'Unable to create payment.');
+      }
+
+      if (payRes.redirectUrl) {
+        removeManyFromCart(selectedItems.map((item) => item.id));
+        setCheckoutOpen(false);
+        closeCart();
+        window.location.href = payRes.redirectUrl;
+        return;
+      }
+
+      if (payRes.clientKey) {
+        removeManyFromCart(selectedItems.map((item) => item.id));
+        setCheckoutOpen(false);
+        closeCart();
+        const base = typeof window !== 'undefined' ? window.location.origin : '';
+        const params = new URLSearchParams({
+          order_id: orderId,
+          client_key: payRes.clientKey,
+          ...(payRes.publicKey ? { public_key: payRes.publicKey } : {}),
+        });
+        window.location.href = `${base}/sites/${encodeURIComponent(subdomain)}/checkout/pay?${params.toString()}`;
+        return;
+      }
+
       removeManyFromCart(selectedItems.map((item) => item.id));
       setCheckoutOpen(false);
       closeCart();
-      window.alert('Order placed successfully.');
+      window.alert('Order placed successfully. Payment link not available.');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to complete checkout.';
       window.alert(message);

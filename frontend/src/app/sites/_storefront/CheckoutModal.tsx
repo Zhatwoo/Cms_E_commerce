@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import type { CartItem } from './StorefrontContext';
+import type { PaymentMethod } from '@/lib/api';
 
 type CheckoutModalProps = {
   open: boolean;
@@ -16,7 +17,7 @@ type CheckoutModalProps = {
     streetAddress: string;
     city: string;
     postalCode: string;
-  }) => Promise<void> | void;
+  }, paymentMethod: PaymentMethod) => Promise<void> | void;
   submitting?: boolean;
 };
 
@@ -35,6 +36,7 @@ export function CheckoutModal({
   const [streetAddress, setStreetAddress] = useState('');
   const [city, setCity] = useState('');
   const [postalCode, setPostalCode] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
   const [error, setError] = useState<string | null>(null);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
 
@@ -75,7 +77,7 @@ export function CheckoutModal({
       streetAddress: streetAddress.trim(),
       city: city.trim(),
       postalCode: postalCode.trim(),
-    });
+    }, paymentMethod);
   };
 
   const handleRequestClose = () => {
@@ -236,6 +238,32 @@ export function CheckoutModal({
                       );
                     })}
                   </div>
+                </div>
+              </div>
+
+              <div className="mt-5 border-t border-zinc-200 pt-3">
+                <p className="text-start text-xl font-medium text-zinc-900">Payment Method</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {(['card', 'gcash', 'maya'] as const).map((m) => (
+                    <label
+                      key={m}
+                      className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium capitalize ${
+                        paymentMethod === m
+                          ? 'border-emerald-600 bg-emerald-50 text-emerald-800'
+                          : 'border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value={m}
+                        checked={paymentMethod === m}
+                        onChange={() => setPaymentMethod(m)}
+                        className="sr-only"
+                      />
+                      {m === 'gcash' ? 'GCash' : m === 'maya' ? 'Maya' : 'Card'}
+                    </label>
+                  ))}
                 </div>
               </div>
 

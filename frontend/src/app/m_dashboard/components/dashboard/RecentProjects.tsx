@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTheme } from '../context/theme-context';
 import { useAlert } from '../context/alert-context';
 import { useProject } from '../context/project-context';
-import { listProjects, createProject, updateProject, deleteProject, getStoredUser, type Project } from '@/lib/api';
+import { createProject, updateProject, deleteProject, getStoredUser, type Project } from '@/lib/api';
 import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
 import { INDUSTRY_OPTIONS } from '@/lib/industryCatalog';
 import { DraftPreviewThumbnail } from '../projects/DraftPreviewThumbnail';
@@ -32,8 +32,7 @@ export function RecentProjects() {
   const { theme, colors } = useTheme();
   const router = useRouter();
   const { showAlert } = useAlert();
-  const { selectedProject, setSelectedProjectId, loading } = useProject();
-  const [projects, setProjects] = useState<Project[]>([]);
+  const { selectedProject, setSelectedProjectId, loading: contextLoading, projects: contextProjects, refreshProjects } = useProject();
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -53,26 +52,8 @@ export function RecentProjects() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-
-    setProjectsLoading(true);
-    listProjects()
-      .then((res) => {
-        if (!cancelled && res.success && Array.isArray(res.projects)) {
-          setProjects(res.projects);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setProjects([]);
-      })
-      .finally(() => {
-        if (!cancelled) setProjectsLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedProject?.id]);
+    setProjectsLoading(contextLoading);
+  }, [contextLoading]);
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return 'Edited recently';
@@ -166,6 +147,7 @@ export function RecentProjects() {
     }
   };
 
+  const projects = contextProjects ?? [];
   const visibleProjects = useMemo(
     () =>
       [...projects]
@@ -195,17 +177,7 @@ export function RecentProjects() {
         return;
       }
 
-      setProjects((prev) =>
-        prev.map((project) =>
-          project.id === projectId
-            ? {
-                ...project,
-                title: res.project?.title || trimmedTitle,
-                updatedAt: res.project?.updatedAt || new Date().toISOString(),
-              }
-            : project
-        )
-      );
+      await refreshProjects();
       showAlert('Project updated.');
     } catch {
       showAlert('Failed to update project. Please try again.');
@@ -225,7 +197,7 @@ export function RecentProjects() {
         return;
       }
 
-      setProjects((prev) => prev.filter((project) => project.id !== projectId));
+      await refreshProjects();
       showAlert('Project moved to trash.');
     } catch {
       showAlert('Failed to delete project. Please try again.');

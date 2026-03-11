@@ -3,13 +3,16 @@ import { Text } from "./Text/Text";
 import { Page } from "./Page/Page";
 import { Viewport } from "./Viewport/Viewport";
 import { Image } from "./Image/Image";
+import { Video } from "./Video/Video";
 import { Button } from "./Button/Button";
 import { Divider } from "./Divider/Divider";
 import { Section } from "./Section/Section";
 import { Row } from "./Row/Row";
 import { Column } from "./Column/Column";
 import { Icon } from "./Icon/Icon";
-import { Frame } from "./Frame/Frame";
+import { Tabs } from "./Tabs/Tabs";
+import { Spacer } from "./Spacer/Spacer";
+import { Pagination } from "./Pagination/Pagination";
 import { ImportedBlock } from "./ImportedBlock/ImportedBlock";
 import { Accordion } from "./Accordion/Accordion";
 
@@ -24,6 +27,8 @@ export const RenderBlocks: Record<string, any> = {
   viewport: Viewport,
   Image,
   image: Image,
+  Video,
+  video: Video,
   Button,
   button: Button,
   Divider,
@@ -35,8 +40,12 @@ export const RenderBlocks: Record<string, any> = {
   column: Column,
   Icon,
   icon: Icon,
-  Frame,
-  frame: Frame,
+  Tabs,
+  tabs: Tabs,
+  Spacer,
+  spacer: Spacer,
+  Pagination,
+  pagination: Pagination,
   ImportedBlock,
   importedblock: ImportedBlock,
   Accordion,

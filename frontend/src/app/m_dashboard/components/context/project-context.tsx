@@ -40,11 +40,14 @@ export function ProjectProvider({ children }: ProviderProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProjectId, setSelectedProjectIdState] = useState<string | null>(null);
+  const [selectionHydrated, setSelectionHydrated] = useState(false);
   const storageKey = user?.id ? `md_selected_instance_${user.id}` : null;
 
   useEffect(() => {
+    setSelectionHydrated(false);
     if (!storageKey) {
       setSelectedProjectIdState(null);
+      setSelectionHydrated(true);
       return;
     }
     try {
@@ -52,25 +55,24 @@ export function ProjectProvider({ children }: ProviderProps) {
       setSelectedProjectIdState(saved || null);
     } catch {
       setSelectedProjectIdState(null);
+    } finally {
+      setSelectionHydrated(true);
     }
   }, [storageKey]);
 
-  const fetchProjects = useCallback(async () => {
+  const fetchProjects = useCallback(async (includeShared = false) => {
     setLoading(true);
     try {
-      const res = await listProjects();
+      const res = await listProjects({ includeShared });
       if (res?.success && Array.isArray(res.projects)) {
         setProjects(res.projects);
 
-        // Ensure we always have a valid selected project when projects exist
-        if (res.projects.length === 0) {
-          setSelectedProjectIdState(null);
-        } else if (
-          !selectedProjectId ||
-          !res.projects.find((p) => p.id === selectedProjectId)
-        ) {
-          setSelectedProjectIdState(res.projects[0].id);
-        }
+        // Keep last selected project when still available, otherwise fall back once.
+        setSelectedProjectIdState((prev) => {
+          if (res.projects.length === 0) return null;
+          if (prev && res.projects.some((p) => p.id === prev)) return prev;
+          return res.projects[0].id;
+        });
       } else {
         setProjects([]);
         setSelectedProjectIdState(null);
@@ -91,11 +93,17 @@ export function ProjectProvider({ children }: ProviderProps) {
     } finally {
       setLoading(false);
     }
-  }, [selectedProjectId, storageKey]);
+  }, [storageKey]);
 
   useEffect(() => {
-    void fetchProjects();
-  }, [fetchProjects]);
+    if (!selectionHydrated) return;
+    if (!storageKey) {
+      setProjects([]);
+      setLoading(false);
+      return;
+    }
+    void fetchProjects(false);
+  }, [fetchProjects, selectionHydrated, storageKey]);
 
   useEffect(() => {
     setActiveProjectId(selectedProjectId);
@@ -116,13 +124,15 @@ export function ProjectProvider({ children }: ProviderProps) {
     }
   };
 
+  const refreshProjects = useCallback(() => fetchProjects(true), [fetchProjects]);
+
   const value: ProjectContextType = {
     projects,
     loading,
     selectedProjectId,
     selectedProject,
     setSelectedProjectId: handleSetSelectedProjectId,
-    refreshProjects: fetchProjects,
+    refreshProjects,
   };
 
   return <ProjectContext.Provider value={value}>{children}</ProjectContext.Provider>;

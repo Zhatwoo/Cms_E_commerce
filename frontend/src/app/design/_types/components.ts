@@ -184,6 +184,23 @@ export interface ImageProps extends SpacingProps, SizeProps, EffectsProps, Trans
   radiusTopRight?: number;
   radiusBottomRight?: number;
   radiusBottomLeft?: number;
+  _isDraggingSource?: boolean;
+}
+
+/** Video component props — media display with sizing, corners, and effects. */
+export interface VideoProps extends SpacingProps, SizeProps, EffectsProps, TransformProps, LayerProps, AnimatableProps, InteractableProps {
+  src?: string;
+  autoPlay?: boolean;
+  loop?: boolean;
+  muted?: boolean;
+  controls?: boolean;
+  objectFit?: "cover" | "contain" | "fill" | "none" | "scale-down";
+  borderRadius?: number;
+  radiusTopLeft?: number;
+  radiusTopRight?: number;
+  radiusBottomRight?: number;
+  radiusBottomLeft?: number;
+  _isDraggingSource?: boolean;
 }
 
 /** Button component props — interactive element with label, link, and variant. */
@@ -233,6 +250,23 @@ export interface DividerProps extends TransformProps, AnimatableProps, Interacta
   marginBottom?: number;
 }
 
+/** Spacer component props — empty box for spacing. */
+export interface SpacerProps extends SizeProps, SpacingProps, PositionProps, TransformProps, AppearanceProps, EffectsProps { }
+
+/** Pagination component props — navigation for lists and data. */
+export interface PaginationProps extends SizeProps, SpacingProps, PositionProps, TransformProps, AppearanceProps, TypographyProps {
+  totalItems?: number;
+  itemsPerPage?: number;
+  currentPage?: number;
+  type?: "numbers" | "simple" | "load-more";
+  activeColor?: string;
+  buttonVariant?: "primary" | "secondary" | "outline" | "ghost";
+  gap?: number;
+  prevText?: string;
+  nextText?: string;
+  showIcons?: boolean;
+}
+
 /** Icon component props — displays a clickable icon with styling. */
 export interface IconProps extends SpacingProps, PositionProps, AnimatableProps {
   iconType?: string;
@@ -259,19 +293,20 @@ export interface CircleProps
 export interface SquareProps extends CircleProps { }
 export interface TriangleProps extends CircleProps { }
 
-/** Frame component props — responsive wrapper so content scales for all devices (desktop, tablet, mobile). */
-export interface FrameProps extends SpacingProps, AnimatableProps, InteractionProps {
-  /** Design/reference width in px; content is laid out at this width then scaled to fit. */
-  referenceWidth?: number;
-  /** Design/reference height in px; if set, frame scales to fit within container (contain mode). */
-  referenceHeight?: number;
-  /** How the frame content fits: "contain" = scale to fit (no crop), "cover" = fill and crop, "width" = scale by width only, "fluid" = 100% width, assets reflow (max-width: 100%). */
-  fitMode?: "contain" | "cover" | "width" | "fluid";
-  /** Outer container width (e.g. "100%" or "1200px"). */
-  width?: string;
-  /** Outer container min-height (e.g. "400px" or "50vh"). When set, overrides height for display. */
-  minHeight?: string;
-  /** Treated as minHeight when minHeight is not set (for settings panel compatibility). */
-  height?: string;
-  children?: ReactNode;
+
+/** Tabs component props — dynamic tabs with content areas. */
+export interface TabItem {
+  id: string;
+  title: string;
+  content: string;
+}
+
+export interface TabsProps
+  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps, AnimatableProps, InteractionProps {
+  tabs: TabItem[];
+  activeTabId: string;
+  tabHeaderBackgroundColor?: string;
+  tabHeaderTextColor?: string;
+  activeTabBackgroundColor?: string;
+  activeTabTextColor?: string;
 }

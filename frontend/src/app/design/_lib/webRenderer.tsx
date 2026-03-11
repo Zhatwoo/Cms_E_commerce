@@ -140,230 +140,6 @@ const frameResponsiveStyles = (
       }
       .frame-responsive-inner table { width: 100%; max-width: 100%; }
       
-      /* Responsive Navigation Styles - same as Frame (hamburger right, dropdown right) */
-      .frame-responsive-inner [data-nav-container] {
-        position: relative;
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        justify-content: space-between;
-        width: 100%;
-      }
-      
-      .frame-responsive-inner [data-nav-container] .nav-hamburger {
-        display: none;
-        flex-direction: column;
-        gap: 4px;
-        background: transparent;
-        border: none;
-        cursor: pointer;
-        padding: 8px;
-        z-index: 1001;
-        color: inherit;
-        margin-left: auto !important;
-        order: 999 !important;
-        flex-shrink: 0;
-      }
-      
-      .frame-responsive-inner [data-nav-container] .nav-hamburger span {
-        display: block;
-        width: 24px;
-        height: 2px;
-        background-color: currentColor;
-        transition: all 0.3s ease;
-      }
-      
-      .frame-responsive-inner [data-nav-container] .nav-hamburger.active span:nth-child(1) {
-        transform: rotate(45deg) translate(5px, 5px) !important;
-      }
-      
-      .frame-responsive-inner [data-nav-container] .nav-hamburger.active span:nth-child(2) {
-        opacity: 0 !important;
-      }
-      
-      .frame-responsive-inner [data-nav-container] .nav-hamburger.active span:nth-child(3) {
-        transform: rotate(-45deg) translate(7px, -6px) !important;
-      }
-      
-      .frame-responsive-inner [data-nav-container] .nav-menu {
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        gap: 16px;
-        list-style: none;
-        margin: 0;
-        padding: 0;
-        width: 100%;
-        order: 0;
-      }
-
-      .frame-responsive-inner [data-nav-container] .nav-menu ul,
-      .frame-responsive-inner [data-nav-container] .nav-menu ol {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-        width: 100%;
-      }
-      
-      /* Mobile + tablet breakpoint - hamburger on right, dropdown on right */
-      @container (max-width: 1024px) {
-        .frame-responsive-inner [data-nav-container] .nav-hamburger {
-          display: flex !important;
-          order: 999 !important;
-          margin-left: auto !important;
-        }
-        
-        .frame-responsive-inner [data-nav-container] .nav-menu {
-          position: absolute !important;
-          top: 100% !important;
-          left: auto !important;
-          right: 0 !important;
-          min-width: 200px !important;
-          max-width: 100% !important;
-          flex-direction: column !important;
-          align-items: stretch !important;
-          background: rgba(255, 255, 255, 0.98) !important;
-          backdrop-filter: blur(10px);
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
-          padding: 0 !important;
-          gap: 0 !important;
-          max-height: 0 !important;
-          overflow: hidden !important;
-          opacity: 0 !important;
-          transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease !important;
-          z-index: 1000 !important;
-          margin-top: 8px !important;
-          border-radius: 0 0 8px 8px !important;
-        }
-        
-        .frame-responsive-inner [data-nav-container] .nav-menu.open {
-          max-height: 500px !important;
-          opacity: 1 !important;
-          padding: 16px !important;
-        }
-        
-        .frame-responsive-inner [data-nav-container] .nav-menu > * {
-          width: 100% !important;
-          padding: 12px !important;
-          text-align: right !important;
-          border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
-          display: block !important;
-        }
-
-        .frame-responsive-inner [data-nav-container] .nav-menu ul,
-        .frame-responsive-inner [data-nav-container] .nav-menu ol {
-          display: flex !important;
-          flex-direction: column !important;
-          gap: 0 !important;
-          width: 100% !important;
-        }
-
-        .frame-responsive-inner [data-nav-container] .nav-menu ul > li,
-        .frame-responsive-inner [data-nav-container] .nav-menu ol > li {
-          width: 100% !important;
-          margin: 0 !important;
-          display: block !important;
-        }
-
-        .frame-responsive-inner [data-nav-container] .nav-menu ul > li > a,
-        .frame-responsive-inner [data-nav-container] .nav-menu ol > li > a {
-          width: 100% !important;
-          display: block !important;
-        }
-        
-        .frame-responsive-inner [data-nav-container] .nav-menu > *:last-child {
-          border-bottom: none !important;
-        }
-      }
-
-      .frame-responsive-inner.frame-mobile [data-nav-container],
-      .frame-mobile .frame-responsive-inner [data-nav-container] {
-        display: flex !important;
-        justify-content: space-between !important;
-        align-items: center !important;
-        width: 100% !important;
-        position: relative !important;
-      }
-
-      .frame-responsive-inner.frame-mobile [data-nav-container] .nav-hamburger,
-      .frame-mobile .frame-responsive-inner [data-nav-container] .nav-hamburger {
-        display: flex !important;
-        order: 999 !important;
-        margin-left: auto !important;
-      }
-
-      .frame-responsive-inner.frame-mobile [data-nav-container] .nav-menu,
-      .frame-mobile .frame-responsive-inner [data-nav-container] .nav-menu {
-        position: absolute !important;
-        top: 100% !important;
-        left: auto !important;
-        right: 0 !important;
-        min-width: 200px !important;
-        max-width: 100% !important;
-        flex-direction: column !important;
-        align-items: stretch !important;
-        background: rgba(255, 255, 255, 0.98) !important;
-        backdrop-filter: blur(10px);
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
-        padding: 0 !important;
-        gap: 0 !important;
-        max-height: 0 !important;
-        overflow: hidden !important;
-        opacity: 0 !important;
-        transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease !important;
-        z-index: 1000 !important;
-        margin-top: 8px !important;
-        border-radius: 0 0 8px 8px !important;
-      }
-
-      .frame-responsive-inner.frame-mobile [data-nav-container] .nav-menu.open,
-      .frame-mobile .frame-responsive-inner [data-nav-container] .nav-menu.open {
-        max-height: 500px !important;
-        opacity: 1 !important;
-        padding: 16px !important;
-      }
-
-      .frame-responsive-inner.frame-mobile [data-nav-container] .nav-menu > *,
-      .frame-mobile .frame-responsive-inner [data-nav-container] .nav-menu > * {
-        width: 100% !important;
-        padding: 12px !important;
-        text-align: right !important;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
-        display: block !important;
-      }
-
-      .frame-responsive-inner.frame-mobile [data-nav-container] .nav-menu ul,
-      .frame-responsive-inner.frame-mobile [data-nav-container] .nav-menu ol,
-      .frame-mobile .frame-responsive-inner [data-nav-container] .nav-menu ul,
-      .frame-mobile .frame-responsive-inner [data-nav-container] .nav-menu ol {
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 0 !important;
-        width: 100% !important;
-      }
-
-      .frame-responsive-inner.frame-mobile [data-nav-container] .nav-menu ul > li,
-      .frame-responsive-inner.frame-mobile [data-nav-container] .nav-menu ol > li,
-      .frame-mobile .frame-responsive-inner [data-nav-container] .nav-menu ul > li,
-      .frame-mobile .frame-responsive-inner [data-nav-container] .nav-menu ol > li {
-        width: 100% !important;
-        margin: 0 !important;
-        display: block !important;
-      }
-
-      .frame-responsive-inner.frame-mobile [data-nav-container] .nav-menu ul > li > a,
-      .frame-responsive-inner.frame-mobile [data-nav-container] .nav-menu ol > li > a,
-      .frame-mobile .frame-responsive-inner [data-nav-container] .nav-menu ul > li > a,
-      .frame-mobile .frame-responsive-inner [data-nav-container] .nav-menu ol > li > a {
-        width: 100% !important;
-        display: block !important;
-      }
-
-      .frame-responsive-inner.frame-mobile [data-nav-container] .nav-menu > *:last-child,
-      .frame-mobile .frame-responsive-inner [data-nav-container] .nav-menu > *:last-child {
-        border-bottom: none !important;
-      }
-      
       /* Fluid mode: same as canvas — responsive reflow so phone preview matches */
       .frame-responsive-inner.frame-fluid {
         width: 100% !important;
@@ -605,7 +381,7 @@ function ResponsiveNav({ children, containerStyle, onClick, className, dataMobil
   );
 }
 
-/** Same as Frame: hamburger dropdown only on Header assets (data-header, class "header", or role="banner"). */
+/** hamburger dropdown only on Header assets (data-header, class "header", or role="banner"). */
 function enhanceNavInPreview(innerEl: HTMLElement | null) {
   if (!innerEl) return;
   const looksLikeMenuLabel = (text: string): boolean => {
@@ -693,111 +469,7 @@ function enhanceNavInPreview(innerEl: HTMLElement | null) {
 }
 
 /** Wrapper that measures container size and scales inner content for responsiveness (desktop/tablet/mobile). */
-function ResponsiveFrameWrapper({
-  referenceWidth,
-  referenceHeight,
-  fitMode,
-  children,
-  outerStyle,
-}: {
-  referenceWidth: number;
-  referenceHeight: number;
-  fitMode: "contain" | "cover" | "width" | "fluid";
-  children: React.ReactNode;
-  outerStyle: React.CSSProperties;
-}) {
-  const ref = React.useRef<HTMLDivElement>(null);
-  const innerRef = React.useRef<HTMLDivElement>(null);
-  const [size, setSize] = React.useState({ w: 0, h: 0 });
 
-  React.useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const update = () => setSize({ w: el.clientWidth || 0, h: el.clientHeight || 0 });
-    update();
-    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
-    if (ro) ro.observe(el);
-    return () => ro?.disconnect();
-  }, []);
-
-  React.useEffect(() => {
-    const inner = innerRef.current;
-    if (!inner) return;
-    const t = setTimeout(() => enhanceNavInPreview(inner), 150);
-    return () => clearTimeout(t);
-  }, [children, size]);
-
-  const { w, h } = size;
-  const isFluid = fitMode === "fluid";
-
-  if (isFluid) {
-    return (
-      <div
-        ref={ref}
-        style={{
-          ...outerStyle,
-          overflow: "hidden",
-          boxSizing: "border-box",
-          containerType: "inline-size",
-        }}
-      >
-        {frameResponsiveStyles}
-        <div
-          ref={innerRef}
-          className="frame-responsive-inner frame-fluid"
-          style={{
-            width: "100%",
-            minHeight: referenceHeight ? `${referenceHeight}px` : undefined,
-            boxSizing: "border-box",
-            containerType: "inline-size",
-          }}
-        >
-          {children}
-        </div>
-      </div>
-    );
-  }
-
-  let scale = 1;
-  if (referenceWidth > 0 && referenceHeight > 0 && w > 0 && h > 0) {
-    const scaleX = w / referenceWidth;
-    const scaleY = h / referenceHeight;
-    if (fitMode === "contain") scale = Math.min(scaleX, scaleY);
-    else if (fitMode === "cover") scale = Math.max(scaleX, scaleY);
-    else scale = scaleX;
-  }
-
-  const scaledHeight = referenceHeight * scale;
-
-  return (
-    <div
-      ref={ref}
-      style={{
-        ...outerStyle,
-        overflow: "hidden",
-        position: "relative",
-        ...(scaledHeight > 0 ? { height: scaledHeight } : {}),
-      }}
-    >
-      {frameResponsiveStyles}
-      <div
-        ref={innerRef}
-        className="frame-responsive-inner"
-        style={{
-          width: referenceWidth,
-          height: referenceHeight,
-          transform: `scale(${scale})`,
-          transformOrigin: "0 0",
-          position: "absolute",
-          left: 0,
-          top: 0,
-        }}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
 
 // Default props per type (merge with node.props for full props). Minimal set for rendering.
 const DEFAULTS: Record<string, Record<string, unknown>> = {
@@ -991,24 +663,7 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
     opacity: 1,
     link: "",
   },
-  Frame: {
-    referenceWidth: 1440,
-    referenceHeight: 900,
-    fitMode: "fluid",
-    width: "100%",
-    minHeight: "400px",
-    height: "400px",
-    padding: 0,
-    margin: 0,
-    paddingTop: 0,
-    paddingRight: 0,
-    paddingBottom: 0,
-    paddingLeft: 0,
-    marginTop: 0,
-    marginRight: 0,
-    marginBottom: 0,
-    marginLeft: 0,
-  },
+
   Circle: {
     color: "#10b981",
     width: "200px",
@@ -1355,6 +1010,87 @@ function wrapWithPrototype(
   );
 }
 
+function PreviewTabs({ props }: { props: Record<string, any> }) {
+  const tabs = (props.tabs as any[]) || [];
+  const [activeTabId, setActiveTabId] = React.useState(
+    props.activeTabId || (tabs[0]?.id || "")
+  );
+
+  const br = (props.borderRadius ?? 0) as number;
+  const borderColor = (props.borderColor as string) || "transparent";
+  const borderWidth = (props.borderWidth ?? 0) as number;
+
+  return (
+    <div
+      className="tabs-component w-full flex flex-col"
+      style={{
+        backgroundColor: (props.background as string) || "transparent",
+        borderRadius: `${br}px`,
+        borderWidth: `${borderWidth}px`,
+        borderColor,
+        borderStyle: (props.borderStyle as string) || "solid",
+        width: (props.width as string) || "100%",
+        height: (props.height as string) || "auto",
+        overflow: "hidden",
+        boxSizing: "border-box",
+      }}
+    >
+      <div
+        className="tabs-header flex flex-row w-full overflow-x-auto border-b no-scrollbar"
+        style={{
+          borderColor: borderColor !== "transparent" ? borderColor : "#e5e7eb",
+          justifyContent: props.tabAlignment === "center" ? "center" : props.tabAlignment === "right" ? "flex-end" : "flex-start"
+        }}
+      >
+        {tabs.map((tab) => {
+          const isActive = tab.id === activeTabId;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTabId(tab.id)}
+              className="px-6 py-4 font-semibold text-sm transition-all duration-300 border-b-2 whitespace-nowrap hover:bg-black/5 active:scale-95 translate-gpu"
+              style={{
+                backgroundColor: isActive
+                  ? props.activeTabBackgroundColor
+                  : props.tabHeaderBackgroundColor,
+                color: isActive ? props.activeTabTextColor : props.tabHeaderTextColor,
+                borderBottomColor: isActive
+                  ? (props.activeTabTextColor as string) || "#3b82f6"
+                  : "transparent",
+                transform: isActive ? "scale(1.02)" : "scale(1)",
+                zIndex: isActive ? 1 : 0,
+                borderTop: "none",
+                borderLeft: "none",
+                borderRight: "none",
+                padding: "16px 24px",
+                cursor: "pointer",
+              }}
+            >
+              {tab.title}
+            </button>
+          );
+        })}
+      </div>
+      <div className="tabs-content relative w-full flex-grow min-h-[100px] overflow-hidden">
+        {tabs.map((tab) => {
+          const isActive = tab.id === activeTabId;
+          return (
+            <div
+              key={tab.id}
+              className={`w-full h-full transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${isActive ? "opacity-100 translate-y-0 relative" : "opacity-0 -translate-y-2 absolute inset-0 pointer-events-none"}`}
+            >
+              <div className="w-full h-full min-h-[100px] p-6 flex flex-col text-sm whitespace-pre-wrap text-gray-800 leading-relaxed">
+                {tab.content}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function RenderNode({
   node,
   nodes,
@@ -1392,7 +1128,6 @@ function RenderNode({
     text: "Text",
     container: "Container",
     section: "Section",
-    frame: "Frame",
     row: "Row",
     column: "Column",
     image: "Image",
@@ -1753,45 +1488,7 @@ function RenderNode({
       );
     }
 
-    case "Frame": {
-      const p = typeof props.padding === "number" ? props.padding : 0;
-      const pl = (props.paddingLeft ?? p) as number;
-      const pr = (props.paddingRight ?? p) as number;
-      const pt = (props.paddingTop ?? p) as number;
-      const pb = (props.paddingBottom ?? p) as number;
-      const m = typeof props.margin === "number" ? props.margin : 0;
-      const ml = (props.marginLeft ?? m) as number;
-      const mr = (props.marginRight ?? m) as number;
-      const mt = (props.marginTop ?? m) as number;
-      const mb = (props.marginBottom ?? m) as number;
-      const refW = Math.max(320, (props.referenceWidth as number) ?? 1440);
-      const refH = Math.max(200, (props.referenceHeight as number) ?? 900);
-      const fit = "fluid";
-      const minH = (props.minHeight as string) ?? (props.height as string) ?? "400px";
-      const normalizedWidth = normalizeLayoutWidthForNarrow(
-        normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint),
-        isNarrowPreview,
-        builderParityMode,
-      );
-      const normalizedMinH = normalizeLayoutHeightForNarrow(minH, isNarrowPreview, builderParityMode) ?? minH;
-      return wrap(
-        <ResponsiveFrameWrapper
-          referenceWidth={refW}
-          referenceHeight={refH}
-          fitMode={fit}
-          outerStyle={{
-            padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
-            margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
-            width: normalizedWidth ?? (props.width as string) ?? "100%",
-            maxWidth: isNarrowPreview ? "100%" : undefined,
-            minHeight: normalizedMinH,
-            boxSizing: "border-box",
-          }}
-        >
-          {children}
-        </ResponsiveFrameWrapper>
-      );
-    }
+
 
     case "Row": {
       const p = typeof props.padding === "number" ? props.padding : 0;
@@ -2412,6 +2109,9 @@ function RenderNode({
         </div>
       );
     }
+
+    case "Tabs":
+      return wrap(<PreviewTabs props={props} />);
 
     default:
       return <div data-unknown-type={type}>{children}</div>;

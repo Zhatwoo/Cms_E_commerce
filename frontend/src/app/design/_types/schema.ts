@@ -66,10 +66,10 @@ export type ComponentType =
   | "Row"
   | "Column"
   | "Icon"
-  | "Frame"
   | "Circle"
   | "Square"
   | "Triangle"
+  | "Tabs"
   | "ImportedBlock";
 
 /** A single node in the document. */
