@@ -18,7 +18,6 @@ import { Accordion } from "./Accordion/Accordion";
 import { TabContent } from "./Tabs/TabContent";
 import { ImportedBlock } from "./ImportedBlock/ImportedBlock";
 import { Banner } from "./Banner/banner";
-import { Accordion } from "./Accordion/Accordion";
 
 export const RenderBlocks: Record<string, any> = {
   Container,
