@@ -786,7 +786,9 @@ const CollabCursorBroadcaster = ({
   return null;
 };
 
-const COLLAB_EMIT_DEBOUNCE_MS = 400;
+const COLLAB_EMIT_DEBOUNCE_MS = 250; // Faster feedback for collaborators
+const DB_SAVE_DEBOUNCE_MS = 10000;    // Save to Firestore every 10s of inactivity (drastically reduces writes)
+const DB_FORCE_SAVE_INTERVAL = 30000; // Force save every 30s regardless of activity
 
 /** Editor Shell */
 export const EditorShell = ({ projectId, pageId: initialPageId, permission = "editor" }: EditorShellProps) => {
@@ -2095,6 +2097,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   const dbSaveInFlightRef = useRef(false);
   const dbSavePendingRef = useRef(false);
   const collabEmitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dbSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastDbSaveAtRef = useRef<number>(0);
   const handleNodesChangeRef = useRef<((query: { serialize: () => string }) => void) | null>(null);
 
   const flushToDb = useCallback(async () => {
@@ -2135,51 +2139,55 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   // Auto-save: mirror to sessionStorage on every change, save to DB right after
   const handleNodesChange = useCallback(
     (query: { serialize: () => string }) => {
-      if (permission === "viewer") return; // Viewer cannot change anything!
+      if (permission === "viewer") return;
       editorQueryRef.current = query;
-
       if (!isReadyRef.current) return;
 
       const isDragging =
         document.body.dataset.editorDragging === "true" ||
         document.body.dataset.editorDropCommit === "true";
 
-      // Always mirror to sessionStorage so refresh never loses work
+      // 1. Local Persistence (SessionStorage) - Instant
       mirrorToSession(query);
 
-      // Emit to collaborators (debounced); skip when applying remote change to avoid echo
+      // 2. Real-time Sync (WebSockets) - Short Debounce
       if (!isDragging && !isApplyingRemoteRef.current) {
         if (collabEmitTimerRef.current) clearTimeout(collabEmitTimerRef.current);
         collabEmitTimerRef.current = setTimeout(() => {
           collabEmitTimerRef.current = null;
           if (isApplyingRemoteRef.current) return;
-          try {
-            const json = query.serialize();
-            console.log("[EditorShell] Debounced emit — json length:", json?.length ?? 0);
-            if (json) emitCanvasChange({ type: "nodes_change", json });
-          } catch (err) {
-            console.error("[EditorShell] Error serializing for collab emit:", err);
-          }
+          const json = query.serialize();
+          if (json) emitCanvasChange({ type: "nodes_change", json });
         }, COLLAB_EMIT_DEBOUNCE_MS);
-      } else {
-        if (isDragging) console.log("[EditorShell] Skipping collab emit — dragging");
-        if (isApplyingRemoteRef.current) console.log("[EditorShell] Skipping collab emit — applying remote");
       }
 
-      // During drag: skip DB write to keep the canvas responsive (drag-end handler will flush)
-      if (isDragging) return;
+      // 3. Database Persistence (Firestore) - Aggressive Debounce
+      // We only save to Firestore when the user stops interacting for a while,
+      // OR if a significant amount of time has passed since the last save.
+      if (projectId && !isDragging) {
+        setSaveStatus("saving");
+        setSaveError(null);
 
-      if (projectId) {
-        Promise.resolve().then(() => {
-          setSaveStatus("saving");
-          setSaveError(null);
-        });
+        if (dbSaveTimerRef.current) clearTimeout(dbSaveTimerRef.current);
+
+        const now = Date.now();
+        const timeSinceLastSave = now - lastDbSaveAtRef.current;
+
+        if (timeSinceLastSave > DB_FORCE_SAVE_INTERVAL) {
+          // Force immediate save if we haven't saved in a while
+          lastDbSaveAtRef.current = now;
+          flushToDb();
+        } else {
+          // Otherwise, wait for inactivity
+          dbSaveTimerRef.current = setTimeout(() => {
+            dbSaveTimerRef.current = null;
+            lastDbSaveAtRef.current = Date.now();
+            flushToDb();
+          }, DB_SAVE_DEBOUNCE_MS);
+        }
       }
-
-      // Save to DB immediately (queued if a save is already in flight)
-      flushToDb();
     },
-    [projectId, mirrorToSession, flushToDb, emitCanvasChange],
+    [projectId, mirrorToSession, flushToDb, emitCanvasChange, permission],
   );
 
   // Keep a ref so the stable onNodesChange closure passed to Editor always calls the latest version
@@ -2324,216 +2332,216 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
         <QueryStasher onQuery={(q) => { editorQueryRef.current = q; }} />
         <CollabSyncHandler />
         <ImportedComponentsProvider>
-        <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
-          <CanvasToolProvider value={activeTool} onToolChange={handleToolChange}>
-            <CommentsProvider>
-              <TransformModeProvider>
-                <InlineTextEditProvider>
-                  <KeyboardShortcuts />
-                  <CanvasSelectionHandler />
-                  <BoxSelectionHandler />
-                  <ScrollToSelectedHandler />
-                  <CanvasContextMenu />
-                  <FigmaStyleDragHandler />
-                  <FreeDropPlacementHandler />
-                  <NewPageDropPlacementHandler />
-                  <HeaderFooterDropPlacementHandler />
-                  <PanelDropFreePlacementHandler />
-                  <TextToolHandler />
-                  <ShapeToolHandler />
-                  <DoubleClickTransformHandler />
-                  <PrototypeFlowLines />
-                  {/* Top Panel */}
-                  {panelsReady && (
-                    <TopPanel
-                      activePageId={currentPageId}
-                      onDevicePresetSelect={handleDevicePresetSelect}
-                      showDualView={showDualView}
-                      onDualViewToggle={() => setShowDualView((v) => !v)}
-                      projectId={projectId}
-                      onPreview={handlePreview}
-                      canvasWidth={canvasWidth}
-                      canvasHeight={canvasHeight}
-                      scale={scale}
-                      onScaleChange={handleScaleChange}
-                      onZoomFit={handleFitToCanvas}
-                    />
-                  )}
-                  {/* Canvas Area — Infinite Scroll Area */}
-                  <div
-                    ref={containerRef}
-                    data-canvas-container
-                    className={`absolute inset-0 overflow-auto bg-brand-darker canvas-scroll-container ${canPanWithPointerDrag ? "canvas-hand-tool" : ""} ${canPanWithPointerDrag && isPanning ? "canvas-hand-panning" : ""} ${isPanelDragging ? "transition-none" : "transition-[left,right] duration-300 ease-out"}`}
-                    style={{
-                      top: `${TOP_PANEL_HEIGHT_PX}px`,
-                      left: panelsReady && leftPanelOpen && permission !== "viewer" ? `${leftPanelWidth}px` : "0px",
-                      right: panelsReady && rightPanelOpen && permission !== "viewer" ? `${rightPanelWidth}px` : "0px",
-                      bottom: "0px",
-                      cursor:
-                        canPanWithPointerDrag
-                          ? isPanning
-                            ? "grabbing"
-                            : "grab"
-                          : "default",
-                    }}
-                    onMouseDown={handleMouseDown}
-                    onMouseUp={handleMouseUp}
-                    onMouseLeave={handleMouseUp}
-                    onMouseMove={handleMouseMove}
-                  >
-                    {initialJson === undefined && (
-                      <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center text-brand-light/80">
-                        Opening project...
+          <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
+            <CanvasToolProvider value={activeTool} onToolChange={handleToolChange}>
+              <CommentsProvider>
+                <TransformModeProvider>
+                  <InlineTextEditProvider>
+                    <KeyboardShortcuts />
+                    <CanvasSelectionHandler />
+                    <BoxSelectionHandler />
+                    <ScrollToSelectedHandler />
+                    <CanvasContextMenu />
+                    <FigmaStyleDragHandler />
+                    <FreeDropPlacementHandler />
+                    <NewPageDropPlacementHandler />
+                    <HeaderFooterDropPlacementHandler />
+                    <PanelDropFreePlacementHandler />
+                    <TextToolHandler />
+                    <ShapeToolHandler />
+                    <DoubleClickTransformHandler />
+                    <PrototypeFlowLines />
+                    {/* Top Panel */}
+                    {panelsReady && (
+                      <TopPanel
+                        activePageId={currentPageId}
+                        onDevicePresetSelect={handleDevicePresetSelect}
+                        showDualView={showDualView}
+                        onDualViewToggle={() => setShowDualView((v) => !v)}
+                        projectId={projectId}
+                        onPreview={handlePreview}
+                        canvasWidth={canvasWidth}
+                        canvasHeight={canvasHeight}
+                        scale={scale}
+                        onScaleChange={handleScaleChange}
+                        onZoomFit={handleFitToCanvas}
+                      />
+                    )}
+                    {/* Canvas Area — Infinite Scroll Area */}
+                    <div
+                      ref={containerRef}
+                      data-canvas-container
+                      className={`absolute inset-0 overflow-auto bg-brand-darker canvas-scroll-container ${canPanWithPointerDrag ? "canvas-hand-tool" : ""} ${canPanWithPointerDrag && isPanning ? "canvas-hand-panning" : ""} ${isPanelDragging ? "transition-none" : "transition-[left,right] duration-300 ease-out"}`}
+                      style={{
+                        top: `${TOP_PANEL_HEIGHT_PX}px`,
+                        left: panelsReady && leftPanelOpen && permission !== "viewer" ? `${leftPanelWidth}px` : "0px",
+                        right: panelsReady && rightPanelOpen && permission !== "viewer" ? `${rightPanelWidth}px` : "0px",
+                        bottom: "0px",
+                        cursor:
+                          canPanWithPointerDrag
+                            ? isPanning
+                              ? "grabbing"
+                              : "grab"
+                            : "default",
+                      }}
+                      onMouseDown={handleMouseDown}
+                      onMouseUp={handleMouseUp}
+                      onMouseLeave={handleMouseUp}
+                      onMouseMove={handleMouseMove}
+                    >
+                      {initialJson === undefined && (
+                        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center text-brand-light/80">
+                          Opening project...
+                        </div>
+                      )}
+                      <div
+                        className="flex items-start justify-start relative"
+                        style={{
+                          minWidth: `${INFINITE_CANVAS_WIDTH_VW}vw`,
+                          minHeight: `${INFINITE_CANVAS_HEIGHT_VH}vh`,
+                          padding: `${INFINITE_CANVAS_PADDING_PX}px`,
+                          boxSizing: "border-box",
+                          transformOrigin: "top left",
+                          transform: `scale(${scale})`,
+                          willChange: "transform",
+                        }}
+                      >
+                        {initialJson === undefined ? null : (
+                          <SafeFrame
+                            data={validFrameData ?? EMPTY_FRAME_DATA}
+                            onError={handleFrameError}
+                            onFrameMounted={() => {
+                              setFrameReady((prev) => (prev ? prev : true));
+                            }}
+                          />
+                        )}
+                        {/* Collaborator cursors overlay — inside the scaled canvas container */}
+                        <CollaboratorCursors />
+                        <CommentOverlay scale={scale} />
+                        <CommentPins />
+                      </div>
+                      {/* Cursor broadcaster — picks up mousemove on the scroll container */}
+                      <CollabCursorBroadcaster containerRef={containerRef} scale={scale} />
+                    </div>
+                    {/* Docked Panels */}
+                    {/* Right Panel Reopen Fallback */}
+                    {panelsReady && !rightPanelOpen && permission !== "viewer" && (
+                      <button
+                        type="button"
+                        onClick={() => setRightPanelOpen(true)}
+                        className="absolute top-14 right-4 z-[60] p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110"
+                        title="Show Configs panel"
+                      >
+                        <PanelRight className="w-5 h-5 text-brand-light" />
+                      </button>
+                    )}
+                    {/* Left Panel */}
+                    {panelsReady && permission !== "viewer" && (
+                      <div
+                        className="absolute top-12 left-0 z-50 h-[calc(100vh-3rem)] flex items-start pointer-events-none"
+                      >
+                        <div
+                          className="h-full flex items-start pointer-events-auto relative"
+                        >
+                          <div
+                            onMouseDown={(event) => startPanelDrag("left", event)}
+                            className={`absolute top-0 -right-2 h-full w-4 cursor-ew-resize ${leftPanelOpen ? "pointer-events-auto" : "pointer-events-none"}`}
+                            data-no-panel-drag="true"
+                            aria-hidden
+                          />
+                          {leftPanelOpen && (
+                            <div className="absolute top-0 right-0 h-full w-px bg-white/10 pointer-events-none" aria-hidden />
+                          )}
+                          <div
+                            className={`h-full origin-left ${isPanelDragging ? "transition-none" : "transition-[transform,opacity,width] duration-300 ease-out"} will-change-transform ${leftPanelOpen
+                              ? "translate-x-0 opacity-100 pointer-events-auto"
+                              : "-translate-x-full opacity-0 pointer-events-none"
+                              }`}
+                          >
+                            <LeftPanel
+                              width={leftPanelWidth}
+                              frameReady={frameReady}
+                              onToggle={() => setLeftPanelOpen(false)}
+                            />
+                          </div>
+                          <button
+                            onClick={() => setLeftPanelOpen((open) => !open)}
+                            className={`absolute left-4 top-2 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${leftPanelOpen ? "opacity-0 pointer-events-none scale-95" : "opacity-100 pointer-events-auto scale-100"
+                              }`}
+                            title={leftPanelOpen ? "Hide left panel" : "Show left panel"}
+                          >
+                            <PanelLeft className="w-5 h-5 text-brand-light" />
+                          </button>
+                        </div>
                       </div>
                     )}
-                    <div
-                      className="flex items-start justify-start relative"
-                      style={{
-                        minWidth: `${INFINITE_CANVAS_WIDTH_VW}vw`,
-                        minHeight: `${INFINITE_CANVAS_HEIGHT_VH}vh`,
-                        padding: `${INFINITE_CANVAS_PADDING_PX}px`,
-                        boxSizing: "border-box",
-                        transformOrigin: "top left",
-                        transform: `scale(${scale})`,
-                        willChange: "transform",
-                      }}
-                    >
-                      {initialJson === undefined ? null : (
-                        <SafeFrame
-                          data={validFrameData ?? EMPTY_FRAME_DATA}
-                          onError={handleFrameError}
-                          onFrameMounted={() => {
-                            setFrameReady((prev) => (prev ? prev : true));
-                          }}
-                        />
-                      )}
-                      {/* Collaborator cursors overlay — inside the scaled canvas container */}
-                      <CollaboratorCursors />
-                      <CommentOverlay scale={scale} />
-                      <CommentPins />
-                    </div>
-                    {/* Cursor broadcaster — picks up mousemove on the scroll container */}
-                    <CollabCursorBroadcaster containerRef={containerRef} scale={scale} />
-                  </div>
-                  {/* Docked Panels */}
-                  {/* Right Panel Reopen Fallback */}
-                  {panelsReady && !rightPanelOpen && permission !== "viewer" && (
-                    <button
-                      type="button"
-                      onClick={() => setRightPanelOpen(true)}
-                      className="absolute top-14 right-4 z-[60] p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110"
-                      title="Show Configs panel"
-                    >
-                      <PanelRight className="w-5 h-5 text-brand-light" />
-                    </button>
-                  )}
-                  {/* Left Panel */}
-                  {panelsReady && permission !== "viewer" && (
-                    <div
-                      className="absolute top-12 left-0 z-50 h-[calc(100vh-3rem)] flex items-start pointer-events-none"
-                    >
+                    {/* Right Panel / Comments Sidebar */}
+                    {panelsReady && (permission !== "viewer" || activeTool === "comment") && (
                       <div
-                        className="h-full flex items-start pointer-events-auto relative"
+                        className="absolute top-12 right-0 z-50 h-[calc(100vh-3rem)] flex items-start pointer-events-none"
                       >
                         <div
-                          onMouseDown={(event) => startPanelDrag("left", event)}
-                          className={`absolute top-0 -right-2 h-full w-4 cursor-ew-resize ${leftPanelOpen ? "pointer-events-auto" : "pointer-events-none"}`}
-                          data-no-panel-drag="true"
-                          aria-hidden
-                        />
-                        {leftPanelOpen && (
-                          <div className="absolute top-0 right-0 h-full w-px bg-white/10 pointer-events-none" aria-hidden />
-                        )}
-                        <div
-                          className={`h-full origin-left ${isPanelDragging ? "transition-none" : "transition-[transform,opacity,width] duration-300 ease-out"} will-change-transform ${leftPanelOpen
-                            ? "translate-x-0 opacity-100 pointer-events-auto"
-                            : "-translate-x-full opacity-0 pointer-events-none"
-                            }`}
+                          className="h-full flex items-start justify-end pointer-events-auto relative"
                         >
-                          <LeftPanel
-                            width={leftPanelWidth}
-                            frameReady={frameReady}
-                            onToggle={() => setLeftPanelOpen(false)}
+                          <div
+                            onMouseDown={(event) => startPanelDrag("right", event)}
+                            className={`absolute top-0 -left-2 h-full w-4 cursor-ew-resize ${rightPanelOpen ? "pointer-events-auto" : "pointer-events-none"}`}
+                            data-no-panel-drag="true"
+                            aria-hidden
                           />
-                        </div>
-                        <button
-                          onClick={() => setLeftPanelOpen((open) => !open)}
-                          className={`absolute left-4 top-2 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${leftPanelOpen ? "opacity-0 pointer-events-none scale-95" : "opacity-100 pointer-events-auto scale-100"
-                            }`}
-                          title={leftPanelOpen ? "Hide left panel" : "Show left panel"}
-                        >
-                          <PanelLeft className="w-5 h-5 text-brand-light" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {/* Right Panel / Comments Sidebar */}
-                  {panelsReady && (permission !== "viewer" || activeTool === "comment") && (
-                    <div
-                      className="absolute top-12 right-0 z-50 h-[calc(100vh-3rem)] flex items-start pointer-events-none"
-                    >
-                      <div
-                        className="h-full flex items-start justify-end pointer-events-auto relative"
-                      >
-                        <div
-                          onMouseDown={(event) => startPanelDrag("right", event)}
-                          className={`absolute top-0 -left-2 h-full w-4 cursor-ew-resize ${rightPanelOpen ? "pointer-events-auto" : "pointer-events-none"}`}
-                          data-no-panel-drag="true"
-                          aria-hidden
-                        />
-                        {rightPanelOpen && (
-                          <div className="absolute top-0 left-0 h-full w-px bg-white/10 pointer-events-none" aria-hidden />
-                        )}
-                        <div
-                          className={`h-full origin-right ${isPanelDragging ? "transition-none" : "transition-[transform,opacity,width] duration-300 ease-out"} will-change-transform ${rightPanelOpen
-                            ? 'translate-x-0 opacity-100 pointer-events-auto'
-                            : 'translate-x-full opacity-0 pointer-events-none'
-                            }`}
-                        >
-                          {activeTool === "comment" ? (
-                            <CommentsSidebar onClose={() => handleToolChange("move")} />
-                          ) : (
-                            <RightPanel
-                              projectId={projectId}
-                              width={rightPanelWidth}
-                              activeTab={rightPanelTab}
-                              setActiveTab={setRightPanelTab}
-                              frameReady={frameReady}
-                              onClose={() => setRightPanelOpen(false)}
-                            />
+                          {rightPanelOpen && (
+                            <div className="absolute top-0 left-0 h-full w-px bg-white/10 pointer-events-none" aria-hidden />
                           )}
+                          <div
+                            className={`h-full origin-right ${isPanelDragging ? "transition-none" : "transition-[transform,opacity,width] duration-300 ease-out"} will-change-transform ${rightPanelOpen
+                              ? 'translate-x-0 opacity-100 pointer-events-auto'
+                              : 'translate-x-full opacity-0 pointer-events-none'
+                              }`}
+                          >
+                            {activeTool === "comment" ? (
+                              <CommentsSidebar onClose={() => handleToolChange("move")} />
+                            ) : (
+                              <RightPanel
+                                projectId={projectId}
+                                width={rightPanelWidth}
+                                activeTab={rightPanelTab}
+                                setActiveTab={setRightPanelTab}
+                                frameReady={frameReady}
+                                onClose={() => setRightPanelOpen(false)}
+                              />
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                  {/* Bottom Panel: Move, Hand, Zoom fit & 100% */}
-                  {panelsReady && (
-                    <BottomPanel
-                      activeTool={activeTool}
-                      onToolChange={handleToolChange}
-                      showHints={permission !== "viewer"}
-                      saveStatus={saveStatus}
-                      saveError={saveError}
-                      onResetData={handleDeleteData}
-                      onZoomFit={handleFitToCanvas}
-                      scale={scale}
-                      onScaleChange={handleScaleChange}
-                      onRotateCanvas={handleRotateCanvas}
-                      permission={permission}
-                    />
-                  )}
-                  {/* Floating Mobile Preview */}
-                  {panelsReady && (
-                    <FloatingMobilePreview
-                      isOpen={showDualView}
-                      onClose={() => setShowDualView(false)}
-                    />
-                  )}
-                </InlineTextEditProvider>
-              </TransformModeProvider>
-            </CommentsProvider>
-          </CanvasToolProvider>
-        </PrototypeTabProvider>
+                    )}
+                    {/* Bottom Panel: Move, Hand, Zoom fit & 100% */}
+                    {panelsReady && (
+                      <BottomPanel
+                        activeTool={activeTool}
+                        onToolChange={handleToolChange}
+                        showHints={permission !== "viewer"}
+                        saveStatus={saveStatus}
+                        saveError={saveError}
+                        onResetData={handleDeleteData}
+                        onZoomFit={handleFitToCanvas}
+                        scale={scale}
+                        onScaleChange={handleScaleChange}
+                        onRotateCanvas={handleRotateCanvas}
+                        permission={permission}
+                      />
+                    )}
+                    {/* Floating Mobile Preview */}
+                    {panelsReady && (
+                      <FloatingMobilePreview
+                        isOpen={showDualView}
+                        onClose={() => setShowDualView(false)}
+                      />
+                    )}
+                  </InlineTextEditProvider>
+                </TransformModeProvider>
+              </CommentsProvider>
+            </CanvasToolProvider>
+          </PrototypeTabProvider>
         </ImportedComponentsProvider>
       </Editor>
     </div>
