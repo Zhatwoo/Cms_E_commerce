@@ -801,6 +801,39 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
               )}
             </div>
 
+            {/* Storage Indicator */}
+            {permission !== "viewer" && (
+              <div className="mt-auto pt-4 border-t border-white/5 pb-2">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex flex-col">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-brand-light">Storage Used</span>
+                    <span className="text-[10px] text-white/40 font-bold uppercase tracking-tight">
+                      {(mediaItems.reduce((acc, i) => acc + (i.size || 0), 0) / (1024 * 1024)).toFixed(1)}MB / 500MB
+                    </span>
+                  </div>
+                  <button className="text-[9px] font-black uppercase tracking-widest text-brand-medium hover:text-brand-lighter transition-colors cursor-pointer flex items-center gap-1 group">
+                    <span>Upgrade</span>
+                    <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                  </button>
+                </div>
+                
+                <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full transition-all duration-500 rounded-full ${
+                      (mediaItems.reduce((acc, i) => acc + (i.size || 0), 0) / (500 * 1024 * 1024)) > 0.9 
+                        ? "bg-red-500" 
+                        : "bg-brand-medium"
+                    }`}
+                    style={{ width: `${Math.min(100, (mediaItems.reduce((acc, i) => acc + (i.size || 0), 0) / (500 * 1024 * 1024)) * 100)}%` }}
+                  />
+                </div>
+                
+                <p className="mt-2 text-[8px] italic text-white/20 uppercase tracking-widest text-center">
+                  Get unlimited storage for your assets
+                </p>
+              </div>
+            )}
+
             {/* Read-only status */}
             {permission === "viewer" && (
               <div className="text-[9px] text-white/10 text-center uppercase tracking-[0.3em] py-2 border-t border-white/5">
