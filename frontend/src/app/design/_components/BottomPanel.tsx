@@ -16,12 +16,14 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCw,
+  MessageSquare,
   ChevronDown,
 } from "lucide-react";
 import { useCanvasTool } from "./CanvasToolContext";
 import { DesignTooltip } from "./DesignTooltip";
+import { useComments } from "../_context/CommentsContext";
 
-export type CanvasTool = "move" | "hand" | "text" | "shape";
+export type CanvasTool = "move" | "hand" | "text" | "shape" | "comment";
 export type ShapeType = "Square" | "Circle" | "Triangle";
 
 interface BottomPanelProps {
@@ -59,6 +61,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
   permission = "editor",
 }) => {
   const { actions, query } = useEditor();
+  const { setCommentMode, isCommentMode } = useComments();
   const [isShapesPickerOpen, setIsShapesPickerOpen] = React.useState(false);
   const shapesPickerRef = React.useRef<HTMLDivElement | null>(null);
   const showZoom = onZoomFit != null || onScaleChange != null;
@@ -70,7 +73,14 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
     if (activeTool !== "shape") {
       setIsShapesPickerOpen(false);
     }
-  }, [activeTool]);
+
+    // Automatically turn comment mode on/off based on the active tool
+    if (activeTool === "comment") {
+      setCommentMode(true);
+    } else {
+      setCommentMode(false);
+    }
+  }, [activeTool, setCommentMode]);
 
   React.useEffect(() => {
     const handleOutside = (event: MouseEvent) => {
@@ -102,6 +112,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
   };
 
   const handleRotateCanvas = () => {
+    if (permission === "viewer") return;
     try {
       const state = query.getState();
       const nodes = state.nodes ?? {};
@@ -219,18 +230,22 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
                 <button
                   key={tool.type}
                   type="button"
+                  disabled={permission === "viewer" && tool.type === "move"}
                   onClick={() => {
+                    if (permission === "viewer" && tool.type === "move") return;
                     onToolChange(tool.type);
                     setShowSelectionMenu(false);
                   }}
                   className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors ${activeTool === tool.type
                     ? "bg-blue-500/10 text-blue-400 font-bold"
-                    : "text-white/70 hover:text-white hover:bg-white/10"
+                    : (permission === "viewer" && tool.type === "move")
+                      ? "text-white/20 cursor-not-allowed"
+                      : "text-white/70 hover:text-white hover:bg-white/10"
                     }`}
                 >
                   <div className="flex items-center gap-2">
                     {tool.icon}
-                    <span>{tool.label}</span>
+                    <span>{tool.label} {permission === "viewer" && tool.type === "move" && "(Owner Only)"}</span>
                   </div>
                   <span className="text-[10px] opacity-30 font-medium">{tool.shortcut}</span>
                 </button>
@@ -238,23 +253,25 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
             </div>
           )}
         </div>
-        <DesignTooltip content="Text (T)" position="top">
+        <DesignTooltip content={permission === "viewer" ? "Text tool disabled" : "Text (T)"} position="top">
           <button
             type="button"
             onClick={() => onToolChange("text")}
+            disabled={permission === "viewer"}
             className={`h-9 w-9 grid place-items-center rounded-lg transition-colors ${activeTool === "text"
               ? "bg-blue-500/25 text-blue-300"
               : "text-white/70 hover:text-white hover:bg-white/[0.08]"
-              }`}
+              } ${permission === "viewer" ? "opacity-40 cursor-not-allowed" : ""}`}
           >
             <Type className="w-4 h-4" strokeWidth={1.8} />
           </button>
         </DesignTooltip>
         <div className="relative group/shapes" ref={shapesMenuRef}>
-          <DesignTooltip content="Shapes (S)" position="top">
+          <DesignTooltip content={permission === "viewer" ? "Shape tools disabled" : "Shapes (S)"} position="top">
             <button
               type="button"
               onClick={() => {
+                if (permission === "viewer") return;
                 if (activeTool === "shape") {
                   setShowShapesMenu(!showShapesMenu);
                 } else {
@@ -262,10 +279,11 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
                   setShowShapesMenu(true);
                 }
               }}
+              disabled={permission === "viewer"}
               className={`h-9 flex items-center gap-1.5 px-2.5 rounded-lg transition-all ${activeTool === "shape"
                 ? "bg-blue-500/20 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.1)] border border-blue-500/20"
                 : "text-white/70 hover:text-white hover:bg-white/[0.08] border border-transparent"
-                }`}
+                } ${permission === "viewer" ? "opacity-40 cursor-not-allowed" : ""}`}
             >
               <Shapes className="w-4 h-4" strokeWidth={1.8} />
               <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showShapesMenu ? "rotate-180" : "opacity-60"}`} />
@@ -294,6 +312,24 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
             </div>
           )}
         </div>
+        <DesignTooltip content="Comments (C)" position="top">
+          <button
+            type="button"
+            onClick={() => {
+              if (activeTool === "comment") {
+                onToolChange("move");
+              } else {
+                onToolChange("comment");
+              }
+            }}
+            className={`h-9 w-9 grid place-items-center rounded-lg transition-colors ${activeTool === "comment"
+              ? "bg-amber-500/25 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.1)] border border-amber-500/20"
+              : "text-white/70 hover:text-white hover:bg-white/[0.08] border border-transparent"
+              }`}
+          >
+            <MessageSquare className="w-4 h-4" strokeWidth={1.8} />
+          </button>
+        </DesignTooltip>
         <div className="w-px h-5 bg-white/15 rounded-full mx-0.5" aria-hidden />
         <DesignTooltip content="Undo (Ctrl+Z)" position="top">
           <button
@@ -397,6 +433,11 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
         {saveStatus !== "idle" && (
           <span className={`pointer-events-auto rounded-full border px-3 py-1 text-[10px] backdrop-blur-sm ${statusTone}`}>
             {statusLabel}
+          </span>
+        )}
+        {permission === "viewer" && (
+          <span className="pointer-events-auto rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-[10px] text-red-400 backdrop-blur-sm font-bold animate-pulse">
+            View-only Mode: Access Restricted
           </span>
         )}
       </div>

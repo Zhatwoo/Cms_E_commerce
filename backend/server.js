@@ -71,7 +71,8 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
-const { auth } = require('./config/firebase');
+const { db, auth } = require('./config/firebase');
+const { resolveProjectOwner } = require('./utils/resolveProjectOwner');
 
 const app = express();
 
@@ -105,7 +106,12 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'x-project-id']
 }));
 app.use(cookieParser());
-app.use(express.json({ limit: '20mb' }));
+app.use(express.json({
+  limit: '20mb',
+  verify: (req, _res, buf) => {
+    if (req.originalUrl === '/api/webhooks/paymongo') req.rawBody = buf;
+  }
+}));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
 // Domain & Subdomain detection middleware
@@ -158,6 +164,7 @@ const templateRoutes = require('./routes/templateRoutes');
 const domainRoutes = require('./routes/domainRoutes');
 const projectRoutes = require('./routes/projectRoutes');
 const collaborationRoutes = require('./routes/collaborationRoutes');
+const commentRoutes = require('./routes/commentRoutes');
 
 // Routes – public site by subdomain must be reachable
 app.use('/api/public', publicSiteRoutes);
@@ -173,6 +180,7 @@ app.use('/api/templates', templateRoutes);
 app.use('/api/domains', domainRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/collaboration', collaborationRoutes);
+app.use('/api/projects', commentRoutes); // Merged into projects path for comments
 
 // Home route
 app.get('/', (req, res) => {
@@ -335,12 +343,12 @@ function tryListen(port) {
     let currentUser = null;
 
     // User joins a project collaboration room
-    socket.on('collab:join', (data) => {
-      const { projectId, userId, displayName, color, permission } = data || {};
+    socket.on('collab:join', async (data) => {
+      const { projectId, userId, displayName, email, color, role, permission } = data || {};
       if (!projectId || !userId) return;
 
       currentRoom = projectId;
-      currentUser = { userId, displayName, color, permission: permission || 'editor', socketId: socket.id };
+      currentUser = { userId, displayName, email, color, role: role || permission || 'editor', socketId: socket.id };
 
       socket.join(projectId);
 
@@ -349,6 +357,19 @@ function tryListen(port) {
 
       const roomSize = projectRooms.get(projectId).size;
       console.log(`[Socket.IO] ${displayName} joined room ${projectId} (${roomSize} users)`);
+
+      // Update status to 'active' if they are a collaborator
+      resolveProjectOwner(userId, projectId, email).then(resolved => {
+        if (resolved && resolved.collabDocId) {
+          console.log(`[Socket.IO] Mark collaborator ${resolved.collabDocId} as active.`);
+          db.collection('user').doc('roles')
+            .collection('client').doc(resolved.ownerId)
+            .collection('projects').doc(projectId)
+            .collection('collaborators').doc(resolved.collabDocId)
+            .update({ status: 'active', updatedAt: new Date().toISOString() })
+            .catch(e => console.error('[Socket.IO] Failed to update collab status:', e.message));
+        }
+      }).catch(e => console.error('[Socket.IO] resolveProjectOwner error on join:', e.message));
 
       // Notify room that this user joined
       socket.to(projectId).emit('collab:user_joined', currentUser);
@@ -367,13 +388,14 @@ function tryListen(port) {
         userId: currentUser?.userId,
         displayName: currentUser?.displayName,
         color: currentUser?.color,
+        email: currentUser?.email,
       });
     });
 
     // Broadcast canvas changes (move/resize/drop) to others in the room
     socket.on('collab:canvas_change', (data) => {
       if (!currentRoom) return;
-      if (currentUser?.permission !== 'editor') {
+      if (currentUser?.role !== 'editor') {
         console.log('[Socket.IO] canvas_change blocked — user is not editor');
         return;
       }
@@ -386,6 +408,7 @@ function tryListen(port) {
         userId: currentUser?.userId,
         displayName: currentUser?.displayName,
         color: currentUser?.color,
+        email: currentUser?.email,
       });
     });
 
@@ -398,6 +421,32 @@ function tryListen(port) {
         userId: currentUser?.userId,
         displayName: currentUser?.displayName,
         color: currentUser?.color,
+        email: currentUser?.email,
+      });
+    });
+
+    // Broadcast comment updates
+    socket.on('collab:comment_added', (data) => {
+      if (!currentRoom) return;
+      socket.to(currentRoom).emit('collab:comment_added', {
+        ...data,
+        socketId: socket.id,
+      });
+    });
+
+    socket.on('collab:comment_resolved', (data) => {
+      if (!currentRoom) return;
+      socket.to(currentRoom).emit('collab:comment_resolved', {
+        ...data,
+        socketId: socket.id,
+      });
+    });
+
+    socket.on('collab:comment_deleted', (data) => {
+      if (!currentRoom) return;
+      socket.to(currentRoom).emit('collab:comment_deleted', {
+        ...data,
+        socketId: socket.id,
       });
     });
 

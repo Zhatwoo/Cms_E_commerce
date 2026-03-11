@@ -339,8 +339,11 @@ export type Project = {
   collaboratorPermission?: "editor" | "viewer";
 };
 
-export async function listProjects(): Promise<{ success: boolean; projects: Project[] }> {
-  return apiFetch<{ success: boolean; projects: Project[] }>('/api/projects');
+export async function listProjects(options?: { includeShared?: boolean }): Promise<{ success: boolean; projects: Project[] }> {
+  const params = new URLSearchParams();
+  if (options?.includeShared === false) params.set('includeShared', 'false');
+  const qs = params.toString();
+  return apiFetch<{ success: boolean; projects: Project[] }>(qs ? `/api/projects?${qs}` : '/api/projects');
 }
 
 export async function createProject(params: {
@@ -1046,6 +1049,23 @@ export async function createPublishedOrder(params: {
         shippingAddress: params.shippingAddress ?? null,
         currency: params.currency ?? 'PHP',
       }),
+    }
+  );
+}
+
+export type PaymentMethod = 'gcash' | 'maya' | 'card';
+
+export async function createPaymentIntent(
+  subdomain: string,
+  orderId: string,
+  paymentMethod: PaymentMethod
+): Promise<{ success: boolean; redirectUrl?: string; clientKey?: string; publicKey?: string; message?: string }> {
+  const normalizedSubdomain = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  return apiFetch<{ success: boolean; redirectUrl?: string; clientKey?: string; publicKey?: string; message?: string }>(
+    `/api/orders/published/${encodeURIComponent(normalizedSubdomain)}/${encodeURIComponent(orderId)}/create-payment-intent`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ paymentMethod }),
     }
   );
 }

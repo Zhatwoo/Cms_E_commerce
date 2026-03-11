@@ -159,6 +159,14 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
   const formattedOriginalPrice = hasOriginalPrice
     ? `₱${Math.round(originalPriceCandidate).toLocaleString()}`
     : null;
+  const normalizedStatus = String(product.status || '').toLowerCase();
+  const statusLabel = normalizedStatus === 'inactive' ? 'Inactive' : normalizedStatus === 'active' ? 'Active' : 'Draft';
+  const statusStyle =
+    normalizedStatus === 'inactive'
+      ? { color: '#fca5a5', backgroundColor: 'rgba(153,27,27,0.72)', borderColor: 'rgba(248,113,113,0.75)' }
+      : normalizedStatus === 'active'
+      ? { color: '#86efac', backgroundColor: 'rgba(20,83,45,0.72)', borderColor: 'rgba(74,222,128,0.75)' }
+      : { color: '#c4b5fd', backgroundColor: 'rgba(76,29,149,0.62)', borderColor: 'rgba(167,139,250,0.7)' };
 
   useEffect(() => {
     setSelectedOptions(getInitialVariantSelection(product));
@@ -178,6 +186,12 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
       }}
     >
       <div className="relative w-full h-44 md:h-48 overflow-hidden flex items-center justify-center border-b" style={{ borderColor: '#2D3A90', backgroundColor: '#D9D9DC' }}>
+        <span
+          className="absolute left-2.5 top-2.5 z-10 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em]"
+          style={statusStyle}
+        >
+          {statusLabel}
+        </span>
         <button
           type="button"
           onClick={() => setMenuOpen((prev) => !prev)}
@@ -558,7 +572,7 @@ function normalizeSubdomain(value?: string | null): string {
 export default function ProductsPage() {
   const { colors, theme } = useTheme();
   const { showConfirm, showAlert } = useAlert();
-  const { selectedProject } = useProject();
+  const { selectedProject, loading: projectLoading } = useProject();
   const selectedSubdomain = normalizeSubdomain(selectedProject?.subdomain);
   const blockedAddProductMessage = !selectedSubdomain
     ? 'Set a subdomain for this website first to manage products.'
@@ -618,30 +632,34 @@ export default function ProductsPage() {
   }, [showStatusFilterMenu]);
 
   const loadProducts = useCallback(async () => {
-    setLoadingProducts(true);
-    if (!canAddProducts) {
-      setProducts([]);
-      setLoadingProducts(false);
-      return;
-    }
-    try {
-      const res = await listProducts({
-        subdomain: selectedSubdomain,
-        page: 1,
-        limit: 500,
-      });
-      if (res?.success && Array.isArray(res.items)) {
-        setProducts(res.items.map(toDashboardProduct));
-      } else {
-        setProducts([]);
+      if (projectLoading) {
+        setLoadingProducts(true);
+        return;
       }
-    } catch (error) {
-      setProducts([]);
-      showAlert(error instanceof Error ? error.message : 'Failed to load products', 'error');
-    } finally {
-      setLoadingProducts(false);
-    }
-  }, [canAddProducts, selectedSubdomain, showAlert]);
+      setLoadingProducts(true);
+      if (!canAddProducts) {
+        setProducts([]);
+        setLoadingProducts(false);
+        return;
+      }
+      try {
+        const res = await listProducts({
+          subdomain: selectedSubdomain,
+          page: 1,
+          limit: 500,
+        });
+        if (res?.success && Array.isArray(res.items)) {
+          setProducts(res.items.map(toDashboardProduct));
+        } else {
+          setProducts([]);
+        }
+      } catch (error) {
+        setProducts([]);
+        showAlert(error instanceof Error ? error.message : 'Failed to load products', 'error');
+      } finally {
+        setLoadingProducts(false);
+      }
+    }, [projectLoading, canAddProducts, selectedSubdomain, showAlert]);
 
   useEffect(() => {
     void loadProducts();

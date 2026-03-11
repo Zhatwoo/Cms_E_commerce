@@ -13,8 +13,10 @@ exports.list = async (req, res) => {
   try {
     const userId = req.user.id;
     const userEmail = req.user.email;
+    const includeShared = req.query.includeShared !== 'false';
+
     const owned = await Project.list(userId);
-    const shared = await Project.listShared(userId, userEmail);
+    const shared = includeShared ? await Project.listShared(userId, userEmail) : [];
 
     // Merge and sort by updatedAt desc
     const projects = [...owned, ...shared].sort((a, b) => {
@@ -180,13 +182,15 @@ exports.update = async (req, res) => {
         message: 'Project not found',
       });
     }
-    const { title, status, thumbnail, subdomain, industry } = req.body;
+    const { title, status, thumbnail, subdomain, industry, general_access, general_access_role } = req.body;
     const project = await Project.update(userId, req.params.id, {
       ...(title !== undefined && { title }),
       ...(status !== undefined && { status }),
       ...(industry !== undefined && { industry }),
       ...(subdomain !== undefined && { subdomain }),
       ...(thumbnail !== undefined && { thumbnail }),
+      ...(general_access !== undefined && { general_access }),
+      ...(general_access_role !== undefined && { general_access_role }),
     });
     res.status(200).json({
       success: true,
