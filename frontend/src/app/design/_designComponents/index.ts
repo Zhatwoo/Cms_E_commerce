@@ -14,6 +14,8 @@ import { Tabs } from "./Tabs/Tabs";
 import { Spacer } from "./Spacer/Spacer";
 import { Pagination } from "./Pagination/Pagination";
 import { Rating } from "./Rating/Rating";
+import { Accordion } from "./Accordion/Accordion";
+import { TabContent } from "./Tabs/TabContent";
 import { ImportedBlock } from "./ImportedBlock/ImportedBlock";
 import { Banner } from "./Banner/banner";
 
@@ -49,6 +51,10 @@ export const RenderBlocks: Record<string, any> = {
   pagination: Pagination,
   Rating,
   rating: Rating,
+  Accordion,
+  accordion: Accordion,
+  TabContent,
+  tabcontent: TabContent,
   ImportedBlock,
   importedblock: ImportedBlock,
   Banner,
