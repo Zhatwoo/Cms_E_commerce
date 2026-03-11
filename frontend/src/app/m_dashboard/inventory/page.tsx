@@ -151,7 +151,6 @@ function toDashboardStatus(status?: string): 'active' | 'inactive' | 'draft' {
 
 const RECENT_MOVEMENTS_LIMIT = 5;
 const ALL_MOVEMENTS_LIMIT    = 500;
-const DEFAULT_LOW_STOCK_THRESHOLD = 5;
 
 type VariantGroup = { id: string; name: string; options: Array<{ id: string; name: string }> };
 
