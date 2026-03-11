@@ -18,6 +18,7 @@ import { Section } from "../../_designComponents/Section/Section";
 import { Row } from "../../_designComponents/Row/Row";
 import { Column } from "../../_designComponents/Column/Column";
 import { Tabs } from "../../_designComponents/Tabs/Tabs";
+import { Accordion } from "../../_designComponents/Accordion/Accordion";
 import { CRAFT_RESOLVER } from "../craftResolver";
 import { ImportedBlock } from "../../_designComponents/ImportedBlock/ImportedBlock";
 import { Spacer } from "../../_designComponents/Spacer/Spacer";
@@ -91,6 +92,7 @@ export const ComponentsPanel = () => {
       icon: <Layout className="w-5 h-5" />,
       color: "bg-cyan-500/10"
     },
+    { label: "Accordion", preview: "Accordion", element: <Accordion />, icon: <ChevronDown className="w-5 h-5" />, color: "bg-teal-500/10" },
     {
       label: "New Page",
       preview: "New Page",

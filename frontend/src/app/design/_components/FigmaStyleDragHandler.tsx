@@ -402,6 +402,7 @@ export const FigmaStyleDragHandler = () => {
       if (activeTool === "hand" || activeTool === "text" || activeTool === "shape") return;
 
       if (target.closest("INPUT") || target.closest("TEXTAREA") || target.closest("SELECT") || target.closest("[contenteditable=true]")) return;
+      if (target.closest("[data-canvas-interactive='true']")) return;
       if (document.body.dataset.spacePan === "true") return;
       if (target.closest("[data-panel='resize-overlay']")) return;
       if (target.closest("[data-panel]") && !target.closest("[data-panel='resize-overlay']")) return;

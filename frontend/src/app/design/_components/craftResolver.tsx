@@ -19,6 +19,7 @@ import { Circle } from "../../_assets/shapes/circle/circle";
 import { Square } from "../../_assets/shapes/square/square";
 import { Triangle } from "../../_assets/shapes/triangle/triangle";
 import { ImportedBlock } from "../_designComponents/ImportedBlock/ImportedBlock";
+import { Accordion } from "../_designComponents/Accordion/Accordion";
 
 type Resolver = Record<string, React.ComponentType<any>>;
 
@@ -72,6 +73,7 @@ export function buildCraftResolver(): Resolver {
   const ImportedBlockComp = asComponent(ImportedBlock, ContainerComp);
   const SpacerComp = asComponent(Spacer, ContainerComp);
   const PaginationComp = asComponent(Pagination, ContainerComp);
+  const AccordionComp = asComponent(Accordion, ContainerComp);
   const base: Resolver = {
     Container: ContainerComp,
     container: ContainerComp,
@@ -111,6 +113,8 @@ export function buildCraftResolver(): Resolver {
     triangle: TriangleComp,
     ImportedBlock: ImportedBlockComp,
     importedblock: ImportedBlockComp,
+    Accordion: AccordionComp,
+    accordion: AccordionComp,
     Spacer: SpacerComp,
     spacer: SpacerComp,
     SPACER: SpacerComp,
