@@ -11,6 +11,7 @@ import { Column } from "./Column/Column";
 import { Icon } from "./Icon/Icon";
 import { Frame } from "./Frame/Frame";
 import { ImportedBlock } from "./ImportedBlock/ImportedBlock";
+import { Accordion } from "./Accordion/Accordion";
 
 export const RenderBlocks: Record<string, any> = {
   Container,
@@ -38,4 +39,6 @@ export const RenderBlocks: Record<string, any> = {
   frame: Frame,
   ImportedBlock,
   importedblock: ImportedBlock,
+  Accordion,
+  accordion: Accordion,
 };

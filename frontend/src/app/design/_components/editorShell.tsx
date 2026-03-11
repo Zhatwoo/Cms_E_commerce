@@ -17,6 +17,7 @@ import { Viewport } from "../_designComponents/Viewport/Viewport";
 import { Section } from "../_designComponents/Section/Section";
 import { Image } from "../_designComponents/Image/Image";
 import { Button } from "../_designComponents/Button/Button";
+import { Accordion } from "../_designComponents/Accordion/Accordion";
 import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
@@ -171,6 +172,7 @@ function normalizeResolvedName(rawName: unknown): string {
   if (exact) return exact;
   if (lowered.includes("image")) return "Image";
   if (lowered.includes("text")) return "Text";
+  if (lowered.includes("accordion")) return "Accordion";
   if (lowered.includes("container")) return "Container";
   if (lowered.includes("page")) return "Page";
   if (lowered.includes("viewport")) return "Viewport";
@@ -2271,6 +2273,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     base.IMAGE = asComponent(CRAFT_RESOLVER.IMAGE ?? CRAFT_RESOLVER.Image ?? Image);
     base.Text = asComponent(CRAFT_RESOLVER.Text ?? Text);
     base.text = asComponent(CRAFT_RESOLVER.text ?? Text);
+    base.Accordion = asComponent(CRAFT_RESOLVER.Accordion ?? Accordion);
+    base.accordion = asComponent(CRAFT_RESOLVER.accordion ?? Accordion);
     return withResolverFallback(base);
   }, []);
 

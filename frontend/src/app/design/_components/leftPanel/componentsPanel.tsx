@@ -15,6 +15,7 @@ import { Section } from "../../_designComponents/Section/Section";
 import { Row } from "../../_designComponents/Row/Row";
 import { Column } from "../../_designComponents/Column/Column";
 import { Frame } from "../../_designComponents/Frame/Frame";
+import { Accordion } from "../../_designComponents/Accordion/Accordion";
 import { CRAFT_RESOLVER } from "../craftResolver";
 import { ImportedBlock } from "../../_designComponents/ImportedBlock/ImportedBlock";
 
@@ -100,7 +101,7 @@ export const ComponentsPanel = () => {
           name: "Advanced Layout",
           elements: [
             { name: "Tabs", icon: <Layers className="w-4 h-4" />, variants: [{ label: "Tabs", preview: "Tabs Preview", element: undefined }] },
-            { name: "Accordion", icon: <ChevronDown className="w-4 h-4" />, variants: [{ label: "Accordion", preview: "Accordion Preview", element: undefined }] },
+            { name: "Accordion", icon: <ChevronDown className="w-4 h-4" />, variants: [{ label: "Accordion", preview: "▾ Accordion", element: <Accordion /> }] },
             { name: "Card", icon: <Box className="w-4 h-4" />, variants: [{ label: "Card", preview: "Card Preview", element: undefined }] },
             { name: "Modal", icon: <Layers className="w-4 h-4" />, variants: [{ label: "Modal / Popup", preview: "Popup Preview", element: undefined }] },
             { name: "Sidebar", icon: <Columns className="w-4 h-4" />, variants: [{ label: "Sidebar", preview: "Sidebar Preview", element: undefined }] },
@@ -242,6 +243,7 @@ export const ComponentsPanel = () => {
     },
     { label: "Image", preview: "Image", element: <Image />, icon: <ImageIcon className="w-5 h-5" />, color: "bg-yellow-500/10" },
     { label: "Button", preview: "Button", element: <Element is={Button} canvas label="Click me" />, icon: <MousePointer2 className="w-5 h-5" />, color: "bg-red-500/10" },
+    { label: "Accordion", preview: "Accordion", element: <Accordion />, icon: <ChevronDown className="w-5 h-5" />, color: "bg-teal-500/10" },
     {
       label: "New Page",
       preview: "New Page",
