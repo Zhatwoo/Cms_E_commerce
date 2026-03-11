@@ -368,6 +368,7 @@ export default function InventoryPage() {
   const [deleteConfirmMovement, setDeleteConfirmMovement] = useState<InventoryMovement | null>(null);
   const [selectedMovementIds, setSelectedMovementIds]     = useState<string[]>([]);
   const [bulkDeleteMode, setBulkDeleteMode]               = useState<'selected' | 'all' | null>(null);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm]         = useState<{ mode: 'selected' | 'all'; count: number } | null>(null);
   const [loading, setLoading]                     = useState(true);
   const [error, setError]                         = useState<string | null>(null);
   const [adjustingId, setAdjustingId]             = useState<string | null>(null);
@@ -706,6 +707,16 @@ export default function InventoryPage() {
   const totalMovements = allMovements.length;
   const isBulkDeleting = Boolean(bulkDeleteMode);
   const isAllMovementsSelected = selectedCount > 0 && selectedCount === allMovementIds.length;
+  const openBulkDeleteConfirm = useCallback((mode: 'selected' | 'all') => {
+    const count = mode === 'selected' ? selectedMovementIds.length : allMovements.length;
+    if (count === 0) return;
+    setBulkDeleteConfirm({ mode, count });
+  }, [allMovements.length, selectedMovementIds.length]);
+
+  const closeBulkDeleteConfirm = useCallback(() => {
+    if (isBulkDeleting) return;
+    setBulkDeleteConfirm(null);
+  }, [isBulkDeleting]);
 
   const toggleMovementSelection = useCallback((movementId: string) => {
     setSelectedMovementIds((prev) => (prev.includes(movementId) ? prev.filter((id) => id !== movementId) : [...prev, movementId]));
@@ -719,10 +730,6 @@ export default function InventoryPage() {
   const deleteSelectedMovements = useCallback(async () => {
     const count = selectedMovementIds.length;
     if (count === 0) return;
-
-    const confirmed = window.confirm(`Delete these ${count} selected movement reports? This action cannot be undone.`);
-    if (!confirmed) return;
-
     try {
       setBulkDeleteMode('selected');
       const res = await bulkDeleteInventoryMovements({
@@ -750,9 +757,6 @@ export default function InventoryPage() {
   const deleteAllMovements = useCallback(async () => {
     const currentTotal = allMovements.length;
     if (currentTotal === 0) return;
-    const confirmed = window.confirm(`Delete all ${currentTotal} stock movement records? This cannot be undone.`);
-    if (!confirmed) return;
-
     try {
       setBulkDeleteMode('all');
       const res = await bulkDeleteInventoryMovements({
@@ -776,6 +780,16 @@ export default function InventoryPage() {
       setBulkDeleteMode(null);
     }
   }, [allMovements.length, loadAllMovements, loadData, selectedProject?.id, selectedSubdomain, showAllMovementsModal, showImportPopup]);
+
+  const confirmBulkDelete = useCallback(async () => {
+    if (!bulkDeleteConfirm) return;
+    if (bulkDeleteConfirm.mode === 'selected') {
+      await deleteSelectedMovements();
+    } else {
+      await deleteAllMovements();
+    }
+    setBulkDeleteConfirm(null);
+  }, [bulkDeleteConfirm, deleteAllMovements, deleteSelectedMovements]);
 
   const isAdjustingFromModal = Boolean(stockModal.product && adjustingId === stockModal.product.id);
   const modalOnHand = stockModal.product ? getStockNumbers(stockModal.product).onHand : 0;
@@ -1509,7 +1523,7 @@ export default function InventoryPage() {
                     </GhostBtn>
                     <button
                       type="button"
-                      onClick={() => { void deleteSelectedMovements(); }}
+                      onClick={() => openBulkDeleteConfirm('selected')}
                       disabled={selectedCount === 0 || isBulkDeleting}
                       style={{
                         ...brandActionButtonStyle,
@@ -1526,7 +1540,7 @@ export default function InventoryPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => { void deleteAllMovements(); }}
+                      onClick={() => openBulkDeleteConfirm('all')}
                       disabled={totalMovements === 0 || isBulkDeleting}
                       style={{
                         ...brandActionButtonStyle,
@@ -1605,6 +1619,53 @@ export default function InventoryPage() {
                   }}
                 >
                   {deletingMovementId ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </ModalBackdrop>
+        )}
+
+        {/* Bulk delete confirmation */}
+        {bulkDeleteConfirm && (
+          <ModalBackdrop onClose={closeBulkDeleteConfirm}>
+            <div style={{
+              background: '#1a1535', border: `1px solid ${T.cardBorder}`,
+              borderRadius: 20, width: '100%', maxWidth: 520, overflow: 'hidden',
+              boxShadow: '0 30px 80px rgba(0,0,0,0.6)',
+            }}>
+              <div style={{ padding: '24px 28px 14px', borderBottom: `1px solid ${T.cardBorder}` }}>
+                <h3 style={{ color: T.text, fontWeight: 700, margin: 0 }}>Delete Movements</h3>
+                <p style={{ color: T.textMuted, fontSize: 13, margin: '8px 0 0' }}>
+                  {bulkDeleteConfirm.mode === 'selected'
+                    ? `Delete these ${bulkDeleteConfirm.count} selected movement record${bulkDeleteConfirm.count === 1 ? '' : 's'}? This action cannot be undone.`
+                    : `Delete all ${bulkDeleteConfirm.count} stock movement records for this project? This cannot be undone.`}
+                </p>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '16px 28px 22px' }}>
+                <button
+                  type="button"
+                  onClick={closeBulkDeleteConfirm}
+                  disabled={isBulkDeleting}
+                  style={{
+                    background: 'transparent', border: 'none',
+                    color: T.textMuted, fontSize: 14, cursor: isBulkDeleting ? 'not-allowed' : 'pointer',
+                    padding: '10px 16px', opacity: isBulkDeleting ? 0.6 : 1,
+                  }}
+                >Cancel</button>
+                <button
+                  type="button"
+                  onClick={() => { void confirmBulkDelete(); }}
+                  disabled={isBulkDeleting}
+                  style={{
+                    ...brandActionButtonStyle,
+                    background: '#dc2626',
+                    cursor: isBulkDeleting ? 'not-allowed' : 'pointer',
+                    opacity: isBulkDeleting ? 0.6 : 1,
+                    height: 40,
+                    padding: '0 20px',
+                  }}
+                >
+                  {isBulkDeleting ? 'Deleting...' : 'Delete'}
                 </button>
               </div>
             </div>
