@@ -5,7 +5,7 @@ import { useTheme } from '../components/context/theme-context';
 import { useRouter, useSearchParams } from 'next/navigation';
 import DomeGallery from '../components/templates/DomeGallery';
 import { templateService, Template as FullTemplate } from '@/lib/templateService';
-import { createProject, listProjects, updateProject, deleteProject, listTrashedProjects, restoreProject, permanentDeleteProject, getMyDomains, getStoredUser, type Project } from '@/lib/api';
+import { createProject, updateProject, deleteProject, listTrashedProjects, restoreProject, permanentDeleteProject, getMyDomains, getStoredUser, type Project } from '@/lib/api';
 import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
 import { getLimits } from '@/lib/subscriptionLimits';
 import { INDUSTRY_OPTIONS } from '@/lib/industryCatalog';
@@ -371,12 +371,11 @@ export default function WebBuilderPage() {
   const { showAlert, showConfirm } = useAlert();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { selectedProject, setSelectedProjectId, loading: projectsLoadingFromContext } = useProject();
+  const { selectedProject, setSelectedProjectId, projects: contextProjects, loading: projectsLoadingFromContext, refreshProjects } = useProject();
   const [selectedCategory, setSelectedCategory] = useState('Type');
   const [previewTemplate, setPreviewTemplate] = useState<GalleryTemplate | null>(null);
   const [templates, setTemplates] = useState<GalleryTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'active' | 'trash'>('active');
   const [trashedProjects, setTrashedProjects] = useState<Project[]>([]);
@@ -393,19 +392,8 @@ export default function WebBuilderPage() {
   const [trashRetentionDays, setTrashRetentionDays] = useState(30);
   const [publishModalProject, setPublishModalProject] = useState<Project | null>(null);
 
+  const projects = contextProjects ?? [];
   const visibleProjects = projects;
-
-  const refreshProjects = async () => {
-    setProjectsLoading(true);
-    try {
-      const res = await listProjects();
-      if (res.success && res.projects) {
-        setProjects(res.projects);
-      }
-    } finally {
-      setProjectsLoading(false);
-    }
-  };
 
   // Load templates on mount
   useEffect(() => {
@@ -415,23 +403,9 @@ export default function WebBuilderPage() {
     setLoading(false);
   }, []);
 
-  // Load projects within selected instance only
   useEffect(() => {
-    let cancelled = false;
-    if (!selectedProject?.id) {
-      setProjects([]);
-      setProjectsLoading(false);
-      return;
-    }
-    setProjectsLoading(true);
-    listProjects()
-      .then((res) => {
-        if (!cancelled && res.success && res.projects) setProjects(res.projects);
-      })
-      .catch(() => { })
-      .finally(() => { if (!cancelled) setProjectsLoading(false); });
-    return () => { cancelled = true; };
-  }, [selectedProject?.id]);
+    setProjectsLoading(projectsLoadingFromContext);
+  }, [projectsLoadingFromContext]);
 
   // Load trashed projects when tab changes
   useEffect(() => {
@@ -589,7 +563,6 @@ export default function WebBuilderPage() {
     try {
       const res = await updateProject(renamingProject.id, { title: renameValue.trim() });
       if (res.success && res.project) {
-        setProjects((prev) => prev.map((x) => (x.id === res.project!.id ? { ...x, title: res.project!.title } : x)));
       }
     } catch (_) { }
     setRenamingProject(null);
@@ -609,7 +582,6 @@ export default function WebBuilderPage() {
         const user = getStoredUser();
         const clientName = (user?.name || user?.username || 'client').trim() || 'client';
         ensureProjectStorageFolder(clientName, res.project!.title || 'website').catch(() => { });
-        setProjects((prev) => [res.project!, ...prev]);
         await refreshProjects();
         router.push(`/design?projectId=${res.project!.id}`);
       }
@@ -636,7 +608,6 @@ export default function WebBuilderPage() {
         } else {
           showAlert(res.message || `Moved "${p.title}" to trash.`);
         }
-        setProjects((prev) => prev.filter((x) => x.id !== p.id));
         await refreshProjects();
         // If we are on the active tab, we might want to refresh the notification or count
       } else {
@@ -654,7 +625,6 @@ export default function WebBuilderPage() {
       if (res.success) {
         setTrashedProjects((prev) => prev.filter((x) => x.id !== p.id));
         // Add to active projects
-        setProjects((prev) => [res.project, ...prev]);
         await refreshProjects();
         showAlert(`Successfully restored "${p.title}"`);
       }

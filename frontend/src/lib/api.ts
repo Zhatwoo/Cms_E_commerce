@@ -339,8 +339,11 @@ export type Project = {
   collaboratorPermission?: "editor" | "viewer";
 };
 
-export async function listProjects(): Promise<{ success: boolean; projects: Project[] }> {
-  return apiFetch<{ success: boolean; projects: Project[] }>('/api/projects');
+export async function listProjects(options?: { includeShared?: boolean }): Promise<{ success: boolean; projects: Project[] }> {
+  const params = new URLSearchParams();
+  if (options?.includeShared === false) params.set('includeShared', 'false');
+  const qs = params.toString();
+  return apiFetch<{ success: boolean; projects: Project[] }>(qs ? `/api/projects?${qs}` : '/api/projects');
 }
 
 export async function createProject(params: {
