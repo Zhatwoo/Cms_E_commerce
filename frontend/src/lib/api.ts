@@ -885,6 +885,34 @@ export async function deleteInventoryMovement(
   );
 }
 
+export async function bulkDeleteInventoryMovements(params: {
+  ids?: string[];
+  deleteAll?: boolean;
+  subdomain?: string;
+  projectId?: string;
+}): Promise<{ success: boolean; message?: string; data?: { deleted?: number; missing?: string[] } }> {
+  const body: Record<string, unknown> = {};
+  if (params.deleteAll) body.deleteAll = true;
+  if (Array.isArray(params.ids) && params.ids.length > 0) body.ids = params.ids;
+
+  if (!body.deleteAll && (!body.ids || (Array.isArray(body.ids) && body.ids.length === 0))) {
+    throw new Error('Provide ids array or set deleteAll=true to delete movements.');
+  }
+
+  const query = new URLSearchParams();
+  if (params.subdomain) query.set('subdomain', params.subdomain);
+  if (params.projectId) query.set('projectId', params.projectId);
+  const qs = query.toString();
+
+  return apiFetch<{ success: boolean; message?: string; data?: { deleted?: number; missing?: string[] } }>(
+    qs ? `/api/inventory/movements/bulk-delete?${qs}` : '/api/inventory/movements/bulk-delete',
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }
+  );
+}
+
 export async function adjustInventoryStock(params: {
   productId: string;
   quantity?: number;

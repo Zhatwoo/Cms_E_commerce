@@ -18,6 +18,7 @@ import {
   adjustInventoryStock,
   createProduct,
   deleteInventoryMovement,
+  bulkDeleteInventoryMovements,
   getInventorySummary,
   importInventoryCsv,
   listInventory,
@@ -365,6 +366,9 @@ export default function InventoryPage() {
   const [allMovementsError, setAllMovementsError]         = useState<string | null>(null);
   const [deletingMovementId, setDeletingMovementId]       = useState<string | null>(null);
   const [deleteConfirmMovement, setDeleteConfirmMovement] = useState<InventoryMovement | null>(null);
+  const [selectedMovementIds, setSelectedMovementIds]     = useState<string[]>([]);
+  const [bulkDeleteMode, setBulkDeleteMode]               = useState<'selected' | 'all' | null>(null);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm]         = useState<{ mode: 'selected' | 'all'; count: number } | null>(null);
   const [loading, setLoading]                     = useState(true);
   const [error, setError]                         = useState<string | null>(null);
   const [adjustingId, setAdjustingId]             = useState<string | null>(null);
@@ -548,7 +552,11 @@ export default function InventoryPage() {
     }, [projectLoading, selectedSubdomain]);
 
   const openAllMovementsModal  = useCallback(() => { setShowAllMovementsModal(true); void loadAllMovements(); }, [loadAllMovements]);
-  const closeAllMovementsModal = useCallback(() => setShowAllMovementsModal(false), []);
+  const closeAllMovementsModal = useCallback(() => {
+    setShowAllMovementsModal(false);
+    setSelectedMovementIds([]);
+    setBulkDeleteMode(null);
+  }, []);
 
   useEffect(() => {
     if (!showAllMovementsModal) return;
@@ -556,6 +564,11 @@ export default function InventoryPage() {
     window.addEventListener('keydown', fn);
     return () => window.removeEventListener('keydown', fn);
   }, [showAllMovementsModal, closeAllMovementsModal]);
+
+  useEffect(() => {
+    if (!showAllMovementsModal) return;
+    setSelectedMovementIds((prev) => prev.filter((id) => allMovements.some((m) => m.id === id)));
+  }, [allMovements, showAllMovementsModal]);
 
   const getStockNumbers = useCallback((p: InventoryRow) => {
     const onHand       = Number(p.onHandStock ?? p.stock ?? 0);
@@ -669,6 +682,7 @@ export default function InventoryPage() {
       if (showAllMovementsModal) {
         await loadAllMovements();
       }
+      setSelectedMovementIds((prev) => prev.filter((id) => id !== deleteConfirmMovement.id));
       setDeleteConfirmMovement(null);
       showImportPopup('Inventory movement deleted.', 'success');
     } catch (err) {
@@ -687,6 +701,95 @@ export default function InventoryPage() {
     window.addEventListener('keydown', fn);
     return () => window.removeEventListener('keydown', fn);
   }, [closeDeleteMovementConfirm, deleteConfirmMovement]);
+
+  const allMovementIds = useMemo(() => allMovements.map((m) => m.id).filter(Boolean), [allMovements]);
+  const selectedCount = selectedMovementIds.length;
+  const totalMovements = allMovements.length;
+  const isBulkDeleting = Boolean(bulkDeleteMode);
+  const isAllMovementsSelected = selectedCount > 0 && selectedCount === allMovementIds.length;
+  const openBulkDeleteConfirm = useCallback((mode: 'selected' | 'all') => {
+    const count = mode === 'selected' ? selectedMovementIds.length : allMovements.length;
+    if (count === 0) return;
+    setBulkDeleteConfirm({ mode, count });
+  }, [allMovements.length, selectedMovementIds.length]);
+
+  const closeBulkDeleteConfirm = useCallback(() => {
+    if (isBulkDeleting) return;
+    setBulkDeleteConfirm(null);
+  }, [isBulkDeleting]);
+
+  const toggleMovementSelection = useCallback((movementId: string) => {
+    setSelectedMovementIds((prev) => (prev.includes(movementId) ? prev.filter((id) => id !== movementId) : [...prev, movementId]));
+  }, []);
+
+  const toggleSelectAllMovements = useCallback(() => {
+    if (allMovementIds.length === 0) return;
+    setSelectedMovementIds((prev) => (prev.length === allMovementIds.length ? [] : allMovementIds));
+  }, [allMovementIds]);
+
+  const deleteSelectedMovements = useCallback(async () => {
+    const count = selectedMovementIds.length;
+    if (count === 0) return;
+    try {
+      setBulkDeleteMode('selected');
+      const res = await bulkDeleteInventoryMovements({
+        ids: selectedMovementIds,
+        subdomain: selectedSubdomain || undefined,
+        projectId: selectedProject?.id ? String(selectedProject.id) : undefined,
+      });
+
+      await loadData();
+      if (showAllMovementsModal) await loadAllMovements();
+      setSelectedMovementIds([]);
+
+      const deletedCount = res.data?.deleted ?? count;
+      showImportPopup(res.message || `Deleted ${deletedCount} selected movement${deletedCount === 1 ? '' : 's'}.`, 'success');
+    } catch (err) {
+      showImportPopup(
+        err instanceof Error ? err.message : 'Failed to delete selected movements',
+        'error'
+      );
+    } finally {
+      setBulkDeleteMode(null);
+    }
+  }, [selectedMovementIds, selectedSubdomain, selectedProject?.id, loadData, loadAllMovements, showAllMovementsModal, showImportPopup]);
+
+  const deleteAllMovements = useCallback(async () => {
+    const currentTotal = allMovements.length;
+    if (currentTotal === 0) return;
+    try {
+      setBulkDeleteMode('all');
+      const res = await bulkDeleteInventoryMovements({
+        deleteAll: true,
+        subdomain: selectedSubdomain || undefined,
+        projectId: selectedProject?.id ? String(selectedProject.id) : undefined,
+      });
+
+      await loadData();
+      if (showAllMovementsModal) await loadAllMovements();
+      setSelectedMovementIds([]);
+
+      const deletedCount = res.data?.deleted ?? currentTotal;
+      showImportPopup(res.message || `Deleted all ${deletedCount} movement${deletedCount === 1 ? '' : 's'}.`, 'success');
+    } catch (err) {
+      showImportPopup(
+        err instanceof Error ? err.message : 'Failed to delete all movements',
+        'error'
+      );
+    } finally {
+      setBulkDeleteMode(null);
+    }
+  }, [allMovements.length, loadAllMovements, loadData, selectedProject?.id, selectedSubdomain, showAllMovementsModal, showImportPopup]);
+
+  const confirmBulkDelete = useCallback(async () => {
+    if (!bulkDeleteConfirm) return;
+    if (bulkDeleteConfirm.mode === 'selected') {
+      await deleteSelectedMovements();
+    } else {
+      await deleteAllMovements();
+    }
+    setBulkDeleteConfirm(null);
+  }, [bulkDeleteConfirm, deleteAllMovements, deleteSelectedMovements]);
 
   const isAdjustingFromModal = Boolean(stockModal.product && adjustingId === stockModal.product.id);
   const modalOnHand = stockModal.product ? getStockNumbers(stockModal.product).onHand : 0;
@@ -897,10 +1000,16 @@ export default function InventoryPage() {
     m,
     onDelete,
     isDeleting,
+    selectable,
+    selected,
+    onToggleSelect,
   }: {
     m: InventoryMovement;
     onDelete?: (movement: InventoryMovement) => void;
     isDeleting?: boolean;
+    selectable?: boolean;
+    selected?: boolean;
+    onToggleSelect?: (movementId: string) => void;
   }) => {
     const kind = String(m.type || '').toUpperCase();
     const color = kind === 'IN' ? T.green : kind === 'OUT' ? T.red : '#a5b4fc';
@@ -908,7 +1017,8 @@ export default function InventoryPage() {
     return (
       <div
         style={{
-          background: T.elevated, border: `1px solid ${T.cardBorder}`,
+          background: selected ? 'rgba(168,85,247,0.12)' : T.elevated,
+          border: `1px solid ${selected ? '#a855f7' : T.cardBorder}`,
           borderRadius: 10, padding: '11px 16px',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           marginBottom: 8, transition: 'border-color 0.15s, background 0.15s',
@@ -918,11 +1028,33 @@ export default function InventoryPage() {
           (e.currentTarget as HTMLDivElement).style.background  = 'rgba(255,255,255,0.03)';
         }}
         onMouseLeave={(e) => {
-          (e.currentTarget as HTMLDivElement).style.borderColor = T.cardBorder;
-          (e.currentTarget as HTMLDivElement).style.background  = T.elevated;
+          (e.currentTarget as HTMLDivElement).style.borderColor = selected ? '#a855f7' : T.cardBorder;
+          (e.currentTarget as HTMLDivElement).style.background  = selected ? 'rgba(168,85,247,0.12)' : T.elevated;
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {selectable && (
+            <label
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 24,
+                height: 24,
+                borderRadius: 7,
+                border: `1px solid ${selected ? '#a855f7' : T.cardBorder}`,
+                background: selected ? 'rgba(168,85,247,0.18)' : 'rgba(255,255,255,0.04)',
+                cursor: 'pointer',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={Boolean(selected)}
+                onChange={() => onToggleSelect?.(m.id)}
+                style={{ accentColor: '#a855f7', width: 14, height: 14, cursor: 'pointer' }}
+              />
+            </label>
+          )}
           <MovTypeBadge type={m.type || ''} />
           <div>
             <div style={{ fontSize: 13, color: T.text, fontWeight: 500 }}>{m.productName || 'Product'}</div>
@@ -939,7 +1071,7 @@ export default function InventoryPage() {
           {onDelete && (
             <button
               type="button"
-              onClick={() => onDelete(m)}
+              onClick={(e) => { e.stopPropagation(); onDelete(m); }}
               disabled={isDeleting}
               title={isDeleting ? 'Deleting movement...' : 'Delete movement'}
               style={{
@@ -1375,6 +1507,56 @@ export default function InventoryPage() {
                 </button>
               </div>
               <div style={{ maxHeight: '65vh', overflowY: 'auto', padding: '20px 28px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+                  <div style={{ color: T.textMuted, fontSize: 12 }}>
+                    {selectedCount > 0
+                      ? `${selectedCount} selected${isAllMovementsSelected ? ' (all)' : ''}`
+                      : `${totalMovements} total`}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <GhostBtn
+                      onClick={toggleSelectAllMovements}
+                      disabled={totalMovements === 0}
+                      style={{ fontSize: 12, padding: '6px 10px' }}
+                    >
+                      {isAllMovementsSelected ? 'Clear selection' : 'Select all'}
+                    </GhostBtn>
+                    <button
+                      type="button"
+                      onClick={() => openBulkDeleteConfirm('selected')}
+                      disabled={selectedCount === 0 || isBulkDeleting}
+                      style={{
+                        ...brandActionButtonStyle,
+                        background: '#b423f0',
+                        height: 34,
+                        padding: '0 14px',
+                        opacity: selectedCount === 0 || isBulkDeleting ? 0.6 : 1,
+                        cursor: selectedCount === 0 || isBulkDeleting ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {isBulkDeleting && bulkDeleteMode === 'selected'
+                        ? 'Deleting...'
+                        : `Delete Selected${selectedCount ? ` (${selectedCount})` : ''}`}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openBulkDeleteConfirm('all')}
+                      disabled={totalMovements === 0 || isBulkDeleting}
+                      style={{
+                        ...brandActionButtonStyle,
+                        background: '#dc2626',
+                        height: 34,
+                        padding: '0 14px',
+                        opacity: totalMovements === 0 || isBulkDeleting ? 0.6 : 1,
+                        cursor: totalMovements === 0 || isBulkDeleting ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {isBulkDeleting && bulkDeleteMode === 'all'
+                        ? 'Deleting all...'
+                        : `Delete All${totalMovements ? ` (${totalMovements})` : ''}`}
+                    </button>
+                  </div>
+                </div>
                 {loadingAllMovements ? (
                   <div style={{ textAlign: 'center', color: T.textMuted, padding: 32 }}>Loading…</div>
                 ) : allMovementsError ? (
@@ -1384,13 +1566,16 @@ export default function InventoryPage() {
                 ) : (
                   allMovements.map((m) => (
                     <MovementRow
-                      key={m.id}
-                      m={m}
-                      onDelete={openDeleteMovementConfirm}
-                      isDeleting={deletingMovementId === m.id}
-                    />
-                  ))
-                )}
+                        key={m.id}
+                        m={m}
+                        onDelete={openDeleteMovementConfirm}
+                        isDeleting={deletingMovementId === m.id}
+                        selectable
+                        selected={selectedMovementIds.includes(m.id)}
+                        onToggleSelect={toggleMovementSelection}
+                      />
+                    ))
+                  )}
               </div>
             </div>
           </ModalBackdrop>
@@ -1433,7 +1618,54 @@ export default function InventoryPage() {
                     padding: '0 20px',
                   }}
                 >
-                  {deletingMovementId ? 'Deletingâ€¦' : 'Delete'}
+                  {deletingMovementId ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </ModalBackdrop>
+        )}
+
+        {/* Bulk delete confirmation */}
+        {bulkDeleteConfirm && (
+          <ModalBackdrop onClose={closeBulkDeleteConfirm}>
+            <div style={{
+              background: '#1a1535', border: `1px solid ${T.cardBorder}`,
+              borderRadius: 20, width: '100%', maxWidth: 520, overflow: 'hidden',
+              boxShadow: '0 30px 80px rgba(0,0,0,0.6)',
+            }}>
+              <div style={{ padding: '24px 28px 14px', borderBottom: `1px solid ${T.cardBorder}` }}>
+                <h3 style={{ color: T.text, fontWeight: 700, margin: 0 }}>Delete Movements</h3>
+                <p style={{ color: T.textMuted, fontSize: 13, margin: '8px 0 0' }}>
+                  {bulkDeleteConfirm.mode === 'selected'
+                    ? `Delete these ${bulkDeleteConfirm.count} selected movement record${bulkDeleteConfirm.count === 1 ? '' : 's'}? This action cannot be undone.`
+                    : `Delete all ${bulkDeleteConfirm.count} stock movement records for this project? This cannot be undone.`}
+                </p>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '16px 28px 22px' }}>
+                <button
+                  type="button"
+                  onClick={closeBulkDeleteConfirm}
+                  disabled={isBulkDeleting}
+                  style={{
+                    background: 'transparent', border: 'none',
+                    color: T.textMuted, fontSize: 14, cursor: isBulkDeleting ? 'not-allowed' : 'pointer',
+                    padding: '10px 16px', opacity: isBulkDeleting ? 0.6 : 1,
+                  }}
+                >Cancel</button>
+                <button
+                  type="button"
+                  onClick={() => { void confirmBulkDelete(); }}
+                  disabled={isBulkDeleting}
+                  style={{
+                    ...brandActionButtonStyle,
+                    background: '#dc2626',
+                    cursor: isBulkDeleting ? 'not-allowed' : 'pointer',
+                    opacity: isBulkDeleting ? 0.6 : 1,
+                    height: 40,
+                    padding: '0 20px',
+                  }}
+                >
+                  {isBulkDeleting ? 'Deleting...' : 'Delete'}
                 </button>
               </div>
             </div>
