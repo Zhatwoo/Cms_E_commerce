@@ -28,7 +28,7 @@ type PreviewRect = {
     height: number;
 };
 
-const CANVAS_DISPLAY_NAMES = new Set(["Page", "Viewport", "Container", "Section", "Row", "Column", "Frame", "Button"]);
+const CANVAS_DISPLAY_NAMES = new Set(["Page", "Viewport", "Container", "Section", "Row", "Column", "Frame", "Button", "Tab Content"]);
 
 function isCanvasNode(nodes: Record<string, any>, nodeId: string | null): nodeId is string {
     if (!nodeId) return false;

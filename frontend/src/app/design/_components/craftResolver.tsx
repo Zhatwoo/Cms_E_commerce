@@ -14,8 +14,7 @@ import { Row } from "../_designComponents/Row/Row";
 import { Column } from "../_designComponents/Column/Column";
 import { Icon } from "../_designComponents/Icon/Icon";
 import { Tabs } from "../_designComponents/Tabs/Tabs";
-import { Spacer } from "../_designComponents/Spacer/Spacer";
-import { Pagination } from "../_designComponents/Pagination/Pagination";
+import { TabContent } from "../_designComponents/Tabs/TabContent";
 import { Circle } from "../../_assets/shapes/circle/circle";
 import { Square } from "../../_assets/shapes/square/square";
 import { Triangle } from "../../_assets/shapes/triangle/triangle";
@@ -63,6 +62,7 @@ export function buildCraftResolver(): Resolver {
   const DividerComp = asComponent(Divider, ContainerComp);
   const SectionComp = asComponent(Section, ContainerComp);
   const TabsComp = asComponent(Tabs, ContainerComp);
+  const TabContentComp = asComponent(TabContent, ContainerComp);
   const RowComp = asComponent(Row, ContainerComp);
   const ColumnComp = asComponent(Column, ContainerComp);
   const IconComp = asComponent(Icon, ContainerComp);
@@ -95,6 +95,8 @@ export function buildCraftResolver(): Resolver {
     section: SectionComp,
     Tabs: TabsComp,
     tabs: TabsComp,
+    TabContent: TabContentComp,
+    tabcontent: TabContentComp,
     Row: RowComp,
     row: RowComp,
     Column: ColumnComp,
