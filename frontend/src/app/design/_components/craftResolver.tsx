@@ -14,6 +14,7 @@ import { Row } from "../_designComponents/Row/Row";
 import { Column } from "../_designComponents/Column/Column";
 import { Icon } from "../_designComponents/Icon/Icon";
 import { Tabs } from "../_designComponents/Tabs/Tabs";
+import { TabContent } from "../_designComponents/Tabs/TabContent";
 import { Spacer } from "../_designComponents/Spacer/Spacer";
 import { Pagination } from "../_designComponents/Pagination/Pagination";
 import { Rating } from "../_designComponents/Rating/Rating";
@@ -22,8 +23,6 @@ import { Circle } from "../../_assets/shapes/circle/circle";
 import { Square } from "../../_assets/shapes/square/square";
 import { Triangle } from "../../_assets/shapes/triangle/triangle";
 import { ImportedBlock } from "../_designComponents/ImportedBlock/ImportedBlock";
-import { Spacer } from "../_designComponents/Spacer/Spacer";
-import { Pagination } from "../_designComponents/Pagination/Pagination";
 import { Accordion } from "../_designComponents/Accordion/Accordion";
 
 type Resolver = Record<string, React.ComponentType<any>>;
@@ -121,8 +120,8 @@ export function buildCraftResolver(): Resolver {
     triangle: TriangleComp,
     ImportedBlock: ImportedBlockComp,
     importedblock: ImportedBlockComp,
-    Accordion: AccordionComp,
-    accordion: AccordionComp,
+    Accordion: asComponent(Accordion, ContainerComp),
+    accordion: asComponent(Accordion, ContainerComp),
     Spacer: SpacerComp,
     spacer: SpacerComp,
     SPACER: SpacerComp,
