@@ -14,6 +14,8 @@ type DesignProjectContextType = {
   websiteName: string | null;
   /** User permission for this project */
   permission: "editor" | "viewer" | "owner";
+  /** Whether project data is still loading */
+  loading: boolean;
 };
 
 const DesignProjectContext = createContext<DesignProjectContextType>({
@@ -21,7 +23,8 @@ const DesignProjectContext = createContext<DesignProjectContextType>({
   pageId: null,
   clientName: null,
   websiteName: null,
-  permission: "editor",
+  permission: "viewer",
+  loading: true,
 });
 
 export function DesignProjectProvider({
@@ -35,7 +38,8 @@ export function DesignProjectProvider({
 }) {
   const [clientName, setClientName] = useState<string | null>(null);
   const [websiteName, setWebsiteName] = useState<string | null>(null);
-  const [permission, setPermission] = useState<"editor" | "viewer" | "owner">("editor");
+  const [permission, setPermission] = useState<"editor" | "viewer" | "owner">("viewer");
+  const [loading, setLoading] = useState(true);
 
   // Sync Firebase Auth when user has backend session (so Storage uploads work)
   useEffect(() => {
@@ -44,6 +48,7 @@ export function DesignProjectProvider({
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
 
     const user = getStoredUser();
     const name = (user?.name || user?.username || "client")?.trim() || "client";
@@ -62,13 +67,16 @@ export function DesignProjectProvider({
       })
       .catch(() => {
         if (!cancelled) setWebsiteName("website");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
 
     return () => { cancelled = true; };
   }, [projectId]);
 
   return (
-    <DesignProjectContext.Provider value={{ projectId, pageId: pageId || null, clientName, websiteName, permission }}>
+    <DesignProjectContext.Provider value={{ projectId, pageId: pageId || null, clientName, websiteName, permission, loading }}>
       {children}
     </DesignProjectContext.Provider>
   );
