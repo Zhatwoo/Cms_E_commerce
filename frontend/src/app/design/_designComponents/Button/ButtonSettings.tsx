@@ -3,7 +3,6 @@ import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
-import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
 import { ColorPicker } from "../../_components/rightPanel/settings/inputs/ColorPicker";
@@ -33,13 +32,12 @@ export const ButtonSettings = () => {
     label, link, variant,
     backgroundColor, textColor,
     fontSize, fontWeight, fontFamily,
-    borderRadius, borderColor, borderWidth,
+    borderRadius, borderWidth,
     width, height,
     paddingLeft, paddingRight, paddingTop, paddingBottom,
     marginLeft, marginRight, marginTop, marginBottom,
     opacity, boxShadow,
     rotation, flipHorizontal, flipVertical,
-    toggleTarget, triggerAction, collapsibleKey, defaultOpen, defaultOpenMobile, defaultOpenDesktop, showOn, mobileBreakpoint,
     actions: { setProp }
   } = useNode(node => ({
     label: node.data.props.label,
@@ -51,7 +49,6 @@ export const ButtonSettings = () => {
     fontWeight: node.data.props.fontWeight,
     fontFamily: node.data.props.fontFamily,
     borderRadius: node.data.props.borderRadius,
-    borderColor: node.data.props.borderColor,
     borderWidth: node.data.props.borderWidth,
     width: node.data.props.width,
     height: node.data.props.height,
@@ -68,14 +65,6 @@ export const ButtonSettings = () => {
     rotation: node.data.props.rotation,
     flipHorizontal: node.data.props.flipHorizontal,
     flipVertical: node.data.props.flipVertical,
-    toggleTarget: node.data.props.toggleTarget,
-    triggerAction: node.data.props.triggerAction,
-    collapsibleKey: node.data.props.collapsibleKey,
-    defaultOpen: node.data.props.defaultOpen,
-    defaultOpenMobile: node.data.props.defaultOpenMobile,
-    defaultOpenDesktop: node.data.props.defaultOpenDesktop,
-    showOn: node.data.props.showOn,
-    mobileBreakpoint: node.data.props.mobileBreakpoint,
   }));
 
   const typedSetProp = setProp as SetProp<ButtonProps>;

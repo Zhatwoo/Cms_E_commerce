@@ -19,6 +19,7 @@ import { Spacer } from "../_designComponents/Spacer/Spacer";
 import { Pagination } from "../_designComponents/Pagination/Pagination";
 import { Rating } from "../_designComponents/Rating/Rating";
 import { Banner } from "../_designComponents/Banner/banner";
+import { Badge } from "../_designComponents/Badge/badge";
 import { Circle } from "../../_assets/shapes/circle/circle";
 import { Square } from "../../_assets/shapes/square/square";
 import { Triangle } from "../../_assets/shapes/triangle/triangle";
@@ -72,6 +73,7 @@ export function buildCraftResolver(): Resolver {
   const ColumnComp = asComponent(Column, ContainerComp);
   const IconComp = asComponent(Icon, ContainerComp);
   const BannerComp = asComponent(Banner, ContainerComp);
+  const BadgeComp = asComponent(Badge, ContainerComp);
   const CircleComp = asComponent(Circle, ContainerComp);
   const SquareComp = asComponent(Square, ContainerComp);
   const TriangleComp = asComponent(Triangle, ContainerComp);
@@ -110,6 +112,8 @@ export function buildCraftResolver(): Resolver {
     column: ColumnComp,
     Banner: BannerComp,
     banner: BannerComp,
+    Badge: BadgeComp,
+    badge: BadgeComp,
     Icon: IconComp,
     icon: IconComp,
     Circle: CircleComp,

@@ -1,7 +1,7 @@
 const Project = require('../models/Project');
 const User = require('../models/User');
 const Domain = require('../models/Domain');
-const { deleteProjectStorageFolder, uploadClientMedia } = require('../utils/storageHelpers');
+const { deleteProjectStorageFolder, uploadClientMedia, getProjectStorageUsage } = require('../utils/storageHelpers');
 const { getLimits } = require('../utils/subscriptionLimits');
 const { getTrashRetentionDays } = require('../utils/trashConfig');
 const { resolveProjectOwner } = require('../utils/resolveProjectOwner');
@@ -13,10 +13,8 @@ exports.list = async (req, res) => {
   try {
     const userId = req.user.id;
     const userEmail = req.user.email;
-    const includeShared = req.query.includeShared !== 'false';
-
     const owned = await Project.list(userId);
-    const shared = includeShared ? await Project.listShared(userId, userEmail) : [];
+    const shared = await Project.listShared(userId, userEmail);
 
     // Merge and sort by updatedAt desc
     const projects = [...owned, ...shared].sort((a, b) => {
@@ -409,4 +407,83 @@ exports.permanentDelete = async (req, res) => {
       error: error.message,
     });
   }
+};
+
+// @desc    Get project storage usage
+// @route   GET /api/projects/:id/storage
+// @access  Private
+exports.getStorageUsage = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userEmail = (req.user.email || '').toLowerCase();
+    const projectId = req.params.id;
+
+    const resolved = await resolveProjectOwner(userId, projectId, userEmail);
+    if (!resolved) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found',
+      });
+    }
+
+    const project = await Project.get(resolved.ownerId, projectId);
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found',
+      });
+    }
+
+    const owner = await User.findById(resolved.ownerId);
+    if (!owner) {
+      return res.status(404).json({
+        success: false,
+        message: 'Owner not found',
+      });
+    }
+    const clientName = (owner.displayName || owner.username || owner.email || 'client').trim();
+
+    const storageBytes = await getProjectStorageUsage({
+      clientName,
+      websiteName: project.title,
+      userId: resolved.ownerId,
+      subdomain: project.subdomain,
+      projectId: project.id,
+    });
+
+    res.status(200).json({
+      success: true,
+      storageBytes,
+      storageReadable: formatBytes(storageBytes),
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message,
+    });
+  }
+};
+
+function formatBytes(bytes, decimals = 2) {
+  if (!bytes || bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+}
+
+module.exports = {
+  list: exports.list,
+  create: exports.create,
+  getOne: exports.getOne,
+  getBySubdomain: exports.getBySubdomain,
+  update: exports.update,
+  delete: exports.delete,
+  listTrash: exports.listTrash,
+  restore: exports.restore,
+  permanentDelete: exports.permanentDelete,
+  uploadMedia: exports.uploadMedia,
+  getStorageUsage: exports.getStorageUsage,
 };
