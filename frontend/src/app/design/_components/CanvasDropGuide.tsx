@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useEditor } from "@craftjs/core";
 
-const CANDIDATE_CANVAS_TYPES = new Set(["Page", "Container", "Section", "Row", "Column", "Frame", "Viewport"]);
+const CANDIDATE_CANVAS_TYPES = new Set(["Page", "Container", "Section", "Row", "Column", "Frame", "Viewport", "Tab Content"]);
 
 export function CanvasDropGuide() {
   const { query } = useEditor();

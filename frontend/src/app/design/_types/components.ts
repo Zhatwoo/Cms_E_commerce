@@ -287,6 +287,7 @@ export interface TabsProps
   extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps, AnimatableProps, InteractionProps {
   tabs: TabItem[];
   activeTabId: string;
+  tabAlignment?: "left" | "center" | "right";
   tabHeaderBackgroundColor?: string;
   tabHeaderTextColor?: string;
   activeTabBackgroundColor?: string;

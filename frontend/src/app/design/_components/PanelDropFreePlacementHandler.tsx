@@ -9,9 +9,9 @@ type MoveMode = "margin" | "offset" | "page-canvas";
 const MOVE_THRESHOLD_PX = 6;
 const MAX_RETRY_FRAMES = 20;
 const MAX_COLUMNS_PER_ROW = 5;
-const FLOW_LAYOUT_TYPES = new Set(["Row", "Section", "Container", "Viewport"]);
-const HORIZONTAL_COLUMN_PARENTS = new Set(["Row", "Section", "Container", "Column"]);
-const DROP_TARGET_CANVAS_TYPES = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame"]);
+const FLOW_LAYOUT_TYPES = new Set(["Row", "Section", "Container", "Viewport", "Tab Content"]);
+const HORIZONTAL_COLUMN_PARENTS = new Set(["Row", "Section", "Container", "Column", "Tab Content"]);
+const DROP_TARGET_CANVAS_TYPES = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame", "Tab Content"]);
 
 function isPanelSource(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
@@ -111,7 +111,7 @@ export function PanelDropFreePlacementHandler() {
           const node = (query.getState()?.nodes ?? {})[id] as { data?: { isCanvas?: boolean; displayName?: string } } | undefined;
           const displayName = node?.data?.displayName;
           const isCanvas = node?.data?.isCanvas === true;
-          if (isCanvas || (displayName && DROP_TARGET_CANVAS_TYPES.has(displayName))) {
+          if (isCanvas || (displayName && DROP_TARGET_CANVAS_TYPES.has(displayName)) || displayName === "Tab Content") {
             forcedDropTargetId = id;
             break;
           }
@@ -160,7 +160,7 @@ export function PanelDropFreePlacementHandler() {
           const displayName = latestNodes[nodeId]?.data?.displayName;
           const parentDisplayName = latestNodes[parentId]?.data?.displayName;
           const shouldImageFillParent =
-            displayName === "Image" && parentDisplayName === "Section";
+            displayName === "Image" && (parentDisplayName === "Section" || parentDisplayName === "Tab Content");
           if (displayName === "Column") {
             if (parentDisplayName && HORIZONTAL_COLUMN_PARENTS.has(parentDisplayName)) {
               actions.setProp(parentId, (props: Record<string, unknown>) => {

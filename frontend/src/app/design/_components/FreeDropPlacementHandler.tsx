@@ -20,7 +20,7 @@ type DropPoint = {
 type DragSourceKind = "asset" | "component" | "imported" | null;
 
 const MAX_RETRY_FRAMES = 24;
-const LAYOUT_LIKE_TYPES = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame"]);
+const LAYOUT_LIKE_TYPES = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame", "Tab Content"]);
 const SNAP_THRESHOLD = 16;
 const GRID_SIZE = 8;
 
@@ -162,13 +162,14 @@ export function FreeDropPlacementHandler() {
         const parentNode = nodes[parentId];
         const parentDisplayName = parentNode?.data?.displayName ?? "";
         const shouldImageFillParent =
-          displayName === "Image" && parentDisplayName === "Section";
+          displayName === "Image" && (parentDisplayName === "Section" || parentDisplayName === "Tab Content");
         const parentProps = (parentNode?.data?.props ?? {}) as Record<string, unknown>;
         const parentDisplay = String(parentProps.display ?? "flex").toLowerCase();
         const parentIsFreeform = parentProps.isFreeform === true;
         const isFlexParent =
           parentDisplay === "flex" ||
           parentDisplay === "grid" ||
+          parentDisplayName === "Tab Content" ||
           LAYOUT_LIKE_TYPES.has(parentDisplayName);
 
         let left = 0;
