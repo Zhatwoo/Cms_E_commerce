@@ -15,6 +15,7 @@ import { Spacer } from "./Spacer/Spacer";
 import { Pagination } from "./Pagination/Pagination";
 import { Rating } from "./Rating/Rating";
 import { ImportedBlock } from "./ImportedBlock/ImportedBlock";
+import { Accordion } from "./Accordion/Accordion";
 
 export const RenderBlocks: Record<string, any> = {
   Container,
@@ -50,4 +51,6 @@ export const RenderBlocks: Record<string, any> = {
   rating: Rating,
   ImportedBlock,
   importedblock: ImportedBlock,
+  Accordion,
+  accordion: Accordion,
 };

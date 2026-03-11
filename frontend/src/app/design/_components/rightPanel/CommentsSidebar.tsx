@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { MessageSquare, X, Check, Trash2, Search, Filter } from "lucide-react";
 import { useComments } from "../../_context/CommentsContext";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "date-fns/formatDistanceToNow";
 
 export const CommentsSidebar: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     const { comments, resolveComment, deleteComment, activeCommentId, setActiveCommentId } = useComments();

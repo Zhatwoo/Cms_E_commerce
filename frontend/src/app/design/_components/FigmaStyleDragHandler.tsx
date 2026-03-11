@@ -17,6 +17,7 @@ const CANVAS_DISPLAY_NAMES = new Set([
   "Column",
   "Frame",
   "Button",
+  "Tab Content",
 ]);
 const EDITOR_DRAGGING_FLAG = "editorDragging";
 const EDITOR_DROP_COMMIT_FLAG = "editorDropCommit";
@@ -24,7 +25,7 @@ const MULTI_DRAG_LOCK_FLAG = "multiDragLock";
 const BOX_SELECTING_FLAG = "boxSelecting";
 const BOX_SELECTING_INTENT_FLAG = "boxSelectingIntent";
 
-const FLOW_LAYOUT_PARENTS = new Set(["Container", "Section", "Row", "Column", "Frame"]);
+const FLOW_LAYOUT_PARENTS = new Set(["Container", "Section", "Row", "Column", "Frame", "Tab Content"]);
 const OFFSET_MOVE_TYPES = new Set(["Image", "Text", "Icon", "Button", "Circle", "Square", "Triangle"]);
 
 
@@ -401,6 +402,7 @@ export const FigmaStyleDragHandler = () => {
       if (activeTool === "hand" || activeTool === "text" || activeTool === "shape") return;
 
       if (target.closest("INPUT") || target.closest("TEXTAREA") || target.closest("SELECT") || target.closest("[contenteditable=true]")) return;
+      if (target.closest("[data-canvas-interactive='true']")) return;
       if (document.body.dataset.spacePan === "true") return;
       if (target.closest("[data-panel='resize-overlay']")) return;
       if (target.closest("[data-panel]") && !target.closest("[data-panel='resize-overlay']")) return;

@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
       'framer-motion',
     ],
   },
-  transpilePackages: ['firebase', '@firebase/app', '@firebase/auth', '@firebase/database', '@firebase/storage'],
+  transpilePackages: ['date-fns', 'firebase', '@firebase/app', '@firebase/auth', '@firebase/database', '@firebase/storage'],
   turbopack: {
     resolveAlias: {
       "@firebase/app": "./node_modules/@firebase/app/dist/esm/index.esm2017.js",

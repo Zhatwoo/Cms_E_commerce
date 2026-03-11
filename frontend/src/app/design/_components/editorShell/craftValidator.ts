@@ -50,6 +50,7 @@ export function normalizeResolvedName(rawName: unknown): string {
   if (exact) return exact;
   if (lowered.includes("image")) return "Image";
   if (lowered.includes("text")) return "Text";
+  if (lowered.includes("accordion")) return "Accordion";
   if (lowered.includes("container")) return "Container";
   if (lowered.includes("page")) return "Page";
   if (lowered.includes("viewport")) return "Viewport";
