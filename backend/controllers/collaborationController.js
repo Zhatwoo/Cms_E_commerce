@@ -27,30 +27,36 @@ exports.invite = async (req, res) => {
         const userId = req.user.id;
         const userEmail = (req.user.email || '').toLowerCase();
         const { projectId } = req.params;
-        const { email, permission = 'editor' } = req.body || {};
+        const { email } = req.body || {};
+        // Validate and standardize role (support both 'role' and 'permission' from body)
+        const role = (req.body.role || req.body.permission || 'editor').toString().toLowerCase().trim();
+        const allowed = ['viewer', 'editor'];
 
-        console.log(`[Collab] Invite request by user ${userId} (${userEmail}) for project ${projectId}`);
+        console.log(`[Collab] Invite request by user ${userId} (${userEmail}) for project ${projectId}. Role: ${role}, Inviting: ${email}`);
 
         if (!email) {
-            return res.status(400).json({ success: false, message: 'Email is required.' });
+            return res.status(400).json({ success: false, message: 'Invite email is required.' });
         }
 
-        // Check if the current user has permission to invite
+        if (!allowed.includes(role)) {
+            console.warn(`[Collab] Invalid role attempt: ${role}`);
+            return res.status(400).json({ success: false, message: 'Invalid role chosen. Use "viewer" or "editor".' });
+        }
+
+        // Check if the current user has permission to invite (Owner or Editor)
         const resolved = await resolveProjectOwner(userId, projectId, userEmail);
-        console.log(`[Collab] Resolved permission for ${userId}:`, resolved);
+        console.log(`[Collab] Requester permission for ${projectId}:`, resolved);
 
         if (!resolved || (resolved.permission !== 'owner' && resolved.permission !== 'editor')) {
             console.log(`[Collab] Permission denied for invite.`);
-            return res.status(403).json({ success: false, message: 'You do not have permission to invite collaborators to this project.' });
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied. Only the project owner or designated editors can invite collaborators.'
+            });
         }
-        const ownerId = resolved.ownerId;
-        console.log(`[Collab] Using ownerId: ${ownerId}`);
 
-        // Validate permission value
-        const allowed = ['viewer', 'editor'];
-        if (!allowed.includes(permission)) {
-            return res.status(400).json({ success: false, message: 'Invalid permission. Use "viewer" or "editor".' });
-        }
+        const ownerId = resolved.ownerId;
+        const permission = role; // Standardize on 'permission' for internal legacy but use 'role' for DB
 
         // Find target user by email
         const userSnap = await db.collection('user').doc('roles').collection('client').get();
@@ -71,15 +77,35 @@ exports.invite = async (req, res) => {
         const usedColors = existingSnap.docs.map(d => d.data().color).filter(Boolean);
         const color = COLLAB_COLORS.find(c => !usedColors.includes(c)) || COLLAB_COLORS[existingSnap.size % COLLAB_COLORS.length];
 
+        // Fetch owner and project info for better tracking
+        let ownerName = 'Unknown';
+        let ownerEmail = '';
+        try {
+            const ownerSnap = await db.collection('user').doc('roles').collection('client').doc(ownerId).get();
+            if (ownerSnap.exists) {
+                const oData = ownerSnap.data();
+                ownerName = oData.displayName || oData.username || oData.name || ownerName;
+                ownerEmail = oData.email || '';
+            }
+        } catch (e) { console.warn('[Collab] Owner fetch fail:', e.message); }
+
         const collabData = {
             email: email.toLowerCase(),
-            permission,
-            status: targetUser ? 'active' : 'pending',
+            role: permission, // User requested 'role'
+            status: targetUser ? 'accepted' : 'pending', // Aligning status with what's shown in screenshot
             userId: targetUser?.id || null,
             displayName: targetUser?.displayName || targetUser?.username || email.split('@')[0],
+            name: targetUser?.displayName || targetUser?.username || email.split('@')[0],
+            avatar: targetUser?.avatar || null,
             color,
             invitedAt: new Date().toISOString(),
-            invitedBy: ownerId,
+            invitedBy: userId, // The person who clicked invite
+            invitedByName: req.user.displayName || req.user.username || req.user.name || 'Unknown',
+            ownerId,
+            ownerName,
+            ownerEmail,
+            projectId,
+            updatedAt: new Date().toISOString(),
         };
 
         // Use email as doc ID (sanitized)
@@ -138,9 +164,59 @@ exports.list = async (req, res) => {
 
         const collabRef = getCollabRef(ownerId, projectId);
         const snap = await collabRef.get();
-        const collaborators = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const collaborators = snap.docs.map(d => {
+            const data = d.data();
+            return {
+                id: d.id,
+                ...data,
+                role: data.role || data.permission || 'viewer',
+                permission: data.role || data.permission || 'viewer',
+                status: data.status || 'pending',
+                displayName: data.displayName || data.name || data.email?.split('@')[0] || 'Unknown',
+            };
+        });
 
-        res.status(200).json({ success: true, collaborators });
+        // Resolve owner details
+        let owner = {
+            id: ownerId,
+            email: '(hidden)',
+            displayName: 'Project Owner',
+            role: 'owner',
+            status: 'active',
+            color: '#6c8fff'
+        };
+
+        try {
+            const ownerSnap = await db.collection('user').doc('roles').collection('client').doc(ownerId).get();
+            if (ownerSnap.exists) {
+                const oData = ownerSnap.data();
+                owner = {
+                    ...owner,
+                    email: oData.email || owner.email,
+                    displayName: oData.displayName || oData.username || oData.name || owner.displayName,
+                };
+            }
+        } catch (e) {
+            console.warn('[Collab] Owner detail fail:', e.message);
+        }
+
+        let generalAccess = "restricted";
+        let generalAccessRole = "viewer";
+        try {
+            const pSnap = await db.collection('user').doc('roles').collection('client').doc(ownerId).collection('projects').doc(projectId).get();
+            if (pSnap.exists) {
+                if (pSnap.data().general_access) {
+                    generalAccess = pSnap.data().general_access;
+                }
+                if (pSnap.data().general_access_role) {
+                    generalAccessRole = pSnap.data().general_access_role;
+                }
+            }
+        } catch (e) {
+            console.warn('[Collab] Project general_access fetch fail:', e.message);
+        }
+
+        res.status(200).json({ success: true, collaborators, owner, generalAccess, generalAccessRole });
     } catch (err) {
         console.error('[collaborationController.list]', err);
         res.status(500).json({ success: false, message: err.message || 'Server error' });
@@ -160,8 +236,9 @@ exports.updatePermission = async (req, res) => {
         console.log(`[Collab] Update permission request by user ${userId} for collab ${collabId} in project ${projectId}`);
 
         const allowed = ['viewer', 'editor'];
-        if (!allowed.includes(permission)) {
-            return res.status(400).json({ success: false, message: 'Invalid permission.' });
+        const role = req.body.role || req.body.permission; // Support both for now
+        if (!allowed.includes(role)) {
+            return res.status(400).json({ success: false, message: 'Invalid role.' });
         }
 
         const resolved = await resolveProjectOwner(userId, projectId, userEmail);
@@ -179,7 +256,10 @@ exports.updatePermission = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Collaborator not found.' });
         }
 
-        await collabRef.update({ permission });
+        await collabRef.update({
+            role,
+            updatedAt: new Date().toISOString()
+        });
 
         res.status(200).json({ success: true, message: 'Permission updated.' });
     } catch (err) {
@@ -263,7 +343,8 @@ exports.sharedWithMe = async (req, res) => {
                             ownerId,
                             ownerName: clientDoc.data()?.displayName || clientDoc.data()?.username || 'Unknown',
                             ...projectData,
-                            myPermission: data.permission,
+                            myRole: data.role || data.permission,
+                            myPermission: data.role || data.permission, // Keep for compat
                             myColor: data.color,
                         });
                     }

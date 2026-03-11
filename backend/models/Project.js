@@ -64,6 +64,8 @@ async function update(userId, projectId, data) {
   if (data.industry !== undefined) updates.industry = (data.industry || '').toString().trim() || null;
   if (data.subdomain !== undefined) updates.subdomain = (data.subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || null;
   if (data.thumbnail !== undefined) updates.thumbnail = data.thumbnail || null;
+  if (data.general_access !== undefined) updates.general_access = data.general_access;
+  if (data.general_access_role !== undefined) updates.general_access_role = data.general_access_role;
   if (Object.keys(updates).length === 0) return get(userId, projectId);
   updates.updated_at = new Date();
   await ref.update(updates);
@@ -275,11 +277,13 @@ async function listShared(userId, userEmail) {
 
           if (matchEmail || matchId) {
             const ownerData = ownerDoc.data();
+            const role = data.role || data.permission;
             sharedProjects.push({
               ...sanitizeProject(docToObject(projectDoc)),
               ownerId,
               ownerName: ownerData.full_name || ownerData.displayName || ownerData.username || 'Unknown',
-              collaboratorPermission: data.permission,
+              collaboratorRole: role,
+              collaboratorPermission: role,
               isShared: true,
             });
           }

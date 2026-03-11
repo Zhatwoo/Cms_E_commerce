@@ -1,6 +1,65 @@
 // controllers/pageController.js
 const Page = require('../models/Page');
+const { db } = require('../config/firebase');
 const { resolveProjectOwner } = require('../utils/resolveProjectOwner');
+
+const COLLAB_COLORS = [
+  '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+  '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
+];
+
+/**
+ * Auto-registers a public-link user as a collaborator if not already present.
+ */
+async function ensurePublicCollaborator(ownerId, projectId, userId, userEmail, role) {
+  try {
+    const collabRef = db
+      .collection('user').doc('roles')
+      .collection('client').doc(ownerId)
+      .collection('projects').doc(projectId)
+      .collection('collaborators');
+
+    // Check if already exists
+    let existing = await collabRef.where('userId', '==', userId).limit(1).get();
+    if (existing.empty && userEmail) {
+      existing = await collabRef.where('email', '==', userEmail).limit(1).get();
+    }
+    if (!existing.empty) return; // Already registered
+
+    // Fetch user details
+    let displayName = userEmail?.split('@')[0] || 'User';
+    let avatar = null;
+    try {
+      const userSnap = await db.collection('user').doc('roles').collection('client').doc(userId).get();
+      if (userSnap.exists) {
+        const d = userSnap.data();
+        displayName = d.displayName || d.username || d.name || displayName;
+        avatar = d.avatar || null;
+      }
+    } catch { /* ignore */ }
+
+    // Assign color
+    const existingSnap = await collabRef.get();
+    const usedColors = existingSnap.docs.map(d => d.data().color).filter(Boolean);
+    const color = COLLAB_COLORS.find(c => !usedColors.includes(c)) || COLLAB_COLORS[existingSnap.size % COLLAB_COLORS.length];
+
+    await collabRef.add({
+      userId,
+      email: userEmail || '',
+      displayName,
+      name: displayName,
+      avatar,
+      color,
+      role: role || 'viewer',
+      status: 'active',
+      joinedViaLink: true,
+      createdAt: new Date().toISOString(),
+    });
+    console.log(`[PageController] Auto-registered public user ${userId} (${userEmail}) as ${role} in project ${projectId}`);
+  } catch (err) {
+    console.warn('[PageController] ensurePublicCollaborator failed:', err.message);
+  }
+}
 
 // @desc    Get all pages
 // @route   GET /api/pages
@@ -252,6 +311,11 @@ exports.getDraft = async (req, res) => {
         success: false,
         message: 'You do not have access to this project'
       });
+    }
+
+    // Auto-register public-link users as collaborators so they appear in People with Access
+    if (resolved.isPublic) {
+      await ensurePublicCollaborator(resolved.ownerId, projectId, userId, userEmail, resolved.permission);
     }
 
     const { ownerId } = resolved;
