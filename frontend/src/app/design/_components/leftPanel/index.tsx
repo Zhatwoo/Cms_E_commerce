@@ -462,16 +462,18 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
             <FileStack className="w-4 h-4 shrink-0" />
             <span>Files</span>
           </button>
-          <button
-            type="button"
-            onClick={() => setActivePanel("components")}
-            className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "components"
-              ? "text-brand-lighter bg-brand-medium/50 shadow-sm"
-              : "text-brand-light hover:text-brand-lighter"}`}
-          >
-            <Component className="w-4 h-4 shrink-0" />
-            <span>Components</span>
-          </button>
+          {permission !== "viewer" && (
+            <button
+              type="button"
+              onClick={() => setActivePanel("components")}
+              className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "components"
+                ? "text-brand-lighter bg-brand-medium/50 shadow-sm"
+                : "text-brand-light hover:text-brand-lighter"}`}
+            >
+              <Component className="w-4 h-4 shrink-0" />
+              <span>Components</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setActivePanel("media")}

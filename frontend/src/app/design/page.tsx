@@ -43,7 +43,11 @@ function DesignContent() {
 }
 
 function DesignContentInner({ projectId, pageId }: { projectId: string, pageId: string | null }) {
-  const { permission } = useDesignProject();
+  const { permission, loading } = useDesignProject();
+
+  if (loading) {
+    return <LoadingPlaceholder />;
+  }
 
   return (
     <CollaborationProvider projectId={projectId} permission={permission === "owner" ? "editor" : permission}>

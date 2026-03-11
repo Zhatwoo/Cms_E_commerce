@@ -102,8 +102,18 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   const [showSizeDropdown, setShowSizeDropdown] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<DevicePreset | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<{
+    displayName: string;
+    email: string;
+    role: string;
+    color: string;
+    isSelf?: boolean;
+  } | null>(null);
 
   const sizeDropdownRef = useRef<HTMLDivElement>(null);
+  const userModalRef = useRef<HTMLDivElement>(null);
+  const collabListRef = useRef<HTMLDivElement>(null);
+  const [showCollabList, setShowCollabList] = useState(false);
 
   // Get collaboration state
   const { collaborators, myColor, connected } = useCollaboration();
@@ -131,6 +141,18 @@ export const TopPanel: React.FC<TopPanelProps> = ({
       ) {
         setShowSizeDropdown(false);
       }
+      if (
+        userModalRef.current &&
+        !userModalRef.current.contains(event.target as Node)
+      ) {
+        setSelectedUser(null);
+      }
+      if (
+        collabListRef.current &&
+        !collabListRef.current.contains(event.target as Node)
+      ) {
+        setShowCollabList(false);
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
@@ -139,6 +161,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
 
 
   const handleRotateCanvas = () => {
+    if (projectPermission === "viewer") return;
     try {
       const state = query.getState();
       const nodes = state.nodes ?? {};
@@ -198,6 +221,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   };
 
   const handlePresetSelect = useCallback((preset: DevicePreset) => {
+    if (projectPermission === "viewer") return;
     setSelectedPreset(preset);
 
     // Update all Page nodes with the new width
@@ -275,29 +299,75 @@ export const TopPanel: React.FC<TopPanelProps> = ({
         {/* Right Section - Collaboration + Mobile view toggle + Display size presets */}
         <div className="flex items-center gap-2">
           {/* Collaborator Avatar Stack */}
-          <div className="flex items-center">
+          <div className="flex items-center relative">
+            {/* User Detail Popover */}
+            {selectedUser && (
+              <div
+                ref={userModalRef}
+                className="absolute top-full left-0 mt-3 w-64 bg-[#1a1a2e]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl z-[1000] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
+              >
+                <div
+                  className="h-1.5 w-full"
+                  style={{ background: selectedUser.color }}
+                />
+                <div className="p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-lg"
+                      style={{ background: selectedUser.color }}
+                    >
+                      {selectedUser.displayName.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-white truncate">
+                        {selectedUser.displayName}
+                        {selectedUser.isSelf && <span className="ml-1.5 text-[10px] text-blue-400 font-black uppercase tracking-widest">(You)</span>}
+                      </p>
+                      <p className="text-[11px] text-white/40 truncate">{selectedUser.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-white/5 border border-white/5">
+                    <span className="text-[10px] text-white/30 font-bold uppercase tracking-widest">Role</span>
+                    <span className="text-[10px] text-blue-400 font-black uppercase tracking-widest">{selectedUser.role}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Self avatar */}
-            <div
-              className="relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-brand-dark cursor-default z-10"
+            <button
+              onClick={() => setSelectedUser({
+                displayName: selfUser?.name || selfUser?.username || "You",
+                email: selfUser?.email || "",
+                role: projectPermission,
+                color: myColor,
+                isSelf: true
+              })}
+              className="relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-brand-dark cursor-pointer z-10 hover:scale-105 active:scale-95 transition-all"
               style={{ background: myColor }}
-              title={`You (${projectPermission})`}
             >
               {selfInitial}
               {/* Online indicator */}
               {connected && (
                 <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-1 ring-brand-dark" />
               )}
-            </div>
+            </button>
+
             {/* Remote collaborators (max 3 visible) */}
             {collaborators.slice(0, 3).map((collab, i) => (
-              <div
+              <button
                 key={collab.socketId}
-                className="relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-brand-dark -ml-2 cursor-default"
+                onClick={() => setSelectedUser({
+                  displayName: collab.displayName,
+                  email: collab.email || "No email provided",
+                  role: collab.role,
+                  color: collab.color
+                })}
+                className="relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-brand-dark -ml-2 cursor-pointer hover:scale-105 active:scale-95 transition-all"
                 style={{ background: collab.color, zIndex: 9 - i }}
-                title={`${collab.displayName} (${collab.permission})`}
               >
                 {(collab.displayName || "?").charAt(0).toUpperCase()}
-              </div>
+              </button>
             ))}
             {collaborators.length > 3 && (
               <div
@@ -305,6 +375,83 @@ export const TopPanel: React.FC<TopPanelProps> = ({
                 title={`${collaborators.length - 3} more collaborators`}
               >
                 +{collaborators.length - 3}
+              </div>
+            )}
+
+            {/* Dropdown button for all collaborators */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowCollabList(!showCollabList);
+                setSelectedUser(null);
+              }}
+              className="ml-2 w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
+            >
+              <ChevronDown className={`w-4 h-4 text-white/70 transition-transform duration-200 ${showCollabList ? "rotate-180" : ""}`} />
+            </button>
+
+            {showCollabList && (
+              <div
+                ref={collabListRef}
+                className="absolute top-full left-0 mt-3 w-72 bg-[#1a1a2e]/98 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl z-[1000] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
+              >
+                <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between bg-white/5">
+                  <span className="text-[11px] uppercase tracking-widest font-black text-white/50">Collaborators</span>
+                  <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">{collaborators.length + 1} Active</span>
+                </div>
+                <div className="max-h-[300px] overflow-y-auto p-2 flex flex-col gap-1">
+                  {/* Self */}
+                  <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
+                    onClick={() => {
+                      setSelectedUser({
+                        displayName: selfUser?.name || selfUser?.username || "You",
+                        email: selfUser?.email || "",
+                        role: projectPermission,
+                        color: myColor,
+                        isSelf: true
+                      });
+                      setShowCollabList(false);
+                    }}
+                  >
+                    <div className="relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ background: myColor }}>
+                      {selfInitial}
+                      {connected && <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[#1a1a2e]" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-white truncate">
+                        {selfUser?.name || selfUser?.username || "You"}
+                        <span className="ml-1.5 text-[10px] text-blue-400 font-black uppercase tracking-widest">(You)</span>
+                      </p>
+                      <p className="text-[11px] text-white/40 truncate">{selfUser?.email}</p>
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">{projectPermission}</span>
+                  </div>
+
+                  {/* Others */}
+                  {collaborators.map(collab => (
+                    <div key={collab.socketId} className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
+                      onClick={() => {
+                        setSelectedUser({
+                          displayName: collab.displayName,
+                          email: collab.email || "No email provided",
+                          role: collab.role,
+                          color: collab.color
+                        });
+                        setShowCollabList(false);
+                      }}
+                    >
+                      <div className="relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ background: collab.color }}>
+                        {(collab.displayName || "?").charAt(0).toUpperCase()}
+                        <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[#1a1a2e]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-white truncate">{collab.displayName}</p>
+                        <p className="text-[11px] text-white/40 truncate">{collab.email}</p>
+                      </div>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">{collab.role}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
