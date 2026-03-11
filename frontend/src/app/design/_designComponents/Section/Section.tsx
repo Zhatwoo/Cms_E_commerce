@@ -1,5 +1,5 @@
 import React from "react";
-import { useNode } from "@craftjs/core";
+import { useNode, useEditor } from "@craftjs/core";
 import { SectionSettings } from "./SectionSettings";
 import type { ContainerProps } from "../../_types/components";
 
@@ -82,6 +82,7 @@ export const Section = ({
   } = useNode((node) => ({
     childCount: node.data.nodes.length,
   }));
+  const { actions } = useEditor();
   const isHeaderAsset = /header/i.test(id ?? "");
   const hasChildren = childCount > 0 || React.Children.count(children) > 0;
 

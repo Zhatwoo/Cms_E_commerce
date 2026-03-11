@@ -127,7 +127,7 @@ function rowBadge(status: string, colors: ReturnType<typeof useTheme>['colors'])
 
 export default function OrdersPage() {
   const { colors } = useTheme();
-  const { selectedProject } = useProject();
+  const { selectedProject, loading: projectLoading } = useProject();
   const selectedSubdomain = normalizeSubdomain(selectedProject?.subdomain);
   const [orders, setOrders] = useState<ApiPublishedOrder[]>([]);
   const [search, setSearch] = useState('');
@@ -150,8 +150,17 @@ export default function OrdersPage() {
   const [tabIndicator, setTabIndicator] = useState({ left: 0, width: 0, ready: false });
 
   const loadOrders = useCallback(async () => {
+    if (projectLoading) {
+      setLoading(true);
+      return;
+    }
     setLoading(true);
     setError(null);
+    if (!selectedSubdomain) {
+      setOrders([]);
+      setLoading(false);
+      return;
+    }
     try {
       const res = await listMyPublishedOrders({ subdomain: selectedSubdomain || undefined, limit: 200, page: 1 });
       setOrders(Array.isArray(res.items) ? res.items : []);
@@ -160,10 +169,10 @@ export default function OrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedSubdomain]);
+  }, [projectLoading, selectedSubdomain]);
 
   useEffect(() => {
-    loadOrders();
+    void loadOrders();
   }, [loadOrders]);
 
   const filtered = useMemo(() => {

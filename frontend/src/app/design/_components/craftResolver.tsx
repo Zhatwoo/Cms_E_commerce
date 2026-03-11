@@ -6,13 +6,13 @@ import { Text } from "../_designComponents/Text/Text";
 import { Page } from "../_designComponents/Page/Page";
 import { Viewport } from "../_designComponents/Viewport/Viewport";
 import { Image } from "../_designComponents/Image/Image";
+import { Video } from "../_designComponents/Video/Video";
 import { Button } from "../_designComponents/Button/Button";
 import { Divider } from "../_designComponents/Divider/Divider";
 import { Section } from "../_designComponents/Section/Section";
 import { Row } from "../_designComponents/Row/Row";
 import { Column } from "../_designComponents/Column/Column";
 import { Icon } from "../_designComponents/Icon/Icon";
-import { Frame } from "../_designComponents/Frame/Frame";
 import { Tabs } from "../_designComponents/Tabs/Tabs";
 import { TabContent } from "../_designComponents/Tabs/TabContent";
 import { Circle } from "../../_assets/shapes/circle/circle";
@@ -53,9 +53,9 @@ export function buildCraftResolver(): Resolver {
   const ContainerComp: React.ComponentType<any> =
     (typeof Container === "function" ? Container : null) ??
     ((props: any) => React.createElement("div", props, props?.children));
-  const FrameComp = asComponent(Frame, ContainerComp);
   const TextComp = asComponent(Text, ContainerComp);
   const ImageComp = asComponent(Image, ContainerComp);
+  const VideoComp = asComponent(Video, ContainerComp);
   const PageComp = asComponent(Page, ContainerComp);
   const ViewportComp = asComponent(Viewport, ContainerComp);
   const ButtonComp = asComponent(Button, ContainerComp);
@@ -70,9 +70,9 @@ export function buildCraftResolver(): Resolver {
   const SquareComp = asComponent(Square, ContainerComp);
   const TriangleComp = asComponent(Triangle, ContainerComp);
   const ImportedBlockComp = asComponent(ImportedBlock, ContainerComp);
+  const SpacerComp = asComponent(Spacer, ContainerComp);
+  const PaginationComp = asComponent(Pagination, ContainerComp);
   const base: Resolver = {
-    Frame: FrameComp,
-    frame: FrameComp,
     Container: ContainerComp,
     container: ContainerComp,
     CONTAINER: ContainerComp,
@@ -85,6 +85,9 @@ export function buildCraftResolver(): Resolver {
     Image: ImageComp,
     image: ImageComp,
     IMAGE: ImageComp,
+    Video: VideoComp,
+    video: VideoComp,
+    VIDEO: VideoComp,
     Button: ButtonComp,
     button: ButtonComp,
     Divider: DividerComp,
@@ -108,9 +111,13 @@ export function buildCraftResolver(): Resolver {
     triangle: TriangleComp,
     ImportedBlock: ImportedBlockComp,
     importedblock: ImportedBlockComp,
+    Spacer: SpacerComp,
+    spacer: SpacerComp,
+    SPACER: SpacerComp,
+    Pagination: PaginationComp,
+    pagination: PaginationComp,
+    PAGINATION: PaginationComp,
   };
-  base.Frame = FrameComp;
-  base.frame = FrameComp;
   base.Image = ImageComp;
   base.image = ImageComp;
   base.Text = TextComp;

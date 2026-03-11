@@ -66,11 +66,11 @@ export type ComponentType =
   | "Row"
   | "Column"
   | "Icon"
-  | "Frame"
   | "Circle"
   | "Square"
   | "Triangle"
-  | "Tabs";
+  | "Tabs"
+  | "ImportedBlock";
 
 /** A single node in the document. */
 export interface CleanNode {

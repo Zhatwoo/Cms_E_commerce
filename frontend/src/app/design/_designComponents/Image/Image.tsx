@@ -1,13 +1,20 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { Plus } from "lucide-react";
 import { useEditor, useNode } from "@craftjs/core";
 import { ImageSettings } from "./ImageSettings";
 import type { ImageProps } from "../../_types/components";
+
+declare global {
+  interface Window {
+    __CRAFT_REPLACE_DRAG?: boolean;
+  }
+}
 
 export const Image = ({
   src,
   alt = "Image",
   objectFit = "cover",
-  width = "100%",
+  width = "320px",
   height = "auto",
   borderRadius = 0,
   radiusTopLeft,
@@ -30,15 +37,38 @@ export const Image = ({
   flipHorizontal = false,
   flipVertical = false,
   customClassName = "",
+  _isDraggingSource = false,
 }: ImageProps) => {
+  const [isDraggingOver, setIsDraggingOver] = React.useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
   const { id, connectors: { connect, drag }, parentId } = useNode((node) => ({
     parentId: node.data.parent,
   }));
+
+  const { actions } = useEditor();
   const { parentDisplay, parentDisplayName, parentHeight } = useEditor((state) => ({
     parentDisplay: parentId ? String(state.nodes[parentId]?.data?.props?.display ?? "") : "",
     parentDisplayName: parentId ? String(state.nodes[parentId]?.data?.displayName ?? "") : "",
     parentHeight: parentId ? state.nodes[parentId]?.data?.props?.height : undefined,
   }));
+
+  // Handle auto-discard if this node was created as a side-effect of a replacement drop
+  useEffect(() => {
+    if (_isDraggingSource && typeof window !== "undefined" && window.__CRAFT_REPLACE_DRAG) {
+      // Use setTimeout to ensure Craft.js has finished processing the node addition 
+      // before we try to remove it, avoiding "Node does not exist" invariant errors.
+      const timer = setTimeout(() => {
+        try {
+          actions.delete(id);
+        } catch (e) {
+          // Ignore if already deleted or doesn't exist
+        }
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [_isDraggingSource, id, actions]);
+
   const shouldFillParent = parentDisplay === "flex" || parentDisplay === "grid";
   const isContainerLikeParent = parentDisplayName === "Container" || parentDisplayName === "Section" || parentDisplayName === "Tab Content";
   const isAutoHeight = typeof height !== "string" || height.trim().toLowerCase() === "auto";
@@ -46,6 +76,7 @@ export const Image = ({
   const parentHasExplicitHeight =
     (typeof parentHeight === "number" && Number.isFinite(parentHeight) && parentHeight > 0) ||
     (typeof parentHeight === "string" && parentHeightText !== "" && parentHeightText !== "auto");
+
   const resolvedHeight =
     isContainerLikeParent && isAutoHeight && parentHasExplicitHeight
       ? "100%"
@@ -76,27 +107,100 @@ export const Image = ({
   const rbr = radiusBottomRight ?? br;
   const rbl = radiusBottomLeft ?? br;
 
+  // We use native listeners with capture: true to beat Craft.js event interception.
+  React.useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const onDragOver = (e: DragEvent) => {
+      const types = Array.from(e.dataTransfer?.types || []);
+      const isMediaDrag = types.includes("media-library-url") ||
+        types.includes("canvas-image-url") ||
+        types.some(t => t.toLowerCase().includes("image"));
+
+      if (isMediaDrag) {
+        // Claim this event!
+        e.preventDefault();
+        e.stopPropagation();
+        if (!isDraggingOver) setIsDraggingOver(true);
+      }
+    };
+
+    const onDragEnter = (e: DragEvent) => {
+      const types = Array.from(e.dataTransfer?.types || []);
+      if (types.includes("media-library-url") || types.includes("canvas-image-url")) {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDraggingOver(true);
+      }
+    };
+
+    const onDragLeave = () => {
+      setIsDraggingOver(false);
+    };
+
+    const onDrop = (e: DragEvent) => {
+      const libraryUrl = e.dataTransfer?.getData("media-library-url");
+      const canvasUrl = e.dataTransfer?.getData("canvas-image-url");
+      const url = libraryUrl || canvasUrl;
+
+      if (url) {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDraggingOver(false);
+
+        actions.setProp(id, (props: any) => {
+          props.src = url;
+          const name = libraryUrl
+            ? e.dataTransfer?.getData("media-library-name")
+            : e.dataTransfer?.getData("canvas-image-name");
+          if (name) props.alt = name;
+        });
+
+        // Flag that a replacement happened to discard the incoming new node from Craft.js
+        if (typeof window !== "undefined") {
+          window.__CRAFT_REPLACE_DRAG = true;
+          setTimeout(() => {
+            window.__CRAFT_REPLACE_DRAG = false;
+          }, 100);
+        }
+      }
+    };
+
+    el.addEventListener("dragenter", onDragEnter, true);
+    el.addEventListener("dragover", onDragOver, true);
+    el.addEventListener("dragleave", onDragLeave, true);
+    el.addEventListener("drop", onDrop, true);
+
+    return () => {
+      el.removeEventListener("dragenter", onDragEnter, true);
+      el.removeEventListener("dragover", onDragOver, true);
+      el.removeEventListener("dragleave", onDragLeave, true);
+      el.removeEventListener("drop", onDrop, true);
+    };
+  }, [id, actions, isDraggingOver]);
+
   return (
-    <img
-      data-node-id={id}
-      ref={(ref) => { if (ref) connect(drag(ref)); }}
-      src={imageSrc}
-      alt={alt}
+    <div
+      ref={(ref) => {
+        if (ref) {
+          connect(drag(ref));
+          (containerRef as any).current = ref;
+        }
+      }}
+      draggable
+      onDragStart={(e) => {
+        if (src) {
+          e.dataTransfer.setData("canvas-image-url", src);
+          e.dataTransfer.setData("canvas-image-name", alt);
+          e.dataTransfer.setData("text/plain", src);
+          e.dataTransfer.effectAllowed = "copyMove";
+        }
+      }}
+      className={`relative group ${customClassName}`}
       style={{
         width,
         height: resolvedHeight,
-        maxWidth: "100%",
-        maxHeight: "100%",
-        minWidth: 0,
-        minHeight: 0,
-        flexShrink: 0,
-        alignSelf: shouldFillParent ? "stretch" : undefined,
-        boxSizing: "border-box",
-        objectFit,
-        borderTopLeftRadius: `${rtl}px`,
-        borderTopRightRadius: `${rtr}px`,
-        borderBottomRightRadius: `${rbr}px`,
-        borderBottomLeftRadius: `${rbl}px`,
         paddingTop: `${pt}px`,
         paddingRight: `${pr}px`,
         paddingBottom: `${pb}px`,
@@ -105,13 +209,45 @@ export const Image = ({
         marginRight: `${mr}px`,
         marginBottom: `${mb}px`,
         marginLeft: `${ml}px`,
-        opacity,
-        boxShadow,
-        display: "block",
         transform: [rotation ? `rotate(${rotation}deg)` : null, flipHorizontal ? "scaleX(-1)" : null, flipVertical ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined,
       }}
-      className={`cursor-pointer ${customClassName}`}
-    />
+    >
+      <img
+        src={imageSrc}
+        alt={alt}
+        style={{
+          width: "100%",
+          height: "100%",
+          maxWidth: "100%",
+          maxHeight: "100%",
+          minWidth: 0,
+          minHeight: 0,
+          flexShrink: 0,
+          boxSizing: "border-box",
+          objectFit,
+          borderTopLeftRadius: `${rtl}px`,
+          borderTopRightRadius: `${rtr}px`,
+          borderBottomRightRadius: `${rbr}px`,
+          borderBottomLeftRadius: `${rbl}px`,
+          opacity,
+          boxShadow,
+          display: "block",
+        }}
+        className="cursor-pointer pointer-events-none"
+      />
+
+      {/* Photo Frame Drop Overlay (Visible when dragging over) */}
+      {isDraggingOver && (
+        <div className="absolute inset-0 z-[100] bg-brand-medium/50 border-4 border-dashed border-brand-lighter rounded-lg flex flex-col items-center justify-center gap-2 transition-all duration-200 pointer-events-none animate-in fade-in zoom-in">
+          <div className="w-12 h-12 rounded-full bg-brand-lighter flex items-center justify-center text-brand-dark shadow-2xl animate-pulse">
+            <Plus className="w-7 h-7 stroke-[3]" />
+          </div>
+          <div className="bg-brand-darker px-4 py-2 rounded-full border border-white/20 shadow-xl">
+            <span className="text-[11px] text-brand-lighter uppercase tracking-[0.2em] font-black">Replace Content</span>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -119,8 +255,8 @@ export const ImageDefaultProps: Partial<ImageProps> = {
   src: "https://placehold.co/600x400/27272a/a1a1aa?text=Image",
   alt: "Image",
   objectFit: "cover",
-  width: "100%",
-  height: "auto",
+  width: "320px",
+  height: "220px",
   borderRadius: 0,
   padding: 0,
   paddingTop: 0,
