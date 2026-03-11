@@ -186,7 +186,7 @@ export const FunnelChart = ({ colors }: FunnelChartProps) => {
                     borderColor: colors.border.faint
                 }}>
                     <p className="text-2xl font-bold" style={{ color: colors.text.primary }}>
-                        $0
+                        ₱0
                     </p>
                     <p className="text-sm mt-1" style={{ color: colors.text.muted }}>Avg Order Value</p>
                 </div>

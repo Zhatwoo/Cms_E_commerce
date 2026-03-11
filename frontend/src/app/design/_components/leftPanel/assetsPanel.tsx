@@ -2,16 +2,76 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Editor, Frame, useEditor } from "@craftjs/core";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Layout, Star, FileText, CreditCard, FormInput, PanelBottom, Smile, Shapes as ShapesIcon } from "lucide-react";
 import { GROUPED_TEMPLATES } from "../../../_assets";
-import { CRAFT_RESOLVER } from "../craftResolver";
-type AssetItem = {
+import { buildCraftResolver, CRAFT_RESOLVER } from "../craftResolver";
+import { Container } from "../../_designComponents/Container/Container";
+import { Text } from "../../_designComponents/Text/Text";
+import { Page } from "../../_designComponents/Page/Page";
+import { Viewport } from "../../_designComponents/Viewport/Viewport";
+import { Image } from "../../_designComponents/Image/Image";
+import { Button } from "../../_designComponents/Button/Button";
+import { Divider } from "../../_designComponents/Divider/Divider";
+import { Section } from "../../_designComponents/Section/Section";
+import { Row } from "../../_designComponents/Row/Row";
+import { Column } from "../../_designComponents/Column/Column";
+import { Icon } from "../../_designComponents/Icon/Icon";
+import { Frame as FrameComponent } from "../../_designComponents/Frame/Frame";
+
+const SAFE_CONTAINER: React.ComponentType<any> =
+  (typeof Container === "function" ? Container : null) ??
+  ((props: any) => React.createElement("div", props, props?.children));
+
+const asComponent = (value: unknown): React.ComponentType<any> =>
+  typeof value === "function" ? (value as React.ComponentType<any>) : SAFE_CONTAINER;
+
+function withResolverFallback<T extends Record<string, React.ComponentType<any>>>(base: T): T {
+  return new Proxy(base, {
+    get(target, prop, receiver) {
+      const direct = Reflect.get(target, prop, receiver);
+      if (direct) return direct;
+      if (typeof prop !== "string") return direct;
+
+      const normalized = prop.trim().toLowerCase();
+      const resolved =
+        Reflect.get(target, prop.trim(), receiver) ||
+        Reflect.get(target, normalized, receiver) ||
+        Reflect.get(target, normalized.charAt(0).toUpperCase() + normalized.slice(1), receiver);
+
+      return resolved || target.Container || SAFE_CONTAINER;
+    },
+  }) as T;
+}
+export type AssetItem = {
   label: string;
   description?: string;
   preview: React.ReactNode;
   element: React.ReactElement;
   category: string;
 };
+
+class AssetPreviewErrorBoundary extends React.Component<
+  { fallback: React.ReactNode; children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { fallback: React.ReactNode; children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch() {
+    // Prevent one bad asset preview from blocking later assets in the list.
+  }
+
+  render() {
+    if (this.state.hasError) return this.props.fallback;
+    return this.props.children;
+  }
+}
 
 const DESKTOP_PREVIEW_WIDTH = 1440;
 const MAX_PREVIEW_HEIGHT = 180;
@@ -27,7 +87,46 @@ const buildAssetKey = (folder: string, label: string, idx: number) => `${folder}
 const isIconFolder = (folder: string) => folder.toLowerCase() === "icons";
 const isShapeFolder = (folder: string) => folder.toLowerCase() === "shapes";
 
-const AssetLivePreview = ({
+const ASSET_ICONS: Record<string, React.ReactNode> = {
+  Header: <Layout className="w-5 h-5" />,
+  Hero: <Star className="w-5 h-5" />,
+  Content: <FileText className="w-5 h-5" />,
+  Cards: <CreditCard className="w-5 h-5" />,
+  Forms: <FormInput className="w-5 h-5" />,
+  Footer: <PanelBottom className="w-5 h-5" />,
+  Icons: <Smile className="w-5 h-5" />,
+  Shapes: <ShapesIcon className="w-5 h-5" />,
+};
+
+const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverFallback({
+  ...CRAFT_RESOLVER,
+  Frame: asComponent(FrameComponent),
+  frame: asComponent(FrameComponent),
+  Container: SAFE_CONTAINER,
+  container: SAFE_CONTAINER,
+  CONTAINER: SAFE_CONTAINER,
+  Text: asComponent(Text),
+  text: asComponent(Text),
+  TEXT: asComponent(Text),
+  Page: asComponent(Page),
+  page: asComponent(Page),
+  PAGE: asComponent(Page),
+  Viewport: asComponent(Viewport),
+  viewport: asComponent(Viewport),
+  VIEWPORT: asComponent(Viewport),
+  Image: asComponent(Image),
+  image: asComponent(Image),
+  IMAGE: asComponent(Image),
+  Button: asComponent(Button),
+  button: asComponent(Button),
+  Divider: asComponent(Divider),
+  Section: asComponent(Section),
+  Row: asComponent(Row),
+  Column: asComponent(Column),
+  Icon: asComponent(Icon),
+});
+
+export const AssetLivePreview = ({
   item,
   previewMode,
   maxHeight = MAX_PREVIEW_HEIGHT,
@@ -68,10 +167,12 @@ const AssetLivePreview = ({
 
   if (previewMode === "icon") {
     return (
-      <div className="h-20 w-full rounded-lg border border-dashed border-brand-medium/50 bg-brand-medium/20 flex items-center justify-center text-brand-light pointer-events-none">
-        <Editor resolver={CRAFT_RESOLVER} enabled={false}>
-          <Frame>{item.element}</Frame>
-        </Editor>
+      <div className="h-16 w-full rounded-lg border border-dashed border-brand-medium/50 bg-brand-medium/10 flex items-center justify-center text-brand-light pointer-events-none group-hover:bg-brand-medium/20 transition-colors">
+        <AssetPreviewErrorBoundary fallback={<span className="text-[10px] opacity-70">Preview unavailable</span>}>
+          <Editor resolver={PREVIEW_RESOLVER} enabled={false}>
+            <Frame>{item.element}</Frame>
+          </Editor>
+        </AssetPreviewErrorBoundary>
       </div>
     );
   }
@@ -79,15 +180,15 @@ const AssetLivePreview = ({
   if (previewMode === "shape") {
     const shapePreviewElement = React.cloneElement(item.element as React.ReactElement<any>, {
       isPreview: true,
-      width: 64,
-      height: 64,
+      width: 48,
+      height: 48,
       margin: 0,
       padding: 0,
       position: "static",
     });
 
     return (
-      <div className="h-20 w-full rounded-lg border border-dashed border-brand-medium/50 bg-brand-medium/20 flex items-center justify-center pointer-events-none overflow-hidden">
+      <div className="h-20 w-full rounded-lg border border-dashed border-brand-medium/50 bg-brand-medium/10 flex items-center justify-center pointer-events-none overflow-hidden group-hover:bg-brand-medium/20 transition-colors">
         {shapePreviewElement}
       </div>
     );
@@ -96,8 +197,8 @@ const AssetLivePreview = ({
   return (
     <div
       ref={previewRef}
-      className="w-full rounded-lg border border-dashed border-brand-medium/50 bg-brand-medium/20 overflow-hidden pointer-events-none relative"
-      style={{ height: previewHeight > 0 ? `${Math.min(previewHeight, maxHeight)}px` : "120px" }}
+      className="w-full rounded-lg border border-dashed border-brand-medium/50 bg-brand-medium/10 overflow-hidden pointer-events-none relative group-hover:bg-brand-medium/20 transition-colors"
+      style={{ height: previewHeight > 0 ? `${Math.min(previewHeight, maxHeight)}px` : "100px" }}
     >
       <div
         ref={frameRef}
@@ -107,9 +208,11 @@ const AssetLivePreview = ({
           transform: `scale(${scale})`,
         }}
       >
-        <Editor resolver={CRAFT_RESOLVER} enabled={false}>
-          <Frame>{item.element}</Frame>
-        </Editor>
+        <AssetPreviewErrorBoundary fallback={<div className="h-[100px] w-full flex items-center justify-center text-[10px] text-brand-light/70">Preview unavailable</div>}>
+          <Editor resolver={PREVIEW_RESOLVER} enabled={false}>
+            <Frame>{item.element}</Frame>
+          </Editor>
+        </AssetPreviewErrorBoundary>
       </div>
     </div>
   );
@@ -143,14 +246,14 @@ export const AssetsPanel = () => {
   }, [activeGroup, selectedAsset]);
 
   return (
-    <>
-      <div className="h-full flex flex-col px-1 pb-1 relative">
-        <div className="relative flex-1 overflow-hidden">
-          <div
-            className={`absolute inset-0 overflow-y-auto space-y-1.5 pr-1 transition-transform duration-250 ease-out ${
-              panelView === "folders" ? "translate-x-0" : "-translate-x-full"
+    <div className="h-full flex flex-col p-1 relative overflow-hidden">
+      <div className="relative flex-1 overflow-hidden">
+        {/* Folders View */}
+        <div
+          className={`absolute inset-0 overflow-y-auto space-y-2 transition-transform duration-250 ease-out py-2 ${panelView === "folders" ? "translate-x-0" : "-translate-x-full"
             }`}
-          >
+        >
+          <div className="grid grid-cols-1 gap-2">
             {GROUPED_TEMPLATES.map((group) => (
               <button
                 key={group.folder}
@@ -160,114 +263,119 @@ export const AssetsPanel = () => {
                   setPanelView("items");
                   setSelectedAsset(null);
                 }}
-                className="w-full bg-brand-white/5 p-4 rounded-xl hover:bg-brand-white/10 transition border border-brand-medium/30 text-left flex items-center justify-between"
+                className="group relative w-full bg-brand-white/5 rounded-xl border border-brand-medium/30 overflow-hidden hover:bg-brand-white/10 transition-all duration-300 hover:border-brand-medium/50 shadow-sm h-16"
               >
-                <span className="text-sm text-brand-white font-medium">{group.folder}</span>
-                <ChevronRight className="w-4 h-4 text-brand-lighter" />
+                <div className="flex h-full items-center p-2.5 gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-brand-dark/50 flex items-center justify-center text-brand-light group-hover:text-white transition-colors border border-white/5 shadow-inner shrink-0">
+                    {ASSET_ICONS[group.folder] || <Layout className="w-5 h-5" />}
+                  </div>
+                  <div className="flex-1 text-left">
+                    <div className="text-sm font-semibold text-brand-white group-hover:translate-x-1 transition-transform">
+                      {group.folder}
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-brand-medium group-hover:text-brand-lighter transition-all group-hover:translate-x-1" />
+                </div>
               </button>
             ))}
           </div>
+        </div>
 
-          <div
-            className={`absolute inset-0 transition-transform duration-250 ease-out ${
-              panelView === "items" ? "translate-x-0" : "translate-x-full"
+        {/* Items View */}
+        <div
+          className={`absolute inset-0 transition-transform duration-250 ease-out py-2 ${panelView === "items" ? "translate-x-0" : "translate-x-full"
             }`}
-          >
-            <div className="h-full overflow-y-auto pr-1">
-              <div className="flex items-center gap-2 px-1 pb-2 border-b border-white/10 mb-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPanelView("folders");
-                  }}
-                  className="inline-flex items-center justify-center w-6 h-6 rounded-sm border border-white/10 text-brand-light/75 hover:text-brand-lighter hover:border-white/25 transition-colors"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <div className="text-xs text-brand-light/70">{activeGroup ? activeGroup.folder : "Assets"}</div>
-              </div>
+        >
+          <div className="h-full overflow-y-auto">
+            <div className="flex items-center gap-2 px-1 pb-2 border-b border-white/10 mb-4 sticky top-0 bg-brand-dark z-10">
+              <button
+                type="button"
+                onClick={() => setPanelView("folders")}
+                className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-white/10 text-brand-light hover:text-white hover:bg-white/5 transition-all"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <div className="text-xs font-bold text-brand-lighter">{activeGroup?.folder}</div>
+            </div>
 
-              {activeGroup ? (
-                <div
-                  className={`grid gap-2 ${
-                    isIconFolder(activeGroup.folder)
-                      ? "grid-cols-4"
-                      : isShapeFolder(activeGroup.folder)
-                        ? "grid-cols-2"
-                        : "grid-cols-1"
+            {activeGroup ? (
+              <div
+                className={`grid gap-2 p-0.5 ${isIconFolder(activeGroup.folder)
+                  ? "grid-cols-4"
+                  : isShapeFolder(activeGroup.folder)
+                    ? "grid-cols-2"
+                    : "grid-cols-1"
                   }`}
-                >
-                  {activeGroup.items.map((item: AssetItem, idx: number) => {
-                    const assetKey = buildAssetKey(activeGroup.folder, item.label, idx);
-                    const isSelected = selectedAsset?.key === assetKey;
-                    const shapeFolder = isShapeFolder(activeGroup.folder);
-                    const iconFolder = isIconFolder(activeGroup.folder);
-                    return (
-                      <div
-                        key={assetKey}
-                        data-drag-source="asset"
-                        data-asset-category={item.category}
-                        data-asset-label={item.label}
-                        ref={(ref) => {
-                          if (ref && item?.element) connectors.create(ref, item.element);
-                        }}
-                        onDragStart={() => {
-                          if (typeof document !== "undefined") {
-                            document.body.dataset.assetDragCategory = item.category;
-                            document.body.dataset.assetDragLabel = item.label;
-                          }
-                        }}
-                        onMouseDown={() => {
-                          if (typeof document !== "undefined") {
-                            document.body.dataset.assetDragCategory = item.category;
-                            document.body.dataset.assetDragLabel = item.label;
-                          }
-                        }}
-                        onDragEnd={() => {
-                          if (typeof document !== "undefined") {
-                            delete document.body.dataset.assetDragCategory;
-                            delete document.body.dataset.assetDragLabel;
-                          }
-                        }}
-                        onClick={() => {
-                          setSelectedAsset({
-                            folder: activeGroup.folder,
-                            item,
-                            key: assetKey,
-                          });
-                        }}
-                        className={`group bg-brand-white/5 p-4 rounded-xl hover:bg-brand-white/10 transition border cursor-move ${
-                          isSelected ? "border-brand-light" : "border-brand-medium/30"
+              >
+                {activeGroup.items.map((item: AssetItem, idx: number) => {
+                  const assetKey = buildAssetKey(activeGroup.folder, item.label, idx);
+                  const isSelected = selectedAsset?.key === assetKey;
+                  const shapeFolder = isShapeFolder(activeGroup.folder);
+                  const iconFolder = isIconFolder(activeGroup.folder);
+                  return (
+                    <div
+                      key={assetKey}
+                      data-drag-source="asset"
+                      data-asset-category={item.category}
+                      data-asset-label={item.label}
+                      ref={(ref) => {
+                        if (ref && item?.element) connectors.create(ref, item.element);
+                      }}
+                      onDragStart={() => {
+                        if (typeof document !== "undefined") {
+                          document.body.dataset.assetDragCategory = item.category;
+                          document.body.dataset.assetDragLabel = item.label;
+                        }
+                      }}
+                      onMouseDown={() => {
+                        if (typeof document !== "undefined") {
+                          document.body.dataset.assetDragCategory = item.category;
+                          document.body.dataset.assetDragLabel = item.label;
+                        }
+                      }}
+                      onDragEnd={() => {
+                        if (typeof document !== "undefined") {
+                          delete document.body.dataset.assetDragCategory;
+                          delete document.body.dataset.assetDragLabel;
+                        }
+                      }}
+                      onClick={() => {
+                        setSelectedAsset({
+                          folder: activeGroup.folder,
+                          item,
+                          key: assetKey,
+                        });
+                      }}
+                      className={`group bg-brand-white/5 p-3 rounded-xl hover:bg-brand-white/10 transition-all border cursor-move shadow-sm ${isSelected ? "border-brand-light bg-brand-white/10" : "border-brand-medium/30"
                         }`}
-                      >
-                        <div className="flex flex-col gap-2">
-                          {!iconFolder && (
-                            <div className="flex items-center justify-between gap-2 mb-1">
-                              <div className="text-sm text-brand-white font-medium leading-tight line-clamp-1">
-                                {item?.label ?? ""}
-                              </div>
+                    >
+                      <div className="flex flex-col gap-2">
+                        {!iconFolder && (
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <div className="text-sm text-brand-white font-medium leading-tight line-clamp-1">
+                              {item?.label ?? ""}
                             </div>
-                          )}
-                          <div className="flex items-center justify-center">
-                            <AssetLivePreview
-                              item={item}
-                              previewMode={iconFolder ? "icon" : shapeFolder ? "shape" : "full"}
-                            />
                           </div>
+                        )}
+                        <div className="flex items-center justify-center">
+                          <AssetLivePreview
+                            item={item}
+                            previewMode={iconFolder ? "icon" : shapeFolder ? "shape" : "full"}
+                          />
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="rounded-sm border border-white/10 bg-transparent p-4 text-center text-xs text-brand-light/65">
-                  Select a category.
-                </div>
-              )}
-            </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="rounded-sm border border-white/10 bg-transparent p-4 text-center text-xs text-brand-light/65">
+                Select a category.
+              </div>
+            )}
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };

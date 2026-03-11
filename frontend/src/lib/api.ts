@@ -232,7 +232,7 @@ export async function registerAdmin(params: {
   });
 }
 
-export async function forgotPassword(email: string): Promise<{ success: boolean; message?: string }> {
+export async function forgotPassword(email: string): Promise<{ success: boolean; message?: string; resetUrl?: string }> {
   return apiFetch('/api/auth/forgot-password', {
     method: 'POST',
     body: JSON.stringify({ email }),
@@ -277,10 +277,13 @@ export async function getMe(): Promise<{ success: boolean; user?: User }> {
   return apiFetch<{ success: boolean; user?: User }>('/api/auth/me');
 }
 
-/** Update user profile (Name, Avatar) */
+/** Update user profile (Full Name, Avatar, Username, Website, Bio) */
 export async function updateProfile(data: {
   name?: string;
   avatar?: string;
+  username?: string;
+  website?: string;
+  bio?: string;
 }): Promise<{ success: boolean; message?: string; user?: User }> {
   return apiFetch<{ success: boolean; message?: string; user?: User }>('/api/auth/profile', {
     method: 'PUT',
@@ -288,7 +291,7 @@ export async function updateProfile(data: {
   });
 }
 
-/** Upload avatar via backend: file is saved in Storage only (Clients/{uid}/avatar.ext). Backend returns URL and updated user. */
+/** Upload avatar via backend: file is saved in Storage only at Clients/profile_picture/{username}/profile-{uid}. */
 export async function uploadAvatarApi(
   file: File
 ): Promise<{ success: boolean; message?: string; url?: string; user?: User }> {
@@ -322,6 +325,7 @@ export type Project = {
   id: string;
   title: string;
   status: string;
+  industry?: string | null;
   templateId?: string | null;
   subdomain?: string | null;
   thumbnail?: string | null;
@@ -329,6 +333,10 @@ export type Project = {
   updatedAt?: string;
   deletedAt?: string;
   daysLeft?: number;
+  isShared?: boolean;
+  ownerName?: string;
+  ownerId?: string;
+  collaboratorPermission?: "editor" | "viewer";
 };
 
 export async function listProjects(): Promise<{ success: boolean; projects: Project[] }> {
@@ -337,6 +345,7 @@ export async function listProjects(): Promise<{ success: boolean; projects: Proj
 
 export async function createProject(params: {
   title?: string;
+  industry?: string | null;
   templateId?: string | null;
   subdomain?: string | null;
 }): Promise<{ success: boolean; project: Project; message?: string }> {
@@ -362,7 +371,7 @@ export async function getProjectBySubdomain(subdomain: string): Promise<{ succes
 
 export async function updateProject(
   id: string,
-  params: { title?: string; status?: string; subdomain?: string | null; thumbnail?: string | null }
+  params: { title?: string; status?: string; industry?: string | null; subdomain?: string | null; thumbnail?: string | null }
 ): Promise<{ success: boolean; project: Project; message?: string }> {
   return apiFetch<{ success: boolean; project: Project; message?: string }>(`/api/projects/${id}`, {
     method: 'PATCH',
@@ -371,13 +380,13 @@ export async function updateProject(
 }
 
 /** Move project to trash instead of deleting permanently. */
-export async function deleteProject(id: string): Promise<{ success: boolean; message?: string }> {
-  return apiFetch<{ success: boolean; message?: string }>(`/api/projects/${id}`, { method: 'DELETE' });
+export async function deleteProject(id: string): Promise<{ success: boolean; message?: string; daysLeft?: number; retentionDays?: number }> {
+  return apiFetch<{ success: boolean; message?: string; daysLeft?: number; retentionDays?: number }>(`/api/projects/${id}`, { method: 'DELETE' });
 }
 
 /** List all projects currently in the trash for the user. */
-export async function listTrashedProjects(): Promise<{ success: boolean; projects: Project[] }> {
-  return apiFetch<{ success: boolean; projects: Project[] }>('/api/projects/trash');
+export async function listTrashedProjects(): Promise<{ success: boolean; projects: Project[]; retentionDays?: number }> {
+  return apiFetch<{ success: boolean; projects: Project[]; retentionDays?: number }>('/api/projects/trash');
 }
 
 /** Restore a project from the trash back to the active list. */
@@ -391,6 +400,84 @@ export async function restoreProject(id: string): Promise<{ success: boolean; pr
 export async function permanentDeleteProject(id: string): Promise<{ success: boolean; message?: string }> {
   return apiFetch<{ success: boolean; message?: string }>(`/api/projects/${id}/permanent`, {
     method: 'DELETE',
+  });
+}
+
+/** Upload media file for web builder. Returns the public URL. */
+export async function uploadMediaApi(
+  projectId: string,
+  file: File,
+  options?: { onProgress?: (percent: number) => void; folder?: 'images' | 'videos' | 'files' }
+): Promise<{ url: string }> {
+  const base = getApiUrl().replace(/\/$/, '');
+  const url = `${base}/api/projects/${projectId}/media`;
+
+  if (options?.onProgress) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const formData = new FormData();
+      formData.append('media', file);
+      if (options.folder) formData.append('folder', options.folder);
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && options.onProgress) {
+          options.onProgress(Math.round((e.loaded / e.total) * 100));
+        }
+      };
+
+      xhr.onload = () => {
+        const data = JSON.parse(xhr.responseText || '{}');
+        if (xhr.status >= 200 && xhr.status < 300) {
+          if (data.success && data.url) resolve({ url: data.url });
+          else reject(new Error(data.message || 'Upload failed'));
+        } else {
+          reject(new Error(data.message || 'Upload failed'));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Upload failed'));
+      xhr.open('POST', url);
+      xhr.withCredentials = true;
+      if (activeProjectId) xhr.setRequestHeader('x-project-id', activeProjectId);
+      xhr.send(formData);
+    });
+  }
+
+  const formData = new FormData();
+  formData.append('media', file);
+  if (options?.folder) formData.append('folder', options.folder);
+
+  const headers: Record<string, string> = {};
+  if (activeProjectId) headers['x-project-id'] = activeProjectId;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    credentials: 'include',
+    headers,
+    body: formData,
+  });
+
+  const data = await handleResponse<{ success: boolean; url?: string; message?: string }>(res);
+  if (!data.url) throw new Error(data.message || 'Upload failed');
+  return { url: data.url };
+}
+
+/** Update subdomain for an existing published project. */
+export async function updateDomainSubdomain(
+  projectId: string,
+  subdomain: string
+): Promise<{ success: boolean; message?: string; data?: { subdomain?: string } }> {
+  return apiFetch<{ success: boolean; message?: string; data?: { subdomain?: string } }>('/api/domains/update-subdomain', {
+    method: 'POST',
+    body: JSON.stringify({ projectId, subdomain }),
+  });
+}
+
+/** Unpublish (take down) a published project. Site will no longer be accessible until published again. */
+export async function unpublishProject(projectId: string): Promise<{ success: boolean; message?: string; data?: { subdomain?: string } }> {
+  return apiFetch<{ success: boolean; message?: string; data?: { subdomain?: string } }>('/api/domains/unpublish', {
+    method: 'POST',
+    body: JSON.stringify({ projectId }),
   });
 }
 
@@ -434,6 +521,61 @@ export async function getPublishHistory(projectId: string): Promise<{ success: b
   );
 }
 
+// --- Custom Domains ---
+
+export type CustomDomainEntry = {
+  id: string;
+  domain: string;
+  subdomain?: string;
+  projectId?: string;
+  projectTitle?: string;
+  status?: string;
+  domainStatus: 'pending' | 'verified' | 'error';
+  verifiedAt?: string | null;
+};
+
+export type DnsInstructions = {
+  message: string;
+  optionA: { type: string; host: string; value: string; description: string };
+  optionB: { type: string; host: string; value: string; description: string };
+};
+
+/** List all custom domains for the current user. */
+export async function listCustomDomains(): Promise<{ success: boolean; data: CustomDomainEntry[] }> {
+  return apiFetch<{ success: boolean; data: CustomDomainEntry[] }>('/api/domains/custom');
+}
+
+/** Connect a custom domain to a published project. */
+export async function addCustomDomain(
+  projectId: string,
+  domain: string
+): Promise<{ success: boolean; message?: string; data?: { domain: string; status: string }; dnsInstructions?: DnsInstructions }> {
+  return apiFetch('/api/domains/custom', {
+    method: 'POST',
+    body: JSON.stringify({ projectId, domain }),
+  });
+}
+
+/** Verify DNS records for a custom domain. */
+export async function verifyCustomDomain(
+  projectId: string
+): Promise<{ success: boolean; message?: string; data?: { domain: string; status: string; details: string } }> {
+  return apiFetch('/api/domains/custom/verify', {
+    method: 'POST',
+    body: JSON.stringify({ projectId }),
+  });
+}
+
+/** Remove a custom domain from a project. */
+export async function removeCustomDomain(
+  projectId: string
+): Promise<{ success: boolean; message?: string }> {
+  return apiFetch('/api/domains/custom', {
+    method: 'DELETE',
+    body: JSON.stringify({ projectId }),
+  });
+}
+
 // --- Products (stored per published_subdomains/{subdomain}/products) ---
 
 export type ApiProduct = {
@@ -441,6 +583,9 @@ export type ApiProduct = {
   name: string;
   sku?: string;
   category?: string;
+  subcategory?: string;
+  subCategory?: string;
+  sub_category?: string;
   slug?: string;
   description?: string;
   price: number;
@@ -459,13 +604,20 @@ export type ApiProduct = {
       id: string;
       name: string;
       priceAdjustment: number;
+      image?: string;
     }>;
   }>;
+  variantStocks?: Record<string, number>;
+  variantPrices?: Record<string, number>;
   priceRangeMin?: number | null;
   priceRangeMax?: number | null;
   images?: string[];
   status?: string;
   stock?: number | null;
+  onHandStock?: number | null;
+  reservedStock?: number;
+  availableStock?: number | null;
+  lowStockThreshold?: number;
   subdomain?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -529,6 +681,9 @@ export async function createProduct(params: {
   name: string;
   sku?: string;
   category?: string;
+  subcategory?: string;
+  subCategory?: string;
+  sub_category?: string;
   slug?: string;
   description?: string;
   price?: number;
@@ -547,13 +702,17 @@ export async function createProduct(params: {
       id: string;
       name: string;
       priceAdjustment: number;
+      image?: string;
     }>;
   }>;
+  variantStocks?: Record<string, number>;
+  variantPrices?: Record<string, number>;
   priceRangeMin?: number | null;
   priceRangeMax?: number | null;
   images?: string[];
   status?: string;
   stock?: number | null;
+  lowStockThreshold?: number;
 }): Promise<{ success: boolean; message?: string; data?: ApiProduct }> {
   return apiFetch<{ success: boolean; message?: string; data?: ApiProduct }>('/api/products', {
     method: 'POST',
@@ -567,6 +726,9 @@ export async function updateProduct(
     name?: string;
     sku?: string;
     category?: string;
+    subcategory?: string;
+    subCategory?: string;
+    sub_category?: string;
     slug?: string;
     description?: string;
     price?: number;
@@ -585,13 +747,17 @@ export async function updateProduct(
         id: string;
         name: string;
         priceAdjustment: number;
+        image?: string;
       }>;
     }>;
+    variantStocks?: Record<string, number>;
+    variantPrices?: Record<string, number>;
     priceRangeMin?: number | null;
     priceRangeMax?: number | null;
     images?: string[];
     status?: string;
     stock?: number | null;
+    lowStockThreshold?: number;
   }
 ): Promise<{ success: boolean; message?: string; data?: ApiProduct }> {
   return apiFetch<{ success: boolean; message?: string; data?: ApiProduct }>(`/api/products/${id}`, {
@@ -606,6 +772,317 @@ export async function deleteProduct(id: string): Promise<{ success: boolean; mes
   });
 }
 
+// --- Inventory ---
+
+export type InventorySummary = {
+  totalProducts: number;
+  totalOnHand: number;
+  totalReserved: number;
+  totalAvailable: number;
+  lowStock: number;
+  outOfStock: number;
+  stockValue: number;
+};
+
+export type InventoryMovement = {
+  id: string;
+  userId?: string | null;
+  projectId?: string | null;
+  subdomain?: string | null;
+  productId?: string | null;
+  productName?: string | null;
+  productSku?: string | null;
+  type: 'IN' | 'OUT' | 'ADJUST' | 'RESERVE' | 'RELEASE' | string;
+  quantity: number;
+  beforeOnHand?: number | null;
+  afterOnHand?: number | null;
+  beforeReserved?: number | null;
+  afterReserved?: number | null;
+  referenceType?: string | null;
+  referenceId?: string | null;
+  actor?: string | null;
+  notes?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export async function listInventory(params?: {
+  subdomain?: string;
+  status?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}): Promise<{ success: boolean; items: ApiProduct[]; total: number; page: number; totalPages: number }> {
+  const query = new URLSearchParams();
+  if (params?.subdomain) query.set('subdomain', params.subdomain);
+  if (params?.status) query.set('status', params.status);
+  if (params?.search) query.set('search', params.search);
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.limit) query.set('limit', String(params.limit));
+  const qs = query.toString();
+  return apiFetch<{ success: boolean; items: ApiProduct[]; total: number; page: number; totalPages: number }>(
+    qs ? `/api/inventory?${qs}` : '/api/inventory'
+  );
+}
+
+export async function getInventorySummary(params?: {
+  subdomain?: string;
+  status?: string;
+  search?: string;
+}): Promise<{ success: boolean; data: InventorySummary }> {
+  const query = new URLSearchParams();
+  if (params?.subdomain) query.set('subdomain', params.subdomain);
+  if (params?.status) query.set('status', params.status);
+  if (params?.search) query.set('search', params.search);
+  const qs = query.toString();
+  return apiFetch<{ success: boolean; data: InventorySummary }>(
+    qs ? `/api/inventory/summary?${qs}` : '/api/inventory/summary'
+  );
+}
+
+export async function listInventoryMovements(params?: {
+  productId?: string;
+  type?: string;
+  subdomain?: string;
+  projectId?: string;
+  limit?: number;
+}): Promise<{ success: boolean; items: InventoryMovement[] }> {
+  const query = new URLSearchParams();
+  if (params?.productId) query.set('productId', params.productId);
+  if (params?.type) query.set('type', params.type);
+  if (params?.subdomain) query.set('subdomain', params.subdomain);
+  if (params?.projectId) query.set('projectId', params.projectId);
+  if (params?.limit) query.set('limit', String(params.limit));
+  const qs = query.toString();
+  return apiFetch<{ success: boolean; items: InventoryMovement[] }>(
+    qs ? `/api/inventory/movements?${qs}` : '/api/inventory/movements'
+  );
+}
+
+export async function deleteInventoryMovement(
+  movementId: string,
+  params?: { subdomain?: string; projectId?: string }
+): Promise<{ success: boolean; message?: string; data?: InventoryMovement }> {
+  const normalizedId = String(movementId || '').trim();
+  if (!normalizedId) {
+    throw new Error('movementId is required');
+  }
+
+  const query = new URLSearchParams();
+  if (params?.subdomain) query.set('subdomain', params.subdomain);
+  if (params?.projectId) query.set('projectId', params.projectId);
+  const qs = query.toString();
+  const encodedId = encodeURIComponent(normalizedId);
+
+  return apiFetch<{ success: boolean; message?: string; data?: InventoryMovement }>(
+    qs ? `/api/inventory/movements/${encodedId}?${qs}` : `/api/inventory/movements/${encodedId}`,
+    {
+      method: 'DELETE',
+    }
+  );
+}
+
+export async function adjustInventoryStock(params: {
+  productId: string;
+  quantity?: number;
+  movementType?: 'IN' | 'OUT' | 'ADJUST';
+  notes?: string;
+  referenceType?: string;
+  referenceId?: string;
+  setOnHandStock?: number;
+  setReservedStock?: number;
+  variantKey?: string;
+  setVariantStock?: number;
+}): Promise<{ success: boolean; message?: string; data?: ApiProduct }> {
+  return apiFetch<{ success: boolean; message?: string; data?: ApiProduct }>('/api/inventory/adjust', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export type ImportInventoryRow = {
+  sku: string;
+  onHandStock?: number;
+  reservedStock?: number;
+  lowStockThreshold?: number;
+};
+
+export type ImportInventoryResult = {
+  success: boolean;
+  updated?: number;
+  errors?: Array<{ row: number; sku: string; message: string }>;
+  message?: string;
+};
+
+export async function importInventoryCsv(params: {
+  rows: ImportInventoryRow[];
+  subdomain?: string;
+}): Promise<ImportInventoryResult> {
+  const query = new URLSearchParams();
+  if (params.subdomain) query.set('subdomain', params.subdomain);
+  const qs = query.toString();
+  return apiFetch<ImportInventoryResult>(qs ? `/api/inventory/import?${qs}` : '/api/inventory/import', {
+    method: 'POST',
+    body: JSON.stringify({ rows: params.rows }),
+  });
+}
+
+// --- Orders ---
+
+export type ApiOrderItem = {
+  id?: string;
+  productId?: string;
+  sku?: string;
+  name?: string;
+  image?: string;
+  subtotal?: number;
+  quantity: number;
+  price: number;
+};
+
+export type ApiOrder = {
+  id: string;
+  userId: string;
+  projectId?: string | null;
+  items: ApiOrderItem[];
+  total: number;
+  status: 'Pending' | 'Processing' | 'Paid' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Returned' | string;
+  shippingAddress?: Record<string, unknown> | null;
+  inventoryState?: {
+    reservedApplied?: boolean;
+    deductedApplied?: boolean;
+    reserved_applied?: boolean;
+    deducted_applied?: boolean;
+  } | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export async function createOrder(params: {
+  items: ApiOrderItem[];
+  total?: number;
+  shippingAddress?: Record<string, unknown> | null;
+  projectId?: string;
+}): Promise<{ success: boolean; message?: string; data?: ApiOrder }> {
+  return apiFetch<{ success: boolean; message?: string; data?: ApiOrder }>('/api/orders', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export async function listMyOrders(params?: {
+  page?: number;
+  limit?: number;
+  projectId?: string;
+}): Promise<{ success: boolean; items: ApiOrder[]; total: number; page: number; totalPages: number }> {
+  const query = new URLSearchParams();
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.limit) query.set('limit', String(params.limit));
+  if (params?.projectId) query.set('projectId', params.projectId);
+  const qs = query.toString();
+  return apiFetch<{ success: boolean; items: ApiOrder[]; total: number; page: number; totalPages: number }>(
+    qs ? `/api/orders/my?${qs}` : '/api/orders/my'
+  );
+}
+
+export async function listAllOrders(params?: {
+  page?: number;
+  limit?: number;
+  status?: string;
+  userId?: string;
+}): Promise<{ success: boolean; items: ApiOrder[]; total: number; page: number; totalPages: number }> {
+  const query = new URLSearchParams();
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.limit) query.set('limit', String(params.limit));
+  if (params?.status) query.set('status', params.status);
+  if (params?.userId) query.set('userId', params.userId);
+  const qs = query.toString();
+  return apiFetch<{ success: boolean; items: ApiOrder[]; total: number; page: number; totalPages: number }>(
+    qs ? `/api/orders?${qs}` : '/api/orders'
+  );
+}
+
+export async function updateOrderStatus(
+  id: string,
+  status: 'Pending' | 'Processing' | 'Paid' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Returned'
+): Promise<{ success: boolean; message?: string; data?: ApiOrder }> {
+  return apiFetch<{ success: boolean; message?: string; data?: ApiOrder }>(`/api/orders/${id}/status`, {
+    method: 'PUT',
+    body: JSON.stringify({ status }),
+  });
+}
+
+
+export type ApiPublishedOrder = {
+  id: string;
+  subdomain: string;
+  ownerUserId: string;
+  projectId?: string | null;
+  domainId?: string | null;
+  items: ApiOrderItem[];
+  total: number;
+  status: 'Pending' | 'Processing' | 'Paid' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Returned' | string;
+  shippingAddress?: Record<string, unknown> | null;
+  currency?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export async function createPublishedOrder(params: {
+  subdomain: string;
+  items: ApiOrderItem[];
+  total?: number;
+  shippingAddress?: Record<string, unknown> | null;
+  currency?: string;
+}): Promise<{ success: boolean; message?: string; data?: ApiPublishedOrder }> {
+  const normalizedSubdomain = params.subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  return apiFetch<{ success: boolean; message?: string; data?: ApiPublishedOrder }>(
+    `/api/orders/published/${encodeURIComponent(normalizedSubdomain)}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        items: params.items,
+        total: params.total,
+        shippingAddress: params.shippingAddress ?? null,
+        currency: params.currency ?? 'PHP',
+      }),
+    }
+  );
+}
+
+export async function listMyPublishedOrders(params?: {
+  subdomain?: string;
+  search?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}): Promise<{ success: boolean; items: ApiPublishedOrder[]; total: number; page: number; totalPages: number }> {
+  const query = new URLSearchParams();
+  if (params?.subdomain) query.set('subdomain', params.subdomain);
+  if (params?.search) query.set('search', params.search);
+  if (params?.status) query.set('status', params.status);
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.limit) query.set('limit', String(params.limit));
+  const qs = query.toString();
+  return apiFetch<{ success: boolean; items: ApiPublishedOrder[]; total: number; page: number; totalPages: number }>(
+    qs ? `/api/orders/published/my?${qs}` : '/api/orders/published/my'
+  );
+}
+
+export async function updatePublishedOrderStatus(
+  subdomain: string,
+  id: string,
+  status: 'Pending' | 'Processing' | 'Paid' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Returned'
+): Promise<{ success: boolean; message?: string; data?: ApiPublishedOrder }> {
+  const normalizedSubdomain = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  return apiFetch<{ success: boolean; message?: string; data?: ApiPublishedOrder }>(
+    `/api/orders/published/${encodeURIComponent(normalizedSubdomain)}/${encodeURIComponent(id)}/status`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }
+  );
+}
 /** Admin: User and Website Management — list websites with owner and plan from user/roles/client (subscription_plan). */
 export type DomainRow = {
   id: string;
@@ -754,3 +1231,4 @@ export async function getAnalytics(period: '7days' | '30days' | '3months' = '7da
   }
   return apiFetch<AnalyticsResponse>(`/api/dashboard/analytics?period=${encodeURIComponent(period)}`);
 }
+

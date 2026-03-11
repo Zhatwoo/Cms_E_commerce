@@ -8,10 +8,13 @@ import { templateService, Template as FullTemplate } from '@/lib/templateService
 import { createProject, listProjects, updateProject, deleteProject, listTrashedProjects, restoreProject, permanentDeleteProject, getMyDomains, getStoredUser, type Project } from '@/lib/api';
 import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
 import { getLimits } from '@/lib/subscriptionLimits';
+import { INDUSTRY_OPTIONS } from '@/lib/industryCatalog';
 import { useAlert } from '../components/context/alert-context';
 import { useProject } from '../components/context/project-context';
 import { DraftPreviewThumbnail } from '../components/projects/DraftPreviewThumbnail';
+import { PublishModal } from '../components/PublishModal';
 import { WebPreview } from '@/app/design/_lib/webRenderer';
+import { Upload } from 'lucide-react';
 
 // Template interface for DomeGallery compatibility
 interface GalleryTemplate {
@@ -159,7 +162,7 @@ const TemplateCard = ({ template, colors, onPreview, onUseTemplate }: {
   </div>
 );
 
-/** Modal: ask project title + preferred subdomain before creating project */
+/** Modal: ask project title + industry + preferred subdomain before creating project */
 const CreateProjectModal = ({
   open,
   initialTitle,
@@ -175,14 +178,16 @@ const CreateProjectModal = ({
   colors: any;
   creating: boolean;
   onClose: () => void;
-  onSubmit: (title: string, subdomain: string) => void;
+  onSubmit: (title: string, industry: string, subdomain: string) => void;
 }) => {
   const [title, setTitle] = useState(initialTitle);
+  const [industry, setIndustry] = useState('');
   const [subdomain, setSubdomain] = useState('');
 
   useEffect(() => {
     if (open) {
       setTitle(initialTitle);
+      setIndustry('');
       setSubdomain('');
     }
   }, [open, initialTitle]);
@@ -190,8 +195,9 @@ const CreateProjectModal = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const t = title.trim() || 'Untitled Project';
+    const ind = industry.trim();
     const sub = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || '';
-    onSubmit(t, sub);
+    onSubmit(t, ind, sub);
   };
 
   if (!open) return null;
@@ -223,6 +229,25 @@ const CreateProjectModal = ({
               className="w-full px-4 py-2.5 rounded-lg border bg-transparent focus:outline-none focus:ring-2"
               style={{ borderColor: colors.border.default, color: colors.text.primary }}
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1.5" style={{ color: colors.text.primary }}>Industry / Store type</label>
+            <select
+              data-industry-select="true"
+              value={industry}
+              onChange={(e) => setIndustry(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-lg border bg-transparent focus:outline-none focus:ring-2"
+              style={{ borderColor: colors.border.default, color: colors.text.primary }}
+              required
+            >
+              <option value="" disabled>Select industry</option>
+              {INDUSTRY_OPTIONS.map((item) => (
+                <option key={item.key} value={item.key}>{item.label}</option>
+              ))}
+            </select>
+            <p className="text-xs mt-1" style={{ color: colors.text.muted }}>
+              Product categories will match this industry when adding products.
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium mb-1.5" style={{ color: colors.text.primary }}>Preferred subdomain</label>
@@ -346,13 +371,16 @@ export default function WebBuilderPage() {
   const { showAlert, showConfirm } = useAlert();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { selectedProject } = useProject();
+  const { selectedProject, setSelectedProjectId, loading: projectsLoadingFromContext } = useProject();
   const [selectedCategory, setSelectedCategory] = useState('Type');
   const [previewTemplate, setPreviewTemplate] = useState<GalleryTemplate | null>(null);
   const [templates, setTemplates] = useState<GalleryTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'active' | 'trash'>('active');
+  const [trashedProjects, setTrashedProjects] = useState<Project[]>([]);
+  const [trashedProjectsLoading, setTrashedProjectsLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createModalTitle, setCreateModalTitle] = useState('');
@@ -362,8 +390,22 @@ export default function WebBuilderPage() {
   const [renameValue, setRenameValue] = useState('');
   const [sortOption, setSortOption] = useState<SortOptionId>('relevant');
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [trashRetentionDays, setTrashRetentionDays] = useState(30);
+  const [publishModalProject, setPublishModalProject] = useState<Project | null>(null);
 
   const visibleProjects = projects;
+
+  const refreshProjects = async () => {
+    setProjectsLoading(true);
+    try {
+      const res = await listProjects();
+      if (res.success && res.projects) {
+        setProjects(res.projects);
+      }
+    } finally {
+      setProjectsLoading(false);
+    }
+  };
 
   // Load templates on mount
   useEffect(() => {
@@ -382,7 +424,7 @@ export default function WebBuilderPage() {
       return;
     }
     setProjectsLoading(true);
-    listProjects({ instanceId: selectedProject.id })
+    listProjects()
       .then((res) => {
         if (!cancelled && res.success && res.projects) setProjects(res.projects);
       })
@@ -397,7 +439,12 @@ export default function WebBuilderPage() {
       setTrashedProjectsLoading(true);
       listTrashedProjects()
         .then((res) => {
-          if (res.success && res.projects) setTrashedProjects(res.projects);
+          if (res.success && res.projects) {
+            setTrashedProjects(res.projects);
+            if (Number.isFinite(res.retentionDays) && Number(res.retentionDays) > 0) {
+              setTrashRetentionDays(Number(res.retentionDays));
+            }
+          }
         })
         .finally(() => setTrashedProjectsLoading(false));
     }
@@ -418,21 +465,30 @@ export default function WebBuilderPage() {
   const openCreateModal = (options: { title: string; template?: GalleryTemplate }) => {
     setCreateModalTitle(options.title);
     setCreateModalTemplate(options.template ?? null);
+    setSelectedProjectId(null); // Clear any selected project
     setCreateModalOpen(true);
   };
 
   // In selected instance, open create modal when there are no projects yet.
   useEffect(() => {
-    if (projectsLoading || isAutoCreate) return;
-    if (!selectedProject?.id) return;
-    if (projects.length === 0) {
+    if (projectsLoading || projectsLoadingFromContext || isAutoCreate) return;
+    if (selectedProject) return;
+    if (projects.length > 0 && !isAutoCreate) { // Prevent auto-selection during new website creation
+      setSelectedProjectId(projects[0].id);
+    } else {
       openCreateModal({ title: '' });
     }
-  }, [projectsLoading, isAutoCreate, selectedProject?.id, projects]);
+  }, [projectsLoading, projectsLoadingFromContext, isAutoCreate, selectedProject?.id, projects, setSelectedProjectId]);
 
-  const handleCreateSubmit = async (title: string, subdomain: string) => {
+  const handleCreateSubmit = async (title: string, industry: string, subdomain: string) => {
     try {
       setCreating(true);
+
+      if (!industry.trim()) {
+        showAlert('Please select your store industry first.');
+        setCreating(false);
+        return;
+      }
 
       // Check subscription limits
       const user = getStoredUser();
@@ -458,7 +514,7 @@ export default function WebBuilderPage() {
 
       const res = await createProject({
         title: title || 'Untitled Project',
-        instanceId: selectedProject?.id || undefined,
+        industry: industry || null,
         subdomain: subdomain || undefined,
         templateId: createModalTemplate ? String(createModalTemplate.id) : null,
       });
@@ -546,7 +602,7 @@ export default function WebBuilderPage() {
       setCreating(true);
       const res = await createProject({
         title: `${p.title} (copy)`,
-        instanceId: selectedProject?.id || undefined,
+        industry: p.industry || 'other',
         subdomain: p.subdomain ? `${p.subdomain}-copy` : undefined,
       });
       if (res.success && res.project) {
@@ -569,17 +625,26 @@ export default function WebBuilderPage() {
     setProjectMenuId(null);
     const confirmed = await showConfirm(`Move website "${p.title}" to trash? You can restore it later if you change your mind.`);
     if (!confirmed) return;
+    const confirmedAgain = await showConfirm(`Confirm delete: Move "${p.title}" to trash now?`);
+    if (!confirmedAgain) return;
     try {
       const res = await deleteProject(p.id);
       if (res.success) {
+        const daysLeft = Number.isFinite(res.daysLeft) ? Number(res.daysLeft) : null;
+        if (daysLeft && daysLeft > 0) {
+          showAlert(`Moved "${p.title}" to trash. ${daysLeft} day(s) left before auto-delete.`);
+        } else {
+          showAlert(res.message || `Moved "${p.title}" to trash.`);
+        }
         setProjects((prev) => prev.filter((x) => x.id !== p.id));
         await refreshProjects();
         // If we are on the active tab, we might want to refresh the notification or count
       } else {
-        showAlert('Failed to delete project.');
+        showAlert(res.message || 'Failed to delete project.');
       }
-    } catch (_) {
-      showAlert('Failed to delete project.');
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to delete project.';
+      showAlert(msg);
     }
   };
 
@@ -598,17 +663,28 @@ export default function WebBuilderPage() {
     }
   };
 
-  const handlePermanentDelete = async (p: Project) => {
-    const confirmed = await showConfirm(`Permanently delete "${p.title}"? This cannot be undone.`);
+  const handleProjectPermanentDelete = async (e: React.MouseEvent, p: Project) => {
+    e.stopPropagation();
+    const confirmed = await showConfirm(
+      `Are you sure you want to permanently delete "${p.title}"? This action cannot be undone.`
+    );
     if (!confirmed) return;
+    const confirmedAgain = await showConfirm(
+      `Final confirmation: Permanently delete "${p.title}"? This will remove it from the database and cannot be undone.`
+    );
+    if (!confirmedAgain) return;
     try {
       const res = await permanentDeleteProject(p.id);
       if (res.success) {
         setTrashedProjects((prev) => prev.filter((x) => x.id !== p.id));
-        showAlert(`Permanently deleted "${p.title}"`);
+        await refreshProjects();
+        showAlert(`"${p.title}" has been permanently deleted.`);
+      } else {
+        showAlert(res.message || 'Failed to delete project permanently.');
       }
-    } catch (_) {
-      showAlert('Failed to delete project permanently.');
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to delete project permanently.';
+      showAlert(msg);
     }
   };
 
@@ -806,125 +882,126 @@ export default function WebBuilderPage() {
               Trash
             </button>
           </div>
-        ) : (
-          <div className="grid w-full max-w-full min-w-0 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
-            {visibleProjects.map((p) => (
-              <motion.div
-                key={p.id}
-                className="relative min-w-0 rounded-lg border overflow-hidden cursor-pointer hover:border-opacity-80 transition-colors"
-                style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => {
-                  router.push(`/design?projectId=${p.id}`);
-                }}
-              >
-                {/* Thumbnail: first-page draft preview */}
-                <div className="relative w-full min-h-[100px]" style={{ backgroundColor: colors.bg.elevated, borderBottom: `1px solid ${colors.border.faint}` }}>
-                  <DraftPreviewThumbnail
-                    projectId={p.id}
-                    borderColor={colors.border.faint}
-                    bgColor={colors.bg.elevated}
-                  />
-                </div>
+        </div>
+
+        {activeTab === 'active' ? (
+          loading ? (
+            <div className="rounded-xl border p-12 text-center" style={{ borderColor: colors.border.faint }}>
+              <p className="text-sm" style={{ color: colors.text.muted }}>Loading projects…</p>
+            </div>
+          ) : visibleProjects.length === 0 ? (
+            <div className="rounded-xl border border-dashed p-12 text-center" style={{ borderColor: colors.border.faint }}>
+              <div className="space-y-2">
+                <p className="text-sm" style={{ color: colors.text.muted }}>No active projects yet.</p>
+                <button onClick={handleStartBlank} className="text-sm font-medium hover:underline" style={{ color: colors.status.info }}>Create your first project →</button>
               </div>
-            ) : projects.length === 0 ? (
-              <div className="rounded-xl border border-dashed p-12 text-center" style={{ borderColor: colors.border.faint }}>
-                <div className="space-y-2">
-                  <p className="text-sm" style={{ color: colors.text.muted }}>No active projects yet.</p>
-                  <button onClick={handleStartBlank} className="text-sm font-medium hover:underline" style={{ color: colors.status.info }}>Create your first project →</button>
-                </div>
-              </div>
-            ) : (
-              <div className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
-                {projects.map((p) => (
-                  <motion.div
-                    key={p.id}
-                    className="relative min-w-0 rounded-lg border overflow-hidden cursor-pointer hover:border-opacity-80 transition-colors"
-                    style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => router.push(`/design?projectId=${p.id}`)}
-                  >
-                    {/* Thumbnail: first-page draft preview */}
-                    <div className="relative w-full min-h-[100px]" style={{ backgroundColor: colors.bg.elevated, borderBottom: `1px solid ${colors.border.faint}` }}>
-                      <DraftPreviewThumbnail
-                        projectId={p.id}
-                        borderColor={colors.border.faint}
-                        bgColor={colors.bg.elevated}
-                      />
-                    </div>
-                    <div className="p-2">
-                      {/* 3-dots menu */}
-                      <div className="absolute top-1.5 right-1.5 z-10" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          aria-label="Project options"
-                          className="p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
-                          style={{ color: colors.text.muted }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setProjectMenuId((id) => (id === p.id ? null : p.id));
-                          }}
-                        >
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                            <circle cx="12" cy="6" r="1.5" />
-                            <circle cx="12" cy="12" r="1.5" />
-                            <circle cx="12" cy="18" r="1.5" />
-                          </svg>
-                        </button>
-                        <AnimatePresence>
-                          {projectMenuId === p.id && (
-                            <motion.div
-                              initial={{ opacity: 0, scale: 0.95 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              exit={{ opacity: 0, scale: 0.95 }}
-                              className="absolute right-0 top-full mt-0.5 py-1 min-w-[140px] rounded-md border shadow-xl z-20 text-xs"
-                              style={{ backgroundColor: colors.bg.elevated, borderColor: colors.border.default }}
+            </div>
+          ) : (
+            <div className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+              {visibleProjects.map((p) => (
+                <motion.div
+                  key={p.id}
+                  className="relative min-w-0 rounded-lg border overflow-hidden cursor-pointer hover:border-opacity-80 transition-colors"
+                  style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => router.push(`/design?projectId=${p.id}`)}
+                >
+                  {/* Thumbnail: first-page draft preview */}
+                  <div className="relative w-full min-h-[100px]" style={{ backgroundColor: colors.bg.elevated, borderBottom: `1px solid ${colors.border.faint}` }}>
+                    <DraftPreviewThumbnail
+                      projectId={p.id}
+                      borderColor={colors.border.faint}
+                      bgColor={colors.bg.elevated}
+                    />
+                  </div>
+                  <div className="p-2">
+                    {/* 3-dots menu */}
+                    <div className="absolute top-1.5 right-1.5 z-10" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        aria-label="Project options"
+                        className="p-1 rounded-md hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                        style={{ color: colors.text.muted }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setProjectMenuId((id) => (id === p.id ? null : p.id));
+                        }}
+                      >
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                          <circle cx="12" cy="6" r="1.5" />
+                          <circle cx="12" cy="12" r="1.5" />
+                          <circle cx="12" cy="18" r="1.5" />
+                        </svg>
+                      </button>
+                      <AnimatePresence>
+                        {projectMenuId === p.id && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="absolute right-0 top-full mt-0.5 py-1 min-w-[140px] rounded-md border shadow-xl z-20 text-xs"
+                            style={{ backgroundColor: colors.bg.elevated, borderColor: colors.border.default }}
+                          >
+                            <button
+                              type="button"
+                              className="w-full px-3 py-1.5 text-left flex items-center gap-1.5 hover:bg-black/5 dark:hover:bg-white/5"
+                              style={{ color: colors.text.primary }}
+                              onClick={(e) => handleProjectRename(e, p)}
                             >
-                              <button
-                                type="button"
-                                className="w-full px-3 py-1.5 text-left flex items-center gap-1.5 hover:bg-black/5 dark:hover:bg-white/5"
-                                style={{ color: colors.text.primary }}
-                                onClick={(e) => handleProjectRename(e, p)}
-                              >
-                                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" /></svg>
-                                Rename
-                              </button>
-                              <button
-                                type="button"
-                                className="w-full px-3 py-1.5 text-left flex items-center gap-1.5 hover:bg-black/5 dark:hover:bg-white/5"
-                                style={{ color: colors.text.primary }}
-                                onClick={(e) => handleProjectDuplicate(e, p)}
-                              >
-                                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h2m8 0h2a2 2 0 012 2v2m0 8a2 2 0 01-2 2h-8a2 2 0 01-2-2v-8a2 2 0 012-2h2" /></svg>
-                                Duplicate
-                              </button>
-                              <button
-                                type="button"
-                                disabled={p.status === 'published'}
-                                className={`w-full px-3 py-1.5 text-left flex items-center gap-1.5 transition-colors ${p.status === 'published' ? 'opacity-40 cursor-not-allowed grayscale' : 'hover:bg-red-500/10 text-red-500'}`}
-                                style={{ color: p.status === 'published' ? colors.text.muted : '#ef4444' }}
-                                onClick={(e) => handleProjectDelete(e, p)}
-                                title={p.status === 'published' ? "Unpublish this site first to delete it" : "Move to trash"}
-                              >
-                                <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                {p.status === 'published' ? 'Published' : 'Delete'}
-                              </button>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                      <h3 className="font-medium truncate pr-6 text-xs" style={{ color: colors.text.primary }}>{p.title}</h3>
-                      <p className="text-[9px] mt-0.5" style={{ color: colors.text.muted }}>
-                        {p.status} · {p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : '—'}
-                      </p>
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" /></svg>
+                              Rename
+                            </button>
+                            <button
+                              type="button"
+                              className="w-full px-3 py-1.5 text-left flex items-center gap-1.5 hover:bg-black/5 dark:hover:bg-white/5"
+                              style={{ color: colors.text.primary }}
+                              onClick={(e) => handleProjectDuplicate(e, p)}
+                            >
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h2m8 0h2a2 2 0 012 2v2m0 8a2 2 0 01-2 2h-8a2 2 0 01-2-2v-8a2 2 0 012-2h2" /></svg>
+                              Duplicate
+                            </button>
+                            <button
+                              type="button"
+                              disabled={p.status === 'published'}
+                              className={`w-full px-3 py-1.5 text-left flex items-center gap-1.5 transition-colors ${p.status === 'published' ? 'opacity-40 cursor-not-allowed grayscale' : 'hover:bg-red-500/10 text-red-500'}`}
+                              style={{ color: p.status === 'published' ? colors.text.muted : '#ef4444' }}
+                              onClick={(e) => handleProjectDelete(e, p)}
+                              title={p.status === 'published' ? "Unpublish this site first to delete it" : "Move to trash"}
+                            >
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                              {p.status === 'published' ? 'Published' : 'Delete'}
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
-                  </motion.div>
-                ))}
-              </div>
-            )}
-          </>
+                    <h3 className="font-medium truncate pr-6 text-xs" style={{ color: colors.text.primary }}>{p.title}</h3>
+                    <p className="text-[9px] mt-0.5" style={{ color: colors.text.muted }}>
+                      {p.status} · {p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : '—'}
+                    </p>
+                    {p.status !== 'published' && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPublishModalProject(p);
+                        }}
+                        className="mt-2 w-full py-1.5 rounded-md text-[10px] font-medium flex items-center justify-center gap-1 transition-colors"
+                        style={{
+                          backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                          color: 'rgb(59, 130, 246)',
+                        }}
+                      >
+                        <Upload size={12} />
+                        Go live
+                      </button>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )
         ) : (
           <>
             {trashedProjectsLoading ? (
@@ -935,7 +1012,7 @@ export default function WebBuilderPage() {
               <div className="rounded-xl border p-12 text-center border-dashed" style={{ borderColor: colors.border.faint }}>
                 <div className="space-y-1">
                   <p className="text-sm" style={{ color: colors.text.muted }}>Trash is empty.</p>
-                  <p className="text-xs" style={{ color: colors.text.secondary }}>Deleted projects appear here for 30 days before being purged.</p>
+                  <p className="text-xs" style={{ color: colors.text.secondary }}>Deleted projects appear here for {trashRetentionDays} days before being purged.</p>
                 </div>
               </div>
             ) : (
@@ -947,8 +1024,8 @@ export default function WebBuilderPage() {
                     const deletedDate = new Date(p.deletedAt);
                     const now = new Date();
                     const ageMs = now.getTime() - deletedDate.getTime();
-                    const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
-                    const msLeft = thirtyDaysInMs - ageMs;
+                    const retentionMs = trashRetentionDays * 24 * 60 * 60 * 1000;
+                    const msLeft = retentionMs - ageMs;
                     daysLeft = Math.max(1, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
                   }
 
@@ -973,36 +1050,40 @@ export default function WebBuilderPage() {
                         <div>
                           <h3 className="font-medium truncate text-[11px]" style={{ color: colors.text.primary }}>{p.title}</h3>
                           <p className="text-[10px] text-red-500 font-medium">
-                            Restorable for {daysLeft ?? '—'} {daysLeft === 1 ? 'day' : 'days'}
+                            {daysLeft ?? '—'}/{trashRetentionDays} days remaining in trash
                           </p>
                         </div>
-                        <div className="flex gap-1.5 relative z-10">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleProjectRestore(p);
-                            }}
-                            className="flex-1 py-1.5 rounded-md text-[10px] font-semibold border transition-all hover:bg-black/5 dark:hover:bg-white/10 whitespace-nowrap cursor-pointer relative z-50"
-                            style={{
-                              borderColor: colors.border.default,
-                              color: colors.text.primary,
-                              backgroundColor: 'transparent'
-                            }}
-                          >
-                            Restore Project
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handlePermanentDelete(p);
-                            }}
-                            className="p-1.5 rounded-md hover:bg-red-500/10 transition-colors group/del"
-                            title="Delete permanently"
-                          >
-                            <svg className="w-3.5 h-3.5 text-red-500 opacity-60 group-hover/del:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
+                        <div className="flex flex-col gap-2 relative z-10">
+                          <div className="flex gap-1.5">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleProjectRestore(p);
+                              }}
+                              className="flex-1 py-1.5 rounded-md text-[10px] font-semibold border transition-all hover:bg-black/5 dark:hover:bg-white/10 whitespace-nowrap cursor-pointer relative z-50"
+                              style={{
+                                borderColor: colors.border.default,
+                                color: colors.text.primary,
+                                backgroundColor: 'transparent'
+                              }}
+                            >
+                              Restore
+                            </button>
+                            <button
+                              onClick={(e) => handleProjectPermanentDelete(e, p)}
+                              className="flex-1 py-1.5 rounded-md text-[10px] font-semibold border transition-all hover:bg-red-500/10 whitespace-nowrap cursor-pointer relative z-50"
+                              style={{
+                                borderColor: colors.status.error,
+                                color: colors.status.error,
+                                backgroundColor: 'transparent'
+                              }}
+                            >
+                              Delete Permanently
+                            </button>
+                          </div>
+                          <span className="px-2 py-1 text-[10px] rounded-md border self-start whitespace-nowrap" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
+                            Auto-delete after {trashRetentionDays} days
+                          </span>
                         </div>
                       </div>
                     </motion.div>
@@ -1249,6 +1330,19 @@ export default function WebBuilderPage() {
           />
         )}
       </AnimatePresence>
+
+      {/* Publish Modal */}
+      <PublishModal
+        open={!!publishModalProject}
+        onClose={() => setPublishModalProject(null)}
+        onSuccess={(subdomain) => {
+          showAlert('Site published successfully! Visit it from My Sites.', 'Published');
+          refreshProjects();
+        }}
+        projectId={publishModalProject?.id ?? ''}
+        projectTitle={publishModalProject?.title ?? ''}
+        existingSubdomain={publishModalProject?.subdomain}
+      />
     </section>
   );
 }

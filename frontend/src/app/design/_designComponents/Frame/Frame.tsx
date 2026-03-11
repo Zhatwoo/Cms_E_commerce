@@ -43,7 +43,7 @@ const responsiveAssetStyles = (
       .frame-responsive-inner [data-responsive-asset] {
         max-width: 100%;
         height: auto;
-        object-fit: contain;
+        object-fit: cover;
       }
       .frame-responsive-inner table { width: 100%; max-width: 100%; }
       
@@ -532,7 +532,7 @@ export const Frame = ({
       const containerWidth = containerEl.clientWidth;
       // Consider mobile if container width is less than 768px (accounting for scale)
       const isMobile = containerWidth < 768;
-      
+
       if (isMobile) {
         innerEl.classList.add("frame-mobile");
         containerEl.classList.add("frame-mobile");
@@ -670,7 +670,7 @@ export const Frame = ({
         (frameContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
         if (el) connect(drag(el));
       }}
-      className="min-h-[80px] transition-[outline] duration-150 hover:outline hover:outline-blue-500 box-border flex items-center justify-center overflow-hidden"
+      className="min-h-[80px] transition-[outline] duration-150 box-border flex items-center justify-center overflow-hidden"
       style={{
         width,
         minHeight: effectiveMinHeight,
@@ -681,7 +681,7 @@ export const Frame = ({
       }}
     >
       {responsiveAssetStyles}
-      <div 
+      <div
         ref={innerRef}
         data-node-id={id}
         className={`frame-responsive-inner${isFluid ? " frame-fluid" : ""} min-h-[60px]`}

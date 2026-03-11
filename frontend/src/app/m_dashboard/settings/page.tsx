@@ -46,61 +46,41 @@ export default function SettingsPage() {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="relative space-y-6 [font-family:var(--font-outfit),sans-serif]">
+            <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+                <div
+                    className="absolute left-[12%] top-[80px] h-[280px] w-[280px] rounded-full opacity-20 blur-3xl"
+                    style={{ backgroundColor: colors.accent.purpleDeep }}
+                />
+                <div
+                    className="absolute right-[14%] top-[120px] h-[240px] w-[240px] rounded-full opacity-20 blur-3xl"
+                    style={{ backgroundColor: colors.accent.yellow }}
+                />
+            </div>
             {/* Header */}
-            <section
-                className="rounded-2xl border p-5 md:p-6"
-                style={{
-                    backgroundColor: colors.bg.card,
-                    borderColor: colors.border.faint,
-                    boxShadow: theme === 'dark'
-                        ? 'inset 0 1px 0 rgba(255,255,255,0.06), 0 20px 50px rgba(2,6,23,0.55)'
-                        : 'inset 0 1px 0 rgba(255,255,255,0.8), 0 12px 30px rgba(15,23,42,0.12)',
-                }}
-            >
-                <div className="relative">
-                    <div
-                        className="absolute -inset-x-6 -inset-y-4 rounded-3xl opacity-70 blur-2xl"
-                        style={{
-                            background: theme === 'dark'
-                                ? 'radial-gradient(60% 60% at 20% 20%, rgba(99,102,241,0.2), transparent 60%), radial-gradient(55% 55% at 80% 20%, rgba(14,165,233,0.16), transparent 60%), radial-gradient(50% 50% at 40% 80%, rgba(16,185,129,0.14), transparent 60%)'
-                                : 'radial-gradient(60% 60% at 20% 20%, rgba(99,102,241,0.14), transparent 60%), radial-gradient(55% 55% at 80% 20%, rgba(14,165,233,0.12), transparent 60%), radial-gradient(50% 50% at 40% 80%, rgba(16,185,129,0.1), transparent 60%)'
-                        }}
-                    />
-                    <div className="relative z-10">
-                        <motion.p
-                            className="text-xs uppercase tracking-[0.2em] mb-2"
-                            style={{ color: colors.text.muted }}
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.4 }}
-                        >
-                            Dashboard Insights
-                        </motion.p>
-                        <motion.h1
-                            className="text-3xl font-bold tracking-tight bg-clip-text text-transparent"
-                            style={{
-                                backgroundImage: theme === 'dark'
-                                    ? 'linear-gradient(180deg, #ffffff 25%, #9ca3af 100%)'
-                                    : 'linear-gradient(180deg, #111827 25%, #4b5563 100%)'
-                            }}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.45 }}
-                        >
-                            Settings
-                        </motion.h1>
-                        <motion.p
-                            className="mt-2 text-sm md:text-base"
-                            style={{ color: colors.text.secondary }}
-                            initial={{ opacity: 0, y: 12 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.45, delay: 0.08 }}
-                        >
-                            Manage your account settings and preferences
-                        </motion.p>
-                    </div>
-                </div>
+            <section className="relative z-10 mb-3 text-center pt-2 pb-1">
+                <motion.h1
+                    className="text-[40px] sm:text-[54px] lg:text-[66px] font-extrabold leading-[0.98] tracking-tight"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4 }}
+                >
+                    <span
+                        className="text-transparent bg-clip-text"
+                        style={{ backgroundImage: 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)' }}
+                    >
+                        Settings
+                    </span>
+                </motion.h1>
+                <motion.p
+                    className="mx-auto mt-2 max-w-[760px] text-sm md:text-base"
+                    style={{ color: colors.text.secondary }}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.42, delay: 0.08 }}
+                >
+                    Manage your account settings and preferences in one place.
+                </motion.p>
             </section>
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -168,9 +148,8 @@ export default function SettingsPage() {
                                         </div>
                                         <button
                                             onClick={() => setEmailNotifications(!emailNotifications)}
-                                            className={`relative w-12 h-6 rounded-full transition-colors ${
-                                                emailNotifications ? 'bg-blue-600' : 'bg-gray-300'
-                                            }`}
+                                            className="relative w-12 h-6 rounded-full transition-colors"
+                                            style={{ backgroundColor: emailNotifications ? '#B13BFF' : 'rgba(148,163,184,0.5)' }}
                                         >
                                             <span
                                                 className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
@@ -191,9 +170,8 @@ export default function SettingsPage() {
                                         </div>
                                         <button
                                             onClick={() => setOrderNotifications(!orderNotifications)}
-                                            className={`relative w-12 h-6 rounded-full transition-colors ${
-                                                orderNotifications ? 'bg-blue-600' : 'bg-gray-300'
-                                            }`}
+                                            className="relative w-12 h-6 rounded-full transition-colors"
+                                            style={{ backgroundColor: orderNotifications ? '#B13BFF' : 'rgba(148,163,184,0.5)' }}
                                         >
                                             <span
                                                 className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
@@ -214,9 +192,8 @@ export default function SettingsPage() {
                                         </div>
                                         <button
                                             onClick={() => setMarketingEmails(!marketingEmails)}
-                                            className={`relative w-12 h-6 rounded-full transition-colors ${
-                                                marketingEmails ? 'bg-blue-600' : 'bg-gray-300'
-                                            }`}
+                                            className="relative w-12 h-6 rounded-full transition-colors"
+                                            style={{ backgroundColor: marketingEmails ? '#B13BFF' : 'rgba(148,163,184,0.5)' }}
                                         >
                                             <span
                                                 className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
@@ -237,9 +214,8 @@ export default function SettingsPage() {
                                         </div>
                                         <button
                                             onClick={() => setSecurityAlerts(!securityAlerts)}
-                                            className={`relative w-12 h-6 rounded-full transition-colors ${
-                                                securityAlerts ? 'bg-blue-600' : 'bg-gray-300'
-                                            }`}
+                                            className="relative w-12 h-6 rounded-full transition-colors"
+                                            style={{ backgroundColor: securityAlerts ? '#B13BFF' : 'rgba(148,163,184,0.5)' }}
                                         >
                                             <span
                                                 className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
@@ -253,7 +229,8 @@ export default function SettingsPage() {
                                 <div className="flex justify-end pt-4 border-t" style={{ borderColor: colors.border.faint }}>
                                     <button
                                         onClick={handleSave}
-                                        className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
+                                        className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-85"
+                                        style={{ background: 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' }}
                                     >
                                         {saveSuccess ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
                                         {saveSuccess ? 'Saved!' : 'Save Preferences'}
@@ -284,7 +261,7 @@ export default function SettingsPage() {
                                             <input
                                                 type={showPassword ? 'text' : 'password'}
                                                 placeholder="••••••••"
-                                                className="w-full pl-11 pr-11 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                                                className="w-full pl-11 pr-11 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
                                                 style={{
                                                     backgroundColor: colors.bg.elevated,
                                                     borderColor: colors.border.faint,
@@ -310,7 +287,7 @@ export default function SettingsPage() {
                                             <input
                                                 type={showPassword ? 'text' : 'password'}
                                                 placeholder="••••••••"
-                                                className="w-full pl-11 pr-4 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                                                className="w-full pl-11 pr-4 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
                                                 style={{
                                                     backgroundColor: colors.bg.elevated,
                                                     borderColor: colors.border.faint,
@@ -329,7 +306,7 @@ export default function SettingsPage() {
                                             <input
                                                 type={showPassword ? 'text' : 'password'}
                                                 placeholder="••••••••"
-                                                className="w-full pl-11 pr-4 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                                                className="w-full pl-11 pr-4 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
                                                 style={{
                                                     backgroundColor: colors.bg.elevated,
                                                     borderColor: colors.border.faint,
@@ -369,7 +346,8 @@ export default function SettingsPage() {
                                 <div className="flex justify-end pt-4 border-t" style={{ borderColor: colors.border.faint }}>
                                     <button
                                         onClick={handleSave}
-                                        className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
+                                        className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-85"
+                                        style={{ background: 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' }}
                                     >
                                         {saveSuccess ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
                                         {saveSuccess ? 'Saved!' : 'Update Password'}
@@ -399,11 +377,11 @@ export default function SettingsPage() {
                                             <button
                                                 onClick={() => theme === 'dark' && toggleTheme()}
                                                 className={`p-4 rounded-lg border-2 transition-all ${
-                                                    theme === 'light' ? 'border-blue-600' : 'border-transparent'
+                                                    theme === 'light' ? 'border-violet-500' : 'border-transparent'
                                                 }`}
                                                 style={{ 
                                                     backgroundColor: colors.bg.elevated,
-                                                    borderColor: theme === 'light' ? '#3b82f6' : colors.border.faint
+                                                    borderColor: theme === 'light' ? '#B13BFF' : colors.border.faint
                                                 }}
                                             >
                                                 <div className="flex items-center gap-3 mb-2">
@@ -420,11 +398,11 @@ export default function SettingsPage() {
                                             <button
                                                 onClick={() => theme === 'light' && toggleTheme()}
                                                 className={`p-4 rounded-lg border-2 transition-all ${
-                                                    theme === 'dark' ? 'border-blue-600' : 'border-transparent'
+                                                    theme === 'dark' ? 'border-violet-500' : 'border-transparent'
                                                 }`}
                                                 style={{ 
                                                     backgroundColor: colors.bg.elevated,
-                                                    borderColor: theme === 'dark' ? '#3b82f6' : colors.border.faint
+                                                    borderColor: theme === 'dark' ? '#B13BFF' : colors.border.faint
                                                 }}
                                             >
                                                 <div className="flex items-center gap-3 mb-2">
@@ -445,13 +423,13 @@ export default function SettingsPage() {
                                             Accent Color
                                         </h3>
                                         <div className="flex gap-3">
-                                            {['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#ec4899'].map((color) => (
+                                            {['#B13BFF', '#B36760', '#FFCC00', '#22C55E', '#38BDF8', '#F97316'].map((color) => (
                                                 <button
                                                     key={color}
                                                     className="w-12 h-12 rounded-lg border-2 hover:scale-110 transition-transform"
                                                     style={{ 
                                                         backgroundColor: color,
-                                                        borderColor: color === '#3b82f6' ? colors.text.primary : 'transparent'
+                                                        borderColor: color === '#B13BFF' ? colors.text.primary : 'transparent'
                                                     }}
                                                 />
                                             ))}
@@ -495,14 +473,15 @@ export default function SettingsPage() {
                                             <code 
                                                 className="flex-1 px-3 py-2 rounded border text-sm font-mono"
                                                 style={{ 
-                                                    backgroundColor: colors.bg.surface,
+                                                    backgroundColor: colors.bg.elevated,
                                                     borderColor: colors.border.faint,
                                                     color: colors.text.secondary
                                                 }}
                                             >
                                                 sk_live_••••••••••••••••1234
                                             </code>
-                                            <button className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors">
+                                            <button className="px-4 py-2 rounded-lg text-white text-sm font-medium transition-opacity hover:opacity-85"
+                                                style={{ background: 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' }}>
                                                 Copy
                                             </button>
                                         </div>
@@ -529,14 +508,15 @@ export default function SettingsPage() {
                                             <code 
                                                 className="flex-1 px-3 py-2 rounded border text-sm font-mono"
                                                 style={{ 
-                                                    backgroundColor: colors.bg.surface,
+                                                    backgroundColor: colors.bg.elevated,
                                                     borderColor: colors.border.faint,
                                                     color: colors.text.secondary
                                                 }}
                                             >
                                                 sk_test_••••••••••••••••5678
                                             </code>
-                                            <button className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors">
+                                            <button className="px-4 py-2 rounded-lg text-white text-sm font-medium transition-opacity hover:opacity-85"
+                                                style={{ background: 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' }}>
                                                 Copy
                                             </button>
                                         </div>
@@ -578,11 +558,12 @@ export default function SettingsPage() {
                                                 </p>
                                             </div>
                                             <span className="text-2xl font-bold" style={{ color: colors.text.primary }}>
-                                                $49<span className="text-sm font-normal">/mo</span>
+                                                ₱49<span className="text-sm font-normal">/mo</span>
                                             </span>
                                         </div>
                                         <div className="flex gap-3">
-                                            <button className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors">
+                                            <button className="px-4 py-2 rounded-lg text-white text-sm font-medium transition-opacity hover:opacity-85"
+                                                style={{ background: 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' }}>
                                                 Upgrade Plan
                                             </button>
                                             <button className="px-4 py-2 rounded-lg border hover:bg-opacity-50 transition-colors text-sm font-medium"
@@ -628,9 +609,9 @@ export default function SettingsPage() {
                                         </h3>
                                         <div className="space-y-2">
                                             {[
-                                                { date: 'Jan 1, 2026', amount: '$49.00', status: 'Paid' },
-                                                { date: 'Dec 1, 2025', amount: '$49.00', status: 'Paid' },
-                                                { date: 'Nov 1, 2025', amount: '$49.00', status: 'Paid' },
+                                                { date: 'Jan 1, 2026', amount: '₱49.00', status: 'Paid' },
+                                                { date: 'Dec 1, 2025', amount: '₱49.00', status: 'Paid' },
+                                                { date: 'Nov 1, 2025', amount: '₱49.00', status: 'Paid' },
                                             ].map((invoice, i) => (
                                                 <div
                                                     key={i}
@@ -652,7 +633,7 @@ export default function SettingsPage() {
                                                         <span className="px-2 py-1 rounded text-xs font-medium bg-green-500/10 text-green-600">
                                                             {invoice.status}
                                                         </span>
-                                                        <button className="text-sm text-blue-600 hover:underline">
+                                                        <button className="text-sm hover:underline" style={{ color: colors.accent.yellow }}>
                                                             Download
                                                         </button>
                                                     </div>

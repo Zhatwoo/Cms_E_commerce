@@ -10,7 +10,7 @@ const HANDLE_SIZE = 8;
 const ROTATION_HANDLE_OFFSET = 24;
 const EPSILON = 0.01;
 const MOVE_DRAG_START_THRESHOLD = 2;
-const CONTAINER_LIMIT_MARGIN_PX = 8;
+const CONTAINER_LIMIT_MARGIN_PX = 0;
 
 const HANDLE_CURSORS: Record<Handle, string> = {
   n: "ns-resize",
@@ -63,7 +63,7 @@ function getOverlayRect(el: HTMLElement): DOMRect {
   return el.getBoundingClientRect();
 }
 
-const SNAP_THRESHOLD = 4;
+const SNAP_THRESHOLD = 0;
 
 type SiblingRect = {
   left: number;
@@ -99,6 +99,7 @@ type DragState = {
   previewX?: number;
   previewY?: number;
   previousTransition?: string;
+  previousWillChange?: string;
   dirty: boolean;
   constrainRatio?: boolean;
   resizeFromCenter?: boolean;
@@ -133,6 +134,35 @@ function parsePxOrAuto(value: unknown): number {
   return 0;
 }
 
+function computeTextFontSizeForResize(
+  handle: Handle,
+  startW: number,
+  startH: number,
+  newW: number,
+  newH: number,
+  startFontSize: number
+): number {
+  if (!Number.isFinite(startFontSize) || startFontSize <= 0) return startFontSize;
+
+  const safeStartW = Math.max(1, startW);
+  const safeStartH = Math.max(1, startH);
+  const widthScale = newW / safeStartW;
+  const heightScale = newH / safeStartH;
+
+  let scale = 1;
+  if (handle === "e" || handle === "w") {
+    scale = widthScale;
+  } else if (handle === "n" || handle === "s") {
+    scale = heightScale;
+  } else {
+    // Corner resize should feel natural for text scaling.
+    scale = (widthScale + heightScale) / 2;
+  }
+
+  const scaled = startFontSize * scale;
+  return Math.min(320, Math.max(8, scaled));
+}
+
 type GuideLine = { type: "v" | "h"; value: number };
 type GuideState = {
   lines: GuideLine[];
@@ -153,6 +183,40 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [guides, setGuides] = useState<GuideState>(null);
   const [rotateAngle, setRotateAngle] = useState<number | null>(null);
+  const [isExternalDragActive, setIsExternalDragActive] = useState(false);
+
+  useEffect(() => {
+    const updateExternalDragState = (event?: DragEvent) => {
+      const target = event?.target;
+      const elementTarget = target instanceof Element ? target : null;
+      const fromPanelDrag =
+        !!elementTarget?.closest("[data-drag-source='asset']") ||
+        !!elementTarget?.closest("[data-drag-source='component']") ||
+        !!elementTarget?.closest("[data-drag-source='imported']") ||
+        !!document.body.dataset.assetDragCategory ||
+        !!document.body.dataset.assetDragLabel;
+
+      if (fromPanelDrag) {
+        setIsExternalDragActive(true);
+      }
+    };
+
+    const clearExternalDragState = () => {
+      setIsExternalDragActive(false);
+    };
+
+    document.addEventListener("dragstart", updateExternalDragState, true);
+    document.addEventListener("dragend", clearExternalDragState, true);
+    document.addEventListener("drop", clearExternalDragState, true);
+    window.addEventListener("blur", clearExternalDragState);
+
+    return () => {
+      document.removeEventListener("dragstart", updateExternalDragState, true);
+      document.removeEventListener("dragend", clearExternalDragState, true);
+      document.removeEventListener("drop", clearExternalDragState, true);
+      window.removeEventListener("blur", clearExternalDragState);
+    };
+  }, []);
 
   const clampMoveDeltaToBounds = useCallback((dx: number, dy: number, d: DragState) => {
     const bounds = d.guideBounds;
@@ -224,8 +288,20 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
   const getMoveModeForNode = useCallback(
     (id: string, state: ReturnType<typeof query.getState>): "margin" | "offset" | "page-canvas" => {
       const displayName = state.nodes[id]?.data?.displayName as string | undefined;
+      const parentId = state.nodes[id]?.data?.parent as string | undefined;
+      const parentDisplayName = parentId
+        ? (state.nodes[parentId]?.data?.displayName as string | undefined)
+        : undefined;
+      const props = (state.nodes[id]?.data?.props ?? {}) as Record<string, unknown>;
+      const position = String(props.position ?? "static").toLowerCase();
+      const isAbsoluteLike = position === "absolute" || position === "fixed";
+
+      const flowLayoutParents = new Set(["Container", "Section", "Row", "Column", "Frame"]);
       const offsetMoveTypes = new Set(["Image", "Text", "Icon", "Button", "Circle", "Square", "Triangle"]);
+
       if (displayName === "Page") return "page-canvas";
+      if (isAbsoluteLike) return "offset";
+      if (parentDisplayName && flowLayoutParents.has(parentDisplayName)) return "margin";
       if (displayName && offsetMoveTypes.has(displayName)) return "offset";
       return "margin";
     },
@@ -320,16 +396,27 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         if (!dropParentId || dropParentId === sourceParentId) return false;
 
         const dropParent = state.nodes[dropParentId];
+        const dropParentName = dropParent?.data?.displayName as string | undefined;
+        const flowParents = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame"]);
+        const isFlowParent = !!dropParentName && flowParents.has(dropParentName);
         const index = Array.isArray(dropParent?.data?.nodes)
-          ? dropParent.data.nodes.length
+          ? (isFlowParent ? 0 : dropParent.data.nodes.length)
           : 0;
 
         actions.move(nodeId, dropParentId, index);
         actions.setProp(nodeId, (props: Record<string, unknown>) => {
           props.marginTop = 0;
           props.marginLeft = 0;
-          props.top = "0px";
-          props.left = "0px";
+          if (isFlowParent) {
+            props.position = "relative";
+            props.top = "auto";
+            props.left = "auto";
+            props.right = "auto";
+            props.bottom = "auto";
+          } else {
+            props.top = "0px";
+            props.left = "0px";
+          }
         });
 
         return true;
@@ -351,20 +438,9 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       const cy = startRect.top + startRect.height / 2;
       const pointerAngle = Math.atan2(e.clientY - cy, e.clientX - cx);
 
-      if (type === "resize") {
-        try {
-          const state = query.getState();
-          const displayName = state.nodes[nodeId]?.data?.displayName;
-          if (["Container", "Section", "Row", "Column"].includes(displayName as string)) {
-            const designW = Math.round(startRect.width / zoom);
-            const designH = Math.round(startRect.height / zoom);
-            actions.setProp(nodeId, (props: Record<string, unknown>) => {
-              if (props.designWidth == null) props.designWidth = designW;
-              if (props.designHeight == null) props.designHeight = designH;
-            });
-          }
-        } catch { /* ignore */ }
-      }
+      // Keep layout containers in normal flow-resize mode.
+      // Auto-injecting designWidth/designHeight here can lock them into scale mode,
+      // which causes content distortion/overlap when resizing out and back.
 
       dragRef.current = {
         type,
@@ -391,6 +467,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         previewX: type === "move" ? 0 : undefined,
         previewY: type === "move" ? 0 : undefined,
         previousTransition: type === "move" ? dom.style.transition : undefined,
+        previousWillChange: type === "resize" ? dom.style.willChange : undefined,
         dirty: false,
         constrainRatio: e.shiftKey,
         resizeFromCenter: e.altKey,
@@ -409,6 +486,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
 
         try {
           const state = query.getState();
+          let hasPageCanvasMove = false;
           if (dragRef.current) {
             dragRef.current.moveMode = getMoveModeForNode(nodeId, state);
 
@@ -436,46 +514,59 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
 
             dragRef.current.moveItems = moveItems.length > 0 ? moveItems : undefined;
 
+            hasPageCanvasMove =
+              dragRef.current.moveMode === "page-canvas" ||
+              (dragRef.current.moveItems ?? []).some((item) => item.moveMode === "page-canvas");
+
             for (const item of dragRef.current.moveItems ?? []) {
               item.dom.style.transition = "none";
               item.dom.style.setProperty("translate", "0px 0px");
               item.dom.style.willChange = "translate";
             }
+
+            if (hasPageCanvasMove) {
+              dragRef.current.guideBounds = undefined;
+              dragRef.current.parentCenterX = undefined;
+              dragRef.current.parentCenterY = undefined;
+              dragRef.current.siblingRects = undefined;
+            }
           }
 
-          const parentId = state.nodes[nodeId]?.data?.parent;
-          const parentDom = parentId ? query.node(parentId).get()?.dom ?? null : null;
-          const siblingIds = (state.nodes[parentId ?? ""]?.data?.nodes as string[]) ?? [];
-          const siblingRects: SiblingRect[] = [];
-          for (const sid of siblingIds) {
-            if (sid === nodeId) continue;
-            try {
-              const el = query.node(sid).get()?.dom;
-              if (el) {
-                const r = el.getBoundingClientRect();
-                siblingRects.push({
-                  left: r.left,
-                  right: r.right,
-                  top: r.top,
-                  bottom: r.bottom,
-                  centerX: r.left + r.width / 2,
-                  centerY: r.top + r.height / 2,
-                });
+          if (!hasPageCanvasMove) {
+            const parentId = state.nodes[nodeId]?.data?.parent;
+            const parentDom = parentId ? query.node(parentId).get()?.dom ?? null : null;
+            const siblingIds = (state.nodes[parentId ?? ""]?.data?.nodes as string[]) ?? [];
+            const siblingRects: SiblingRect[] = [];
+            for (const sid of siblingIds) {
+              if (sid === nodeId) continue;
+              try {
+                const el = query.node(sid).get()?.dom;
+                if (el) {
+                  const r = el.getBoundingClientRect();
+                  siblingRects.push({
+                    left: r.left,
+                    right: r.right,
+                    top: r.top,
+                    bottom: r.bottom,
+                    centerX: r.left + r.width / 2,
+                    centerY: r.top + r.height / 2,
+                  });
+                }
+              } catch { /* skip */ }
+            }
+            if (dragRef.current) {
+              dragRef.current.siblingRects = siblingRects;
+              if (parentDom) {
+                const parentRect = parentDom.getBoundingClientRect();
+                dragRef.current.guideBounds = {
+                  left: parentRect.left,
+                  right: parentRect.right,
+                  top: parentRect.top,
+                  bottom: parentRect.bottom,
+                };
+                dragRef.current.parentCenterX = parentRect.left + parentRect.width / 2;
+                dragRef.current.parentCenterY = parentRect.top + parentRect.height / 2;
               }
-            } catch { /* skip */ }
-          }
-          if (dragRef.current) {
-            dragRef.current.siblingRects = siblingRects;
-            if (parentDom) {
-              const parentRect = parentDom.getBoundingClientRect();
-              dragRef.current.guideBounds = {
-                left: parentRect.left,
-                right: parentRect.right,
-                top: parentRect.top,
-                bottom: parentRect.bottom,
-              };
-              dragRef.current.parentCenterX = parentRect.left + parentRect.width / 2;
-              dragRef.current.parentCenterY = parentRect.top + parentRect.height / 2;
             }
           }
         } catch {
@@ -484,9 +575,12 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       } else if (type === "resize") {
         try {
           const state = query.getState();
+          const nodeDisplayName = state.nodes[nodeId]?.data?.displayName as string | undefined;
+          const childCount = (((state.nodes[nodeId] as any)?.data?.nodes as string[] | undefined) ?? []).length;
+          const bypassBoundsForResize = nodeDisplayName === "Section" || (nodeDisplayName === "Container" && childCount > 0);
           const parentId = state.nodes[nodeId]?.data?.parent;
           const parentDom = parentId ? query.node(parentId).get()?.dom ?? null : null;
-          if (dragRef.current && parentDom) {
+          if (dragRef.current && parentDom && !bypassBoundsForResize) {
             const parentRect = parentDom.getBoundingClientRect();
             dragRef.current.guideBounds = {
               left: parentRect.left,
@@ -494,7 +588,11 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
               top: parentRect.top,
               bottom: parentRect.bottom,
             };
+          } else if (dragRef.current) {
+            dragRef.current.guideBounds = undefined;
           }
+
+          dom.style.willChange = "width, height, margin-top, margin-left";
         } catch {
           // ignore
         }
@@ -511,7 +609,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       }
       document.body.style.userSelect = "none";
       document.body.style.cursor =
-        type === "move" ? "grabbing" :
+        type === "move" ? "default" :
           type === "rotate" ? "grabbing" :
             handle ? HANDLE_CURSORS[handle] : "default";
     },
@@ -769,8 +867,11 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
 
         const bMT = typeof d.startProps.marginTop === "number" ? (d.startProps.marginTop as number) : 0;
         const bML = typeof d.startProps.marginLeft === "number" ? (d.startProps.marginLeft as number) : 0;
-        const nextMarginTop = extraMT !== 0 ? bMT + extraMT : bMT;
-        const nextMarginLeft = extraML !== 0 ? bML + extraML : bML;
+        const nextMarginTopRaw = extraMT !== 0 ? bMT + extraMT : bMT;
+        const nextMarginLeftRaw = extraML !== 0 ? bML + extraML : bML;
+        const isMarginFlowResize = (d.moveMode ?? "margin") === "margin";
+        const nextMarginTop = isMarginFlowResize ? Math.max(0, nextMarginTopRaw) : nextMarginTopRaw;
+        const nextMarginLeft = isMarginFlowResize ? Math.max(0, nextMarginLeftRaw) : nextMarginLeftRaw;
 
         const lastResize = d.lastAppliedResize;
         const unchangedFromLast =
@@ -792,16 +893,25 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
           marginLeft: nextMarginLeft,
         };
 
-        actions.setProp(nodeId, (props: Record<string, unknown>) => {
-          props.width = `${newW}px`;
-          props.height = `${newH}px`;
-          if (extraMT !== 0) {
-            props.marginTop = nextMarginTop;
-          }
-          if (extraML !== 0) {
-            props.marginLeft = nextMarginLeft;
-          }
-        });
+        const currentNode = query.getState().nodes[nodeId];
+        const isTextNode = currentNode?.data?.displayName === "Text";
+        const startFontSize = parsePxOrAuto(d.startProps.fontSize);
+        const nextFontSize = isTextNode
+          ? computeTextFontSizeForResize(h, startW, startH, newW, newH, startFontSize)
+          : null;
+
+        // Smooth preview: apply direct DOM style during drag, commit once on mouseup.
+        dom.style.width = `${newW}px`;
+        dom.style.height = isTextNode ? "auto" : `${newH}px`;
+        if (extraMT !== 0) {
+          dom.style.marginTop = `${nextMarginTop}px`;
+        }
+        if (extraML !== 0) {
+          dom.style.marginLeft = `${nextMarginLeft}px`;
+        }
+        if (isTextNode && nextFontSize != null) {
+          dom.style.fontSize = `${Math.round(nextFontSize * 10) / 10}px`;
+        }
       } else if (d.type === "rotate" && d.startAngle != null) {
         const cx = d.startRect.left + d.startRect.width / 2;
         const cy = d.startRect.top + d.startRect.height / 2;
@@ -1021,16 +1131,29 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
             if (h.includes("n") || h.includes("s")) extraMT = -dh / 2;
           }
           ({ newW, newH, extraMT, extraML } = clampResizeToBounds(h, d, { newW, newH, extraMT, extraML }));
+
+          const currentNode = query.getState().nodes[nodeId];
+          const isTextNode = currentNode?.data?.displayName === "Text";
+          const startFontSize = parsePxOrAuto(d.startProps.fontSize);
+          const nextFontSize = isTextNode
+            ? computeTextFontSizeForResize(h, startW, startH, newW, newH, startFontSize)
+            : null;
+
           actions.setProp(nodeId, (props: Record<string, unknown>) => {
             props.width = `${Math.round(newW)}px`;
-            props.height = `${Math.round(newH)}px`;
+            props.height = isTextNode ? "auto" : `${Math.round(newH)}px`;
+            if (isTextNode && nextFontSize != null) {
+              props.fontSize = Math.round(nextFontSize * 10) / 10;
+            }
             if (extraMT !== 0) {
               const bMT = typeof d.startProps.marginTop === "number" ? d.startProps.marginTop as number : 0;
-              props.marginTop = Math.round(bMT + extraMT);
+              const nextMT = (d.moveMode ?? "margin") === "margin" ? Math.max(0, bMT + extraMT) : (bMT + extraMT);
+              props.marginTop = Math.round(nextMT);
             }
             if (extraML !== 0) {
               const bML = typeof d.startProps.marginLeft === "number" ? d.startProps.marginLeft as number : 0;
-              props.marginLeft = Math.round(bML + extraML);
+              const nextML = (d.moveMode ?? "margin") === "margin" ? Math.max(0, bML + extraML) : (bML + extraML);
+              props.marginLeft = Math.round(nextML);
             }
           });
         } else if (d.type === "rotate") {
@@ -1054,6 +1177,9 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       setDragType(null);
       setGuides(null);
       setRotateAngle(null);
+      if (d?.type === "resize") {
+        dom.style.willChange = d.previousWillChange ?? "";
+      }
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
@@ -1228,15 +1354,15 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
           transformOrigin: "center center",
         }}
       >
-        {/* Border = grab to move */}
+        {/* Border = drag to move */}
         <div
           style={{
             position: "absolute",
             inset: 0,
             border: "2px solid #3b82f6",
             borderRadius: 2,
-            cursor: "grab",
-            pointerEvents: "auto",
+            cursor: "default",
+            pointerEvents: isExternalDragActive ? "none" : "auto",
           }}
           onMouseDown={(e) => startDrag(e, "move")}
         />
@@ -1254,7 +1380,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
               border: "2px solid #3b82f6",
               borderRadius: 2,
               cursor: HANDLE_CURSORS[h.key],
-              pointerEvents: "auto",
+              pointerEvents: isExternalDragActive ? "none" : "auto",
               zIndex: 1,
               ...h.style,
             }}
@@ -1275,8 +1401,8 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
             borderRadius: "50%",
             border: "2px solid #3b82f6",
             backgroundColor: "#ffffff",
-            cursor: "grab",
-            pointerEvents: "auto",
+            cursor: "default",
+            pointerEvents: isExternalDragActive ? "none" : "auto",
             zIndex: 2,
           }}
           onMouseDown={(e) => startDrag(e, "rotate")}

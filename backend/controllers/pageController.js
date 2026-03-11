@@ -1,5 +1,6 @@
 // controllers/pageController.js
 const Page = require('../models/Page');
+const { resolveProjectOwner } = require('../utils/resolveProjectOwner');
 
 // @desc    Get all pages
 // @route   GET /api/pages
@@ -147,10 +148,10 @@ exports.delete = async (req, res) => {
 // @route   POST /api/pages/autosave
 // @access  Private
 exports.autoSave = async (req, res) => {
-  console.log('👉 Controller: autoSave called for user:', req.user ? req.user.id : 'unknown');
   try {
     const { content, projectId } = req.body;
     const userId = req.user.id;
+    const userEmail = (req.user.email || '').toLowerCase();
 
     if (content === undefined) {
       return res.status(400).json({
@@ -166,11 +167,52 @@ exports.autoSave = async (req, res) => {
       });
     }
 
-    // Save to specific path: /user/roles/client/{userId}/projects/{projectId}/pages/{userId}
-    // Using userId as pageId as per requirement
-    const updated = await Page.savePageData(userId, projectId, userId, content);
+    const resolved = await resolveProjectOwner(userId, projectId, userEmail);
+    if (!resolved) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this project'
+      });
+    }
 
-    console.log(`✅ Auto-saved to project ${projectId} for user ${userId}`);
+    if (resolved.permission === 'viewer') {
+      return res.status(403).json({
+        success: false,
+        message: 'Viewers cannot edit this project'
+      });
+    }
+
+    const { ownerId } = resolved;
+
+    // Guard: prevent overwriting real content with empty canvas
+    let parsedContent;
+    try {
+      parsedContent = typeof content === 'string' ? JSON.parse(content) : content;
+    } catch { parsedContent = null; }
+
+    const incomingNodes = parsedContent?.nodes ? Object.keys(parsedContent.nodes) : [];
+    const isIncomingEmpty = parsedContent && incomingNodes.length === 0;
+
+    if (isIncomingEmpty) {
+      const existing = await Page.getPageData(ownerId, projectId, ownerId);
+      if (existing && existing.content) {
+        let existingParsed;
+        try {
+          existingParsed = typeof existing.content === 'string'
+            ? JSON.parse(existing.content) : existing.content;
+        } catch { existingParsed = null; }
+        const existingNodes = existingParsed?.nodes ? Object.keys(existingParsed.nodes) : [];
+        if (existingNodes.length > 0) {
+          return res.status(200).json({
+            success: true,
+            message: 'Skipped: not overwriting existing content with empty canvas',
+            data: existing
+          });
+        }
+      }
+    }
+
+    const updated = await Page.savePageData(ownerId, projectId, ownerId, content);
 
     res.status(200).json({
       success: true,
@@ -194,6 +236,7 @@ exports.getDraft = async (req, res) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   try {
     const userId = req.user.id;
+    const userEmail = (req.user.email || '').toLowerCase();
     const { projectId } = req.query;
 
     if (!projectId) {
@@ -203,7 +246,19 @@ exports.getDraft = async (req, res) => {
       });
     }
 
-    const draft = await Page.getPageData(userId, projectId, userId);
+    const resolved = await resolveProjectOwner(userId, projectId, userEmail);
+    if (!resolved) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this project'
+      });
+    }
+
+    const { ownerId } = resolved;
+    let draft = await Page.getPageData(ownerId, projectId, ownerId);
+    if (!draft) {
+      draft = await Page.getPageData(ownerId, projectId, 'draft');
+    }
 
     if (!draft) {
       return res.status(200).json({
@@ -211,12 +266,6 @@ exports.getDraft = async (req, res) => {
         data: null
       });
     }
-
-    // Ensure content is returned as string if it's an object,
-    // to match what frontend likely expects for JSON.parse, 
-    // OR send object and update frontend. 
-    // Plan says "Sanitization: Ensure content in Firestore is a nested Map... Frontend needs to handle this".
-    // I will return it as is (Object) and update frontend to handle it.
 
     res.status(200).json({
       success: true,
@@ -238,7 +287,7 @@ exports.getDraft = async (req, res) => {
 exports.deleteDraft = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { projectId } = req.query; // or body
+    const { projectId } = req.query;
 
     if (!projectId) {
       return res.status(400).json({
@@ -247,8 +296,24 @@ exports.deleteDraft = async (req, res) => {
       });
     }
 
-    await Page.deletePageData(userId, projectId, userId);
-    console.log(`🗑️ Deleted draft for project ${projectId} user ${userId}`);
+    const userEmail = (req.user.email || '').toLowerCase();
+    const resolved = await resolveProjectOwner(userId, projectId, userEmail);
+    if (!resolved) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this project'
+      });
+    }
+
+    if (resolved.permission === 'viewer') {
+      return res.status(403).json({
+        success: false,
+        message: 'Viewers cannot modify this project'
+      });
+    }
+
+    const { ownerId } = resolved;
+    await Page.deletePageData(ownerId, projectId, ownerId);
 
     res.status(200).json({
       success: true,

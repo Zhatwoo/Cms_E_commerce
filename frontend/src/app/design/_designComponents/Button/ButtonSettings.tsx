@@ -6,7 +6,7 @@ import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePos
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
-import { ColorInput } from "../../_components/rightPanel/settings/inputs/ColorInput";
+import { ColorPicker } from "../../_components/rightPanel/settings/inputs/ColorPicker";
 import type { ButtonProps, SetProp } from "../../_types/components";
 
 const FONT_OPTIONS = [
@@ -119,11 +119,22 @@ export const ButtonSettings = () => {
           {/* Variant */}
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-brand-lighter">Variant</label>
-            <div className="grid grid-cols-4 gap-1 bg-brand-dark/30 p-1 rounded-lg border border-brand-medium/20">
-              {(["primary", "secondary", "outline", "ghost"] as const).map((v) => (
+            <div className="grid grid-cols-5 gap-1 bg-brand-dark/30 p-1 rounded-lg border border-brand-medium/20">
+              {(["primary", "secondary", "outline", "ghost", "cta"] as const).map((v) => (
                 <button
                   key={v}
-                  onClick={() => typedSetProp((props) => { props.variant = v; })}
+                  onClick={() => typedSetProp((props) => {
+                    props.variant = v;
+                    if (v === "cta") {
+                      props.borderRadius = 0;
+                      props.fontWeight = "700";
+                      props.fontSize = 16;
+                      props.paddingTop = 8;
+                      props.paddingBottom = 8;
+                      props.paddingLeft = 22;
+                      props.paddingRight = 22;
+                    }
+                  })}
                   className={`text-[10px] py-1.5 rounded capitalize transition-colors ${variant === v
                     ? "bg-brand-medium/50 text-brand-lighter"
                     : "text-brand-light hover:text-brand-lighter"
@@ -143,35 +154,17 @@ export const ButtonSettings = () => {
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
               <label className="text-[10px] text-brand-lighter">Background</label>
-              <div className="flex items-center gap-1 bg-brand-black border border-brand-medium/30 rounded-md p-1 color-picker-wrapper">
-                <input
-                  type="color"
-                  value={backgroundColor || "#3b82f6"}
-                  onChange={(e) => typedSetProp((props) => { props.backgroundColor = e.target.value; })}
-                  className="w-5 h-5 rounded cursor-pointer bg-transparent border-none p-0 color-picker-button"
-                />
-                <ColorInput
-                  value={backgroundColor || "#3b82f6"}
-                  onChange={(val) => typedSetProp((props) => { props.backgroundColor = val; })}
-                  className="flex-1"
-                />
-              </div>
+              <ColorPicker
+                value={backgroundColor || "#3b82f6"}
+                onChange={(val) => typedSetProp((props) => { props.backgroundColor = val; })}
+              />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-[10px] text-brand-lighter">Text Color</label>
-              <div className="flex items-center gap-1 bg-brand-black border border-brand-medium/30 rounded-md p-1 color-picker-wrapper">
-                <input
-                  type="color"
-                  value={textColor || "#ffffff"}
-                  onChange={(e) => typedSetProp((props) => { props.textColor = e.target.value; })}
-                  className="w-5 h-5 rounded cursor-pointer bg-transparent border-none p-0 color-picker-button"
-                />
-                <ColorInput
-                  value={textColor || "#ffffff"}
-                  onChange={(val) => typedSetProp((props) => { props.textColor = val; })}
-                  className="flex-1"
-                />
-              </div>
+              <ColorPicker
+                value={textColor || "#ffffff"}
+                onChange={(val) => typedSetProp((props) => { props.textColor = val; })}
+              />
             </div>
           </div>
 

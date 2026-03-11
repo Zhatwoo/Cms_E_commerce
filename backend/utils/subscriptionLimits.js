@@ -3,21 +3,25 @@ const SUBSCRIPTION_LIMITS = {
         domains: 3,
         projects: 5,
         codeEditor: false,
+        customDomains: false,
     },
     basic: {
         domains: 10,
         projects: 10,
         codeEditor: false,
+        customDomains: true,
     },
     pro: {
         domains: Infinity,
         projects: Infinity,
         codeEditor: true,
+        customDomains: true,
     },
     custom: {
         domains: Infinity,
         projects: Infinity,
         codeEditor: true,
+        customDomains: true,
     },
 };
 

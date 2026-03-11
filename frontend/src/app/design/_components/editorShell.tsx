@@ -15,30 +15,48 @@ import { Text } from "../_designComponents/Text/Text";
 import { Page } from "../_designComponents/Page/Page";
 import { Viewport } from "../_designComponents/Viewport/Viewport";
 import { Section } from "../_designComponents/Section/Section";
+import { Image } from "../_designComponents/Image/Image";
 import { Button } from "../_designComponents/Button/Button";
 import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
-import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
-import { MarqueeSelectionHandler } from "./MarqueeSelectionHandler";
 import { BoxSelectionHandler } from "./BoxSelectionHandler";
+import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
+import { FreeDropPlacementHandler } from "./FreeDropPlacementHandler";
+import { MarqueeSelectionHandler } from "./MarqueeSelectionHandler";
+import { TextToolHandler } from "./TextToolHandler";
+import { ShapeToolHandler } from "./ShapeToolHandler";
 import { TransformModeProvider } from "./TransformModeContext";
 import { InlineTextEditProvider } from "./InlineTextEditContext";
 import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
 import { CanvasContextMenu } from "./CanvasContextMenu";
 import { CanvasDropGuide } from "./CanvasDropGuide";
 import { PrototypeTabProvider } from "./PrototypeTabContext";
+import { ImportedComponentsProvider } from "../_context/ImportedComponentsContext";
 import { PrototypeFlowLines } from "./PrototypeFlowLines";
 import { NewPageDropPlacementHandler } from "./NewPageDropPlacementHandler";
 import { HeaderFooterDropPlacementHandler } from "./HeaderFooterDropPlacementHandler";
+import PanelDropFreePlacementHandler from "./PanelDropFreePlacementHandler";
+import { ScrollToSelectedHandler } from "./ScrollToSelectedHandler";
 import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
+import { migratePublishedContent } from "../_lib/contentMigration";
+import { useRouter } from "next/navigation";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 import { Circle } from "../../_assets/shapes/circle/circle";
 import { Square } from "../../_assets/shapes/square/square";
 import { Triangle } from "../../_assets/shapes/triangle/triangle";
 import { CRAFT_RESOLVER } from "./craftResolver";
+import {
+  MIN_SCALE,
+  MAX_SCALE,
+  DEFAULT_SCALE,
+  ZOOM_STEP,
+  ZOOM_SENSITIVITY,
+} from "./zoomConstants";
+import { useCollaboration } from "../_context/CollaborationContext";
+import CollaboratorCursors from "./CollaboratorCursors";
 
 /**
  * React Error Boundary to catch rendering errors in Frame component
@@ -71,11 +89,14 @@ class FrameErrorBoundary extends React.Component<
 }
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
+const PERSISTENT_STORAGE_KEY_PREFIX = "craftjs_preview_persist";
 const UI_STATE_KEY_PREFIX = "craftjs_editor_ui";
 
 // These must match the Viewport constants for proper page positioning
 const PAGE_GRID_ORIGIN_X = 30000;
 const PAGE_GRID_ORIGIN_Y = 30000;
+const PAGE_BASE_WIDTH = 1920;
+const PAGE_BASE_HEIGHT = 1200;
 
 const EMPTY_FRAME_DATA = JSON.stringify({
   ROOT: {
@@ -96,7 +117,6 @@ const EMPTY_FRAME_DATA = JSON.stringify({
       pageSlug: "page-0",
       canvasX: PAGE_GRID_ORIGIN_X,
       canvasY: PAGE_GRID_ORIGIN_Y,
-      width: "1920px",
       height: "1200px",
       background: "#ffffff"
     },
@@ -104,33 +124,35 @@ const EMPTY_FRAME_DATA = JSON.stringify({
     custom: {},
     parent: "ROOT",
     hidden: false,
-    nodes: ["container-1"],
-    linkedNodes: {},
-  },
-  "container-1": {
-    type: { resolvedName: "Container" },
-    isCanvas: true,
-    props: { padding: 40, background: "#ffffff" },
-    displayName: "Container",
-    custom: {},
-    parent: "page-1",
-    hidden: false,
     nodes: [],
     linkedNodes: {},
   },
 });
 
+const SAFE_CONTAINER: React.ComponentType<any> =
+  (typeof Container === "function" ? Container : null) ??
+  ((props: any) => React.createElement("div", props, props?.children));
+
+const asComponent = (value: unknown): React.ComponentType<any> =>
+  typeof value === "function" ? (value as React.ComponentType<any>) : SAFE_CONTAINER;
+
 const VALIDATOR_RESOLVER: Record<string, React.ComponentType<any>> = {
   ...RenderBlocks,
   ...CRAFT_RESOLVER,
-  Container,
-  container: Container,
-  Text: Text || Container,
-  text: Text || Container,
-  Page: Page || Container,
-  page: Page || Container,
-  Viewport: Viewport || Container,
-  viewport: Viewport || Container,
+  Container: SAFE_CONTAINER,
+  container: SAFE_CONTAINER,
+  CONTAINER: SAFE_CONTAINER,
+  Button: asComponent(Button),
+  button: asComponent(Button),
+  Text: asComponent(Text),
+  text: asComponent(Text),
+  Image: asComponent(Image),
+  image: asComponent(Image),
+  IMAGE: asComponent(Image),
+  Page: asComponent(Page),
+  page: asComponent(Page),
+  Viewport: asComponent(Viewport),
+  viewport: asComponent(Viewport),
 };
 
 const VALIDATOR_CANONICAL_NAME_BY_LOWER = new Map<string, string>();
@@ -144,11 +166,41 @@ for (const key of Object.keys(VALIDATOR_RESOLVER)) {
 function normalizeResolvedName(rawName: unknown): string {
   const name = typeof rawName === "string" ? rawName.trim() : "";
   if (!name) return "Container";
-  return VALIDATOR_CANONICAL_NAME_BY_LOWER.get(name.toLowerCase()) ?? "Container";
+  const lowered = name.toLowerCase();
+  const exact = VALIDATOR_CANONICAL_NAME_BY_LOWER.get(lowered);
+  if (exact) return exact;
+  if (lowered.includes("image")) return "Image";
+  if (lowered.includes("text")) return "Text";
+  if (lowered.includes("container")) return "Container";
+  if (lowered.includes("page")) return "Page";
+  if (lowered.includes("viewport")) return "Viewport";
+  return "Container";
+}
+
+function withResolverFallback<T extends Record<string, React.ComponentType>>(base: T): T {
+  return new Proxy(base, {
+    get(target, prop, receiver) {
+      const direct = Reflect.get(target, prop, receiver);
+      if (direct) return direct;
+      if (typeof prop !== "string") return direct;
+
+      const normalized = prop.trim().toLowerCase();
+      const resolved =
+        Reflect.get(target, prop.trim(), receiver) ||
+        Reflect.get(target, normalized, receiver) ||
+        Reflect.get(target, VALIDATOR_CANONICAL_NAME_BY_LOWER.get(normalized) ?? "", receiver);
+
+      return resolved || target.Container || SAFE_CONTAINER;
+    },
+  }) as T;
 }
 
 function getStorageKey(projectId: string) {
   return `${STORAGE_KEY_PREFIX}_${projectId}`;
+}
+
+function getPersistentStorageKey(projectId: string) {
+  return `${PERSISTENT_STORAGE_KEY_PREFIX}_${projectId}`;
 }
 
 function isQuotaError(error: unknown): boolean {
@@ -189,17 +241,49 @@ function safeSessionRemove(key: string): void {
   }
 }
 
+function safeLocalGet(key: string): string | null {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return null;
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeLocalSet(key: string, value: string): void {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return;
+    window.localStorage.setItem(key, value);
+  } catch (error) {
+    if (isQuotaError(error)) {
+      console.warn("LocalStorage quota exceeded, skipping save:", key);
+    }
+  }
+}
+
+function safeLocalRemove(key: string): void {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return;
+    window.localStorage.removeItem(key);
+  } catch {
+    // Ignore errors when removing
+  }
+}
+
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 type EditorShellProps = {
   projectId: string;
   pageId?: string | null;
+  permission?: "editor" | "viewer" | "owner";
 };
 
-const MIN_SCALE = 0.05;
-const MAX_SCALE = 3;
-const DEFAULT_SCALE = 0.5;
-const ZOOM_SENSITIVITY = 0.003;
+const LEFT_PANEL_DEFAULT_WIDTH = 320;
+const RIGHT_PANEL_DEFAULT_WIDTH = 420;
+const MIN_PANEL_WIDTH = 200;
+const MAX_PANEL_WIDTH = 600;
+const MIN_CANVAS_VIEWPORT_WIDTH = 760;
+const TOP_PANEL_HEIGHT_PX = 48;
 const INFINITE_CANVAS_WIDTH_VW = 4000;
 const INFINITE_CANVAS_HEIGHT_VH = 4000;
 const INFINITE_CANVAS_PADDING_PX = 30000;
@@ -229,8 +313,6 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
   try {
     const parsed = JSON.parse(jsonString);
 
-    console.log('🔍 Validation: Starting with', Object.keys(parsed).length, 'nodes');
-
     // Must have ROOT
     if (!parsed || !parsed.ROOT) {
       console.error('❌ Validation failed: Missing ROOT node');
@@ -256,14 +338,12 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
 
       // Must be an object
       if (!node || typeof node !== 'object') {
-        console.warn(`⚠️ Node ${id} is not an object:`, typeof node);
         invalidNodes.push(id);
         return false;
       }
 
       // Must have type property
       if (!node.type) {
-        console.warn(`⚠️ Node ${id} is missing 'type' property`);
         invalidNodes.push(id);
         return false;
       }
@@ -279,19 +359,12 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
 
       // Must have nodes array (even if empty)
       if (!Array.isArray(node.nodes)) {
-        console.warn(`⚠️ Node ${id} is missing 'nodes' array`);
         // Try to fix it
         node.nodes = [];
       }
 
       return true;
     }));
-
-    if (invalidNodes.length > 0) {
-      console.warn(`⚠️ Found ${invalidNodes.length} invalid nodes:`, invalidNodes);
-    }
-
-    console.log(`🔍 Validation: Found ${validNodeIds.size} valid nodes out of ${allNodeIds.length} total`);
 
     // If too many invalid nodes, abort
     if (invalidNodes.length > allNodeIds.length * 0.5) {
@@ -315,7 +388,6 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
         const originalLength = node.nodes.length;
         node.nodes = node.nodes.filter((childId: string) => {
           if (!validNodeIds.has(childId)) {
-            console.warn(`⚠️ Removing invalid reference: ${nodeId} -> ${childId}`);
             hasInvalidRefs = true;
             removedRefsCount++;
             return false;
@@ -324,7 +396,7 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
         });
 
         if (node.nodes.length !== originalLength) {
-          console.log(`🔧 Cleaned ${nodeId}: ${originalLength} -> ${node.nodes.length} children`);
+          hasInvalidRefs = true;
         }
 
         // Recursively clean children
@@ -335,7 +407,6 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
       if (node.linkedNodes && typeof node.linkedNodes === 'object') {
         for (const [key, linkedId] of Object.entries(node.linkedNodes)) {
           if (typeof linkedId === 'string' && !validNodeIds.has(linkedId)) {
-            console.warn(`⚠️ Removing invalid linkedNode: ${nodeId}.${key} -> ${linkedId}`);
             delete node.linkedNodes[key];
             hasInvalidRefs = true;
             removedRefsCount++;
@@ -346,10 +417,6 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
 
     // Start validation from ROOT
     cleanNodeRefs('ROOT');
-
-    if (hasInvalidRefs) {
-      console.log(`🔧 Data cleaned - removed ${removedRefsCount} invalid references`);
-    }
 
     // Remove invalid nodes from the parsed object
     invalidNodes.forEach(id => {
@@ -374,7 +441,10 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
     });
 
     const finalJson = JSON.stringify(parsed);
-    console.log(`✅ Validation complete. Final data has ${Object.keys(parsed).length} nodes`);
+
+    if (hasInvalidRefs && removedRefsCount > 0) {
+      console.warn(`Editor data cleaned: removed ${removedRefsCount} invalid references.`);
+    }
 
     return { valid: true, data: finalJson };
   } catch (error) {
@@ -383,19 +453,34 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
   }
 }
 
+function prepareFrameData(jsonString: string): { valid: boolean; data?: string } {
+  // Always run through validator so component type names are canonicalized
+  // against resolver keys (e.g. Image/image/Text/text) before Frame mount.
+  return validateCraftData(jsonString);
+}
+
 // Suppress known @craftjs/core React 19 compatibility warnings.
 // Safe to remove once craftjs releases a stable React 19 compatible version (0.3.x+).
 if (typeof window !== "undefined") {
-  const _origConsoleError = console.error.bind(console);
-  console.error = (...args: unknown[]) => {
-    if (typeof args[0] === "string") {
-      // React 19 removed element.ref access — craftjs still uses old API internally
-      if (args[0].includes("Accessing element.ref was removed")) return;
-      // craftjs store updates trigger setState during Frame render in React 19 concurrent mode
-      if (args[0].includes("Cannot update a component") && args[0].includes("while rendering a different component")) return;
-    }
-    _origConsoleError(...args);
+  const win = window as Window & {
+    __craftConsoleErrorPatched__?: boolean;
+    __craftOriginalConsoleError__?: typeof console.error;
   };
+  if (!win.__craftConsoleErrorPatched__) {
+    const originalError = win.__craftOriginalConsoleError__ ?? console.error.bind(console);
+    win.__craftOriginalConsoleError__ = originalError;
+    console.error = (...args: unknown[]) => {
+      const concat = args.map((a) => (typeof a === "string" ? a : String(a))).join(" ");
+      // React 19 removed element.ref access — craftjs still uses old API internally
+      if (concat.includes("Accessing element.ref was removed")) return;
+      // craftjs store updates trigger setState during Frame render in React 19 concurrent mode
+      if (concat.includes("Cannot update a component") && concat.includes("while rendering a different component")) return;
+      // Known broken Unsplash image (content migration replaces; suppress noisy load error)
+      if (concat.includes("Error loading image") && concat.includes("photo-1581093458791-9f3c3900df4b")) return;
+      originalError(...args);
+    };
+    win.__craftConsoleErrorPatched__ = true;
+  }
 }
 
 /**
@@ -458,6 +543,7 @@ const SafeFrame = ({
   const [frameDataToShow, setFrameDataToShow] = useState<string | null>(null);
   const [hasErrorBoundaryError, setHasErrorBoundaryError] = useState(false);
   const mountedSignalSentRef = useRef(false);
+  const validationCacheRef = useRef<{ input: string; output: string | null; valid: boolean } | null>(null);
 
   useEffect(() => {
     setFrameDataToShow(null);
@@ -470,18 +556,30 @@ const SafeFrame = ({
 
     // Validate and prepare data for rendering
     if (data) {
-      console.log('🔍 SafeFrame: Validating data before render...');
-      const validation = validateCraftData(data);
-
-      if (validation.valid && validation.data) {
-        console.log('✅ SafeFrame: Data is valid, preparing to render');
-        setRenderData(validation.data);
+      const cached = validationCacheRef.current;
+      if (cached && cached.input === data) {
+        if (cached.valid && cached.output) {
+          setRenderData(cached.output);
+        } else {
+          setRenderData(null);
+          onError?.();
+        }
       } else {
-        console.error('❌ SafeFrame: Data validation failed, using empty canvas');
-        setRenderData(null);
-        onError?.();
+        const validation = prepareFrameData(data);
+        validationCacheRef.current = {
+          input: data,
+          output: validation.data ?? null,
+          valid: Boolean(validation.valid && validation.data),
+        };
+        if (validation.valid && validation.data) {
+          setRenderData(validation.data);
+        } else {
+          setRenderData(null);
+          onError?.();
+        }
       }
     } else {
+      validationCacheRef.current = null;
       setRenderData(null);
     }
 
@@ -493,7 +591,7 @@ const SafeFrame = ({
       setIsReady(true);
     };
     const id = requestAnimationFrame(markReady);
-    const fallback = window.setTimeout(markReady, 260);
+    const fallback = window.setTimeout(markReady, 80);
     return () => {
       cancelAnimationFrame(id);
       window.clearTimeout(fallback);
@@ -511,7 +609,7 @@ const SafeFrame = ({
       setCanRenderFrame(true);
     };
     const id = requestAnimationFrame(allowRender);
-    const fallback = window.setTimeout(allowRender, 260);
+    const fallback = window.setTimeout(allowRender, 80);
     return () => {
       cancelAnimationFrame(id);
       window.clearTimeout(fallback);
@@ -597,55 +695,195 @@ const QueryStasher = ({ onQuery }: { onQuery: (query: any) => void }) => {
   return null;
 };
 
+const isApplyingRemoteRef = { current: false };
+
+/**
+ * Syncs remote canvas changes from collaborators into the local editor.
+ * Must be a child of <Editor />.
+ */
+const CollabSyncHandler = () => {
+  const { actions } = useEditor();
+  const { setOnRemoteCanvasChange } = useCollaboration();
+
+  useEffect(() => {
+    console.log("[CollabSync] Registering remote canvas change handler");
+    const handler = (data: { type?: string; json?: string }) => {
+      console.log("[CollabSync] Received remote change, type:", data.type, "hasJson:", !!data.json);
+      if (data.type !== "nodes_change" || !data.json) return;
+      try {
+        const validated = validateCraftData(data.json);
+        if (validated.valid && validated.data) {
+          console.log("[CollabSync] Applying remote deserialization");
+          isApplyingRemoteRef.current = true;
+          actions.deserialize(validated.data);
+          requestAnimationFrame(() => { isApplyingRemoteRef.current = false; });
+        } else {
+          console.warn("[CollabSync] Remote data validation failed");
+        }
+      } catch (err) {
+        console.error("[CollabSync] Error applying remote change:", err);
+        isApplyingRemoteRef.current = false;
+      }
+    };
+    setOnRemoteCanvasChange(handler);
+    return () => setOnRemoteCanvasChange(null);
+  }, [actions, setOnRemoteCanvasChange]);
+
+  return null;
+};
+
+/**
+ * Broadcasts cursor position to collaborators via socket.
+ * Mounted inside the canvas scroll container.
+ */
+const CollabCursorBroadcaster = ({
+  containerRef,
+  scale,
+}: {
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  scale: number;
+}) => {
+  const { emitCursorMove } = useCollaboration();
+  const rafRef = React.useRef<number | null>(null);
+  const pendingRef = React.useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleMove = (e: MouseEvent) => {
+      const rect = container.getBoundingClientRect();
+      // Convert viewport coords to canvas coords (accounting for scroll + scale)
+      const canvasX = (container.scrollLeft + e.clientX - rect.left) / scale;
+      const canvasY = (container.scrollTop + e.clientY - rect.top) / scale;
+      pendingRef.current = { x: canvasX, y: canvasY };
+
+      if (rafRef.current !== null) return;
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+        if (pendingRef.current) {
+          emitCursorMove(pendingRef.current);
+          pendingRef.current = null;
+        }
+      });
+    };
+
+    container.addEventListener("mousemove", handleMove, { passive: true });
+    return () => {
+      container.removeEventListener("mousemove", handleMove);
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
+  }, [containerRef, scale, emitCursorMove]);
+
+  return null;
+};
+
+const COLLAB_EMIT_DEBOUNCE_MS = 400;
+
 /** Editor Shell */
-export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellProps) => {
+export const EditorShell = ({ projectId, pageId: initialPageId, permission = "editor" }: EditorShellProps) => {
+  const router = useRouter();
   const { showAlert, showConfirm } = useAlert();
+  const { emitCanvasChange, setOnRemoteCanvasChange } = useCollaboration();
   const [currentPageId, setCurrentPageId] = useState<string | null>(initialPageId ?? null);
   const [pages, setPages] = useState<Array<{ id: string; name: string }>>([]);
   const [projectFiles, setProjectFiles] = useState<any[]>([]);
-  const lastQueryRef = useRef<{ serialize: () => string } | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const horizontalScrollbarRef = useRef<HTMLDivElement>(null);
-  const horizontalScrollbarInnerRef = useRef<HTMLDivElement>(null);
+
+  const containerRef = useRef<HTMLDivElement>(null!);
   const previousScaleRef = useRef(1);
   const wheelZoomDeltaRef = useRef(0);
   const wheelZoomRafRef = useRef<number | null>(null);
+  const wheelZoomAnchorRef = useRef<{ x: number; y: number } | null>(null);
+  const wheelZoomingRef = useRef(false);
+  const lastWheelZoomAtRef = useRef(0);
+  const manualCameraControlUntilRef = useRef(0);
+  const hasAutoCenteredAfterFrameReadyRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSnapshotRef = useRef<string | null>(null);
   const lastSavedRawRef = useRef<string | null>(null);
   const editorQueryRef = useRef<{ serialize: () => string } | null>(null);
-  const errorCleanupDoneRef = useRef(false); // Track if we've already cleaned up
-  const hasUserMovedCanvasRef = useRef(false);
+  const errorCleanupDoneRef = useRef(false);
   const [isPanning, setIsPanning] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState(DEFAULT_SCALE);
   const [initialJson, setInitialJson] = useState<string | null | undefined>(undefined);
   const [panelsReady, setPanelsReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const [leftPanelWidth, setLeftPanelWidth] = useState(LEFT_PANEL_DEFAULT_WIDTH);
+  const [rightPanelWidth, setRightPanelWidth] = useState(RIGHT_PANEL_DEFAULT_WIDTH);
   const [rightPanelTab, setRightPanelTab] = useState<TabId>("design");
   const [canvasWidth, setCanvasWidth] = useState(1440);
   const [canvasHeight, setCanvasHeight] = useState(900);
-  const [canvasRotation, setCanvasRotation] = useState(0);
   const [activeTool, setActiveTool] = useState<CanvasTool>("move");
   const [frameReady, setFrameReady] = useState(false);
   const [showDualView, setShowDualView] = useState(false);
-  const [suppressDropIndicator, setSuppressDropIndicator] = useState(false);
-  const [dropIndicatorPulse, setDropIndicatorPulse] = useState(false);
+  const [isDeviceSwitching, setIsDeviceSwitching] = useState(false);
   const hasInitialCenteringRef = useRef(false);
   const hasForcedRightPanelOpenRef = useRef(false);
+  const deviceSwitchRafRef = useRef<number | null>(null);
+  const deviceSwitchTimeoutRef = useRef<number | null>(null);
+  const deviceSwitchEndTimeoutRef = useRef<number | null>(null);
   const saveStatusRef = useRef(saveStatus);
+  const panelDragRef = useRef<{
+    side: "left" | "right";
+    startX: number;
+    startWidth: number;
+  } | null>(null);
+  const [isPanelDragging, setIsPanelDragging] = useState(false);
+
+  const handleToolChange = useCallback((tool: CanvasTool) => {
+    setActiveTool(tool);
+
+    // Keep hand cursor state from getting stuck after explicit tool switches.
+    if (tool !== "hand") {
+      setIsPanning(false);
+      setIsSpacePressed(false);
+      document.body.removeAttribute("data-canvas-pan");
+      document.body.removeAttribute("data-space-pan");
+    }
+  }, []);
+
+  const startPanelDrag = useCallback((side: "left" | "right", event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const startWidth = side === "left" ? leftPanelWidth : rightPanelWidth;
+    panelDragRef.current = { side, startX: event.clientX, startWidth };
+    setIsPanelDragging(true);
+  }, [leftPanelWidth, rightPanelWidth]);
+
+  useEffect(() => {
+    if (!isPanelDragging || !panelDragRef.current) return;
+    const onMove = (e: MouseEvent) => {
+      const state = panelDragRef.current;
+      if (!state) return;
+      const delta = state.side === "left" ? e.clientX - state.startX : state.startX - e.clientX;
+      const nextWidth = Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, state.startWidth + delta));
+      if (state.side === "left") setLeftPanelWidth(nextWidth);
+      else setRightPanelWidth(nextWidth);
+      panelDragRef.current = { ...state, startX: e.clientX, startWidth: nextWidth };
+    };
+    const onUp = () => {
+      panelDragRef.current = null;
+      setIsPanelDragging(false);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [isPanelDragging]);
 
   // Sync saveStatus to ref for safe use in beforeunload effect
   useEffect(() => {
     saveStatusRef.current = saveStatus;
   }, [saveStatus]);
-
-  const infiniteCanvasWidthVw = INFINITE_CANVAS_WIDTH_VW;
-  const infiniteCanvasHeightVh = INFINITE_CANVAS_HEIGHT_VH;
-  const infiniteCanvasPaddingPx = INFINITE_CANVAS_PADDING_PX;
 
   // Per-project UI state key so zoom, panels, and last page persist across reloads
   const uiStateStorageKey = React.useMemo(
@@ -657,9 +895,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     if (errorCleanupDoneRef.current) return;
     errorCleanupDoneRef.current = true;
 
-    console.error('❌ Frame rendering failed. Cleaning up corrupted data...');
-
-    // Clear per-project storage keys (both localStorage and sessionStorage)
+    // Clear per-project storage keys (sessionStorage + legacy localStorage)
     const storageKey = getStorageKey(projectId);
     try {
       if (typeof window !== "undefined") {
@@ -684,10 +920,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     if (projectId) {
       try {
         await deleteDraft(projectId);
-        console.log('✅ Corrupted data cleared from database');
-      } catch (error) {
-        console.error('Failed to clear corrupted data:', error);
+      } catch {
+        // Ignore cleanup errors
       }
+
+      safeLocalRemove(getPersistentStorageKey(projectId));
     }
 
     // Reset to empty canvas
@@ -702,6 +939,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       if (!raw) return;
       const parsed = JSON.parse(raw) as {
         scale?: number;
+        cameraX?: number;
+        cameraY?: number;
         leftPanelOpen?: boolean;
         rightPanelOpen?: boolean;
         rightPanelTab?: TabId;
@@ -761,14 +1000,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           name: p.name || `Page ${parsed.pages.indexOf(p) + 1}`,
         }));
         setPages(pageTabs);
-        if (pageTabs.length > 0 && !currentPageId) {
-          setCurrentPageId(pageTabs[0].id);
+        if (pageTabs.length > 0) {
+          setCurrentPageId((prev) => prev || pageTabs[0].id);
         }
       }
     } catch {
       // Silently fail for non-multipage documents
     }
-  }, [currentPageId]);
+  }, []);
 
   const handleAddPage = useCallback(() => {
     if (!initialJson) return;
@@ -815,7 +1054,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       parsed.pages = (parsed.pages || []).filter((p: any) => p.id !== pageId);
       const updated = JSON.stringify(parsed);
       const storageKey = getStorageKey(projectId);
-      localStorage.setItem(storageKey, updated);
+      safeSessionSet(storageKey, updated);
       loadPages(updated);
       if (currentPageId === pageId && parsed.pages.length > 0) {
         setCurrentPageId(parsed.pages[0].id);
@@ -836,7 +1075,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         page.name = newName;
         const updated = JSON.stringify(parsed);
         const storageKey = getStorageKey(projectId);
-        localStorage.setItem(storageKey, updated);
+        safeSessionSet(storageKey, updated);
         loadPages(updated);
         setInitialJson(updated);
       }
@@ -846,11 +1085,16 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     }
   }, [initialJson, projectId, loadPages, showAlert]);
 
-  // Handle Zoom (always anchor to viewport center)
+  const mousePosRef = useRef({ x: 0, y: 0 });
+
+  // Figma-style zoom: Ctrl+wheel zooms anchored to cursor; plain wheel pans via native scroll.
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
-      if (!(e.ctrlKey || e.metaKey)) return;
+      // Detect if the target is inside our builder root to avoid intercepting other components
+      const targetEl = e.target instanceof HTMLElement ? e.target : null;
+      if (!targetEl || !targetEl.closest("[data-web-builder-root]")) return;
 
+      if (!(e.ctrlKey || e.metaKey)) return;
       if (isEditableTarget(e.target)) return;
       if (e.target instanceof HTMLElement && e.target.closest("[data-panel]")) return;
 
@@ -865,6 +1109,17 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         e.clientY <= rect.bottom;
 
       if (!isInsideCanvas) return;
+
+      mousePosRef.current = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      };
+      wheelZoomAnchorRef.current = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      };
+      lastWheelZoomAtRef.current = Date.now();
+      manualCameraControlUntilRef.current = Date.now() + 5000;
 
       if (e.cancelable) {
         e.preventDefault();
@@ -890,6 +1145,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
         if (Math.abs(frameDelta) < 0.01) return;
 
+        wheelZoomingRef.current = true;
         setScale((prevScale) => {
           const safePrev = clampScale(prevScale, previousScaleRef.current || 1);
           const zoomFactor = Math.exp(-frameDelta * ZOOM_SENSITIVITY);
@@ -914,11 +1170,27 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     };
   }, []);
 
-  // Keep center point stationary while zooming, including rapid wheel bursts
+  // Update mouse position for anchoring
+  useEffect(() => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      const container = containerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      mousePosRef.current = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      };
+    };
+    window.addEventListener("mousemove", handleGlobalMouseMove);
+    return () => window.removeEventListener("mousemove", handleGlobalMouseMove);
+  }, []);
+
+  // Keep anchor point stationary while zooming
   useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) {
       previousScaleRef.current = clampScale(scale, previousScaleRef.current || 1);
+      wheelZoomingRef.current = false;
       return;
     }
 
@@ -926,211 +1198,357 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     const nextScale = clampScale(scale, prevScale);
     if (prevScale === nextScale) {
       previousScaleRef.current = nextScale;
+      wheelZoomingRef.current = false;
       return;
     }
 
     if (container.clientWidth <= 0 || container.clientHeight <= 0) {
       previousScaleRef.current = nextScale;
+      wheelZoomingRef.current = false;
       return;
     }
 
-    const centerX = container.clientWidth / 2;
-    const centerY = container.clientHeight / 2;
-    const contentX = (container.scrollLeft + centerX) / prevScale;
-    const contentY = (container.scrollTop + centerY) / prevScale;
+    // Anchor point: Use current mouse coordinates relative to container
+    const wheelAnchor = wheelZoomingRef.current ? wheelZoomAnchorRef.current : null;
+    const anchorX = Math.min(container.clientWidth, Math.max(0, wheelAnchor?.x ?? mousePosRef.current.x));
+    const anchorY = Math.min(container.clientHeight, Math.max(0, wheelAnchor?.y ?? mousePosRef.current.y));
+
+    const contentX = (container.scrollLeft + anchorX) / prevScale;
+    const contentY = (container.scrollTop + anchorY) / prevScale;
 
     if (!Number.isFinite(contentX) || !Number.isFinite(contentY)) {
       previousScaleRef.current = nextScale;
+      wheelZoomingRef.current = false;
       return;
     }
 
-    const nextScrollLeft = contentX * nextScale - centerX;
-    const nextScrollTop = contentY * nextScale - centerY;
+    const nextScrollLeft = contentX * nextScale - anchorX;
+    const nextScrollTop = contentY * nextScale - anchorY;
+
     const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
     const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
 
     container.scrollLeft = Math.min(maxScrollLeft, Math.max(0, nextScrollLeft));
     container.scrollTop = Math.min(maxScrollTop, Math.max(0, nextScrollTop));
     previousScaleRef.current = nextScale;
+    wheelZoomingRef.current = false;
   }, [scale]);
 
-  // Center the canvas in the view - focus on first page element
-  const centerCanvasInView = useCallback(() => {
-    const container = containerRef.current;
-    if (!container) return;
+  // Keyboard zoom handles: Ctrl+/Ctrl-/Ctrl+0
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const ctrl = e.ctrlKey || e.metaKey;
+      if (!ctrl) return;
+      if (isEditableTarget(e.target)) return;
 
-    // Try to find the first Page element and center on it
-    const firstPage = container.querySelector("[data-page-node]") as HTMLElement | null;
+      const key = e.key;
+      const isZoomIn = key === "+" || key === "=" || e.code === "NumpadAdd";
+      const isZoomOut = key === "-" || key === "_" || e.code === "NumpadSubtract";
+      const isZoomReset = key === "0" || e.code === "Digit0" || e.code === "Numpad0";
+      if (!isZoomIn && !isZoomOut && !isZoomReset) return;
 
-    if (firstPage) {
-      const containerRect = container.getBoundingClientRect();
-      const pageRect = firstPage.getBoundingClientRect();
+      if (e.cancelable) e.preventDefault();
+      e.stopPropagation();
 
-      // Calculate where the page center is in scroll coordinates
-      const pageCenterX = container.scrollLeft + (pageRect.left - containerRect.left) + pageRect.width / 2;
-      const pageCenterY = container.scrollTop + (pageRect.top - containerRect.top) + pageRect.height / 2;
+      if (isZoomReset) {
+        setScale(1);
+      } else {
+        setScale((prev) => clampScale(isZoomIn ? prev + ZOOM_STEP : prev - ZOOM_STEP, prev));
+      }
+    };
 
-      const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
-      const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
-
-      const nextLeft = Math.min(maxScrollLeft, Math.max(0, pageCenterX - container.clientWidth / 2));
-      const nextTop = Math.min(maxScrollTop, Math.max(0, pageCenterY - container.clientHeight / 2));
-
-      container.scrollLeft = nextLeft;
-      container.scrollTop = nextTop;
-      return;
-    }
-
-    // Fallback: try viewport desktop
-    const desktopViewport = container.querySelector("[data-viewport-desktop]") as HTMLElement | null;
-
-    if (desktopViewport) {
-      const containerRect = container.getBoundingClientRect();
-      const viewportRect = desktopViewport.getBoundingClientRect();
-
-      const viewportCenterX = container.scrollLeft + (viewportRect.left - containerRect.left) + viewportRect.width / 2;
-      const viewportCenterY = container.scrollTop + (viewportRect.top - containerRect.top) + viewportRect.height / 2;
-
-      const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
-      const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
-
-      const nextLeft = Math.min(maxScrollLeft, Math.max(0, viewportCenterX - container.clientWidth / 2));
-      const nextTop = Math.min(maxScrollTop, Math.max(0, viewportCenterY - container.clientHeight / 2));
-
-      container.scrollLeft = nextLeft;
-      container.scrollTop = nextTop;
-      return;
-    }
-
-    // Ultimate fallback: center of scroll area
-    const fallbackLeft = (container.scrollWidth - container.clientWidth) / 2;
-    const fallbackTop = (container.scrollHeight - container.clientHeight) / 2;
-    container.scrollLeft = fallbackLeft;
-    container.scrollTop = fallbackTop;
+    window.addEventListener("keydown", handleKeyDown, { capture: true });
+    return () => window.removeEventListener("keydown", handleKeyDown, { capture: true });
   }, []);
 
-  // Center immediately on first mount so default view starts at middle even before frame settles
+  // Center camera so that a given world-space point appears at viewport center
+  const centerOnWorldPoint = useCallback((worldX: number, worldY: number, zoom?: number) => {
+    const container = containerRef.current;
+    if (!container) return;
+    const z = zoom ?? scale;
+    const vw = container.clientWidth / 2;
+    const vh = container.clientHeight / 2;
+
+    // We want the viewport center to correspond to the world point
+    // worldX * z + offsetX = vw  => offsetX = vw - worldX * z
+    // In our scroll system, scrollLeft = INFINITE_CANVAS_PADDING_PX + worldX*z - viewportCenter
+    // wait, actually simplified:
+    container.scrollLeft = worldX * z - vw;
+    container.scrollTop = worldY * z - vh;
+  }, [scale]);
+
+  // Center camera on the current page element
+  const centerCanvasInView = useCallback((options?: { behavior?: ScrollBehavior }) => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const behavior = options?.behavior ?? "auto";
+
+    const pageEl =
+      (currentPageId
+        ? container.querySelector<HTMLElement>(
+          `[data-viewport-desktop] [data-page-node="true"][data-node-id="${currentPageId}"]`
+        ) ?? container.querySelector<HTMLElement>(
+          `[data-page-node="true"][data-node-id="${currentPageId}"]`
+        )
+        : null) ??
+      container.querySelector<HTMLElement>('[data-viewport-desktop] [data-page-node="true"]') ??
+      container.querySelector<HTMLElement>('[data-page-node="true"]');
+
+    if (pageEl) {
+      const contRect = container.getBoundingClientRect();
+      const pageRect = pageEl.getBoundingClientRect();
+
+      const pageCenterX = container.scrollLeft + (pageRect.left - contRect.left) + pageRect.width / 2;
+      const pageCenterY = container.scrollTop + (pageRect.top - contRect.top) + pageRect.height / 2;
+
+      container.scrollTo({
+        left: pageCenterX - container.clientWidth / 2,
+        top: pageCenterY - container.clientHeight / 2,
+        behavior
+      });
+    } else {
+      // Fallback: center of the "infinite" area roughly where origin is
+      const targetX = INFINITE_CANVAS_PADDING_PX + PAGE_BASE_WIDTH / 2 - container.clientWidth / 2;
+      const targetY = INFINITE_CANVAS_PADDING_PX + PAGE_BASE_HEIGHT / 2 - container.clientHeight / 2;
+      container.scrollTo({
+        left: targetX,
+        top: targetY,
+        behavior
+      });
+    }
+  }, [currentPageId, scale]);
+
+  // Center immediately on first mount
   useLayoutEffect(() => {
     if (hasInitialCenteringRef.current) return;
-
-    const container = containerRef.current;
-    if (!container) return;
-
     const rafId = requestAnimationFrame(() => {
-      centerCanvasInView();
+      centerOnWorldPoint(
+        PAGE_GRID_ORIGIN_X + PAGE_BASE_WIDTH / 2,
+        PAGE_GRID_ORIGIN_Y + PAGE_BASE_HEIGHT / 2,
+      );
       hasInitialCenteringRef.current = true;
     });
-
     return () => cancelAnimationFrame(rafId);
-  }, [centerCanvasInView]);
+  }, [centerOnWorldPoint]);
 
-  // Center canvas after refresh/load and keep centering while layout is still settling
+  // Re-center after frame loads so the page is visible
   useEffect(() => {
     if (!frameReady) return;
+    if (hasAutoCenteredAfterFrameReadyRef.current) return;
+    hasAutoCenteredAfterFrameReadyRef.current = true;
 
-    const container = containerRef.current;
-    if (!container) return;
-
-    centerCanvasInView();
-    const rafId = requestAnimationFrame(centerCanvasInView);
-    const settleIntervalId = window.setInterval(centerCanvasInView, 120);
-    const t1 = window.setTimeout(centerCanvasInView, 300);
-    const t2 = window.setTimeout(centerCanvasInView, 700);
-    const t3 = window.setTimeout(centerCanvasInView, 1200);
-
-    const resizeObserver = new ResizeObserver(() => {
+    const centerIfNotRecentWheelZoom = () => {
+      if (Date.now() < manualCameraControlUntilRef.current) return;
+      if (Date.now() - lastWheelZoomAtRef.current < 350) return;
       centerCanvasInView();
-    });
-    resizeObserver.observe(container);
+    };
 
-    const stopSettlingId = window.setTimeout(() => {
-      window.clearInterval(settleIntervalId);
-      resizeObserver.disconnect();
-    }, 2000);
-
+    const raf = requestAnimationFrame(() => centerIfNotRecentWheelZoom());
+    const t1 = window.setTimeout(() => centerIfNotRecentWheelZoom(), 300);
+    const t2 = window.setTimeout(() => centerIfNotRecentWheelZoom(), 800);
     return () => {
-      cancelAnimationFrame(rafId);
-      window.clearInterval(settleIntervalId);
+      cancelAnimationFrame(raf);
       window.clearTimeout(t1);
       window.clearTimeout(t2);
-      window.clearTimeout(t3);
-      window.clearTimeout(stopSettlingId);
-      resizeObserver.disconnect();
     };
   }, [frameReady, initialJson, centerCanvasInView]);
 
-  // Handle canvas rotation
-  const handleRotateCanvas = useCallback(() => {
-    setCanvasRotation((prev) => (prev + 90) % 360);
+  // Relative shifting for the right panel to match the left panel's natural behavior.
+  // When the right panel expands, it "pushes" the content left by adjusting the scroll position.
+  const prevRightPanelEffectiveWidthRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!panelsReady || !frameReady) {
+      prevRightPanelEffectiveWidthRef.current = null;
+      return;
+    }
+
+    const currentWidth = rightPanelOpen ? rightPanelWidth : 0;
+
+    // Initialize on first ready state without shifting
+    if (prevRightPanelEffectiveWidthRef.current === null) {
+      prevRightPanelEffectiveWidthRef.current = currentWidth;
+      return;
+    }
+
+    const delta = currentWidth - prevRightPanelEffectiveWidthRef.current;
+    prevRightPanelEffectiveWidthRef.current = currentWidth;
+
+    if (delta === 0) return;
+
+    const container = containerRef.current;
+    if (container) {
+      // Use smooth behavior for manual toggles, immediate for dragging
+      container.scrollBy({
+        left: delta,
+        behavior: isPanelDragging ? "auto" : "smooth"
+      });
+    }
+  }, [rightPanelOpen, rightPanelWidth, panelsReady, frameReady, isPanelDragging]);
+
+  // Listen for center-on-node events from ScrollToSelectedHandler / FloatingMobilePreview
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleCenterOnNode = (e: Event) => {
+      if (Date.now() < manualCameraControlUntilRef.current) return;
+      if (Date.now() - lastWheelZoomAtRef.current < 250) return;
+
+      const { nodeId } = (e as CustomEvent<{ nodeId: string }>).detail;
+      if (!nodeId) return;
+
+      const nodeEl = document.querySelector<HTMLElement>(
+        `[data-viewport-desktop] [data-node-id="${nodeId}"]`
+      ) ?? document.querySelector<HTMLElement>(`[data-node-id="${nodeId}"]`);
+      if (!nodeEl) return;
+
+      const contRect = container.getBoundingClientRect();
+      const nodeRect = nodeEl.getBoundingClientRect();
+
+      const nodeCenterX = container.scrollLeft + (nodeRect.left - contRect.left) + nodeRect.width / 2;
+      const nodeCenterY = container.scrollTop + (nodeRect.top - contRect.top) + nodeRect.height / 2;
+
+      container.scrollLeft = nodeCenterX - container.clientWidth / 2;
+      container.scrollTop = nodeCenterY - container.clientHeight / 2;
+    };
+
+    container.addEventListener("center-on-node", handleCenterOnNode);
+    return () => container.removeEventListener("center-on-node", handleCenterOnNode);
   }, []);
 
-  // Handle fit to canvas
+  const handleRotateCanvas = useCallback(() => { }, []);
+
+  // Handle fit to canvas: zoom so page fits with 10% margin, then center
   const handleFitToCanvas = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    // Reset zoom to fit content
     const contentWidth = canvasWidth;
     const contentHeight = canvasHeight;
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
-
     if (
-      !Number.isFinite(contentWidth) ||
-      !Number.isFinite(contentHeight) ||
-      contentWidth <= 0 ||
-      contentHeight <= 0 ||
-      containerWidth <= 0 ||
-      containerHeight <= 0
-    ) {
-      setScale((prev) => clampScale(prev, 1));
-      return;
-    }
+      !Number.isFinite(contentWidth) || !Number.isFinite(contentHeight) ||
+      contentWidth <= 0 || contentHeight <= 0 ||
+      containerWidth <= 0 || containerHeight <= 0
+    ) return;
 
     const scaleX = (containerWidth * 0.9) / contentWidth;
     const scaleY = (containerHeight * 0.9) / contentHeight;
-    const newScale = Math.min(scaleX, scaleY, 1);
+    const newScale = clampScale(Math.min(scaleX, scaleY, 1), 1);
 
-    setScale(clampScale(newScale, 1));
+    const pageEl =
+      (currentPageId
+        ? container.querySelector<HTMLElement>(
+          `[data-viewport-desktop] [data-page-node="true"][data-node-id="${currentPageId}"]`
+        ) ?? container.querySelector<HTMLElement>(
+          `[data-page-node="true"][data-node-id="${currentPageId}"]`
+        )
+        : null) ??
+      container.querySelector<HTMLElement>('[data-viewport-desktop] [data-page-node="true"]') ??
+      container.querySelector<HTMLElement>('[data-page-node="true"]');
 
-    // Center on the first page
-    setTimeout(() => {
-      centerCanvasInView();
-    }, 100);
-  }, [canvasWidth, canvasHeight, centerCanvasInView]);
+    let worldCX = PAGE_GRID_ORIGIN_X + PAGE_BASE_WIDTH / 2;
+    let worldCY = PAGE_GRID_ORIGIN_Y + PAGE_BASE_HEIGHT / 2;
+
+    if (pageEl) {
+      const contRect = container.getBoundingClientRect();
+      const pageRect = pageEl.getBoundingClientRect();
+      const pageCenterX = container.scrollLeft + (pageRect.left - contRect.left) + pageRect.width / 2;
+      const pageCenterY = container.scrollTop + (pageRect.top - contRect.top) + pageRect.height / 2;
+
+      setScale(newScale);
+      setTimeout(() => {
+        if (containerRef.current) {
+          containerRef.current.scrollLeft = pageCenterX - containerRef.current.clientWidth / 2;
+          containerRef.current.scrollTop = pageCenterY - containerRef.current.clientHeight / 2;
+        }
+      }, 1);
+    } else {
+      setScale(newScale);
+      centerOnWorldPoint(INFINITE_CANVAS_PADDING_PX + PAGE_BASE_WIDTH / 2, INFINITE_CANVAS_PADDING_PX + PAGE_BASE_HEIGHT / 2, newScale);
+    }
+  }, [canvasWidth, canvasHeight, scale, currentPageId, centerOnWorldPoint]);
 
   const handleScaleChange = useCallback((nextScale: number) => {
-    setScale((prevScale) => {
-      const clampedScale = clampScale(nextScale, prevScale);
-      return prevScale === clampedScale ? prevScale : clampedScale;
-    });
+    setScale((prev) => clampScale(nextScale, prev));
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (deviceSwitchRafRef.current != null) {
+        cancelAnimationFrame(deviceSwitchRafRef.current);
+      }
+      if (deviceSwitchTimeoutRef.current != null) {
+        window.clearTimeout(deviceSwitchTimeoutRef.current);
+      }
+      if (deviceSwitchEndTimeoutRef.current != null) {
+        window.clearTimeout(deviceSwitchEndTimeoutRef.current);
+      }
+    };
   }, []);
 
   // Handle device preset selection - only width changes; preserve page height so it doesn't reset
+  // and keep the page visible by fitting/recentering with the selected preset dimensions.
   const handleDevicePresetSelect = useCallback((preset: DevicePreset) => {
+    if (deviceSwitchRafRef.current != null) {
+      cancelAnimationFrame(deviceSwitchRafRef.current);
+      deviceSwitchRafRef.current = null;
+    }
+    if (deviceSwitchTimeoutRef.current != null) {
+      window.clearTimeout(deviceSwitchTimeoutRef.current);
+      deviceSwitchTimeoutRef.current = null;
+    }
+    if (deviceSwitchEndTimeoutRef.current != null) {
+      window.clearTimeout(deviceSwitchEndTimeoutRef.current);
+      deviceSwitchEndTimeoutRef.current = null;
+    }
+
+    setIsDeviceSwitching(true);
     setCanvasWidth(preset.width);
-    // Do not set canvasHeight so existing page height is preserved when switching device sizes
-    setTimeout(() => {
-      handleFitToCanvas();
-    }, 100);
-  }, [handleFitToCanvas]);
 
-  // Handle add button (open left panel)
-  const handleAddButton = useCallback(() => {
-    setLeftPanelOpen(true);
-  }, []);
+    const fitAndCenter = () => {
+      const container = containerRef.current;
+      if (!container) return;
 
-  const isSpacePanActive = activeTool === "move" && isSpacePressed;
+      const effectiveWidth = Math.max(1, preset.width);
+      const effectiveHeight = Math.max(1, canvasHeight || PAGE_BASE_HEIGHT);
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+      if (containerWidth <= 0 || containerHeight <= 0) return;
+
+      // Keep interaction smooth: only zoom out as needed so the selected device always stays visible.
+      const fitScaleX = (containerWidth * 0.9) / effectiveWidth;
+      const fitScaleY = (containerHeight * 0.9) / effectiveHeight;
+      const fitScale = clampScale(Math.min(fitScaleX, fitScaleY, 1), 1);
+
+      setScale((prev) => {
+        const safePrev = clampScale(prev, 1);
+        return safePrev > fitScale ? fitScale : safePrev;
+      });
+
+      // Recenter after width/scale settle so page never appears "lost" off-screen.
+      requestAnimationFrame(() => {
+        centerCanvasInView();
+      });
+    };
+
+    deviceSwitchRafRef.current = requestAnimationFrame(() => {
+      fitAndCenter();
+      deviceSwitchTimeoutRef.current = window.setTimeout(fitAndCenter, 120);
+      deviceSwitchEndTimeoutRef.current = window.setTimeout(() => {
+        setIsDeviceSwitching(false);
+      }, 220);
+    });
+  }, [canvasHeight, centerCanvasInView]);
+
+  const isSpacePanActive = isSpacePressed;
   const canPanWithPointerDrag = activeTool === "hand" || isSpacePanActive;
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (canPanWithPointerDrag) {
-      const target = e.target as HTMLElement | null;
-      const nodeEl = target?.closest("[data-node-id]") as HTMLElement | null;
-      const nodeId = nodeEl?.getAttribute("data-node-id") ?? null;
-      if (nodeId && nodeId !== "ROOT" && nodeId !== "Viewport") {
-        return;
-      }
       setIsPanning(true);
       document.body.dataset.canvasPan = "true";
       e.preventDefault();
@@ -1145,6 +1563,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (isPanning && containerRef.current) {
+      manualCameraControlUntilRef.current = Date.now() + 5000;
       containerRef.current.scrollLeft -= e.movementX;
       containerRef.current.scrollTop -= e.movementY;
     }
@@ -1157,9 +1576,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       if (isEditableTarget(event.target)) return;
 
       event.preventDefault();
-      if (activeTool === "move") {
-        setIsSpacePressed(true);
-      }
+      setIsSpacePressed(true);
     };
 
     const handleKeyUp = (event: KeyboardEvent) => {
@@ -1198,6 +1615,20 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   }, [activeTool, isSpacePanActive, isPanning]);
 
   useEffect(() => {
+    const stopPan = () => {
+      setIsPanning(false);
+      document.body.removeAttribute("data-canvas-pan");
+    };
+
+    window.addEventListener("mouseup", stopPan, true);
+    window.addEventListener("blur", stopPan);
+    return () => {
+      window.removeEventListener("mouseup", stopPan, true);
+      window.removeEventListener("blur", stopPan);
+    };
+  }, []);
+
+  useEffect(() => {
     const handleToolShortcut = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (isEditableTarget(event.target)) return;
@@ -1206,22 +1637,24 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
       if (key === "h") {
         event.preventDefault();
-        setActiveTool("hand");
+        handleToolChange("hand");
         return;
       }
 
       if (key === "g") {
         event.preventDefault();
-        setActiveTool("move");
+        handleToolChange("move");
       }
     };
 
     window.addEventListener("keydown", handleToolShortcut);
     return () => window.removeEventListener("keydown", handleToolShortcut);
-  }, []);
+  }, [handleToolChange]);
 
   // Track if editor is fully loaded to prevent stale closure issues
   const isReadyRef = useRef(false);
+  // True only after draft content has been loaded (prevents auto-saving empty canvas over real content)
+  const draftLoadedRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1250,8 +1683,41 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     };
   }, []);
 
+  // Cleanup collab emit timer on unmount
+  useEffect(() => () => {
+    if (collabEmitTimerRef.current) clearTimeout(collabEmitTimerRef.current);
+    collabEmitTimerRef.current = null;
+  }, []);
+
+  // One-time migration: clear legacy draft data from localStorage (now using sessionStorage only)
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.localStorage) return;
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < window.localStorage.length; i++) {
+        const k = window.localStorage.key(i);
+        if (k && (k.startsWith(STORAGE_KEY_PREFIX) || k.startsWith("webbuilder_pages"))) {
+          keysToRemove.push(k);
+        }
+      }
+      keysToRemove.forEach((k) => window.localStorage.removeItem(k));
+    } catch {
+      // Ignore migration errors
+    }
+  }, []);
+
   // Restore saved editor state from database on mount
   useEffect(() => {
+    hasInitialCenteringRef.current = false;
+    hasAutoCenteredAfterFrameReadyRef.current = false;
+    manualCameraControlUntilRef.current = 0;
+    lastWheelZoomAtRef.current = 0;
+    wheelZoomAnchorRef.current = null;
+    wheelZoomingRef.current = false;
+    draftLoadedRef.current = false;
+    setFrameReady(false);
+    setPanelsReady(false);
+
     if (!projectId) {
       setInitialJson(null);
       isReadyRef.current = true;
@@ -1260,140 +1726,193 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
     async function loadDraft() {
       try {
-        console.log('📥 loadDraft starting...', projectId);
-
         // Try sessionStorage per-project (no localStorage — auth/drafts in cookies or session only)
         const storageKey = getStorageKey(projectId);
         const sessionSaved = safeSessionGet(storageKey);
-
-        // Try to load from database
-        console.log('📡 Calling getDraft()...');
-        const result = await getDraft(projectId);
-        console.log('📡 getDraft result:', result);
+        const persistentKey = getPersistentStorageKey(projectId);
+        const persistentSaved = safeLocalGet(persistentKey);
 
         let contentToLoad: string | null = null;
 
-        const normalizeToCraftJson = (input: unknown): string | null => {
+        const applyLoadedContent = (content: string | null) => {
+          setInitialJson(content);
+          draftLoadedRef.current = true;
+          if (!content) return;
+          loadPages(content);
           try {
-            if (input == null) return null;
-
-            let content: string;
-
-            if (typeof input === "string") {
-              content = input;
-            } else if (
-              typeof input === "object" &&
-              (input as { version?: unknown; pages?: unknown; nodes?: unknown }).version !== undefined &&
-              Array.isArray((input as { pages?: unknown[] }).pages) &&
-              typeof (input as { nodes?: unknown }).nodes === "object"
-            ) {
-              content = deserializeCleanToCraft(input as Parameters<typeof deserializeCleanToCraft>[0]);
-            } else {
-              content = JSON.stringify(input);
-            }
-
-            const parsedMaybeClean = JSON.parse(content);
-            if (
-              parsedMaybeClean &&
-              parsedMaybeClean.version !== undefined &&
-              Array.isArray(parsedMaybeClean.pages) &&
-              parsedMaybeClean.nodes &&
-              typeof parsedMaybeClean.nodes === "object"
-            ) {
-              content = deserializeCleanToCraft(parsedMaybeClean);
-            }
-
-            const parsedCraft = JSON.parse(content);
-            if (parsedCraft && parsedCraft.ROOT && Array.isArray(parsedCraft.ROOT.nodes)) {
-              return content;
-            }
-
-            return null;
-          } catch {
-            return null;
-          }
-        };
-
-        // 1. Check sessionStorage first to preserve latest unsaved/preview snapshot
-        if (sessionSaved) {
-          const normalized = normalizeToCraftJson(sessionSaved);
-          if (normalized) {
-            console.log('✅ Loaded valid draft from session (this project)');
-            contentToLoad = normalized;
-            if (normalized !== sessionSaved) {
-              safeSessionSet(storageKey, normalized);
-            }
-          } else {
-            console.warn('⚠️ Invalid draft structure in session. Clearing session cache for this project.');
-            safeSessionRemove(storageKey);
-          }
-        }
-
-        // 2. Check Database (fallback)
-        if (!contentToLoad && result.success && result.data && result.data.content) {
-          const normalized = normalizeToCraftJson(result.data.content);
-          if (normalized) {
-            try {
-              const parsed = JSON.parse(normalized);
-              console.log(`✅ Loaded valid draft from DB (${Object.keys(parsed).length} internal nodes)`);
-            } catch {
-              console.log('✅ Loaded valid draft from DB');
-            }
-            contentToLoad = normalized;
-            safeSessionSet(storageKey, normalized);
-          } else {
-            console.warn('⚠️ Invalid draft structure in DB. Clearing invalid draft...');
-            await deleteDraft(projectId);
-          }
-        }
-
-        // 3. Legacy: check unprefixed key (e.g. template loaded before navigation)
-        if (!contentToLoad && storageKey !== STORAGE_KEY_PREFIX) {
-          const legacySaved = safeSessionGet(STORAGE_KEY_PREFIX);
-          if (legacySaved) {
-            const normalized = normalizeToCraftJson(legacySaved);
-            if (normalized) {
-              console.log('✅ Loaded valid draft from legacy session key, syncing to project key');
-              contentToLoad = normalized;
-              safeSessionSet(storageKey, normalized);
-              safeSessionRemove(STORAGE_KEY_PREFIX);
-            } else {
-              safeSessionRemove(STORAGE_KEY_PREFIX);
-            }
-          }
-        }
-
-        if (!contentToLoad) {
-          console.log('⚠️ No saved data found, expecting default');
-        }
-
-        setInitialJson(contentToLoad);
-        if (contentToLoad) {
-          loadPages(contentToLoad);
-          try {
-            const parsed = JSON.parse(contentToLoad);
+            const parsed = JSON.parse(content);
             if (parsed.files) {
               setProjectFiles(parsed.files);
             }
           } catch (e) {
             console.warn('Failed to parse files from initialJson', e);
           }
+        };
+
+        const applyMigration = (raw: string | object): string => {
+          try {
+            const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+            const migrated = migratePublishedContent(parsed);
+            return typeof migrated === "string" ? migrated : JSON.stringify(migrated);
+          } catch {
+            return typeof raw === "string" ? raw : JSON.stringify(raw);
+          }
+        };
+
+        const normalizeToCraftJson = (input: unknown): string | null => {
+          try {
+            if (input == null) return null;
+            let obj = input as Record<string, unknown>;
+            if (typeof input === "string") {
+              try {
+                obj = JSON.parse(input) as Record<string, unknown>;
+              } catch {
+                return null;
+              }
+            }
+            if (typeof obj !== "object") return null;
+
+            const unwrap = (o: Record<string, unknown>): Record<string, unknown> | null => {
+              if (!o) return null;
+              if (o.ROOT && Array.isArray((o.ROOT as Record<string, unknown>)?.nodes)) return o;
+              if (o.version !== undefined && Array.isArray(o.pages) && o.nodes && typeof o.nodes === "object") return o;
+              const nested = (o.page || o.content) as Record<string, unknown> | undefined;
+              if (nested && typeof nested === "object") return unwrap(nested);
+              return null;
+            };
+
+            const target = unwrap(obj);
+            if (!target) return null;
+
+            const migratedStr = applyMigration(target);
+            const str = typeof migratedStr === "string" ? migratedStr : JSON.stringify(migratedStr);
+            const parsed = typeof str === "string" ? JSON.parse(str) : str;
+            if (!parsed || typeof parsed !== "object") return null;
+
+            if (parsed.ROOT && Array.isArray(parsed.ROOT?.nodes)) {
+              const validated = validateCraftData(JSON.stringify(parsed));
+              return validated.valid && validated.data ? validated.data : null;
+            }
+            if (
+              parsed.version !== undefined &&
+              Array.isArray(parsed.pages) &&
+              parsed.nodes &&
+              typeof parsed.nodes === "object"
+            ) {
+              const craftJson = deserializeCleanToCraft(parsed as Parameters<typeof deserializeCleanToCraft>[0]);
+              const validated = validateCraftData(craftJson);
+              return validated.valid && validated.data ? validated.data : null;
+            }
+            return null;
+          } catch {
+            return null;
+          }
+        };
+
+        const isLegacyStarterContent = (craftJson: string): boolean => {
+          try {
+            const p = JSON.parse(craftJson) as Record<string, unknown>;
+            const root = p?.ROOT as { nodes?: string[] } | undefined;
+            if (!root || !Array.isArray(root.nodes)) return false;
+
+            // Ignore only the old starter template (one page + one empty container).
+            // A truly empty page (no children) is still valid user work and must be preserved.
+            if (root.nodes.length === 1) {
+              const pageId = root.nodes[0];
+              const page = (p[pageId] as { nodes?: string[]; displayName?: string } | undefined) ?? null;
+              const pageNodes = Array.isArray(page?.nodes) ? page.nodes : [];
+              if ((page?.displayName === "Page" || page?.displayName == null) && pageNodes.length === 1) {
+                const onlyChildId = pageNodes[0];
+                const onlyChild = (p[onlyChildId] as { nodes?: string[]; displayName?: string } | undefined) ?? null;
+                const childNodes = Array.isArray(onlyChild?.nodes) ? onlyChild.nodes : [];
+                if (onlyChild?.displayName === "Container" && childNodes.length === 0) {
+                  return true;
+                }
+              }
+            }
+            return false;
+          } catch {
+            return false;
+          }
+        };
+
+        // 1. Check sessionStorage first (latest local edits should win on refresh)
+        if (sessionSaved) {
+          const normalized = normalizeToCraftJson(sessionSaved);
+          if (normalized && !isLegacyStarterContent(normalized)) {
+            contentToLoad = normalized;
+            if (normalized !== sessionSaved) safeSessionSet(storageKey, normalized);
+            safeLocalSet(persistentKey, normalized);
+            applyLoadedContent(contentToLoad);
+          } else {
+            safeSessionRemove(storageKey);
+          }
+        }
+
+        // 2. Check persistent local cache
+        if (!contentToLoad && persistentSaved) {
+          const normalized = normalizeToCraftJson(persistentSaved);
+          if (normalized && !isLegacyStarterContent(normalized)) {
+            contentToLoad = normalized;
+            safeSessionSet(storageKey, normalized);
+            if (normalized !== persistentSaved) safeLocalSet(persistentKey, normalized);
+            applyLoadedContent(contentToLoad);
+          } else {
+            safeLocalRemove(persistentKey);
+          }
+        }
+
+        // 3. Always fetch from API — overrides empty cache (fixes collaborator view)
+        const result = await getDraft(projectId);
+
+        if (result.success === false && result.error === "auth") {
+          showAlert("Please log in to view this project", "error");
+          router.replace(`/auth/login?returnTo=${encodeURIComponent(`/design?projectId=${projectId}`)}`);
+          isReadyRef.current = true;
+          return;
+        }
+        if (result.success === false && result.error === "forbidden") {
+          showAlert("You don't have access to this project", "error");
+          isReadyRef.current = true;
+          return;
+        }
+
+        // 4. Check Database (fallback)
+        if (!contentToLoad && result.success && result.data && result.data.content) {
+          const normalized = normalizeToCraftJson(result.data.content);
+          if (normalized && !isLegacyStarterContent(normalized)) {
+            contentToLoad = normalized;
+            safeSessionSet(storageKey, normalized);
+            safeLocalSet(persistentKey, normalized);
+            applyLoadedContent(contentToLoad);
+          } else if (normalized) {
+            // Drop legacy starter payloads so user lands on true empty state.
+            safeSessionRemove(storageKey);
+            safeLocalRemove(persistentKey);
+          } else {
+            console.warn('⚠️ Draft content could not be parsed — check structure.');
+            showAlert('Could not load project content. Try refreshing.', 'error');
+          }
+        }
+
+        // Legacy global fallback intentionally disabled to avoid cross-project draft bleed.
+
+        if (!contentToLoad) {
+          applyLoadedContent(null);
         }
 
         // IMPORTANT: Mark as ready immediately via Ref to avoid stale closures
-        // passing "undefined" to handleNodesChange
         isReadyRef.current = true;
-        console.log('✅ Editor marked as READY via Ref');
 
-      } catch (error) {
-        console.error('❌ loadDraft Unexpected Error:', error);
+      } catch {
         setInitialJson(null);
+        draftLoadedRef.current = true;
         isReadyRef.current = true; // Allow editing even if load failed
       }
     }
 
     loadDraft();
-  }, [projectId, loadPages]);
+  }, [projectId, loadPages, router, showAlert]);
 
   // Defer panel rendering until Frame has mounted to avoid setState-during-render warnings
   useEffect(() => {
@@ -1415,7 +1934,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         clearTimer = null;
       }
       document.body.dataset.newPageDragActive = "true";
-      setSuppressDropIndicator(true);
     };
 
     const clearSuppression = (delayMs = 900) => {
@@ -1424,7 +1942,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       }
       clearTimer = window.setTimeout(() => {
         delete document.body.dataset.newPageDragActive;
-        setSuppressDropIndicator(false);
         clearTimer = null;
       }, delayMs);
     };
@@ -1458,7 +1975,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         window.clearTimeout(clearTimer);
       }
       delete document.body.dataset.newPageDragActive;
-      setSuppressDropIndicator(false);
       clearTimer = null;
     };
 
@@ -1480,20 +1996,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       window.removeEventListener("blur", handleWindowBlur);
     };
   }, []);
-
-  // Animate green drop line while dragging (except when suppressed for New Page)
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      const isDragging = document.body.dataset.editorDragging === "true";
-      if (!isDragging || suppressDropIndicator) {
-        setDropIndicatorPulse(false);
-        return;
-      }
-      setDropIndicatorPulse((prev) => !prev);
-    }, 180);
-
-    return () => window.clearInterval(interval);
-  }, [suppressDropIndicator]);
 
   // Handle Delete Data
   const handleDeleteData = async () => {
@@ -1531,7 +2033,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
         try {
           snapshot = JSON.stringify(serializeCraftToClean(next));
         } catch {
-          snapshot = null;
+          snapshot = next;
         }
 
         const toStore = snapshot ?? next;
@@ -1539,13 +2041,16 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
           try {
             const key = `${STORAGE_KEY_PREFIX}_${projectId}`;
             window.sessionStorage.setItem(key, toStore);
-            window.sessionStorage.setItem(STORAGE_KEY_PREFIX, toStore);
           } catch (e) {
             if (!isQuotaError(e)) console.warn("Auto-save: sessionStorage write failed", e);
           }
         }
 
-        if (snapshot) lastSnapshotRef.current = snapshot;
+        if (projectId) {
+          safeLocalSet(getPersistentStorageKey(projectId), toStore);
+        }
+
+        lastSnapshotRef.current = toStore;
         return snapshot;
       } catch {
         return null;
@@ -1554,12 +2059,37 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
     [projectId],
   );
 
+  const [isPreviewing, setIsPreviewing] = useState(false);
+
+  /**
+   * Immediately save and navigate to preview page
+   */
+  const handlePreview = useCallback(async () => {
+    const query = editorQueryRef.current;
+    if (!projectId || !query) return;
+
+    setIsPreviewing(true);
+    try {
+      const snapshot = mirrorToSession(query);
+      if (snapshot) {
+        await autoSavePage(snapshot, projectId);
+        router.push(`/design/preview?projectId=${projectId}`);
+      }
+    } catch (e) {
+      console.error("[Editor] Preview failed:", e);
+    } finally {
+      setIsPreviewing(false);
+    }
+  }, [projectId, router, mirrorToSession]);
+
   const dbSaveInFlightRef = useRef(false);
   const dbSavePendingRef = useRef(false);
+  const collabEmitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleNodesChangeRef = useRef<((query: { serialize: () => string }) => void) | null>(null);
 
   const flushToDb = useCallback(async () => {
     const snapshot = lastSnapshotRef.current;
-    if (!snapshot || !projectId) {
+    if (!snapshot || !projectId || !draftLoadedRef.current) {
       setSaveStatus("idle");
       return;
     }
@@ -1595,6 +2125,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
   // Auto-save: mirror to sessionStorage on every change, save to DB right after
   const handleNodesChange = useCallback(
     (query: { serialize: () => string }) => {
+      if (permission === "viewer") return; // Viewer cannot change anything!
       editorQueryRef.current = query;
 
       if (!isReadyRef.current) return;
@@ -1605,6 +2136,25 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
       // Always mirror to sessionStorage so refresh never loses work
       mirrorToSession(query);
+
+      // Emit to collaborators (debounced); skip when applying remote change to avoid echo
+      if (!isDragging && !isApplyingRemoteRef.current) {
+        if (collabEmitTimerRef.current) clearTimeout(collabEmitTimerRef.current);
+        collabEmitTimerRef.current = setTimeout(() => {
+          collabEmitTimerRef.current = null;
+          if (isApplyingRemoteRef.current) return;
+          try {
+            const json = query.serialize();
+            console.log("[EditorShell] Debounced emit — json length:", json?.length ?? 0);
+            if (json) emitCanvasChange({ type: "nodes_change", json });
+          } catch (err) {
+            console.error("[EditorShell] Error serializing for collab emit:", err);
+          }
+        }, COLLAB_EMIT_DEBOUNCE_MS);
+      } else {
+        if (isDragging) console.log("[EditorShell] Skipping collab emit — dragging");
+        if (isApplyingRemoteRef.current) console.log("[EditorShell] Skipping collab emit — applying remote");
+      }
 
       // During drag: skip DB write to keep the canvas responsive (drag-end handler will flush)
       if (isDragging) return;
@@ -1619,8 +2169,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       // Save to DB immediately (queued if a save is already in flight)
       flushToDb();
     },
-    [projectId, mirrorToSession, flushToDb],
+    [projectId, mirrorToSession, flushToDb, emitCanvasChange],
   );
+
+  // Keep a ref so the stable onNodesChange closure passed to Editor always calls the latest version
+  handleNodesChangeRef.current = handleNodesChange;
 
   // After a drag ends, do one final save (positions changed but no further onNodesChange fires)
   useEffect(() => {
@@ -1652,8 +2205,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
 
   // Clean up on unmount
   useEffect(() => {
-    if (projectFiles.length > 0 && lastQueryRef.current) {
-      handleNodesChange(lastQueryRef.current);
+    if (projectFiles.length > 0 && editorQueryRef.current) {
+      handleNodesChange(editorQueryRef.current);
     }
   }, [projectFiles, handleNodesChange]);
 
@@ -1682,171 +2235,132 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
       (typeof FrameComponentFromFile === "function" ? FrameComponentFromFile : null) ??
       (typeof RenderBlocks?.Frame === "function" ? RenderBlocks.Frame : null) ??
       CRAFT_RESOLVER.Frame ??
-      Container;
+      SAFE_CONTAINER;
 
     const base: Record<string, any> = {
       ...RenderBlocks,
       ...CRAFT_RESOLVER,
-      Text: Text || Container,
-      text: Text || Container,
-      Circle: Circle || Container,
-      Square: Square || Container,
-      Triangle: Triangle || Container,
-      circle: Circle || Container,
-      square: Square || Container,
-      triangle: Triangle || Container,
+      Button: asComponent(Button),
+      button: asComponent(Button),
+      Text: asComponent(Text),
+      text: asComponent(Text),
+      Image: asComponent(Image),
+      image: asComponent(Image),
+      Circle: asComponent(Circle),
+      Square: asComponent(Square),
+      Triangle: asComponent(Triangle),
+      circle: asComponent(Circle),
+      square: asComponent(Square),
+      triangle: asComponent(Triangle),
     };
     // Force Frame to always exist; Craft looks up by "Frame" and sometimes "frame"
     base.Frame = FrameForResolver;
     base.frame = FrameForResolver;
     // Ensure Container always exists in resolver (serialized nodes often use this)
     // Prefer the locally imported Container component so we never end up with an undefined value
-    base.Container = Container;
-    base.container = Container;
+    base.Container = SAFE_CONTAINER;
+    base.container = SAFE_CONTAINER;
+    base.CONTAINER = SAFE_CONTAINER;
     // Ensure Page and Viewport always in resolver (serialized drafts reference these by type)
-    base.Page = CRAFT_RESOLVER.Page ?? Page;
-    base.page = CRAFT_RESOLVER.Page ?? Page;
-    base.Viewport = CRAFT_RESOLVER.Viewport ?? Viewport;
-    base.viewport = CRAFT_RESOLVER.Viewport ?? Viewport;
-    return base;
+    base.Page = asComponent(CRAFT_RESOLVER.Page ?? Page);
+    base.page = asComponent(CRAFT_RESOLVER.Page ?? Page);
+    base.Viewport = asComponent(CRAFT_RESOLVER.Viewport ?? Viewport);
+    base.viewport = asComponent(CRAFT_RESOLVER.Viewport ?? Viewport);
+    base.Image = asComponent(CRAFT_RESOLVER.Image ?? Image);
+    base.image = asComponent(CRAFT_RESOLVER.image ?? Image);
+    base.IMAGE = asComponent(CRAFT_RESOLVER.IMAGE ?? CRAFT_RESOLVER.Image ?? Image);
+    base.Text = asComponent(CRAFT_RESOLVER.Text ?? Text);
+    base.text = asComponent(CRAFT_RESOLVER.text ?? Text);
+    return withResolverFallback(base);
   }, []);
 
   resolverRef.current = resolver;
   const validFrameData = React.useMemo(() => {
     if (initialJson === undefined || initialJson === null || initialJson === "") return null;
     try {
-      const parsed = typeof initialJson === "string" ? JSON.parse(initialJson) : initialJson;
-      if (!parsed || typeof parsed !== "object" || !parsed.ROOT || !Array.isArray(parsed.ROOT?.nodes)) return null;
-      const resolverKeys = Object.keys(resolverRef.current);
-      const keys = new Set(resolverKeys);
-
-      const canonicalByLower = new Map<string, string>();
-      for (const key of resolverKeys) {
-        canonicalByLower.set(key.toLowerCase(), key);
-      }
-
-      const allIds = new Set(Object.keys(parsed));
-      const CANVAS_TYPES = new Set(["Frame", "Container", "Section", "Row", "Column", "Page", "Viewport", "Button"]);
-
-      for (const id of Object.keys(parsed)) {
-        const node = parsed[id] as Record<string, unknown> | null;
-        if (!node || typeof node !== "object") continue;
-        const t = node.type;
-        const rawName = ((typeof t === "string" ? t : (t as { resolvedName?: string })?.resolvedName) ?? "").toString().trim();
-        if (!rawName) return null;
-
-        if (!keys.has(rawName)) {
-          const normalized = canonicalByLower.get(rawName.toLowerCase());
-          if (normalized) {
-            node.type = { resolvedName: normalized };
-            node.displayName = normalized;
-          } else {
-            node.type = { resolvedName: "Container" };
-            node.displayName = "Container";
-          }
-        }
-
-        if (CANVAS_TYPES.has(rawName)) {
-          node.isCanvas = true;
-          if (typeof node.data === "object" && node.data !== null) {
-            (node.data as Record<string, unknown>).isCanvas = true;
-          }
-        }
-
-        const childIds = Array.isArray(node.nodes) ? node.nodes : [];
-        const validChildIds = childIds.filter((cid: string) => allIds.has(cid));
-        node.nodes = validChildIds;
-      }
-
-      return JSON.stringify(parsed);
+      const raw = typeof initialJson === "string" ? initialJson : JSON.stringify(initialJson);
+      const validated = validateCraftData(raw);
+      return validated.valid && validated.data ? validated.data : null;
     } catch {
       return null;
     }
   }, [initialJson]);
 
-  // Debug: list resolver keys after mount (must run in useEffect to avoid setState-during-render)
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const t = setTimeout(() => {
-      try {
-        const res = resolverRef.current;
-        // eslint-disable-next-line no-console
-        console.log("[EditorShell] resolver keys:", Object.keys(res));
-        if (initialJson) {
-          const parsed = typeof initialJson === "string" ? JSON.parse(initialJson) : initialJson;
-          const nodeTypes = new Set<string>();
-          if (parsed && parsed.nodes) {
-            Object.values(parsed.nodes as Record<string, unknown>).forEach((n: unknown) => {
-              try {
-                const node = n as { data?: { displayName?: string; name?: string; type?: string | { name?: string } } };
-                const display = node?.data?.displayName ?? node?.data?.name ?? (typeof node?.data?.type === "string" ? node.data.type : node?.data?.type?.name);
-                if (display) nodeTypes.add(display);
-              } catch {
-                // ignore
-              }
-            });
-          }
-          const resolverKeys = Object.keys(res);
-          const missing = [...nodeTypes].filter((typeName) => !resolverKeys.includes(typeName) && !resolverKeys.includes((typeName || "").replace(/\s+/g, "")));
-          // eslint-disable-next-line no-console
-          console.log("[EditorShell] Serialized node types:", [...nodeTypes]);
-          // eslint-disable-next-line no-console
-          console.log("[EditorShell] Missing resolver types:", missing);
-        }
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.warn("[EditorShell] failed to parse initialJson for debug", err);
-      }
-    }, 50);
-    return () => clearTimeout(t);
-  }, [initialJson]);
-
   return (
-    <div className="h-screen bg-brand-black text-brand-lighter overflow-hidden font-sans relative">
+    <div data-web-builder-root className="h-screen bg-brand-black text-brand-lighter overflow-hidden font-sans relative">
+      <style>{`
+          div[style*="position: fixed"][style*="z-index: 99999"][style*="border-style: solid"],
+          div[style*="position: fixed"][style*="z-index: 99999"][style*="background-color: rgb(98, 196, 98)"],
+          div[style*="position: fixed"][style*="z-index: 99999"][style*="background-color: rgba(98, 196, 98"],
+          div[style*="position: fixed"][style*="z-index: 99999"][style*="height: 2px"],
+          div[style*="position: fixed"][style*="z-index: 99999"][style*="height: 3px"] {
+            display: none !important;
+            opacity: 0 !important;
+            border-width: 0 !important;
+            background: transparent !important;
+          }
+        `}</style>
       <Editor
         resolver={resolver}
         indicator={{
-          success: suppressDropIndicator ? "transparent" : (dropIndicatorPulse ? "#4ade80" : "#22c55e"),
-          error: suppressDropIndicator ? "transparent" : "#ef4444",
-          thickness: suppressDropIndicator ? 0 : (dropIndicatorPulse ? 4 : 2),
-          transition: suppressDropIndicator ? "none" : "all 140ms ease-out",
+          success: "rgba(0,0,0,0)",
+          error: "rgba(0,0,0,0)",
+          thickness: 0,
+          transition: "none",
+          style: {
+            display: "none",
+          },
         }}
         onRender={RenderNode}
-        onNodesChange={(query) => requestAnimationFrame(() => handleNodesChange(query))}
+        onNodesChange={(query) => requestAnimationFrame(() => handleNodesChangeRef.current?.(query))}
       >
-        <QueryStasher onQuery={(q) => { lastQueryRef.current = q; }} />
+        <QueryStasher onQuery={(q) => { editorQueryRef.current = q; }} />
+        <CollabSyncHandler />
+        <ImportedComponentsProvider>
         <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
-          <CanvasToolProvider value={activeTool}>
+          <CanvasToolProvider value={activeTool} onToolChange={handleToolChange}>
             <TransformModeProvider>
               <InlineTextEditProvider>
                 <KeyboardShortcuts />
                 <CanvasSelectionHandler />
+                <BoxSelectionHandler />
+                <ScrollToSelectedHandler />
                 <CanvasContextMenu />
                 <FigmaStyleDragHandler />
+                <FreeDropPlacementHandler />
                 <NewPageDropPlacementHandler />
+                <HeaderFooterDropPlacementHandler />
+                <PanelDropFreePlacementHandler />
+                <TextToolHandler />
+                <ShapeToolHandler />
                 <DoubleClickTransformHandler />
                 <PrototypeFlowLines />
                 {/* Top Panel */}
                 {panelsReady && (
                   <TopPanel
-                    scale={scale}
-                    onScaleChange={handleScaleChange}
-                    onRotateCanvas={handleRotateCanvas}
-                    onFitToCanvas={handleFitToCanvas}
-                    onAddButton={handleAddButton}
-                    canvasWidth={canvasWidth}
-                    canvasHeight={canvasHeight}
+                    activePageId={currentPageId}
                     onDevicePresetSelect={handleDevicePresetSelect}
                     showDualView={showDualView}
                     onDualViewToggle={() => setShowDualView((v) => !v)}
+                    projectId={projectId}
+                    onPreview={handlePreview}
+                    canvasWidth={canvasWidth}
+                    canvasHeight={canvasHeight}
+                    scale={scale}
+                    onScaleChange={handleScaleChange}
+                    onZoomFit={handleFitToCanvas}
                   />
                 )}
-                {/* Canvas Area (Background) — when dual view: leave room for phone preview on the right */}
+                {/* Canvas Area — Infinite Scroll Area */}
                 <div
                   ref={containerRef}
                   data-canvas-container
-                  className={`absolute inset-0 overflow-auto bg-brand-darker canvas-scroll-container ${canPanWithPointerDrag ? "canvas-hand-tool" : ""} ${canPanWithPointerDrag && isPanning ? "canvas-hand-panning" : ""}`}
+                  className={`absolute inset-0 overflow-auto bg-brand-darker canvas-scroll-container ${canPanWithPointerDrag ? "canvas-hand-tool" : ""} ${canPanWithPointerDrag && isPanning ? "canvas-hand-panning" : ""} ${isPanelDragging ? "transition-none" : "transition-[left,right] duration-300 ease-out"}`}
                   style={{
+                    top: `${TOP_PANEL_HEIGHT_PX}px`,
+                    left: panelsReady && leftPanelOpen ? `${leftPanelWidth}px` : "0px",
+                    right: panelsReady && rightPanelOpen ? `${rightPanelWidth}px` : "0px",
+                    bottom: "0px",
                     cursor:
                       canPanWithPointerDrag
                         ? isPanning
@@ -1859,32 +2373,39 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                   onMouseLeave={handleMouseUp}
                   onMouseMove={handleMouseMove}
                 >
-                  {/* Inner Content - Infinite Canvas */}
+                  {initialJson === undefined && (
+                    <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center text-brand-light/80">
+                      Opening project...
+                    </div>
+                  )}
                   <div
-                    className="flex items-center justify-center"
+                    className="flex items-start justify-start relative"
                     style={{
-                      minWidth: `${infiniteCanvasWidthVw}vw`,
-                      minHeight: `${infiniteCanvasHeightVh}vh`,
-                      padding: `${infiniteCanvasPaddingPx}px`,
+                      minWidth: `${INFINITE_CANVAS_WIDTH_VW}vw`,
+                      minHeight: `${INFINITE_CANVAS_HEIGHT_VH}vh`,
+                      padding: `${INFINITE_CANVAS_PADDING_PX}px`,
+                      boxSizing: "border-box",
                       transformOrigin: "top left",
-                      transform:
-                        canvasRotation !== 0
-                          ? `scale(${scale}) rotate(${canvasRotation}deg)`
-                          : `scale(${scale})`,
+                      transform: `scale(${scale})`,
+                      willChange: "transform",
                     }}
                   >
                     {initialJson === undefined ? null : (
                       <SafeFrame
-                        data={validFrameData ?? initialJson}
+                        data={validFrameData ?? EMPTY_FRAME_DATA}
                         onError={handleFrameError}
                         onFrameMounted={() => {
                           setFrameReady((prev) => (prev ? prev : true));
                         }}
                       />
                     )}
+                    {/* Collaborator cursors overlay — inside the scaled canvas container */}
+                    <CollaboratorCursors />
                   </div>
+                  {/* Cursor broadcaster — picks up mousemove on the scroll container */}
+                  <CollabCursorBroadcaster containerRef={containerRef} scale={scale} />
                 </div>
-                {/* Floating Panels */}
+                {/* Docked Panels */}
                 {/* Right Panel Reopen Fallback */}
                 {panelsReady && !rightPanelOpen && (
                   <button
@@ -1898,22 +2419,36 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 )}
                 {/* Left Panel */}
                 {panelsReady && (
-                  <div className="absolute top-14 left-4 z-50 h-[calc(100vh-6.5rem)] flex items-start pointer-events-none">
-                    <div className="h-full flex items-start pointer-events-auto">
+                  <div
+                    className="absolute top-12 left-0 z-50 h-[calc(100vh-3rem)] flex items-start pointer-events-none"
+                  >
+                    <div
+                      className="h-full flex items-start pointer-events-auto relative"
+                    >
                       <div
-                        className={`h-full origin-left transition-[transform,opacity] duration-300 ease-out will-change-transform ${leftPanelOpen
-                          ? "translate-x-0 scale-100 opacity-100 pointer-events-auto"
-                          : "-translate-x-full scale-90 opacity-0 pointer-events-none"
+                        onMouseDown={(event) => startPanelDrag("left", event)}
+                        className={`absolute top-0 -right-2 h-full w-4 cursor-ew-resize ${leftPanelOpen ? "pointer-events-auto" : "pointer-events-none"}`}
+                        data-no-panel-drag="true"
+                        aria-hidden
+                      />
+                      {leftPanelOpen && (
+                        <div className="absolute top-0 right-0 h-full w-px bg-white/10 pointer-events-none" aria-hidden />
+                      )}
+                      <div
+                        className={`h-full origin-left ${isPanelDragging ? "transition-none" : "transition-[transform,opacity,width] duration-300 ease-out"} will-change-transform ${leftPanelOpen
+                          ? "translate-x-0 opacity-100 pointer-events-auto"
+                          : "-translate-x-full opacity-0 pointer-events-none"
                           }`}
                       >
                         <LeftPanel
+                          width={leftPanelWidth}
                           frameReady={frameReady}
                           onToggle={() => setLeftPanelOpen(false)}
                         />
                       </div>
                       <button
                         onClick={() => setLeftPanelOpen((open) => !open)}
-                        className={`absolute left-0 top-0 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${leftPanelOpen ? "opacity-0 pointer-events-none scale-95" : "opacity-100 pointer-events-auto scale-100"
+                        className={`absolute left-4 top-2 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${leftPanelOpen ? "opacity-0 pointer-events-none scale-95" : "opacity-100 pointer-events-auto scale-100"
                           }`}
                         title={leftPanelOpen ? "Hide left panel" : "Show left panel"}
                       >
@@ -1924,16 +2459,30 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 )}
                 {/* Right Panel */}
                 {panelsReady && (
-                  <div className="absolute top-14 right-4 z-50 h-[calc(100vh-6.5rem)] flex items-start pointer-events-none">
-                    <div className="h-full flex items-start justify-end pointer-events-auto">
+                  <div
+                    className="absolute top-12 right-0 z-50 h-[calc(100vh-3rem)] flex items-start pointer-events-none"
+                  >
+                    <div
+                      className="h-full flex items-start justify-end pointer-events-auto relative"
+                    >
                       <div
-                        className={`h-full origin-right transition-[transform,opacity] duration-300 ease-out will-change-transform ${rightPanelOpen
-                          ? 'translate-x-0 scale-100 opacity-100 pointer-events-auto'
-                          : 'translate-x-full scale-90 opacity-0 pointer-events-none'
+                        onMouseDown={(event) => startPanelDrag("right", event)}
+                        className={`absolute top-0 -left-2 h-full w-4 cursor-ew-resize ${rightPanelOpen ? "pointer-events-auto" : "pointer-events-none"}`}
+                        data-no-panel-drag="true"
+                        aria-hidden
+                      />
+                      {rightPanelOpen && (
+                        <div className="absolute top-0 left-0 h-full w-px bg-white/10 pointer-events-none" aria-hidden />
+                      )}
+                      <div
+                        className={`h-full origin-right ${isPanelDragging ? "transition-none" : "transition-[transform,opacity,width] duration-300 ease-out"} will-change-transform ${rightPanelOpen
+                          ? 'translate-x-0 opacity-100 pointer-events-auto'
+                          : 'translate-x-full opacity-0 pointer-events-none'
                           }`}
                       >
                         <RightPanel
                           projectId={projectId}
+                          width={rightPanelWidth}
                           activeTab={rightPanelTab}
                           setActiveTab={setRightPanelTab}
                           frameReady={frameReady}
@@ -1947,7 +2496,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                 {panelsReady && (
                   <BottomPanel
                     activeTool={activeTool}
-                    onToolChange={setActiveTool}
+                    onToolChange={handleToolChange}
                     showHints={true}
                     saveStatus={saveStatus}
                     saveError={saveError}
@@ -1955,6 +2504,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
                     onZoomFit={handleFitToCanvas}
                     scale={scale}
                     onScaleChange={handleScaleChange}
+                    onRotateCanvas={handleRotateCanvas}
                   />
                 )}
                 {/* Floating Mobile Preview */}
@@ -1968,7 +2518,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId }: EditorShellPro
             </TransformModeProvider>
           </CanvasToolProvider>
         </PrototypeTabProvider>
+        </ImportedComponentsProvider>
       </Editor>
     </div>
   );
 };
+

@@ -1,8 +1,10 @@
 const Project = require('../models/Project');
 const User = require('../models/User');
 const Domain = require('../models/Domain');
-const { deleteProjectStorageFolder } = require('../utils/storageHelpers');
+const { deleteProjectStorageFolder, uploadClientMedia } = require('../utils/storageHelpers');
 const { getLimits } = require('../utils/subscriptionLimits');
+const { getTrashRetentionDays } = require('../utils/trashConfig');
+const { resolveProjectOwner } = require('../utils/resolveProjectOwner');
 
 // @desc    List current user's projects
 // @route   GET /api/projects
@@ -10,8 +12,17 @@ const { getLimits } = require('../utils/subscriptionLimits');
 exports.list = async (req, res) => {
   try {
     const userId = req.user.id;
-    const instanceId = (req.query.instanceId || '').toString().trim() || null;
-    const projects = await Project.list(userId, { instanceId });
+    const userEmail = req.user.email;
+    const owned = await Project.list(userId);
+    const shared = await Project.listShared(userId, userEmail);
+
+    // Merge and sort by updatedAt desc
+    const projects = [...owned, ...shared].sort((a, b) => {
+      const tA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const tB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      return tB - tA;
+    });
+
     res.status(200).json({
       success: true,
       projects,
@@ -31,7 +42,15 @@ exports.list = async (req, res) => {
 exports.create = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { title, templateId, subdomain } = req.body;
+    const { title, templateId, subdomain, industry } = req.body || {};
+
+    const normalizedIndustry = (industry || '').toString().trim();
+    if (!normalizedIndustry) {
+      return res.status(400).json({
+        success: false,
+        message: 'Industry is required when creating a project.',
+      });
+    }
 
     // Check subscription limits
     const user = await User.findById(userId);
@@ -58,8 +77,8 @@ exports.create = async (req, res) => {
 
     const project = await Project.create(userId, {
       title: title || 'Untitled Project',
+      industry: normalizedIndustry,
       templateId: templateId || null,
-      instanceId: instanceId || null,
       subdomain: subdomain || null,
     });
     res.status(201).json({
@@ -68,9 +87,10 @@ exports.create = async (req, res) => {
       project,
     });
   } catch (error) {
+    console.error('[projectController.create]', error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: error.message || 'Server error',
       error: error.message,
     });
   }
@@ -109,7 +129,25 @@ exports.getBySubdomain = async (req, res) => {
 exports.getOne = async (req, res) => {
   try {
     const userId = req.user.id;
-    const project = await Project.get(userId, req.params.id);
+    const userEmail = (req.user.email || '').toLowerCase();
+    const projectId = req.params.id;
+
+    // Try direct ownership first (fast)
+    let project = await Project.get(userId, projectId);
+
+    // If not owned, check if user is a collaborator
+    if (!project) {
+      const resolved = await resolveProjectOwner(userId, projectId, userEmail);
+      if (resolved) {
+        project = await Project.get(resolved.ownerId, projectId);
+        if (project) {
+          project.collaboratorPermission = resolved.permission;
+          project.isShared = true;
+          project.ownerId = resolved.ownerId;
+        }
+      }
+    }
+
     if (!project) {
       return res.status(404).json({
         success: false,
@@ -142,11 +180,12 @@ exports.update = async (req, res) => {
         message: 'Project not found',
       });
     }
-    const { title, status, thumbnail, instanceId } = req.body;
+    const { title, status, thumbnail, subdomain, industry } = req.body;
     const project = await Project.update(userId, req.params.id, {
       ...(title !== undefined && { title }),
       ...(status !== undefined && { status }),
-      ...(instanceId !== undefined && { instanceId }),
+      ...(industry !== undefined && { industry }),
+      ...(subdomain !== undefined && { subdomain }),
       ...(thumbnail !== undefined && { thumbnail }),
     });
     res.status(200).json({
@@ -170,9 +209,11 @@ exports.listTrash = async (req, res) => {
   try {
     const userId = req.user.id;
     const projects = await Project.listTrash(userId);
+    const retentionDays = getTrashRetentionDays();
     res.status(200).json({
       success: true,
       projects,
+      retentionDays,
     });
   } catch (error) {
     res.status(500).json({
@@ -192,7 +233,7 @@ exports.restore = async (req, res) => {
     const project = await Project.restore(userId, req.params.id);
     res.status(200).json({
       success: true,
-      message: 'Project restored from trash',
+      message: 'Project restored as draft. Publish again to make the website live.',
       project,
     });
   } catch (error) {
@@ -210,6 +251,7 @@ exports.restore = async (req, res) => {
 exports.delete = async (req, res) => {
   try {
     const userId = req.user.id;
+    const retentionDays = getTrashRetentionDays();
     const existing = await Project.get(userId, req.params.id);
     if (!existing) {
       return res.status(404).json({
@@ -236,12 +278,96 @@ exports.delete = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Project moved to trash',
+      message: `Project moved to trash. ${retentionDays} day(s) left before auto-delete.`,
+      daysLeft: retentionDays,
+      retentionDays,
+    });
+  } catch (error) {
+    const msg = String(error?.message || '').toLowerCase();
+    if (msg.includes('cannot be deleted') || msg.includes('unpublish')) {
+      return res.status(409).json({
+        success: false,
+        message: error.message,
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Upload media for web builder
+// @route   POST /api/projects/:id/media
+// @access  Private (owner or editor)
+exports.uploadMedia = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userEmail = (req.user.email || '').toLowerCase();
+    const projectId = req.params.id;
+
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded. Use field name "media".',
+      });
+    }
+
+    const resolved = await resolveProjectOwner(userId, projectId, userEmail);
+    if (!resolved) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found',
+      });
+    }
+    if (resolved.permission === 'viewer') {
+      return res.status(403).json({
+        success: false,
+        message: 'Viewers cannot upload media to this project.',
+      });
+    }
+
+    const project = await Project.get(resolved.ownerId, projectId);
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found',
+      });
+    }
+
+    let clientName = req.user.name || 'client';
+    try {
+      const user = await User.get(userId);
+      if (user) {
+        clientName = (user.displayName || user.username || user.email || clientName).trim() || clientName;
+      }
+    } catch {
+      // keep clientName from req.user.name
+    }
+
+    const websiteName = (project.title || 'project').trim() || 'project';
+    const mimeType = req.file.mimetype || 'application/octet-stream';
+    const originalName = req.file.originalname || 'file';
+
+    const url = await uploadClientMedia({
+      buffer: req.file.buffer,
+      mimeType,
+      originalName,
+      clientName,
+      websiteName,
+      folder: req.body?.folder || undefined,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Media uploaded',
+      url,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: error.message || 'Upload failed',
       error: error.message,
     });
   }
@@ -253,37 +379,24 @@ exports.delete = async (req, res) => {
 exports.permanentDelete = async (req, res) => {
   try {
     const userId = req.user.id;
-    const existingInTrash = await Project.getTrashRef(userId).doc(req.params.id).get();
-    const existingInProjects = await Project.get(userId, req.params.id);
+    const projectId = req.params.id;
 
-    if (!existingInTrash.exists && !existingInProjects) {
+    // Verify it exists in trash or projects before deleting
+    const inTrash = await Project.getTrashRef(userId).doc(projectId).get();
+    const inProjects = await Project.get(userId, projectId);
+
+    if (!inTrash.exists && !inProjects) {
       return res.status(404).json({
         success: false,
-        message: 'Project not found in trash or active projects',
+        message: 'Project not found in trash or active projects.',
       });
     }
 
-    const projectData = existingInTrash.exists ? existingInTrash.data() : existingInProjects;
-    const title = projectData.title || 'Untitled';
-
-    await Project.permanentDelete(userId, req.params.id);
-
-    // Storage cleanup
-    const clientName = req.user.name || 'client';
-    let clientNameForStorage = clientName;
-    try {
-      const user = await User.get(userId);
-      if (user) {
-        clientNameForStorage = (user.displayName || user.username || user.email || clientName).trim() || clientName;
-      }
-    } catch {
-      // ignore
-    }
-    await deleteProjectStorageFolder(clientNameForStorage, title);
+    await Project.permanentDelete(userId, projectId);
 
     res.status(200).json({
       success: true,
-      message: 'Project permanently deleted',
+      message: 'Project permanently deleted.',
     });
   } catch (error) {
     res.status(500).json({

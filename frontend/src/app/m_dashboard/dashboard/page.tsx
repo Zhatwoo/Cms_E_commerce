@@ -2,21 +2,31 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { listProjects, type Project } from '@/lib/api';
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  listProjects,
+  updateProject,
+  deleteProject,
+  restoreProject,
+  permanentDeleteProject,
+  type Project,
+} from '@/lib/api';
 import { DraftPreviewThumbnail } from '../components/projects/DraftPreviewThumbnail';
 import { useProject } from '../components/context/project-context';
+import { useTheme } from '../components/context/theme-context';
+import { useAlert } from '../components/context/alert-context';
 
 const INDUSTRIES = [
-  { label: 'Fashion &\nApparel',      img: '/images/industries/Fashion & Apparel.png',    bg: 'linear-gradient(135deg,#3A006D 0%,#1A1A6E 100%)' },
-  { label: 'Electronics\n& Tech',     img: '/images/industries/Electronics & Tech.png',    bg: 'linear-gradient(135deg,#1A1A6E 0%,#0E2060 100%)' },
-  { label: 'Home &\nLiving',          img: '/images/industries/Home & Living.png',          bg: 'linear-gradient(135deg,#0E2060 0%,#2B0E7A 100%)' },
-  { label: 'Food &\nBeverage',        img: '/images/industries/Food & Beverage.png',        bg: 'linear-gradient(135deg,#3F1080 0%,#1A1A6E 100%)' },
-  { label: 'Beauty',                  img: '/images/industries/Beauty.png',                 bg: 'linear-gradient(135deg,#4A0E8A 0%,#3A006D 100%)' },
-  { label: 'Kids, Toys\n& Hobbies',  img: '/images/industries/Kids, Toys & Hobbies.png',  bg: 'linear-gradient(135deg,#2B0E7A 0%,#0E2060 100%)' },
-  { label: 'Pets',                    img: '/images/industries/Pets.png',                   bg: 'linear-gradient(135deg,#1D2B8A 0%,#3A006D 100%)' },
-  { label: 'Automotive',              img: '/images/industries/Automotive.png',             bg: 'linear-gradient(135deg,#0E0B3D 0%,#1A1A6E 100%)' },
-  { label: 'Sports &\nFitness',       img: '/images/industries/Sports & Fitness.png',       bg: 'linear-gradient(135deg,#2D0080 0%,#1D2B8A 100%)' },
-  { label: 'Creative &\nHandmade',    img: '/images/industries/Creative & Handmade.png',    bg: 'linear-gradient(135deg,#3A1070 0%,#0E2060 100%)' },
+  { label: 'Fashion &\nApparel', img: '/images/industries/Fashion & Apparel.png', bg: 'linear-gradient(135deg,#3A006D 0%,#1A1A6E 100%)' },
+  { label: 'Electronics\n& Tech', img: '/images/industries/Electronics & Tech.png', bg: 'linear-gradient(135deg,#1A1A6E 0%,#0E2060 100%)' },
+  { label: 'Home &\nLiving', img: '/images/industries/Home & Living.png', bg: 'linear-gradient(135deg,#0E2060 0%,#2B0E7A 100%)' },
+  { label: 'Food &\nBeverage', img: '/images/industries/Food & Beverage.png', bg: 'linear-gradient(135deg,#3F1080 0%,#1A1A6E 100%)' },
+  { label: 'Beauty', img: '/images/industries/Beauty.png', bg: 'linear-gradient(135deg,#4A0E8A 0%,#3A006D 100%)' },
+  { label: 'Kids, Toys\n& Hobbies', img: '/images/industries/Kids, Toys & Hobbies.png', bg: 'linear-gradient(135deg,#2B0E7A 0%,#0E2060 100%)' },
+  { label: 'Pets', img: '/images/industries/Pets.png', bg: 'linear-gradient(135deg,#1D2B8A 0%,#3A006D 100%)' },
+  { label: 'Automotive', img: '/images/industries/Automotive.png', bg: 'linear-gradient(135deg,#0E0B3D 0%,#1A1A6E 100%)' },
+  { label: 'Sports &\nFitness', img: '/images/industries/Sports & Fitness.png', bg: 'linear-gradient(135deg,#2D0080 0%,#1D2B8A 100%)' },
+  { label: 'Creative &\nHandmade', img: '/images/industries/Creative & Handmade.png', bg: 'linear-gradient(135deg,#3A1070 0%,#0E2060 100%)' },
 ] as const;
 
 type HeroTab = 'designs' | 'templates';
@@ -57,6 +67,8 @@ function toWorkspaceLabel(project?: Project | null) {
 export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const router = useRouter();
   const { selectedProject } = useProject();
+  const { theme } = useTheme();
+  const { showAlert, showConfirm } = useAlert();
   const [activeTab, setActiveTab] = useState<HeroTab>('designs');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -65,6 +77,17 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const [activeProjectIndex, setActiveProjectIndex] = useState(0);
   const [isSliderTransitionEnabled, setIsSliderTransitionEnabled] = useState(true);
   const [showAllOtherProjects, setShowAllOtherProjects] = useState(false);
+  const [actioningProjectId, setActioningProjectId] = useState<string | null>(null);
+  const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
+  const [renamingProject, setRenamingProject] = useState<Project | null>(null);
+  const [renameTitle, setRenameTitle] = useState('');
+
+  const handleCardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>, onActivate: () => void) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onActivate();
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -72,9 +95,11 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
       setAllProjects([]);
       setRecentProjects([]);
       setLoading(false);
-      return () => { cancelled = true; };
+      return () => {
+        cancelled = true;
+      };
     }
-    listProjects({ instanceId: selectedProject.id })
+    listProjects()
       .then((res) => {
         if (!res.success || cancelled || !res.projects?.length) {
           setRecentProjects([]);
@@ -101,7 +126,9 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [selectedProject?.id]);
 
   useEffect(() => {
@@ -111,6 +138,13 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
     }, 3500);
     return () => window.clearInterval(interval);
   }, [recentProjects.length]);
+
+  useEffect(() => {
+    if (!openProjectMenuId) return;
+    const closeMenu = () => setOpenProjectMenuId(null);
+    document.addEventListener('click', closeMenu);
+    return () => document.removeEventListener('click', closeMenu);
+  }, [openProjectMenuId]);
 
   const projectCount = recentProjects.length;
   const displayProjectIndex = projectCount > 0 && activeProjectIndex >= projectCount ? 0 : activeProjectIndex;
@@ -141,6 +175,89 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
     });
   };
 
+
+
+  const sortProjectsByUpdated = (projects: Project[]) => {
+    return [...projects].sort((a, b) => {
+      const aDate = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const bDate = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return bDate - aDate;
+    });
+  };
+
+  const handleEditActiveProject = async (project: Project) => {
+    setRenamingProject(project);
+    setRenameTitle((project.title || 'Untitled Project').trim());
+    setOpenProjectMenuId(null);
+  };
+
+  const submitRenameProject = async () => {
+    if (!renamingProject) return;
+    const trimmedTitle = renameTitle.trim();
+    if (!trimmedTitle) {
+      showAlert('Project title cannot be empty.');
+      return;
+    }
+
+    try {
+      setActioningProjectId(renamingProject.id);
+      const res = await updateProject(renamingProject.id, { title: trimmedTitle });
+      if (!res.success) {
+        showAlert(res.message || 'Failed to rename project.');
+        return;
+      }
+
+      const merged = allProjects.map((item) =>
+        item.id === renamingProject.id
+          ? {
+            ...item,
+            ...(res.project || {}),
+            title: res.project?.title || trimmedTitle,
+            updatedAt: res.project?.updatedAt || new Date().toISOString(),
+          }
+          : item
+      );
+      const sorted = sortProjectsByUpdated(merged);
+      setAllProjects(sorted);
+      setRecentProjects(sorted.slice(0, 3));
+      setRenamingProject(null);
+      setRenameTitle('');
+    } catch {
+      showAlert('Backend is unreachable. Start the backend server and ensure API URL/port is correct.');
+    } finally {
+      setActioningProjectId(null);
+    }
+  };
+
+  const handleDeleteActiveProject = async (project: Project) => {
+    const normalizedStatus = String(project.status || '').trim().toLowerCase();
+    if (normalizedStatus === 'published' || normalizedStatus === 'live') {
+      showAlert('This project is live. Take down (unpublish) the website first before moving it to trash.');
+      setOpenProjectMenuId(null);
+      return;
+    }
+
+    const confirmed = await showConfirm(`Move "${project.title || 'Untitled Project'}" to trash?`);
+    if (!confirmed) return;
+
+    try {
+      setActioningProjectId(project.id);
+      const res = await deleteProject(project.id);
+      if (!res.success) return;
+
+      const filtered = allProjects.filter((item) => item.id !== project.id);
+      const sorted = sortProjectsByUpdated(filtered);
+      setAllProjects(sorted);
+      setRecentProjects(sorted.slice(0, 3));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to move project to trash.';
+      showAlert(message);
+    } finally {
+      setActioningProjectId(null);
+      setOpenProjectMenuId(null);
+    }
+  };
+
   const renderProjectPreview = (project: Project | null) => {
     if (project?.thumbnail) {
       return <img src={project.thumbnail} alt={project.title || 'Recent'} className="h-full w-full object-cover" loading="lazy" />;
@@ -165,34 +282,66 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
     );
   };
 
-  /* Reference: deep indigo/purple bg with subtle gradient */
   return (
     <section className="relative min-h-[calc(100vh-176px)] px-3 py-3 sm:px-5 sm:py-4 lg:px-[100px] [font-family:var(--font-outfit),sans-serif]">
-      <div className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full blur-3xl opacity-25 bg-[#5C1D8F]" />
-      <div className="pointer-events-none absolute top-44 right-20 h-56 w-56 rounded-full blur-3xl opacity-20 bg-[#3F2A9A]" />
-      <div className="pointer-events-none absolute -bottom-28 right-2 h-80 w-80 rounded-full blur-3xl opacity-30 bg-[#11144E]" />
-
       <div className="relative z-10 mx-auto w-full max-w-none flex flex-col gap-10">
         <div className="flex flex-col items-center text-center gap-6 pt-1">
-          <h1 className="text-4xl sm:text-6xl lg:text-[76px] font-extrabold leading-[1.06] tracking-tight max-w-5xl [font-family:var(--font-outfit),sans-serif] bg-[linear-gradient(90deg,rgba(255,255,255,1)_0%,rgba(255,255,255,0.81)_15%,rgba(216,157,255,0.63)_31%,rgba(167,139,250,1)_54%,rgba(217,173,143,0.89)_82%,rgba(255,242,191,0.78)_88%,rgba(255,255,255,0.81)_97%)] bg-clip-text text-transparent">
-            <span className="block">What website will</span>
-            <span className="block">you build?</span>
+          <h1
+            className="text-4xl sm:text-6xl lg:text-[76px] font-extrabold leading-[1.06] tracking-tight max-w-5xl [font-family:var(--font-outfit),sans-serif] text-white"
+          >
+            <span className="block">
+              What{' '}
+              <span
+                style={theme === 'dark'
+                  ? { backgroundImage: 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }
+                  : { color: '#5B21B6' }}
+              >
+                website
+              </span>{' '}
+              will
+            </span>
+            <span className="block">
+              you{' '}
+              <span
+                style={theme === 'dark'
+                  ? { backgroundImage: 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }
+                  : { color: '#5B21B6' }}
+              >
+                build?
+              </span>
+            </span>
           </h1>
 
           <div className="flex items-center gap-8 text-xs uppercase font-bold tracking-widest [font-family:var(--font-outfit),sans-serif]">
             <button
               type="button"
               onClick={() => setActiveTab('designs')}
-              className={`pb-1 border-b-2 transition-colors ${activeTab === 'designs' ? 'border-[#FFCE00] text-[#FFCE00]' : 'border-transparent text-[#807FAF]'}`}
+              className={`relative pb-1 transition-colors ${activeTab === 'designs' ? 'text-[#FFCE00]' : 'text-[#807FAF]'}`}
             >
               YOUR DESIGNS
+              {activeTab === 'designs' && (
+                <motion.span
+                  layoutId="dashboard-tab-underline"
+                  className="absolute left-0 right-0 -bottom-[2px] h-[2px]"
+                  style={{ background: 'linear-gradient(90deg,#B13BFF 0%, #B36760 50%, #FFCC00 100%)' }}
+                  transition={{ type: 'spring', stiffness: 520, damping: 38 }}
+                />
+              )}
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('templates')}
-              className={`pb-1 border-b-2 transition-colors ${activeTab === 'templates' ? 'border-[#FFCE00] text-[#FFCE00]' : 'border-transparent text-[#807FAF]'}`}
+              className={`relative pb-1 transition-colors ${activeTab === 'templates' ? 'text-[#FFCE00]' : 'text-[#807FAF]'}`}
             >
               TEMPLATES
+              {activeTab === 'templates' && (
+                <motion.span
+                  layoutId="dashboard-tab-underline"
+                  className="absolute left-0 right-0 -bottom-[2px] h-[2px]"
+                  style={{ background: 'linear-gradient(90deg,#B13BFF 0%, #B36760 50%, #FFCC00 100%)' }}
+                  transition={{ type: 'spring', stiffness: 520, damping: 38 }}
+                />
+              )}
             </button>
           </div>
 
@@ -211,255 +360,429 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
           </div>
         </div>
 
-        {activeTab === 'designs' ? (
-          <>
-            <div className="mx-auto w-full max-w-none grid grid-cols-1 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,1.18fr)] gap-8 lg:gap-12 items-center pt-3">
-              <div className="space-y-5 w-full max-w-[760px] lg:justify-self-start">
-                <h2 className="text-5xl sm:text-6xl lg:text-[84px] font-extrabold leading-[0.94] [font-family:var(--font-outfit),sans-serif] text-white">
-                  Most Recent Project
-                </h2>
-                <p className="text-base sm:text-xl leading-relaxed text-[rgba(255,255,255,0.72)] max-w-[760px]">
-                  {loading
-                    ? 'Loading your latest project...'
-                    : featuredProject
-                      ? `${featuredProject.title || 'Untitled website'} – ${formatLastEdited(featuredProject.updatedAt || featuredProject.createdAt)}. Continue building your responsive hero section and component library.`
-                      : `${userName}, create your first project to start building your website.`}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (featuredProject?.id) router.push(`/design?projectId=${featuredProject.id}`);
-                    else router.push('/m_dashboard/web-builder');
-                  }}
-                  className="rounded-full px-10 py-3 text-base font-bold transition-transform hover:-translate-y-0.5 bg-[#FFCE00] text-[#121241] shadow-[0_0_28px_rgba(255,206,0,0.35)]"
-                >
-                  View Project
-                </button>
-              </div>
-
-              <div className="relative rounded-[24px] border p-4 text-left overflow-hidden w-full max-w-none justify-self-stretch bg-[#120F46] border-[rgba(110,106,191,0.4)] shadow-[0_16px_44px_rgba(6,7,32,0.55)]">
-                <div className="relative flex items-center justify-center px-1.5 mb-2 min-h-[16px]">
-                  <div className="absolute left-1.5 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                    {Array.from({ length: indicatorCount }).map((_, idx) => {
-                      const isActive = idx === displayProjectIndex;
-                      return (
-                        <button
-                          key={`indicator-${idx}`}
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setIsSliderTransitionEnabled(true);
-                            setActiveProjectIndex(idx);
-                          }}
-                          aria-label={`Show featured project ${idx + 1}`}
-                          title={`Show featured project ${idx + 1}`}
-                          className={`h-2.5 w-2.5 rounded-full transition-colors ${isActive ? 'bg-[#FFCE00]' : 'bg-[#6C6A98] hover:bg-[#8A88B8]'}`}
-                        >
-                          <span className="sr-only">Show featured project {idx + 1}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <span className="text-[10px] uppercase tracking-[0.24em] text-[#7775A6] whitespace-nowrap">
-                    WORKSPACE // {toWorkspaceLabel(featuredProject)}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (featuredProject?.id) router.push(`/design?projectId=${featuredProject.id}`);
-                    else router.push('/m_dashboard/web-builder');
-                  }}
-                  aria-label={featuredProject?.title ? `Open featured project ${featuredProject.title}` : 'Open featured project'}
-                  title={featuredProject?.title ? `Open featured project ${featuredProject.title}` : 'Open featured project'}
-                  className="w-full block rounded-xl mt-3 overflow-hidden border border-[rgba(147,145,212,0.2)] bg-[#0E0D3D]"
-                >
-                <div className="w-full aspect-[16/9]">
-                  <div className="relative h-full w-full overflow-hidden">
-                    <div
-                      onTransitionEnd={handleTrackTransitionEnd}
-                      className={`flex h-full w-full ${getTrackTranslateClass()} ${isSliderTransitionEnabled ? 'transition-transform duration-500 ease-out' : ''}`}
-                    >
-                      {carouselProjects.map((project, idx) => (
-                        <div key={`${project.id}-${idx}`} className="h-full w-full shrink-0 grow-0 basis-full">
-                          {renderProjectPreview(project)}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                </button>
-              </div>
-            </div>
-
-            <section className="mx-auto w-full max-w-none pt-2 sm:pt-4">
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-xs sm:text-sm font-bold tracking-[0.18em] uppercase text-[#FFCE00]">Other Projects</h3>
-                {allProjects.length > 3 && (
-                  <button
-                    type="button"
-                    onClick={() => setShowAllOtherProjects((prev) => !prev)}
-                    className="rounded-lg border border-[#2B3488] bg-[#10145A]/70 px-4 py-1.5 text-xs sm:text-sm font-semibold text-white hover:opacity-95"
+        <AnimatePresence mode="wait" initial={false}>
+          {activeTab === 'designs' ? (
+            <motion.div
+              key="designs-tab"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.22, ease: 'easeOut' }}
+            >
+              <div className="mx-auto w-full max-w-none grid grid-cols-1 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,1.18fr)] gap-8 lg:gap-12 items-center pt-3">
+                <div className="space-y-5 w-full max-w-[760px] lg:justify-self-start">
+                  <h2
+                    className="text-5xl sm:text-6xl lg:text-[84px] font-extrabold leading-[0.94] [font-family:var(--font-outfit),sans-serif]"
+                    style={{ color: theme === 'dark' ? '#FFFFFF' : '#1E1B4B' }}
                   >
-                    {showAllOtherProjects ? 'Show Less' : 'See All'}
-                  </button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-                <button
-                  type="button"
-                  onClick={() => router.push('/m_dashboard/web-builder')}
-                  className="rounded-[26px] border border-dashed border-[#2D3A90] bg-[#12145A]/80 p-4 sm:p-5 text-left min-h-[240px] sm:min-h-[260px] flex flex-col items-center justify-center gap-5"
-                >
-                  <span className="h-14 w-14 rounded-2xl bg-[#FFCE00] flex items-center justify-center">
-                    <svg className="w-7 h-7" fill="none" stroke="#11134D" strokeWidth={2.4} viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                    </svg>
-                  </span>
-                  <span className="text-2xl font-extrabold text-white">New Project</span>
-                </button>
-
-                {otherProjects.map((project) => (
-                  <button
-                    key={project.id}
-                    type="button"
-                    onClick={() => router.push(`/design?projectId=${project.id}`)}
-                    className="rounded-[26px] border border-[#2D3A90] bg-[#12145A]/80 overflow-hidden text-left hover:translate-y-[-1px] transition-transform"
+                    Most Recent Project
+                  </h2>
+                  <p
+                    className="text-base sm:text-xl leading-relaxed max-w-[760px]"
+                    style={{ color: theme === 'dark' ? 'rgba(255,255,255,0.72)' : 'rgba(30, 41, 59, 0.78)' }}
                   >
-                    <div className="w-full aspect-[16/10] overflow-hidden border-b border-[#2D3A90] bg-[#0E0D3D]">
-                      {project.thumbnail ? (
-                        <img src={project.thumbnail} alt={project.title || 'Project'} className="h-full w-full object-cover" loading="lazy" />
-                      ) : (
-                        <DraftPreviewThumbnail
-                          projectId={project.id}
-                          borderColor="rgba(45,58,144,0.9)"
-                          bgColor="#120F46"
-                          className="w-full h-full !aspect-[16/10] !rounded-none"
-                        />
-                      )}
-                    </div>
-                    <div className="px-4 py-3.5">
-                      <p className="text-2xl font-extrabold text-white leading-tight truncate">{project.title || 'Untitled Project'}</p>
-                      <p className="text-xs text-[#8A8FC4] mt-1 truncate">{formatEditedDate(project.updatedAt || project.createdAt)}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </section>
-          </>
-        ) : (
-          /* ── TEMPLATES TAB ──────────────────────────────────────── */
-          <>
-            {/* Browse by Industry */}
-            <section className="mx-auto w-full max-w-none pt-2">
-              <div className="mb-5">
-                <h3 className="text-xs sm:text-sm font-bold tracking-[0.18em] uppercase text-[#FFCE00]">Browse by Industry</h3>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-                {INDUSTRIES.map((industry) => (
+                    {loading
+                      ? 'Loading your latest project...'
+                      : featuredProject
+                        ? `${featuredProject.title || 'Untitled website'} — ${formatLastEdited(featuredProject.updatedAt || featuredProject.createdAt)}. Continue building your responsive hero section and component library.`
+                        : `${userName}, create your first project to start building your website.`}
+                  </p>
                   <button
-                    key={industry.label}
                     type="button"
-                    className="relative overflow-hidden rounded-2xl h-[120px] sm:h-[140px] text-left group transition-all duration-200 hover:-translate-y-1"
-                    style={{
-                      background: industry.bg,
-                      boxShadow: '0 4px 18px rgba(0,0,0,0.32)',
+                    onClick={() => {
+                      if (featuredProject?.id) router.push(`/design?projectId=${featuredProject.id}`);
+                      else router.push('/design');
                     }}
+                    className="rounded-full px-10 py-3 text-base font-bold transition-transform hover:-translate-y-0.5 bg-[#FFCE00] text-[#121241] shadow-[0_0_28px_rgba(255,206,0,0.35)]"
                   >
-                    {/* Image — floats large at the right, slightly overflowing bottom */}
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={industry.img}
-                      alt={industry.label.replace('\n', ' ')}
-                      className="absolute right-0 bottom-0 h-[105%] w-[55%] object-contain object-bottom transition-transform duration-200 group-hover:scale-105"
-                      style={{ filter: 'drop-shadow(-6px 4px 12px rgba(0,0,0,0.65))' }}
-                      loading="lazy"
-                    />
-
-                    {/* Subtle gradient fade so text stays readable */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-transparent" />
-
-                    {/* Text label — left half, centered */}
-                    <div className="absolute inset-y-0 left-0 w-[55%] flex items-center justify-center px-4 pl-6 z-10">
-                      <span className="text-base sm:text-lg font-extrabold text-white leading-snug whitespace-pre-line text-center drop-shadow-sm">
-                        {industry.label}
-                      </span>
-                    </div>
+                    View Project
                   </button>
-                ))}
-              </div>
-              <div className="flex justify-center mt-5">
-                <button
-                  type="button"
-                  className="px-8 py-2 rounded-full text-sm font-semibold text-white transition-opacity hover:opacity-80"
-                  style={{ backgroundColor: '#6258AE' }}
-                >
-                  See More
-                </button>
-              </div>
-            </section>
+                </div>
 
-            {/* Featured Templates */}
-            <section className="mx-auto w-full max-w-none pt-2">
-              <div className="mb-5">
-                <h3 className="text-xs sm:text-sm font-bold tracking-[0.18em] uppercase text-[#FFCE00]">Featured Templates</h3>
+                <div className="relative rounded-[24px] border p-4 text-left overflow-hidden w-full max-w-none justify-self-stretch bg-[#120F46] border-[rgba(110,106,191,0.4)] shadow-[0_16px_44px_rgba(6,7,32,0.55)]">
+                  <div className="relative flex items-center justify-center px-1.5 mb-2 min-h-[16px]">
+                    <div className="absolute left-1.5 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                      {Array.from({ length: indicatorCount }).map((_, idx) => {
+                        const isActive = idx === displayProjectIndex;
+                        return (
+                          <button
+                            key={`indicator-${idx}`}
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setIsSliderTransitionEnabled(true);
+                              setActiveProjectIndex(idx);
+                            }}
+                            aria-label={`Show featured project ${idx + 1}`}
+                            title={`Show featured project ${idx + 1}`}
+                            className={`h-2.5 w-2.5 rounded-full transition-colors ${isActive ? 'bg-[#FFCE00]' : 'bg-[#6C6A98] hover:bg-[#8A88B8]'}`}
+                          >
+                            <span className="sr-only">Show featured project {idx + 1}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <span className="text-[10px] uppercase tracking-[0.24em] text-[#7775A6] whitespace-nowrap">
+                      WORKSPACE // {toWorkspaceLabel(featuredProject)}
+                    </span>
+                  </div>
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      if (featuredProject?.id) router.push(`/design?projectId=${featuredProject.id}`);
+                      else router.push('/design');
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        if (featuredProject?.id) router.push(`/design?projectId=${featuredProject.id}`);
+                        else router.push('/design');
+                      }
+                    }}
+
+                    aria-label={featuredProject?.title ? `Open featured project ${featuredProject.title}` : 'Open featured project'}
+                    title={featuredProject?.title ? `Open featured project ${featuredProject.title}` : 'Open featured project'}
+                    className="w-full block rounded-xl mt-3 overflow-hidden border border-[rgba(147,145,212,0.2)] bg-[#0E0D3D] cursor-pointer"
+                  >
+                    <div className="w-full aspect-[16/9]">
+                      <div className="relative h-full w-full overflow-hidden">
+                        <div
+                          onTransitionEnd={handleTrackTransitionEnd}
+                          className={`flex h-full w-full ${getTrackTranslateClass()} ${isSliderTransitionEnabled ? 'transition-transform duration-500 ease-out' : ''}`}
+                        >
+                          {carouselProjects.map((project, idx) => (
+                            <div key={`${project.id}-${idx}`} className="h-full w-full shrink-0 grow-0 basis-full">
+                              {renderProjectPreview(project)}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-4 h-auto lg:h-[620px]">
+              <section className="mx-auto w-full max-w-none pt-2 sm:pt-4">
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="text-xs sm:text-sm font-bold tracking-[0.18em] uppercase text-[#FFCE00]">Other Projects</h3>
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    {allProjects.length > 3 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAllOtherProjects((prev) => !prev)}
+                        className="rounded-lg border border-[#2B3488] bg-[#10145A]/70 px-4 py-1.5 text-xs sm:text-sm font-semibold text-white hover:opacity-95"
+                      >
+                        {showAllOtherProjects ? 'Show Less' : 'See All'}
+                      </button>
+                    )}
+                  </div>
+                </div>
 
-                {/* Left — large featured card */}
-                <div className="relative rounded-[22px] overflow-hidden h-[420px] lg:h-full group cursor-pointer hover:-translate-y-0.5 transition-transform">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/images/template-portfolio.jpg" alt="PC Website" className="template-pan-img" loading="lazy" />
-                  {/* gradient overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0A0730]/95 via-[#0A0730]/40 to-transparent" />
-                  {/* floating text */}
-                  <div className="absolute bottom-0 left-0 p-6 flex flex-col gap-2">
-                    <span className="text-[10px] font-bold tracking-[0.22em] uppercase text-[#FFCE00]">Template</span>
-                    <h4 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight">PC Website</h4>
-                    <button type="button" className="mt-1 flex items-center gap-2 text-xs font-bold tracking-widest uppercase text-[#FFCE00] hover:gap-3 transition-all">
-                      Explore Collection
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+                  <button
+                    type="button"
+                    onClick={() => router.push('/design')}
+                    className="rounded-[26px] border border-dashed border-[#2D3A90] bg-[#12145A]/80 p-4 sm:p-5 text-left min-h-[240px] sm:min-h-[260px] flex flex-col items-center justify-center gap-5"
+                  >
+                    <span className="h-14 w-14 rounded-2xl bg-[#FFCE00] flex items-center justify-center">
+                      <svg className="w-7 h-7" fill="none" stroke="#11134D" strokeWidth={2.4} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                       </svg>
+                    </span>
+                    <span className="text-2xl font-extrabold text-white">New Project</span>
+                  </button>
+
+                  {otherProjects.map((project) => (
+                    <div
+                      key={project.id}
+                      className="relative rounded-[26px] border border-[#2D3A90] bg-[#12145A]/80 overflow-hidden text-left hover:translate-y-[-1px] transition-transform"
+                    >
+                      {!project.isShared && (
+                        <div className="absolute right-3 top-3 z-20" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setOpenProjectMenuId((prev) => (prev === project.id ? null : project.id));
+                            }}
+                            className="h-8 w-8 rounded-md border border-[#2D3A90] bg-[#0E0D3D]/90 text-white flex items-center justify-center"
+                            aria-label="Project actions"
+                            title="Project actions"
+                          >
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                              <circle cx="12" cy="6" r="1.8" />
+                              <circle cx="12" cy="12" r="1.8" />
+                              <circle cx="12" cy="18" r="1.8" />
+                            </svg>
+                          </button>
+
+                          {openProjectMenuId === project.id && (
+                            <div className="absolute right-0 mt-1 w-36 rounded-lg border border-[#2D3A90] bg-[#12145A] py-1 shadow-xl">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleEditActiveProject(project);
+                                }}
+                                disabled={actioningProjectId === project.id}
+                                className="w-full px-3 py-2 text-left text-sm text-white flex items-center gap-2 hover:bg-white/5 disabled:opacity-50"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 3.487a1.875 1.875 0 1 1 2.652 2.652L8.25 17.403 4.5 18.75l1.347-3.75L16.862 3.487Z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 4.5l3.75 3.75" />
+                                </svg>
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleDeleteActiveProject(project);
+                                }}
+                                disabled={actioningProjectId === project.id || String(project.status || '').trim().toLowerCase() === 'published' || String(project.status || '').trim().toLowerCase() === 'live'}
+                                className="w-full px-3 py-2 text-left text-sm text-red-300 flex items-center gap-2 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                                title={String(project.status || '').trim().toLowerCase() === 'published' || String(project.status || '').trim().toLowerCase() === 'live' ? 'Take down (unpublish) this website first' : 'Move to trash'}
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                {String(project.status || '').trim().toLowerCase() === 'published' || String(project.status || '').trim().toLowerCase() === 'live' ? 'Take down first' : 'Delete'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => router.push(`/design?projectId=${project.id}`)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            router.push(`/design?projectId=${project.id}`);
+                          }
+                        }}
+                        className="cursor-pointer"
+                      >
+                        <div className="w-full aspect-[16/10] overflow-hidden border-b border-[#2D3A90] bg-[#0E0D3D]">
+                          {project.thumbnail ? (
+                            <img src={project.thumbnail} alt={project.title || 'Project'} className="h-full w-full object-cover" loading="lazy" />
+                          ) : (
+                            <DraftPreviewThumbnail
+                              projectId={project.id}
+                              borderColor="rgba(45,58,144,0.9)"
+                              bgColor="#120F46"
+                              className="w-full h-full !aspect-[16/10] !rounded-none"
+                            />
+                          )}
+                        </div>
+                        <div className="px-4 py-3.5">
+                          <div className="flex items-center gap-2">
+                            <p className="text-2xl font-extrabold text-white leading-tight truncate">{project.title || 'Untitled Project'}</p>
+                            {project.isShared && (
+                              <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30 uppercase tracking-wider">Shared</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-[#8A8FC4] mt-1 truncate">
+                            {project.isShared ? `by ${project.ownerName || 'Unknown'}` : formatEditedDate(project.updatedAt || project.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </motion.div>
+          ) : (
+            /* ── TEMPLATES TAB ──────────────────────────────────────── */
+            <motion.div
+              key="templates-tab"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.22, ease: 'easeOut' }}
+            >
+              {/* Browse by Industry */}
+              <section className="mx-auto w-full max-w-none pt-2">
+                <div className="mb-5">
+                  <h3 className="text-xs sm:text-sm font-bold tracking-[0.18em] uppercase text-[#FFCE00]">Browse by Industry</h3>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+                  {INDUSTRIES.map((industry) => (
+                    <button
+                      key={industry.label}
+                      type="button"
+                      className="relative overflow-hidden rounded-2xl h-[120px] sm:h-[140px] text-left group transition-all duration-200 hover:-translate-y-1"
+                      style={{
+                        background: industry.bg,
+                        boxShadow: '0 4px 18px rgba(0,0,0,0.32)',
+                      }}
+                    >
+                      <img
+                        src={industry.img}
+                        alt={industry.label.replace('\n', ' ')}
+                        className="absolute right-0 bottom-0 h-[105%] w-[55%] object-contain object-bottom transition-transform duration-200 group-hover:scale-105"
+                        style={{ filter: 'drop-shadow(-6px 4px 12px rgba(0,0,0,0.65))' }}
+                        loading="lazy"
+                      />
+
+                      <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-transparent" />
+
+                      <div className="absolute inset-y-0 left-0 w-[55%] flex items-center justify-center px-4 pl-6 z-10">
+                        <span className="text-base sm:text-lg font-extrabold text-white leading-snug whitespace-pre-line text-center drop-shadow-sm">
+                          {industry.label}
+                        </span>
+                      </div>
                     </button>
-                  </div>
+                  ))}
+                </div>
+                <div className="flex justify-center mt-5">
+                  <button
+                    type="button"
+                    className="px-8 py-2 rounded-full text-sm font-semibold text-white transition-opacity hover:opacity-80"
+                    style={{ backgroundColor: '#6258AE' }}
+                  >
+                    See More
+                  </button>
+                </div>
+              </section>
+
+              <section className="mx-auto w-full max-w-none pt-2">
+                <div className="mb-5">
+                  <h3 className="text-xs sm:text-sm font-bold tracking-[0.18em] uppercase text-[#FFCE00]">Featured Templates</h3>
                 </div>
 
-                {/* Right — 2 stacked cards */}
-                <div className="flex flex-col gap-4 h-full">
+                <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-4 h-auto lg:h-[620px]">
 
-                  {/* Top right */}
-                  <div className="relative rounded-[22px] overflow-hidden flex-1 group cursor-pointer hover:-translate-y-0.5 transition-transform min-h-[240px]">
+                  {/* Left — large featured card */}
+                  <div className="relative rounded-[22px] overflow-hidden h-[420px] lg:h-full group cursor-pointer hover:-translate-y-0.5 transition-transform">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/images/template-saas.jpg" alt="Simple Website" className="template-pan-img-slow" loading="lazy" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0A0730]/90 via-[#0A0730]/30 to-transparent" />
-                    <div className="absolute bottom-0 left-0 p-5 flex flex-col gap-1">
+                    <img src="/images/template-portfolio.jpg" alt="PC Website" className="template-pan-img" loading="lazy" />
+                    {/* gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0A0730]/95 via-[#0A0730]/40 to-transparent" />
+                    {/* floating text */}
+                    <div className="absolute bottom-0 left-0 p-6 flex flex-col gap-2">
                       <span className="text-[10px] font-bold tracking-[0.22em] uppercase text-[#FFCE00]">Template</span>
-                      <h4 className="text-xl font-extrabold text-white leading-tight">Simple Website</h4>
+                      <h4 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight">Fashion Website</h4>
+                      <button type="button" className="mt-1 flex items-center gap-2 text-xs font-bold tracking-widest uppercase text-[#FFCE00] group-hover:gap-3 transition-all duration-200">
+                        Explore Collection
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                        </svg>
+                      </button>
                     </div>
                   </div>
 
-                  {/* Bottom right */}
-                  <div className="relative rounded-[22px] overflow-hidden flex-1 group cursor-pointer hover:-translate-y-0.5 transition-transform min-h-[240px]">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/images/template-fashion.jpg" alt="Fashion Website" className="template-pan-img" loading="lazy" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0A0730]/90 via-[#0A0730]/30 to-transparent" />
-                    <div className="absolute bottom-0 left-0 p-5 flex flex-col gap-1">
-                      <span className="text-[10px] font-bold tracking-[0.22em] uppercase text-[#FFCE00]">Template</span>
-                      <h4 className="text-xl font-extrabold text-white leading-tight">Fashion Website</h4>
+                  {/* Right — 2 stacked cards */}
+                  <div className="flex flex-col gap-4 h-full">
+
+                    {/* Top right */}
+                    <div className="relative rounded-[22px] overflow-hidden flex-1 group cursor-pointer hover:-translate-y-0.5 transition-transform min-h-[240px]">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src="/images/template-saas.jpg" alt="Simple Website" className="template-pan-img-slow" loading="lazy" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#0A0730]/90 via-[#0A0730]/30 to-transparent" />
+                      <div className="absolute bottom-0 left-0 p-5 flex flex-col gap-1">
+                        <span className="text-[10px] font-bold tracking-[0.22em] uppercase text-[#FFCE00]">Template</span>
+                        <h4 className="text-xl font-extrabold text-white leading-tight">Simple Website</h4>
+                      </div>
+                    </div>
+
+                    {/* Bottom right */}
+                    <div className="relative rounded-[22px] overflow-hidden flex-1 group cursor-pointer hover:-translate-y-0.5 transition-transform min-h-[240px]">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src="/images/template-fashion.jpg" alt="Fashion Website" className="template-pan-img" loading="lazy" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#0A0730]/90 via-[#0A0730]/30 to-transparent" />
+                      <div className="absolute bottom-0 left-0 p-5 flex flex-col gap-1">
+                        <span className="text-[10px] font-bold tracking-[0.22em] uppercase text-[#FFCE00]">Template</span>
+                        <h4 className="text-xl font-extrabold text-white leading-tight">Fashion Website</h4>
+                      </div>
                     </div>
                   </div>
-
                 </div>
-              </div>
-            </section>
-          </>
-        )}
+              </section>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
+
+      {renamingProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => {
+          if (actioningProjectId === renamingProject.id) return;
+          setRenamingProject(null);
+          setRenameTitle('');
+        }}>
+          <div
+            className="w-full max-w-md rounded-2xl border border-[#2D3A90] bg-[#12145A] p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-white">Rename project</h3>
+            <p className="mt-1 text-xs text-[#8A8FC4]">Update the project title.</p>
+
+            <input
+              type="text"
+              value={renameTitle}
+              onChange={(e) => setRenameTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  submitRenameProject();
+                }
+              }}
+              autoFocus
+              className="mt-4 w-full rounded-lg border border-[#2D3A90] bg-[#0E0D3D] px-3 py-2 text-sm text-white outline-none focus:border-[#6B72D8]"
+              placeholder="Untitled Project"
+            />
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setRenamingProject(null);
+                  setRenameTitle('');
+                }}
+                disabled={actioningProjectId === renamingProject.id}
+                className="px-3 py-1.5 rounded-md text-xs font-medium text-[#8A8FC4] hover:text-white disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={submitRenameProject}
+                disabled={actioningProjectId === renamingProject.id}
+                className="px-3 py-1.5 rounded-md text-xs font-semibold bg-[#FFCE00] text-[#121241] hover:bg-[#FFD740] disabled:opacity-50"
+              >
+                {actioningProjectId === renamingProject.id ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      <style jsx>{`
+        .template-pan-img,
+        .template-pan-img-slow {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          transform: scale(1.02);
+          transition: transform 8s ease;
+        }
+
+        .template-pan-img-slow {
+          transition-duration: 12s;
+        }
+
+        .group:hover .template-pan-img,
+        .group:hover .template-pan-img-slow {
+          transform: scale(1.08);
+        }
+      `}</style>
     </section>
   );
 }

@@ -7,8 +7,7 @@ import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePos
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import { useDesignProject } from "../../_context/DesignProjectContext";
-import { uploadClientFileWithProgress } from "@/lib/firebaseStorage";
-import { isFirebaseStorageConfigured } from "@/lib/firebase";
+import { uploadMediaApi } from "@/lib/api";
 import type { ImageProps, SetProp } from "../../_types/components";
 
 export const ImageSettings = () => {
@@ -52,8 +51,7 @@ export const ImageSettings = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const { projectId, clientName, websiteName } = useDesignProject();
-  const useFirebaseStorage = isFirebaseStorageConfigured();
+  const { projectId } = useDesignProject();
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -63,21 +61,18 @@ export const ImageSettings = () => {
     }
     setUploadError(null);
 
-    if (useFirebaseStorage) {
+    if (projectId) {
       setUploading(true);
       setUploadProgress(0);
       try {
-        const url = await uploadClientFileWithProgress(file, {
-          projectId: projectId ?? undefined,
-          clientName: clientName ?? undefined,
-          websiteName: websiteName ?? undefined,
+        const { url } = await uploadMediaApi(projectId, file, {
           folder: "images",
           onProgress: (percent) => setUploadProgress(percent),
         });
         typedSetProp((props) => { props.src = url; });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        console.error("Firebase Storage upload failed:", err);
+        console.error("Upload failed:", err);
         setUploadError(msg || "Upload failed");
         fallbackToDataUrl(file);
       } finally {
@@ -182,12 +177,12 @@ export const ImageSettings = () => {
             )}
             {uploadError && (
               <p className="text-[10px] text-red-400 mt-1.5">
-                Firebase upload failed: {uploadError}. Check console. Be logged in and ensure Storage rules allow write.
+                Upload failed: {uploadError}
               </p>
             )}
-            {!useFirebaseStorage && (
+            {!projectId && (
               <p className="text-[9px] text-amber-400/90 mt-1">
-                Firebase not configured — add NEXT_PUBLIC_FIREBASE_API_KEY (and authDomain, projectId) to .env.local to upload to Storage.
+                No project — uploads go through backend. Open a project to upload images.
               </p>
             )}
             {isDataUrl && !uploading && !uploadError && (
@@ -245,7 +240,7 @@ export const ImageSettings = () => {
         />
       </DesignSection>
 
-      <DesignSection title="Corners">
+      <DesignSection title="Appearance">
         <AppearanceGroup
           radiusTopLeft={radiusTopLeft}
           radiusTopRight={radiusTopRight}

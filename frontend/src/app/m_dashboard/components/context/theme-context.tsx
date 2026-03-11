@@ -5,18 +5,20 @@ Etong theme-context.tsx naman na to eh yung sa theme ng application.
 'use client';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
+const THEME_STORAGE_KEY = 'm_dashboard_theme';
+
 /* Reference: Color Palette 1 & 2 – deep indigo/purple, yellow accent, Outfit font */
 export const THEMES = {
   dark: {
     bg: {
-      primary: '#1A1A4C',
-      primaryEnd: '#191E2D',
+      primary: '#110248',
+      primaryEnd: '#090029',
       dark: '#191E2D',
-      card: '#2C354F',
-      elevated: '#2C354F',
+      card: '#141446',
+      elevated: '#141446',
       fog: '#191E2D',
-      sidebar: '#1A1A4C',
-      searchBar: '#2C354F',
+      sidebar: '#0A002D',
+      searchBar: '#141446',
     },
     text: {
       primary: '#FFFFFF',
@@ -26,7 +28,7 @@ export const THEMES = {
     },
     border: {
       default: '#4C597D',
-      faint: 'rgba(135, 153, 192, 0.35)',
+      faint: '#1F1F51',
     },
     accent: {
       yellow: '#FFCE00',
@@ -43,41 +45,42 @@ export const THEMES = {
   },
   light: {
     bg: {
-      primary: '#F0F2F5',
-      primaryEnd: '#F0F2F5',
-      dark: '#FFFFFF',
-      card: '#FFFFFF',
-      elevated: '#F1F5F9',
-      fog: '#FFFFFF',
-      sidebar: '#1C172B',
-      searchBar: '#E2E8F0',
+      primary: '#F5F6FA',
+      primaryEnd: '#ECEFF6',
+      dark: '#23206D',
+      card: '#23206D',
+      elevated: '#30367C',
+      fog: '#898AC2',
+      sidebar: '#1A1A4C',
+      searchBar: '#1B1F63',
     },
     text: {
-      primary: '#0F172A',
-      secondary: '#334155',
-      muted: '#64748B',
-      subtle: '#94A3B8',
+      primary: '#F8F8FF',
+      secondary: '#D7D9F3',
+      muted: '#B7BCE8',
+      subtle: '#898AC2',
     },
     border: {
-      default: '#CBD5E1',
-      faint: '#E2E8F0',
+      default: 'rgba(137, 138, 194, 0.55)',
+      faint: 'rgba(137, 138, 194, 0.35)',
     },
     accent: {
-      yellow: '#D97706',
-      yellowBright: '#FCD34D',
-      purple: '#6B2DC0',
-      purpleDeep: '#5B21B6',
+      yellow: '#EAB308',
+      yellowBright: '#FACC15',
+      purple: '#898AC2',
+      purpleDeep: '#5861A2',
     },
     status: {
       good: '#16A34A',
       warning: '#D97706',
       error: '#DC2626',
-      info: '#2563EB',
+      info: '#C7CCFF',
     },
   },
 };
 
 type Theme = 'dark' | 'light';
+
 type ThemeContextType = {
   theme: Theme;
   toggleTheme: (e?: React.MouseEvent) => void;
@@ -87,16 +90,17 @@ type ThemeContextType = {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window === 'undefined') return 'dark';
+  const [theme, setTheme] = useState<Theme>('dark');
 
-    const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+  useEffect(() => {
+    const storedTheme = window.sessionStorage.getItem(THEME_STORAGE_KEY);
     if (storedTheme === 'dark' || storedTheme === 'light') {
-      return storedTheme;
+      setTheme(storedTheme);
+      return;
     }
 
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  });
+    setTheme(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  }, []);
 
   useEffect(() => {
     document.documentElement.classList.remove('dark', 'light');
@@ -104,9 +108,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     (document.documentElement.style as any).colorScheme = theme;
 
     try {
-      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+      window.sessionStorage.setItem(THEME_STORAGE_KEY, theme);
     } catch {
-      // ignore localStorage errors
+      // ignore sessionStorage errors
     }
   }, [theme]);
 

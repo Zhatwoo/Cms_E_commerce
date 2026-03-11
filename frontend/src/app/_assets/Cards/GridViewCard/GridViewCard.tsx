@@ -6,7 +6,6 @@ import { Container } from "../../../design/_designComponents/Container/Container
 import { Text } from "../../../design/_designComponents/Text/Text";
 import { Image } from "../../../design/_designComponents/Image/Image";
 import { Button } from "../../../design/_designComponents/Button/Button";
-import { Section } from "../../../design/_designComponents/Section/Section";
 import { Row } from "../../../design/_designComponents/Row/Row";
 import { TemplateEntry } from "../../_types";
 
@@ -17,7 +16,7 @@ const createGridProductItem = (name: string, price: string, imageText: string) =
       is: Container as any,
       canvas: true,
       background: "#ffffff",
-      width: "min(calc(50% - 8px), 260px)",
+      width: "calc((100% - 72px) / 4)",
       flexShrink: 0,
       borderWidth: 1,
       borderColor: "#e5e7eb",
@@ -32,8 +31,8 @@ const createGridProductItem = (name: string, price: string, imageText: string) =
       paddingRight: 12,
       borderRadius: 8,
     },
-
     // Image + badge
+    
     React.createElement(
       Element as any,
       {
@@ -42,12 +41,12 @@ const createGridProductItem = (name: string, price: string, imageText: string) =
         background: "transparent",
         position: "relative",
         width: "100%",
-        height: "200px",
+        height: "320px",
         padding: 0,
         gap: 0,
       },
       React.createElement(Image as any, {
-        src: `https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80&text=${encodeURIComponent(imageText)}`,
+        src: `https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80`,
         alt: name,
         width: "100%",
         height: "100%",
@@ -129,34 +128,23 @@ export const GridViewCard: TemplateEntry = {
   element: React.createElement(
     Element as any,
     {
-      is: Section as any,
+      is: Row as any,
       canvas: true,
       background: "#d4d4d8",
       width: "100%",
       minHeight: "100vh",
-      padding: 16,
-      flexDirection: "column",
-      justifyContent: "center",
-      alignItems: "center",
+      paddingTop: 16,
+      paddingBottom: 16,
+      paddingLeft: 96,
+      paddingRight: 96,
+      gap: 16,
+      alignItems: "stretch",
+      justifyContent: "flex-start",
+      flexWrap: "wrap",
     },
-
-    React.createElement(
-      Element as any,
-      {
-        is: Row as any,
-        canvas: true,
-        background: "transparent",
-        width: "min(100%, 1200px)",
-        padding: 0,
-        gap: 16,
-        alignItems: "stretch",
-        justifyContent: "center",
-        flexWrap: "wrap",
-      },
-      createGridProductItem("Product Name", "₱ 1,000", "Bottle"),
-      createGridProductItem("Product Name", "₱ 1,000", "Bottle"),
-      createGridProductItem("Product Name", "₱ 1,000", "Bottle"),
-      createGridProductItem("Product Name", "₱ 1,000", "Bottle")
-    )
+    createGridProductItem("Product Name", "₱ 1,000", "Bottle"),
+    createGridProductItem("Product Name", "₱ 1,000", "Bottle"),
+    createGridProductItem("Product Name", "₱ 1,000", "Bottle"),
+    createGridProductItem("Product Name", "₱ 1,000", "Bottle")
   ),
 };

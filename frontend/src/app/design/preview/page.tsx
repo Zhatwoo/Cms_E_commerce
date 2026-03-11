@@ -1,83 +1,42 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState, Suspense } from "react";
-import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload, Monitor, Tablet, Smartphone } from "lucide-react";
+import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload, Monitor, Tablet, Smartphone, Lock, X, RotateCw } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
+import { deserializeCleanToCraft } from "../_lib/serializer";
+import { parseContentToCleanDoc } from "../_lib/contentParser";
+import { migratePublishedContent } from "../_lib/contentMigration";
 import { autoSavePage, getDraft } from "../_lib/pageApi";
 import { WebPreview } from "../_lib/webRenderer";
+import { PREVIEW_MOBILE_BREAKPOINT } from "../_lib/viewportConstants";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
-import { getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, getMyDomains, type Project } from "@/lib/api";
+import { getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, getMyDomains, getMe, uploadMediaApi, type Project } from "@/lib/api";
+import { getSubdomainSiteUrl } from "@/lib/siteUrls";
 import { getLimits } from "@/lib/subscriptionLimits";
-import { uploadClientFile } from "@/lib/firebaseStorage";
-import { createPortal } from "react-dom";
 import html2canvas from "html2canvas";
-//vdxvx
+
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 
-type ViewMode = "Web-Preview" | "clean" | "raw";
-type PreviewViewport = "desktop" | "tablet" | "mobile";
+function toPxNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return null;
 
-function PreviewIframe({ children, width, height = "80vh", isDesktop = false }: { children: React.ReactNode; width: string | number; height?: string | number; isDesktop?: boolean }) {
-  const [mountNode, setMountNode] = useState<HTMLElement | null>(null);
-  const iframeRef = React.useRef<HTMLIFrameElement>(null);
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
 
-  React.useEffect(() => {
-    const iframe = iframeRef.current;
-    if (!iframe) return;
-
-    const handleLoad = () => {
-      const doc = iframe.contentDocument;
-      if (doc && doc.head && doc.body) {
-        const root = doc.getElementById("preview-root");
-        if (root) setMountNode(root);
-      }
-    };
-
-    iframe.addEventListener("load", handleLoad);
-    // If already loaded (e.g. from cache or srcDoc fast load)
-    if (iframe.contentDocument?.readyState === "complete" || iframe.contentDocument?.body) {
-      handleLoad();
-    }
-
-    return () => iframe.removeEventListener("load", handleLoad);
-  }, []);
-
-  // Responsive: set width based on device
-  let responsiveWidth = width;
-  if (width === "responsive") {
-    // fallback: 100vw for desktop, 768px for tablet, 390px for mobile
-    responsiveWidth = "100vw";
-  } else if (typeof width === "number") {
-    // Convert number to pixel value
-    responsiveWidth = `${width}px`;
+  if (normalized.endsWith("px")) {
+    const parsed = Number.parseFloat(normalized.slice(0, -2));
+    return Number.isFinite(parsed) ? parsed : null;
   }
 
-  return (
-    <>
-      <iframe
-        ref={iframeRef}
-        style={{
-          width: responsiveWidth,
-          height,
-          transition: "width 0.3s ease",
-          borderRadius: isDesktop ? 0 : undefined,
-          border: isDesktop ? "none" : undefined,
-        }}
-        className={isDesktop ? "bg-white min-h-full" : "rounded-xl border border-white/10 bg-white min-h-full"}
-        srcDoc={`<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1'/><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet"/><style>*,*::before,*::after{box-sizing:border-box;}body{margin:0;font-family:'Outfit',sans-serif;}</style></head><body><div id='preview-root'></div></body></html>`}
-        sandbox="allow-scripts allow-same-origin"
-        tabIndex={-1}
-        aria-hidden
-      />
-      {mountNode && createPortal(children, mountNode)}
-    </>
-  );
+  const numeric = Number.parseFloat(normalized);
+  return Number.isFinite(numeric) ? numeric : null;
 }
 
-
+type ViewMode = "Web-Preview" | "clean" | "raw";
+type PreviewViewport = "desktop" | "tablet" | "mobile";
 
 function PreviewContent() {
   const router = useRouter();
@@ -97,16 +56,27 @@ function PreviewContent() {
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [showPublishDialog, setShowPublishDialog] = useState(false);
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [publishDomainName, setPublishDomainName] = useState("");
   const [publishDomainError, setPublishDomainError] = useState("");
+  const [showPublishedSuccessModal, setShowPublishedSuccessModal] = useState(false);
+  const [publishedSubdomain, setPublishedSubdomain] = useState<string | null>(null);
   const [publishMode, setPublishMode] = useState<"now" | "schedule">("now");
   const [scheduledAt, setScheduledAt] = useState("");
   const [scheduleInfo, setScheduleInfo] = useState<{ scheduledAt: string; subdomain: string | null } | null>(null);
   const [scheduling, setScheduling] = useState(false);
-  const [mobileBreakpoint, setMobileBreakpoint] = useState(900);
   const [project, setProject] = useState<Project | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [selectedPreviewPageSlug, setSelectedPreviewPageSlug] = useState<string | undefined>(initialPageSlug);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const thumbnailCaptureRef = useRef(false);
+  const useBuilderParityMode = false;
+
+  useEffect(() => {
+    getMe().then((res: any) => {
+      if (res.success && res.user) setCurrentUser(res.user);
+    });
+  }, []);
 
   const readSessionSnapshot = (targetProjectId: string): string | null => {
     if (typeof window === "undefined") return null;
@@ -119,34 +89,74 @@ function PreviewContent() {
     }
   };
 
+  const handleRefresh = React.useCallback(async () => {
+    const sessionSnapshot = readSessionSnapshot(projectId);
+    if (sessionSnapshot) {
+      setRawJson(sessionSnapshot);
+      console.log("Preview: Refreshed from sessionStorage (latest from editor)");
+      return;
+    }
+    setLoading(true);
+    try {
+      const result = await getDraft(projectId);
+      if (result.success && result.data?.content) {
+        const content = result.data.content;
+        setRawJson(typeof content === "object" ? JSON.stringify(content) : content);
+        console.log("Preview: Refreshed from API");
+      }
+    } catch (e) {
+      console.error("Preview refresh error:", e);
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
+
   useEffect(() => {
+    let cancelled = false;
+
     async function loadData() {
+      setLoading(true);
       try {
         const sessionSnapshot = readSessionSnapshot(projectId);
         if (sessionSnapshot) {
           console.log('✅ Preview: Loaded latest snapshot from sessionStorage');
-          setRawJson(sessionSnapshot);
-          setLoading(false);
+          if (!cancelled) {
+            setRawJson(sessionSnapshot);
+            setLoading(false);
+          }
           return;
         }
 
         console.log(`📡 Preview: Fetching draft for Project: ${projectId}...`);
-        const result = await getDraft(projectId);
+        const timeoutMs = 12000;
+        const result = await Promise.race([
+          getDraft(projectId),
+          new Promise<{ success: false; timeout: true }>((resolve) =>
+            window.setTimeout(() => resolve({ success: false, timeout: true }), timeoutMs)
+          ),
+        ]);
+
+        if (cancelled) return;
+
+        if ((result as { timeout?: boolean }).timeout) {
+          console.warn(`⚠️ Preview: getDraft timeout after ${timeoutMs}ms`);
+        }
+
         let loaded = false;
 
         if (result.success && result.data) {
           console.log('✅ Preview: API result success. Keys in data:', Object.keys(result.data));
 
           if (result.data.content) {
-            let content = result.data.content;
+            const content = result.data.content;
 
             // If already clean object, we still keep it as "rawJson" (as string) 
             // for the rest of the existing preview logic to work (it formats it etc.)
             if (typeof content === 'object') {
               console.log('✨ Data is CLEAN format (version:', content.version, ')');
-              setRawJson(JSON.stringify(content));
+              if (!cancelled) setRawJson(JSON.stringify(content));
             } else {
-              setRawJson(content);
+              if (!cancelled) setRawJson(content);
             }
             loaded = true;
             console.log('✅ Preview: Data loaded');
@@ -161,7 +171,7 @@ function PreviewContent() {
           const fallback = readSessionSnapshot(projectId);
           if (fallback) {
             console.log('✅ Preview: Loaded fallback snapshot from sessionStorage');
-            setRawJson(fallback);
+            if (!cancelled) setRawJson(fallback);
           }
         }
       } catch (error) {
@@ -169,14 +179,30 @@ function PreviewContent() {
         const fallback = readSessionSnapshot(projectId);
         if (fallback) {
           console.log('✅ Preview: Loaded fallback snapshot after API error');
-          setRawJson(fallback);
+          if (!cancelled) setRawJson(fallback);
         }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
     loadData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
+
+  // Re-read sessionStorage when tab becomes visible (user switched back from Editor)
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        const sessionSnapshot = readSessionSnapshot(projectId);
+        if (sessionSnapshot) setRawJson(sessionSnapshot);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [projectId]);
 
   useEffect(() => {
@@ -198,23 +224,85 @@ function PreviewContent() {
   // Compute clean document
   const cleanDoc = useMemo(() => {
     if (!rawJson) return null;
-    try {
-      const parsed = JSON.parse(rawJson);
-      // If it's already clean (BuilderDocument)
-      if (parsed.version !== undefined && parsed.pages && parsed.nodes) {
-        return parsed;
-      }
-      // Otherwise, it's raw Craft.js, serialize it
-      return serializeCraftToClean(rawJson);
-    } catch {
-      return null;
-    }
+    return parseContentToCleanDoc(rawJson);
   }, [rawJson]);
 
   const cleanJson = useMemo(
     () => (cleanDoc ? JSON.stringify(cleanDoc, null, 2) : null),
     [cleanDoc]
   );
+
+  const previewPages = useMemo(() => {
+    if (!cleanDoc?.pages?.length) return [] as Array<{ id: string; slug: string; name: string }>;
+    return cleanDoc.pages.map((page, index) => {
+      const pageProps = (page?.props ?? {}) as Record<string, unknown>;
+      const id = (page?.id as string) || `page-${index}`;
+      const rawName = page?.name ?? pageProps.pageName;
+      const name = typeof rawName === "string" && rawName.trim() ? rawName.trim() : `Page ${index + 1}`;
+      const rawSlug = page?.slug ?? pageProps.pageSlug;
+      const slug = typeof rawSlug === "string" && rawSlug.trim() ? rawSlug.trim() : `page-${index + 1}`;
+      return { id, slug, name };
+    });
+  }, [cleanDoc]);
+
+  useEffect(() => {
+    if (previewPages.length === 0) {
+      setSelectedPreviewPageSlug(undefined);
+      return;
+    }
+
+    const hasSelected = selectedPreviewPageSlug
+      ? previewPages.some((p) => p.slug === selectedPreviewPageSlug)
+      : false;
+
+    if (!hasSelected) {
+      const initialMatch = initialPageSlug
+        ? previewPages.find((p) => p.slug === initialPageSlug)
+        : undefined;
+      setSelectedPreviewPageSlug(initialMatch?.slug ?? previewPages[0]?.slug);
+    }
+  }, [previewPages, selectedPreviewPageSlug, initialPageSlug]);
+
+  const selectedPreviewPage = useMemo(() => {
+    if (previewPages.length === 0) return null;
+    return previewPages.find((p) => p.slug === selectedPreviewPageSlug) ?? previewPages[0] ?? null;
+  }, [previewPages, selectedPreviewPageSlug]);
+
+  const desktopPreviewWidth = useMemo(() => {
+    const selectedIndex = selectedPreviewPage
+      ? previewPages.findIndex((page) => page.slug === selectedPreviewPage.slug)
+      : 0;
+    const targetPage = selectedIndex >= 0 ? cleanDoc?.pages?.[selectedIndex] : cleanDoc?.pages?.[0];
+    const rawWidth = targetPage?.props?.width;
+    if (typeof rawWidth === "number" && Number.isFinite(rawWidth) && rawWidth > 0) {
+      return `${rawWidth}px`;
+    }
+    if (typeof rawWidth === "string" && rawWidth.trim()) {
+      return rawWidth.trim();
+    }
+    return "1920px";
+  }, [cleanDoc, previewPages, selectedPreviewPage]);
+
+  const desktopPreviewStyle = useMemo<React.CSSProperties>(() => {
+    const lower = desktopPreviewWidth.toLowerCase();
+    const isFluid =
+      lower.includes("%") ||
+      lower.includes("vw") ||
+      lower.startsWith("min(") ||
+      lower.startsWith("max(") ||
+      lower.startsWith("clamp(");
+
+    if (isFluid) {
+      return {
+        width: desktopPreviewWidth,
+      };
+    }
+
+    return {
+      width: desktopPreviewWidth,
+      minWidth: desktopPreviewWidth,
+    };
+  }, [desktopPreviewWidth]);
 
   const rawFormatted = useMemo(() => {
     if (!rawJson) return null;
@@ -235,12 +323,20 @@ function PreviewContent() {
   }, [rawJson]);
 
   const activeJson = viewMode === "clean" ? cleanJson : viewMode === "raw" ? rawFormatted : null;
-  const viewportClass =
-    previewViewport === "desktop"
-      ? "w-[1200px]"
-      : previewViewport === "tablet"
-        ? "w-[768px]"
-        : "w-[390px]";
+
+  const desktopResponsiveViewportWidth = useMemo(() => {
+    if (!cleanDoc?.pages?.length) return undefined;
+
+    const targetSlug = initialPageSlug;
+    const targetPage = targetSlug
+      ? cleanDoc.pages.find((page, index) => {
+        const slug = (page.props?.pageSlug as string | undefined) || `page-${index}`;
+        return slug === targetSlug;
+      })
+      : cleanDoc.pages[0];
+
+    return toPxNumber(targetPage?.props?.width) ?? 1920;
+  }, [cleanDoc, initialPageSlug]);
 
   const capturePreviewThumbnail = async () => {
     if (thumbnailCaptureRef.current || !previewRef.current || !projectId) return;
@@ -249,10 +345,10 @@ function PreviewContent() {
     thumbnailCaptureRef.current = true;
     try {
       const canvas = await html2canvas(previewRef.current, {
-        background: "#ffffff",
+        backgroundColor: "#ffffff",
         scale: 0.7,
         useCORS: true,
-      } as any);
+      });
 
       const blob: Blob | null = await new Promise((resolve) => {
         canvas.toBlob((b: Blob | null) => resolve(b), "image/jpeg", 0.85);
@@ -261,15 +357,7 @@ function PreviewContent() {
       if (!blob) throw new Error("Thumbnail capture failed");
 
       const file = new File([blob], `preview-${projectId}.jpg`, { type: "image/jpeg" });
-      const user = getStoredUser();
-      const clientName = user?.name || user?.email || "client";
-      const websiteName = project?.title || "project";
-
-      const url = await uploadClientFile(file, {
-        clientName,
-        websiteName,
-        folder: "images",
-      });
+      const { url } = await uploadMediaApi(projectId, file, { folder: "images" });
 
       const updated = await updateProject(projectId, { thumbnail: url });
       if (updated.success) {
@@ -340,6 +428,10 @@ function PreviewContent() {
   };
 
   const handleSaveTemplate = async () => {
+    if (project?.isShared) {
+      setShowPermissionModal(true);
+      return;
+    }
     if (!templateName.trim() || !templateDescription.trim()) {
       showAlert("Please fill in all fields");
       return;
@@ -364,8 +456,7 @@ function PreviewContent() {
         setShowSaveDialog(false);
         setTemplateName("");
         setTemplateDescription("");
-        // Navigate to web-builder page
-        router.push("/m_dashboard/web-builder");
+        router.push(projectId ? `/design?projectId=${projectId}` : "/design");
       } else {
         showAlert("Failed to save template. Please try again.");
       }
@@ -378,6 +469,11 @@ function PreviewContent() {
   };
   //cjdhv
   const handlePublishClick = async () => {
+    const isCollaborator = project?.isShared || (project?.ownerId && currentUser?.id && project.ownerId !== currentUser.id);
+    if (isCollaborator) {
+      setShowPermissionModal(true);
+      return;
+    }
     setPublishDomainError("");
     try {
       const res = await getProject(projectId);
@@ -402,6 +498,16 @@ function PreviewContent() {
     setScheduledAt(tomorrow.toISOString().slice(0, 16));
   };
 
+  const isPlanLimitError = (message: string) => {
+    const lower = message.toLowerCase();
+    return (
+      lower.includes("limit reached") ||
+      lower.includes("free plan") ||
+      lower.includes("allows up to") ||
+      lower.includes("upgrade your subscription")
+    );
+  };
+
   const handlePublishConfirm = async () => {
     const domain = publishDomainName.trim().toLowerCase();
     if (!domain) {
@@ -419,11 +525,19 @@ function PreviewContent() {
     setPublishDomainError("");
     setPublishing(true);
     try {
-      const res = await publishProject(projectId, domain);
+      const docToPublish = cleanDoc ? migratePublishedContent(cleanDoc) : null;
+      const snapshot = docToPublish ? JSON.stringify(docToPublish) : null;
+      if (snapshot) {
+        await autoSavePage(snapshot, projectId);
+      }
+
+      const res = await publishProject(projectId, domain, snapshot);
       if (res.success) {
         setShowPublishDialog(false);
         setPublishDomainName("");
         const sub = res.data?.subdomain ?? domain;
+        setPublishedSubdomain(sub);
+        setShowPublishedSuccessModal(true);
         showAlert(`Published! Your site is live. You can change the domain later in the dashboard.`);
       } else {
         if (res.message?.includes('Limit reached')) {
@@ -433,8 +547,14 @@ function PreviewContent() {
         }
       }
     } catch (error) {
-      console.error("Publish error:", error);
-      showAlert(error instanceof Error ? error.message : "Publish failed.");
+      const message = error instanceof Error ? error.message : "Publish failed.";
+      if (isPlanLimitError(message)) {
+        setPublishDomainError(message);
+        showAlert(message);
+      } else {
+        console.error("Publish error:", error);
+        showAlert(message);
+      }
     } finally {
       setPublishing(false);
     }
@@ -461,7 +581,8 @@ function PreviewContent() {
     setPublishDomainError("");
     setScheduling(true);
     try {
-      const snapshot = cleanDoc ? JSON.stringify(cleanDoc) : null;
+      const docToPublish = cleanDoc ? migratePublishedContent(cleanDoc) : null;
+      const snapshot = docToPublish ? JSON.stringify(docToPublish) : null;
       if (snapshot) {
         await autoSavePage(snapshot, projectId);
       }
@@ -475,8 +596,14 @@ function PreviewContent() {
         showAlert(res.message || "Schedule failed.");
       }
     } catch (error) {
-      console.error("Schedule error:", error);
-      showAlert(error instanceof Error ? error.message : "Schedule failed.");
+      const message = error instanceof Error ? error.message : "Schedule failed.";
+      if (isPlanLimitError(message)) {
+        setPublishDomainError(message);
+        showAlert(message);
+      } else {
+        console.error("Schedule error:", error);
+        showAlert(message);
+      }
     } finally {
       setScheduling(false);
     }
@@ -495,21 +622,36 @@ function PreviewContent() {
               <ArrowLeft size={16} />
               Back to Editor
             </button>
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              title="Reload latest from editor or database"
+              className="flex items-center gap-2 text-sm text-brand-light hover:text-brand-lighter transition-colors disabled:opacity-50"
+            >
+              <RotateCw size={16} className={loading ? "animate-spin" : ""} />
+              Refresh
+            </button>
             <div className="w-px h-5 bg-white/10" />
             <h1 className="text-lg font-semibold">Preview</h1>
           </div>
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setShowSaveDialog(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-400 transition-colors"
+              onClick={() => {
+                const isCollaborator = project?.isShared || (project?.ownerId && currentUser?.id && project.ownerId !== currentUser.id);
+                if (isCollaborator) setShowPermissionModal(true);
+                else if (project) setShowSaveDialog(true);
+              }}
+              disabled={loading || !project}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Save size={14} />
               Save Template
             </button>
             <button
               onClick={handlePublishClick}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 transition-colors"
+              disabled={loading || !project}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Upload size={14} />
               Publish
@@ -545,44 +687,10 @@ function PreviewContent() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col gap-6">
+      <div className={`${viewMode === "Web-Preview" ? "w-full" : "max-w-7xl mx-auto"} px-6 py-6 flex flex-col gap-6`}>
         {/* View Toggle + Stats */}
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          {/* Toggle */}
-          <div className="flex items-center bg-[#111] rounded-lg border border-white/10 p-1">
-            <button
-              onClick={() => setViewMode("Web-Preview")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "Web-Preview"
-                ? "bg-white/10 text-brand-lighter"
-                : "text-zinc-500 hover:text-zinc-300"
-                }`}
-            >
-              <Globe size={14} />
-              Web-Preview
-            </button>
-            <button
-              onClick={() => setViewMode("clean")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "clean"
-                ? "bg-white/10 text-brand-lighter"
-                : "text-zinc-500 hover:text-zinc-300"
-                }`}
-            >
-              <Layers size={14} />
-              Clean
-            </button>
-            <button
-              onClick={() => setViewMode("raw")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "raw"
-                ? "bg-white/10 text-brand-lighter"
-                : "text-zinc-500 hover:text-zinc-300"
-                }`}
-            >
-              <Braces size={14} />
-              Raw (Craft.js)
-            </button>
-          </div>
-
-          {viewMode === "Web-Preview" && (
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex items-center justify-center gap-3 flex-wrap">
             <div className="flex items-center bg-[#111] rounded-lg border border-white/10 p-1">
               <button
                 onClick={() => setPreviewViewport("desktop")}
@@ -615,10 +723,58 @@ function PreviewContent() {
                 Mobile
               </button>
             </div>
-          )}
 
-          {/* Stats */}
-          <div className="flex items-center gap-6 text-xs text-zinc-500">
+            <div className="flex items-center bg-[#111] rounded-lg border border-white/10 p-1">
+              <button
+                onClick={() => setViewMode("Web-Preview")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "Web-Preview"
+                  ? "bg-white/10 text-brand-lighter"
+                  : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+              >
+                <Globe size={14} />
+                Web-Preview
+              </button>
+              <button
+                onClick={() => setViewMode("clean")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "clean"
+                  ? "bg-white/10 text-brand-lighter"
+                  : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+              >
+                <Layers size={14} />
+                Clean
+              </button>
+              <button
+                onClick={() => setViewMode("raw")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "raw"
+                  ? "bg-white/10 text-brand-lighter"
+                  : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+              >
+                <Braces size={14} />
+                Raw (Craft.js)
+              </button>
+            </div>
+          </div>
+
+          {/* Stats (inside tabs area) */}
+          <div className="flex items-center justify-center gap-6 text-xs text-zinc-500 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-zinc-600">Page:</span>
+              <select
+                value={selectedPreviewPage?.slug ?? ""}
+                onChange={(e) => setSelectedPreviewPageSlug(e.target.value || undefined)}
+                disabled={previewPages.length === 0}
+                className="bg-[#111] border border-white/10 rounded-md px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-white/20 disabled:opacity-50"
+              >
+                {previewPages.map((page, idx) => (
+                  <option key={page.id || `page-${idx}`} value={page.slug}>
+                    {page.name}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="flex items-center gap-2">
               <span>{pageCount} pages</span>
               <span className="text-zinc-700">|</span>
@@ -651,25 +807,32 @@ function PreviewContent() {
             <p>Fetching latest clean data...</p>
           </div>
         ) : viewMode === "Web-Preview" ? (
-          <div className="flex justify-center py-6 h-full">
+          <div className={`py-6 h-full ${previewViewport === "desktop" ? "overflow-x-auto" : "flex justify-center"}`}>
             {cleanDoc ? (
-              <PreviewIframe
-                width={
+              <div
+                ref={previewRef}
+                className={`bg-white transition-[width] duration-300 ease-out ${previewViewport === "desktop"
+                  ? "min-h-[calc(100vh-200px)] mx-auto"
+                  : "min-h-[calc(100vh-200px)] rounded-xl border border-white/10 overflow-hidden"
+                  }`}
+                style={
                   previewViewport === "desktop"
-                    ? "100%"
+                    ? desktopPreviewStyle
                     : previewViewport === "tablet"
-                      ? 768
-                      : 390
+                      ? { width: 768, maxWidth: "100%" }
+                      : previewViewport === "mobile"
+                        ? { width: 390, maxWidth: "100%" }
+                        : undefined
                 }
-                height="calc(100vh - 200px)"
-                isDesktop={previewViewport === "desktop"}
               >
                 <WebPreview
+                  key={selectedPreviewPage?.slug ?? "default-page"}
                   doc={cleanDoc}
                   pageIndex={0}
-                  initialPageSlug={initialPageSlug}
-                  mobileBreakpoint={mobileBreakpoint}
+                  initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
+                  mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
                   enableFormInputs
+                  builderParityMode={useBuilderParityMode}
                   simulatedWidth={
                     previewViewport === "desktop"
                       ? undefined
@@ -678,7 +841,7 @@ function PreviewContent() {
                         : 390
                   }
                 />
-              </PreviewIframe>
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center min-h-96 text-zinc-500 p-8 border border-white/10 rounded-xl">
                 <p className="text-base mb-1">No page data</p>
@@ -704,7 +867,7 @@ function PreviewContent() {
       {showPublishDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-semibold text-white mb-2">Publish site</h2>
+            <h2 className="text-xl font-semibold text-white mb-2">Publish to live domain</h2>
             {scheduleInfo && (
               <p className="text-sm text-amber-400/90 mb-2">
                 Already scheduled for {new Date(scheduleInfo.scheduledAt).toLocaleString()}. Setting a new date will replace it.
@@ -712,12 +875,12 @@ function PreviewContent() {
             )}
             <p className="text-sm text-zinc-400 mb-4">
               {publishDomainName.trim()
-                ? "Confirm your domain name. You can change it later in the dashboard."
-                : "Domain name (subdomain) is required. Set it here or in Create project."}
+                ? "Your site will be published at the subdomain URL below. Design your site in the editor first—what you see in Preview is what gets published."
+                : "Enter a subdomain to create your live site. Design your site in the editor first—what you see in Preview is what gets published."}
             </p>
             <div className="space-y-2 mb-4">
               <label className="block text-sm font-medium text-gray-300">
-                Domain name (subdomain) <span className="text-red-400">*</span>
+                Live domain (subdomain) <span className="text-red-400">*</span>
               </label>
               <input
                 type="text"
@@ -726,11 +889,16 @@ function PreviewContent() {
                   setPublishDomainName(e.target.value);
                   setPublishDomainError("");
                 }}
-                placeholder="e.g. mystore → mystore.yourdomain.com"
+                placeholder="e.g. mystore → mystore.localhost (dev) or mystore.websitelink (prod)"
                 className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 autoFocus
               />
               <p className="text-xs text-zinc-500">Only letters, numbers, and hyphens.</p>
+              {publishDomainName.trim() && (
+                <p className="text-xs text-emerald-400/90 mt-1">
+                  Your site will be live at: <span className="font-mono font-medium">{getSubdomainSiteUrl(publishDomainName.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || 'site', typeof window !== 'undefined' ? window.location.origin : null).replace(/^https?:\/\//, '')}</span>
+                </p>
+              )}
               {publishDomainError && (
                 <p className="text-xs text-red-400">{publishDomainError}</p>
               )}
@@ -797,6 +965,46 @@ function PreviewContent() {
                   {scheduling ? "Scheduling…" : "Set schedule"}
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPublishedSuccessModal && publishedSubdomain && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md">
+            <h2 className="text-xl font-semibold text-white mb-2">Your site is now live!</h2>
+            <p className="text-sm text-zinc-400 mb-2">Visit your published website:</p>
+            <p className="text-sm font-mono font-medium text-emerald-400 mb-5 break-all">
+              {typeof window !== 'undefined'
+                ? getSubdomainSiteUrl(publishedSubdomain, window.location.origin).replace(/^https?:\/\//, '')
+                : `localhost/sites/${publishedSubdomain}`}
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPublishedSuccessModal(false);
+                  setPublishedSubdomain(null);
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors"
+              >
+                Keep editing
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const target = publishedSubdomain;
+                  setShowPublishedSuccessModal(false);
+                  setPublishedSubdomain(null);
+                  const url = getSubdomainSiteUrl(target, typeof window !== 'undefined' ? window.location.origin : null);
+                  if (url !== '#') window.location.href = url;
+                }}
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Visit live site
+              </button>
             </div>
           </div>
         </div>
@@ -871,6 +1079,29 @@ function PreviewContent() {
                 className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving ? "Saving..." : "Save Template"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Permission Denied Modal */}
+      {showPermissionModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm bg-[#111] border border-white/10 rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center mb-4">
+                <Lock className="w-6 h-6 text-red-500" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Owner Access Required</h3>
+              <p className="text-sm text-gray-400 mb-6 leading-relaxed">
+                Only the project owner has permission to publish or save templates. Please contact the owner if you need these actions performed.
+              </p>
+              <button
+                onClick={() => setShowPermissionModal(false)}
+                className="w-full py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-sm font-semibold transition-all active:scale-[0.98]"
+              >
+                Got it
               </button>
             </div>
           </div>

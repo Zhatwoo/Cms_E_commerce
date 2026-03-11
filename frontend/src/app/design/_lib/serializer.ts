@@ -419,6 +419,11 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
     pageName: "Page Name",
     pageSlug: "page",
   },
+  ImportedBlock: {
+    blockName: "Imported",
+    blockCss: "",
+    blockHtml: "<div>Empty</div>",
+  },
 };
 
 // ─── Props that are shorthand / redundant ────────────────────────────────────
@@ -626,8 +631,6 @@ function processChildren(
 
     // Already processed (shared node)
     if (nodes[id]) continue;
-
-    console.log(`🔗 Serializer: Processing node ${id} (${rawNode.type.resolvedName})`);
 
     const type = rawNode.type.resolvedName as ComponentType;
 

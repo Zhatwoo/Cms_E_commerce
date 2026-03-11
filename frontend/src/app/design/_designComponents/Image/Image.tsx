@@ -1,5 +1,5 @@
 import React from "react";
-import { useNode } from "@craftjs/core";
+import { useEditor, useNode } from "@craftjs/core";
 import { ImageSettings } from "./ImageSettings";
 import type { ImageProps } from "../../_types/components";
 
@@ -31,12 +31,30 @@ export const Image = ({
   flipVertical = false,
   customClassName = "",
 }: ImageProps) => {
-  const { id, connectors: { connect, drag } } = useNode();
+  const { id, connectors: { connect, drag }, parentId } = useNode((node) => ({
+    parentId: node.data.parent,
+  }));
+  const { parentDisplay, parentDisplayName, parentHeight } = useEditor((state) => ({
+    parentDisplay: parentId ? String(state.nodes[parentId]?.data?.props?.display ?? "") : "",
+    parentDisplayName: parentId ? String(state.nodes[parentId]?.data?.displayName ?? "") : "",
+    parentHeight: parentId ? state.nodes[parentId]?.data?.props?.height : undefined,
+  }));
+  const shouldFillParent = parentDisplay === "flex" || parentDisplay === "grid";
+  const isContainerLikeParent = parentDisplayName === "Container" || parentDisplayName === "Section";
+  const isAutoHeight = typeof height !== "string" || height.trim().toLowerCase() === "auto";
+  const parentHeightText = typeof parentHeight === "string" ? parentHeight.trim().toLowerCase() : "";
+  const parentHasExplicitHeight =
+    (typeof parentHeight === "number" && Number.isFinite(parentHeight) && parentHeight > 0) ||
+    (typeof parentHeight === "string" && parentHeightText !== "" && parentHeightText !== "auto");
+  const resolvedHeight =
+    isContainerLikeParent && isAutoHeight && parentHasExplicitHeight
+      ? "100%"
+      : (height ?? "auto");
 
   // Handle empty or invalid src
   const imageSrc = src && src.trim() !== ""
     ? src
-    : "https://placehold.co/600x400/27272a/a1a1aa?text=Image";
+    : "https://placehold.co/600x400?text=Photo";
 
   // Resolve spacing
   const p = typeof padding === "number" ? padding : 0;
@@ -66,9 +84,14 @@ export const Image = ({
       alt={alt}
       style={{
         width,
-        height,
+        height: resolvedHeight,
         maxWidth: "100%",
+        maxHeight: "100%",
         minWidth: 0,
+        minHeight: 0,
+        flexShrink: 0,
+        alignSelf: shouldFillParent ? "stretch" : undefined,
+        boxSizing: "border-box",
         objectFit,
         borderTopLeftRadius: `${rtl}px`,
         borderTopRightRadius: `${rtr}px`,
@@ -87,7 +110,7 @@ export const Image = ({
         display: "block",
         transform: [rotation ? `rotate(${rotation}deg)` : null, flipHorizontal ? "scaleX(-1)" : null, flipVertical ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined,
       }}
-      className={`hover:outline hover:outline-blue-500 cursor-pointer ${customClassName}`}
+      className={`cursor-pointer ${customClassName}`}
     />
   );
 };

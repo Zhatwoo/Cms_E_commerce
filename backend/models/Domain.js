@@ -9,6 +9,11 @@ function getDomainsRef(userId) {
   return db.collection('user').doc('roles').collection('client').doc(userId).collection('domains');
 }
 
+/** Path: user/roles/client/{userId}/domain_trash (domain docs moved here when project is trashed) */
+function getDomainTrashRef(userId) {
+  return db.collection('user').doc('roles').collection('client').doc(userId).collection('domain_trash');
+}
+
 /** Root collection for public lookup: subdomain (doc id) -> { userId, projectId, domainId, status }. */
 const PUBLISHED_SUBDOMAINS = 'published_subdomains';
 function getPublishedSubdomainsRef() {
@@ -19,6 +24,26 @@ function getPublishedSubdomainsRef() {
 async function listAllFromPublishedSubdomains() {
   const snap = await getPublishedSubdomainsRef().get();
   return snap.docs.map((d) => docToObject(d));
+}
+
+/** Resolve published site directly from published_subdomains/{subdomain} without collectionGroup indexes. */
+async function findByPublishedSubdomain(subdomain) {
+  const normalized = (subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  if (!normalized) return null;
+
+  const snap = await getPublishedSubdomainsRef().doc(normalized).get();
+  if (!snap.exists) return null;
+  const data = docToObject(snap);
+  if ((data.status || 'published') !== 'published') return null;
+  return {
+    id: data.domainId,
+    projectId: data.projectId,
+    userId: data.userId,
+    subdomain: normalized,
+    projectTitle: data.projectTitle,
+    status: data.status,
+    publishedContent: data.publishedContent ?? data.published_content ?? null,
+  };
 }
 
 async function create(data) {
@@ -68,24 +93,101 @@ async function deleteById(id) {
   await db.collection(COLLECTION).doc(id).delete();
 }
 
-/** Delete domain record and public subdomain lookup for a project. */
+/** Delete domain record and public subdomain lookup for a project. Also purges domain_trash for permanent delete. */
 async function deleteByProjectId(userId, projectId) {
+  const domain = await findByProjectId(userId, projectId);
+  if (domain) {
+    const batch = db.batch();
+
+    // 1. Delete client domain doc: user/roles/client/{userId}/domains/{domainId}
+    const domainRef = getDomainsRef(userId).doc(domain.id);
+    batch.delete(domainRef);
+
+    // 2. Delete public subdomain lookup: published_subdomains/{subdomain}
+    if (domain.subdomain) {
+      const publishedRef = getPublishedSubdomainsRef().doc(domain.subdomain);
+      batch.delete(publishedRef);
+    }
+
+    await batch.commit();
+  }
+  // Also purge domain_trash for this project (permanent delete / cleanup)
+  await deleteTrashByProjectId(userId, projectId);
+}
+
+/**
+ * Move domain to trash instead of hard-deleting. Used when project is trashed.
+ * Preserves domain record for restore. Removes from published_subdomains so site is offline.
+ */
+async function moveToTrashByProjectId(userId, projectId) {
   const domain = await findByProjectId(userId, projectId);
   if (!domain) return;
 
+  const domainId = domain.id;
+  const subdomain = (domain.subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
   const batch = db.batch();
 
-  // 1. Delete client domain doc: user/roles/client/{userId}/domains/{domainId}
-  const domainRef = getDomainsRef(userId).doc(domain.id);
-  batch.delete(domainRef);
+  // 1. Copy to domain_trash with deleted_at, project_id, original_id
+  const trashRef = getDomainTrashRef(userId).doc(domainId);
+  const rawData = (await getDomainsRef(userId).doc(domainId).get()).data();
+  batch.set(trashRef, {
+    ...rawData,
+    deleted_at: new Date(),
+    project_id: projectId,
+    original_id: domainId,
+  });
 
-  // 2. Delete public subdomain lookup: published_subdomains/{subdomain}
-  if (domain.subdomain) {
-    const publishedRef = getPublishedSubdomainsRef().doc(domain.subdomain);
-    batch.delete(publishedRef);
+  // 2. Delete from active domains
+  batch.delete(getDomainsRef(userId).doc(domainId));
+
+  // 3. Delete from published_subdomains (site goes offline)
+  if (subdomain) {
+    batch.delete(getPublishedSubdomainsRef().doc(subdomain));
   }
 
   await batch.commit();
+}
+
+/**
+ * Restore domain from trash when project is restored.
+ * Moves domain back to domains collection (stays draft, not re-added to published_subdomains).
+ */
+async function restoreFromTrashByProjectId(userId, projectId) {
+  const trashRef = getDomainTrashRef(userId);
+  const snap = await trashRef.where('project_id', '==', projectId).limit(1).get();
+  if (snap.empty) return;
+
+  const doc = snap.docs[0];
+  const data = doc.data();
+  const domainId = data.original_id || doc.id;
+
+  // Remove trash-specific fields (keep project_id - it links domain to project)
+  delete data.deleted_at;
+  delete data.original_id;
+
+  // Restored projects must come back offline; user should explicitly publish again.
+  data.status = 'draft';
+
+  const domainsRef = getDomainsRef(userId).doc(domainId);
+  const subdomain = (data.subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+
+  const batch = db.batch();
+  batch.set(domainsRef, data);
+  // Safety: remove stale public lookup if any exists.
+  if (subdomain) {
+    batch.delete(getPublishedSubdomainsRef().doc(subdomain));
+  }
+  batch.delete(doc.ref);
+  await batch.commit();
+}
+
+/** Delete domain_trash entries for a project (for permanentDelete / cleanup). */
+async function deleteTrashByProjectId(userId, projectId) {
+  const trashRef = getDomainTrashRef(userId);
+  const snap = await trashRef.where('project_id', '==', projectId).get();
+  const batch = db.batch();
+  snap.docs.forEach((d) => batch.delete(d.ref));
+  if (!snap.empty) await batch.commit();
 }
 
 /**
@@ -138,6 +240,11 @@ async function publishForClientBatch(userId, { projectId, projectTitle, subdomai
     const newRef = clientRef.doc(); // auto-generated id
     domainId = newRef.id;
     batch.set(newRef, clientDoc);
+  }
+
+  // When subdomain changes, delete old lookup to avoid stale/conflicting entries
+  if (existing && existing.subdomain && String(existing.subdomain).trim().toLowerCase() !== normalized) {
+    batch.delete(publishedRef.doc(String(existing.subdomain).trim().toLowerCase().replace(/[^a-z0-9-]/g, '')));
   }
 
   const publishedDoc = {
@@ -212,7 +319,11 @@ async function findBySubdomain(subdomain) {
   const normalized = (subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
   if (!normalized) return null;
 
-  // Primary: collection group query on client domains
+  // Fast path: published lookup (no composite index required)
+  const published = await findByPublishedSubdomain(normalized);
+  if (published) return published;
+
+  // Fallback: collection group query on client domains
   try {
     const groupSnap = await db.collectionGroup('domains')
       .where('subdomain', '==', normalized)
@@ -240,20 +351,43 @@ async function findBySubdomain(subdomain) {
     console.warn('findBySubdomain collectionGroup query failed, falling back:', e.message);
   }
 
-  // Fallback: published_subdomains (includes published_content snapshot)
-  const snap = await getPublishedSubdomainsRef().doc(normalized).get();
-  if (!snap.exists) return null;
-  const data = docToObject(snap);
-  if ((data.status || 'published') !== 'published') return null;
-  return {
-    id: data.domainId,
-    projectId: data.projectId,
-    userId: data.userId,
-    subdomain: normalized,
-    projectTitle: data.projectTitle,
-    status: data.status,
-    publishedContent: data.publishedContent ?? data.published_content ?? null,
-  };
+  return null;
+}
+
+/** Resolve published site by custom domain using collectionGroup query for efficiency. */
+async function findByCustomDomain(domain) {
+  const normalized = (domain || '').toString().trim().toLowerCase();
+  if (!normalized) return null;
+
+  try {
+    const groupSnap = await db.collectionGroup('domains')
+      .where('domain', '==', normalized)
+      .where('status', '==', 'published')
+      .limit(1)
+      .get();
+
+    if (!groupSnap.empty) {
+      const doc = groupSnap.docs[0];
+      const data = docToObject(doc);
+      // Extract userId from the document path
+      const pathParts = doc.ref.path.split('/');
+      const clientIdx = pathParts.indexOf('client');
+      const userId = clientIdx >= 0 && clientIdx + 1 < pathParts.length ? pathParts[clientIdx + 1] : data.userId;
+
+      return {
+        id: data.id || doc.id,
+        projectId: data.projectId,
+        userId: userId,
+        subdomain: data.subdomain,
+        projectTitle: data.projectTitle,
+        status: data.status,
+        publishedContent: data.publishedContent ?? data.published_content ?? null,
+      };
+    }
+  } catch (e) {
+    console.warn('findByCustomDomain failed:', e.message);
+  }
+  return null;
 }
 
 /** List domains for a client at user/roles/client/{userId}/domains (for sync/publish). */
@@ -267,6 +401,13 @@ async function listByClient(userId) {
 async function get(userId, domainId) {
   const snap = await getDomainsRef(userId).doc(domainId).get();
   return docToObject(snap);
+}
+
+/** Find domain by project_id in user/roles/client/{userId}/domains. */
+async function findByProjectId(userId, projectId) {
+  const snap = await getDomainsRef(userId).where('project_id', '==', projectId).limit(1).get();
+  if (snap.empty) return null;
+  return docToObject(snap.docs[0]);
 }
 
 /** Create a domain doc at user/roles/client/{userId}/domains (published site). */
@@ -302,6 +443,9 @@ async function updateForClient(userId, domainId, data) {
   if (data.projectTitle !== undefined) updates.project_title = data.projectTitle;
   if (data.subdomain !== undefined) updates.subdomain = (data.subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || null;
   if (data.status !== undefined) updates.status = data.status;
+  if (data.domain !== undefined) updates.domain = data.domain;
+  if (data.domainStatus !== undefined) updates.domain_status = data.domainStatus;
+  if (data.verifiedAt !== undefined) updates.verified_at = data.verifiedAt;
   if (data.publishedContent !== undefined) updates.published_content = data.publishedContent;
   if (data.scheduledPublishAt !== undefined) updates.scheduled_publish_at = data.scheduledPublishAt;
   if (data.scheduledPublishedContent !== undefined) updates.scheduled_published_content = data.scheduledPublishedContent;
@@ -361,6 +505,89 @@ async function getScheduleByProject(userId, projectId) {
   const date = at && typeof at.toDate === 'function' ? at.toDate() : new Date(at);
   if (isNaN(date.getTime())) return null;
   return { scheduledAt: date.toISOString(), subdomain: existing.subdomain || null };
+}
+
+/**
+ * Unpublish a project: set status to draft in both user/roles/client/{userId}/domains and published_subdomains.
+ * Site will no longer be served at the subdomain until published again.
+ */
+async function unpublishForClient(userId, projectId) {
+  const existing = await findByProjectId(userId, projectId);
+  if (!existing) return null;
+  const status = (existing.status || 'published').toString().toLowerCase();
+  if (status === 'draft') return existing;
+
+  const subdomain = (existing.subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  if (!subdomain) return null;
+
+  const domainId = existing.id;
+  const clientRef = getDomainsRef(userId).doc(domainId);
+  const publishedRef = getPublishedSubdomainsRef().doc(subdomain);
+  const now = new Date();
+
+  const prevHistory = Array.isArray(existing.publishHistory) ? existing.publishHistory : (Array.isArray(existing.publish_history) ? existing.publish_history : []);
+  const publish_history = prevHistory
+    .concat({ at: now.toISOString(), type: 'unpublished' })
+    .slice(-50);
+
+  const batch = db.batch();
+  batch.update(clientRef, {
+    status: 'draft',
+    updated_at: now,
+    publish_history,
+  });
+  batch.set(publishedRef, {
+    status: 'draft',
+    updated_at: now,
+  }, { merge: true });
+
+  await batch.commit();
+  return { id: domainId, subdomain, projectId, status: 'draft' };
+}
+
+/**
+ * Update subdomain for an existing published project.
+ * Deletes old published_subdomains lookup and creates new one.
+ */
+async function updateSubdomainForClient(userId, projectId, newSubdomain) {
+  const normalized = (newSubdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  if (!normalized) throw new Error('subdomain is required');
+  if (!userId || !projectId) throw new Error('userId and projectId are required');
+
+  const existing = await findByProjectId(userId, projectId);
+  if (!existing) return null;
+  const oldSubdomain = (existing.subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  if (oldSubdomain === normalized) return { id: existing.id, subdomain: normalized, projectId };
+
+  const domainId = existing.id;
+  const clientRef = getDomainsRef(userId).doc(domainId);
+  const publishedRef = getPublishedSubdomainsRef();
+  const now = new Date();
+
+  const prevHistory = Array.isArray(existing.publishHistory) ? existing.publishHistory : (Array.isArray(existing.publish_history) ? existing.publish_history : []);
+  const publish_history = prevHistory
+    .concat({ at: now.toISOString(), type: 'subdomain_changed' })
+    .slice(-50);
+
+  const batch = db.batch();
+  if (oldSubdomain) batch.delete(publishedRef.doc(oldSubdomain));
+  batch.update(clientRef, {
+    subdomain: normalized,
+    updated_at: now,
+    publish_history,
+  });
+  batch.set(publishedRef.doc(normalized), {
+    user_id: userId,
+    project_id: projectId,
+    domain_id: domainId,
+    status: existing.status || 'published',
+    project_title: existing.projectTitle ?? existing.project_title ?? null,
+    updated_at: now,
+    published_content: existing.publishedContent ?? existing.published_content ?? null,
+  }, { merge: true });
+
+  await batch.commit();
+  return { id: domainId, subdomain: normalized, projectId };
 }
 
 /** Get publish history for a project (stack of { at, type }), newest first. Backfills from updatedAt/createdAt if no history. Returns at most 10 most recent. */
@@ -462,9 +689,16 @@ module.exports = {
   update: updateForClient,
   delete: deleteById,
   deleteByProjectId,
+  moveToTrashByProjectId,
+  restoreFromTrashByProjectId,
+  deleteTrashByProjectId,
   publishForClientBatch,
+  unpublishForClient,
+  updateSubdomainForClient,
   setSubdomainLookup,
   findBySubdomain,
+  findByPublishedSubdomain,
+  findByCustomDomain,
   listAllFromPublishedSubdomains,
   listByClient,
   get,

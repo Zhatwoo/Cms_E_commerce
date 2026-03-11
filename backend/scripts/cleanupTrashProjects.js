@@ -1,62 +1,71 @@
 /**
- * CLEANUP SCRIPT: Delete projects in trash for more than 30 days.
+ * CLEANUP SCRIPT: Purge trash projects older than retention threshold.
  * Run this periodically via cron or scheduled task.
  * Usage: node backend/scripts/cleanupTrashProjects.js
  */
 
-const { db, admin } = require('../config/firebase');
+const { db } = require('../config/firebase');
+const Project = require('../models/Project');
+const User = require('../models/User');
 const { deleteProjectStorageFolder } = require('../utils/storageHelpers');
+const { getTrashRetentionDays, getTrashRetentionMs } = require('../utils/trashConfig');
 
 async function cleanupTrash() {
-  console.log('--- Starting Trash Cleanup ---');
+  const retentionDays = getTrashRetentionDays();
+  const retentionMs = getTrashRetentionMs();
+  console.log(`--- Starting Trash Cleanup (threshold: ${retentionDays} day(s)) ---`);
 
-  const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+  const nowMs = Date.now();
 
   try {
-    // 1. Find projects marked as deleted more than 30 days ago
-    // Since we don't have composite index for is_deleted + deleted_at, 
-    // we fetch all trashed items and filter in-memory (usually small number).
-    const projectsRef = db.collectionGroup('projects');
-    const snap = await projectsRef.where('is_deleted', '==', true).get();
+    // Find all docs under user/roles/client/{uid}/trash/{projectId}
+    const snap = await db.collectionGroup('trash').get();
 
     if (snap.empty) {
-      console.log('No trashed projects found.');
+      console.log('No trash projects found.');
       return;
     }
 
-    let deletedCount = 0;
+    let purgedCount = 0;
 
     for (const doc of snap.docs) {
-      const p = doc.data();
-      const deletedAt = p.deleted_at ? p.deleted_at.toDate() : null;
+      const trashData = doc.data() || {};
+      const pathSegments = doc.ref.path.split('/');
 
-      if (deletedAt && deletedAt < thirtyDaysAgo) {
-        console.log(`[CLEANUP] Deleting expired project: ${p.title} (${doc.id})`);
+      // Expected: user/roles/client/{userId}/trash/{projectId}
+      if (pathSegments.length < 6) continue;
+      const userId = pathSegments[3];
+      const projectId = pathSegments[5];
+      if (!userId || !projectId) continue;
 
-        // A. Delete Firestore doc
-        await doc.ref.delete();
+      const deletedAtRaw = trashData.deleted_at;
+      const deletedAtMs = deletedAtRaw?.toDate
+        ? deletedAtRaw.toDate().getTime()
+        : new Date(deletedAtRaw || 0).getTime();
+      if (!deletedAtMs || Number.isNaN(deletedAtMs)) continue;
 
-        // B. Delete Storage folder (best effort)
+      const ageMs = nowMs - deletedAtMs;
+      if (ageMs > retentionMs) {
+        const title = String(trashData.title || 'Untitled');
+        console.log(`[CLEANUP] Purging expired project: ${title} (${projectId}) for user ${userId}`);
+
+        // Purge project/trash/domain/rtdb by canonical model function.
+        await Project.permanentDelete(userId, projectId);
+
+        // Storage cleanup (best effort)
         try {
-          const userId = doc.ref.parent.parent.id; // projects is a subcollection of users/{id}
-          // We need a way to get client name. For cleanup script, we might just use 'client' 
-          // or try to fetch user doc. Let's try to fetch user doc for name.
-          const userDoc = await db.collection('users').doc(userId).get();
-          const userData = userDoc.exists ? userDoc.data() : {};
-          const clientName = (userData.displayName || userData.username || userData.email || 'client').trim();
-
-          await deleteProjectStorageFolder(clientName, p.title);
-          console.log(`[CLEANUP] Storage deleted for: ${p.title}`);
+          const user = await User.get(userId);
+          const clientName = (user?.displayName || user?.username || user?.email || 'client').trim() || 'client';
+          await deleteProjectStorageFolder(clientName, title);
         } catch (storageErr) {
-          console.warn(`[CLEANUP] Failed to delete storage for ${p.title}:`, storageErr.message);
+          console.warn(`[CLEANUP] Storage delete failed for ${projectId}:`, storageErr.message);
         }
 
-        deletedCount++;
+        purgedCount++;
       }
     }
 
-    console.log(`--- Cleanup Complete. Deleted ${deletedCount} projects. ---`);
+    console.log(`--- Cleanup Complete. Purged ${purgedCount} expired trash project(s). ---`);
   } catch (error) {
     console.error('Cleanup failed:', error);
   }

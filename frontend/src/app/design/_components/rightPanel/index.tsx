@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useEditor } from "@craftjs/core";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Lock, LockOpen, Play, Code2, GripVertical, X, Terminal, Palette, MousePointer2, Sparkles } from "lucide-react";
+import { Eye, EyeOff, Lock, LockOpen, Code2, X, Terminal, Palette, MousePointer2, Sparkles } from "lucide-react";
 import { serializeCraftToClean } from "../../_lib/serializer";
 import { autoSavePage } from "../../_lib/pageApi";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
@@ -29,11 +29,11 @@ const TABS: Tab[] = [
 ];
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
-const RIGHT_PANEL_DEFAULT_WIDTH = 420;
-const RIGHT_PANEL_MIN_WIDTH = RIGHT_PANEL_DEFAULT_WIDTH;
+const RIGHT_PANEL_DEFAULT_WIDTH = 300;
 
 interface RightPanelProps {
   projectId: string;
+  width?: number;
   activeTab?: TabId;
   setActiveTab?: (tab: TabId) => void;
   /** When false, RightPanelInner is not mounted to avoid Craft.js setState-during-render. Set by EditorShell after Frame has committed. */
@@ -42,27 +42,21 @@ interface RightPanelProps {
   onClose?: () => void;
   files?: any[];
   onFilesChange?: (files: any[]) => void;
+  permission?: "editor" | "viewer" | "owner";
 }
 
 // Inner panel that subscribes to Craft editor.
 // Mounted lazily by RightPanel to avoid "setState during render" warnings
 // when Frame is rendering initial data.
-const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: setControlledTab, onClose, files, onFilesChange }: RightPanelProps) => {
+const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeTab: controlledTab, setActiveTab: setControlledTab, onClose, files, onFilesChange, permission = "editor" }: RightPanelProps) => {
   const { user } = useAuth();
   const { showAlert } = useAlert();
   const [internalTab, setInternalTab] = useState<TabId>("design");
   const activeTab = controlledTab ?? internalTab;
   const setActiveTab = setControlledTab ?? setInternalTab;
   const [isPreviewing, setIsPreviewing] = useState(false);
-  const [panelWidth, setPanelWidth] = useState(RIGHT_PANEL_DEFAULT_WIDTH); // Default width
-  const [isResizing, setIsResizing] = useState(false);
-  const [startX, setStartX] = useState(0);
-  const [startWidth, setStartWidth] = useState(RIGHT_PANEL_DEFAULT_WIDTH);
-  const resizeRafRef = useRef<number | null>(null);
-  const pendingWidthRef = useRef<number>(RIGHT_PANEL_DEFAULT_WIDTH);
   const router = useRouter();
   const panelRef = useRef<HTMLDivElement>(null);
-  const resizeRef = useRef<HTMLDivElement>(null);
 
   const { actions } = useEditor();
   const { selectedIds, primary, query } = useEditor((state) => {
@@ -89,54 +83,6 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
     return { selectedIds: ids, primary };
   });
 
-  const handlePreview = async () => {
-    try {
-      setIsPreviewing(true);
-      console.log('🔄 Preview triggered: Force-saving latest data...');
-
-      const json = query.serialize();
-      const rawCount = Object.keys(JSON.parse(json)).length;
-      console.log(`📊 Preview: Raw Craft.js has ${rawCount} nodes.`);
-
-      let previewSnapshot: string;
-      try {
-        const cleanCode = serializeCraftToClean(json);
-        const cleanCount = Object.keys(cleanCode.nodes).length;
-        const rawCountSafe = Object.keys(JSON.parse(json)).length;
-        console.log(`📊 Preview: Clean output has ${cleanCode.pages.length} pages, ${cleanCount} nodes.`);
-
-        if (cleanCode.pages.length === 0 && rawCountSafe > 1) {
-          console.warn('⚠️ Preview: clean output has 0 pages while raw has content. Using raw snapshot fallback to prevent data loss.');
-          previewSnapshot = json;
-        } else {
-          previewSnapshot = JSON.stringify(cleanCode);
-        }
-      } catch (serializeError) {
-        console.warn('⚠️ Preview: serializeCraftToClean failed, saving raw Craft JSON for preview fallback:', serializeError);
-        previewSnapshot = json;
-      }
-
-      try {
-        window.sessionStorage.setItem(`${STORAGE_KEY_PREFIX}_${projectId}`, previewSnapshot);
-      } catch (storageError) {
-        console.warn('⚠️ Preview: failed to cache snapshot in sessionStorage', storageError);
-      }
-
-      // Force save to DB before navigating (save clean format when possible)
-      const saveResult = await autoSavePage(previewSnapshot, projectId);
-      if (!saveResult.success) {
-        console.warn('⚠️ Preview: DB save failed, using session snapshot fallback.');
-      }
-
-      console.log('✅ Save complete, navigating to preview...');
-      router.push(`/design/preview?projectId=${encodeURIComponent(projectId)}`);
-    } catch (error) {
-      console.error('❌ Preview failed:', error);
-      showAlert('Failed to generate preview. Check console.');
-    } finally {
-      setIsPreviewing(false);
-    }
-  };
 
   // Prevent panel scroll when wheeling over inputs/selects (e.g. width/height) — use capture so we run before the scrollable container
   useEffect(() => {
@@ -159,112 +105,21 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
     return () => panel.removeEventListener("wheel", handleWheelCapture, { capture: true });
   }, []);
 
-  // Handle panel resizing
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing) return;
-      const deltaX = startX - e.clientX; // Positive when dragging left (increase width)
-      const newWidth = startWidth + deltaX;
-      // Min width is locked to default so panel cannot be resized smaller
-      const constrainedWidth = Math.max(RIGHT_PANEL_MIN_WIDTH, Math.min(newWidth, window.innerWidth * 0.7));
-
-      pendingWidthRef.current = constrainedWidth;
-      if (resizeRafRef.current !== null) return;
-
-      resizeRafRef.current = requestAnimationFrame(() => {
-        resizeRafRef.current = null;
-        setPanelWidth((prev) => (Math.abs(prev - pendingWidthRef.current) < 0.2 ? prev : pendingWidthRef.current));
-      });
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-    };
-
-    if (isResizing) {
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
-      document.body.style.userSelect = "none";
-      document.body.style.cursor = "col-resize";
-      // Add visual feedback to the panel during resize
-      if (panelRef.current) {
-        panelRef.current.style.transition = 'opacity 120ms ease';
-        panelRef.current.style.opacity = '0.9';
-      }
-      return () => {
-        document.removeEventListener("mousemove", handleMouseMove);
-        document.removeEventListener("mouseup", handleMouseUp);
-        if (resizeRafRef.current !== null) {
-          cancelAnimationFrame(resizeRafRef.current);
-          resizeRafRef.current = null;
-        }
-        document.body.style.userSelect = "auto";
-        document.body.style.cursor = "auto";
-        // Restore panel styling
-        if (panelRef.current) {
-          panelRef.current.style.transition = 'width 160ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease';
-          panelRef.current.style.opacity = '';
-        }
-      };
-    }
-  }, [isResizing, startX, startWidth]);
-
-  useEffect(() => {
-    return () => {
-      if (resizeRafRef.current !== null) {
-        cancelAnimationFrame(resizeRafRef.current);
-        resizeRafRef.current = null;
-      }
-    };
-  }, []);
-
   return (
     <div data-panel="right" className="flex h-full relative">
-      {/* Resize Handle */}
-      <div
-        ref={resizeRef}
-        onMouseDown={(e) => {
-          e.preventDefault();
-          setStartX(e.clientX);
-          setStartWidth(panelWidth);
-          pendingWidthRef.current = panelWidth;
-          setIsResizing(true);
-        }}
-        className={`${isResizing ? 'w-2 bg-blue-500/70' : 'w-3 bg-brand-medium/20 hover:bg-blue-500/40'
-          } cursor-col-resize transition-all duration-200 group relative flex items-center justify-center select-none z-10`}
-        title="Drag to resize panel"
-      >
-        {/* Visual grip indicator */}
-        <div className={`flex flex-col gap-0.5 transition-opacity duration-200 ${isResizing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-          }`}>
-          <div className="w-0.5 h-1 bg-brand-light/60 rounded-full"></div>
-          <div className="w-0.5 h-1 bg-brand-light/60 rounded-full"></div>
-          <div className="w-0.5 h-1 bg-brand-light/60 rounded-full"></div>
-        </div>
-      </div>
-
       <div
         ref={panelRef}
         data-panel="configs"
-        className="bg-brand-darker/75 backdrop-blur-lg rounded-3xl h-full shadow-2xl border border-white/10 transition-all duration-300 overflow-hidden flex flex-col"
+        className="bg-brand-darker h-full border-l border-white/10 transition-[width,transform,opacity] duration-300 ease-out overflow-hidden flex flex-col"
         style={{
-          width: `${panelWidth}px`,
-          boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)",
+          width: `${width}px`,
         }}
       >
-        <div className="h-full p-6 flex flex-col min-h-0">
+        <div className="h-full p-4 flex flex-col min-h-0">
           <div className="flex items-center justify-between mb-6 gap-2">
             <h3 className="text-brand-lighter font-bold text-lg">Configs</h3>
             <div className="flex items-center gap-1">
-              <button
-                onClick={handlePreview}
-                disabled={isPreviewing}
-                className={`p-1 rounded-lg transition-colors cursor-pointer ${isPreviewing ? 'opacity-50 cursor-wait' : 'hover:bg-brand-medium/40'}`}
-                title="Preview (Web / Clean / Raw)"
-              >
-                <Play strokeWidth={2} className={`w-5 h-5 transition-colors ${isPreviewing ? 'text-yellow-400 animate-pulse' : 'text-brand-light hover:text-brand-lighter'}`} />
-              </button>
-              {onClose && (
+              {permission !== "viewer" && onClose && (
                 <button
                   type="button"
                   onClick={onClose}
@@ -277,7 +132,7 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
             </div>
           </div>
 
-          <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="editor-panel-scroll flex-1 min-h-0 overflow-y-auto">
             {/* Main conditional rendering */}
             {selectedIds.length > 0 ? (
               <div className={activeTab === "code" ? "h-full min-h-0 flex flex-col" : undefined}>
@@ -288,7 +143,7 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
                         ? primary.name
                         : `${selectedIds.length} components selected`}
                     </span>
-                    {primary && (
+                    {primary && permission !== "viewer" && (
                       <div className="flex items-center gap-0.5">
                         <button
                           type="button"
@@ -326,12 +181,13 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
                 </div>
 
                 {/* Tab Bar - Modern Pill Style */}
-                <div className="w-full mb-8">
-                  <div className="grid grid-cols-4 w-full p-1 bg-black/30 backdrop-blur-md rounded-2xl border border-white/5">
+                <div className="w-full mb-8 px-0.5">
+                  <div className="grid grid-cols-4 w-full p-1 bg-black/40 backdrop-blur-xl rounded-2xl border border-white/5 shadow-2xl">
                     {(() => {
                       const limits = getLimits(user?.subscriptionPlan);
                       return TABS.map((tab) => {
                         const isRestricted = tab.id === 'code' && !limits.codeEditor;
+                        const isActive = activeTab === tab.id;
 
                         return (
                           <button
@@ -343,16 +199,33 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
                               }
                               setActiveTab(tab.id);
                             }}
-                            className={`relative z-10 w-full px-2 py-2.5 rounded-xl transition-all duration-300 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap flex items-center justify-center gap-1 ${activeTab === tab.id
+                            className={`relative group z-10 w-full px-1 py-2.5 rounded-xl transition-all duration-300 flex flex-col items-center justify-center gap-1 min-w-0 ${isActive
                               ? "text-white"
-                              : isRestricted ? "text-white/20 hover:text-white/40" : "text-white/40 hover:text-white/60"
+                              : isRestricted || (permission === "viewer" && tab.id === "code") 
+                                ? "text-white/20 hover:text-white/40" 
+                                : "text-white/40 hover:text-white/60"
                               }`}
                           >
-                            {activeTab === tab.id && (
-                              <div className="absolute inset-0 bg-blue-600 rounded-xl shadow-lg shadow-blue-500/20 animate-in fade-in zoom-in-95 duration-200" style={{ zIndex: -1 }} />
+                            {isActive && (
+                              <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl shadow-[0_0_15px_rgba(37,99,235,0.3)] animate-in fade-in zoom-in-95 duration-300" style={{ zIndex: -1 }} />
                             )}
-                            {isRestricted && <Lock size={10} className="text-amber-500/60" />}
-                            {tab.label}
+                            
+                            <div className="flex items-center gap-1.5 min-w-0 w-full justify-center px-1">
+                              {isRestricted ? (
+                                <Lock size={10} className="text-amber-500/60 shrink-0" />
+                              ) : (
+                                <div className={`shrink-0 transition-transform duration-300 ${isActive ? "scale-110" : "group-hover:scale-105"}`}>
+                                  {React.cloneElement(tab.icon as React.ReactElement<any>, { size: 12 })}
+                                </div>
+                              )}
+                              <span className={`text-[9px] font-bold tracking-tight truncate transition-all duration-300 ${isActive ? "opacity-100" : "opacity-80 group-hover:opacity-100"}`}>
+                                {tab.label}
+                              </span>
+                            </div>
+
+                            {isActive && (
+                              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-white rounded-full shadow-[0_0_8px_white]" />
+                            )}
                           </button>
                         );
                       });
@@ -383,13 +256,20 @@ const RightPanelInner = ({ projectId, activeTab: controlledTab, setActiveTab: se
 
                   {activeTab === "code" && (
                     <div className="h-full min-h-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                      <CodeEditor
-                        mode="design"
-                        projectId={projectId}
-                        files={files || []}
-                        onFilesChange={onFilesChange}
-                        className="h-full border-none shadow-none rounded-none"
-                      />
+                      {permission === "viewer" ? (
+                        <div className="flex flex-col items-center justify-center h-full text-brand-light/40 text-center px-4">
+                          <Lock className="w-8 h-8 mb-2 opacity-20" />
+                          <p className="text-sm">Code editor is disabled in view-only mode</p>
+                        </div>
+                      ) : (
+                        <CodeEditor
+                          mode="design"
+                          projectId={projectId}
+                          files={files || []}
+                          onFilesChange={onFilesChange}
+                          className="h-full border-none shadow-none rounded-none"
+                        />
+                      )}
                     </div>
                   )}
                 </div>
@@ -423,8 +303,8 @@ export const RightPanel: React.FC<RightPanelProps> = (props) => {
     return (
       <div
         data-panel="configs"
-        className="bg-brand-darker/75 backdrop-blur-lg rounded-3xl p-6 h-full shadow-2xl overflow-y-auto border border-white/10 transition-shadow duration-300 flex items-center justify-center text-xs text-brand-light/60"
-        style={{ width: `${RIGHT_PANEL_MIN_WIDTH}px`, boxShadow: "inset 0 2px 4px 0 rgba(255, 255, 255, 0.2)" }}
+        className="bg-brand-darker p-4 h-full overflow-y-auto border-l border-white/10 transition-[width,opacity] duration-300 ease-out flex items-center justify-center text-xs text-brand-light/60"
+        style={{ width: `${props.width ?? RIGHT_PANEL_DEFAULT_WIDTH}px` }}
       >
         Loading inspector…
       </div>

@@ -101,12 +101,16 @@ app.use(cors({
     return cb(null, false);
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-project-id']
 }));
 app.use(cookieParser());
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+
+// Domain & Subdomain detection middleware
+const domainDetector = require('./middleware/domainDetector');
+app.use(domainDetector);
 
 // Rate limit for auth (stricter in production; relaxed in dev so you can retry)
 const authLimiter = rateLimit({
@@ -148,11 +152,12 @@ const pageRoutes = require('./routes/pageRoutes');
 const postRoutes = require('./routes/postRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const productRoutes = require('./routes/productRoutes');
+const inventoryRoutes = require('./routes/inventoryRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const templateRoutes = require('./routes/templateRoutes');
 const domainRoutes = require('./routes/domainRoutes');
 const projectRoutes = require('./routes/projectRoutes');
-const instanceRoutes = require('./routes/instanceRoutes');
+const collaborationRoutes = require('./routes/collaborationRoutes');
 
 // Routes – public site by subdomain must be reachable
 app.use('/api/public', publicSiteRoutes);
@@ -162,11 +167,12 @@ app.use('/api/pages', pageRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/inventory', inventoryRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/domains', domainRoutes);
 app.use('/api/projects', projectRoutes);
-app.use('/api/instances', instanceRoutes);
+app.use('/api/collaboration', collaborationRoutes);
 
 // Home route
 app.get('/', (req, res) => {
@@ -225,6 +231,12 @@ app.get('/', (req, res) => {
         getAll: 'GET /api/orders (admin)',
         getOne: 'GET /api/orders/:id (protected)',
         updateStatus: 'PUT /api/orders/:id/status (admin)'
+      },
+      inventory: {
+        getItems: 'GET /api/inventory (protected)',
+        getSummary: 'GET /api/inventory/summary (protected)',
+        getMovements: 'GET /api/inventory/movements (protected)',
+        adjust: 'POST /api/inventory/adjust (protected)'
       },
       templates: {
         getAll: 'GET /api/templates',
@@ -287,17 +299,127 @@ function onListenSuccess(port) {
   console.log(`🔑 Login API key: ${hasLoginKey ? 'set' : 'MISSING — set FIREBASE_API_KEY in .env'}`);
   console.log('========================================');
   console.log('📝 API: /api/auth | /api/users | /api/pages | /api/posts');
-  console.log('       /api/dashboard | /api/products | /api/orders');
+  console.log('       /api/dashboard | /api/products | /api/inventory | /api/orders');
   console.log('       /api/templates | /api/domains | /api/projects');
   console.log('========================================');
 }
 
 const Domain = require('./models/Domain');
 
+// ─── Socket.IO Collaboration ─────────────────────────────────────────────────
+// Tracks active collaborators per project room: { socketId -> presenceInfo }
+const projectRooms = new Map();
+
 function tryListen(port) {
   const server = http.createServer(app);
+
+  // Attach Socket.IO to the HTTP server
+  const { Server: SocketIOServer } = require('socket.io');
+  const io = new SocketIOServer(server, {
+    cors: {
+      origin(origin, cb) {
+        if (!origin) return cb(null, true);
+        if (allowedOrigins.includes(origin)) return cb(null, true);
+        if (subdomainLocalhostRegex.test(origin)) return cb(null, true);
+        return cb(null, false);
+      },
+      credentials: true,
+    },
+    path: '/socket.io',
+    transports: ['websocket', 'polling'],
+  });
+
+  io.on('connection', (socket) => {
+    console.log('[Socket.IO] New connection:', socket.id);
+    let currentRoom = null;
+    let currentUser = null;
+
+    // User joins a project collaboration room
+    socket.on('collab:join', (data) => {
+      const { projectId, userId, displayName, color, permission } = data || {};
+      if (!projectId || !userId) return;
+
+      currentRoom = projectId;
+      currentUser = { userId, displayName, color, permission: permission || 'editor', socketId: socket.id };
+
+      socket.join(projectId);
+
+      if (!projectRooms.has(projectId)) projectRooms.set(projectId, new Map());
+      projectRooms.get(projectId).set(socket.id, currentUser);
+
+      const roomSize = projectRooms.get(projectId).size;
+      console.log(`[Socket.IO] ${displayName} joined room ${projectId} (${roomSize} users)`);
+
+      // Notify room that this user joined
+      socket.to(projectId).emit('collab:user_joined', currentUser);
+
+      // Send current presence list to the newly joined user
+      const presenceList = Array.from(projectRooms.get(projectId).values());
+      socket.emit('collab:presence_list', presenceList);
+    });
+
+    // Broadcast cursor movement to others in the room
+    socket.on('collab:cursor_move', (data) => {
+      if (!currentRoom) return;
+      socket.to(currentRoom).emit('collab:cursor_move', {
+        ...data,
+        socketId: socket.id,
+        userId: currentUser?.userId,
+        displayName: currentUser?.displayName,
+        color: currentUser?.color,
+      });
+    });
+
+    // Broadcast canvas changes (move/resize/drop) to others in the room
+    socket.on('collab:canvas_change', (data) => {
+      if (!currentRoom) return;
+      if (currentUser?.permission !== 'editor') {
+        console.log('[Socket.IO] canvas_change blocked — user is not editor');
+        return;
+      }
+      const room = projectRooms.get(currentRoom);
+      const othersCount = room ? room.size - 1 : 0;
+      console.log(`[Socket.IO] canvas_change from ${currentUser?.displayName} → broadcasting to ${othersCount} other(s) in ${currentRoom}`);
+      socket.to(currentRoom).emit('collab:canvas_change', {
+        ...data,
+        socketId: socket.id,
+        userId: currentUser?.userId,
+        displayName: currentUser?.displayName,
+        color: currentUser?.color,
+      });
+    });
+
+    // Broadcast selection change
+    socket.on('collab:selection_change', (data) => {
+      if (!currentRoom) return;
+      socket.to(currentRoom).emit('collab:selection_change', {
+        ...data,
+        socketId: socket.id,
+        userId: currentUser?.userId,
+        displayName: currentUser?.displayName,
+        color: currentUser?.color,
+      });
+    });
+
+    // User left / disconnected
+    const handleLeave = () => {
+      if (!currentRoom || !socket.id) return;
+      const room = projectRooms.get(currentRoom);
+      if (room) {
+        room.delete(socket.id);
+        if (room.size === 0) projectRooms.delete(currentRoom);
+      }
+      io.to(currentRoom).emit('collab:user_left', { socketId: socket.id, userId: currentUser?.userId });
+      currentRoom = null;
+      currentUser = null;
+    };
+
+    socket.on('collab:leave', handleLeave);
+    socket.on('disconnect', handleLeave);
+  });
+
   server.on('error', (err) => {
-    if (err.code === 'EADDRINUSE' && port === 5000) {
+    if (err.code === 'EADDRINUSE' && Number(port) === 5000) {
       console.error(`Port ${port} in use. Trying 5001...`);
       tryListen(5001);
     } else {
@@ -319,6 +441,6 @@ function tryListen(port) {
   return server;
 }
 
-tryListen(PORT);
+tryListen(Number(PORT));
 
 module.exports = app;

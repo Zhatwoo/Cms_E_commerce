@@ -14,11 +14,18 @@ const VARIANT_STYLES: Record<NonNullable<ButtonProps["variant"]>, {
   secondary: { bg: "#6b7280", text: "#ffffff", border: "transparent", borderWidth: 0 },
   outline: { bg: "transparent", text: "#3b82f6", border: "#3b82f6", borderWidth: 1 },
   ghost: { bg: "transparent", text: "#3b82f6", border: "transparent", borderWidth: 0 },
+  cta: { bg: "#000000", text: "#ffffff", border: "transparent", borderWidth: 0 },
 };
+
+function fluidSpace(value: number, min = 0): string {
+  if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
+  const preferred = Math.max(0.1, value / 12);
+  const floor = Math.max(min, Math.round(value * 0.45));
+  return `clamp(${floor}px, ${preferred.toFixed(2)}cqw, ${value}px)`;
+}
 
 export const Button = ({
   label = "Button",
-  link = "",
   variant = "primary",
   backgroundColor,
   textColor,
@@ -30,11 +37,11 @@ export const Button = ({
   borderWidth,
   width = "auto",
   height = "auto",
-  padding = 0,
-  paddingTop = 10,
-  paddingBottom = 10,
-  paddingLeft = 24,
-  paddingRight = 24,
+  padding,
+  paddingTop,
+  paddingBottom,
+  paddingLeft,
+  paddingRight,
   margin = 0,
   marginTop,
   marginRight,
@@ -56,6 +63,8 @@ export const Button = ({
   const txt = textColor ?? variantStyle.text;
   const bc = borderColor ?? variantStyle.border;
   const bw = borderWidth ?? variantStyle.borderWidth;
+  const isCta = variant === "cta";
+  const fluidFontSize = `clamp(${Math.max(12, Math.round(fontSize * 0.8))}px, ${(fontSize / 12).toFixed(2)}cqw, ${fontSize}px)`;
 
   // Resolve spacing
   const m = typeof margin === "number" ? margin : 0;
@@ -64,28 +73,39 @@ export const Button = ({
   const mb = marginBottom ?? m;
   const ml = marginLeft ?? m;
 
+  const p = typeof padding === "number" ? padding : undefined;
+  const pt = paddingTop ?? p ?? 12;
+  const pb = paddingBottom ?? p ?? 12;
+  const pl = paddingLeft ?? p ?? 28;
+  const pr = paddingRight ?? p ?? 28;
+  const isAutoWidth = width === "auto";
+  const isPercentWidth = typeof width === "string" && width.includes("%");
+
   return (
     <button
+      type="button"
       data-node-id={id}
       ref={(ref) => { if (ref) connect(drag(ref)); }}
       style={{
         backgroundColor: bg,
         color: txt,
-        fontSize: `${fontSize}px`,
+        fontSize: fluidFontSize,
         fontWeight,
         fontFamily,
-        borderRadius: `${borderRadius}px`,
+        borderRadius: `${isCta ? 0 : borderRadius}px`,
         borderColor: bc,
         borderWidth: `${bw}px`,
         borderStyle: bw > 0 ? "solid" : "none",
-        width,
+        width: isAutoWidth ? "fit-content" : width,
         height,
         maxWidth: "100%",
-        minWidth: 0,
-        paddingTop: `${paddingTop}px`,
-        paddingBottom: `${paddingBottom}px`,
-        paddingLeft: `${paddingLeft}px`,
-        paddingRight: `${paddingRight}px`,
+        minWidth: isPercentWidth ? 0 : "max-content",
+        flexShrink: isAutoWidth ? 0 : 1,
+        containerType: "inline-size",
+        paddingTop: fluidSpace(pt, 6),
+        paddingBottom: fluidSpace(pb, 6),
+        paddingLeft: fluidSpace(pl, 10),
+        paddingRight: fluidSpace(pr, 10),
         marginTop: `${mt}px`,
         marginRight: `${mr}px`,
         marginBottom: `${mb}px`,
@@ -98,11 +118,15 @@ export const Button = ({
         alignItems: "center",
         justifyContent: "center",
         textAlign: "center",
-        whiteSpace: "normal",
-        wordBreak: "break-word",
+        lineHeight: 1.2,
+        textTransform: isCta ? "uppercase" : undefined,
+        letterSpacing: isCta ? "0.08em" : undefined,
+        whiteSpace: "nowrap",
+        overflowWrap: "normal",
+        wordBreak: "keep-all",
         transition: "background-color 0.15s, opacity 0.15s",
       }}
-      className={`hover:outline hover:outline-blue-500 ${customClassName}`}
+      className={customClassName}
     >
       {children ?? label}
     </button>
@@ -119,10 +143,10 @@ export const ButtonDefaultProps: Partial<ButtonProps> = {
   borderRadius: 8,
   width: "auto",
   height: "auto",
-  paddingTop: 10,
-  paddingBottom: 10,
-  paddingLeft: 24,
-  paddingRight: 24,
+  paddingTop: 12,
+  paddingBottom: 12,
+  paddingLeft: 28,
+  paddingRight: 28,
   margin: 0,
   marginTop: 0,
   marginRight: 0,

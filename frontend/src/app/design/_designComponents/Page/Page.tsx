@@ -15,6 +15,7 @@ export const Page = ({
   width = "1920px",
   height = "1200px",
   background = "#ffffff",
+  pageRotation = 0,
   canvasX = 0,
   canvasY = 0,
   pageName = "Page Name",
@@ -60,6 +61,9 @@ export const Page = ({
         height: height === "auto" ? "auto" : height,
         minHeight: "800px",
         backgroundColor: background,
+        transform: Number.isFinite(pageRotation) && pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
+        transformOrigin: "center center",
+        transition: "transform 220ms ease-out",
       }}
     >
       <div data-page-name-label="true" className="absolute -top-8 left-0 text-brand-lighter font-bold text-2xl opacity-50 select-none min-w-[120px]">
@@ -96,6 +100,7 @@ export const PageDefaultProps: Partial<PageProps> = {
   width: "1920px",
   height: "1200px",
   background: "#E6E6E9",
+  pageRotation: 0,
   canvasX: 0,
   canvasY: 0,
   pageName: "Page Name",

@@ -75,6 +75,60 @@
   }
 }
 
+/* ── Template preview card: slow top-to-bottom pan ── */
+/* Uses natural image height (height: auto) so the FULL image is rendered and panned */
+/* Big card (~733px wide, 560px tall): portrait images render ~1466px → pan -62% */
+@keyframes templatePanLg {
+  0%, 8%   { transform: translateY(0%); }
+  42%, 58% { transform: translateY(-62%); }
+  92%, 100%{ transform: translateY(0%); }
+}
+
+/* Small cards (~523px wide, ~272px tall): images render ~1050-1170px → pan -75% */
+@keyframes templatePanSm {
+  0%, 8%   { transform: translateY(0%); }
+  42%, 58% { transform: translateY(-75%); }
+  92%, 100%{ transform: translateY(0%); }
+}
+
+.template-pan-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  display: block;
+  animation: templatePanLg 9s ease-in-out infinite;
+}
+
+.template-pan-img-sm {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  display: block;
+  animation: templatePanSm 9s ease-in-out infinite;
+}
+
+.template-pan-img-slow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  display: block;
+  animation: templatePanLg 13s ease-in-out infinite;
+}
+
+.template-pan-img-delay {
+  animation-delay: 3s;
+}
+
+.template-pan-img-delay2 {
+  animation-delay: 6s;
+}
+
 .template-category-content {
   overflow: hidden;
   transition: max-height var(--dur-slow) var(--ease-smooth),
@@ -192,6 +246,10 @@
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
+.rightpanel-color-picker:has(input[type="color"]:focus) {
+  transform: none;
+}
+
 /* Toggle Color Picker Panel Animation */
 @keyframes colorPickerPanelOpen {
   0% {
@@ -300,6 +358,12 @@ body:has(.m-dashboard-shell) {
   cursor: grabbing !important;
 }
 
+/* While panning, disable node hit-targets so clicks never select components. */
+[data-canvas-container].canvas-hand-tool [data-node-id],
+[data-canvas-container].canvas-hand-tool [data-panel='resize-overlay'] {
+  pointer-events: none !important;
+}
+
 @keyframes landingSnapIn {
   0%,
   20% {
@@ -373,4 +437,73 @@ body:has(.m-dashboard-shell) {
   caret-color: #ffffff;
   border-color: rgba(255, 255, 255, 0.25);
   transition: background-color 9999s ease-out 0s;
+}
+
+.figma-hue-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 12px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: linear-gradient(
+    90deg,
+    #ff0000 0%,
+    #ffff00 16.6%,
+    #00ff00 33.3%,
+    #00ffff 50%,
+    #0000ff 66.6%,
+    #ff00ff 83.3%,
+    #ff0000 100%
+  );
+}
+
+.figma-hue-slider::-webkit-slider-runnable-track {
+  height: 12px;
+  border-radius: 9999px;
+  background: transparent;
+}
+
+.figma-hue-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -2px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  background: #0e0f3c;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.figma-hue-slider::-moz-range-track {
+  height: 12px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: linear-gradient(
+    90deg,
+    #ff0000 0%,
+    #ffff00 16.6%,
+    #00ff00 33.3%,
+    #00ffff 50%,
+    #0000ff 66.6%,
+    #ff00ff 83.3%,
+    #ff0000 100%
+  );
+}
+
+.figma-hue-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  background: #0e0f3c;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+select[data-industry-select="true"] option {
+  color: #ffffff;
+  background-color: #141140;
+}
+
+select[data-industry-select="true"] option[value=""] {
+  color: #bfc4ff;
 }

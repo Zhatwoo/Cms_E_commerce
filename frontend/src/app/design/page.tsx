@@ -1,9 +1,10 @@
 "use client";
 
-import React, { Suspense, useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import React, { Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { EditorShell } from "./_components/editorShell";
-import { DesignProjectProvider } from "./_context/DesignProjectContext";
+import { DesignProjectProvider, useDesignProject } from "./_context/DesignProjectContext";
+import { CollaborationProvider } from "./_context/CollaborationContext";
 
 const LoadingPlaceholder = () => (
   <div className="min-h-screen flex items-center justify-center bg-[#0a0d14] text-white">
@@ -12,41 +13,46 @@ const LoadingPlaceholder = () => (
 );
 
 function DesignContent() {
-  const searchParams = useSearchParams();
   const router = useRouter();
-  const projectId = searchParams.get("projectId");
+  const searchParams = useSearchParams();
+  const projectIdParam = searchParams.get("projectId");
+  const inviteParam = searchParams.get("invite");
+  const projectId = projectIdParam || inviteParam;
   const pageId = searchParams.get("pageId");
-  const [mounted, setMounted] = useState(false);
+  const fromInvite = !projectIdParam && !!inviteParam;
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
-    if (!projectId) router.replace("/m_dashboard/web-builder");
-  }, [mounted, projectId, router]);
-
-  if (!mounted) {
-    return <LoadingPlaceholder />;
-  }
+    if (!projectId) {
+      router.replace('/m_dashboard/projects');
+      return;
+    }
+    if (fromInvite) {
+      router.replace(`/design?projectId=${projectId}${pageId ? `&pageId=${pageId}` : ''}`);
+    }
+  }, [projectId, pageId, router, fromInvite]);
 
   if (!projectId) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0d14] text-white">
-        <p>Redirecting to Web Builder...</p>
-      </div>
-    );
+    return <LoadingPlaceholder />;
   }
 
   return (
     <DesignProjectProvider projectId={projectId} pageId={pageId}>
-      <EditorShell projectId={projectId} pageId={pageId} />
+      <DesignContentInner projectId={projectId} pageId={pageId} />
     </DesignProjectProvider>
   );
 }
 
-/** Design Page — requires ?projectId= to edit a project. */
+function DesignContentInner({ projectId, pageId }: { projectId: string, pageId: string | null }) {
+  const { permission } = useDesignProject();
+
+  return (
+    <CollaborationProvider projectId={projectId} permission={permission === "owner" ? "editor" : permission}>
+      <EditorShell projectId={projectId} pageId={pageId} permission={permission} />
+    </CollaborationProvider>
+  );
+}
+
+/** Design Page — requires ?projectId= and redirects to /m_dashboard/projects when missing. */
 export default function DesignPage() {
   return (
     <Suspense

@@ -3,16 +3,18 @@
  * Used by KeyboardShortcuts and filesPanel for Figma-like UX.
  */
 
+import type { NodeSelector } from "@craftjs/core";
+
 /** Minimal query/actions types to avoid @craftjs/core internal type dependency */
 type EditorQuery = {
   serialize: () => string;
-  getState: () => any;
-  node: (id: string) => any;
+  getState: () => { nodes: Record<string, any>; events?: { selected?: unknown } };
+  node: (id: string) => { get: () => { data?: { parent?: string | null; displayName?: string } } | null; isDeletable: () => boolean };
 };
 type EditorActions = {
   deserialize: (json: string) => void;
-  selectNode: (id?: any) => void;
-  delete: (id: any) => void;
+  selectNode: (nodeIdSelector?: NodeSelector) => void;
+  delete: (id: string | string[]) => void;
   move?: (nodeId: string, parentId: string, index: number) => void;
 };
 
@@ -31,6 +33,40 @@ type CraftRawNode = {
 };
 
 type CraftData = Record<string, CraftRawNode>;
+
+function canonicalResolvedName(rawName: unknown): string {
+  const name = typeof rawName === "string" ? rawName.trim() : "";
+  if (!name) return "Container";
+  const lowered = name.toLowerCase();
+  if (lowered === "image") return "Image";
+  if (lowered === "text") return "Text";
+  if (lowered === "container") return "Container";
+  if (lowered === "page") return "Page";
+  if (lowered === "viewport") return "Viewport";
+  if (lowered.includes("image")) return "Image";
+  if (lowered.includes("text")) return "Text";
+  if (lowered.includes("container")) return "Container";
+  if (lowered.includes("page")) return "Page";
+  if (lowered.includes("viewport")) return "Viewport";
+  return name;
+}
+
+function sanitizeCraftData(data: CraftData): CraftData {
+  Object.keys(data).forEach((id) => {
+    const node = data[id];
+    if (!node || typeof node !== "object") return;
+    const currentName = node?.type?.resolvedName;
+    const canonical = canonicalResolvedName(currentName);
+    if (!node.type || typeof node.type !== "object") {
+      node.type = { resolvedName: canonical };
+    } else {
+      node.type.resolvedName = canonical;
+    }
+    node.displayName = canonical;
+    if (!Array.isArray(node.nodes)) node.nodes = [];
+  });
+  return data;
+}
 
 /** Normalize selection to string[] */
 export function selectedToIds(selected: unknown): string[] {
@@ -110,7 +146,7 @@ export function duplicateNodes(
     }
 
     if (clonedIds.length > 0) {
-      actions.deserialize(JSON.stringify(data));
+      actions.deserialize(JSON.stringify(sanitizeCraftData(data)));
       actions.selectNode(clonedIds.length === 1 ? clonedIds[0] : clonedIds);
       return clonedIds;
     }
@@ -252,7 +288,7 @@ export function pasteClipboard(
     newSiblings.splice(atIndex, 0, ...rootIds);
     parentNode.nodes = newSiblings;
 
-    actions.deserialize(JSON.stringify(data));
+    actions.deserialize(JSON.stringify(sanitizeCraftData(data)));
     actions.selectNode(rootIds.length === 1 ? rootIds[0] : rootIds);
     return rootIds;
   } catch (e) {
@@ -278,7 +314,7 @@ export function cutSelection(
       deletable.push(id);
     }
     if (deletable.length > 0) actions.delete(deletable.length === 1 ? deletable[0] : deletable);
-    actions.selectNode(null);
+    actions.selectNode();
   } catch (e) {
     console.warn("cutSelection failed:", e);
   }
@@ -376,7 +412,7 @@ export function groupSelection(
     siblings.splice(firstIndex, 0, containerId);
     parentNode.nodes = siblings;
 
-    actions.deserialize(JSON.stringify(data));
+    actions.deserialize(JSON.stringify(sanitizeCraftData(data)));
     actions.selectNode(containerId);
     return containerId;
   } catch (e) {
@@ -420,7 +456,7 @@ export function ungroupSelection(
     }
     delete data[containerId];
 
-    actions.deserialize(JSON.stringify(data));
+    actions.deserialize(JSON.stringify(sanitizeCraftData(data)));
     actions.selectNode(children.length === 1 ? children[0] : children);
     return children;
   } catch (e) {
