@@ -13,6 +13,7 @@ import { Icon } from "./Icon/Icon";
 import { Tabs } from "./Tabs/Tabs";
 import { Spacer } from "./Spacer/Spacer";
 import { Pagination } from "./Pagination/Pagination";
+import { Rating } from "./Rating/Rating";
 import { ImportedBlock } from "./ImportedBlock/ImportedBlock";
 
 export const RenderBlocks: Record<string, any> = {
@@ -45,6 +46,8 @@ export const RenderBlocks: Record<string, any> = {
   spacer: Spacer,
   Pagination,
   pagination: Pagination,
+  Rating,
+  rating: Rating,
   ImportedBlock,
   importedblock: ImportedBlock,
 };

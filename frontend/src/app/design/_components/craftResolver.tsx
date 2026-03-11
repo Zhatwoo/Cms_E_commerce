@@ -16,6 +16,7 @@ import { Icon } from "../_designComponents/Icon/Icon";
 import { Tabs } from "../_designComponents/Tabs/Tabs";
 import { Spacer } from "../_designComponents/Spacer/Spacer";
 import { Pagination } from "../_designComponents/Pagination/Pagination";
+import { Rating } from "../_designComponents/Rating/Rating";
 import { Circle } from "../../_assets/shapes/circle/circle";
 import { Square } from "../../_assets/shapes/square/square";
 import { Triangle } from "../../_assets/shapes/triangle/triangle";
@@ -72,6 +73,7 @@ export function buildCraftResolver(): Resolver {
   const ImportedBlockComp = asComponent(ImportedBlock, ContainerComp);
   const SpacerComp = asComponent(Spacer, ContainerComp);
   const PaginationComp = asComponent(Pagination, ContainerComp);
+  const RatingComp = asComponent(Rating, ContainerComp);
   const base: Resolver = {
     Container: ContainerComp,
     container: ContainerComp,
@@ -115,6 +117,9 @@ export function buildCraftResolver(): Resolver {
     Pagination: PaginationComp,
     pagination: PaginationComp,
     PAGINATION: PaginationComp,
+    Rating: RatingComp,
+    rating: RatingComp,
+    RATING: RatingComp,
   };
   base.Image = ImageComp;
   base.image = ImageComp;
