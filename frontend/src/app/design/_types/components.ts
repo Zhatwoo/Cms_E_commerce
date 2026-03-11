@@ -275,3 +275,20 @@ export interface FrameProps extends SpacingProps, AnimatableProps, InteractionPr
   height?: string;
   children?: ReactNode;
 }
+
+/** Tabs component props — dynamic tabs with content areas. */
+export interface TabItem {
+  id: string;
+  title: string;
+  content: string;
+}
+
+export interface TabsProps
+  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps, AnimatableProps, InteractionProps {
+  tabs: TabItem[];
+  activeTabId: string;
+  tabHeaderBackgroundColor?: string;
+  tabHeaderTextColor?: string;
+  activeTabBackgroundColor?: string;
+  activeTabTextColor?: string;
+}

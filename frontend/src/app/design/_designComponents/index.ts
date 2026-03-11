@@ -10,6 +10,7 @@ import { Row } from "./Row/Row";
 import { Column } from "./Column/Column";
 import { Icon } from "./Icon/Icon";
 import { Frame } from "./Frame/Frame";
+import { Tabs } from "./Tabs/Tabs";
 
 export const RenderBlocks: Record<string, any> = {
   Container,
@@ -35,4 +36,6 @@ export const RenderBlocks: Record<string, any> = {
   icon: Icon,
   Frame,
   frame: Frame,
+  Tabs,
+  tabs: Tabs,
 };

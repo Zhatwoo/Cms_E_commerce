@@ -69,7 +69,8 @@ export type ComponentType =
   | "Frame"
   | "Circle"
   | "Square"
-  | "Triangle";
+  | "Triangle"
+  | "Tabs";
 
 /** A single node in the document. */
 export interface CleanNode {

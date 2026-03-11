@@ -14,6 +14,7 @@ import { Section } from "../../_designComponents/Section/Section";
 import { Row } from "../../_designComponents/Row/Row";
 import { Column } from "../../_designComponents/Column/Column";
 import { Frame } from "../../_designComponents/Frame/Frame";
+import { Tabs } from "../../_designComponents/Tabs/Tabs";
 import { CRAFT_RESOLVER } from "../craftResolver";
 
 interface ComponentVariant {
@@ -96,7 +97,6 @@ export const ComponentsPanel = () => {
         {
           name: "Advanced Layout",
           elements: [
-            { name: "Tabs", icon: <Layers className="w-4 h-4" />, variants: [{ label: "Tabs", preview: "Tabs Preview", element: undefined }] },
             { name: "Accordion", icon: <ChevronDown className="w-4 h-4" />, variants: [{ label: "Accordion", preview: "Accordion Preview", element: undefined }] },
             { name: "Card", icon: <Box className="w-4 h-4" />, variants: [{ label: "Card", preview: "Card Preview", element: undefined }] },
             { name: "Modal", icon: <Layers className="w-4 h-4" />, variants: [{ label: "Modal / Popup", preview: "Popup Preview", element: undefined }] },
@@ -161,6 +161,7 @@ export const ComponentsPanel = () => {
         {
           name: "Structured Content",
           elements: [
+            { name: "Tabs", icon: <Layers className="w-4 h-4" />, variants: [{ label: "Tabs", preview: "Tabs Preview", element: <Element is={Tabs} canvas tabs={[{ id: "tab-1", title: "Tab 1", content: "Tab 1 Content goes here..." }]} activeTabId="tab-1" /> }] },
             { name: "Table", icon: <Table className="w-4 h-4" />, variants: [{ label: "Table", preview: "Table Preview", element: undefined }] },
             { name: "List", icon: <ListIcon className="w-4 h-4" />, variants: [{ label: "List", preview: "List Preview", element: undefined }] },
             { name: "Badge", icon: <Badge className="w-4 h-4" />, variants: [{ label: "Badge / Tag", preview: "Badge Preview", element: undefined }] },

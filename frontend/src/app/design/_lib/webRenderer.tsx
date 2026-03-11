@@ -1355,6 +1355,87 @@ function wrapWithPrototype(
   );
 }
 
+function PreviewTabs({ props }: { props: Record<string, any> }) {
+  const tabs = (props.tabs as any[]) || [];
+  const [activeTabId, setActiveTabId] = React.useState(
+    props.activeTabId || (tabs[0]?.id || "")
+  );
+
+  const br = (props.borderRadius ?? 0) as number;
+  const borderColor = (props.borderColor as string) || "transparent";
+  const borderWidth = (props.borderWidth ?? 0) as number;
+
+  return (
+    <div
+      className="tabs-component w-full flex flex-col"
+      style={{
+        backgroundColor: (props.background as string) || "transparent",
+        borderRadius: `${br}px`,
+        borderWidth: `${borderWidth}px`,
+        borderColor,
+        borderStyle: (props.borderStyle as string) || "solid",
+        width: (props.width as string) || "100%",
+        height: (props.height as string) || "auto",
+        overflow: "hidden",
+        boxSizing: "border-box",
+      }}
+    >
+      <div
+        className="tabs-header flex flex-row w-full overflow-x-auto border-b no-scrollbar"
+        style={{
+          borderColor: borderColor !== "transparent" ? borderColor : "#e5e7eb",
+          justifyContent: props.tabAlignment === "center" ? "center" : props.tabAlignment === "right" ? "flex-end" : "flex-start"
+        }}
+      >
+        {tabs.map((tab) => {
+          const isActive = tab.id === activeTabId;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTabId(tab.id)}
+              className="px-6 py-4 font-semibold text-sm transition-all duration-300 border-b-2 whitespace-nowrap hover:bg-black/5 active:scale-95 translate-gpu"
+              style={{
+                backgroundColor: isActive
+                  ? props.activeTabBackgroundColor
+                  : props.tabHeaderBackgroundColor,
+                color: isActive ? props.activeTabTextColor : props.tabHeaderTextColor,
+                borderBottomColor: isActive
+                  ? (props.activeTabTextColor as string) || "#3b82f6"
+                  : "transparent",
+                transform: isActive ? "scale(1.02)" : "scale(1)",
+                zIndex: isActive ? 1 : 0,
+                borderTop: "none",
+                borderLeft: "none",
+                borderRight: "none",
+                padding: "16px 24px",
+                cursor: "pointer",
+              }}
+            >
+              {tab.title}
+            </button>
+          );
+        })}
+      </div>
+      <div className="tabs-content relative w-full flex-grow min-h-[100px] overflow-hidden">
+        {tabs.map((tab) => {
+          const isActive = tab.id === activeTabId;
+          return (
+            <div
+              key={tab.id}
+              className={`w-full h-full transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${isActive ? "opacity-100 translate-y-0 relative" : "opacity-0 -translate-y-2 absolute inset-0 pointer-events-none"}`}
+            >
+              <div className="w-full h-full min-h-[100px] p-6 flex flex-col text-sm whitespace-pre-wrap text-gray-800 leading-relaxed">
+                {tab.content}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function RenderNode({
   node,
   nodes,
@@ -2365,6 +2446,9 @@ function RenderNode({
         </div>
       );
     }
+
+    case "Tabs":
+      return wrap(<PreviewTabs props={props} />);
 
     default:
       return <div data-unknown-type={type}>{children}</div>;
