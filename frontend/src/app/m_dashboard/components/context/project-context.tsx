@@ -40,11 +40,14 @@ export function ProjectProvider({ children }: ProviderProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProjectId, setSelectedProjectIdState] = useState<string | null>(null);
+  const [selectionHydrated, setSelectionHydrated] = useState(false);
   const storageKey = user?.id ? `md_selected_instance_${user.id}` : null;
 
   useEffect(() => {
+    setSelectionHydrated(false);
     if (!storageKey) {
       setSelectedProjectIdState(null);
+      setSelectionHydrated(true);
       return;
     }
     try {
@@ -52,6 +55,8 @@ export function ProjectProvider({ children }: ProviderProps) {
       setSelectedProjectIdState(saved || null);
     } catch {
       setSelectedProjectIdState(null);
+    } finally {
+      setSelectionHydrated(true);
     }
   }, [storageKey]);
 
@@ -62,15 +67,12 @@ export function ProjectProvider({ children }: ProviderProps) {
       if (res?.success && Array.isArray(res.projects)) {
         setProjects(res.projects);
 
-        // Ensure we always have a valid selected project when projects exist
-        if (res.projects.length === 0) {
-          setSelectedProjectIdState(null);
-        } else if (
-          !selectedProjectId ||
-          !res.projects.find((p) => p.id === selectedProjectId)
-        ) {
-          setSelectedProjectIdState(res.projects[0].id);
-        }
+        // Keep last selected project when still available, otherwise fall back once.
+        setSelectedProjectIdState((prev) => {
+          if (res.projects.length === 0) return null;
+          if (prev && res.projects.some((p) => p.id === prev)) return prev;
+          return res.projects[0].id;
+        });
       } else {
         setProjects([]);
         setSelectedProjectIdState(null);
@@ -91,11 +93,12 @@ export function ProjectProvider({ children }: ProviderProps) {
     } finally {
       setLoading(false);
     }
-  }, [selectedProjectId, storageKey]);
+  }, [storageKey]);
 
   useEffect(() => {
+    if (!selectionHydrated) return;
     void fetchProjects();
-  }, [fetchProjects]);
+  }, [fetchProjects, selectionHydrated]);
 
   useEffect(() => {
     setActiveProjectId(selectedProjectId);
