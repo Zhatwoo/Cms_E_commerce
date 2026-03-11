@@ -386,7 +386,7 @@ export default function InventoryPage() {
       normalizedSubcategory.includes(q);
     const matchesCategory = normalizedCategoryFilter === 'all' || normalizedSubcategory === normalizedCategoryFilter;
     return matchesSearch && matchesCategory;
-  }), [tableRows, search, categoryFilter]);
+  }), [items, search, categoryFilter]);
 
   const openStockModal = useCallback((product: InventoryRow, movementType: StockAdjustmentType) => {
     const baseId = product._baseProductId || product.id;
