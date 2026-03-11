@@ -682,26 +682,33 @@ export default function ProductsPage() {
     };
   }, [loadProducts, showAddModal, editingProduct, viewingProduct]);
 
-  const categoryOptions = Array.from(
-    new Set(
-      products
-        .map((product) => String(product.category || '').trim())
-        .filter((value) => value.length > 0)
-    )
-  ).sort();
+  const categoryCounts = products.reduce<Record<string, number>>((acc, product) => {
+    const category = String(product.category || '').trim();
+    if (!category) return acc;
+    acc[category] = (acc[category] || 0) + 1;
+    return acc;
+  }, {});
 
-  const subcategoryOptions = Array.from(
-    new Set(
-      products
-        .map((product) => String(product.subcategory || '').trim())
-        .filter((value) => value.length > 0)
-    )
-  ).sort();
+  const subcategoryCounts = products.reduce<Record<string, number>>((acc, product) => {
+    const subcategory = String(product.subcategory || '').trim();
+    if (!subcategory) return acc;
+    acc[subcategory] = (acc[subcategory] || 0) + 1;
+    return acc;
+  }, {});
+
+  const categoryOptions = Object.keys(categoryCounts).sort();
+  const subcategoryOptions = Object.keys(subcategoryCounts).sort();
 
   const filterOptions = [
-    { value: 'all', label: 'All' },
-    ...categoryOptions.map((category) => ({ value: `category:${category}`, label: category })),
-    ...subcategoryOptions.map((subcategory) => ({ value: `subcategory:${subcategory}`, label: `Subcategory: ${subcategory}` })),
+    { value: 'all', label: `All (${products.length})` },
+    ...categoryOptions.map((category) => ({
+      value: `category:${category}`,
+      label: `${category} (${categoryCounts[category]})`,
+    })),
+    ...subcategoryOptions.map((subcategory) => ({
+      value: `subcategory:${subcategory}`,
+      label: `Subcategory: ${subcategory} (${subcategoryCounts[subcategory]})`,
+    })),
   ];
 
   const filteredProducts = products.filter(product => {
