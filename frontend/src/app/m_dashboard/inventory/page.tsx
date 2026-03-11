@@ -1,6 +1,7 @@
 'use client';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { createPortal } from 'react-dom';
 import {
   Package,
   AlertTriangle,
@@ -151,7 +152,6 @@ function toDashboardStatus(status?: string): 'active' | 'inactive' | 'draft' {
 
 const RECENT_MOVEMENTS_LIMIT = 5;
 const ALL_MOVEMENTS_LIMIT    = 500;
-const DEFAULT_LOW_STOCK_THRESHOLD = 5;
 
 type VariantGroup = { id: string; name: string; options: Array<{ id: string; name: string }> };
 
@@ -635,10 +635,11 @@ export default function InventoryPage() {
       await loadData();
       if (showAllMovementsModal) await loadAllMovements();
       setStockModal((p) => ({ ...p, open: false, product: null, error: null }));
+      showImportPopup('Stock updated successfully!', 'success');
     } catch (err) {
       setStockModal((p) => ({ ...p, error: err instanceof Error ? err.message : 'Failed to adjust stock' }));
     } finally { setAdjustingId(null); }
-  }, [stockModal, getStockNumbers, loadData, showAllMovementsModal, loadAllMovements]);
+  }, [stockModal, getStockNumbers, loadData, showAllMovementsModal, loadAllMovements, showImportPopup]);
 
   const openDeleteMovementConfirm = useCallback((movement: InventoryMovement) => {
     if (!movement?.id) return;
@@ -978,35 +979,52 @@ export default function InventoryPage() {
     <div style={{ fontFamily: T.font, color: T.text, minHeight: '100%', position: 'relative' }}>
       <input ref={fileInputRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={handleFileChange} />
 
-      {/* ── ENHANCED: corner toast (non-blocking) replaces full-screen overlay ── */}
-      <AnimatePresence>
-        {importPopup.open && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            style={{
-              position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 200,
-              background: importPopup.tone === 'success' ? 'rgba(12,24,16,0.97)' : 'rgba(24,10,12,0.97)',
-              border: `1px solid ${importPopup.tone === 'success' ? T.greenBorder : T.redBorder}`,
-              borderRadius: 14, padding: '13px 17px',
-              maxWidth: 360, display: 'flex', alignItems: 'flex-start', gap: 10,
-              backdropFilter: 'blur(10px)', boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
-            }}
-          >
-            {importPopup.tone === 'success'
-              ? <CheckCircle size={15} color={T.green} style={{ flexShrink: 0, marginTop: 1 }} />
-              : <AlertTriangle size={15} color={T.red} style={{ flexShrink: 0, marginTop: 1 }} />}
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: importPopup.tone === 'success' ? T.green : T.red, marginBottom: 3 }}>
-                {importPopup.tone === 'success' ? 'Success' : 'Action Failed'}
-              </div>
-              <div style={{ fontSize: 12, color: T.textSub, lineHeight: 1.5 }}>{importPopup.message}</div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Centered success/error popup */}
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {importPopup.open && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              style={{
+                position: 'fixed', inset: 0, zIndex: 2147483000,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+                background: 'rgba(10, 8, 28, 0.6)',
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+              }}
+            >
+              <motion.div
+                initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 280, damping: 26 }}
+                style={{
+                  width: '100%',
+                  maxWidth: 250,
+                  borderRadius: 14,
+                  border: `1px solid ${importPopup.tone === 'success' ? 'rgba(74,222,128,0.25)' : 'rgba(239,68,68,0.35)'}`,
+                  padding: '12px 16px',
+                  background: '#181a59',
+                  boxShadow: '0 10px 28px rgba(0,0,0,0.5)',
+                }}
+              >
+                <p style={{ color: '#ffffff', fontSize: 'clamp(12px, 1.4vw, 16px)', fontWeight: 700, letterSpacing: -0.1, lineHeight: 1.25, textAlign: 'center', margin: 0 }}>
+                  {importPopup.message}
+                </p>
+                <div style={{ marginTop: 8, display: 'flex', justifyContent: 'center' }}>
+                  {importPopup.tone === 'success'
+                    ? <CheckCircle size={24} color={T.green} />
+                    : <AlertTriangle size={24} color={T.red} />}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
 
       <div style={{ maxWidth: 1090, margin: '0 auto', padding: '36px 22px 30px', position: 'relative', zIndex: 1 }}>
 

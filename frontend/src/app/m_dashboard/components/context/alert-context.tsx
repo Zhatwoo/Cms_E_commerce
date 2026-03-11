@@ -41,8 +41,12 @@ function AlertModalBackdrop({
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-      style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+      className="fixed inset-0 z-[2147483000] flex items-center justify-center p-4"
+      style={{
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+      }}
       onClick={onClose}
     >
       <motion.div
@@ -77,6 +81,13 @@ function AlertModalBackdrop({
           className="px-6 py-4 flex justify-end gap-3 border-t"
           style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}
         >
+          <button
+            type="button"
+            onClick={state.variant === 'confirm' ? onConfirm : onClose}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-500 transition-colors hover:opacity-90"
+          >
+            {state.variant === 'confirm' ? 'Yes' : 'OK'}
+          </button>
           {state.variant === 'confirm' && (
             <button
               type="button"
@@ -84,16 +95,9 @@ function AlertModalBackdrop({
               className="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:opacity-80"
               style={{ color: colors.text.primary }}
             >
-              Cancel
+              No
             </button>
           )}
-          <button
-            type="button"
-            onClick={state.variant === 'confirm' ? onConfirm : onClose}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-500 transition-colors hover:opacity-90"
-          >
-            OK
-          </button>
         </div>
       </motion.div>
     </div>
