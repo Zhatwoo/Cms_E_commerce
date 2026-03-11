@@ -572,7 +572,7 @@ function normalizeSubdomain(value?: string | null): string {
 export default function ProductsPage() {
   const { colors, theme } = useTheme();
   const { showConfirm, showAlert } = useAlert();
-  const { selectedProject } = useProject();
+  const { selectedProject, loading: projectLoading } = useProject();
   const selectedSubdomain = normalizeSubdomain(selectedProject?.subdomain);
   const blockedAddProductMessage = !selectedSubdomain
     ? 'Set a subdomain for this website first to manage products.'
@@ -632,30 +632,34 @@ export default function ProductsPage() {
   }, [showStatusFilterMenu]);
 
   const loadProducts = useCallback(async () => {
-    setLoadingProducts(true);
-    if (!canAddProducts) {
-      setProducts([]);
-      setLoadingProducts(false);
-      return;
-    }
-    try {
-      const res = await listProducts({
-        subdomain: selectedSubdomain,
-        page: 1,
-        limit: 500,
-      });
-      if (res?.success && Array.isArray(res.items)) {
-        setProducts(res.items.map(toDashboardProduct));
-      } else {
-        setProducts([]);
+      if (projectLoading) {
+        setLoadingProducts(true);
+        return;
       }
-    } catch (error) {
-      setProducts([]);
-      showAlert(error instanceof Error ? error.message : 'Failed to load products', 'error');
-    } finally {
-      setLoadingProducts(false);
-    }
-  }, [canAddProducts, selectedSubdomain, showAlert]);
+      setLoadingProducts(true);
+      if (!canAddProducts) {
+        setProducts([]);
+        setLoadingProducts(false);
+        return;
+      }
+      try {
+        const res = await listProducts({
+          subdomain: selectedSubdomain,
+          page: 1,
+          limit: 500,
+        });
+        if (res?.success && Array.isArray(res.items)) {
+          setProducts(res.items.map(toDashboardProduct));
+        } else {
+          setProducts([]);
+        }
+      } catch (error) {
+        setProducts([]);
+        showAlert(error instanceof Error ? error.message : 'Failed to load products', 'error');
+      } finally {
+        setLoadingProducts(false);
+      }
+    }, [projectLoading, canAddProducts, selectedSubdomain, showAlert]);
 
   useEffect(() => {
     void loadProducts();
@@ -682,26 +686,33 @@ export default function ProductsPage() {
     };
   }, [loadProducts, showAddModal, editingProduct, viewingProduct]);
 
-  const categoryOptions = Array.from(
-    new Set(
-      products
-        .map((product) => String(product.category || '').trim())
-        .filter((value) => value.length > 0)
-    )
-  ).sort();
+  const categoryCounts = products.reduce<Record<string, number>>((acc, product) => {
+    const category = String(product.category || '').trim();
+    if (!category) return acc;
+    acc[category] = (acc[category] || 0) + 1;
+    return acc;
+  }, {});
 
-  const subcategoryOptions = Array.from(
-    new Set(
-      products
-        .map((product) => String(product.subcategory || '').trim())
-        .filter((value) => value.length > 0)
-    )
-  ).sort();
+  const subcategoryCounts = products.reduce<Record<string, number>>((acc, product) => {
+    const subcategory = String(product.subcategory || '').trim();
+    if (!subcategory) return acc;
+    acc[subcategory] = (acc[subcategory] || 0) + 1;
+    return acc;
+  }, {});
+
+  const categoryOptions = Object.keys(categoryCounts).sort();
+  const subcategoryOptions = Object.keys(subcategoryCounts).sort();
 
   const filterOptions = [
-    { value: 'all', label: 'All' },
-    ...categoryOptions.map((category) => ({ value: `category:${category}`, label: category })),
-    ...subcategoryOptions.map((subcategory) => ({ value: `subcategory:${subcategory}`, label: `Subcategory: ${subcategory}` })),
+    { value: 'all', label: `All (${products.length})` },
+    ...categoryOptions.map((category) => ({
+      value: `category:${category}`,
+      label: `${category} (${categoryCounts[category]})`,
+    })),
+    ...subcategoryOptions.map((subcategory) => ({
+      value: `subcategory:${subcategory}`,
+      label: `Subcategory: ${subcategory} (${subcategoryCounts[subcategory]})`,
+    })),
   ];
 
   const filteredProducts = products.filter(product => {
