@@ -11,6 +11,7 @@ import { Column } from "./Column/Column";
 import { Icon } from "./Icon/Icon";
 import { Frame } from "./Frame/Frame";
 import { Tabs } from "./Tabs/Tabs";
+import { Banner } from "./Banner/banner";
 
 export const RenderBlocks: Record<string, any> = {
   Container,
@@ -38,4 +39,6 @@ export const RenderBlocks: Record<string, any> = {
   frame: Frame,
   Tabs,
   tabs: Tabs,
+  Banner,
+  banner: Banner,
 };

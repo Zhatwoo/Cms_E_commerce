@@ -16,6 +16,7 @@ import { Row } from "../../_designComponents/Row/Row";
 import { Column } from "../../_designComponents/Column/Column";
 import { Frame } from "../../_designComponents/Frame/Frame";
 import { Tabs } from "../../_designComponents/Tabs/Tabs";
+import { Banner } from "../../_designComponents/Banner/banner";
 import { CRAFT_RESOLVER } from "../craftResolver";
 import { ImportedBlock } from "../../_designComponents/ImportedBlock/ImportedBlock";
 
@@ -61,6 +62,7 @@ export const ComponentsPanel = () => {
     Container,
     Row,
     Column,
+    Banner,
     Frame,
     pageComponent,
   ]);
@@ -91,6 +93,19 @@ export const ComponentsPanel = () => {
             { name: "Section", icon: <Box className="w-4 h-4" />, variants: [{ label: "Section", preview: "━━ Section ━━", element: <Element is={Section} canvas /> }] },
             { name: "Container", icon: <Layers className="w-4 h-4" />, variants: [{ label: "Container", preview: "Container Preview", element: <Element is={Container} padding={20} canvas /> }] },
             { name: "Row", icon: <Minus className="w-4 h-4" />, variants: [{ label: "Row", preview: "[ ═ ║ ═ ║ ═ ]", element: <Element is={Row} canvas /> }] },
+            {
+              name: "Banner",
+              icon: <AlertCircle className="w-4 h-4" />,
+              variants: [{
+                label: "Banner",
+                preview: "FLASH SALE: Up to 70% off",
+                element: (
+                  <Element is={Banner} canvas background="#ef4444" height="42px" alignItems="center" justifyContent="center" padding={8}>
+                    <Text text="FLASH SALE: Up to 70% off · Use code SAVE70" fontSize={13} fontWeight="700" color="#ffffff" position="relative" />
+                  </Element>
+                )
+              }]
+            },
             { name: "Column", icon: <Columns className="w-4 h-4" />, variants: [{ label: "Column", preview: "║ Column ║", element: <Element is={Column} canvas /> }] },
             { name: "Grid", icon: <Grid className="w-4 h-4" />, variants: [{ label: "Grid", preview: "Grid Support", element: undefined }] },
             { name: "Spacer", icon: <Maximize className="w-4 h-4" />, variants: [{ label: "Spacer", preview: "Spacing Control", element: undefined }] },
@@ -233,6 +248,17 @@ export const ComponentsPanel = () => {
     { label: "Section", preview: "Section", element: <Element is={Section} canvas />, icon: <Box className="w-5 h-5" />, color: "bg-blue-500/10" },
     { label: "Container", preview: "Container", element: <Element is={Container} padding={20} canvas />, icon: <Layers className="w-5 h-5" />, color: "bg-purple-500/10" },
     { label: "Row", preview: "Row", element: <Element is={Row} canvas />, icon: <Minus className="w-5 h-5" />, color: "bg-orange-500/10" },
+    {
+      label: "Banner",
+      preview: "Banner",
+      element: (
+        <Element is={Banner} canvas background="#ef4444" height="42px" alignItems="center" justifyContent="center" padding={8}>
+          <Text text="FLASH SALE: Up to 70% off · Use code SAVE70" fontSize={13} fontWeight="700" color="#ffffff" position="relative" />
+        </Element>
+      ),
+      icon: <AlertCircle className="w-5 h-5" />,
+      color: "bg-rose-500/10",
+    },
     { label: "Column", preview: "Column", element: <Element is={Column} canvas />, icon: <Columns className="w-5 h-5" />, color: "bg-emerald-500/10" },
     {
       label: "Text",
