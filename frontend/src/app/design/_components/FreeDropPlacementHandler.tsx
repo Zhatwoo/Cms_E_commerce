@@ -17,7 +17,7 @@ type DropPoint = {
   clientY: number;
 };
 
-type DragSourceKind = "asset" | "component" | null;
+type DragSourceKind = "asset" | "component" | "imported" | null;
 
 const MAX_RETRY_FRAMES = 24;
 const LAYOUT_LIKE_TYPES = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame"]);
@@ -51,7 +51,7 @@ function isSupportedSource(target: EventTarget | null): boolean {
   const el = target instanceof Element ? target : null;
   if (!el) return false;
 
-  const source = el.closest("[data-drag-source='component'], [data-drag-source='asset']") as HTMLElement | null;
+  const source = el.closest("[data-drag-source='component'], [data-drag-source='asset'], [data-drag-source='imported']") as HTMLElement | null;
   if (!source) return false;
 
   if (source.getAttribute("data-component-new-page") === "true") return false;
@@ -61,11 +61,11 @@ function isSupportedSource(target: EventTarget | null): boolean {
 function getSourceKind(target: EventTarget | null): DragSourceKind {
   const el = target instanceof Element ? target : null;
   if (!el) return null;
-  const source = el.closest("[data-drag-source='component'], [data-drag-source='asset']") as HTMLElement | null;
+  const source = el.closest("[data-drag-source='component'], [data-drag-source='asset'], [data-drag-source='imported']") as HTMLElement | null;
   if (!source) return null;
   if (source.getAttribute("data-component-new-page") === "true") return null;
   const kind = source.getAttribute("data-drag-source");
-  return kind === "asset" || kind === "component" ? kind : null;
+  return kind === "asset" || kind === "component" || kind === "imported" ? kind : null;
 }
 
 function snapToGrid(value: number): number {
@@ -106,6 +106,7 @@ export function FreeDropPlacementHandler() {
       // Preserve template/asset internal layout exactly as-authored.
       // Asset drops can include nested Row/Column/Section structures that should not
       // be reordered or normalized by the generic free-drop placement logic.
+      // Imported blocks are single elements, treat like component.
       if (dragSourceKindRef.current === "asset") {
         if (newIds.length > 0 || attempt >= MAX_RETRY_FRAMES) {
           stopTracking();

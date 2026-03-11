@@ -192,6 +192,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       const fromPanelDrag =
         !!elementTarget?.closest("[data-drag-source='asset']") ||
         !!elementTarget?.closest("[data-drag-source='component']") ||
+        !!elementTarget?.closest("[data-drag-source='imported']") ||
         !!document.body.dataset.assetDragCategory ||
         !!document.body.dataset.assetDragLabel;
 

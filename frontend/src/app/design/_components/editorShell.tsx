@@ -32,6 +32,7 @@ import { DoubleClickTransformHandler } from "./DoubleClickTransformHandler";
 import { CanvasContextMenu } from "./CanvasContextMenu";
 import { CanvasDropGuide } from "./CanvasDropGuide";
 import { PrototypeTabProvider } from "./PrototypeTabContext";
+import { ImportedComponentsProvider } from "../_context/ImportedComponentsContext";
 import { PrototypeFlowLines } from "./PrototypeFlowLines";
 import { NewPageDropPlacementHandler } from "./NewPageDropPlacementHandler";
 import { HeaderFooterDropPlacementHandler } from "./HeaderFooterDropPlacementHandler";
@@ -2315,6 +2316,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
       >
         <QueryStasher onQuery={(q) => { editorQueryRef.current = q; }} />
         <CollabSyncHandler />
+        <ImportedComponentsProvider>
         <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
           <CanvasToolProvider value={activeTool} onToolChange={handleToolChange}>
             <TransformModeProvider>
@@ -2516,6 +2518,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
             </TransformModeProvider>
           </CanvasToolProvider>
         </PrototypeTabProvider>
+        </ImportedComponentsProvider>
       </Editor>
     </div>
   );
