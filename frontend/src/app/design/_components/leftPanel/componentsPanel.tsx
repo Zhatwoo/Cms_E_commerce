@@ -18,7 +18,7 @@ import { Section } from "../../_designComponents/Section/Section";
 import { Row } from "../../_designComponents/Row/Row";
 import { Column } from "../../_designComponents/Column/Column";
 import { Tabs } from "../../_designComponents/Tabs/Tabs";
-import { Accordion } from "../../_designComponents/Accordion/Accordion";
+import { Banner } from "../../_designComponents/Banner/banner";
 import { CRAFT_RESOLVER } from "../craftResolver";
 import { ImportedBlock } from "../../_designComponents/ImportedBlock/ImportedBlock";
 import { Spacer } from "../../_designComponents/Spacer/Spacer";
@@ -50,6 +50,7 @@ export const ComponentsPanel = () => {
     Container,
     Row,
     Column,
+    Banner,
     Spacer,
     pageComponent,
   ]);
@@ -72,6 +73,17 @@ export const ComponentsPanel = () => {
     { label: "Section", preview: "Section", element: <Element is={Section} canvas />, icon: <Box className="w-5 h-5" />, color: "bg-blue-500/10" },
     { label: "Container", preview: "Container", element: <Element is={Container} padding={20} canvas />, icon: <Layers className="w-5 h-5" />, color: "bg-purple-500/10" },
     { label: "Row", preview: "Row", element: <Element is={Row} canvas />, icon: <Minus className="w-5 h-5" />, color: "bg-orange-500/10" },
+    {
+      label: "Banner",
+      preview: "Banner",
+      element: (
+        <Element is={Banner} canvas background="#ef4444" height="42px" alignItems="center" justifyContent="center" padding={8}>
+          <Text text="FLASH SALE: Up to 70% off · Use code SAVE70" fontSize={13} fontWeight="700" color="#ffffff" position="relative" />
+        </Element>
+      ),
+      icon: <AlertCircle className="w-5 h-5" />,
+      color: "bg-rose-500/10",
+    },
     { label: "Column", preview: "Column", element: <Element is={Column} canvas />, icon: <Columns className="w-5 h-5" />, color: "bg-emerald-500/10" },
     {
       label: "Text",
