@@ -348,9 +348,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
             >
               {selfInitial}
               {/* Online indicator */}
-              {connected && (
-                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-1 ring-brand-dark" />
-              )}
+              {/* Online indicator removed as per user request */}
             </button>
 
             {/* Remote collaborators (max 3 visible) */}
@@ -415,7 +413,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
                   >
                     <div className="relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ background: myColor }}>
                       {selfInitial}
-                      {connected && <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[#1a1a2e]" />}
+                      {/* Online indicator removed */}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-white truncate">
@@ -442,7 +440,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
                     >
                       <div className="relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ background: collab.color }}>
                         {(collab.displayName || "?").charAt(0).toUpperCase()}
-                        <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[#1a1a2e]" />
+                        {/* Online indicator removed */}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-white truncate">{collab.displayName}</p>
@@ -497,23 +495,21 @@ export const TopPanel: React.FC<TopPanelProps> = ({
             <DesignTooltip content="Breakpoints" position="bottom">
               <button
                 onClick={() => setShowSizeDropdown((prev) => !prev)}
-                className={`flex items-center gap-2 p-2 rounded-lg transition-colors border ${
-                  showSizeDropdown 
-                    ? "bg-blue-500/20 border-blue-500/50 text-blue-400" 
+                className={`flex items-center gap-2 p-2 rounded-lg transition-colors border ${showSizeDropdown
+                    ? "bg-blue-500/20 border-blue-500/50 text-blue-400"
                     : "bg-brand-medium-dark hover:bg-brand-medium border-white/10 text-brand-lighter"
-                }`}
+                  }`}
               >
                 <MonitorSmartphone className="w-4 h-4" />
                 <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showSizeDropdown ? "rotate-180" : "opacity-50"}`} />
               </button>
             </DesignTooltip>
 
-            <div 
-              className={`absolute top-full right-0 mt-2 w-48 bg-brand-dark/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl py-1 z-[100] transition-all duration-200 ${
-                showSizeDropdown 
-                  ? "opacity-100 translate-y-0 pointer-events-auto" 
+            <div
+              className={`absolute top-full right-0 mt-2 w-48 bg-brand-dark/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl py-1 z-[100] transition-all duration-200 ${showSizeDropdown
+                  ? "opacity-100 translate-y-0 pointer-events-auto"
                   : "opacity-0 translate-y-2 pointer-events-none"
-              }`}
+                }`}
             >
               <div className="px-3 py-2 border-b border-white/5 bg-white/5">
                 <span className="text-[10px] uppercase tracking-widest font-black text-white/40">Breakpoints</span>
