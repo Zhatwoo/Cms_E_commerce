@@ -43,6 +43,11 @@ export const CommentsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const [isCommentMode, setCommentMode] = useState(false);
     const [loading, setLoading] = useState(true);
 
+    const isBackendUnavailableError = (error: unknown): boolean => {
+        if (!(error instanceof Error)) return false;
+        return error.message.includes("Backend is unreachable");
+    };
+
     const fetchComments = useCallback(async (retries = 3) => {
         if (!projectId) return;
         try {
@@ -55,6 +60,9 @@ export const CommentsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             if (error?.message === "Access denied" && retries > 0) {
                 // Retry after 1 second — backend collab entry may not be ready yet
                 setTimeout(() => fetchComments(retries - 1), 1000);
+            } else if (isBackendUnavailableError(error)) {
+                // Backend may be intentionally offline during frontend-only work.
+                setComments([]);
             } else if (error?.message !== "Access denied") {
                 console.error("[Comments] Fetch failed:", error);
             }
@@ -114,7 +122,9 @@ export const CommentsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 socket?.emit("collab:comment_added", { comment: newComment });
             }
         } catch (error) {
-            console.error("[Comments] Add failed:", error);
+            if (!isBackendUnavailableError(error)) {
+                console.error("[Comments] Add failed:", error);
+            }
         }
     };
 
@@ -131,7 +141,9 @@ export const CommentsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 socket?.emit("collab:comment_resolved", { id, resolved });
             }
         } catch (error: any) {
-            console.error("[Comments] Resolve failed:", error.message || error);
+            if (!isBackendUnavailableError(error)) {
+                console.error("[Comments] Resolve failed:", error.message || error);
+            }
         }
     };
 
@@ -147,7 +159,9 @@ export const CommentsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 socket?.emit("collab:comment_deleted", { id });
             }
         } catch (error: any) {
-            console.error("[Comments] Delete failed:", error.message || error);
+            if (!isBackendUnavailableError(error)) {
+                console.error("[Comments] Delete failed:", error.message || error);
+            }
         }
     };
 
