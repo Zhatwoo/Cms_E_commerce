@@ -1139,8 +1139,8 @@ export default function InventoryPage() {
               style={{
                 height: 46, borderRadius: 12,
                 padding: '0 14px',
-                border: `1px solid ${T.cardBorder}`, color: '#d9cbff',
-                background: T.card, display: 'inline-flex',
+                border: '1px solid #3b82f6', color: '#ffffff',
+                background: '#2563eb', display: 'inline-flex',
                 alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
                 fontSize: 13, fontWeight: 700,
               }}
