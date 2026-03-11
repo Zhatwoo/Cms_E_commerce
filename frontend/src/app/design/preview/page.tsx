@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState, Suspense } from "react";
-import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload, Monitor, Tablet, Smartphone, Lock, X } from "lucide-react";
+import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload, Monitor, Tablet, Smartphone, Lock, X, RotateCw } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { deserializeCleanToCraft } from "../_lib/serializer";
 import { parseContentToCleanDoc } from "../_lib/contentParser";
@@ -89,6 +89,28 @@ function PreviewContent() {
     }
   };
 
+  const handleRefresh = React.useCallback(async () => {
+    const sessionSnapshot = readSessionSnapshot(projectId);
+    if (sessionSnapshot) {
+      setRawJson(sessionSnapshot);
+      console.log("Preview: Refreshed from sessionStorage (latest from editor)");
+      return;
+    }
+    setLoading(true);
+    try {
+      const result = await getDraft(projectId);
+      if (result.success && result.data?.content) {
+        const content = result.data.content;
+        setRawJson(typeof content === "object" ? JSON.stringify(content) : content);
+        console.log("Preview: Refreshed from API");
+      }
+    } catch (e) {
+      console.error("Preview refresh error:", e);
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -169,6 +191,18 @@ function PreviewContent() {
     return () => {
       cancelled = true;
     };
+  }, [projectId]);
+
+  // Re-read sessionStorage when tab becomes visible (user switched back from Editor)
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        const sessionSnapshot = readSessionSnapshot(projectId);
+        if (sessionSnapshot) setRawJson(sessionSnapshot);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [projectId]);
 
   useEffect(() => {
@@ -587,6 +621,15 @@ function PreviewContent() {
             >
               <ArrowLeft size={16} />
               Back to Editor
+            </button>
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              title="Reload latest from editor or database"
+              className="flex items-center gap-2 text-sm text-brand-light hover:text-brand-lighter transition-colors disabled:opacity-50"
+            >
+              <RotateCw size={16} className={loading ? "animate-spin" : ""} />
+              Refresh
             </button>
             <div className="w-px h-5 bg-white/10" />
             <h1 className="text-lg font-semibold">Preview</h1>

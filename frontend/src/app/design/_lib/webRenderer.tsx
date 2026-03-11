@@ -1402,6 +1402,7 @@ function RenderNode({
     circle: "Circle",
     square: "Square",
     triangle: "Triangle",
+    importedblock: "ImportedBlock",
   };
   const type = (normalizedTypeMap[rawType.toLowerCase()] ?? rawType) as ComponentType;
   const props = mergeProps(type, node.props) as Record<string, unknown>;
@@ -2242,6 +2243,52 @@ function RenderNode({
             opacity={toNumber(props.opacity, 1)}
             link={props.link as string}
           />
+        </div>
+      );
+    }
+
+    case "ImportedBlock": {
+      const blockCss = (props.blockCss as string) ?? "";
+      const blockHtml = (props.blockHtml as string) ?? "<div>Empty</div>";
+      const scopeId = `imported-prev-${(nodeId ?? "").replace(/[^a-z0-9]/gi, "")}`;
+      const scopedCss = blockCss
+        ? blockCss.replace(/([^{}]+)\{/g, (_: string, sel: string) => {
+            const s = sel.trim();
+            if (s.startsWith("@keyframes") || s.startsWith("@media") || s.startsWith("@")) return `${s} {`;
+            return `.${scopeId} ${s} {`;
+          })
+        : "";
+      const m = toNumber(props.margin, 0);
+      const p = toNumber(props.padding, 0);
+      return wrap(
+        <div
+          className={`${scopeId} imported-block-preview ${((props.customClassName as string) || "").trim() || ""}`.trim() || undefined}
+          style={{
+            display: "inline-block",
+            minWidth: 1,
+            minHeight: 1,
+            position: (props.position as React.CSSProperties["position"]) ?? "relative",
+            top: props.top as string | undefined,
+            left: props.left as string | undefined,
+            right: props.right as string | undefined,
+            bottom: props.bottom as string | undefined,
+            margin: toNumber(props.margin, 0),
+            marginTop: toNumber(props.marginTop ?? m, 0),
+            marginRight: toNumber(props.marginRight ?? m, 0),
+            marginBottom: toNumber(props.marginBottom ?? m, 0),
+            marginLeft: toNumber(props.marginLeft ?? m, 0),
+            padding: toNumber(props.padding, 0),
+            paddingTop: toNumber(props.paddingTop ?? p, 0),
+            paddingRight: toNumber(props.paddingRight ?? p, 0),
+            paddingBottom: toNumber(props.paddingBottom ?? p, 0),
+            paddingLeft: toNumber(props.paddingLeft ?? p, 0),
+            width: (props.width as string) || undefined,
+            height: (props.height as string) || undefined,
+            opacity: toNumber(props.opacity, 1),
+          }}
+        >
+          {scopedCss && <style dangerouslySetInnerHTML={{ __html: scopedCss }} />}
+          <div dangerouslySetInnerHTML={{ __html: blockHtml }} />
         </div>
       );
     }
