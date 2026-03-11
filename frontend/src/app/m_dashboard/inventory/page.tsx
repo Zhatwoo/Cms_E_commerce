@@ -152,6 +152,85 @@ function toDashboardStatus(status?: string): 'active' | 'inactive' | 'draft' {
 const RECENT_MOVEMENTS_LIMIT = 5;
 const ALL_MOVEMENTS_LIMIT    = 500;
 
+type VariantGroup = { id: string; name: string; options: Array<{ id: string; name: string }> };
+
+function getVariantGroups(product: ApiProduct): VariantGroup[] {
+  return Array.isArray(product.variants)
+    ? product.variants
+        .filter((variant) => Array.isArray(variant.options) && variant.options.length > 0)
+        .map((variant) => ({
+          id: String(variant.id || '').trim(),
+          name: String(variant.name || '').trim() || 'Variant',
+          options: variant.options
+            .map((option) => ({ id: String(option.id || '').trim(), name: String(option.name || '').trim() || 'Option' }))
+            .filter((option) => option.id),
+        }))
+        .filter((variant) => variant.id && variant.options.length > 0)
+    : [];
+}
+
+function formatVariantLabel(product: ApiProduct, stockKey: string, precomputedGroups?: VariantGroup[]): string {
+  const groups = precomputedGroups ?? getVariantGroups(product);
+  if (!stockKey) return '';
+  const labelParts = stockKey
+    .split('__')
+    .map((part) => {
+      const [variantIdRaw, optionIdRaw] = part.split(':');
+      const variantId = String(variantIdRaw || '').trim();
+      const optionId = String(optionIdRaw || '').trim();
+      const variant = groups.find((v) => v.id === variantId);
+      const option = variant?.options.find((o) => o.id === optionId);
+      if (variant && option) return `${variant.name}: ${option.name}`;
+      if (variant) return `${variant.name}: ${optionId || '?'}`;
+      return optionId ? `${variantId}:${optionId}` : variantId;
+    })
+    .filter(Boolean);
+  return labelParts.join(' | ');
+}
+
+function expandInventoryRows(products: ApiProduct[]): InventoryRow[] {
+  const rows: InventoryRow[] = [];
+
+  products.forEach((product) => {
+    const baseId = product.id;
+    const variantEntries =
+      product.hasVariants && product.variantStocks && typeof product.variantStocks === 'object'
+        ? Object.entries(product.variantStocks)
+        : [];
+
+    // If no variant stocks, fall back to single base row
+    if (variantEntries.length === 0) {
+      rows.push({ ...product, _baseProductId: baseId });
+      return;
+    }
+
+    const groups = getVariantGroups(product);
+    const lowThresholdCandidate = Number(product.lowStockThreshold);
+    const lowThreshold = Number.isFinite(lowThresholdCandidate) && lowThresholdCandidate >= 0
+      ? lowThresholdCandidate
+      : DEFAULT_LOW_STOCK_THRESHOLD;
+
+    variantEntries.forEach(([variantKey, value]) => {
+      const stockValue = Number(value);
+      const onHandStock = Number.isFinite(stockValue) && stockValue >= 0 ? stockValue : 0;
+      rows.push({
+        ...product,
+        id: `${baseId}__${variantKey}`,
+        _baseProductId: baseId,
+        _variantKey: variantKey,
+        _variantLabel: formatVariantLabel(product, variantKey, groups) || variantKey,
+        stock: onHandStock,
+        onHandStock,
+        reservedStock: 0,
+        availableStock: onHandStock,
+        lowStockThreshold: lowThreshold,
+      });
+    });
+  });
+
+  return rows;
+}
+
 // ─── Subdomain normalization ──────────────────────────────────────────────────
 function normalizeSubdomain(value?: string | null): string {
   return (value || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
@@ -491,19 +570,22 @@ export default function InventoryPage() {
     return Array.from(uniq).sort((a, b) => a.localeCompare(b));
   }, [items, selectedProject?.industry]);
 
-  const filteredItems = useMemo(() => items.filter((p) => {
+  const inventoryRows = useMemo(() => expandInventoryRows(items), [items]);
+
+  const filteredItems = useMemo(() => inventoryRows.filter((p) => {
     const q = normalizeFilterValue(search);
     const subcategory = getProductSubcategory(p);
     const normalizedSubcategory = normalizeFilterValue(subcategory);
     const normalizedCategoryFilter = normalizeFilterValue(categoryFilter);
     const matchesSearch = !q ||
       normalizeFilterValue(String(p.name || '')).includes(q) ||
+      normalizeFilterValue(String(p._variantLabel || '')).includes(q) ||
       normalizeFilterValue(String(p.sku || '')).includes(q) ||
       normalizeFilterValue(String(p.category || '')).includes(q) ||
       normalizedSubcategory.includes(q);
     const matchesCategory = normalizedCategoryFilter === 'all' || normalizedSubcategory === normalizedCategoryFilter;
     return matchesSearch && matchesCategory;
-  }), [items, search, categoryFilter]);
+  }), [inventoryRows, search, categoryFilter]);
 
   const openStockModal = useCallback((product: InventoryRow, movementType: StockAdjustmentType) => {
     const baseId = product._baseProductId || product.id;
