@@ -3,7 +3,7 @@
 import React from "react";
 import { useComments, Comment } from "../_context/CommentsContext";
 import { Check, Trash2 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "date-fns/formatDistanceToNow";
 
 export const CommentPins: React.FC = () => {
     const { comments, activeCommentId, setActiveCommentId, resolveComment, deleteComment } = useComments();
