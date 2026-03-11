@@ -17,6 +17,7 @@ import { Tabs } from "../_designComponents/Tabs/Tabs";
 import { Circle } from "../../_assets/shapes/circle/circle";
 import { Square } from "../../_assets/shapes/square/square";
 import { Triangle } from "../../_assets/shapes/triangle/triangle";
+import { ImportedBlock } from "../_designComponents/ImportedBlock/ImportedBlock";
 
 type Resolver = Record<string, React.ComponentType<any>>;
 
@@ -66,6 +67,7 @@ export function buildCraftResolver(): Resolver {
   const CircleComp = asComponent(Circle, ContainerComp);
   const SquareComp = asComponent(Square, ContainerComp);
   const TriangleComp = asComponent(Triangle, ContainerComp);
+  const ImportedBlockComp = asComponent(ImportedBlock, ContainerComp);
   const base: Resolver = {
     Frame: FrameComp,
     frame: FrameComp,
@@ -100,6 +102,8 @@ export function buildCraftResolver(): Resolver {
     circle: CircleComp,
     square: SquareComp,
     triangle: TriangleComp,
+    ImportedBlock: ImportedBlockComp,
+    importedblock: ImportedBlockComp,
   };
   base.Frame = FrameComp;
   base.frame = FrameComp;

@@ -16,7 +16,7 @@ const DROP_TARGET_CANVAS_TYPES = new Set(["Page", "Viewport", "Section", "Contai
 function isPanelSource(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
   if (!el) return false;
-  const source = el.closest("[data-drag-source='asset'], [data-drag-source='component']") as HTMLElement | null;
+  const source = el.closest("[data-drag-source='asset'], [data-drag-source='component'], [data-drag-source='imported']") as HTMLElement | null;
   if (!source) return false;
   if (source.closest("[data-component-new-page='true']")) return false;
   return source.getAttribute("data-component-new-page") !== "true";

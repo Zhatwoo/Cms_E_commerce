@@ -121,6 +121,10 @@ async function createForSubdomain({ subdomain, userId, projectId, domainId, data
   const hasVariants = !!data.hasVariants && variants.length > 0;
   const variantStocks = hasVariants ? sanitizeVariantStocks(data.variantStocks) : {};
 
+  const normalizedSubcategory = String(
+    data.subcategory ?? data.subCategory ?? data.sub_category ?? ''
+  ).trim();
+
   const initialInventory = resolveInventorySnapshot({
     onHandStock: data.onHandStock,
     stock: data.stock,
@@ -132,6 +136,7 @@ async function createForSubdomain({ subdomain, userId, projectId, domainId, data
     name: data.name || '',
     sku: data.sku || '',
     category: data.category || '',
+    subcategory: normalizedSubcategory,
     slug: data.slug || '',
     description: data.description || '',
     price: toNumber(data.price, 0),
@@ -265,6 +270,15 @@ async function updateForUser(id, userId, data) {
   if (data.name !== undefined) updates.name = data.name;
   if (data.sku !== undefined) updates.sku = data.sku;
   if (data.category !== undefined) updates.category = data.category;
+  if (
+    data.subcategory !== undefined ||
+    data.subCategory !== undefined ||
+    data.sub_category !== undefined
+  ) {
+    updates.subcategory = String(
+      data.subcategory ?? data.subCategory ?? data.sub_category ?? ''
+    ).trim();
+  }
   if (data.slug !== undefined) updates.slug = data.slug;
   if (data.description !== undefined) updates.description = data.description;
   if (data.price !== undefined) updates.price = toNumber(data.price, 0);
@@ -431,6 +445,123 @@ async function applyInventoryDeltaForUser({
   };
 }
 
+/**
+ * Adjust stock for a specific variant key while keeping totals in sync.
+ * Falls back to applyInventoryDeltaForUser if variantKey is not provided.
+ */
+async function applyVariantInventoryDeltaForUser({
+  id,
+  userId,
+  variantKey,
+  variantDelta = 0,
+  setVariantStock,
+  lowStockThreshold,
+  allowNegativeOnHand = false,
+}) {
+  if (!variantKey) {
+    // No variant supplied; treat as base product adjustment
+    return applyInventoryDeltaForUser({
+      id,
+      userId,
+      onHandDelta: variantDelta,
+      lowStockThreshold,
+      allowNegativeOnHand,
+    });
+  }
+
+  const existing = await findByIdForUser(id, userId);
+  if (!existing) return null;
+
+  const key = String(variantKey).trim();
+  if (!key) throw new Error('variantKey is required');
+
+  const productRef = db
+    .collection(ROOT_COLLECTION)
+    .doc(existing.subdomain)
+    .collection(PRODUCT_COLLECTION)
+    .doc(existing.id);
+
+  let beforeSnapshot = null;
+  let afterSnapshot = null;
+  let beforeVariantStock = 0;
+  let afterVariantStock = 0;
+
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(productRef);
+    if (!snap.exists) throw new Error('Product not found');
+
+    const raw = docToObject(snap);
+    const current = resolveInventorySnapshot({
+      onHandStock: raw.onHandStock,
+      stock: raw.stock,
+      reservedStock: raw.reservedStock,
+      lowStockThreshold: raw.lowStockThreshold,
+    });
+
+    const variantStocks = sanitizeVariantStocks(raw.variantStocks || {});
+    const currentVariant = toNonNegativeInt(variantStocks[key] ?? 0, 0);
+    beforeVariantStock = currentVariant;
+
+    let nextVariant =
+      setVariantStock !== undefined
+        ? toNonNegativeInt(setVariantStock, currentVariant)
+        : currentVariant + toNumber(variantDelta, 0);
+    if (!allowNegativeOnHand && nextVariant < 0) {
+      throw new Error('Insufficient variant stock');
+    }
+    nextVariant = Math.max(0, nextVariant);
+    variantStocks[key] = nextVariant;
+    afterVariantStock = nextVariant;
+
+    // Recompute totals based on variant stocks
+    const nextOnHand = Object.values(variantStocks).reduce(
+      (sum, value) => sum + toNonNegativeInt(value, 0),
+      0
+    );
+    const nextReserved = clampReservedToOnHand(
+      nextOnHand,
+      toNonNegativeInt(current.reservedStock, 0)
+    );
+    const nextAvailable = computeAvailable(nextOnHand, nextReserved);
+    const nextThreshold =
+      lowStockThreshold !== undefined
+        ? toNonNegativeInt(lowStockThreshold, 0)
+        : current.lowStockThreshold;
+
+    beforeSnapshot = current;
+    afterSnapshot = {
+      onHandStock: nextOnHand,
+      reservedStock: nextReserved,
+      availableStock: nextAvailable,
+      lowStockThreshold: nextThreshold,
+      variantStocks,
+      variantKey: key,
+      beforeVariantStock: currentVariant,
+      afterVariantStock: nextVariant,
+    };
+
+    tx.update(productRef, {
+      variant_stocks: variantStocks,
+      stock: nextOnHand,
+      on_hand_stock: nextOnHand,
+      reserved_stock: nextReserved,
+      available_stock: nextAvailable,
+      low_stock_threshold: nextThreshold,
+      updated_at: new Date(),
+    });
+  });
+
+  const updated = await findByIdForUser(id, userId);
+  return {
+    product: updated,
+    before: beforeSnapshot,
+    after: afterSnapshot,
+    beforeVariantStock,
+    afterVariantStock,
+    variantKey: key,
+  };
+}
+
 async function deleteByIdForUser(id, userId) {
   const existing = await findByIdForUser(id, userId);
   if (!existing) return false;
@@ -467,6 +598,7 @@ module.exports = {
   findBySkuForUser,
   updateForUser,
   applyInventoryDeltaForUser,
+  applyVariantInventoryDeltaForUser,
   deleteByIdForUser,
   findPublicBySubdomain,
   normalizeSubdomain,

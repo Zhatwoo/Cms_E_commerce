@@ -23,7 +23,7 @@ import { FilesPanel } from "./filesPanel";
 import { ComponentsPanel } from "./componentsPanel";
 import { AssetsPanel } from "./assetsPanel";
 import { TemplatePanel } from "./templatePanel";
-import { uploadClientFileWithProgress } from "@/lib/firebaseStorage";
+import { uploadMediaApi } from "@/lib/api";
 
 import { deleteDraft } from "../../_lib/pageApi";
 
@@ -184,6 +184,10 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
   const handleUploadFiles = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
     if (permission === "viewer") return;
+    if (!projectId) {
+      setUploadError("No project selected.");
+      return;
+    }
 
     const files = Array.from(fileList).filter((file) => file.type.startsWith("image/"));
     if (files.length === 0) {
@@ -199,10 +203,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
     try {
       for (let index = 0; index < files.length; index += 1) {
         const file = files[index];
-        const url = await uploadClientFileWithProgress(file, {
-          clientName: clientName ?? undefined,
-          websiteName: websiteName ?? undefined,
-          projectId: projectId ?? undefined,
+        const { url } = await uploadMediaApi(projectId, file, {
           folder: "images",
           onProgress: (percent) => {
             const overall = Math.round(((index + percent / 100) / files.length) * 100);
@@ -462,16 +463,18 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
             <FileStack className="w-4 h-4 shrink-0" />
             <span>Files</span>
           </button>
-          <button
-            type="button"
-            onClick={() => setActivePanel("components")}
-            className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "components"
-              ? "text-brand-lighter bg-brand-medium/50 shadow-sm"
-              : "text-brand-light hover:text-brand-lighter"}`}
-          >
-            <Component className="w-4 h-4 shrink-0" />
-            <span>Components</span>
-          </button>
+          {permission !== "viewer" && (
+            <button
+              type="button"
+              onClick={() => setActivePanel("components")}
+              className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "components"
+                ? "text-brand-lighter bg-brand-medium/50 shadow-sm"
+                : "text-brand-light hover:text-brand-lighter"}`}
+            >
+              <Component className="w-4 h-4 shrink-0" />
+              <span>Components</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setActivePanel("media")}

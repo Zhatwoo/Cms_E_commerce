@@ -16,6 +16,8 @@ import {
     Users,
     ShieldCheck,
     Eye,
+    Globe,
+    Lock,
 } from "lucide-react";
 
 
@@ -25,9 +27,13 @@ interface Collaborator {
     id: string;
     email: string;
     displayName: string;
+    name?: string;
+    avatar?: string | null;
     color: string;
-    permission: Permission;
-    status: "active" | "pending";
+    role: Permission;
+    status: "active" | "pending" | "accepted";
+    projectId?: string;
+    ownerId?: string;
 }
 
 interface Props {
@@ -45,20 +51,28 @@ const PERMISSION_LABELS: Record<Permission, { label: string; icon: React.ReactNo
 
 export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, onClose, myPermission = "editor" }) => {
     const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+    const [owner, setOwner] = useState<Collaborator | null>(null);
     const [email, setEmail] = useState("");
-    const [permission, setPermission] = useState<Permission>("editor");
+    const [role, setRole] = useState<Permission>("editor");
     const [loading, setLoading] = useState(false);
     const [inviteError, setInviteError] = useState<string | null>(null);
     const [inviteSuccess, setInviteSuccess] = useState(false);
     const [copiedLink, setCopiedLink] = useState(false);
     const [permDropdown, setPermDropdown] = useState<string | null>(null);
+    const [generalAccess, setGeneralAccess] = useState<"restricted" | "anyone">("restricted");
+    const [generalAccessRole, setGeneralAccessRole] = useState<"viewer" | "editor">("viewer");
     const [removingCollab, setRemovingCollab] = useState<Collaborator | null>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const loadCollaborators = useCallback(async () => {
         try {
-            const data = await apiFetch<{ success: boolean; collaborators: Collaborator[] }>(`/api/collaboration/${projectId}/collaborators`);
-            if (data.success) setCollaborators(data.collaborators || []);
+            const data = await apiFetch<{ success: boolean; collaborators: Collaborator[]; owner?: Collaborator; generalAccess?: string; generalAccessRole?: string }>(`/api/collaboration/${projectId}/collaborators`);
+            if (data.success) {
+                setCollaborators(data.collaborators || []);
+                if (data.owner) setOwner(data.owner);
+                if (data.generalAccess) setGeneralAccess(data.generalAccess as "restricted" | "anyone");
+                if (data.generalAccessRole) setGeneralAccessRole(data.generalAccessRole as "viewer" | "editor");
+            }
         } catch (err) {
             console.error("Failed to load collaborators:", err);
         }
@@ -89,7 +103,7 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
         try {
             const data = await apiFetch<{ success: boolean; message?: string }>(`/api/collaboration/${projectId}/invite`, {
                 method: "POST",
-                body: JSON.stringify({ email: email.trim(), permission }),
+                body: JSON.stringify({ email: email.trim(), role: role }),
             });
             if (data.success) {
                 setEmail("");
@@ -112,17 +126,53 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
         try {
             const data = await apiFetch<{ success: boolean; message?: string }>(`/api/collaboration/${projectId}/collaborators/${collabId}`, {
                 method: "PATCH",
-                body: JSON.stringify({ permission: perm }),
+                body: JSON.stringify({ role: perm }),
             });
             if (data.success) {
                 setCollaborators(prev =>
-                    prev.map(c => c.id === collabId ? { ...c, permission: perm } : c)
+                    prev.map(c => c.id === collabId ? { ...c, role: perm } : c)
                 );
             } else {
                 setInviteError(data.message || "Failed to update permission");
             }
         } catch (err: any) {
             setInviteError(err.message || "Network error while updating permission");
+        }
+    };
+
+    const handleGeneralAccessChange = async (access: "restricted" | "anyone") => {
+        setPermDropdown(null);
+        setGeneralAccess(access); // optimistic update
+        try {
+            const data = await apiFetch<{ success: boolean; message?: string }>(`/api/projects/${projectId}`, {
+                method: "PATCH",
+                body: JSON.stringify({ general_access: access }),
+            });
+            if (!data.success) {
+                loadCollaborators();
+                setInviteError(data.message || "Failed to update general access.");
+            }
+        } catch (err: any) {
+            loadCollaborators();
+            setInviteError("Network error updating general access.");
+        }
+    };
+
+    const handleGeneralAccessRoleChange = async (role: "viewer" | "editor") => {
+        setPermDropdown(null);
+        setGeneralAccessRole(role); // optimistic update
+        try {
+            const data = await apiFetch<{ success: boolean; message?: string }>(`/api/projects/${projectId}`, {
+                method: "PATCH",
+                body: JSON.stringify({ general_access_role: role }),
+            });
+            if (!data.success) {
+                loadCollaborators();
+                setInviteError(data.message || "Failed to update general access role.");
+            }
+        } catch (err: any) {
+            loadCollaborators();
+            setInviteError("Network error updating general access role.");
         }
     };
 
@@ -182,7 +232,7 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
                         <div>
                             <h2 className="text-white font-semibold text-base leading-tight">Share project</h2>
                             {projectTitle && (
-                                <p className="text-white/40 text-xs mt-0.5 truncate max-w-[240px]">{projectTitle}</p>
+                                <p className="text-white/40 text-xs mt-0.5 truncate max-w-[240px]">{projectTitle || projectId}</p>
                             )}
                         </div>
                     </div>
@@ -224,8 +274,8 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
                                         }}
                                         className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-medium text-white/70 hover:bg-white/10 transition-colors h-full"
                                     >
-                                        {PERMISSION_LABELS[permission].icon}
-                                        <span>{PERMISSION_LABELS[permission].label}</span>
+                                        {PERMISSION_LABELS[role].icon}
+                                        <span>{PERMISSION_LABELS[role].label}</span>
                                         <ChevronDown className="w-3.5 h-3.5 opacity-40" />
                                     </button>
 
@@ -238,10 +288,10 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
                                                     onMouseDown={(e) => {
                                                         e.preventDefault();
                                                         e.stopPropagation();
-                                                        setPermission(p);
+                                                        setRole(p);
                                                         setPermDropdown(null);
                                                     }}
-                                                    className={`w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-white/5 transition-colors ${permission === p ? "text-blue-400" : "text-white/70"}`}
+                                                    className={`w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-white/5 transition-colors ${role === p ? "text-blue-400" : "text-white/70"}`}
                                                 >
                                                     {PERMISSION_LABELS[p].icon}
                                                     {PERMISSION_LABELS[p].label}
@@ -279,123 +329,266 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
                         </div>
                     )}
 
-                    {/* Copy link */}
-                    <div className="flex items-center gap-2 p-3 rounded-xl bg-white/5 border border-white/10">
-                        <Link2 className="w-4 h-4 text-white/40 shrink-0" />
-                        <span className="flex-1 text-xs text-white/40 truncate">
-                            {typeof window !== "undefined" ? `${window.location.origin}/design?projectId=${projectId}` : ""}
-                        </span>
-                        <button
-                            onClick={handleCopyLink}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-                            style={{ background: copiedLink ? "rgba(52,211,153,0.15)" : "rgba(108,143,255,0.15)", color: copiedLink ? "#34d399" : "#6c8fff" }}
-                        >
-                            {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                            {copiedLink ? "Copied!" : "Copy link"}
-                        </button>
-                    </div>
-
-                    {/* Collaborators list */}
-                    {collaborators.length > 0 && (
-                        <div className="space-y-2">
-                            <label className="text-xs font-medium text-white/50 uppercase tracking-wider">
-                                People with access ({collaborators.length})
-                            </label>
-                            <div className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
-                                {collaborators.map((c) => (
-                                    <div
-                                        key={c.id}
-                                        className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 transition-colors group"
-                                    >
-                                        {/* Avatar */}
-                                        <div
-                                            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
-                                            style={{ background: c.color }}
+                    {/* General Access & Copy Link */}
+                    <div className="space-y-3">
+                        <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">
+                            General access
+                        </label>
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+                                {generalAccess === "restricted" ? (
+                                    <Lock className="w-4 h-4 text-white/70" />
+                                ) : (
+                                    <Globe className="w-4 h-4 text-white/70" />
+                                )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                {myPermission === "owner" ? (
+                                    <div className="relative" ref={permDropdown === "generalAccess" ? dropdownRef : null}>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setPermDropdown(permDropdown === "generalAccess" ? null : "generalAccess");
+                                            }}
+                                            className="flex items-center gap-1.5 text-sm font-semibold text-white hover:text-blue-400 transition-colors"
                                         >
-                                            {(c.displayName || c.email || "?").charAt(0).toUpperCase()}
-                                        </div>
+                                            {generalAccess === "restricted" ? "Restricted" : "Anyone with the link"}
+                                            <ChevronDown className="w-3.5 h-3.5 opacity-50" />
+                                        </button>
 
-                                        {/* Info */}
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm text-white/80 font-medium truncate">{c.displayName || c.email}</p>
-                                            <p className="text-xs text-white/30 truncate">{c.email}
-                                                {c.status === "pending" && (
-                                                    <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400 text-[10px]">pending</span>
-                                                )}
-                                            </p>
+                                        {permDropdown === "generalAccess" && (
+                                            <div className="absolute left-0 top-full mt-1 bg-[#1a1a2e] border border-white/10 rounded-xl shadow-2xl z-[110] min-w-[200px] py-1">
+                                                <button
+                                                    onMouseDown={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        handleGeneralAccessChange("restricted");
+                                                    }}
+                                                    className="w-full flex items-center justify-between px-4 py-2 text-xs hover:bg-white/5 transition-colors text-white/90"
+                                                >
+                                                    <span>Restricted</span>
+                                                    {generalAccess === "restricted" && <Check className="w-3.5 h-3.5 text-blue-400" />}
+                                                </button>
+                                                <button
+                                                    onMouseDown={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        handleGeneralAccessChange("anyone");
+                                                    }}
+                                                    className="w-full flex items-center justify-between px-4 py-2 text-xs hover:bg-white/5 transition-colors text-white/90"
+                                                >
+                                                    <span>Anyone with the link</span>
+                                                    {generalAccess === "anyone" && <Check className="w-3.5 h-3.5 text-blue-400" />}
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <div className="text-sm font-semibold text-white">
+                                            {generalAccess === "restricted" ? "Restricted" : "Anyone with the link"}
                                         </div>
+                                    </div>
+                                )}
+                                <div className="flex items-center mt-0.5 gap-2">
+                                    <p className="text-[11px] text-white/40 truncate">
+                                        {generalAccess === "restricted"
+                                            ? "Only people with access can open with the link"
+                                            : "Anyone on the internet with the link can"}
+                                    </p>
 
-                                        {/* Permission Actions (Owners only) */}
-                                        <div className="relative" ref={permDropdown === c.id ? dropdownRef : null}>
-                                            {myPermission === "owner" ? (
-                                                <>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setPermDropdown(permDropdown === c.id ? null : c.id);
-                                                        }}
-                                                        className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-xs text-white/50"
-                                                    >
-                                                        {PERMISSION_LABELS[c.permission]?.icon}
-                                                        <ChevronDown className="w-3 h-3" />
-                                                    </button>
-                                                    {permDropdown === c.id && (
-                                                        <div className="absolute right-0 top-full mt-1 bg-[#1a1a2e] border border-white/10 rounded-xl shadow-2xl z-[110] min-w-[130px] py-1">
-                                                            {(["editor", "viewer"] as Permission[]).map(p => (
-                                                                <button
-                                                                    key={p}
-                                                                    onMouseDown={(e) => {
-                                                                        e.preventDefault();
-                                                                        e.stopPropagation();
-                                                                        handleChangePermission(c.id, p);
-                                                                    }}
-                                                                    className={`w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-white/5 transition-colors ${c.permission === p ? "text-blue-400" : "text-white/70"}`}
-                                                                >
-                                                                    {PERMISSION_LABELS[p].icon}
-                                                                    {PERMISSION_LABELS[p].label}
-                                                                </button>
-                                                            ))}
-                                                            <div className="h-px bg-white/10 my-1" />
+                                    {generalAccess === "anyone" && (
+                                        myPermission === "owner" ? (
+                                            <div className="relative inline-block" ref={permDropdown === "generalAccessRole" ? dropdownRef : null}>
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setPermDropdown(permDropdown === "generalAccessRole" ? null : "generalAccessRole");
+                                                    }}
+                                                    className="flex items-center gap-1 text-[11px] font-semibold text-white/70 hover:text-white transition-colors"
+                                                >
+                                                    {generalAccessRole === "viewer" ? "view" : generalAccessRole}
+                                                    <ChevronDown className="w-3 h-3 opacity-50" />
+                                                </button>
+
+                                                {permDropdown === "generalAccessRole" && (
+                                                    <div className="absolute left-0 top-full mt-1 bg-[#1a1a2e] border border-white/10 rounded-xl shadow-2xl z-[120] min-w-[120px] py-1">
+                                                        {(["viewer", "editor"] as ("viewer" | "editor")[]).map((r) => (
                                                             <button
+                                                                key={r}
                                                                 onMouseDown={(e) => {
                                                                     e.preventDefault();
                                                                     e.stopPropagation();
-                                                                    setPermDropdown(null);
-                                                                    setRemovingCollab(c);
+                                                                    handleGeneralAccessRoleChange(r);
                                                                 }}
-                                                                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-white/5 transition-colors"
+                                                                className="w-full flex items-center justify-between px-3 py-1.5 text-xs hover:bg-white/5 transition-colors text-white/90 capitalize"
                                                             >
-                                                                <Trash2 className="w-3.5 h-3.5" />
-                                                                Remove
+                                                                <span>{r}</span>
+                                                                {generalAccessRole === r && <Check className="w-3.5 h-3.5 text-blue-400" />}
                                                             </button>
-                                                        </div>
-                                                    )}
-                                                </>
-                                            ) : (
-                                                <div className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs text-white/30 italic">
-                                                    {PERMISSION_LABELS[c.permission]?.label}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <span className="text-[11px] font-semibold text-white/70">
+                                                {generalAccessRole === "viewer" ? "view" : generalAccessRole}
+                                            </span>
+                                        )
+                                    )}
+                                </div>
                             </div>
+                            {(generalAccess === "anyone" || myPermission === "owner") && (
+                                <button
+                                    onClick={handleCopyLink}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:bg-white/10"
+                                    style={{
+                                        border: "1px solid rgba(255,255,255,0.1)",
+                                        color: copiedLink ? "#34d399" : "#6c8fff"
+                                    }}
+                                >
+                                    {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Link2 className="w-3.5 h-3.5" />}
+                                    {copiedLink ? "Copied" : "Copy link"}
+                                </button>
+                            )}
                         </div>
-                    )}
-                    {/* General Error Message */}
-                    {inviteError && (
-                        <div className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
-                            <p className="text-red-400 text-xs text-center">{inviteError}</p>
-                        </div>
-                    )}
+                    </div>
                 </div>
 
-                {/* Footer note */}
-                <div className="px-6 pb-5">
-                    <p className="text-[11px] text-white/25 text-center">
-                        Editors can move and modify elements. Viewers can only watch in real-time.
-                    </p>
-                </div>
+                {/* Collaborators list */}
+                {(collaborators.length > 0 || owner) && (
+                    <div className="space-y-3 px-6 pb-6">
+                        <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">
+                            People with access
+                        </label>
+                        <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-1 -mr-1">
+                            {/* Owner entry */}
+                            {owner && (
+                                <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/5 group ring-1 ring-blue-500/20">
+                                    <div
+                                        className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0 shadow-lg"
+                                        style={{ background: owner.color || "#6c8fff" }}
+                                    >
+                                        {(owner.displayName || owner.email || "?").charAt(0).toUpperCase()}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-sm text-white font-semibold truncate">{owner.displayName || owner.email}</p>
+                                            <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[9px] font-black uppercase tracking-wider">Owner</span>
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] mt-0.5">
+                                            <span className="text-white/40 truncate max-w-[140px]">{owner.email}</span>
+                                            <span className="w-1 h-1 rounded-full bg-white/10 shrink-0" />
+                                            <span className="text-blue-400 font-semibold uppercase tracking-tighter">Role: Owner</span>
+                                            <span className="w-1 h-1 rounded-full bg-white/10 shrink-0" />
+                                            <span className={`px-1.5 py-0.25 rounded-md text-[9px] font-bold uppercase ${owner.status === "pending" ? "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20" : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"}`}>
+                                                Status: {owner.status || "active"}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Collaborators */}
+                            {collaborators.map((c) => (
+                                <div
+                                    key={c.id}
+                                    className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] transition-all group"
+                                >
+                                    {/* Avatar */}
+                                    <div
+                                        className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0 shadow-md"
+                                        style={{ background: c.color }}
+                                    >
+                                        {(c.displayName || c.email || "?").charAt(0).toUpperCase()}
+                                    </div>
+
+                                    {/* Info */}
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm text-white/90 font-medium truncate">{c.displayName || c.name || c.email}</p>
+                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] mt-0.5">
+                                            <span className="text-white/40 truncate max-w-[140px]">{c.email}</span>
+                                            <span className="w-1 h-1 rounded-full bg-white/10 shrink-0" />
+                                            <span className="text-blue-400 font-semibold uppercase tracking-tighter">Role: {c.role || "viewer"}</span>
+                                            <span className="w-1 h-1 rounded-full bg-white/10 shrink-0" />
+                                            <span className={`px-1.5 py-0.25 rounded-md text-[9px] font-bold uppercase ${c.status === "pending" ? "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20" : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"}`}>
+                                                Status: {c.status || "accepted"}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Permission Actions (Owners only) */}
+                                    <div className="relative" ref={permDropdown === c.id ? dropdownRef : null}>
+                                        {myPermission === "owner" ? (
+                                            <>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setPermDropdown(permDropdown === c.id ? null : c.id);
+                                                    }}
+                                                    className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-xs text-white/50"
+                                                >
+                                                    {PERMISSION_LABELS[c.role]?.icon}
+                                                    <ChevronDown className="w-3 h-3" />
+                                                </button>
+                                                {permDropdown === c.id && (
+                                                    <div className="absolute right-0 top-full mt-1 bg-[#1a1a2e] border border-white/10 rounded-xl shadow-2xl z-[110] min-w-[130px] py-1">
+                                                        {(["editor", "viewer"] as Permission[]).map(p => (
+                                                            <button
+                                                                key={p}
+                                                                onMouseDown={(e) => {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    handleChangePermission(c.id, p);
+                                                                }}
+                                                                className={`w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-white/5 transition-colors ${c.role === p ? "text-blue-400" : "text-white/70"}`}
+                                                            >
+                                                                {PERMISSION_LABELS[p].icon}
+                                                                {PERMISSION_LABELS[p].label}
+                                                            </button>
+                                                        ))}
+                                                        <div className="h-px bg-white/10 my-1" />
+                                                        <button
+                                                            onMouseDown={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                setPermDropdown(null);
+                                                                setRemovingCollab(c);
+                                                            }}
+                                                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-white/5 transition-colors"
+                                                        >
+                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                            Remove
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <div className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs text-white/30 italic">
+                                                {PERMISSION_LABELS[c.role]?.label}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                {/* General Error Message */}
+                {inviteError && (
+                    <div className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                        <p className="text-red-400 text-xs text-center">{inviteError}</p>
+                    </div>
+                )}
+            </div>
+
+            {/* Footer note */}
+            <div className="px-6 pb-5">
+                <p className="text-[11px] text-white/25 text-center">
+                    Editors can move and modify elements. Viewers can only watch in real-time.
+                </p>
             </div>
 
             {/* Remove Confirmation Modal */}

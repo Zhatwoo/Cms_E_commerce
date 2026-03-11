@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { useEditor, Element } from "@craftjs/core";
-import { ChevronLeft, ChevronRight, Layout, Type, MousePointer2, Box, Layers, Columns, Grid, Maximize, Minus, BookOpen, Briefcase, Frame as FrameIcon, Image as ImageIcon, Video, Star, Link as LinkIcon, Table, List as ListIcon, Badge, AlertCircle, PlayCircle, Mail, MapPin, Code, Sliders, CheckSquare, Circle as RadioIcon, Calendar, Clock, Upload, ToggleRight, Phone, Search, Key, ChevronDown, LayoutTemplate, Component, X, FolderOpen } from "lucide-react";
+import { ChevronLeft, ChevronRight, Layout, Type, MousePointer2, Box, Layers, Columns, Grid, Maximize, Minus, BookOpen, Briefcase, Frame as FrameIcon, Image as ImageIcon, Video, Star, Link as LinkIcon, Table, List as ListIcon, Badge, AlertCircle, PlayCircle, Mail, MapPin, Code, Sliders, CheckSquare, Circle as RadioIcon, Calendar, Clock, Upload, ToggleRight, Phone, Search, Key, ChevronDown, LayoutTemplate, Component, X, FolderOpen, FileCode } from "lucide-react";
 import { AssetsPanel, AssetLivePreview, AssetItem } from "./assetsPanel";
 import { TemplatePanel } from "./templatePanel";
 import { GROUPED_TEMPLATES } from "../../../_assets";
 import { useCanvasTool } from "../CanvasToolContext";
+import { useImportedComponents } from "../../_context/ImportedComponentsContext";
 import { Container } from "../../_designComponents/Container/Container";
 import { Text } from "../../_designComponents/Text/Text";
 import { Image } from "../../_designComponents/Image/Image";
@@ -16,6 +17,7 @@ import { Column } from "../../_designComponents/Column/Column";
 import { Frame } from "../../_designComponents/Frame/Frame";
 import { Tabs } from "../../_designComponents/Tabs/Tabs";
 import { CRAFT_RESOLVER } from "../craftResolver";
+import { ImportedBlock } from "../../_designComponents/ImportedBlock/ImportedBlock";
 
 interface ComponentVariant {
   label: string;
@@ -46,7 +48,8 @@ interface Category {
 export const ComponentsPanel = () => {
   const { connectors } = useEditor();
   const { activeTool } = useCanvasTool();
-  const [panelView, setPanelView] = useState<"landing" | "categories" | "subcategories" | "elements" | "variants" | "blocks" | "templates">("landing");
+  const { items: importedItems } = useImportedComponents();
+  const [panelView, setPanelView] = useState<"landing" | "categories" | "subcategories" | "elements" | "variants" | "blocks" | "templates" | "imports">("landing");
   const [activeCategory, setActiveCategory] = useState<Category | null>(null);
   const [activeSubcategory, setActiveSubcategory] = useState<Subcategory | null>(null);
   const [activeElement, setActiveElement] = useState<ComponentElement | null>(null);
@@ -573,6 +576,24 @@ export const ComponentsPanel = () => {
                 </span>
               </div>
             </button>
+
+            {/* MY IMPORTS HUB CARD */}
+            <button
+              onClick={() => setPanelView("imports")}
+              className="group relative h-24 bg-brand-white/5 rounded-xl flex flex-col items-center justify-center p-4 border border-brand-medium/30 hover:bg-brand-white/10 transition-all duration-300 hover:border-brand-medium/50 overflow-hidden shadow-sm hover:shadow-md shrink-0"
+            >
+              <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+                <FileCode className="w-12 h-12 -mr-2 -mt-2 rotate-12" />
+              </div>
+              <div className="flex flex-col items-center relative z-10">
+                <span className="text-brand-white text-base font-black tracking-widest uppercase select-none transition-transform group-hover:scale-105 duration-300">
+                  MY IMPORTS
+                </span>
+                <span className="text-[9px] text-brand-medium font-bold uppercase tracking-[0.2em] opacity-60 group-hover:opacity-100 transition-opacity">
+                  {importedItems.length} component{importedItems.length !== 1 ? "s" : ""}
+                </span>
+              </div>
+            </button>
           </div>
         </div>
 
@@ -783,6 +804,68 @@ export const ComponentsPanel = () => {
             </div>
             <div className="flex-1 overflow-y-auto no-scrollbar">
               <TemplatePanel />
+            </div>
+          </div>
+        </div>
+
+        {/* My Imports View */}
+        <div
+          className={`absolute inset-0 transition-all duration-300 ease-out ${panelView === "imports" ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"
+            }`}
+        >
+          <div className="h-full flex flex-col p-4 pt-0">
+            <div className="flex items-center gap-2 pb-4 bg-brand-dark sticky top-0 z-10">
+              <button
+                type="button"
+                onClick={() => setPanelView("landing")}
+                className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-brand-light/10 text-brand-light hover:text-white hover:bg-brand-light/20 transition-all border border-white/5 shadow-sm"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <span className="text-xs font-black text-brand-lighter uppercase tracking-widest">MY IMPORTS</span>
+            </div>
+            <div className="flex-1 overflow-y-auto no-scrollbar">
+              <p className="text-[10px] text-brand-light/60 px-1 mb-3 uppercase tracking-wider">
+                Import React+styled code via Code panel → Import Codes → Add as Component
+              </p>
+              {importedItems.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-3 opacity-60">
+                  <FileCode className="w-10 h-10 text-brand-light" />
+                  <span className="text-xs text-brand-light font-medium">No imported components yet</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  {importedItems.map((item) => (
+                    <div
+                      key={item.id}
+                      data-drag-source="imported"
+                      ref={(ref) => {
+                        if (!ref || activeTool === "hand") return;
+                        connectors.create(
+                          ref,
+                          withFreePositionDefaults(
+                            <Element
+                              is={ImportedBlock}
+                              blockName={item.name}
+                              blockCss={item.css}
+                              blockHtml={item.html}
+                              canvas
+                            />
+                          )
+                        );
+                      }}
+                      className="group bg-brand-white/5 p-3 rounded-xl hover:bg-brand-white/10 transition-all border border-brand-medium/30 cursor-move shadow-sm"
+                    >
+                      <div className="h-14 bg-brand-medium/20 rounded-lg mb-2 border border-dashed border-brand-medium/50 flex items-center justify-center">
+                        <FileCode className="w-6 h-6 text-brand-light/50" />
+                      </div>
+                      <span className="text-[11px] text-brand-white font-semibold leading-tight line-clamp-2">
+                        {item.name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

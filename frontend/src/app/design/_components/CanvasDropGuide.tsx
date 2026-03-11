@@ -181,7 +181,8 @@ export function CanvasDropGuide() {
 
       const fromAsset = !!target.closest("[data-drag-source='asset']");
       const fromComponent = !!target.closest("[data-drag-source='component']") && !target.closest("[data-component-new-page='true']");
-      activeRef.current = fromAsset || fromComponent;
+      const fromImported = !!target.closest("[data-drag-source='imported']");
+      activeRef.current = fromAsset || fromComponent || fromImported;
 
       if (!activeRef.current) {
         hideGuide();

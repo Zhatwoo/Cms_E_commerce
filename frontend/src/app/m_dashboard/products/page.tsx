@@ -159,6 +159,14 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
   const formattedOriginalPrice = hasOriginalPrice
     ? `₱${Math.round(originalPriceCandidate).toLocaleString()}`
     : null;
+  const normalizedStatus = String(product.status || '').toLowerCase();
+  const statusLabel = normalizedStatus === 'inactive' ? 'Inactive' : normalizedStatus === 'active' ? 'Active' : 'Draft';
+  const statusStyle =
+    normalizedStatus === 'inactive'
+      ? { color: '#fca5a5', backgroundColor: 'rgba(153,27,27,0.72)', borderColor: 'rgba(248,113,113,0.75)' }
+      : normalizedStatus === 'active'
+      ? { color: '#86efac', backgroundColor: 'rgba(20,83,45,0.72)', borderColor: 'rgba(74,222,128,0.75)' }
+      : { color: '#c4b5fd', backgroundColor: 'rgba(76,29,149,0.62)', borderColor: 'rgba(167,139,250,0.7)' };
 
   useEffect(() => {
     setSelectedOptions(getInitialVariantSelection(product));
@@ -178,6 +186,12 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
       }}
     >
       <div className="relative w-full h-44 md:h-48 overflow-hidden flex items-center justify-center border-b" style={{ borderColor: '#2D3A90', backgroundColor: '#D9D9DC' }}>
+        <span
+          className="absolute left-2.5 top-2.5 z-10 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em]"
+          style={statusStyle}
+        >
+          {statusLabel}
+        </span>
         <button
           type="button"
           onClick={() => setMenuOpen((prev) => !prev)}
@@ -405,7 +419,19 @@ const ProductDetailsModal = ({ product, onClose, colors }: {
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Status</p>
-                  <p className="font-semibold capitalize" style={{ color: colors.text.primary }}>{product.status}</p>
+                  <p
+                    className="font-semibold capitalize"
+                    style={{
+                      color:
+                        product.status === 'active'
+                          ? '#22c55e'
+                          : product.status === 'inactive'
+                            ? '#ef4444'
+                            : colors.text.primary,
+                    }}
+                  >
+                    {product.status}
+                  </p>
                 </div>
               </div>
               <div className="pt-3 border-t" style={{ borderColor: colors.border.faint }}>
