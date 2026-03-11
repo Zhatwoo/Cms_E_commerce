@@ -59,6 +59,4 @@ export const RenderBlocks: Record<string, any> = {
   importedblock: ImportedBlock,
   Banner,
   banner: Banner,
-  Accordion,
-  accordion: Accordion,
 };
