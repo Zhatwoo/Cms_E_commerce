@@ -10,7 +10,7 @@ import {
   listProjects, getSchedule, getPublishHistory, unpublishProject,
   updateDomainSubdomain, addCustomDomain as apiAddCustomDomain,
   verifyCustomDomain as apiVerifyCustomDomain, removeCustomDomain as apiRemoveCustomDomain,
-  listCustomDomains,
+  listCustomDomains, getProjectStorage,
   type Project, type PublishHistoryEntry, type DnsInstructions,
 } from '@/lib/api';
 import { subscribeUserProjectSubdomains, type ProjectSubdomainEntry } from '@/lib/firebase';
@@ -19,7 +19,7 @@ import { DraftPreviewThumbnail } from '../components/projects/DraftPreviewThumbn
 import {
   Globe, Plus, Search, ExternalLink, Copy, Pencil, Check, Clock, X,
   Calendar, FileText, ArrowDownToLine, ChevronDown, ChevronUp,
-  Link2, Unlink, ShieldCheck, AlertTriangle, Loader2, LayoutGrid, List,
+  Link2, Unlink, ShieldCheck, AlertTriangle, Loader2, LayoutGrid, List, HardDrive,
 } from 'lucide-react';
 import { getSubdomainSiteUrl } from '@/lib/siteUrls';
 
@@ -28,8 +28,6 @@ import { getSubdomainSiteUrl } from '@/lib/siteUrls';
 const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'websitelink';
 const SITE_HOST = process.env.NEXT_PUBLIC_SITE_HOST ?? 'localhost:3000';
 const GRAD = 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)';
-const ADD_SITE_BG = 'linear-gradient(135deg, #0ea5e9 0%, #2563eb 55%, #1d4ed8 100%)';
-const VISIT_BG = 'linear-gradient(135deg, #22c55e 0%, #16a34a 55%, #15803d 100%)';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -140,6 +138,8 @@ export default function DomainsPage() {
   const [scheduleInfo, setScheduleInfo] = useState<{ scheduledAt: string; subdomain: string | null } | null>(null);
   const [publishHistory, setPublishHistory] = useState<PublishHistoryEntry[]>([]);
   const [unpublishingId, setUnpublishingId] = useState<string | null>(null);
+  const [storageInfo, setStorageInfo] = useState<{ bytes: number; human: string } | null>(null);
+  const [storageLoading, setStorageLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [addModalProjectId, setAddModalProjectId] = useState('');
@@ -168,6 +168,20 @@ export default function DomainsPage() {
     : domainsList;
 
   // ── Handlers ──────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!selectedDomain) {
+      setStorageInfo(null);
+      return;
+    }
+    setStorageLoading(true);
+    getProjectStorage(selectedDomain.project.id)
+      .then(res => {
+        if (res.success) setStorageInfo({ bytes: res.storageBytes, human: res.storageReadable });
+      })
+      .catch(() => setStorageInfo(null))
+      .finally(() => setStorageLoading(false));
+  }, [selectedDomain?.project.id]);
 
   const handleUnpublish = async (projectId: string, e?: React.MouseEvent) => {
     e?.stopPropagation?.();
@@ -325,6 +339,11 @@ export default function DomainsPage() {
 
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}
       <section className="text-center py-4">
+        <motion.p className="text-[10px] uppercase tracking-[0.25em] mb-3"
+          style={{ color: 'rgba(255,255,255,0.35)' }}
+          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+          Domain Control
+        </motion.p>
         <motion.h1
           className="text-[42px] sm:text-[58px] font-extrabold leading-[0.95] tracking-tight bg-clip-text text-transparent"
           style={{ backgroundImage: GRAD }}
@@ -339,7 +358,7 @@ export default function DomainsPage() {
           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
           <button type="button" onClick={handleAddDomainClick} disabled={addSiteLoading}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-xs font-bold transition-opacity hover:opacity-85"
-            style={{ background: ADD_SITE_BG, boxShadow: '0 10px 24px rgba(37,99,235,0.42)' }}>
+            style={{ background: GRAD, boxShadow: '0 6px 24px rgba(177,59,255,0.35)' }}>
             {addSiteLoading ? 'loading...' : <><Plus className="w-3.5 h-3.5" /> Add Site</>}
           </button>
         </motion.div>
@@ -393,19 +412,13 @@ export default function DomainsPage() {
             </Link>
             <button type="button" onClick={handleAddDomainClick} disabled={addSiteLoading}
               className="px-4 py-2 text-xs font-bold rounded-xl text-white"
-              style={{ background: ADD_SITE_BG }}>
+              style={{ background: GRAD }}>
               {addSiteLoading ? 'loading...' : 'Add site'}
             </button>
           </div>
         </div>
       ) : (
-        <div
-          className="flex flex-col md:flex-row gap-4 rounded-3xl p-3"
-          style={{
-            background: 'linear-gradient(180deg, rgba(18,22,74,0.52), rgba(11,14,49,0.5))',
-            border: '1px solid rgba(148,163,184,0.18)',
-          }}
-        >
+        <div className="flex flex-col md:flex-row gap-4">
 
           {/* List/Grid column */}
           <div className="flex-1 min-w-0 space-y-3">
@@ -446,9 +459,9 @@ export default function DomainsPage() {
                     <motion.div key={project.id}
                       className="relative rounded-2xl overflow-hidden cursor-pointer transition-all"
                       style={{
-                        background: 'linear-gradient(180deg, rgba(24,32,88,0.55), rgba(14,18,58,0.78))',
-                        border: isSelected ? '1px solid rgba(96,165,250,0.6)' : '1px solid rgba(148,163,184,0.18)',
-                        boxShadow: isSelected ? '0 0 0 1px rgba(96,165,250,0.28), 0 10px 24px rgba(7,10,34,0.28)' : '0 8px 18px rgba(7,10,34,0.22)',
+                        background: 'rgba(255,255,255,0.03)',
+                        border: isSelected ? '1px solid rgba(177,59,255,0.5)' : '1px solid rgba(255,255,255,0.07)',
+                        boxShadow: isSelected ? '0 0 0 1px rgba(177,59,255,0.3)' : 'none',
                       }}
                       whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}
                       onClick={() => setSelectedDomain({ project, subdomain })}>
@@ -469,8 +482,8 @@ export default function DomainsPage() {
                           {canVisit ? (
                             <a href={getSubdomainSiteUrl(subdomain as string, origin)} target="_blank" rel="noopener noreferrer"
                               onClick={e => e.stopPropagation()}
-                              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[11px] font-semibold text-white transition-opacity hover:opacity-85"
-                              style={{ background: VISIT_BG }}>
+                              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[11px] font-semibold text-black transition-opacity hover:opacity-85"
+                              style={{ background: GRAD }}>
                               <ExternalLink size={11} /> Visit
                             </a>
                           ) : (
@@ -509,8 +522,8 @@ export default function DomainsPage() {
                       initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                       className="rounded-2xl p-4 flex items-center justify-between gap-3 cursor-pointer transition-all hover:bg-white/[0.02]"
                       style={{
-                        background: 'linear-gradient(180deg, rgba(24,32,88,0.5), rgba(14,18,58,0.68))',
-                        border: isSelected ? '1px solid rgba(96,165,250,0.55)' : '1px solid rgba(148,163,184,0.18)',
+                        background: 'rgba(255,255,255,0.025)',
+                        border: isSelected ? '1px solid rgba(177,59,255,0.4)' : '1px solid rgba(255,255,255,0.07)',
                       }}
                       onClick={() => setSelectedDomain({ project, subdomain })}>
                       <div className="min-w-0 flex-1">
@@ -533,7 +546,7 @@ export default function DomainsPage() {
                           target={canVisit ? '_blank' : '_self'} rel="noopener noreferrer"
                           onClick={e => e.stopPropagation()}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold rounded-xl transition-opacity hover:opacity-85"
-                          style={{ background: canVisit ? VISIT_BG : GRAD, color: '#fff' }}>
+                          style={{ background: GRAD, color: '#fff' }}>
                           <ExternalLink size={12} />{canVisit ? 'Visit' : 'Publish'}
                         </a>
                         {pub && (
@@ -561,12 +574,7 @@ export default function DomainsPage() {
                 initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
                 transition={{ type: 'spring', stiffness: 320, damping: 30 }}
                 className="w-full md:w-80 shrink-0 rounded-2xl overflow-hidden flex flex-col"
-                style={{
-                  background: 'linear-gradient(180deg, rgba(20,26,84,0.62), rgba(12,16,56,0.74))',
-                  border: '1px solid rgba(148,163,184,0.22)',
-                  boxShadow: '0 12px 30px rgba(7,10,34,0.28)',
-                  maxHeight: 700,
-                }}>
+                style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.09)', maxHeight: 700 }}>
 
                 {/* Sidebar header */}
                 <div className="px-4 py-3.5 flex items-center justify-between flex-shrink-0"
@@ -614,6 +622,24 @@ export default function DomainsPage() {
                       </a>
                     ) : (
                       <p className="text-xs" style={{ color: colors.text.muted }}>—</p>
+                    )}
+                  </SidebarRow>
+
+                  <SidebarRow icon={<HardDrive size={10} />} label="Project Storage">
+                    {storageLoading ? (
+                      <div className="flex items-center gap-1.5 py-1">
+                        <Loader2 size={10} className="animate-spin" style={{ color: colors.text.muted }} />
+                        <span className="text-[10px]" style={{ color: colors.text.muted }}>Calculating…</span>
+                      </div>
+                    ) : (
+                      <div className="space-y-0.5">
+                        <p className="text-sm font-semibold" style={{ color: colors.text.primary }}>
+                          {storageInfo?.human || '0 Bytes'}
+                        </p>
+                        <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                          Estimated site assets size
+                        </p>
+                      </div>
                     )}
                   </SidebarRow>
 
