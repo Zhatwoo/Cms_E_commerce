@@ -1050,6 +1050,23 @@ export async function createPublishedOrder(params: {
   );
 }
 
+export type PaymentMethod = 'gcash' | 'maya' | 'card';
+
+export async function createPaymentIntent(
+  subdomain: string,
+  orderId: string,
+  paymentMethod: PaymentMethod
+): Promise<{ success: boolean; redirectUrl?: string; clientKey?: string; publicKey?: string; message?: string }> {
+  const normalizedSubdomain = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  return apiFetch<{ success: boolean; redirectUrl?: string; clientKey?: string; publicKey?: string; message?: string }>(
+    `/api/orders/published/${encodeURIComponent(normalizedSubdomain)}/${encodeURIComponent(orderId)}/create-payment-intent`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ paymentMethod }),
+    }
+  );
+}
+
 export async function listMyPublishedOrders(params?: {
   subdomain?: string;
   search?: string;

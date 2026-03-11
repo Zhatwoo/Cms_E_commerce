@@ -8,12 +8,16 @@ const {
   getAll,
   updateStatus,
   createPublicCheckout,
+  createPaymentIntent,
+  getPaymongoPublicKey,
   getMyPublishedOrders,
   updatePublishedOrderStatus,
 } = require('../controllers/orderController');
 const { protect, admin } = require('../middleware/auth');
 
+router.get('/paymongo-public-key', getPaymongoPublicKey);
 router.post('/published/:subdomain', createPublicCheckout);
+router.post('/published/:subdomain/:id/create-payment-intent', createPaymentIntent);
 router.get('/published/my', protect, getMyPublishedOrders);
 router.put('/published/:subdomain/:id/status', protect, updatePublishedOrderStatus);
 

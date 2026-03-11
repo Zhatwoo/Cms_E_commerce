@@ -177,6 +177,52 @@ async function listByOwner({
   return paginate(items, { page, limit });
 }
 
+async function findById(subdomain, orderId) {
+  const normalizedSubdomain = normalizeSubdomain(subdomain);
+  if (!normalizedSubdomain || !orderId) return null;
+  const ref = getOrderRef(normalizedSubdomain, orderId);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+  return docToObject(snap);
+}
+
+async function updatePaymentFields(subdomain, orderId, fields) {
+  const normalizedSubdomain = normalizeSubdomain(subdomain);
+  if (!normalizedSubdomain || !orderId) throw new Error('subdomain and orderId are required');
+
+  const ref = getOrderRef(normalizedSubdomain, orderId);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+
+  const updates = { updated_at: new Date() };
+  if (fields.paymentIntentId != null) updates.payment_intent_id = String(fields.paymentIntentId);
+  if (fields.paymentStatus != null) updates.payment_status = String(fields.paymentStatus);
+  if (fields.sourceId != null) updates.payment_source_id = String(fields.sourceId);
+
+  await ref.update(updates);
+  const updated = await ref.get();
+  return docToObject(updated);
+}
+
+async function updateStatusBySubdomainAndId(subdomain, orderId, status) {
+  const normalizedSubdomain = normalizeSubdomain(subdomain);
+  if (!normalizedSubdomain) throw new Error('subdomain is required');
+  const canonicalStatus = toStatus(status);
+  if (!canonicalStatus) throw new Error('Invalid status');
+
+  const ref = getOrderRef(normalizedSubdomain, orderId);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+
+  await ref.update({
+    status: canonicalStatus,
+    updated_at: new Date(),
+  });
+
+  const updated = await ref.get();
+  return docToObject(updated);
+}
+
 async function updateStatusForOwner({
   ownerUserId,
   subdomain,
@@ -209,4 +255,7 @@ module.exports = {
   createForSubdomain,
   listByOwner,
   updateStatusForOwner,
+  findById,
+  updatePaymentFields,
+  updateStatusBySubdomainAndId,
 };

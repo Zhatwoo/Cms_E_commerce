@@ -106,7 +106,12 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'x-project-id']
 }));
 app.use(cookieParser());
-app.use(express.json({ limit: '20mb' }));
+app.use(express.json({
+  limit: '20mb',
+  verify: (req, _res, buf) => {
+    if (req.originalUrl === '/api/webhooks/paymongo') req.rawBody = buf;
+  }
+}));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
 // Domain & Subdomain detection middleware
