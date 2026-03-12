@@ -20,6 +20,7 @@ import { Pagination } from "../_designComponents/Pagination/Pagination";
 import { Rating } from "../_designComponents/Rating/Rating";
 import { Banner } from "../_designComponents/Banner/banner";
 import { Badge } from "../_designComponents/Badge/badge";
+import { BooleanField } from "../_designComponents/BooleanField/BooleanField";
 import { Circle } from "../../_assets/shapes/circle/circle";
 import { Square } from "../../_assets/shapes/square/square";
 import { Triangle } from "../../_assets/shapes/triangle/triangle";
@@ -81,6 +82,7 @@ export function buildCraftResolver(): Resolver {
   const SpacerComp = asComponent(Spacer, ContainerComp);
   const PaginationComp = asComponent(Pagination, ContainerComp);
   const RatingComp = asComponent(Rating, ContainerComp);
+  const BooleanFieldComp = asComponent(BooleanField, ContainerComp);
   const base: Resolver = {
     Container: ContainerComp,
     container: ContainerComp,
@@ -135,6 +137,9 @@ export function buildCraftResolver(): Resolver {
     Rating: RatingComp,
     rating: RatingComp,
     RATING: RatingComp,
+    BooleanField: BooleanFieldComp,
+    booleanfield: BooleanFieldComp,
+    BOOLEANFIELD: BooleanFieldComp,
   };
   base.Image = ImageComp;
   base.image = ImageComp;

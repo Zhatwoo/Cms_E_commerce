@@ -26,6 +26,7 @@ import { ImportedBlock } from "../../_designComponents/ImportedBlock/ImportedBlo
 import { Spacer } from "../../_designComponents/Spacer/Spacer";
 import { Pagination } from "../../_designComponents/Pagination/Pagination";
 import { Rating } from "../../_designComponents/Rating/Rating";
+import { BooleanField } from "../../_designComponents/BooleanField/BooleanField";
 
 interface ComponentVariant {
   label: string;
@@ -110,6 +111,7 @@ export const ComponentsPanel = () => {
     { label: "Video", preview: "Video", element: <Video width="320px" height="220px" />, icon: <VideoIcon className="w-5 h-5" />, color: "bg-purple-500/10" },
     { label: "Spacer", preview: "Spacer", element: <Spacer />, icon: <Maximize className="w-5 h-5" />, color: "bg-slate-500/10" },
     { label: "Button", preview: "Button", element: <Element is={Button} canvas label="Click me" />, icon: <MousePointer2 className="w-5 h-5" />, color: "bg-red-500/10" },
+    { label: "Checkbox / Radio", preview: "Boolean Field", element: <BooleanField label="Option" controlType="checkbox" />, icon: <CheckSquare className="w-5 h-5" />, color: "bg-lime-500/10" },
     { label: "Pagination", preview: "Pagination", element: <Pagination />, icon: <ListIcon className="w-5 h-5" />, color: "bg-indigo-500/10" },
     { label: "Rating", preview: "Rating", element: <Rating value={2} />, icon: <Star className="w-5 h-5" />, color: "bg-amber-500/10" },
     { label: "Divider", preview: "── Divider ──", element: <Divider />, icon: <Minus className="w-5 h-5" />, color: "bg-gray-500/10" },

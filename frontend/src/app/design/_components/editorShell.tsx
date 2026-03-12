@@ -17,6 +17,7 @@ import { Section } from "../_designComponents/Section/Section";
 import { Image } from "../_designComponents/Image/Image";
 import { Button } from "../_designComponents/Button/Button";
 import { Accordion } from "../_designComponents/Accordion/Accordion";
+import { BooleanField } from "../_designComponents/BooleanField/BooleanField";
 import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
@@ -2266,6 +2267,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
       circle: asComponent(Circle),
       square: asComponent(Square),
       triangle: asComponent(Triangle),
+      BooleanField: asComponent(BooleanField),
+      booleanfield: asComponent(BooleanField),
     };
     // Force Frame to always exist; Craft looks up by "Frame" and sometimes "frame"
     base.Frame = SAFE_CONTAINER;

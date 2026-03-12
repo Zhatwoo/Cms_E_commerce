@@ -325,3 +325,29 @@ export interface TabsProps
   activeTabBackgroundColor?: string;
   activeTabTextColor?: string;
 }
+
+export interface BooleanFieldProps extends EffectsProps, SizeProps, SpacingProps {
+  controlType?: "checkbox" | "radio";
+  /** Used as radio group name (scoped per-node to avoid collisions). */
+  name?: string;
+  disabled?: boolean;
+  labelColor?: string;
+  /** Gap between control and label text */
+  gap?: number;
+  /** Gap between options (for groups) */
+  itemGap?: number;
+  fontSize?: number;
+  fontFamily?: string;
+  fontWeight?: string;
+  /** Hide/show option text labels in canvas */
+  showLabels?: boolean;
+  options?: Array<{
+    id: string;
+    label: string;
+    checked?: boolean;
+  }>;
+  /** Back-compat single-item fields (older data) */
+  label?: string;
+  checked?: boolean;
+  customClassName?: string;
+}
