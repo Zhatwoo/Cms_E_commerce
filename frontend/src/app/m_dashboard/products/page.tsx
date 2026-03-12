@@ -700,10 +700,12 @@ export default function ProductsPage() {
 
     setProductPopup({ open: true, message, tone });
 
+    const popupDuration = tone === 'success' ? 1500 : 3000;
+
     productPopupTimerRef.current = window.setTimeout(() => {
       setProductPopup((prev) => ({ ...prev, open: false }));
       productPopupTimerRef.current = null;
-    }, 3000);
+    }, popupDuration);
   }, []);
 
   useEffect(() => {
