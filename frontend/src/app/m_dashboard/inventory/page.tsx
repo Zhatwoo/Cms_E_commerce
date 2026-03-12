@@ -143,6 +143,7 @@ const getDefaultAdjustmentNote = (t: StockAdjustmentType) =>
 const DEFAULT_LOW_STOCK_THRESHOLD = 5;
 const INVENTORY_VISIBLE_ROWS = 7;
 const INVENTORY_ROW_HEIGHT_PX = 72;
+const RECENT_MOVEMENTS_VISIBLE_ROWS = 5;
 type ProductUpsertPayload = Omit<Parameters<typeof createProduct>[0], 'subdomain'>;
 
 function toDashboardStatus(status?: string): 'active' | 'inactive' | 'draft' {
@@ -1743,11 +1744,19 @@ export default function InventoryPage() {
               No stock movements recorded yet.
             </div>
           ) : (
-            movements.map((m, index) => {
-              const movementId = String(m.id || '').trim();
-              const movementKey = movementId || `recent-${m.productId || 'product'}-${m.createdAt || 'time'}-${index}`;
-              return <MovementRow key={movementKey} m={m} />;
-            })
+            <div
+              style={{
+                maxHeight: INVENTORY_ROW_HEIGHT_PX * RECENT_MOVEMENTS_VISIBLE_ROWS,
+                overflowY: 'auto',
+                paddingRight: 4,
+              }}
+            >
+              {movements.map((m, index) => {
+                const movementId = String(m.id || '').trim();
+                const movementKey = movementId || `recent-${m.productId || 'product'}-${m.createdAt || 'time'}-${index}`;
+                return <MovementRow key={movementKey} m={m} />;
+              })}
+            </div>
           )}
         </Card>
       </div>
