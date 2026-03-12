@@ -75,7 +75,7 @@ export const ComponentsPanel = () => {
 
   const WORKING_COMPONENTS: ComponentVariant[] = useMemo(() => [
     { label: "Section", preview: "Section", element: <Element is={Section} canvas />, icon: <Box className="w-5 h-5" />, color: "bg-blue-500/10" },
-    { label: "Container", preview: "Container", element: <Element is={Container} padding={20} canvas />, icon: <Layers className="w-5 h-5" />, color: "bg-purple-500/10" },
+    { label: "Container", preview: "Container", element: <Element is={Container} padding={20} height="240px" canvas />, icon: <Layers className="w-5 h-5" />, color: "bg-purple-500/10" },
     { label: "Row", preview: "Row", element: <Element is={Row} canvas />, icon: <Minus className="w-5 h-5" />, color: "bg-orange-500/10" },
     {
       label: "Banner",
@@ -221,6 +221,8 @@ export const ComponentsPanel = () => {
   const renderComponentItem = (v: any) => (
     <div
       key={v.id || v.label}
+      data-drag-source="component"
+      data-component-new-page={v.isNewPage ? "true" : "false"}
       ref={(ref) => {
         if (!ref || activeTool === "hand") return;
         const dragElement = v.dragElement || v.element;
@@ -257,6 +259,8 @@ export const ComponentsPanel = () => {
       return (
         <div
           key={v.id}
+          data-drag-source="imported"
+          data-component-new-page="false"
           ref={(ref) => {
             if (!ref || activeTool === "hand") return;
             connectors.create(ref, withFreePositionDefaults(v.element));
@@ -282,6 +286,8 @@ export const ComponentsPanel = () => {
     return (
       <div
         key={v.id}
+        data-drag-source={v.type === "block" ? "asset" : "component"}
+        data-component-new-page="false"
         ref={(ref) => {
           if (!ref || activeTool === "hand") return;
           connectors.create(ref, v.element);
@@ -457,6 +463,8 @@ export const ComponentsPanel = () => {
                   {importedItems.map((item) => (
                     <div
                       key={item.id}
+                      data-drag-source="imported"
+                      data-component-new-page="false"
                       ref={(ref) => {
                         if (!ref || activeTool === "hand") return;
                         connectors.create(ref, withFreePositionDefaults(<Element is={ImportedBlock} blockName={item.name} blockCss={item.css} blockHtml={item.html} canvas />));
