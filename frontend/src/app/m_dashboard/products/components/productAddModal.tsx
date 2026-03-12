@@ -167,11 +167,21 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
           : {};
       const inferredInventoryStatus: 'in_stock' | 'out_of_stock' = (editingProduct?.stock ?? 0) > 0 ? 'in_stock' : 'out_of_stock';
 
-      setImages(imageList.map((src) => ({ id: uid(), src })));
+      const optionImages = existingVariants.flatMap((variant) =>
+        variant.options
+          .map((opt) => String(opt.image || '').trim())
+          .filter(isImageSource)
+      );
+      const mergedImages = [...imageList];
+      optionImages.forEach((src) => {
+        if (!mergedImages.includes(src)) mergedImages.push(src);
+      });
+
+      setImages(mergedImages.map((src) => ({ id: uid(), src })));
       setRemovedVariantRows([]);
       setSlide(0);
       setEnableVariationImages(existingVariants.some((variant) =>
-        variant.options.some((option) => Boolean(String(option.image || '').trim()))
+        variant.options.some((option) => Boolean(String(option.image || '').trim())) || existingVariants.length > 0
       ));
       const initialCategory = editingProduct?.category || lockedProjectCategory || '';
       setFd({
@@ -278,6 +288,15 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
     setSlide((current) => (current + dir + images.length) % images.length);
   };
 
+  const addImageToGallery = (src: string) => {
+    const normalized = String(src || '').trim();
+    if (!isImageSource(normalized)) return;
+    setImages((prev) => {
+      if (prev.some((img) => img.src === normalized)) return prev;
+      return [...prev, { id: uid(), src: normalized }];
+    });
+  };
+
   const openFileBrowser = (event: React.MouseEvent<HTMLElement>) => {
     event.preventDefault();
     event.stopPropagation();
@@ -308,6 +327,24 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
       return { label: combo.map(c => c.option.name).join(' / '), price, stockKey };
     });
   }, [fd.variants, fd.hasVariants, basePrice, fd.variantPrices]);
+
+  const variationImageGallery = useMemo(() => {
+    const seen = new Set<string>();
+    const items: Array<{ id: string; src: string; label: string }> = [];
+    fd.variants.forEach((variant) => {
+      variant.options.forEach((option) => {
+        const src = String(option.image || '').trim();
+        if (!isImageSource(src) || seen.has(src)) return;
+        seen.add(src);
+        items.push({
+          id: `${variant.id}:${option.id}`,
+          src,
+          label: `${variant.name || 'Variant'} \u2022 ${option.name || 'Option'}`.trim(),
+        });
+      });
+    });
+    return items;
+  }, [fd.variants]);
 
   const visibleCombos = useMemo(
     () => combos.filter((combo) => !removedVariantRows.includes(combo.stockKey)),
@@ -482,6 +519,15 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
         }
       }
 
+      // Merge variation option images into the product's image gallery so they persist in the database
+      const variantImages = variationImageGallery
+        .map((item) => item.src)
+        .filter((src) => isImageSource(src));
+      const mergedImages = [...uploadedImages];
+      variantImages.forEach((src) => {
+        if (!mergedImages.includes(src)) mergedImages.push(src);
+      });
+
       const saved = await Promise.resolve(onSave({
         ...fd,
         sku: normalizedSku,
@@ -498,8 +544,8 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
         priceRangeMax,
         variantStocks: hasVariants ? combinationStockMap : {},
         variantPrices: hasVariants ? combinationPriceMap : {},
-        images: uploadedImages,
-        image: uploadedImages[0] || '[product]',
+        images: mergedImages,
+        image: mergedImages[0] || '[product]',
         stock: computedStock,
         lowStockThreshold: fd.lowStockThreshold,
         trackInventory: true,
@@ -928,6 +974,11 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                   <p className="text-[30px] leading-none font-semibold" style={{ color: '#EAF1FF' }}>
                     {images.length} of 5 images added
                   </p>
+                  {variationImageGallery.length > 0 ? (
+                    <p className="text-xs mt-1" style={{ color: '#9FB3DF' }}>
+                      {variationImageGallery.length} variation {variationImageGallery.length === 1 ? 'image' : 'images'} linked to options
+                    </p>
+                  ) : null}
                 </div>
               </div>
 
@@ -1092,6 +1143,39 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                   )}
                 </div>
               </div>
+
+              {variationImageGallery.length > 0 ? (
+                <div className="px-8 pb-6">
+                  <div className="rounded-2xl border px-3 py-3 space-y-2" style={{ backgroundColor: '#243154', borderColor: '#3A4473' }}>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs tracking-[0.12em] font-semibold uppercase" style={{ color: '#9FB3DF' }}>Variation Images</p>
+                      <span className="text-[11px]" style={{ color: '#BFA6EC' }}>{variationImageGallery.length}</span>
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto pb-1" onClick={(e) => e.stopPropagation()}>
+                      {variationImageGallery.map((item) => (
+                        <div key={item.id} className="w-16 flex-shrink-0">
+                          <div className="h-16 rounded-lg overflow-hidden border" style={{ borderColor: '#4A5A8E' }}>
+                            <img src={item.src} alt={item.label} className="w-full h-full object-cover" />
+                          </div>
+                          <p
+                            className="text-[10px] mt-1 leading-tight"
+                            style={{
+                              color: '#C4D2FF',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden',
+                            }}
+                          >
+                            {item.label}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[10px]" style={{ color: '#7F93C1' }}>Uploaded to Firebase storage with the product.</p>
+                  </div>
+                </div>
+              ) : null}
 
               <input
                 ref={fileRef}
