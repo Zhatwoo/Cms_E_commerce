@@ -47,7 +47,7 @@ import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 import { Circle } from "../../_assets/shapes/circle/circle";
 import { Square } from "../../_assets/shapes/square/square";
 import { Triangle } from "../../_assets/shapes/triangle/triangle";
-import { CRAFT_RESOLVER } from "./craftResolver";
+import { buildCraftResolver, CRAFT_RESOLVER } from "./craftResolver";
 import {
   MIN_SCALE,
   MAX_SCALE,
@@ -142,7 +142,7 @@ const asComponent = (value: unknown): React.ComponentType<any> =>
 
 const VALIDATOR_RESOLVER: Record<string, React.ComponentType<any>> = {
   ...RenderBlocks,
-  ...CRAFT_RESOLVER,
+  ...buildCraftResolver(),
   Container: SAFE_CONTAINER,
   container: SAFE_CONTAINER,
   CONTAINER: SAFE_CONTAINER,
@@ -2253,7 +2253,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   const resolver: Record<string, React.ComponentType> = React.useMemo(() => {
     const base: Record<string, any> = {
       ...RenderBlocks,
-      ...CRAFT_RESOLVER,
+      ...buildCraftResolver(),
       Button: asComponent(Button),
       button: asComponent(Button),
       Text: asComponent(Text),

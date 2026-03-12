@@ -145,5 +145,5 @@ export function buildCraftResolver(): Resolver {
   return base;
 }
 
-/** Single resolver instance with fallback lookups so unknown casing/legacy names never hard-crash. */
-export const CRAFT_RESOLVER = withResolverFallback(buildCraftResolver());
+/** Shared plain resolver map for editor/preview usage. */
+export const CRAFT_RESOLVER = buildCraftResolver();
