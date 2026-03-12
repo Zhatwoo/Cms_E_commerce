@@ -537,7 +537,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
         price: finalPrice,
         basePrice,
         finalPrice,
-        compareAtPrice: hasVariants && Number(fd.discount || 0) > 0 ? Number(fd.discount) : null,
+        compareAtPrice: Number(fd.discount || 0) > 0 ? Number(fd.discount) : null,
         discount: 0,
         hasVariants,
         variants: hasVariants ? variants : [],
