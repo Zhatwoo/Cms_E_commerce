@@ -237,6 +237,7 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
           {statusLabel}
         </span>
         <button
+          data-product-menu-root="true"
           type="button"
           onClick={(event) => {
             event.stopPropagation();
@@ -254,6 +255,7 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
         </button>
         {menuOpen && (
           <div
+            data-product-menu-root="true"
             className="absolute right-2.5 top-10 z-30 w-28 rounded-lg border border-[#2D3A90] bg-[#12145A] py-1 shadow-xl"
             onClick={(event) => event.stopPropagation()}
           >
@@ -730,46 +732,58 @@ export default function ProductsPage() {
     return () => document.removeEventListener('mousedown', onMouseDown);
   }, [showStatusFilterMenu, showCategoryFilterMenu]);
 
+  useEffect(() => {
+    if (!openMenuProductId) return;
+    const onMouseDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest('[data-product-menu-root="true"]')) return;
+      setOpenMenuProductId(null);
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, [openMenuProductId]);
+
   const loadProducts = useCallback(async () => {
-      if (projectLoading) {
-        setLoadingProducts(true);
-        return;
-      }
+    if (projectLoading) {
       setLoadingProducts(true);
-      if (!canAddProducts) {
+      return;
+    }
+    setLoadingProducts(true);
+    if (!canAddProducts) {
+      setProducts([]);
+      setLoadingProducts(false);
+      return;
+    }
+    try {
+      const res = await listProducts({
+        subdomain: selectedSubdomain,
+        page: 1,
+        limit: 500,
+      });
+      if (res?.success && Array.isArray(res.items)) {
+        setProducts(res.items.map(toDashboardProduct));
+      } else {
         setProducts([]);
-        setLoadingProducts(false);
-        return;
       }
-      try {
-        const res = await listProducts({
-          subdomain: selectedSubdomain,
-          page: 1,
-          limit: 500,
-        });
-        if (res?.success && Array.isArray(res.items)) {
-          setProducts(res.items.map(toDashboardProduct));
-        } else {
-          setProducts([]);
-        }
-      } catch (error) {
-        setProducts([]);
-        showAlert(error instanceof Error ? error.message : 'Failed to load products', 'error');
-      } finally {
-        setLoadingProducts(false);
-      }
-    }, [projectLoading, canAddProducts, selectedSubdomain, showAlert]);
+    } catch (error) {
+      setProducts([]);
+      showAlert(error instanceof Error ? error.message : 'Failed to load products', 'error');
+    } finally {
+      setLoadingProducts(false);
+    }
+  }, [projectLoading, canAddProducts, selectedSubdomain, showAlert]);
 
   useEffect(() => {
     void loadProducts();
   }, [loadProducts]);
 
-  useEffect(() => {
-    const handleRefreshOnFocus = () => {
-      if (showAddModal || Boolean(editingProduct) || Boolean(viewingProduct)) return;
-      void loadProducts();
-    };
+  const handleRefreshOnFocus = useCallback(() => {
+    if (showAddModal || Boolean(editingProduct) || Boolean(viewingProduct)) return;
+    void loadProducts();
+  }, [showAddModal, editingProduct, viewingProduct, loadProducts]);
 
+  useEffect(() => {
     const handleVisibilityChange = () => {
       if (showAddModal || Boolean(editingProduct) || Boolean(viewingProduct)) return;
       if (document.visibilityState === 'visible') {
@@ -783,7 +797,7 @@ export default function ProductsPage() {
       window.removeEventListener('focus', handleRefreshOnFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [loadProducts, showAddModal, editingProduct, viewingProduct]);
+  }, [loadProducts, handleRefreshOnFocus, showAddModal, editingProduct, viewingProduct]);
 
   const subcategoryCounts = products.reduce<Record<string, number>>((acc, product) => {
     const subcategory = String(product.subcategory || '').trim();
@@ -1332,7 +1346,7 @@ export default function ProductsPage() {
                             </span>
                           </div>
 
-                          <div className="flex justify-center relative">
+                          <div data-product-menu-root="true" className="flex justify-center relative">
                             <button
                               type="button"
                               onClick={(event) => {
