@@ -26,6 +26,7 @@ import { ImportedBlock } from "../../_designComponents/ImportedBlock/ImportedBlo
 import { Spacer } from "../../_designComponents/Spacer/Spacer";
 import { Pagination } from "../../_designComponents/Pagination/Pagination";
 import { Rating } from "../../_designComponents/Rating/Rating";
+import { BooleanField } from "../../_designComponents/BooleanField/BooleanField";
 
 interface ComponentVariant {
   label: string;
@@ -110,6 +111,7 @@ export const ComponentsPanel = () => {
     { label: "Video", preview: "Video", element: <Video width="320px" height="220px" />, icon: <VideoIcon className="w-5 h-5" />, color: "bg-purple-500/10" },
     { label: "Spacer", preview: "Spacer", element: <Spacer />, icon: <Maximize className="w-5 h-5" />, color: "bg-slate-500/10" },
     { label: "Button", preview: "Button", element: <Element is={Button} canvas label="Click me" />, icon: <MousePointer2 className="w-5 h-5" />, color: "bg-red-500/10" },
+    { label: "Checkbox / Radio", preview: "Boolean Field", element: <BooleanField label="Option" controlType="checkbox" />, icon: <CheckSquare className="w-5 h-5" />, color: "bg-lime-500/10" },
     { label: "Pagination", preview: "Pagination", element: <Pagination />, icon: <ListIcon className="w-5 h-5" />, color: "bg-indigo-500/10" },
     { label: "Rating", preview: "Rating", element: <Rating value={2} />, icon: <Star className="w-5 h-5" />, color: "bg-amber-500/10" },
     { label: "Divider", preview: "── Divider ──", element: <Divider />, icon: <Minus className="w-5 h-5" />, color: "bg-gray-500/10" },
@@ -159,7 +161,8 @@ export const ComponentsPanel = () => {
           dragElement: comp.dragElement,
           icon: comp.icon,
           color: comp.color,
-          type: "component"
+          type: "component",
+          isNewPage: comp.isNewPage
         });
       }
     });
@@ -227,6 +230,7 @@ export const ComponentsPanel = () => {
           connectors.create(ref, withFreePositionDefaults(dragElement));
         }
       }}
+      {...(v.isNewPage ? { "data-component-new-page": "true", "data-drag-source": "component" } : { "data-drag-source": "component" })}
       className="group relative flex flex-col gap-1.5 cursor-grab active:cursor-grabbing"
     >
       <div className={`h-16 w-full ${v.color || "bg-brand-white/5"} rounded-lg border border-brand-medium/20 flex flex-col items-center justify-center transition-all duration-300 group-hover:bg-brand-white/10 group-hover:border-brand-medium/50 group-hover:shadow-md group-hover:-translate-y-0.5 overflow-hidden`}>

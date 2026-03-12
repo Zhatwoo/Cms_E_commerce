@@ -32,6 +32,9 @@ const VALIDATOR_RESOLVER: Record<string, React.ComponentType<any>> = {
   Viewport: asComponent(Viewport),
   viewport: asComponent(Viewport),
   VIEWPORT: asComponent(Viewport),
+  BooleanField: asComponent(BooleanField),
+  booleanfield: asComponent(BooleanField),
+  BOOLEANFIELD: asComponent(BooleanField),
 };
 
 const VALIDATOR_CANONICAL_NAME_BY_LOWER = new Map<string, string>();
