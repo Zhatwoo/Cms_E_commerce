@@ -911,6 +911,13 @@ export default function ProductsPage() {
       const basePrice = Number(productData.basePrice ?? productData.price ?? 0);
       const finalPrice = Number(productData.finalPrice ?? productData.price ?? 0);
       const discount = Number(productData.discount || 0);
+      const compareAtPriceRaw = productData.compareAtPrice;
+      const compareAtPrice = compareAtPriceRaw === null || compareAtPriceRaw === undefined
+        ? null
+        : (() => {
+          const parsed = Number(compareAtPriceRaw);
+          return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+        })();
       const discountType = String(productData.discountType || 'percentage') === 'fixed' ? 'fixed' : 'percentage';
       const hasVariants = Boolean(productData.hasVariants) && variants.length > 0;
       const variantStocks = hasVariants && productData.variantStocks && typeof productData.variantStocks === 'object'
@@ -955,7 +962,7 @@ export default function ProductsPage() {
         basePrice,
         costPrice: productData.costPrice !== undefined ? Number(productData.costPrice || 0) : null,
         finalPrice,
-        compareAtPrice: discount > 0 ? basePrice : null,
+        compareAtPrice,
         discount,
         discountType,
         hasVariants,
