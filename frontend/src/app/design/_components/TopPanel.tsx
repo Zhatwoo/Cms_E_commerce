@@ -22,8 +22,9 @@ import { selectedToIds } from "../_lib/canvasActions";
 import { useCollaboration } from "../_context/CollaborationContext";
 import { useDesignProject } from "../_context/DesignProjectContext";
 import { ShareModal } from "./ShareModal";
-import { getStoredUser } from "@/lib/api";
+import { getStoredUser, getProjectStorage } from "@/lib/api";
 import { DesignTooltip } from "./DesignTooltip";
+import { HardDrive } from "lucide-react";
 
 export type DevicePreset = {
   name: string;
@@ -114,6 +115,8 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   const userModalRef = useRef<HTMLDivElement>(null);
   const collabListRef = useRef<HTMLDivElement>(null);
   const [showCollabList, setShowCollabList] = useState(false);
+  const [storageUsage, setStorageUsage] = useState<{ bytes: number; readable: string } | null>(null);
+  const STORAGE_LIMIT = 1024 * 1024 * 1024; // 1 GB
 
   // Get collaboration state
   const { collaborators, myColor, connected } = useCollaboration();
@@ -131,6 +134,26 @@ export const TopPanel: React.FC<TopPanelProps> = ({
       setSelectedPreset(matchingPreset);
     }
   }, [canvasWidth, canvasHeight]);
+
+  // Fetch storage usage
+  const fetchStorageUsage = useCallback(async () => {
+    if (!projectId) return;
+    try {
+      const data = await getProjectStorage(projectId);
+      if (data.success) {
+        setStorageUsage({ bytes: data.storageBytes, readable: data.storageReadable });
+      }
+    } catch (error) {
+      console.error("Failed to fetch storage usage:", error);
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    fetchStorageUsage();
+    // Refresh storage usage every 30 seconds
+    const interval = setInterval(fetchStorageUsage, 30000);
+    return () => clearInterval(interval);
+  }, [fetchStorageUsage]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -293,6 +316,32 @@ export const TopPanel: React.FC<TopPanelProps> = ({
               <span className="text-xs font-medium text-brand-light">Back</span>
             </Link>
           </DesignTooltip>
+
+          {/* Project Storage Usage */}
+          {storageUsage && (
+            <div className="flex flex-col gap-1 min-w-[140px] ml-2 group/storage cursor-help">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-1.5 overflow-hidden">
+                  <HardDrive className="w-3 h-3 text-white/40 group-hover/storage:text-emerald-400 transition-colors shrink-0" />
+                  <span className="text-[10px] font-bold text-white/50 group-hover/storage:text-white/80 transition-colors truncate uppercase tracking-wider">Project Storage</span>
+                </div>
+                <span className="text-[9px] font-black text-white/30 group-hover/storage:text-white/60 transition-colors tabular-nums shrink-0">{storageUsage.readable} / 1 GB</span>
+              </div>
+              <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5 relative">
+                <div
+                  className="h-full transition-all duration-1000 ease-out rounded-full shadow-[0_0_12px_rgba(16,185,129,0.2)]"
+                  style={{
+                    width: `${Math.min(100, (storageUsage.bytes / STORAGE_LIMIT) * 100)}%`,
+                    background: (storageUsage.bytes / STORAGE_LIMIT) > 0.9 
+                      ? "linear-gradient(90deg, #ef4444, #f87171)" 
+                      : (storageUsage.bytes / STORAGE_LIMIT) > 0.7 
+                        ? "linear-gradient(90deg, #f59e0b, #fbbf24)" 
+                        : "linear-gradient(90deg, #10b981, #34d399)"
+                  }}
+                />
+              </div>
+            </div>
+          )}
 
         </div>
 
