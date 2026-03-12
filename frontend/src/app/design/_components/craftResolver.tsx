@@ -14,12 +14,17 @@ import { Row } from "../_designComponents/Row/Row";
 import { Column } from "../_designComponents/Column/Column";
 import { Icon } from "../_designComponents/Icon/Icon";
 import { Tabs } from "../_designComponents/Tabs/Tabs";
+import { TabContent } from "../_designComponents/Tabs/TabContent";
 import { Spacer } from "../_designComponents/Spacer/Spacer";
 import { Pagination } from "../_designComponents/Pagination/Pagination";
+import { Rating } from "../_designComponents/Rating/Rating";
+import { Banner } from "../_designComponents/Banner/banner";
+import { Badge } from "../_designComponents/Badge/badge";
 import { Circle } from "../../_assets/shapes/circle/circle";
 import { Square } from "../../_assets/shapes/square/square";
 import { Triangle } from "../../_assets/shapes/triangle/triangle";
 import { ImportedBlock } from "../_designComponents/ImportedBlock/ImportedBlock";
+import { Accordion } from "../_designComponents/Accordion/Accordion";
 
 type Resolver = Record<string, React.ComponentType<any>>;
 
@@ -63,15 +68,19 @@ export function buildCraftResolver(): Resolver {
   const DividerComp = asComponent(Divider, ContainerComp);
   const SectionComp = asComponent(Section, ContainerComp);
   const TabsComp = asComponent(Tabs, ContainerComp);
+  const TabContentComp = asComponent(TabContent, ContainerComp);
   const RowComp = asComponent(Row, ContainerComp);
   const ColumnComp = asComponent(Column, ContainerComp);
   const IconComp = asComponent(Icon, ContainerComp);
+  const BannerComp = asComponent(Banner, ContainerComp);
+  const BadgeComp = asComponent(Badge, ContainerComp);
   const CircleComp = asComponent(Circle, ContainerComp);
   const SquareComp = asComponent(Square, ContainerComp);
   const TriangleComp = asComponent(Triangle, ContainerComp);
   const ImportedBlockComp = asComponent(ImportedBlock, ContainerComp);
   const SpacerComp = asComponent(Spacer, ContainerComp);
   const PaginationComp = asComponent(Pagination, ContainerComp);
+  const RatingComp = asComponent(Rating, ContainerComp);
   const base: Resolver = {
     Container: ContainerComp,
     container: ContainerComp,
@@ -95,10 +104,16 @@ export function buildCraftResolver(): Resolver {
     section: SectionComp,
     Tabs: TabsComp,
     tabs: TabsComp,
+    TabContent: TabContentComp,
+    tabcontent: TabContentComp,
     Row: RowComp,
     row: RowComp,
     Column: ColumnComp,
     column: ColumnComp,
+    Banner: BannerComp,
+    banner: BannerComp,
+    Badge: BadgeComp,
+    badge: BadgeComp,
     Icon: IconComp,
     icon: IconComp,
     Circle: CircleComp,
@@ -109,12 +124,17 @@ export function buildCraftResolver(): Resolver {
     triangle: TriangleComp,
     ImportedBlock: ImportedBlockComp,
     importedblock: ImportedBlockComp,
+    Accordion: asComponent(Accordion, ContainerComp),
+    accordion: asComponent(Accordion, ContainerComp),
     Spacer: SpacerComp,
     spacer: SpacerComp,
     SPACER: SpacerComp,
     Pagination: PaginationComp,
     pagination: PaginationComp,
     PAGINATION: PaginationComp,
+    Rating: RatingComp,
+    rating: RatingComp,
+    RATING: RatingComp,
   };
   base.Image = ImageComp;
   base.image = ImageComp;

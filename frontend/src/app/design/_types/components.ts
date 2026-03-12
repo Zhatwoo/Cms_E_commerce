@@ -267,6 +267,20 @@ export interface PaginationProps extends SizeProps, SpacingProps, PositionProps,
   showIcons?: boolean;
 }
 
+/** Rating component props — star rating display with optional value label. */
+export interface RatingProps extends SizeProps, SpacingProps, PositionProps, TransformProps, AppearanceProps, EffectsProps, TypographyProps {
+  value?: number;
+  max?: number;
+  size?: number;
+  gap?: number;
+  valueGap?: number;
+  filledColor?: string;
+  emptyColor?: string;
+  showValue?: boolean;
+  valueText?: string;
+  interactive?: boolean;
+}
+
 /** Icon component props — displays a clickable icon with styling. */
 export interface IconProps extends SpacingProps, PositionProps, AnimatableProps {
   iconType?: string;
@@ -305,6 +319,7 @@ export interface TabsProps
   extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps, AnimatableProps, InteractionProps {
   tabs: TabItem[];
   activeTabId: string;
+  tabAlignment?: "left" | "center" | "right";
   tabHeaderBackgroundColor?: string;
   tabHeaderTextColor?: string;
   activeTabBackgroundColor?: string;

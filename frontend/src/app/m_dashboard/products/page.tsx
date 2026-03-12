@@ -1,7 +1,8 @@
 'use client';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertTriangle, ArrowDownUp, CheckCircle, Package } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { AlertTriangle, CheckCircle } from 'lucide-react';
 import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
 import { useProject } from '../components/context/project-context';
@@ -19,10 +20,8 @@ type ProductPopupState = {
 };
 
 const PRODUCT_INSIGHT_CARDS = [
-  { id: 'total', label: 'Total Products', icon: Package },
   { id: 'active', label: 'Active', icon: CheckCircle },
-  { id: 'low', label: 'Low Stock', icon: AlertTriangle },
-  { id: 'out', label: 'Out of Stock', icon: ArrowDownUp },
+  { id: 'inactive', label: 'Inactive', icon: AlertTriangle },
 ] as const;
 
 function getLowStockThreshold(product: Product): number {
@@ -33,6 +32,40 @@ function getLowStockThreshold(product: Product): number {
 
 function isLowStock(product: Product): boolean {
   return product.stock > 0 && product.stock < getLowStockThreshold(product);
+}
+
+function formatProductPrice(product: Product): string {
+  const priceRangeMin = Number(product.priceRangeMin);
+  const priceRangeMax = Number(product.priceRangeMax);
+  const hasPriceRange = Number.isFinite(priceRangeMin)
+    && Number.isFinite(priceRangeMax)
+    && priceRangeMin >= 0
+    && priceRangeMax >= 0
+    && priceRangeMax >= priceRangeMin;
+
+  if (hasPriceRange) {
+    if (priceRangeMin === priceRangeMax) return `P${Math.round(priceRangeMin).toLocaleString()}.00`;
+    return `P${Math.round(priceRangeMin).toLocaleString()} - P${Math.round(priceRangeMax).toLocaleString()}`;
+  }
+
+  return `P${Math.round(Number(product.price || 0)).toLocaleString()}.00`;
+}
+
+function getVariantLabelsForList(product: Product): string[] {
+  const groups = getVariantGroups(product);
+  if (groups.length === 0) return ['NO VARIANT'];
+
+  if (groups.length === 1) {
+    const options = groups[0]?.options?.map((o) => String(o.name || '').trim()).filter(Boolean) || [];
+    if (options.length <= 3) return options;
+    return [...options.slice(0, 2), `+${options.length - 2}`];
+  }
+
+  const firstGroup = groups[0];
+  const options = firstGroup?.options?.map((o) => String(o.name || '').trim()).filter(Boolean) || [];
+  if (options.length === 0) return [`${groups.length} VARIANTS`];
+  if (options.length <= 2) return options;
+  return [...options.slice(0, 1), `+${options.length - 1}`];
 }
 
 function isImageSource(value: string): boolean {
@@ -116,19 +149,21 @@ function colorFromName(value: string): string {
 
 type ThemeColors = ReturnType<typeof useTheme>['colors'];
 
-const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitioningOut }: {
+const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitioningOut, menuOpen, onToggleMenu, onCloseMenu }: {
   product: Product;
   colors: ThemeColors;
   onView: (product: Product) => void;
   onEdit: (product: Product) => void;
   onDelete: (product: Product) => void;
   isTransitioningOut?: boolean;
+  menuOpen: boolean;
+  onToggleMenu: () => void;
+  onCloseMenu: () => void;
 }) => {
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => getInitialVariantSelection(product));
   const selectedVariantImage = getSelectedVariantImage(product, selectedOptions);
   const imageValue = String(selectedVariantImage || product.image || '').trim();
   const showImage = isImageSource(imageValue);
-  const [menuOpen, setMenuOpen] = useState(false);
   const variantGroups = getVariantGroups(product);
   const colorVariant = variantGroups.find((variant) => variant.name.toLowerCase().includes('color'));
   const hasColorVariant = Boolean(colorVariant);
@@ -137,6 +172,14 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
   const singleVariantGroup = isSingleVariantGroup ? variantGroups[0] : null;
   const singleVariantId = singleVariantGroup?.id || '';
   const singleVariantOptions = singleVariantGroup?.options ?? [];
+  const maxVisibleVariantChips = 2;
+  const totalVariantLabelChars = singleVariantOptions.reduce((sum, option) => sum + String(option.name || '').length, 0)
+    + Math.max(0, singleVariantOptions.length - 1);
+  const canDisplayAllVariantsInOneLine = singleVariantOptions.length <= 3 && totalVariantLabelChars <= 18;
+  const visibleVariantOptions = canDisplayAllVariantsInOneLine
+    ? singleVariantOptions
+    : singleVariantOptions.slice(0, maxVisibleVariantChips);
+  const hiddenVariantCount = Math.max(0, singleVariantOptions.length - visibleVariantOptions.length);
   const selectedPrice = getCombinationPrice(product, selectedOptions);
   const overallStock = Number(product.stock ?? 0);
   const visiblePrice = selectedPrice ?? product.price;
@@ -178,14 +221,15 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
       animate={{ opacity: isTransitioningOut ? 0 : 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.12, ease: 'easeOut' }}
-      className="border overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col h-full"
+      onClick={() => onView(product)}
+      className="group border overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col h-full cursor-pointer"
       style={{
-        backgroundColor: '#131761',
+        backgroundColor: '#141446',
         borderColor: '#2D3A90',
         borderRadius: '20px',
       }}
     >
-      <div className="relative w-full h-44 md:h-48 overflow-hidden flex items-center justify-center border-b" style={{ borderColor: '#2D3A90', backgroundColor: '#D9D9DC' }}>
+      <div className="relative w-full h-44 md:h-48 overflow-hidden flex items-center justify-center border-b" style={{ borderColor: '#2D3A90', backgroundColor: '#1A1F66' }}>
         <span
           className="absolute left-2.5 top-2.5 z-10 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em]"
           style={statusStyle}
@@ -194,8 +238,12 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
         </span>
         <button
           type="button"
-          onClick={() => setMenuOpen((prev) => !prev)}
-          className="absolute right-2.5 top-2.5 h-7 w-7 rounded-full bg-black text-white flex items-center justify-center"
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleMenu();
+          }}
+          className="absolute right-2.5 top-2.5 z-20 h-7 w-7 rounded-full bg-black text-white flex items-center justify-center"
+          style={{ backgroundColor: '#0E123D', color: '#ffffff' }}
           title="Product actions"
         >
           <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -205,17 +253,20 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
           </svg>
         </button>
         {menuOpen && (
-          <div className="absolute right-2.5 top-10 z-20 w-28 rounded-lg border border-[#2D3A90] bg-[#12145A] py-1 shadow-xl">
-            <button type="button" onClick={() => { setMenuOpen(false); onView(product); }} className="w-full px-2.5 py-1.5 text-left text-[11px] text-white hover:bg-white/5">View</button>
-            <button type="button" onClick={() => { setMenuOpen(false); onEdit(product); }} className="w-full px-2.5 py-1.5 text-left text-[11px] text-white hover:bg-white/5">Edit</button>
-            <button type="button" onClick={() => { setMenuOpen(false); onDelete(product); }} className="w-full px-2.5 py-1.5 text-left text-[11px] text-red-300 hover:bg-red-500/10">Delete</button>
+          <div
+            className="absolute right-2.5 top-10 z-30 w-28 rounded-lg border border-[#2D3A90] bg-[#12145A] py-1 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button type="button" onClick={() => { onCloseMenu(); onView(product); }} className="w-full px-2.5 py-1.5 text-left text-[11px] text-white hover:bg-white/5">View</button>
+            <button type="button" onClick={() => { onCloseMenu(); onEdit(product); }} className="w-full px-2.5 py-1.5 text-left text-[11px] text-white hover:bg-white/5">Edit</button>
+            <button type="button" onClick={() => { onCloseMenu(); onDelete(product); }} className="w-full px-2.5 py-1.5 text-left text-[11px] text-red-300 hover:bg-red-500/10">Delete</button>
           </div>
         )}
         {showImage ? (
           <img
             src={imageValue}
             alt={product.name}
-            className="w-full h-full object-contain p-3"
+            className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-105"
           />
         ) : (
           <div className="flex flex-col items-center justify-center text-center p-3">
@@ -227,35 +278,61 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
         )}
       </div>
 
-      <div className="p-3.5 md:p-4 flex-1 flex flex-col" style={{ backgroundColor: '#131761' }}>
-        <h3 className="font-semibold text-[18px] leading-tight line-clamp-2 text-white">
+      <div className="p-3.5 md:p-4 flex-1 flex flex-col" style={{ backgroundColor: '#141446' }}>
+        <h3 className="font-semibold text-[18px] leading-tight line-clamp-2" style={{ color: '#F2ECFF' }}>
           {product.name}
         </h3>
-        <p className="mt-1 text-xs" style={{ color: '#FFCC00' }}>
-          {subcategoryLabel ? `${subcategoryLabel} · ` : ''}{product.sku || '-'}
-        </p>
-
-        {variantGroups.length > 1 && hasColorVariant && (
-          <p className="mt-2 text-[11px] text-white/90">
-            Color Variants: {colorVariantCount}
+        <div className="mt-auto">
+          {subcategoryLabel && (
+            <p className="mt-1 text-[10px] uppercase tracking-[0.08em]" style={{ color: '#8A8FC4' }}>
+              {subcategoryLabel}
+            </p>
+          )}
+          <p className={`${subcategoryLabel ? 'mt-0.5' : 'mt-1'} text-xs`} style={{ color: '#FFCC00' }}>
+            {product.sku || '-'}
           </p>
-        )}
 
-        {isSingleVariantGroup && singleVariantOptions.length > 0 && (
-          <div className="mt-2.5 flex flex-wrap gap-1">
-            {singleVariantOptions.map((option) => (
+          {variantGroups.length > 1 && hasColorVariant && (
+            <p className="mt-2 text-[11px] mb-2.5" style={{ color: '#D2D6F7' }}>
+              Color Variants: {colorVariantCount}
+            </p>
+          )}
+
+          {isSingleVariantGroup && singleVariantOptions.length > 0 && (
+            <div className="mt-2.5 mb-3 flex flex-wrap gap-1">
+              {visibleVariantOptions.map((option) => (
+                <span
+                  key={`${product.id}-${singleVariantId}-${option.id}`}
+                  className="px-1.5 py-0.5 text-[9px] border text-white rounded-sm"
+                  style={{ borderColor: '#6C72B2', backgroundColor: 'transparent' }}
+                >
+                  {option.name}
+                </span>
+              ))}
+              {hiddenVariantCount > 0 && (
+                <span
+                  className="px-1.5 py-0.5 text-[9px] border text-white rounded-sm"
+                  style={{ borderColor: '#6C72B2', backgroundColor: 'transparent' }}
+                >
+                  +{hiddenVariantCount}
+                </span>
+              )}
+            </div>
+          )}
+
+          {variantGroups.length === 0 && (
+            <div className="mt-2.5 mb-3 flex flex-wrap gap-1">
               <span
-                key={`${product.id}-${singleVariantId}-${option.id}`}
                 className="px-1.5 py-0.5 text-[9px] border text-white rounded-sm"
                 style={{ borderColor: '#6C72B2', backgroundColor: 'transparent' }}
               >
-                {option.name}
+                NO VARIANT
               </span>
-            ))}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
 
-        <div className="mt-auto pt-3 flex items-end justify-between">
+        <div className="mt-3 pt-3 flex items-end justify-between border-t" style={{ borderColor: '#2D3A90' }}>
           <div className="flex flex-col">
             {formattedOriginalPrice && (
               <p className="text-[11px] leading-none line-through" style={{ color: '#8f94b8' }}>
@@ -273,10 +350,11 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
   );
 };
 
-const ProductDetailsModal = ({ product, onClose, colors }: {
+const ProductDetailsModal = ({ product, onClose, colors, onEditProduct }: {
   product?: Product;
   onClose: () => void;
   colors: ThemeColors;
+  onEditProduct: (product: Product) => void;
 }) => {
   const [currentImage, setCurrentImage] = useState(0);
 
@@ -298,12 +376,14 @@ const ProductDetailsModal = ({ product, onClose, colors }: {
 
   const hasGallery = gallery.length > 0;
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[1000]"
+      className="fixed inset-0 z-[2147483000]"
       style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}
       onClick={onClose}
     >
@@ -369,24 +449,35 @@ const ProductDetailsModal = ({ product, onClose, colors }: {
                 )}
               </div>
 
-              {hasGallery && gallery.length > 1 && (
-                <div className="flex gap-2 mt-3 overflow-x-auto">
-                  {gallery.map((img, idx) => (
-                    <button
-                      type="button"
-                      key={`${product.id}-thumb-${idx}`}
-                      onClick={() => setCurrentImage(idx)}
-                      className="w-14 h-14 rounded-lg overflow-hidden border flex-shrink-0"
-                      style={{
-                        borderColor: idx === currentImage ? '#3b82f6' : colors.border.faint,
-                        backgroundColor: colors.bg.elevated,
-                      }}
-                    >
-                      <img src={img} alt={`${product.name} ${idx + 1}`} className="w-full h-full object-cover" />
-                    </button>
-                  ))}
-                </div>
-              )}
+              <div className="mt-3 w-fit mx-auto">
+                {hasGallery && gallery.length > 1 && (
+                  <div className="flex justify-center gap-2">
+                    {gallery.map((img, idx) => (
+                      <button
+                        type="button"
+                        key={`${product.id}-thumb-${idx}`}
+                        onClick={() => setCurrentImage(idx)}
+                        className="w-14 h-14 rounded-lg overflow-hidden border flex-shrink-0"
+                        style={{
+                          borderColor: idx === currentImage ? '#3b82f6' : colors.border.faint,
+                          backgroundColor: colors.bg.elevated,
+                        }}
+                      >
+                        <img src={img} alt={`${product.name} ${idx + 1}`} className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => onEditProduct(product)}
+                  className="mt-3 h-10 w-full rounded-lg text-sm font-semibold text-white"
+                  style={{ backgroundColor: '#16a34a' }}
+                >
+                  Edit Product
+                </button>
+              </div>
             </div>
 
             <div className="p-5 space-y-4">
@@ -437,7 +528,7 @@ const ProductDetailsModal = ({ product, onClose, colors }: {
               <div className="pt-3 border-t" style={{ borderColor: colors.border.faint }}>
                 <p className="text-xs uppercase tracking-wide mb-1" style={{ color: colors.text.muted }}>Description</p>
                 <div className="max-h-36 overflow-y-auto pr-1">
-                  <p className="text-sm leading-6 whitespace-pre-wrap" style={{ color: colors.text.secondary }}>
+                  <p className="text-sm leading-6 whitespace-pre-wrap" style={{ color: '#ffffff' }}>
                     {product.description || 'No description.'}
                   </p>
                 </div>
@@ -452,7 +543,8 @@ const ProductDetailsModal = ({ product, onClose, colors }: {
           </div>
         </motion.div>
       </div>
-    </motion.div>
+    </motion.div>,
+    document.body
   );
 };
 
@@ -582,13 +674,16 @@ export default function ProductsPage() {
   const [loadingProducts, setLoadingProducts] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'low-stock' | 'out-of-stock'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [viewMode, setViewMode] = useState<'tile' | 'list'>('tile');
+  const [showCategoryFilterMenu, setShowCategoryFilterMenu] = useState(false);
   const [showStatusFilterMenu, setShowStatusFilterMenu] = useState(false);
+  const categoryMenuRef = useRef<HTMLDivElement | null>(null);
   const statusMenuRef = useRef<HTMLDivElement | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | undefined>();
   const [viewingProduct, setViewingProduct] = useState<Product | undefined>();
+  const [openMenuProductId, setOpenMenuProductId] = useState<string | null>(null);
   const [perPage, setPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [productPopup, setProductPopup] = useState<ProductPopupState>({
@@ -605,10 +700,12 @@ export default function ProductsPage() {
 
     setProductPopup({ open: true, message, tone });
 
+    const popupDuration = tone === 'success' ? 1500 : 3000;
+
     productPopupTimerRef.current = window.setTimeout(() => {
       setProductPopup((prev) => ({ ...prev, open: false }));
       productPopupTimerRef.current = null;
-    }, 3000);
+    }, popupDuration);
   }, []);
 
   useEffect(() => {
@@ -620,16 +717,18 @@ export default function ProductsPage() {
   }, []);
 
   useEffect(() => {
-    if (!showStatusFilterMenu) return;
+    if (!showStatusFilterMenu && !showCategoryFilterMenu) return;
     const onMouseDown = (event: MouseEvent) => {
       const target = event.target as Node | null;
       if (!target) return;
+      if (categoryMenuRef.current?.contains(target)) return;
       if (statusMenuRef.current?.contains(target)) return;
+      setShowCategoryFilterMenu(false);
       setShowStatusFilterMenu(false);
     };
     document.addEventListener('mousedown', onMouseDown);
     return () => document.removeEventListener('mousedown', onMouseDown);
-  }, [showStatusFilterMenu]);
+  }, [showStatusFilterMenu, showCategoryFilterMenu]);
 
   const loadProducts = useCallback(async () => {
       if (projectLoading) {
@@ -686,42 +785,34 @@ export default function ProductsPage() {
     };
   }, [loadProducts, showAddModal, editingProduct, viewingProduct]);
 
-  const categoryOptions = Array.from(
-    new Set(
-      products
-        .map((product) => String(product.category || '').trim())
-        .filter((value) => value.length > 0)
-    )
-  ).sort();
+  const subcategoryCounts = products.reduce<Record<string, number>>((acc, product) => {
+    const subcategory = String(product.subcategory || '').trim();
+    if (!subcategory) return acc;
+    acc[subcategory] = (acc[subcategory] || 0) + 1;
+    return acc;
+  }, {});
 
-  const subcategoryOptions = Array.from(
-    new Set(
-      products
-        .map((product) => String(product.subcategory || '').trim())
-        .filter((value) => value.length > 0)
-    )
-  ).sort();
+  const subcategoryOptions = Object.keys(subcategoryCounts).sort();
 
   const filterOptions = [
-    { value: 'all', label: 'All' },
-    ...categoryOptions.map((category) => ({ value: `category:${category}`, label: category })),
-    ...subcategoryOptions.map((subcategory) => ({ value: `subcategory:${subcategory}`, label: `Subcategory: ${subcategory}` })),
+    { value: 'all', label: `All (${products.length})` },
+    ...subcategoryOptions.map((subcategory) => ({
+      value: `subcategory:${subcategory}`,
+      label: `${subcategory} (${subcategoryCounts[subcategory]})`,
+    })),
   ];
+  const selectedCategoryLabel = filterOptions.find((option) => option.value === selectedCategory)?.label ?? 'All';
 
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.sku.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'all'
-      || (selectedCategory.startsWith('category:')
-        && product.category === selectedCategory.slice('category:'.length))
       || (selectedCategory.startsWith('subcategory:')
         && String(product.subcategory || '').trim() === selectedCategory.slice('subcategory:'.length));
     const matchesStatus =
       statusFilter === 'all' ||
       (statusFilter === 'active' && product.status === 'active') ||
-      (statusFilter === 'inactive' && product.status === 'inactive') ||
-      (statusFilter === 'low-stock' && isLowStock(product)) ||
-      (statusFilter === 'out-of-stock' && product.stock <= 0);
+      (statusFilter === 'inactive' && product.status === 'inactive');
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
@@ -751,7 +842,7 @@ export default function ProductsPage() {
     try {
       await deleteProduct(product.id);
       await loadProducts();
-      showAlert('Product deleted successfully', 'success');
+      showProductPopup('Product deleted successfully!', 'success');
     } catch (error) {
       showAlert(error instanceof Error ? error.message : 'Failed to delete product', 'error');
     }
@@ -760,7 +851,7 @@ export default function ProductsPage() {
 
   const handleSaveProduct = async (productData: Partial<Product> & Record<string, unknown>): Promise<boolean> => {
     try {
-      let shouldShowAddedPopup = false;
+      let successMessage: string | null = null;
       const rawVariants = Array.isArray(productData.variants) ? productData.variants : [];
       const variants: ProductVariant[] = rawVariants
         .map((variant): ProductVariant => {
@@ -848,6 +939,7 @@ export default function ProductsPage() {
 
       if (editingProduct) {
         await updateProduct(editingProduct.id, payload);
+        successMessage = 'Product updated successfully!';
       } else {
         if (!selectedSubdomain) {
           showAlert('Set a subdomain for this website first to manage products.', 'error');
@@ -858,14 +950,14 @@ export default function ProductsPage() {
           ...payload,
           slug: payload.name.toLowerCase().replace(/\s+/g, '-'),
         });
-        shouldShowAddedPopup = true;
+        successMessage = 'Product added successfully!';
       }
 
       await loadProducts();
       setShowAddModal(false);
       setEditingProduct(undefined);
-      if (shouldShowAddedPopup) {
-        showProductPopup('Product added successfully!', 'success');
+      if (successMessage) {
+        showProductPopup(successMessage, 'success');
       }
       return true;
     } catch (error) {
@@ -876,47 +968,49 @@ export default function ProductsPage() {
 
   const hasProducts = products.length > 0;
   const productInsights = {
-    total: products.length,
     active: products.filter((product) => product.status === 'active').length,
-    low: products.filter((product) => isLowStock(product)).length,
-    out: products.filter((product) => product.stock <= 0).length,
+    inactive: products.filter((product) => product.status === 'inactive').length,
   };
 
   return (
     <div className="space-y-6">
-      <AnimatePresence>
-        {productPopup.open && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[1200] flex items-center justify-center p-4"
-            style={{ backgroundColor: 'rgba(0, 0, 0, 0.35)', backdropFilter: 'blur(4px)' }}
-          >
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {productPopup.open && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="w-auto max-w-sm rounded-xl border px-4 py-3 shadow-xl"
-              style={{
-                backgroundColor: colors.bg.card,
-                borderColor: colors.border.faint,
-              }}
+              className="fixed inset-0 z-[2147483000] flex items-center justify-center p-4"
+              style={{ backgroundColor: 'rgba(10, 8, 28, 0.6)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
             >
-              <p className="text-sm text-center" style={{ color: productPopup.tone === 'success' ? '#ffffff' : '#ef4444' }}>
-                {productPopup.message}
-              </p>
-              {productPopup.tone === 'success' && (
+              <motion.div
+                initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 280, damping: 26 }}
+                className="w-full max-w-[250px] rounded-[14px] border px-4 py-3 shadow-xl"
+                style={{
+                  backgroundColor: '#181a59',
+                  borderColor: productPopup.tone === 'success' ? 'rgba(74,222,128,0.25)' : 'rgba(239,68,68,0.35)',
+                  boxShadow: '0 10px 28px rgba(0,0,0,0.5)',
+                }}
+              >
+                <p className="text-center" style={{ color: '#ffffff', fontSize: 'clamp(12px, 1.4vw, 16px)', fontWeight: 700, letterSpacing: -0.1, lineHeight: 1.25 }}>
+                  {productPopup.message}
+                </p>
                 <div className="mt-2 flex justify-center">
-                  <CheckCircle className="w-5 h-5" style={{ color: '#22c55e' }} />
+                  {productPopup.tone === 'success'
+                    ? <CheckCircle className="w-6 h-6" style={{ color: '#22c55e' }} />
+                    : <AlertTriangle className="w-6 h-6" style={{ color: '#ef4444' }} />}
                 </div>
-              )}
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
 
       <section className="max-w-[1090px] mx-auto pt-6 pb-2">
         <div className="text-center">
@@ -954,23 +1048,11 @@ export default function ProductsPage() {
           <p className="mt-2 text-center text-xs" style={{ color: '#8A8FC4' }}>{blockedAddProductMessage}</p>
         )}
 
-        <div className="mt-0 grid grid-cols-2 lg:grid-cols-4 gap-[10px]">
+        <div className="mt-0 grid grid-cols-2 lg:grid-cols-2 gap-[10px]">
           {PRODUCT_INSIGHT_CARDS.map((card, idx) => {
             const Icon = card.icon;
-            const accentColor = card.id === 'low'
-              ? '#b178ff'
-              : card.id === 'out'
-                ? '#ff4f8c'
-                : card.id === 'active'
-                  ? '#22d3a4'
-                  : '#86a8ff';
-            const value = card.id === 'total'
-              ? productInsights.total
-              : card.id === 'active'
-                ? productInsights.active
-                : card.id === 'low'
-                  ? productInsights.low
-                  : productInsights.out;
+            const accentColor = card.id === 'active' ? '#22d3a4' : '#ff4f8c';
+            const value = card.id === 'active' ? productInsights.active : productInsights.inactive;
 
             return (
               <motion.div
@@ -1005,18 +1087,43 @@ export default function ProductsPage() {
           <div id="inventory-section" className="max-w-[1090px] mx-auto mb-5">
             <div className="flex items-center justify-between gap-[10px] flex-wrap">
               <div className="flex items-center gap-2 justify-start">
-                <div className="relative">
-                  <select
-                    value={selectedCategory}
-                    onChange={(e) => { setSelectedCategory(e.target.value); setCurrentPage(1); }}
-                    className="h-[46px] px-4 rounded-xl border text-[13px] font-semibold min-w-[156px] appearance-none pr-9"
+                <div ref={categoryMenuRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowCategoryFilterMenu((prev) => !prev)}
+                    className="h-[46px] px-4 rounded-xl border text-[13px] font-semibold min-w-[156px] pr-9 text-left relative"
                     style={{ backgroundColor: '#141446', borderColor: '#2D3A90', color: '#ddd1ff' }}
+                    title="Filter by subcategory"
                   >
-                    {filterOptions.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px]" style={{ color: '#b6abd6' }}>▼</span>
+                    <span className="truncate block">{selectedCategoryLabel}</span>
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px]" style={{ color: '#b6abd6' }}>▼</span>
+                  </button>
+                  {showCategoryFilterMenu && (
+                    <div
+                      className="absolute left-0 top-full mt-2 w-56 rounded-xl border p-2 z-30"
+                      style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
+                    >
+                      {filterOptions.map((option) => {
+                        const checked = selectedCategory === option.value;
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => {
+                              setSelectedCategory(option.value);
+                              setCurrentPage(1);
+                              setShowCategoryFilterMenu(false);
+                            }}
+                            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm hover:bg-white/5"
+                            style={{ color: '#D2D6F7' }}
+                          >
+                            <span>{option.label}</span>
+                            <span>{checked ? '✓' : ''}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 <button
@@ -1024,7 +1131,7 @@ export default function ProductsPage() {
                   onClick={() => setShowAddModal(true)}
                   disabled={!canAddProducts}
                   className={`h-[46px] px-4 rounded-xl border flex items-center justify-center text-[13px] font-bold ${canAddProducts ? 'hover:opacity-90' : 'opacity-50 cursor-not-allowed'}`}
-                  style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
+                  style={{ backgroundColor: '#2563eb', borderColor: '#3b82f6', color: '#ffffff' }}
                   title="Add product"
                 >
                   + Add Product
@@ -1051,8 +1158,6 @@ export default function ProductsPage() {
                         { value: 'all', label: 'All' },
                         { value: 'active', label: 'Active' },
                         { value: 'inactive', label: 'Inactive' },
-                        { value: 'low-stock', label: 'Low Stock' },
-                        { value: 'out-of-stock', label: 'Out of Stock' },
                       ].map((item) => {
                         const checked = statusFilter === item.value;
                         return (
@@ -1123,21 +1228,141 @@ export default function ProductsPage() {
 
           {filteredProducts.length > 0 ? (
             <>
-              <div id="products-grid" className={`max-w-[1090px] mx-auto grid gap-3 md:gap-4 lg:gap-5 ${viewMode === 'tile' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4' : 'grid-cols-1'}`}>
-                <AnimatePresence>
-                  {paginatedProducts.map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      colors={colors}
-                      onView={handleView}
-                      onEdit={handleEdit}
-                      onDelete={handleDelete}
-                      isTransitioningOut={false}
-                    />
-                  ))}
-                </AnimatePresence>
-              </div>
+              {viewMode === 'tile' ? (
+                <div id="products-grid" className="max-w-[1090px] mx-auto grid gap-3 md:gap-4 lg:gap-5 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4">
+                  <AnimatePresence>
+                    {paginatedProducts.map((product) => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        colors={colors}
+                        onView={handleView}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                        isTransitioningOut={false}
+                        menuOpen={openMenuProductId === product.id}
+                        onToggleMenu={() => setOpenMenuProductId((prev) => (prev === product.id ? null : product.id))}
+                        onCloseMenu={() => setOpenMenuProductId(null)}
+                      />
+                    ))}
+                  </AnimatePresence>
+                </div>
+              ) : (
+                <div className="max-w-[1090px] mx-auto overflow-hidden rounded-3xl border" style={{ borderColor: '#2D3A90', backgroundColor: '#141446' }}>
+                  <div style={{ overflowX: 'auto' }}>
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '2.1fr 1.2fr 1.4fr 1.1fr 1.1fr 56px',
+                        gap: 16,
+                        padding: '13px 24px',
+                        minWidth: 860,
+                        borderBottom: '1px solid #2D3A90',
+                        background: '#141446',
+                        color: '#8273a8',
+                        fontSize: 11,
+                        letterSpacing: 0.9,
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      <span>Product Name</span>
+                      <span>SKU</span>
+                      <span>Variants</span>
+                      <span>Price</span>
+                      <span>Inventory</span>
+                      <span />
+                    </div>
+
+                    {paginatedProducts.map((product, index) => {
+                      const image = String(product.image || '').trim();
+                      const showThumb = isImageSource(image);
+                      const variantLabels = getVariantLabelsForList(product);
+                      const inStock = Number(product.stock || 0) > 0;
+                      return (
+                        <div
+                          key={`list-${product.id}`}
+                          onClick={() => handleView(product)}
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: '2.1fr 1.2fr 1.4fr 1.1fr 1.1fr 56px',
+                            gap: 16,
+                            padding: '14px 24px',
+                            alignItems: 'center',
+                            fontSize: 14,
+                            minWidth: 860,
+                            borderBottom: index < paginatedProducts.length - 1 ? '1px solid rgba(255,255,255,0.055)' : 'none',
+                            transition: 'background 0.15s',
+                            cursor: 'pointer',
+                          }}
+                          onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.018)')}
+                          onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.background = 'transparent')}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-14 h-14 rounded-md overflow-hidden border flex-shrink-0" style={{ borderColor: '#2D3A90', backgroundColor: '#D9D9DC' }}>
+                              {showThumb ? (
+                                <img src={image} alt={product.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-[10px]" style={{ color: '#6E78A8' }}>No image</div>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-white font-semibold text-[15px] leading-tight truncate">{product.name}</p>
+                            </div>
+                          </div>
+
+                          <div className="text-sm text-white truncate">{product.sku || '-'}</div>
+
+                          <div className="flex flex-wrap gap-1">
+                            {variantLabels.map((label, idx) => (
+                              <span
+                                key={`${product.id}-list-variant-${idx}`}
+                                className="px-1.5 py-0.5 text-[10px] border text-white rounded-sm"
+                                style={{ borderColor: '#6C72B2', backgroundColor: 'transparent' }}
+                              >
+                                {label}
+                              </span>
+                            ))}
+                          </div>
+
+                          <div className="text-white font-semibold">{formatProductPrice(product)}</div>
+
+                          <div>
+                            <span className="text-sm font-semibold" style={{ color: inStock ? '#86efac' : '#fca5a5' }}>
+                              {inStock ? 'In stock' : 'Out of stock'}
+                            </span>
+                          </div>
+
+                          <div className="flex justify-center relative">
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setOpenMenuProductId((prev) => (prev === product.id ? null : product.id));
+                              }}
+                              className="h-8 w-8 rounded-full bg-black text-white flex items-center justify-center"
+                              title="Product actions"
+                            >
+                              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <circle cx="6" cy="12" r="2" />
+                                <circle cx="12" cy="12" r="2" />
+                                <circle cx="18" cy="12" r="2" />
+                              </svg>
+                            </button>
+
+                            {openMenuProductId === product.id && (
+                              <div className="absolute right-2 top-12 z-40 w-28 rounded-lg border border-[#2D3A90] bg-[#12145A] py-1 shadow-xl" onClick={(event) => event.stopPropagation()}>
+                                <button type="button" onClick={() => { setOpenMenuProductId(null); handleView(product); }} className="w-full px-2.5 py-1.5 text-left text-[11px] text-white hover:bg-white/5">View</button>
+                                <button type="button" onClick={() => { setOpenMenuProductId(null); handleEdit(product); }} className="w-full px-2.5 py-1.5 text-left text-[11px] text-white hover:bg-white/5">Edit</button>
+                                <button type="button" onClick={() => { setOpenMenuProductId(null); void handleDelete(product); }} className="w-full px-2.5 py-1.5 text-left text-[11px] text-red-300 hover:bg-red-500/10">Delete</button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <section className="max-w-[1090px] mx-auto text-center py-16 rounded-2xl border" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
@@ -1212,6 +1437,10 @@ export default function ProductsPage() {
             product={viewingProduct}
             onClose={() => setViewingProduct(undefined)}
             colors={colors}
+            onEditProduct={(productToEdit) => {
+              setViewingProduct(undefined);
+              handleEdit(productToEdit);
+            }}
           />
         )}
       </AnimatePresence>

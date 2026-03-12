@@ -70,7 +70,7 @@ export const Image = ({
   }, [_isDraggingSource, id, actions]);
 
   const shouldFillParent = parentDisplay === "flex" || parentDisplay === "grid";
-  const isContainerLikeParent = parentDisplayName === "Container" || parentDisplayName === "Section";
+  const isContainerLikeParent = parentDisplayName === "Container" || parentDisplayName === "Section" || parentDisplayName === "Tab Content";
   const isAutoHeight = typeof height !== "string" || height.trim().toLowerCase() === "auto";
   const parentHeightText = typeof parentHeight === "string" ? parentHeight.trim().toLowerCase() : "";
   const parentHasExplicitHeight =

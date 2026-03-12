@@ -178,9 +178,9 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/domains', domainRoutes);
+app.use('/api/projects', commentRoutes); // Merged into projects path for comments
 app.use('/api/projects', projectRoutes);
 app.use('/api/collaboration', collaborationRoutes);
-app.use('/api/projects', commentRoutes); // Merged into projects path for comments
 
 // Home route
 app.get('/', (req, res) => {

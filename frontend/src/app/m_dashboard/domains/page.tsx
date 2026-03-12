@@ -10,7 +10,7 @@ import {
   listProjects, getSchedule, getPublishHistory, unpublishProject,
   updateDomainSubdomain, addCustomDomain as apiAddCustomDomain,
   verifyCustomDomain as apiVerifyCustomDomain, removeCustomDomain as apiRemoveCustomDomain,
-  listCustomDomains,
+  listCustomDomains, getProjectStorage,
   type Project, type PublishHistoryEntry, type DnsInstructions,
 } from '@/lib/api';
 import { subscribeUserProjectSubdomains, type ProjectSubdomainEntry } from '@/lib/firebase';
@@ -19,7 +19,7 @@ import { DraftPreviewThumbnail } from '../components/projects/DraftPreviewThumbn
 import {
   Globe, Plus, Search, ExternalLink, Copy, Pencil, Check, Clock, X,
   Calendar, FileText, ArrowDownToLine, ChevronDown, ChevronUp,
-  Link2, Unlink, ShieldCheck, AlertTriangle, Loader2, LayoutGrid, List,
+  Link2, Unlink, ShieldCheck, AlertTriangle, Loader2, LayoutGrid, List, HardDrive,
 } from 'lucide-react';
 import { getSubdomainSiteUrl } from '@/lib/siteUrls';
 
@@ -138,6 +138,8 @@ export default function DomainsPage() {
   const [scheduleInfo, setScheduleInfo] = useState<{ scheduledAt: string; subdomain: string | null } | null>(null);
   const [publishHistory, setPublishHistory] = useState<PublishHistoryEntry[]>([]);
   const [unpublishingId, setUnpublishingId] = useState<string | null>(null);
+  const [storageInfo, setStorageInfo] = useState<{ bytes: number; human: string } | null>(null);
+  const [storageLoading, setStorageLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [addModalProjectId, setAddModalProjectId] = useState('');
@@ -166,6 +168,20 @@ export default function DomainsPage() {
     : domainsList;
 
   // ── Handlers ──────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!selectedDomain) {
+      setStorageInfo(null);
+      return;
+    }
+    setStorageLoading(true);
+    getProjectStorage(selectedDomain.project.id)
+      .then(res => {
+        if (res.success) setStorageInfo({ bytes: res.storageBytes, human: res.storageReadable });
+      })
+      .catch(() => setStorageInfo(null))
+      .finally(() => setStorageLoading(false));
+  }, [selectedDomain?.project.id]);
 
   const handleUnpublish = async (projectId: string, e?: React.MouseEvent) => {
     e?.stopPropagation?.();
@@ -606,6 +622,24 @@ export default function DomainsPage() {
                       </a>
                     ) : (
                       <p className="text-xs" style={{ color: colors.text.muted }}>—</p>
+                    )}
+                  </SidebarRow>
+
+                  <SidebarRow icon={<HardDrive size={10} />} label="Project Storage">
+                    {storageLoading ? (
+                      <div className="flex items-center gap-1.5 py-1">
+                        <Loader2 size={10} className="animate-spin" style={{ color: colors.text.muted }} />
+                        <span className="text-[10px]" style={{ color: colors.text.muted }}>Calculating…</span>
+                      </div>
+                    ) : (
+                      <div className="space-y-0.5">
+                        <p className="text-sm font-semibold" style={{ color: colors.text.primary }}>
+                          {storageInfo?.human || '0 Bytes'}
+                        </p>
+                        <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                          Estimated site assets size
+                        </p>
+                      </div>
                     )}
                   </SidebarRow>
 

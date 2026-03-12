@@ -42,7 +42,7 @@ export default function SettingsPage() {
 
     const handleSave = () => {
         setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 3000);
+        setTimeout(() => setSaveSuccess(false), 1500);
     };
 
     return (

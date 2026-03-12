@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { useNode, useEditor } from "@craftjs/core";
+import { useNode, useEditor, Element } from "@craftjs/core";
 import { TabsSettings } from "./TabsSettings";
+import { TabContent } from "./TabContent";
 import type { TabsProps, TabItem } from "../../_types/components";
 
 function parsePx(value: string | undefined): number | null {
@@ -253,9 +254,11 @@ export const Tabs = ({
               className={`w-full h-full transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${isActive ? "opacity-100 translate-y-0 relative" : "opacity-0 -translate-y-2 absolute inset-0 pointer-events-none"}`}
             >
               <div
-                className="w-full h-full min-h-[100px] p-6 flex flex-col text-sm whitespace-pre-wrap text-gray-800 leading-relaxed"
+                className="w-full h-full min-h-[100px] flex flex-col"
               >
-                {tab.content}
+                <Element id={`tab-content-${tab.id}`} is={TabContent} canvas>
+                  {tab.content}
+                </Element>
               </div>
             </div>
           );

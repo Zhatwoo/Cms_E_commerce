@@ -18,10 +18,14 @@ import { Section } from "../../_designComponents/Section/Section";
 import { Row } from "../../_designComponents/Row/Row";
 import { Column } from "../../_designComponents/Column/Column";
 import { Tabs } from "../../_designComponents/Tabs/Tabs";
+import { Accordion } from "../../_designComponents/Accordion/Accordion";
+import { Banner } from "../../_designComponents/Banner/banner";
+import { Badge as BadgeComponent } from "../../_designComponents/Badge/badge";
 import { CRAFT_RESOLVER } from "../craftResolver";
 import { ImportedBlock } from "../../_designComponents/ImportedBlock/ImportedBlock";
 import { Spacer } from "../../_designComponents/Spacer/Spacer";
 import { Pagination } from "../../_designComponents/Pagination/Pagination";
+import { Rating } from "../../_designComponents/Rating/Rating";
 
 interface ComponentVariant {
   label: string;
@@ -48,6 +52,8 @@ export const ComponentsPanel = () => {
     Container,
     Row,
     Column,
+    Banner,
+    BadgeComponent,
     Spacer,
     pageComponent,
   ]);
@@ -70,6 +76,28 @@ export const ComponentsPanel = () => {
     { label: "Section", preview: "Section", element: <Element is={Section} canvas />, icon: <Box className="w-5 h-5" />, color: "bg-blue-500/10" },
     { label: "Container", preview: "Container", element: <Element is={Container} padding={20} canvas />, icon: <Layers className="w-5 h-5" />, color: "bg-purple-500/10" },
     { label: "Row", preview: "Row", element: <Element is={Row} canvas />, icon: <Minus className="w-5 h-5" />, color: "bg-orange-500/10" },
+    {
+      label: "Banner",
+      preview: "Banner",
+      element: (
+        <Element is={Banner} canvas background="#ef4444" height="42px" alignItems="center" justifyContent="center" padding={8}>
+          <Text text="FLASH SALE: Up to 70% off · Use code SAVE70" fontSize={13} fontWeight="700" color="#ffffff" position="relative" />
+        </Element>
+      ),
+      icon: <AlertCircle className="w-5 h-5" />,
+      color: "bg-rose-500/10",
+    },
+    {
+      label: "Badge",
+      preview: "Badge",
+      element: (
+        <Element is={BadgeComponent} canvas background="#16a34a" borderRadius={999} width="120px" height="36px" padding={8} gap={8}>
+          <Text text="Badge" fontSize={14} fontWeight="600" color="#ffffff" position="relative" width="100%" textAlign="center" lineHeight={1.2} />
+        </Element>
+      ),
+      icon: <Badge className="w-5 h-5" />,
+      color: "bg-emerald-500/10",
+    },
     { label: "Column", preview: "Column", element: <Element is={Column} canvas />, icon: <Columns className="w-5 h-5" />, color: "bg-emerald-500/10" },
     {
       label: "Text",
@@ -83,6 +111,7 @@ export const ComponentsPanel = () => {
     { label: "Spacer", preview: "Spacer", element: <Spacer />, icon: <Maximize className="w-5 h-5" />, color: "bg-slate-500/10" },
     { label: "Button", preview: "Button", element: <Element is={Button} canvas label="Click me" />, icon: <MousePointer2 className="w-5 h-5" />, color: "bg-red-500/10" },
     { label: "Pagination", preview: "Pagination", element: <Pagination />, icon: <ListIcon className="w-5 h-5" />, color: "bg-indigo-500/10" },
+    { label: "Rating", preview: "Rating", element: <Rating value={2} />, icon: <Star className="w-5 h-5" />, color: "bg-amber-500/10" },
     { label: "Divider", preview: "── Divider ──", element: <Divider />, icon: <Minus className="w-5 h-5" />, color: "bg-gray-500/10" },
     {
       label: "Tabs",
@@ -91,6 +120,7 @@ export const ComponentsPanel = () => {
       icon: <Layout className="w-5 h-5" />,
       color: "bg-cyan-500/10"
     },
+    { label: "Accordion", preview: "Accordion", element: <Accordion />, icon: <ChevronDown className="w-5 h-5" />, color: "bg-teal-500/10" },
     {
       label: "New Page",
       preview: "New Page",
