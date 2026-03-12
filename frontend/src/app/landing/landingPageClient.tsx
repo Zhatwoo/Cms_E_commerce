@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { LandingHeader } from './components/header';
 import { AuthModal } from './components/authModal';
 import { LandingScrollRoot } from './components/scrolling';
 
-type AuthMode = 'login' | 'register';
+type AuthMode = 'login' | 'register' | 'check-email';
 const LANDING_THEME_KEY = 'landing-theme';
 const THEME_EVENT_NAME = 'landing-theme-change';
 
@@ -23,16 +24,30 @@ const getThemeSnapshot = () => window.localStorage.getItem(LANDING_THEME_KEY) ==
 const getThemeServerSnapshot = () => false;
 
 export function LandingPageClient({ children }: { children: React.ReactNode }) {
+  const searchParams = useSearchParams();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>('login');
+  const [authEmail, setAuthEmail] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isThemeSwitching, setIsThemeSwitching] = useState(false);
   const lastScrollAtRef = useRef(0);
 
   const handleAuthClick = (mode: AuthMode) => {
     setAuthMode(mode);
+    setAuthEmail('');
     setAuthModalOpen(true);
   };
+
+  useEffect(() => {
+    const auth = searchParams.get('auth');
+    const email = searchParams.get('email') || '';
+
+    if (auth === 'login' || auth === 'register' || auth === 'check-email') {
+      setAuthMode(auth);
+      setAuthEmail(auth === 'check-email' ? email : '');
+      setAuthModalOpen(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const styleId = 'landing-view-transition-style';
@@ -169,6 +184,7 @@ export function LandingPageClient({ children }: { children: React.ReactNode }) {
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
         initialMode={authMode}
+        initialEmail={authEmail}
       />
     </>
   );
