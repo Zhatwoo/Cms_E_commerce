@@ -586,12 +586,31 @@ function toDashboardProduct(product: ApiProduct): Product {
         name: String(variant?.name || ''),
         pricingMode: variant?.pricingMode === 'override' ? 'override' : 'modifier',
         options: Array.isArray(variant?.options)
-          ? variant.options.map((option) => ({
-            id: String(option?.id || ''),
-            name: String(option?.name || ''),
-            priceAdjustment: Number(option?.priceAdjustment || 0),
-            image: String(option?.image || '').trim(),
-          }))
+          ? variant.options.map((option) => {
+            const optionRecord = option as {
+              id?: unknown;
+              name?: unknown;
+              priceAdjustment?: unknown;
+              image?: unknown;
+              imageUrl?: unknown;
+              image_url?: unknown;
+              imgUrl?: unknown;
+              img_url?: unknown;
+            };
+            return {
+              id: String(optionRecord?.id || ''),
+              name: String(optionRecord?.name || ''),
+              priceAdjustment: Number(optionRecord?.priceAdjustment || 0),
+              image: String(
+                optionRecord?.image
+                ?? optionRecord?.imageUrl
+                ?? optionRecord?.image_url
+                ?? optionRecord?.imgUrl
+                ?? optionRecord?.img_url
+                ?? ''
+              ).trim(),
+            };
+          })
           : [],
       }))
       .filter((variant) => variant.id || variant.name || variant.options.length > 0)

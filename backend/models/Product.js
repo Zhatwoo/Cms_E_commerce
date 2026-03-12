@@ -71,12 +71,23 @@ function sanitizeVariants(value) {
     .map((variant, variantIndex) => {
       const rawOptions = Array.isArray(variant?.options) ? variant.options : [];
       const options = rawOptions
-        .map((option, optionIndex) => ({
-          id: (option?.id || `opt-${variantIndex + 1}-${optionIndex + 1}`).toString(),
-          name: (option?.name || '').toString().trim(),
-          priceAdjustment: toNumber(option?.priceAdjustment, 0),
-        }))
-        .filter((option) => option.name || option.priceAdjustment !== 0);
+        .map((option, optionIndex) => {
+          const image = [
+            option?.image,
+            option?.imageUrl,
+            option?.image_url,
+            option?.imgUrl,
+            option?.img_url,
+          ].find((candidate) => typeof candidate === 'string' && candidate.trim().length > 0) || '';
+
+          return {
+            id: (option?.id || `opt-${variantIndex + 1}-${optionIndex + 1}`).toString(),
+            name: (option?.name || '').toString().trim(),
+            priceAdjustment: toNumber(option?.priceAdjustment, 0),
+            image,
+          };
+        })
+        .filter((option) => option.name || option.priceAdjustment !== 0 || option.image);
 
       return {
         id: (variant?.id || `var-${variantIndex + 1}`).toString(),

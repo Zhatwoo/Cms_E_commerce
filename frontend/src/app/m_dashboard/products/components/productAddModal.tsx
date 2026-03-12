@@ -128,12 +128,31 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
           name: String(variant?.name || ''),
           pricingMode: variant?.pricingMode === 'override' ? 'override' : 'modifier',
           options: Array.isArray(variant?.options)
-            ? variant.options.map((option, optionIndex) => ({
-              id: String(option?.id || `opt-${variantIndex + 1}-${optionIndex + 1}`),
-              name: String(option?.name || ''),
-              priceAdjustment: Number(option?.priceAdjustment || 0),
-              image: String(option?.image || '').trim(),
-            }))
+            ? variant.options.map((option, optionIndex) => {
+              const optionRecord = option as {
+                id?: unknown;
+                name?: unknown;
+                priceAdjustment?: unknown;
+                image?: unknown;
+                imageUrl?: unknown;
+                image_url?: unknown;
+                imgUrl?: unknown;
+                img_url?: unknown;
+              };
+              return {
+                id: String(optionRecord?.id || `opt-${variantIndex + 1}-${optionIndex + 1}`),
+                name: String(optionRecord?.name || ''),
+                priceAdjustment: Number(optionRecord?.priceAdjustment || 0),
+                image: String(
+                  optionRecord?.image
+                  ?? optionRecord?.imageUrl
+                  ?? optionRecord?.image_url
+                  ?? optionRecord?.imgUrl
+                  ?? optionRecord?.img_url
+                  ?? ''
+                ).trim(),
+              };
+            })
             : [],
         }))
         : [];
@@ -167,17 +186,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
           : {};
       const inferredInventoryStatus: 'in_stock' | 'out_of_stock' = (editingProduct?.stock ?? 0) > 0 ? 'in_stock' : 'out_of_stock';
 
-      const optionImages = existingVariants.flatMap((variant) =>
-        variant.options
-          .map((opt) => String(opt.image || '').trim())
-          .filter(isImageSource)
-      );
-      const mergedImages = [...imageList];
-      optionImages.forEach((src) => {
-        if (!mergedImages.includes(src)) mergedImages.push(src);
-      });
-
-      setImages(mergedImages.map((src) => ({ id: uid(), src })));
+      setImages(imageList.map((src) => ({ id: uid(), src })));
       setRemovedVariantRows([]);
       setSlide(0);
       setEnableVariationImages(existingVariants.some((variant) =>
@@ -309,6 +318,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
 
   // Pricing
   const basePrice = useMemo(() => Math.max(0, Number(fd.price || 0)), [fd.price]);
+  const variantSeedPrice = useMemo(() => Math.max(0, Number(fd.discount || 0)), [fd.discount]);
   const costOfGoods = useMemo(() => Math.max(0, Number(fd.costPrice || 0)), [fd.costPrice]);
   const profitValue = useMemo(() => basePrice - costOfGoods, [basePrice, costOfGoods]);
   const marginValue = useMemo(() => (basePrice > 0 ? (profitValue / basePrice) * 100 : 0), [basePrice, profitValue]);
@@ -323,10 +333,10 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
         combo.map((item) => ({ variantId: item.variant.id, optionId: item.option.id }))
       );
       const mappedPrice = Number(fd.variantPrices?.[stockKey]);
-      const price = Number.isFinite(mappedPrice) && mappedPrice >= 0 ? mappedPrice : basePrice;
+      const price = Number.isFinite(mappedPrice) && mappedPrice >= 0 ? mappedPrice : variantSeedPrice;
       return { label: combo.map(c => c.option.name).join(' / '), price, stockKey };
     });
-  }, [fd.variants, fd.hasVariants, basePrice, fd.variantPrices]);
+  }, [fd.variants, fd.hasVariants, variantSeedPrice, fd.variantPrices]);
 
   const variationImageGallery = useMemo(() => {
     const seen = new Set<string>();
@@ -367,7 +377,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
         const current = Number(prev.variantStocks?.[combo.stockKey] ?? 0);
         nextVariantStocks[combo.stockKey] = Number.isFinite(current) && current > 0 ? Math.floor(current) : 0;
         const currentPrice = Number(prev.variantPrices?.[combo.stockKey]);
-        nextVariantPrices[combo.stockKey] = Number.isFinite(currentPrice) && currentPrice >= 0 ? currentPrice : basePrice;
+        nextVariantPrices[combo.stockKey] = Number.isFinite(currentPrice) && currentPrice >= 0 ? currentPrice : variantSeedPrice;
       }
 
       const prevStockKeys = Object.keys(prev.variantStocks || {});
@@ -382,7 +392,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
 
       return { ...prev, variantStocks: nextVariantStocks, variantPrices: nextVariantPrices };
     });
-  }, [visibleCombos, fd.hasVariants, basePrice]);
+  }, [visibleCombos, fd.hasVariants, variantSeedPrice]);
 
   const range = useMemo(() => {
     if (!visibleCombos.length) return null;
@@ -489,8 +499,8 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
         : {};
       const combinationPriceMap: VariantPriceMap = hasVariants
         ? visibleCombos.reduce<VariantPriceMap>((acc, combo) => {
-          const amount = Number(fd.variantPrices?.[combo.stockKey] ?? basePrice);
-          acc[combo.stockKey] = Number.isFinite(amount) && amount >= 0 ? amount : basePrice;
+          const amount = Number(fd.variantPrices?.[combo.stockKey] ?? variantSeedPrice);
+          acc[combo.stockKey] = Number.isFinite(amount) && amount >= 0 ? amount : variantSeedPrice;
           return acc;
         }, {})
         : {};
@@ -499,7 +509,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
         : 0;
       const combinationPrices = hasVariants ? Object.values(combinationPriceMap) : [];
       const finalPrice = hasVariants
-        ? Number((combinationPrices.length ? Math.min(...combinationPrices) : basePrice))
+        ? Number((combinationPrices.length ? Math.min(...combinationPrices) : variantSeedPrice))
         : basePrice;
       const priceRangeMin = hasVariants ? Number((combinationPrices.length ? Math.min(...combinationPrices) : finalPrice)) : finalPrice;
       const priceRangeMax = hasVariants ? Number((combinationPrices.length ? Math.max(...combinationPrices) : finalPrice)) : finalPrice;
@@ -519,15 +529,6 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
         }
       }
 
-      // Merge variation option images into the product's image gallery so they persist in the database
-      const variantImages = variationImageGallery
-        .map((item) => item.src)
-        .filter((src) => isImageSource(src));
-      const mergedImages = [...uploadedImages];
-      variantImages.forEach((src) => {
-        if (!mergedImages.includes(src)) mergedImages.push(src);
-      });
-
       const saved = await Promise.resolve(onSave({
         ...fd,
         sku: normalizedSku,
@@ -544,8 +545,8 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
         priceRangeMax,
         variantStocks: hasVariants ? combinationStockMap : {},
         variantPrices: hasVariants ? combinationPriceMap : {},
-        images: mergedImages,
-        image: mergedImages[0] || '[product]',
+        images: uploadedImages,
+        image: uploadedImages[0] || '[product]',
         stock: computedStock,
         lowStockThreshold: fd.lowStockThreshold,
         trackInventory: true,
@@ -791,6 +792,10 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
 
   const colorVariant = fd.variants.find((variant) => variant.name.toLowerCase().includes('color'));
   const sizeVariant = fd.variants.find((variant) => variant.name.toLowerCase().includes('size'));
+  const isTextOnlyVariantName = (variantName: string) => {
+    const normalizedName = variantName.trim().toLowerCase();
+    return normalizedName === 'size' || normalizedName === 'frequency';
+  };
 
   const normalizeHex = (value: string) => {
     const v = value.trim();
@@ -1430,14 +1435,25 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                     <button
                       type="button"
                       onClick={() => {
-                        if (fd.hasVariants) {
-                          set('hasVariants', false);
-                          return;
-                        }
-                        if (fd.variants.length === 0) {
-                          addVariant();
-                        }
-                        set('hasVariants', true);
+                        setFd((prev) => {
+                          if (prev.hasVariants) {
+                            return { ...prev, hasVariants: false };
+                          }
+
+                          const nextVariants = prev.variants.length > 0
+                            ? prev.variants
+                            : [...prev.variants, { id: uid(), name: '', pricingMode: 'modifier' as const, options: [] }];
+
+                          return {
+                            ...prev,
+                            hasVariants: true,
+                            variants: nextVariants,
+                            price: 0,
+                            costPrice: 0,
+                            discount: 0,
+                            variantPrices: {},
+                          };
+                        });
                       }}
                       className="relative h-7 w-14 rounded-full border transition-all"
                       style={{
@@ -1507,7 +1523,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                             {variant.options.map((option) => (
                               <div key={option.id} className="grid grid-cols-[1fr_auto] gap-2 items-end">
                                 <div className="flex items-end gap-2">
-                                  {enableVariationImages && variant.name.trim().toLowerCase() !== 'size' ? (
+                                  {enableVariationImages && !isTextOnlyVariantName(variant.name) ? (
                                     <div className="relative h-14 w-14 shrink-0">
                                       {(() => {
                                         const optionImageKey = `${variant.id}:${option.id}`;
