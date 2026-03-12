@@ -2,7 +2,8 @@
 
 import React, { useMemo, useState } from 'react';
 import type { CartItem } from './StorefrontContext';
-import type { PaymentMethod } from '@/lib/api';
+
+type PaymentMethod = 'card' | 'gcash' | 'maya';
 
 type CheckoutModalProps = {
   open: boolean;

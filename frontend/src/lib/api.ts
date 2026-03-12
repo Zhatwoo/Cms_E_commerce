@@ -340,7 +340,11 @@ export type Project = {
 };
 
 export async function listProjects(): Promise<{ success: boolean; projects: Project[] }> {
-  return apiFetch<{ success: boolean; projects: Project[] }>('/api/projects');
+  const t0 = Date.now();
+  console.log('[READ] listProjects fetch start');
+  const res = await apiFetch<{ success: boolean; projects: Project[] }>('/api/projects');
+  console.log('[READ] listProjects fetch done', { projects: res?.projects?.length, ms: Date.now() - t0 });
+  return res;
 }
 
 export async function createProject(params: {
