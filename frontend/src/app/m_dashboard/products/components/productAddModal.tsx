@@ -692,6 +692,51 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
     void handleClose();
   };
 
+  const handleNumberInputWheel: React.WheelEventHandler<HTMLDivElement> = (event) => {
+    const target = event.target as HTMLInputElement | null;
+    if (!target || target.tagName !== 'INPUT' || target.type !== 'number') return;
+    target.blur();
+    event.preventDefault();
+  };
+
+  const sanitizeNumberInput = (input: HTMLInputElement) => {
+    if (input.type !== 'number') return;
+    if (!input.value) return;
+    const cleaned = input.value.replace(/-/g, '');
+    if (cleaned !== input.value) {
+      input.value = cleaned;
+    }
+  };
+
+  const handleNumberKeyDownCapture: React.KeyboardEventHandler<HTMLDivElement> = (event) => {
+    const target = event.target as HTMLInputElement | null;
+    if (!target || target.tagName !== 'INPUT' || target.type !== 'number') return;
+    if (event.key === '-' || event.key === 'Subtract') {
+      event.preventDefault();
+    }
+  };
+
+  const handleNumberInputCapture: React.FormEventHandler<HTMLDivElement> = (event) => {
+    const target = event.target as HTMLInputElement | null;
+    if (!target || target.tagName !== 'INPUT' || target.type !== 'number') return;
+    sanitizeNumberInput(target);
+  };
+
+  const handleNumberPasteCapture: React.ClipboardEventHandler<HTMLDivElement> = (event) => {
+    const target = event.target as HTMLInputElement | null;
+    if (!target || target.tagName !== 'INPUT' || target.type !== 'number') return;
+    const pasted = event.clipboardData.getData('text');
+    if (pasted.includes('-')) {
+      event.preventDefault();
+      const cleaned = pasted.replace(/-/g, '');
+      const start = target.selectionStart ?? target.value.length;
+      const end = target.selectionEnd ?? target.value.length;
+      const next = `${target.value.slice(0, start)}${cleaned}${target.value.slice(end)}`;
+      target.value = next;
+      target.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  };
+
   if (!portalTarget) return null;
 
   const iCls = 'w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/40 transition-all';
@@ -848,11 +893,15 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
           <div className="absolute inset-0 flex items-center justify-center p-6">
             <motion.div
               onClick={e => e.stopPropagation()}
+              onWheelCapture={handleNumberInputWheel}
+              onKeyDownCapture={handleNumberKeyDownCapture}
+              onInputCapture={handleNumberInputCapture}
+              onPasteCapture={handleNumberPasteCapture}
               initial={{ opacity: 0, scale: 0.93, y: 24 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.93, y: 24 }}
               transition={{ type: 'spring', damping: 26, stiffness: 280 }}
-              className="relative flex overflow-hidden w-full"
+              className="product-modal-shell relative flex overflow-hidden w-full"
               style={{
                 maxWidth: 1100,
                 height: 'min(820px, calc(100vh - 48px))',
@@ -1743,6 +1792,19 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                 </button>
               </div>
             </div>
+
+              <style jsx global>{`
+                .product-modal-shell input[type='number']::-webkit-outer-spin-button,
+                .product-modal-shell input[type='number']::-webkit-inner-spin-button {
+                  -webkit-appearance: none;
+                  margin: 0;
+                }
+
+                .product-modal-shell input[type='number'] {
+                  -moz-appearance: textfield;
+                  appearance: textfield;
+                }
+              `}</style>
             </motion.div>
           </div>
         </motion.div>

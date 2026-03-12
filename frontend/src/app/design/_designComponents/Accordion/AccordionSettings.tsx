@@ -22,6 +22,7 @@ interface AccordionStyleProps {
   defaultOpenIndex?: number;
   animationDurationMs?: number;
   width?: string;
+  minHeight?: number;
   marginTop?: number;
   marginRight?: number;
   marginBottom?: number;
@@ -53,6 +54,7 @@ export const AccordionSettings = () => {
     defaultOpenIndex,
     animationDurationMs,
     width,
+    minHeight,
     marginTop,
     marginRight,
     marginBottom,
@@ -79,6 +81,7 @@ export const AccordionSettings = () => {
     defaultOpenIndex: node.data.props.defaultOpenIndex as number,
     animationDurationMs: node.data.props.animationDurationMs as number,
     width: node.data.props.width as string,
+    minHeight: node.data.props.minHeight as number,
     marginTop: node.data.props.marginTop as number,
     marginRight: node.data.props.marginRight as number,
     marginBottom: node.data.props.marginBottom as number,
@@ -467,6 +470,10 @@ export const AccordionSettings = () => {
               <option value="50%">50%</option>
               <option value="auto">Auto</option>
             </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-brand-lighter">Min Height</label>
+            <NumericInput value={minHeight ?? 0} min={0} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.minHeight = v; })} />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">

@@ -29,7 +29,6 @@ import {
   type InventoryMovement,
   type InventorySummary,
 } from '@/lib/api';
-import { getIndustryCategories } from '@/lib/industryCatalog';
 import { useAlert } from '../components/context/alert-context';
 import { useProject } from '../components/context/project-context';
 import { type Product, type ProductVariant } from '../lib/productsData';
@@ -142,6 +141,8 @@ const getDefaultAdjustmentNote = (t: StockAdjustmentType) =>
   t === 'IN' ? 'Manual stock-in from inventory page' : 'Manual stock-out from inventory page';
 
 const DEFAULT_LOW_STOCK_THRESHOLD = 5;
+const INVENTORY_VISIBLE_ROWS = 7;
+const INVENTORY_ROW_HEIGHT_PX = 72;
 type ProductUpsertPayload = Omit<Parameters<typeof createProduct>[0], 'subdomain'>;
 
 function toDashboardStatus(status?: string): 'active' | 'inactive' | 'draft' {
@@ -357,6 +358,7 @@ export default function InventoryPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [search, setSearch]                       = useState('');
   const [categoryFilter, setCategoryFilter]       = useState<string>('all');
+  const [showCategoryFilterMenu, setShowCategoryFilterMenu] = useState(false);
   const [items, setItems]                         = useState<InventoryRow[]>([]);
   const [summary, setSummary]                     = useState<InventorySummary | null>(null);
   const [movements, setMovements]                 = useState<InventoryMovement[]>([]);
@@ -386,17 +388,69 @@ export default function InventoryPage() {
   const importPopupTimerRef = useRef<number | null>(null);
   const fileInputRef        = useRef<HTMLInputElement>(null);
   const inlineSaveLockRef   = useRef<string | null>(null);
+  const categoryMenuRef     = useRef<HTMLDivElement>(null);
+
+  const sanitizeNumberInput = (input: HTMLInputElement) => {
+    if (input.type !== 'number') return;
+    if (!input.value) return;
+    const cleaned = input.value.replace(/-/g, '');
+    if (cleaned !== input.value) {
+      input.value = cleaned;
+    }
+  };
+
+  const handleNumberKeyDownCapture: React.KeyboardEventHandler<HTMLDivElement> = (event) => {
+    const target = event.target as HTMLInputElement | null;
+    if (!target || target.tagName !== 'INPUT' || target.type !== 'number') return;
+    if (event.key === '-' || event.key === 'Subtract') {
+      event.preventDefault();
+    }
+  };
+
+  const handleNumberInputCapture: React.FormEventHandler<HTMLDivElement> = (event) => {
+    const target = event.target as HTMLInputElement | null;
+    if (!target || target.tagName !== 'INPUT' || target.type !== 'number') return;
+    sanitizeNumberInput(target);
+  };
+
+  const handleNumberPasteCapture: React.ClipboardEventHandler<HTMLDivElement> = (event) => {
+    const target = event.target as HTMLInputElement | null;
+    if (!target || target.tagName !== 'INPUT' || target.type !== 'number') return;
+    const pasted = event.clipboardData.getData('text');
+    if (pasted.includes('-')) {
+      event.preventDefault();
+      const cleaned = pasted.replace(/-/g, '');
+      const start = target.selectionStart ?? target.value.length;
+      const end = target.selectionEnd ?? target.value.length;
+      const next = `${target.value.slice(0, start)}${cleaned}${target.value.slice(end)}`;
+      target.value = next;
+      target.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  };
 
   const showImportPopup = useCallback((message: string, tone: 'success' | 'error') => {
     if (importPopupTimerRef.current) window.clearTimeout(importPopupTimerRef.current);
     setImportPopup({ open: true, message, tone });
+    const popupDuration = tone === 'success' ? 1500 : 3500;
     importPopupTimerRef.current = window.setTimeout(() => {
       setImportPopup((p) => ({ ...p, open: false }));
       importPopupTimerRef.current = null;
-    }, 3500);
+    }, popupDuration);
   }, []);
 
   useEffect(() => () => { if (importPopupTimerRef.current) window.clearTimeout(importPopupTimerRef.current); }, []);
+
+  useEffect(() => {
+    if (!showCategoryFilterMenu) return;
+    const onMouseDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (categoryMenuRef.current?.contains(target)) return;
+      setShowCategoryFilterMenu(false);
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, [showCategoryFilterMenu]);
 
   const stockValueLabel = useMemo(() => `₱${(summary?.stockValue || 0).toLocaleString()}`, [summary?.stockValue]);
 
@@ -578,19 +632,30 @@ export default function InventoryPage() {
     return { onHand, reserved, available, lowThreshold };
   }, []);
 
-  const categoryOptions = useMemo(() => {
-    const projectSubcategories = getIndustryCategories(selectedProject?.industry);
-    if (projectSubcategories.length > 0) {
-      return projectSubcategories;
-    }
+  const subcategoryCounts = useMemo(() => items.reduce<Record<string, number>>((acc, product) => {
+    const subcategory = String(getProductSubcategory(product) || '').trim();
+    if (!subcategory) return acc;
+    acc[subcategory] = (acc[subcategory] || 0) + 1;
+    return acc;
+  }, {}), [items]);
 
-    const uniq = new Set<string>();
-    items.forEach((p) => {
-      const sub = getProductSubcategory(p);
-      if (sub) uniq.add(sub);
-    });
-    return Array.from(uniq).sort((a, b) => a.localeCompare(b));
-  }, [items, selectedProject?.industry]);
+  const categoryOptions = useMemo(
+    () => Object.keys(subcategoryCounts).sort((a, b) => a.localeCompare(b)),
+    [subcategoryCounts]
+  );
+
+  const categoryFilterOptions = useMemo(
+    () => [
+      { value: 'all', label: `All (${items.length})` },
+      ...categoryOptions.map((category) => ({ value: category, label: `${category} (${subcategoryCounts[category]})` })),
+    ],
+    [items.length, categoryOptions, subcategoryCounts]
+  );
+
+  const selectedCategoryLabel = useMemo(
+    () => categoryFilterOptions.find((option) => option.value === categoryFilter)?.label ?? 'All',
+    [categoryFilter, categoryFilterOptions]
+  );
 
   const inventoryRows = useMemo(() => expandInventoryRows(items), [items]);
 
@@ -1116,7 +1181,12 @@ export default function InventoryPage() {
   );
 
   return (
-    <div style={{ fontFamily: T.font, color: T.text, minHeight: '100%', position: 'relative' }}>
+    <div
+      style={{ fontFamily: T.font, color: T.text, minHeight: '100%', position: 'relative' }}
+      onKeyDownCapture={handleNumberKeyDownCapture}
+      onInputCapture={handleNumberInputCapture}
+      onPasteCapture={handleNumberPasteCapture}
+    >
       <input ref={fileInputRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={handleFileChange} />
 
       {/* Centered success/error popup */}
@@ -1237,12 +1307,11 @@ export default function InventoryPage() {
         {/* ── Toolbar (original layout) ───────────────────────────────────── */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-            <div style={{ position: 'relative' }}>
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
+            <div ref={categoryMenuRef} style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={() => setShowCategoryFilterMenu((prev) => !prev)}
                 style={{
-                  appearance: 'none',
                   background: T.card,
                   border: `1px solid ${T.cardBorder}`,
                   borderRadius: 14,
@@ -1254,15 +1323,65 @@ export default function InventoryPage() {
                   padding: '0 38px 0 16px',
                   outline: 'none',
                   cursor: 'pointer',
+                  textAlign: 'left',
+                  position: 'relative',
                 }}
                 aria-label="Subcategory filter"
+                title="Filter by subcategory"
               >
-                <option value="all">All</option>
-                {categoryOptions.map((category) => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-              <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: '#b6abd6', fontSize: 10, pointerEvents: 'none' }}>▼</span>
+                <span style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedCategoryLabel}</span>
+                <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: '#b6abd6', fontSize: 10, pointerEvents: 'none' }}>▼</span>
+              </button>
+
+              {showCategoryFilterMenu && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    marginTop: 8,
+                    width: 224,
+                    borderRadius: 12,
+                    border: `1px solid ${T.cardBorder}`,
+                    background: T.card,
+                    padding: 8,
+                    zIndex: 30,
+                  }}
+                >
+                  {categoryFilterOptions.map((option) => {
+                    const checked = categoryFilter === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          setCategoryFilter(option.value);
+                          setShowCategoryFilterMenu(false);
+                        }}
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '8px 12px',
+                          borderRadius: 8,
+                          border: 'none',
+                          background: 'transparent',
+                          color: '#D2D6F7',
+                          fontSize: 14,
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                        }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)'; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                      >
+                        <span>{option.label}</span>
+                        <span>{checked ? '✓' : ''}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
             <button
               type="button"
@@ -1348,109 +1467,145 @@ export default function InventoryPage() {
                 <p style={{ color: T.textMuted, fontSize: 13 }}>Add your first product or import a CSV to start tracking stock.</p>
               </div>
             ) : (
-              filteredItems.map((rawProduct, i) => {
-                const product = rawProduct as InventoryRow;
-                const { onHand, reserved, lowThreshold } = getStockNumbers(product);
-                return (
-                  <div
-                    key={product.id}
-                    style={{
-                      display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr 1.2fr',
-                      gap: 16, padding: '15px 24px', alignItems: 'center', fontSize: 14, minWidth: 760,
-                      borderBottom: i < filteredItems.length - 1 ? `1px solid rgba(255,255,255,0.055)` : 'none',
-                      transition: 'background 0.15s',
-                    }}
-                    onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.018)')}
-                    onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.background = 'transparent')}
-                  >
-                    <span style={{ color: T.text, fontWeight: 500, display: 'flex', flexDirection: 'column' }}>
-                      {product.name || 'Untitled Product'}
-                      {product._variantLabel && (
-                        <span style={{ color: T.textMuted, fontSize: 12, fontWeight: 400, marginTop: 2 }}>
-                          {product._variantLabel}
-                        </span>
-                      )}
-                    </span>
-                    <span style={{ color: T.textMuted }}>{product.sku || '-'}</span>
+              <div
+                style={{
+                  maxHeight: INVENTORY_ROW_HEIGHT_PX * INVENTORY_VISIBLE_ROWS,
+                  overflowY: 'auto',
+                }}
+              >
+                {filteredItems.map((rawProduct, i) => {
+                  const product = rawProduct as InventoryRow;
+                  const { onHand, reserved, lowThreshold } = getStockNumbers(product);
+                  return (
                     <div
-                      onDoubleClick={() => startInlineStockEdit(product, onHand)}
-                      title="Double-click stock to edit, press Enter to save"
-                      style={{ minWidth: 72 }}
+                      key={product.id}
+                      style={{
+                        display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr 1.2fr',
+                        gap: 16, padding: '15px 24px', alignItems: 'center', fontSize: 14, minWidth: 760,
+                        borderBottom: i < filteredItems.length - 1 ? `1px solid rgba(255,255,255,0.055)` : 'none',
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.018)')}
+                      onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.background = 'transparent')}
                     >
-                      {editingStockId === product.id ? (
-                        <input
-                          autoFocus
-                          type="number"
-                          min={0}
-                          value={editingStockValue}
-                          onChange={(e) => setEditingStockValue(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
+                      <span style={{ color: T.text, fontWeight: 500, display: 'flex', flexDirection: 'column' }}>
+                        {product.name || 'Untitled Product'}
+                        {product._variantLabel && (
+                          <span style={{ color: T.textMuted, fontSize: 12, fontWeight: 400, marginTop: 2 }}>
+                            {product._variantLabel}
+                          </span>
+                        )}
+                      </span>
+                      <span style={{ color: T.textMuted }}>{product.sku || '-'}</span>
+                      <div
+                        onDoubleClick={() => startInlineStockEdit(product, onHand)}
+                        title="Double-click stock to edit, press Enter to save"
+                        style={{
+                          minWidth: 72,
+                          minHeight: 34,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: `1px solid ${editingStockId === product.id ? '#5f6bc7' : T.cardBorder}`,
+                          borderRadius: 8,
+                          background: editingStockId === product.id ? 'rgba(95,107,199,0.14)' : 'rgba(255,255,255,0.03)',
+                          cursor: editingStockId === product.id ? 'text' : 'pointer',
+                          transition: 'border-color 0.15s, background 0.15s',
+                          padding: '0 8px',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (editingStockId === product.id) return;
+                          const target = e.currentTarget as HTMLDivElement;
+                          target.style.borderColor = '#5f6bc7';
+                          target.style.background = 'rgba(95,107,199,0.12)';
+                        }}
+                        onMouseLeave={(e) => {
+                          if (editingStockId === product.id) return;
+                          const target = e.currentTarget as HTMLDivElement;
+                          target.style.borderColor = T.cardBorder;
+                          target.style.background = 'rgba(255,255,255,0.03)';
+                        }}
+                      >
+                        {editingStockId === product.id ? (
+                          <input
+                            autoFocus
+                            type="number"
+                            min={0}
+                            value={editingStockValue}
+                            onWheel={(e) => {
                               e.preventDefault();
+                              (e.currentTarget as HTMLInputElement).blur();
+                            }}
+                            onChange={(e) => setEditingStockValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                void saveInlineStockEdit(product);
+                              }
+                              if (e.key === 'Escape') {
+                                e.preventDefault();
+                                cancelInlineStockEdit();
+                              }
+                            }}
+                            onBlur={() => {
                               void saveInlineStockEdit(product);
-                            }
-                            if (e.key === 'Escape') {
-                              e.preventDefault();
-                              cancelInlineStockEdit();
-                            }
-                          }}
-                          onBlur={() => {
-                            void saveInlineStockEdit(product);
-                          }}
-                          disabled={savingStockId === product.id}
-                          style={{
-                            width: 68,
-                            background: 'rgba(255,255,255,0.06)',
-                            border: `1px solid ${T.cardBorder}`,
-                            borderRadius: 8,
-                            color: T.text,
-                            padding: '4px 8px',
-                            fontSize: 13,
-                            outline: 'none',
-                          }}
-                        />
-                      ) : (
-                        <span style={{ color: T.text }}>{onHand}</span>
-                      )}
-                    </div>
-                    <span style={{ color: T.textMuted }}>{reserved}</span>
-                    <div style={{ justifySelf: 'start' }}>
-                      <StatusPill stock={onHand} lowThreshold={lowThreshold} />
-                    </div>
-                    <div style={{ justifySelf: 'start' }}>
-                      {(() => {
-                        const productStatus = String(product.status || 'active').toLowerCase() === 'inactive' ? 'inactive' : 'active';
-                        const isActive = productStatus === 'active';
-                        return (
-                          <select
-                            value={productStatus}
-                            disabled={updatingProductStatusId === (product._baseProductId || product.id)}
-                            onChange={(e) => {
-                              const next = e.target.value as 'active' | 'inactive';
-                              if (next !== productStatus) void updateProductStatus(product, next);
                             }}
+                            disabled={savingStockId === product.id}
                             style={{
-                              background: isActive ? T.greenBg : T.redBg,
-                              border: `1px solid ${isActive ? T.greenBorder : T.redBorder}`,
-                              color: isActive ? T.green : T.red,
-                              borderRadius: 999,
-                              fontSize: 11,
-                              fontWeight: 700,
-                              height: 28,
-                              padding: '0 8px',
+                              width: 68,
+                              background: 'transparent',
+                              border: 'none',
+                              borderRadius: 8,
+                              color: T.text,
+                              padding: 0,
+                              fontSize: 13,
                               outline: 'none',
-                              minWidth: 96,
+                              textAlign: 'center',
                             }}
-                          >
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                          </select>
-                        );
-                      })()}
+                          />
+                        ) : (
+                          <span style={{ color: T.text }}>{onHand}</span>
+                        )}
+                      </div>
+                      <span style={{ color: T.textMuted }}>{reserved}</span>
+                      <div style={{ justifySelf: 'start' }}>
+                        <StatusPill stock={onHand} lowThreshold={lowThreshold} />
+                      </div>
+                      <div style={{ justifySelf: 'start' }}>
+                        {(() => {
+                          const productStatus = String(product.status || 'active').toLowerCase() === 'inactive' ? 'inactive' : 'active';
+                          const isActive = productStatus === 'active';
+                          return (
+                            <select
+                              value={productStatus}
+                              disabled={updatingProductStatusId === (product._baseProductId || product.id)}
+                              onChange={(e) => {
+                                const next = e.target.value as 'active' | 'inactive';
+                                if (next !== productStatus) void updateProductStatus(product, next);
+                              }}
+                              style={{
+                                background: isActive ? T.greenBg : T.redBg,
+                                border: `1px solid ${isActive ? T.greenBorder : T.redBorder}`,
+                                color: isActive ? T.green : T.red,
+                                borderRadius: 999,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                height: 28,
+                                padding: '0 8px',
+                                outline: 'none',
+                                minWidth: 96,
+                              }}
+                            >
+                              <option value="active">Active</option>
+                              <option value="inactive">Inactive</option>
+                            </select>
+                          );
+                        })()}
+                      </div>
                     </div>
-                  </div>
-                );
-              })
+                  );
+                })}
+              </div>
             )}
           </div>
         </Card>
@@ -1699,6 +1854,10 @@ export default function InventoryPage() {
                 <input
                   autoFocus type="number" min={1} step={1} placeholder="Enter quantity…"
                   value={stockModal.quantity}
+                  onWheel={(e) => {
+                    e.preventDefault();
+                    (e.currentTarget as HTMLInputElement).blur();
+                  }}
                   onChange={(e) => setStockModal((p) => ({ ...p, quantity: e.target.value, error: null }))}
                   style={{ ...inputStyle, marginBottom: 24, height: 46, fontSize: 15 }}
                 />

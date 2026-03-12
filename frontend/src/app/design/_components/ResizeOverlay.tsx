@@ -905,7 +905,11 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         dom.style.width = `${newW}px`;
         if (isTextNode || isAccordionNode) {
           dom.style.height = "auto";
-          dom.style.removeProperty("min-height");
+          if (isAccordionNode) {
+            dom.style.minHeight = `${Math.round(newH)}px`;
+          } else {
+            dom.style.removeProperty("min-height");
+          }
           dom.style.removeProperty("max-height");
         } else {
           dom.style.height = `${newH}px`;
@@ -1142,10 +1146,6 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
           const currentNode = query.getState().nodes[nodeId];
           const isTextNode = currentNode?.data?.displayName === "Text";
           const isAccordionNode = currentNode?.data?.displayName === "Accordion";
-          if (isAccordionNode) {
-            newH = startH;
-            extraMT = 0;
-          }
           const startFontSize = parsePxOrAuto(d.startProps.fontSize);
           const nextFontSize = isTextNode
             ? computeTextFontSizeForResize(h, startW, startH, newW, newH, startFontSize)
@@ -1155,7 +1155,11 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
             props.width = `${Math.round(newW)}px`;
             if (isTextNode || isAccordionNode) {
               props.height = "auto";
-              delete props.minHeight;
+              if (isAccordionNode) {
+                props.minHeight = `${Math.round(newH)}px`;
+              } else {
+                delete props.minHeight;
+              }
               delete props.maxHeight;
             } else {
               props.height = `${Math.round(newH)}px`;
@@ -1180,7 +1184,11 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
           dom.style.width = `${Math.round(newW)}px`;
           if (isTextNode || isAccordionNode) {
             dom.style.height = "auto";
-            dom.style.removeProperty("min-height");
+            if (isAccordionNode) {
+              dom.style.minHeight = `${Math.round(newH)}px`;
+            } else {
+              dom.style.removeProperty("min-height");
+            }
             dom.style.removeProperty("max-height");
           } else {
             dom.style.height = `${Math.round(newH)}px`;
