@@ -1,32 +1,40 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { login, register as apiRegister, setStoredUser } from '@/lib/api';
+import { login, register as apiRegister, resendVerificationEmail, setStoredUser } from '@/lib/api';
 
-type AuthMode = 'login' | 'register';
+type AuthMode = 'login' | 'register' | 'check-email';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialMode?: AuthMode;
+  initialEmail?: string;
 }
 
-export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalProps) {
+export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail = '' }: AuthModalProps) {
   const router = useRouter();
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [email, setEmail] = useState('');
+  const [pendingEmail, setPendingEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     setMode(initialMode);
-  }, [initialMode]);
+    if (initialEmail) {
+      setPendingEmail(initialEmail);
+      setEmail(initialEmail);
+    }
+  }, [initialMode, initialEmail]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,9 +84,11 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
         if (typeof (data as { confirmUrl?: string }).confirmUrl === 'string') {
           sessionStorage.setItem('centric_confirm_url', (data as { confirmUrl: string }).confirmUrl);
         }
-        onClose();
-        router.push(`/auth/check-email?email=${encodeURIComponent(email)}`);
-        router.refresh();
+        const normalizedEmail = email.trim();
+        setPendingEmail(normalizedEmail);
+        setEmail(normalizedEmail);
+        setResendMessage(null);
+        setMode('check-email');
       } else {
         setError(data.message || 'Sign up failed.');
       }
@@ -86,6 +96,29 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
       setError(err instanceof Error ? err.message : 'Sign up failed.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    const targetEmail = (pendingEmail || email).trim();
+    if (!targetEmail) {
+      setResendMessage({ type: 'error', text: 'No email address found.' });
+      return;
+    }
+
+    setResendMessage(null);
+    setResendLoading(true);
+    try {
+      const data = await resendVerificationEmail(targetEmail);
+      if (data.success) {
+        setResendMessage({ type: 'success', text: data.message || 'A new confirmation link was sent to your email.' });
+      } else {
+        setResendMessage({ type: 'error', text: data.message || 'Something went wrong.' });
+      }
+    } catch {
+      setResendMessage({ type: 'error', text: 'Failed to resend. Try again later.' });
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -159,28 +192,30 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
               </div>
 
               {/* Tabs */}
-              <div className="mb-6 flex gap-3 border-b border-white/10">
-                <button
-                  onClick={() => { setMode('login'); setError(''); }}
-                  className={`pb-3 px-2 text-lg font-semibold transition-colors ${
-                    mode === 'login'
-                      ? 'text-white border-b-2 border-[#ffcc00]'
-                      : 'text-white/55 hover:text-white/80'
-                  }`}
-                >
-                  Login
-                </button>
-                <button
-                  onClick={() => { setMode('register'); setError(''); }}
-                  className={`pb-3 px-2 text-lg font-semibold transition-colors ${
-                    mode === 'register'
-                      ? 'text-white border-b-2 border-[#ffcc00]'
-                      : 'text-white/55 hover:text-white/80'
-                  }`}
-                >
-                  Sign up
-                </button>
-              </div>
+              {mode !== 'check-email' && (
+                <div className="mb-6 flex gap-3 border-b border-white/10">
+                  <button
+                    onClick={() => { setMode('login'); setError(''); }}
+                    className={`pb-3 px-2 text-lg font-semibold transition-colors ${
+                      mode === 'login'
+                        ? 'text-white border-b-2 border-[#ffcc00]'
+                        : 'text-white/55 hover:text-white/80'
+                    }`}
+                  >
+                    Login
+                  </button>
+                  <button
+                    onClick={() => { setMode('register'); setError(''); }}
+                    className={`pb-3 px-2 text-lg font-semibold transition-colors ${
+                      mode === 'register'
+                        ? 'text-white border-b-2 border-[#ffcc00]'
+                        : 'text-white/55 hover:text-white/80'
+                    }`}
+                  >
+                    Sign up
+                  </button>
+                </div>
+              )}
 
               {/* Login Form */}
               {mode === 'login' && (
@@ -316,6 +351,58 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
                       {loading ? 'Creating account…' : 'Create account'}
                     </button>
                   </form>
+                </motion.div>
+              )}
+
+              {/* Check Email */}
+              {mode === 'check-email' && (
+                <motion.div
+                  key="check-email"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="text-center"
+                >
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-violet-500/50 bg-violet-500/20">
+                    <svg className="h-7 w-7 text-violet-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <h1 className="mt-6 text-4xl font-black leading-none text-white">Check your email</h1>
+                  <p className="mt-3 text-sm text-white/70">
+                    We sent a confirmation link to
+                    <span className="block mt-1 font-medium text-white/90">{pendingEmail || email || 'your email address'}</span>
+                    Click the link to confirm your account, then you can log in.
+                  </p>
+                  <p className="mt-4 text-xs text-white/60">Didn&apos;t get the email? Check your spam folder.</p>
+
+                  {resendMessage && (
+                    <p className={`mt-4 text-sm ${resendMessage.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`} role="alert">
+                      {resendMessage.text}
+                    </p>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    disabled={resendLoading || !(pendingEmail || email)}
+                    className="mt-6 w-full rounded-xl bg-gradient-to-r from-[#6d1eea] to-[#7b19dc] py-3 text-base font-extrabold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {resendLoading ? 'Sending…' : 'Resend email'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('login');
+                      setError('');
+                      setResendMessage(null);
+                    }}
+                    className="mt-4 inline-block w-full text-center text-sm font-medium text-violet-300 hover:text-violet-200"
+                  >
+                    Go back to login
+                  </button>
                 </motion.div>
               )}
               </div>
