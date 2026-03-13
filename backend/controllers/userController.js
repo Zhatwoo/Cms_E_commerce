@@ -1,5 +1,6 @@
-// controllers/userController.js
 const User = require('../models/User');
+const { getUserStorageUsage } = require('../utils/storageHelpers');
+const { SUBSCRIPTION_LIMITS } = require('../utils/subscriptionLimits');
 
 // No password in profiles, but strip passwordHash if present
 const stripPassword = (user) => {
@@ -24,7 +25,48 @@ exports.getAllUsers = async (req, res) => {
     const limitNum = Math.max(1, parseInt(limit) || 10);
     const pageNum = Math.max(1, parseInt(page) || 1);
     const skip = (pageNum - 1) * limitNum;
-    const users = allUsers.slice(skip, skip + limitNum).map(stripPassword);
+    const usersRaw = allUsers.slice(skip, skip + limitNum).map(stripPassword);
+
+    // Fetch storage info for each user
+    const users = await Promise.all(usersRaw.map(async (u) => {
+      const storageBytes = await getUserStorageUsage({ 
+        clientName: u.displayName || u.username || 'client', 
+        userId: u.id 
+      });
+
+      const planKey = (u.subscriptionPlan || 'free').toLowerCase();
+      const limits = SUBSCRIPTION_LIMITS[planKey] || SUBSCRIPTION_LIMITS.free;
+      const storageLimit = limits.storageLimit;
+      
+      let storageLimitReadable = '1GB';
+      if (storageLimit === Infinity) {
+        storageLimitReadable = 'Unlimited';
+      } else {
+        const gb = storageLimit / (1024 * 1024 * 1024);
+        storageLimitReadable = `${gb}GB`;
+      }
+
+      // Readable usage
+      let storageReadable = '0B';
+      if (storageBytes > 0) {
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        let size = storageBytes;
+        let unitIdx = 0;
+        while (size >= 1024 && unitIdx < units.length - 1) {
+          size /= 1024;
+          unitIdx++;
+        }
+        storageReadable = `${size.toFixed(1)}${units[unitIdx]}`;
+      }
+
+      return {
+        ...u,
+        storageBytes,
+        storageReadable,
+        storageLimit,
+        storageLimitReadable
+      };
+    }));
 
     res.status(200).json({
       success: true,

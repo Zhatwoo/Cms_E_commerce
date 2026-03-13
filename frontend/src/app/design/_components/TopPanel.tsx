@@ -115,8 +115,8 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   const userModalRef = useRef<HTMLDivElement>(null);
   const collabListRef = useRef<HTMLDivElement>(null);
   const [showCollabList, setShowCollabList] = useState(false);
-  const [storageUsage, setStorageUsage] = useState<{ bytes: number; readable: string } | null>(null);
-  const STORAGE_LIMIT = 1024 * 1024 * 1024; // 1 GB
+  const [storageUsage, setStorageUsage] = useState<{ bytes: number; readable: string; limit?: number; limitReadable?: string } | null>(null);
+  const STORAGE_LIMIT = 1024 * 1024 * 1024; // fallback 1 GB
 
   // Get collaboration state
   const { collaborators, myColor, connected } = useCollaboration();
@@ -141,7 +141,12 @@ export const TopPanel: React.FC<TopPanelProps> = ({
     try {
       const data = await getProjectStorage(projectId);
       if (data.success) {
-        setStorageUsage({ bytes: data.storageBytes, readable: data.storageReadable });
+        setStorageUsage({ 
+          bytes: data.storageBytes, 
+          readable: data.storageReadable,
+          limit: data.storageLimit,
+          limitReadable: data.storageLimitReadable
+        });
       }
     } catch (error) {
       console.error("Failed to fetch storage usage:", error);
@@ -325,16 +330,16 @@ export const TopPanel: React.FC<TopPanelProps> = ({
                   <HardDrive className="w-3 h-3 text-white/40 group-hover/storage:text-emerald-400 transition-colors shrink-0" />
                   <span className="text-[10px] font-bold text-white/50 group-hover/storage:text-white/80 transition-colors truncate uppercase tracking-wider">Project Storage</span>
                 </div>
-                <span className="text-[9px] font-black text-white/30 group-hover/storage:text-white/60 transition-colors tabular-nums shrink-0">{storageUsage.readable} / 1 GB</span>
+                <span className="text-[9px] font-black text-white/30 group-hover/storage:text-white/60 transition-colors tabular-nums shrink-0">{storageUsage.readable} / {storageUsage.limitReadable || '1 GB'}</span>
               </div>
               <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5 relative">
                 <div
                   className="h-full transition-all duration-1000 ease-out rounded-full shadow-[0_0_12px_rgba(16,185,129,0.2)]"
                   style={{
-                    width: `${Math.min(100, (storageUsage.bytes / STORAGE_LIMIT) * 100)}%`,
-                    background: (storageUsage.bytes / STORAGE_LIMIT) > 0.9 
+                    width: `${Math.min(100, (storageUsage.bytes / (storageUsage.limit || STORAGE_LIMIT)) * 100)}%`,
+                    background: (storageUsage.bytes / (storageUsage.limit || STORAGE_LIMIT)) > 0.9 
                       ? "linear-gradient(90deg, #ef4444, #f87171)" 
-                      : (storageUsage.bytes / STORAGE_LIMIT) > 0.7 
+                      : (storageUsage.bytes / (storageUsage.limit || STORAGE_LIMIT)) > 0.7 
                         ? "linear-gradient(90deg, #f59e0b, #fbbf24)" 
                         : "linear-gradient(90deg, #10b981, #34d399)"
                   }}
