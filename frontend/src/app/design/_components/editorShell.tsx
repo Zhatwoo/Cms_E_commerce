@@ -17,6 +17,7 @@ import { Section } from "../_designComponents/Section/Section";
 import { Image } from "../_designComponents/Image/Image";
 import { Button } from "../_designComponents/Button/Button";
 import { Accordion } from "../_designComponents/Accordion/Accordion";
+import { BooleanField } from "../_designComponents/BooleanField/BooleanField";
 import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
@@ -47,7 +48,7 @@ import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 import { Circle } from "../../_assets/shapes/circle/circle";
 import { Square } from "../../_assets/shapes/square/square";
 import { Triangle } from "../../_assets/shapes/triangle/triangle";
-import { CRAFT_RESOLVER } from "./craftResolver";
+import { buildCraftResolver, CRAFT_RESOLVER } from "./craftResolver";
 import {
   MIN_SCALE,
   MAX_SCALE,
@@ -142,7 +143,7 @@ const asComponent = (value: unknown): React.ComponentType<any> =>
 
 const VALIDATOR_RESOLVER: Record<string, React.ComponentType<any>> = {
   ...RenderBlocks,
-  ...CRAFT_RESOLVER,
+  ...buildCraftResolver(),
   Container: SAFE_CONTAINER,
   container: SAFE_CONTAINER,
   CONTAINER: SAFE_CONTAINER,
@@ -2253,7 +2254,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   const resolver: Record<string, React.ComponentType> = React.useMemo(() => {
     const base: Record<string, any> = {
       ...RenderBlocks,
-      ...CRAFT_RESOLVER,
+      ...buildCraftResolver(),
       Button: asComponent(Button),
       button: asComponent(Button),
       Text: asComponent(Text),
@@ -2266,6 +2267,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
       circle: asComponent(Circle),
       square: asComponent(Square),
       triangle: asComponent(Triangle),
+      BooleanField: asComponent(BooleanField),
+      booleanfield: asComponent(BooleanField),
     };
     // Force Frame to always exist; Craft looks up by "Frame" and sometimes "frame"
     base.Frame = SAFE_CONTAINER;

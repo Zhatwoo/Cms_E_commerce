@@ -16,6 +16,11 @@ function fluidSpace(value: number, min = 0): string {
   return `clamp(${floor}px, ${preferred.toFixed(2)}cqw, ${value}px)`;
 }
 
+function normalizeContainerHeight(value: string | undefined): string {
+  if (value == null) return "240px";
+  return String(value).trim().toLowerCase() === "auto" ? "240px" : value;
+}
+
 export const Container = ({
   background = "#ffffff",
   padding = 0,
@@ -29,7 +34,7 @@ export const Container = ({
   marginBottom,
   marginLeft,
   width = "100%",
-  height = "auto",
+  height = "240px",
   borderRadius = 0,
   radiusTopLeft,
   radiusTopRight,
@@ -92,9 +97,10 @@ export const Container = ({
 
   const hasChildren = childCount > 0 || React.Children.count(children) > 0;
   const isFlexRowParent = parentDisplay === "flex" && parentFlexDirection === "row";
+  const resolvedHeight = normalizeContainerHeight(height);
 
   const wPx = parsePx(width);
-  const hPx = parsePx(height);
+  const hPx = parsePx(resolvedHeight);
   const canScale = false;
   const scaleX = canScale ? wPx / designWidth : 1;
   const scaleY = canScale ? hPx / designHeight : 1;
@@ -176,7 +182,7 @@ export const Container = ({
         backgroundRepeat: backgroundImage ? backgroundRepeat : undefined,
         ...spacingStyle,
         width,
-        height,
+        height: resolvedHeight,
         flex: shouldFlexFill ? "1 1 0%" : undefined,
         boxSizing: "border-box",
         maxWidth: position === "static" ? "100%" : undefined,
@@ -242,7 +248,7 @@ export const ContainerDefaultProps: Partial<ContainerProps> = {
   marginBottom: 0,
   marginLeft: 0,
   width: "100%",
-  height: "auto",
+  height: "240px",
   backgroundImage: "",
   backgroundSize: "cover",
   backgroundPosition: "center",

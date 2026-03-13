@@ -40,8 +40,10 @@ async function create(userId, data) {
 }
 
 async function list(userId) {
+  const t = Date.now();
   const ref = getProjectsRef(userId);
   const snap = await ref.get();
+  console.log('[READ] Firestore projects.get', { path: ref.path, docs: snap.size, ms: Date.now() - t });
   const items = snap.docs.map(d => sanitizeProject(docToObject(d))).filter(x => x);
   // Sort in JS instead of Firestore to avoid filtering out docs missing 'updated_at'
   return items.sort((a, b) => {
@@ -260,6 +262,7 @@ async function countWithSubdomain(userId) {
  * Uses collectionGroup query for efficiency (O(1) query vs O(users*projects*collabs) scan).
  */
 async function listShared(userId, userEmail) {
+  const t0 = Date.now();
   const normalizedEmail = (userEmail || '').toLowerCase();
   const seen = new Set();
   const sharedProjects = [];
@@ -283,6 +286,7 @@ async function listShared(userId, userEmail) {
     normalizedEmail ? runQuery('email', normalizedEmail) : { docs: [] },
     userId ? runQuery('userId', userId) : { docs: [] },
   ]);
+  console.log('[READ] Firestore listShared collectionGroup', { byEmail: byEmailSnap?.docs?.length || 0, byUserId: byUserIdSnap?.docs?.length || 0, ms: Date.now() - t0 });
 
   const allCollabDocs = [
     ...(byEmailSnap.docs || []),
@@ -329,6 +333,7 @@ async function listShared(userId, userEmail) {
     }
   }
 
+  console.log('[READ] Firestore listShared done', { sharedCount: sharedProjects.length, totalMs: Date.now() - t0 });
   return sharedProjects;
 }
 

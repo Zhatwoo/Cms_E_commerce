@@ -470,6 +470,12 @@ function enhanceNavInPreview(innerEl: HTMLElement | null) {
 
 /** Wrapper that measures container size and scales inner content for responsiveness (desktop/tablet/mobile). */
 
+function normalizeContainerHeight(value: unknown): string {
+  if (value == null) return "240px";
+  const text = String(value).trim().toLowerCase();
+  return text === "auto" ? "240px" : String(value);
+}
+
 
 // Default props per type (merge with node.props for full props). Minimal set for rendering.
 const DEFAULTS: Record<string, Record<string, unknown>> = {
@@ -487,7 +493,7 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
     marginBottom: 0,
     marginLeft: 0,
     width: "100%",
-    height: "auto",
+    height: "240px",
     backgroundImage: "",
     backgroundSize: "cover",
     backgroundPosition: "center",
@@ -1346,6 +1352,7 @@ function RenderNode({
         builderParityMode,
       );
       const mobileOverflowLikely = !builderParityMode && isNarrowPreview && isLikelyOverflowingNarrowViewport(props, viewportWidth);
+      const resolvedContainerHeight = normalizeContainerHeight(normalizedHeight ?? (props.height as string) ?? "240px");
 
       const containerStyle: React.CSSProperties = {
         backgroundColor: props.background as string,
@@ -1362,7 +1369,7 @@ function RenderNode({
         width: normalizedWidth ?? (props.width as string),
         maxWidth: normalizedPosition === "static" ? "100%" : (isNarrowPreview ? "100%" : undefined),
         minWidth: normalizedPosition === "static" ? 0 : (isNarrowPreview ? 0 : undefined),
-        height: normalizedHeight ?? (props.height as string) ?? "auto",
+        height: resolvedContainerHeight,
         minHeight: !hasRenderableChildren ? "50px" : undefined,
         boxSizing: "border-box",
         borderRadius: `${br}px`,

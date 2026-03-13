@@ -292,6 +292,27 @@ export interface IconProps extends SpacingProps, PositionProps, AnimatableProps 
   link?: string;
 }
 
+export interface IconRowItem {
+  id: string;
+  src: string;
+  alt?: string;
+  link?: string;
+}
+
+export interface IconRowProps
+  extends SpacingProps,
+    SizeProps,
+    PositionProps,
+    EffectsProps,
+    TransformProps,
+    AnimatableProps,
+    InteractionProps {
+  items?: IconRowItem[];
+  align?: "left" | "center" | "right";
+  gap?: number;
+  size?: number;
+}
+
 export interface CircleProps
   extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps {
   color?: string;
@@ -324,4 +345,30 @@ export interface TabsProps
   tabHeaderTextColor?: string;
   activeTabBackgroundColor?: string;
   activeTabTextColor?: string;
+}
+
+export interface BooleanFieldProps extends EffectsProps, SizeProps, SpacingProps {
+  controlType?: "checkbox" | "radio";
+  /** Used as radio group name (scoped per-node to avoid collisions). */
+  name?: string;
+  disabled?: boolean;
+  labelColor?: string;
+  /** Gap between control and label text */
+  gap?: number;
+  /** Gap between options (for groups) */
+  itemGap?: number;
+  fontSize?: number;
+  fontFamily?: string;
+  fontWeight?: string;
+  /** Hide/show option text labels in canvas */
+  showLabels?: boolean;
+  options?: Array<{
+    id: string;
+    label: string;
+    checked?: boolean;
+  }>;
+  /** Back-compat single-item fields (older data) */
+  label?: string;
+  checked?: boolean;
+  customClassName?: string;
 }

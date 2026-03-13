@@ -215,7 +215,7 @@ export default function ProfilePage() {
         setPendingAvatarFile(null);
         setAvatarUrl(res.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${res.user.email}`);
         setFeedback({ type: 'success', message: 'Profile updated successfully!' });
-        setTimeout(() => setFeedback(null), 3000);
+        setTimeout(() => setFeedback(null), 1500);
       } else {
         setFeedback({ type: 'error', message: res.message || 'Failed to update profile' });
         setTimeout(() => setFeedback(null), 3000);
@@ -246,7 +246,7 @@ export default function ProfilePage() {
       setPendingAvatarFile(file);
       setAvatarUrl(previewUrl);
       setFeedback({ type: 'success', message: 'Avatar selected. Click Save Changes to apply.' });
-      setTimeout(() => setFeedback(null), 3000);
+      setTimeout(() => setFeedback(null), 1500);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Upload failed';
       setFeedback({ type: 'error', message: msg });

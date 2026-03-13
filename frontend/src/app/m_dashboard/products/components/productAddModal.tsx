@@ -128,12 +128,31 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
           name: String(variant?.name || ''),
           pricingMode: variant?.pricingMode === 'override' ? 'override' : 'modifier',
           options: Array.isArray(variant?.options)
-            ? variant.options.map((option, optionIndex) => ({
-              id: String(option?.id || `opt-${variantIndex + 1}-${optionIndex + 1}`),
-              name: String(option?.name || ''),
-              priceAdjustment: Number(option?.priceAdjustment || 0),
-              image: String(option?.image || '').trim(),
-            }))
+            ? variant.options.map((option, optionIndex) => {
+              const optionRecord = option as {
+                id?: unknown;
+                name?: unknown;
+                priceAdjustment?: unknown;
+                image?: unknown;
+                imageUrl?: unknown;
+                image_url?: unknown;
+                imgUrl?: unknown;
+                img_url?: unknown;
+              };
+              return {
+                id: String(optionRecord?.id || `opt-${variantIndex + 1}-${optionIndex + 1}`),
+                name: String(optionRecord?.name || ''),
+                priceAdjustment: Number(optionRecord?.priceAdjustment || 0),
+                image: String(
+                  optionRecord?.image
+                  ?? optionRecord?.imageUrl
+                  ?? optionRecord?.image_url
+                  ?? optionRecord?.imgUrl
+                  ?? optionRecord?.img_url
+                  ?? ''
+                ).trim(),
+              };
+            })
             : [],
         }))
         : [];
@@ -171,7 +190,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
       setRemovedVariantRows([]);
       setSlide(0);
       setEnableVariationImages(existingVariants.some((variant) =>
-        variant.options.some((option) => Boolean(String(option.image || '').trim()))
+        variant.options.some((option) => Boolean(String(option.image || '').trim())) || existingVariants.length > 0
       ));
       const initialCategory = editingProduct?.category || lockedProjectCategory || '';
       setFd({
@@ -278,6 +297,15 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
     setSlide((current) => (current + dir + images.length) % images.length);
   };
 
+  const addImageToGallery = (src: string) => {
+    const normalized = String(src || '').trim();
+    if (!isImageSource(normalized)) return;
+    setImages((prev) => {
+      if (prev.some((img) => img.src === normalized)) return prev;
+      return [...prev, { id: uid(), src: normalized }];
+    });
+  };
+
   const openFileBrowser = (event: React.MouseEvent<HTMLElement>) => {
     event.preventDefault();
     event.stopPropagation();
@@ -290,6 +318,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
 
   // Pricing
   const basePrice = useMemo(() => Math.max(0, Number(fd.price || 0)), [fd.price]);
+  const variantSeedPrice = useMemo(() => Math.max(0, Number(fd.discount || 0)), [fd.discount]);
   const costOfGoods = useMemo(() => Math.max(0, Number(fd.costPrice || 0)), [fd.costPrice]);
   const profitValue = useMemo(() => basePrice - costOfGoods, [basePrice, costOfGoods]);
   const marginValue = useMemo(() => (basePrice > 0 ? (profitValue / basePrice) * 100 : 0), [basePrice, profitValue]);
@@ -304,10 +333,28 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
         combo.map((item) => ({ variantId: item.variant.id, optionId: item.option.id }))
       );
       const mappedPrice = Number(fd.variantPrices?.[stockKey]);
-      const price = Number.isFinite(mappedPrice) && mappedPrice >= 0 ? mappedPrice : basePrice;
+      const price = Number.isFinite(mappedPrice) && mappedPrice >= 0 ? mappedPrice : variantSeedPrice;
       return { label: combo.map(c => c.option.name).join(' / '), price, stockKey };
     });
-  }, [fd.variants, fd.hasVariants, basePrice, fd.variantPrices]);
+  }, [fd.variants, fd.hasVariants, variantSeedPrice, fd.variantPrices]);
+
+  const variationImageGallery = useMemo(() => {
+    const seen = new Set<string>();
+    const items: Array<{ id: string; src: string; label: string }> = [];
+    fd.variants.forEach((variant) => {
+      variant.options.forEach((option) => {
+        const src = String(option.image || '').trim();
+        if (!isImageSource(src) || seen.has(src)) return;
+        seen.add(src);
+        items.push({
+          id: `${variant.id}:${option.id}`,
+          src,
+          label: `${variant.name || 'Variant'} \u2022 ${option.name || 'Option'}`.trim(),
+        });
+      });
+    });
+    return items;
+  }, [fd.variants]);
 
   const visibleCombos = useMemo(
     () => combos.filter((combo) => !removedVariantRows.includes(combo.stockKey)),
@@ -330,7 +377,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
         const current = Number(prev.variantStocks?.[combo.stockKey] ?? 0);
         nextVariantStocks[combo.stockKey] = Number.isFinite(current) && current > 0 ? Math.floor(current) : 0;
         const currentPrice = Number(prev.variantPrices?.[combo.stockKey]);
-        nextVariantPrices[combo.stockKey] = Number.isFinite(currentPrice) && currentPrice >= 0 ? currentPrice : basePrice;
+        nextVariantPrices[combo.stockKey] = Number.isFinite(currentPrice) && currentPrice >= 0 ? currentPrice : variantSeedPrice;
       }
 
       const prevStockKeys = Object.keys(prev.variantStocks || {});
@@ -345,7 +392,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
 
       return { ...prev, variantStocks: nextVariantStocks, variantPrices: nextVariantPrices };
     });
-  }, [visibleCombos, fd.hasVariants, basePrice]);
+  }, [visibleCombos, fd.hasVariants, variantSeedPrice]);
 
   const range = useMemo(() => {
     if (!visibleCombos.length) return null;
@@ -452,8 +499,8 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
         : {};
       const combinationPriceMap: VariantPriceMap = hasVariants
         ? visibleCombos.reduce<VariantPriceMap>((acc, combo) => {
-          const amount = Number(fd.variantPrices?.[combo.stockKey] ?? basePrice);
-          acc[combo.stockKey] = Number.isFinite(amount) && amount >= 0 ? amount : basePrice;
+          const amount = Number(fd.variantPrices?.[combo.stockKey] ?? variantSeedPrice);
+          acc[combo.stockKey] = Number.isFinite(amount) && amount >= 0 ? amount : variantSeedPrice;
           return acc;
         }, {})
         : {};
@@ -462,7 +509,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
         : 0;
       const combinationPrices = hasVariants ? Object.values(combinationPriceMap) : [];
       const finalPrice = hasVariants
-        ? Number((combinationPrices.length ? Math.min(...combinationPrices) : basePrice))
+        ? Number((combinationPrices.length ? Math.min(...combinationPrices) : variantSeedPrice))
         : basePrice;
       const priceRangeMin = hasVariants ? Number((combinationPrices.length ? Math.min(...combinationPrices) : finalPrice)) : finalPrice;
       const priceRangeMax = hasVariants ? Number((combinationPrices.length ? Math.max(...combinationPrices) : finalPrice)) : finalPrice;
@@ -490,7 +537,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
         price: finalPrice,
         basePrice,
         finalPrice,
-        compareAtPrice: hasVariants && Number(fd.discount || 0) > 0 ? Number(fd.discount) : null,
+        compareAtPrice: Number(fd.discount || 0) > 0 ? Number(fd.discount) : null,
         discount: 0,
         hasVariants,
         variants: hasVariants ? variants : [],
@@ -692,6 +739,51 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
     void handleClose();
   };
 
+  const handleNumberInputWheel: React.WheelEventHandler<HTMLDivElement> = (event) => {
+    const target = event.target as HTMLInputElement | null;
+    if (!target || target.tagName !== 'INPUT' || target.type !== 'number') return;
+    target.blur();
+    event.preventDefault();
+  };
+
+  const sanitizeNumberInput = (input: HTMLInputElement) => {
+    if (input.type !== 'number') return;
+    if (!input.value) return;
+    const cleaned = input.value.replace(/-/g, '');
+    if (cleaned !== input.value) {
+      input.value = cleaned;
+    }
+  };
+
+  const handleNumberKeyDownCapture: React.KeyboardEventHandler<HTMLDivElement> = (event) => {
+    const target = event.target as HTMLInputElement | null;
+    if (!target || target.tagName !== 'INPUT' || target.type !== 'number') return;
+    if (event.key === '-' || event.key === 'Subtract') {
+      event.preventDefault();
+    }
+  };
+
+  const handleNumberInputCapture: React.FormEventHandler<HTMLDivElement> = (event) => {
+    const target = event.target as HTMLInputElement | null;
+    if (!target || target.tagName !== 'INPUT' || target.type !== 'number') return;
+    sanitizeNumberInput(target);
+  };
+
+  const handleNumberPasteCapture: React.ClipboardEventHandler<HTMLDivElement> = (event) => {
+    const target = event.target as HTMLInputElement | null;
+    if (!target || target.tagName !== 'INPUT' || target.type !== 'number') return;
+    const pasted = event.clipboardData.getData('text');
+    if (pasted.includes('-')) {
+      event.preventDefault();
+      const cleaned = pasted.replace(/-/g, '');
+      const start = target.selectionStart ?? target.value.length;
+      const end = target.selectionEnd ?? target.value.length;
+      const next = `${target.value.slice(0, start)}${cleaned}${target.value.slice(end)}`;
+      target.value = next;
+      target.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  };
+
   if (!portalTarget) return null;
 
   const iCls = 'w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/40 transition-all';
@@ -700,6 +792,10 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
 
   const colorVariant = fd.variants.find((variant) => variant.name.toLowerCase().includes('color'));
   const sizeVariant = fd.variants.find((variant) => variant.name.toLowerCase().includes('size'));
+  const isTextOnlyVariantName = (variantName: string) => {
+    const normalizedName = variantName.trim().toLowerCase();
+    return normalizedName === 'size' || normalizedName === 'frequency';
+  };
 
   const normalizeHex = (value: string) => {
     const v = value.trim();
@@ -848,11 +944,15 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
           <div className="absolute inset-0 flex items-center justify-center p-6">
             <motion.div
               onClick={e => e.stopPropagation()}
+              onWheelCapture={handleNumberInputWheel}
+              onKeyDownCapture={handleNumberKeyDownCapture}
+              onInputCapture={handleNumberInputCapture}
+              onPasteCapture={handleNumberPasteCapture}
               initial={{ opacity: 0, scale: 0.93, y: 24 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.93, y: 24 }}
               transition={{ type: 'spring', damping: 26, stiffness: 280 }}
-              className="relative flex overflow-hidden w-full"
+              className="product-modal-shell relative flex overflow-hidden w-full"
               style={{
                 maxWidth: 1100,
                 height: 'min(820px, calc(100vh - 48px))',
@@ -879,6 +979,11 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                   <p className="text-[30px] leading-none font-semibold" style={{ color: '#EAF1FF' }}>
                     {images.length} of 5 images added
                   </p>
+                  {variationImageGallery.length > 0 ? (
+                    <p className="text-xs mt-1" style={{ color: '#9FB3DF' }}>
+                      {variationImageGallery.length} variation {variationImageGallery.length === 1 ? 'image' : 'images'} linked to options
+                    </p>
+                  ) : null}
                 </div>
               </div>
 
@@ -1043,6 +1148,39 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                   )}
                 </div>
               </div>
+
+              {variationImageGallery.length > 0 ? (
+                <div className="px-8 pb-6">
+                  <div className="rounded-2xl border px-3 py-3 space-y-2" style={{ backgroundColor: '#243154', borderColor: '#3A4473' }}>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs tracking-[0.12em] font-semibold uppercase" style={{ color: '#9FB3DF' }}>Variation Images</p>
+                      <span className="text-[11px]" style={{ color: '#BFA6EC' }}>{variationImageGallery.length}</span>
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto pb-1" onClick={(e) => e.stopPropagation()}>
+                      {variationImageGallery.map((item) => (
+                        <div key={item.id} className="w-16 flex-shrink-0">
+                          <div className="h-16 rounded-lg overflow-hidden border" style={{ borderColor: '#4A5A8E' }}>
+                            <img src={item.src} alt={item.label} className="w-full h-full object-cover" />
+                          </div>
+                          <p
+                            className="text-[10px] mt-1 leading-tight"
+                            style={{
+                              color: '#C4D2FF',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden',
+                            }}
+                          >
+                            {item.label}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[10px]" style={{ color: '#7F93C1' }}>Uploaded to Firebase storage with the product.</p>
+                  </div>
+                </div>
+              ) : null}
 
               <input
                 ref={fileRef}
@@ -1297,14 +1435,25 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                     <button
                       type="button"
                       onClick={() => {
-                        if (fd.hasVariants) {
-                          set('hasVariants', false);
-                          return;
-                        }
-                        if (fd.variants.length === 0) {
-                          addVariant();
-                        }
-                        set('hasVariants', true);
+                        setFd((prev) => {
+                          if (prev.hasVariants) {
+                            return { ...prev, hasVariants: false };
+                          }
+
+                          const nextVariants = prev.variants.length > 0
+                            ? prev.variants
+                            : [...prev.variants, { id: uid(), name: '', pricingMode: 'modifier' as const, options: [] }];
+
+                          return {
+                            ...prev,
+                            hasVariants: true,
+                            variants: nextVariants,
+                            price: 0,
+                            costPrice: 0,
+                            discount: 0,
+                            variantPrices: {},
+                          };
+                        });
                       }}
                       className="relative h-7 w-14 rounded-full border transition-all"
                       style={{
@@ -1374,7 +1523,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                             {variant.options.map((option) => (
                               <div key={option.id} className="grid grid-cols-[1fr_auto] gap-2 items-end">
                                 <div className="flex items-end gap-2">
-                                  {enableVariationImages && variant.name.trim().toLowerCase() !== 'size' ? (
+                                  {enableVariationImages && !isTextOnlyVariantName(variant.name) ? (
                                     <div className="relative h-14 w-14 shrink-0">
                                       {(() => {
                                         const optionImageKey = `${variant.id}:${option.id}`;
@@ -1743,6 +1892,19 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                 </button>
               </div>
             </div>
+
+              <style jsx global>{`
+                .product-modal-shell input[type='number']::-webkit-outer-spin-button,
+                .product-modal-shell input[type='number']::-webkit-inner-spin-button {
+                  -webkit-appearance: none;
+                  margin: 0;
+                }
+
+                .product-modal-shell input[type='number'] {
+                  -moz-appearance: textfield;
+                  appearance: textfield;
+                }
+              `}</style>
             </motion.div>
           </div>
         </motion.div>

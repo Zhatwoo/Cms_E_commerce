@@ -237,6 +237,7 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
           {statusLabel}
         </span>
         <button
+          data-product-menu-root="true"
           type="button"
           onClick={(event) => {
             event.stopPropagation();
@@ -254,6 +255,7 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
         </button>
         {menuOpen && (
           <div
+            data-product-menu-root="true"
             className="absolute right-2.5 top-10 z-30 w-28 rounded-lg border border-[#2D3A90] bg-[#12145A] py-1 shadow-xl"
             onClick={(event) => event.stopPropagation()}
           >
@@ -369,10 +371,19 @@ const ProductDetailsModal = ({ product, onClose, colors, onEditProduct }: {
 
   if (!product) return null;
 
-  const gallery = (Array.isArray(product.images) && product.images.length > 0
+  const productGallerySources = (Array.isArray(product.images) && product.images.length > 0
     ? product.images
     : [product.image]
-  ).filter((img) => isImageSource(String(img || '')));
+  )
+    .map((img) => String(img || '').trim())
+    .filter((img) => isImageSource(img));
+
+  const variantGallerySources = (Array.isArray(product.variants) ? product.variants : [])
+    .flatMap((variant) => (Array.isArray(variant.options) ? variant.options : []))
+    .map((option) => String(option?.image || '').trim())
+    .filter((img) => isImageSource(img));
+
+  const gallery = Array.from(new Set([...productGallerySources, ...variantGallerySources]));
 
   const hasGallery = gallery.length > 0;
 
@@ -449,7 +460,7 @@ const ProductDetailsModal = ({ product, onClose, colors, onEditProduct }: {
                 )}
               </div>
 
-              <div className="mt-3 w-fit mx-auto">
+              <div className="mt-3 flex flex-col items-center gap-3">
                 {hasGallery && gallery.length > 1 && (
                   <div className="flex justify-center gap-2">
                     {gallery.map((img, idx) => (
@@ -472,7 +483,7 @@ const ProductDetailsModal = ({ product, onClose, colors, onEditProduct }: {
                 <button
                   type="button"
                   onClick={() => onEditProduct(product)}
-                  className="mt-3 h-10 w-full rounded-lg text-sm font-semibold text-white"
+                  className="h-10 w-40 rounded-lg text-sm font-semibold text-white"
                   style={{ backgroundColor: '#16a34a' }}
                 >
                   Edit Product
@@ -584,12 +595,31 @@ function toDashboardProduct(product: ApiProduct): Product {
         name: String(variant?.name || ''),
         pricingMode: variant?.pricingMode === 'override' ? 'override' : 'modifier',
         options: Array.isArray(variant?.options)
-          ? variant.options.map((option) => ({
-            id: String(option?.id || ''),
-            name: String(option?.name || ''),
-            priceAdjustment: Number(option?.priceAdjustment || 0),
-            image: String(option?.image || '').trim(),
-          }))
+          ? variant.options.map((option) => {
+            const optionRecord = option as {
+              id?: unknown;
+              name?: unknown;
+              priceAdjustment?: unknown;
+              image?: unknown;
+              imageUrl?: unknown;
+              image_url?: unknown;
+              imgUrl?: unknown;
+              img_url?: unknown;
+            };
+            return {
+              id: String(optionRecord?.id || ''),
+              name: String(optionRecord?.name || ''),
+              priceAdjustment: Number(optionRecord?.priceAdjustment || 0),
+              image: String(
+                optionRecord?.image
+                ?? optionRecord?.imageUrl
+                ?? optionRecord?.image_url
+                ?? optionRecord?.imgUrl
+                ?? optionRecord?.img_url
+                ?? ''
+              ).trim(),
+            };
+          })
           : [],
       }))
       .filter((variant) => variant.id || variant.name || variant.options.length > 0)
@@ -700,10 +730,12 @@ export default function ProductsPage() {
 
     setProductPopup({ open: true, message, tone });
 
+    const popupDuration = tone === 'success' ? 1500 : 3000;
+
     productPopupTimerRef.current = window.setTimeout(() => {
       setProductPopup((prev) => ({ ...prev, open: false }));
       productPopupTimerRef.current = null;
-    }, 3000);
+    }, popupDuration);
   }, []);
 
   useEffect(() => {
@@ -728,46 +760,58 @@ export default function ProductsPage() {
     return () => document.removeEventListener('mousedown', onMouseDown);
   }, [showStatusFilterMenu, showCategoryFilterMenu]);
 
+  useEffect(() => {
+    if (!openMenuProductId) return;
+    const onMouseDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest('[data-product-menu-root="true"]')) return;
+      setOpenMenuProductId(null);
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, [openMenuProductId]);
+
   const loadProducts = useCallback(async () => {
-      if (projectLoading) {
-        setLoadingProducts(true);
-        return;
-      }
+    if (projectLoading) {
       setLoadingProducts(true);
-      if (!canAddProducts) {
+      return;
+    }
+    setLoadingProducts(true);
+    if (!canAddProducts) {
+      setProducts([]);
+      setLoadingProducts(false);
+      return;
+    }
+    try {
+      const res = await listProducts({
+        subdomain: selectedSubdomain,
+        page: 1,
+        limit: 500,
+      });
+      if (res?.success && Array.isArray(res.items)) {
+        setProducts(res.items.map(toDashboardProduct));
+      } else {
         setProducts([]);
-        setLoadingProducts(false);
-        return;
       }
-      try {
-        const res = await listProducts({
-          subdomain: selectedSubdomain,
-          page: 1,
-          limit: 500,
-        });
-        if (res?.success && Array.isArray(res.items)) {
-          setProducts(res.items.map(toDashboardProduct));
-        } else {
-          setProducts([]);
-        }
-      } catch (error) {
-        setProducts([]);
-        showAlert(error instanceof Error ? error.message : 'Failed to load products', 'error');
-      } finally {
-        setLoadingProducts(false);
-      }
-    }, [projectLoading, canAddProducts, selectedSubdomain, showAlert]);
+    } catch (error) {
+      setProducts([]);
+      showAlert(error instanceof Error ? error.message : 'Failed to load products', 'error');
+    } finally {
+      setLoadingProducts(false);
+    }
+  }, [projectLoading, canAddProducts, selectedSubdomain, showAlert]);
 
   useEffect(() => {
     void loadProducts();
   }, [loadProducts]);
 
-  useEffect(() => {
-    const handleRefreshOnFocus = () => {
-      if (showAddModal || Boolean(editingProduct) || Boolean(viewingProduct)) return;
-      void loadProducts();
-    };
+  const handleRefreshOnFocus = useCallback(() => {
+    if (showAddModal || Boolean(editingProduct) || Boolean(viewingProduct)) return;
+    void loadProducts();
+  }, [showAddModal, editingProduct, viewingProduct, loadProducts]);
 
+  useEffect(() => {
     const handleVisibilityChange = () => {
       if (showAddModal || Boolean(editingProduct) || Boolean(viewingProduct)) return;
       if (document.visibilityState === 'visible') {
@@ -781,7 +825,7 @@ export default function ProductsPage() {
       window.removeEventListener('focus', handleRefreshOnFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [loadProducts, showAddModal, editingProduct, viewingProduct]);
+  }, [loadProducts, handleRefreshOnFocus, showAddModal, editingProduct, viewingProduct]);
 
   const subcategoryCounts = products.reduce<Record<string, number>>((acc, product) => {
     const subcategory = String(product.subcategory || '').trim();
@@ -876,6 +920,13 @@ export default function ProductsPage() {
       const basePrice = Number(productData.basePrice ?? productData.price ?? 0);
       const finalPrice = Number(productData.finalPrice ?? productData.price ?? 0);
       const discount = Number(productData.discount || 0);
+      const compareAtPriceRaw = productData.compareAtPrice;
+      const compareAtPrice = compareAtPriceRaw === null || compareAtPriceRaw === undefined
+        ? null
+        : (() => {
+          const parsed = Number(compareAtPriceRaw);
+          return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+        })();
       const discountType = String(productData.discountType || 'percentage') === 'fixed' ? 'fixed' : 'percentage';
       const hasVariants = Boolean(productData.hasVariants) && variants.length > 0;
       const variantStocks = hasVariants && productData.variantStocks && typeof productData.variantStocks === 'object'
@@ -920,7 +971,7 @@ export default function ProductsPage() {
         basePrice,
         costPrice: productData.costPrice !== undefined ? Number(productData.costPrice || 0) : null,
         finalPrice,
-        compareAtPrice: discount > 0 ? basePrice : null,
+        compareAtPrice,
         discount,
         discountType,
         hasVariants,
@@ -1330,7 +1381,7 @@ export default function ProductsPage() {
                             </span>
                           </div>
 
-                          <div className="flex justify-center relative">
+                          <div data-product-menu-root="true" className="flex justify-center relative">
                             <button
                               type="button"
                               onClick={(event) => {

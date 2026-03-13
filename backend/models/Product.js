@@ -71,12 +71,23 @@ function sanitizeVariants(value) {
     .map((variant, variantIndex) => {
       const rawOptions = Array.isArray(variant?.options) ? variant.options : [];
       const options = rawOptions
-        .map((option, optionIndex) => ({
-          id: (option?.id || `opt-${variantIndex + 1}-${optionIndex + 1}`).toString(),
-          name: (option?.name || '').toString().trim(),
-          priceAdjustment: toNumber(option?.priceAdjustment, 0),
-        }))
-        .filter((option) => option.name || option.priceAdjustment !== 0);
+        .map((option, optionIndex) => {
+          const image = [
+            option?.image,
+            option?.imageUrl,
+            option?.image_url,
+            option?.imgUrl,
+            option?.img_url,
+          ].find((candidate) => typeof candidate === 'string' && candidate.trim().length > 0) || '';
+
+          return {
+            id: (option?.id || `opt-${variantIndex + 1}-${optionIndex + 1}`).toString(),
+            name: (option?.name || '').toString().trim(),
+            priceAdjustment: toNumber(option?.priceAdjustment, 0),
+            image,
+          };
+        })
+        .filter((option) => option.name || option.priceAdjustment !== 0 || option.image);
 
       return {
         id: (variant?.id || `var-${variantIndex + 1}`).toString(),
@@ -96,6 +107,18 @@ function sanitizeVariantStocks(value) {
     if (!normalizedKey) return acc;
     const amount = toNonNegativeInt(rawAmount, 0);
     acc[normalizedKey] = amount;
+    return acc;
+  }, {});
+}
+
+function sanitizeVariantPrices(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+
+  return Object.entries(value).reduce((acc, [key, rawAmount]) => {
+    const normalizedKey = String(key || '').trim();
+    if (!normalizedKey) return acc;
+    const amount = Number(rawAmount);
+    acc[normalizedKey] = Number.isFinite(amount) && amount >= 0 ? amount : 0;
     return acc;
   }, {});
 }
@@ -120,6 +143,7 @@ async function createForSubdomain({ subdomain, userId, projectId, domainId, data
   const variants = sanitizeVariants(data.variants);
   const hasVariants = !!data.hasVariants && variants.length > 0;
   const variantStocks = hasVariants ? sanitizeVariantStocks(data.variantStocks) : {};
+  const variantPrices = hasVariants ? sanitizeVariantPrices(data.variantPrices) : {};
 
   const normalizedSubcategory = String(
     data.subcategory ?? data.subCategory ?? data.sub_category ?? ''
@@ -149,6 +173,7 @@ async function createForSubdomain({ subdomain, userId, projectId, domainId, data
     has_variants: hasVariants,
     variants: hasVariants ? variants : [],
     variant_stocks: variantStocks,
+    variant_prices: variantPrices,
     price_range_min: toNullableNumber(data.priceRangeMin),
     price_range_max: toNullableNumber(data.priceRangeMax),
     images: Array.isArray(data.images) ? data.images : [],
@@ -300,6 +325,7 @@ async function updateForUser(id, userId, data) {
     updates.has_variants = hasVariants;
     updates.variants = hasVariants ? variants : [];
     if (!hasVariants && data.variantStocks === undefined) updates.variant_stocks = {};
+    if (!hasVariants && data.variantPrices === undefined) updates.variant_prices = {};
   }
   if (data.variantStocks !== undefined) {
     const hasVariants =
@@ -307,6 +333,13 @@ async function updateForUser(id, userId, data) {
         ? !!updates.has_variants
         : (existing.hasVariants !== undefined ? !!existing.hasVariants : Array.isArray(existing.variants) && existing.variants.length > 0);
     updates.variant_stocks = hasVariants ? sanitizeVariantStocks(data.variantStocks) : {};
+  }
+  if (data.variantPrices !== undefined) {
+    const hasVariants =
+      updates.has_variants !== undefined
+        ? !!updates.has_variants
+        : (existing.hasVariants !== undefined ? !!existing.hasVariants : Array.isArray(existing.variants) && existing.variants.length > 0);
+    updates.variant_prices = hasVariants ? sanitizeVariantPrices(data.variantPrices) : {};
   }
   if (data.priceRangeMin !== undefined) updates.price_range_min = toNullableNumber(data.priceRangeMin);
   if (data.priceRangeMax !== undefined) updates.price_range_max = toNullableNumber(data.priceRangeMax);

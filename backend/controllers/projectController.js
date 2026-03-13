@@ -13,8 +13,15 @@ exports.list = async (req, res) => {
   try {
     const userId = req.user.id;
     const userEmail = req.user.email;
+    const t0 = Date.now();
+    console.log('[READ] projects.list start', { userId });
     const owned = await Project.list(userId);
+    console.log('[READ] projects.list owned', { count: owned?.length || 0, ms: Date.now() - t0 });
+
+    const t1 = Date.now();
     const shared = await Project.listShared(userId, userEmail);
+    console.log('[READ] projects.listShared', { count: shared?.length || 0, ms: Date.now() - t1 });
+    console.log('[READ] projects.list total', { owned: owned?.length, shared: shared?.length, totalMs: Date.now() - t0 });
 
     // Merge and sort by updatedAt desc
     const projects = [...owned, ...shared].sort((a, b) => {

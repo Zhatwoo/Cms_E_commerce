@@ -20,7 +20,9 @@ exports.protect = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const t = Date.now();
     const user = await User.get(decoded.id);
+    console.log('[READ] auth User.get', { id: decoded.id, ms: Date.now() - t });
     if (!user) {
       return res.status(401).json({ success: false, message: 'Not authorized, user not found' });
     }

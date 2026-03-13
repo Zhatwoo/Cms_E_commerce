@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Editor, Frame, useEditor } from "@craftjs/core";
 import { ChevronLeft, ChevronRight, Layout, Star, FileText, CreditCard, FormInput, PanelBottom, Smile, Shapes as ShapesIcon } from "lucide-react";
 import { GROUPED_TEMPLATES } from "../../../_assets";
-import { buildCraftResolver, CRAFT_RESOLVER } from "../craftResolver";
+import { buildCraftResolver } from "../craftResolver";
 import { Container } from "../../_designComponents/Container/Container";
 import { Text } from "../../_designComponents/Text/Text";
 import { Page } from "../../_designComponents/Page/Page";
@@ -100,7 +100,7 @@ const ASSET_ICONS: Record<string, React.ReactNode> = {
 };
 
 const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverFallback({
-  ...CRAFT_RESOLVER,
+  ...buildCraftResolver(),
   Container: SAFE_CONTAINER,
   container: SAFE_CONTAINER,
   CONTAINER: SAFE_CONTAINER,

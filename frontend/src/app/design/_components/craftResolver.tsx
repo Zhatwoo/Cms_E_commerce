@@ -19,6 +19,7 @@ import { Spacer } from "../_designComponents/Spacer/Spacer";
 import { Pagination } from "../_designComponents/Pagination/Pagination";
 import { Rating } from "../_designComponents/Rating/Rating";
 import { Banner } from "../_designComponents/Banner/banner";
+import { Badge } from "../_designComponents/Badge/badge";
 import { Circle } from "../../_assets/shapes/circle/circle";
 import { Square } from "../../_assets/shapes/square/square";
 import { Triangle } from "../../_assets/shapes/triangle/triangle";
@@ -81,9 +82,6 @@ export function buildCraftResolver(): Resolver {
   const PaginationComp = asComponent(Pagination, ContainerComp);
 <<<<<<<<< Temporary merge branch 1
   const RatingComp = asComponent(Rating, ContainerComp);
-=========
-  const AccordionComp = asComponent(Accordion, ContainerComp);
->>>>>>>>> Temporary merge branch 2
   const base: Resolver = {
     Container: ContainerComp,
     container: ContainerComp,
@@ -138,6 +136,11 @@ export function buildCraftResolver(): Resolver {
     Rating: RatingComp,
     rating: RatingComp,
     RATING: RatingComp,
+    BooleanField: BooleanFieldComp,
+    booleanfield: BooleanFieldComp,
+    BOOLEANFIELD: BooleanFieldComp,
+    IconRow: IconRowComp,
+    iconrow: IconRowComp,
   };
   base.Image = ImageComp;
   base.image = ImageComp;
@@ -148,5 +151,5 @@ export function buildCraftResolver(): Resolver {
   return base;
 }
 
-/** Single resolver instance with fallback lookups so unknown casing/legacy names never hard-crash. */
-export const CRAFT_RESOLVER = withResolverFallback(buildCraftResolver());
+/** Shared plain resolver map for editor/preview usage. */
+export const CRAFT_RESOLVER = buildCraftResolver();
