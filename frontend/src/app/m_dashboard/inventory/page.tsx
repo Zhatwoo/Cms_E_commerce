@@ -398,6 +398,35 @@ export default function InventoryPage() {
   const fileInputRef        = useRef<HTMLInputElement>(null);
   const inlineSaveLockRef   = useRef<string | null>(null);
   const categoryMenuRef     = useRef<HTMLDivElement>(null);
+  const localStatusMovementsRef = useRef<InventoryMovement[]>([]);
+
+  const movementTimestamp = useCallback((movement: InventoryMovement): number => {
+    const raw = String(movement.createdAt || '').trim();
+    const parsed = raw ? Date.parse(raw) : NaN;
+    return Number.isFinite(parsed) ? parsed : 0;
+  }, []);
+
+  const mergeServerAndLocalStatusMovements = useCallback((serverMovements: InventoryMovement[], limit?: number) => {
+    const normalizedServer = Array.isArray(serverMovements) ? serverMovements : [];
+
+    const dedupedLocalStatus = localStatusMovementsRef.current.filter((localMovement) => {
+      const localTime = movementTimestamp(localMovement);
+      return !normalizedServer.some((serverMovement) => {
+        if (String(serverMovement.type || '').toUpperCase() !== 'STATUS') return false;
+        if (String(serverMovement.productId || '').trim() !== String(localMovement.productId || '').trim()) return false;
+        if (String(serverMovement.notes || '').trim() !== String(localMovement.notes || '').trim()) return false;
+        const serverTime = movementTimestamp(serverMovement);
+        return Math.abs(serverTime - localTime) <= 2 * 60 * 1000;
+      });
+    });
+
+    localStatusMovementsRef.current = dedupedLocalStatus;
+
+    const merged = [...dedupedLocalStatus, ...normalizedServer]
+      .sort((a, b) => movementTimestamp(b) - movementTimestamp(a));
+
+    return typeof limit === 'number' ? merged.slice(0, limit) : merged;
+  }, [movementTimestamp]);
 
   const sanitizeNumberInput = (input: HTMLInputElement) => {
     if (input.type !== 'number') return;
@@ -599,11 +628,12 @@ export default function InventoryPage() {
       ]);
       setItems(Array.isArray(invRes.items) ? (invRes.items as InventoryRow[]) : []);
       setSummary(summaryRes.data || null);
-        setMovements(Array.isArray(movementRes.items) ? movementRes.items : []);
+      const serverMovements = Array.isArray(movementRes.items) ? movementRes.items : [];
+      setMovements(mergeServerAndLocalStatusMovements(serverMovements, RECENT_MOVEMENTS_LIMIT));
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load inventory');
       } finally { setLoading(false); }
-    }, [projectLoading, search, selectedSubdomain]);
+    }, [projectLoading, search, selectedSubdomain, mergeServerAndLocalStatusMovements]);
   
     useEffect(() => { void loadData(); }, [loadData]);
 
@@ -620,11 +650,12 @@ export default function InventoryPage() {
       }
       try {
         const res = await listInventoryMovements({ subdomain: selectedSubdomain, limit: ALL_MOVEMENTS_LIMIT });
-        setAllMovements(Array.isArray(res.items) ? res.items : []);
+        const serverMovements = Array.isArray(res.items) ? res.items : [];
+        setAllMovements(mergeServerAndLocalStatusMovements(serverMovements));
       } catch (err) {
         setAllMovementsError(err instanceof Error ? err.message : 'Failed to load movement history');
       } finally { setLoadingAllMovements(false); }
-    }, [projectLoading, selectedSubdomain]);
+    }, [projectLoading, selectedSubdomain, mergeServerAndLocalStatusMovements]);
 
   const openAllMovementsModal  = useCallback(() => { setShowAllMovementsModal(true); void loadAllMovements(); }, [loadAllMovements]);
   const closeAllMovementsModal = useCallback(() => {
@@ -884,11 +915,16 @@ export default function InventoryPage() {
   const modalOnHand = stockModal.product ? getStockNumbers(stockModal.product).onHand : 0;
 
   const prependLocalMovement = useCallback((movement: InventoryMovement) => {
+    if (String(movement.type || '').toUpperCase() === 'STATUS') {
+      localStatusMovementsRef.current = [movement, ...localStatusMovementsRef.current]
+        .sort((a, b) => movementTimestamp(b) - movementTimestamp(a))
+        .slice(0, 100);
+    }
     setMovements((prev) => [movement, ...prev].slice(0, RECENT_MOVEMENTS_LIMIT));
     if (showAllMovementsModal) {
       setAllMovements((prev) => [movement, ...prev]);
     }
-  }, [showAllMovementsModal]);
+  }, [showAllMovementsModal, movementTimestamp]);
 
   const startInlineStockEdit = useCallback((product: InventoryRow, currentOnHand: number) => {
     setEditingStockId(product.id);
@@ -1118,6 +1154,10 @@ export default function InventoryPage() {
     const kind = String(m.type || '').toUpperCase();
     const color = kind === 'IN' ? T.green : kind === 'OUT' ? T.red : '#a5b4fc';
     const quantityText = kind === 'IN' ? `+${m.quantity}` : kind === 'OUT' ? String(m.quantity) : '•';
+    const noteText = String(m.notes || 'Inventory movement');
+    const statusNoteMatch = noteText.match(/^Product status changed to\s+(active|inactive)$/i);
+    const statusValue = statusNoteMatch?.[1]?.toLowerCase();
+    const statusColor = statusValue === 'active' ? T.green : statusValue === 'inactive' ? T.red : T.text;
     return (
       <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, marginBottom: 8 }}>
         {selectable && (
@@ -1169,7 +1209,18 @@ export default function InventoryPage() {
             <MovTypeBadge type={m.type || ''} />
             <div>
               <div style={{ fontSize: 13, color: T.text, fontWeight: 500 }}>{m.productName || 'Product'}</div>
-              <div style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>{m.notes || 'Inventory movement'}</div>
+              <div style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>
+                {statusNoteMatch ? (
+                  <>
+                    Product status changed to{' '}
+                    <span style={{ color: statusColor, fontWeight: 700 }}>
+                      {statusValue}
+                    </span>
+                  </>
+                ) : (
+                  noteText
+                )}
+              </div>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
