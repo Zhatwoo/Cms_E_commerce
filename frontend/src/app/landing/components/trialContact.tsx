@@ -118,7 +118,7 @@ function Globe({ isDarkMode = false }: { isDarkMode?: boolean }) {
   );
 }
 
-export function TrialContact({ isDarkMode = false }: { isDarkMode?: boolean }) {
+export function TrialContact({ isDarkMode = false, onAuthClick }: { isDarkMode?: boolean; onAuthClick?: (mode: 'login' | 'register') => void }) {
   return (
     <section className={`-mt-[10px] w-full ${isDarkMode ? 'bg-[#120456] text-white' : 'bg-white text-[#120533]'}`}>
 
@@ -130,7 +130,7 @@ export function TrialContact({ isDarkMode = false }: { isDarkMode?: boolean }) {
         {/* Ambient glows */}
         <div className={`pointer-events-none absolute left-1/2 top-0 h-[clamp(400px,50vw,700px)] w-[clamp(400px,60vw,800px)] -translate-x-1/2 rounded-full blur-[2px] ${isDarkMode ? 'bg-[radial-gradient(circle,rgba(177,59,255,0.15)_0%,transparent_72%)]' : 'bg-[radial-gradient(circle,rgba(217,70,239,0.08)_0%,transparent_72%)]'}`} />
         <div className={`pointer-events-none absolute bottom-0 right-[-10%] h-[clamp(300px,35vw,500px)] w-[clamp(300px,35vw,500px)] rounded-full blur-[120px] ${isDarkMode ? 'bg-[#7c3aed]/8' : 'bg-[#d946ef]/5'}`} />
-        <div className={`pointer-events-none absolute inset-0 bg-[size:56px_56px] ${isDarkMode ? 'bg-[linear-gradient(rgba(255,255,255,0.014)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.014)_1px,transparent_1px)]' : 'bg-[linear-gradient(rgba(0,0,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.03)_1px,transparent_1px)]'}`} />
+
 
         <div className="relative z-10 mx-auto max-w-[1200px]">
 
@@ -165,6 +165,7 @@ export function TrialContact({ isDarkMode = false }: { isDarkMode?: boolean }) {
                 whileHover={{ scale: 1.03, boxShadow: isDarkMode ? '0 6px 28px rgba(245,196,0,0.55)' : '0 12px 28px rgba(217,70,239,0.5)' }}
                 whileTap={{ scale: 0.97 }}
                 type="button"
+                onClick={() => onAuthClick?.('register')}
                 suppressHydrationWarning
                 className={`rounded-full px-[clamp(1.75rem,3.5vw,3rem)] py-[clamp(0.55rem,1vw,0.75rem)] text-[clamp(0.75rem,1vw,0.875rem)] font-extrabold transition hover:brightness-105 ${
                   isDarkMode 
@@ -212,7 +213,7 @@ export function TrialContact({ isDarkMode = false }: { isDarkMode?: boolean }) {
             {/* Form */}
             <Reveal x={-24} delay={0.14}>
               <div className={`w-full rounded-[2rem] border p-[clamp(1.5rem,3vw,2.5rem)] shadow-[0_24px_60px_rgba(5,4,22,0.5)] ${
-                isDarkMode ? 'border-white/12 bg-[#10164a]/86' : 'border-[#e5e5ed] bg-white shadow-[0_16px_40px_rgba(20,20,50,0.06)]'
+                isDarkMode ? 'border-white/12 bg-[#10164a]/86' : 'border-[#c1c1cd] bg-white shadow-[0_16px_40px_rgba(20,20,50,0.06)]'
               }`}>
 
                 <h4 className={`text-[clamp(1.1rem,2vw,1.5rem)] font-extrabold uppercase tracking-[0.02em] ${isDarkMode ? 'text-white' : 'text-[#120533]'}`}>
@@ -242,7 +243,7 @@ export function TrialContact({ isDarkMode = false }: { isDarkMode?: boolean }) {
                         className={`h-[clamp(2.25rem,3vw,2.75rem)] w-full rounded-xl border px-4 text-[clamp(0.8rem,1vw,0.875rem)] transition focus:outline-none focus:ring-1 ${
                           isDarkMode 
                             ? 'border-white/8 bg-[#192058] text-white placeholder:text-white/25 focus:border-[#a855f7]/70 focus:bg-[#1e2870] focus:ring-[#a855f7]/30' 
-                            : 'border-[#e5e5ed] bg-[#f8f8fb] text-[#120533] placeholder:text-[#888899] focus:border-[#9333ea]/40 focus:bg-[#fff] focus:ring-[#9333ea]/30'
+                            : 'border-[#c1c1cd] bg-[#f8f8fb] text-[#120533] placeholder:text-[#888899] focus:border-[#9333ea]/40 focus:bg-[#fff] focus:ring-[#9333ea]/30'
                         }`}
                         suppressHydrationWarning
                       />
@@ -263,7 +264,7 @@ export function TrialContact({ isDarkMode = false }: { isDarkMode?: boolean }) {
                       className={`w-full resize-none rounded-xl border px-4 py-3 text-[clamp(0.8rem,1vw,0.875rem)] transition focus:outline-none focus:ring-1 ${
                         isDarkMode 
                           ? 'border-white/8 bg-[#192058] text-white placeholder:text-white/25 focus:border-[#a855f7]/70 focus:bg-[#1e2870] focus:ring-[#a855f7]/30' 
-                          : 'border-[#e5e5ed] bg-[#f8f8fb] text-[#120533] placeholder:text-[#888899] focus:border-[#9333ea]/40 focus:bg-[#fff] focus:ring-[#9333ea]/30'
+                          : 'border-[#c1c1cd] bg-[#f8f8fb] text-[#120533] placeholder:text-[#888899] focus:border-[#9333ea]/40 focus:bg-[#fff] focus:ring-[#9333ea]/30'
                       }`}
                       suppressHydrationWarning
                     />

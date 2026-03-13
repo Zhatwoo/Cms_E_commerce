@@ -371,19 +371,10 @@ const ProductDetailsModal = ({ product, onClose, colors, onEditProduct }: {
 
   if (!product) return null;
 
-  const productGallerySources = (Array.isArray(product.images) && product.images.length > 0
+  const gallery = (Array.isArray(product.images) && product.images.length > 0
     ? product.images
     : [product.image]
-  )
-    .map((img) => String(img || '').trim())
-    .filter((img) => isImageSource(img));
-
-  const variantGallerySources = (Array.isArray(product.variants) ? product.variants : [])
-    .flatMap((variant) => (Array.isArray(variant.options) ? variant.options : []))
-    .map((option) => String(option?.image || '').trim())
-    .filter((img) => isImageSource(img));
-
-  const gallery = Array.from(new Set([...productGallerySources, ...variantGallerySources]));
+  ).filter((img) => isImageSource(String(img || '')));
 
   const hasGallery = gallery.length > 0;
 
@@ -460,7 +451,7 @@ const ProductDetailsModal = ({ product, onClose, colors, onEditProduct }: {
                 )}
               </div>
 
-              <div className="mt-3 flex flex-col items-center gap-3">
+              <div className="mt-3 w-fit mx-auto">
                 {hasGallery && gallery.length > 1 && (
                   <div className="flex justify-center gap-2">
                     {gallery.map((img, idx) => (
@@ -483,7 +474,7 @@ const ProductDetailsModal = ({ product, onClose, colors, onEditProduct }: {
                 <button
                   type="button"
                   onClick={() => onEditProduct(product)}
-                  className="h-10 w-40 rounded-lg text-sm font-semibold text-white"
+                  className="mt-3 h-10 w-full rounded-lg text-sm font-semibold text-white"
                   style={{ backgroundColor: '#16a34a' }}
                 >
                   Edit Product

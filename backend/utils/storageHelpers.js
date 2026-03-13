@@ -418,48 +418,6 @@ async function getProjectStorageUsage({ clientName, websiteName, userId, subdoma
   return totalBytes;
 }
 
-/**
- * Calculate total storage usage (in bytes) for a specific user across all their projects.
- */
-async function getUserStorageUsage({ clientName, userId }) {
-  const bucket = getStorageBucket();
-  if (!bucket) return 0;
-
-  let totalBytes = 0;
-  const client = slugPathSegment(clientName);
-
-  // 1. Clients folder: Clients/{clientSlug}/
-  // Note: We sum the entire client folder which includes all their projects
-  if (client) {
-    try {
-      const prefix = `${STORAGE_PREFIX}${client}/`;
-      const [files] = await bucket.getFiles({ prefix, autoPaginate: true });
-      files.forEach((file) => {
-        const size = parseInt(file.metadata.size || 0, 10);
-        if (!isNaN(size)) totalBytes += size;
-      });
-    } catch (err) {
-      console.warn('[storageHelpers] getUserStorageUsage Clients failed:', err.message);
-    }
-  }
-
-  // 2. Products folder: Products_img/{userId}/
-  if (userId) {
-    try {
-      const prefix = `${PRODUCT_IMAGE_PREFIX}${userId}/`;
-      const [files] = await bucket.getFiles({ prefix, autoPaginate: true });
-      files.forEach((file) => {
-        const size = parseInt(file.metadata.size || 0, 10);
-        if (!isNaN(size)) totalBytes += size;
-      });
-    } catch (err) {
-      console.warn('[storageHelpers] getUserStorageUsage Products failed:', err.message);
-    }
-  }
-
-  return totalBytes;
-}
-
 module.exports = {
   slugPathSegment,
   deleteProjectStorageFolder,
@@ -470,5 +428,4 @@ module.exports = {
   deleteAvatarByUrlForUser,
   getStoragePathFromUrl,
   getProjectStorageUsage,
-  getUserStorageUsage,
 };

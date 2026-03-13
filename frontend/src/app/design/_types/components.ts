@@ -292,27 +292,6 @@ export interface IconProps extends SpacingProps, PositionProps, AnimatableProps 
   link?: string;
 }
 
-export interface IconRowItem {
-  id: string;
-  src: string;
-  alt?: string;
-  link?: string;
-}
-
-export interface IconRowProps
-  extends SpacingProps,
-    SizeProps,
-    PositionProps,
-    EffectsProps,
-    TransformProps,
-    AnimatableProps,
-    InteractionProps {
-  items?: IconRowItem[];
-  align?: "left" | "center" | "right";
-  gap?: number;
-  size?: number;
-}
-
 export interface CircleProps
   extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps {
   color?: string;

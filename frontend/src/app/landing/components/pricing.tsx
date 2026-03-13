@@ -104,7 +104,7 @@ export function Pricing({ isDarkMode = false }: { isDarkMode?: boolean }) {
                 : 'border-[3px] border-[#d946ef]'
               : isDarkMode
                 ? 'border border-[#3d2a93]'
-                : 'border border-[#e5e5ed]';
+                : 'border border-[#c1c1cd]';
             const titleClass = isPremium 
               ? isDarkMode ? 'text-[#f0bb00]' : 'text-[#d946ef]' 
               : isDarkMode ? 'text-[#a78bfa]' : 'text-[#9333ea]';
@@ -114,7 +114,7 @@ export function Pricing({ isDarkMode = false }: { isDarkMode?: boolean }) {
                 : 'bg-gradient-to-r from-[#9333ea] to-[#ec4899] text-white hover:brightness-110'
               : isDarkMode 
                 ? 'bg-white/10 text-white hover:bg-white/20' 
-                : 'bg-[#f0f0f4] text-[#120533] hover:bg-[#e5e5ed]';
+                : 'bg-[#f0f0f4] text-[#120533] hover:bg-[#d1d1dd]';
             const checkClass = isPremium 
               ? isDarkMode ? 'text-[#f5c400]' : 'text-[#d946ef]' 
               : isDarkMode ? 'text-[#a855f7]' : 'text-[#9333ea]';

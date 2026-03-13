@@ -1182,10 +1182,6 @@ export type ClientRow = {
   status: string;
   createdAt?: string;
   isActive?: boolean;
-  storageBytes?: number;
-  storageReadable?: string;
-  storageLimit?: number;
-  storageLimitReadable?: string;
 };
 
 export async function getClients(): Promise<{

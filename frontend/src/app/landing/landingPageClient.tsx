@@ -168,8 +168,9 @@ export function LandingPageClient({ children }: { children: React.ReactNode }) {
       return child;
     }
 
-    return React.cloneElement(child as React.ReactElement<{ isDarkMode?: boolean }>, {
+    return React.cloneElement(child as React.ReactElement<{ isDarkMode?: boolean; onAuthClick?: (mode: AuthMode) => void }>, {
       isDarkMode,
+      onAuthClick: handleAuthClick,
     });
   });
 
@@ -185,6 +186,7 @@ export function LandingPageClient({ children }: { children: React.ReactNode }) {
         onClose={() => setAuthModalOpen(false)}
         initialMode={authMode}
         initialEmail={authEmail}
+        isDarkMode={isDarkMode}
       />
     </>
   );

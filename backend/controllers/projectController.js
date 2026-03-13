@@ -345,29 +345,6 @@ exports.uploadMedia = async (req, res) => {
       });
     }
 
-    // --- Storage Limit Enforcement ---
-    const owner = await User.findById(resolved.ownerId);
-    const limits = getLimits(owner?.subscriptionPlan);
-    
-    if (limits.storageLimit !== Infinity) {
-      const ownerName = (owner.displayName || owner.username || owner.email || 'client').trim();
-      const currentBytes = await getProjectStorageUsage({
-        clientName: ownerName,
-        websiteName: project.title,
-        userId: resolved.ownerId,
-        subdomain: project.subdomain,
-        projectId: project.id,
-      });
-
-      if (currentBytes + req.file.size > limits.storageLimit) {
-        return res.status(403).json({
-          success: false,
-          message: `Limit reached: Your plan (${owner?.subscriptionPlan || 'free'}) has a storage limit of ${limits.storageLimit / (1024 * 1024 * 1024)}GB. Please upgrade to upload more files.`,
-        });
-      }
-    }
-    // ----------------------------------
-
     let clientName = req.user.name || 'client';
     try {
       const user = await User.get(userId);
@@ -481,13 +458,10 @@ exports.getStorageUsage = async (req, res) => {
       projectId: project.id,
     });
 
-    const limits = getLimits(owner.subscriptionPlan);
     res.status(200).json({
       success: true,
       storageBytes,
       storageReadable: formatBytes(storageBytes),
-      storageLimit: limits.storageLimit,
-      storageLimitReadable: limits.storageLimit === Infinity ? 'Unlimited' : formatBytes(limits.storageLimit),
     });
   } catch (error) {
     res.status(500).json({

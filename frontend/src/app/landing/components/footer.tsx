@@ -52,21 +52,18 @@ export function Footer({ isDarkMode = false }: { isDarkMode?: boolean }) {
   const text      = isDarkMode ? 'text-white'       : 'text-[#120533]';
   const muted     = isDarkMode ? 'text-white/50'    : 'text-[#616170]';
   const subtle    = isDarkMode ? 'text-white/30'    : 'text-[#888899]';
-  const divider   = isDarkMode ? 'border-white/8'   : 'border-[#e5e5ed]';
+  const divider   = isDarkMode ? 'border-white/8'   : 'border-[#c1c1cd]';
   const cardBg    = isDarkMode ? 'bg-[#0d1733]'     : 'bg-white';
-  const cardBorder= isDarkMode ? 'border-white/8'   : 'border-[#e5e5ed]';
+  const cardBorder= isDarkMode ? 'border-white/8'   : 'border-[#c1c1cd]';
   const linkHover = isDarkMode ? 'hover:text-white' : 'hover:text-[#120533]';
   const socialBg  = isDarkMode
     ? 'border-white/10 bg-white/5 text-white/60 hover:border-[#a855f7]/60 hover:bg-[#a855f7]/10 hover:text-white'
-    : 'border-[#e5e5ed] bg-[#f8f8fb] text-[#888899] hover:border-[#9333ea]/40 hover:bg-[#9333ea]/5 hover:text-[#9333ea]';
+    : 'border-[#c1c1cd] bg-[#f8f8fb] text-[#888899] hover:border-[#9333ea]/40 hover:bg-[#9333ea]/5 hover:text-[#9333ea]';
 
   return (
     <footer className={`relative w-full overflow-hidden ${bg} ${text}`}>
 
-      {/* ── Faint grid overlay (dark only) ── */}
-      {isDarkMode && (
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.013)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.013)_1px,transparent_1px)] bg-[size:56px_56px]" />
-      )}
+
 
       {/* ── Ambient glows (dark only) ── */}
       {isDarkMode && (

@@ -717,16 +717,16 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                             `}>
                               <button
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleEditActiveProject(project); }}
-                                className="w-full px-3 py-2 rounded-xl text-left text-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                                className={`w-full px-3 py-2 rounded-xl text-left text-sm flex items-center gap-2 transition-colors ${theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-slate-50'}`}
                               >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M16.862 3.487a1.875 1.875 0 1 1 2.652 2.652L8.25 17.403 4.5 18.75l1.347-3.75L16.862 3.487Z" /></svg>
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 3.487a1.875 1.875 0 1 1 2.652 2.652L8.25 17.403 4.5 18.75l1.347-3.75L16.862 3.487Z" /></svg>
                                 Edit
                               </button>
                               <button
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteActiveProject(project); }}
-                                className="w-full px-3 py-2 rounded-xl text-left text-sm text-red-500 flex items-center gap-2 hover:bg-red-50 transition-colors"
+                                className={`w-full px-3 py-2 rounded-xl text-left text-sm text-red-500 flex items-center gap-2 transition-colors ${theme === 'dark' ? 'hover:bg-red-500/10' : 'hover:bg-red-50'}`}
                               >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                 Delete
                               </button>
                             </div>
@@ -1000,11 +1000,11 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
           setRenameTitle('');
         }}>
           <div
-            className="w-full max-w-md rounded-2xl border border-[#2D3A90] bg-[#12145A] p-5 shadow-2xl"
+            className={`w-full max-w-md rounded-2xl border p-5 shadow-2xl ${theme === 'dark' ? 'border-[#2D3A90] bg-[#12145A]' : 'border-[#8B5CF6]/20 bg-white'}`}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-white">Rename project</h3>
-            <p className="mt-1 text-xs text-[#8A8FC4]">Update the project title.</p>
+            <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-[#1E1B4B]'}`}>Rename project</h3>
+            <p className={`mt-1 text-xs ${theme === 'dark' ? 'text-[#8A8FC4]' : 'text-[#8B5CF6]/70'}`}>Update the project title.</p>
 
             <input
               type="text"
@@ -1017,7 +1017,11 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                 }
               }}
               autoFocus
-              className="mt-4 w-full rounded-lg border border-[#2D3A90] bg-[#0E0D3D] px-3 py-2 text-sm text-white outline-none focus:border-[#6B72D8]"
+              className={`mt-4 w-full rounded-lg border px-3 py-2 text-sm outline-none ${
+                theme === 'dark'
+                  ? 'border-[#2D3A90] bg-[#0E0D3D] text-white focus:border-[#6B72D8]'
+                  : 'border-[#8B5CF6]/20 bg-[#F8F9FF] text-[#1E1B4B] focus:border-[#8B5CF6] placeholder:text-gray-400'
+              }`}
               placeholder="Untitled Project"
             />
 
@@ -1029,7 +1033,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                   setRenameTitle('');
                 }}
                 disabled={actioningProjectId === renamingProject.id}
-                className="px-3 py-1.5 rounded-md text-xs font-medium text-[#8A8FC4] hover:text-white disabled:opacity-50"
+                className={`px-3 py-1.5 rounded-md text-xs font-medium hover:text-white disabled:opacity-50 ${theme === 'dark' ? 'text-[#8A8FC4]' : 'text-gray-500 hover:text-[#1E1B4B]'}`}
               >
                 Cancel
               </button>
@@ -1037,7 +1041,11 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                 type="button"
                 onClick={submitRenameProject}
                 disabled={actioningProjectId === renamingProject.id}
-                className="px-3 py-1.5 rounded-md text-xs font-semibold bg-[#FFCE00] text-[#121241] hover:bg-[#FFD740] disabled:opacity-50"
+                className={`px-3 py-1.5 rounded-md text-xs font-semibold disabled:opacity-50 ${
+                  theme === 'dark' 
+                    ? 'bg-[#FFCE00] text-[#121241] hover:bg-[#FFD740]' 
+                    : 'bg-[#8B5CF6] text-white hover:bg-[#7C3AED]'
+                }`}
               >
                 {actioningProjectId === renamingProject.id ? 'Saving…' : 'Save'}
               </button>

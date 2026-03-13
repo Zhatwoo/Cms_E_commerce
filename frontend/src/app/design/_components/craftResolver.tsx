@@ -21,7 +21,6 @@ import { Rating } from "../_designComponents/Rating/Rating";
 import { Banner } from "../_designComponents/Banner/banner";
 import { Badge } from "../_designComponents/Badge/badge";
 import { BooleanField } from "../_designComponents/BooleanField/BooleanField";
-import { IconRow } from "../_designComponents/IconRow/IconRow";
 import { Circle } from "../../_assets/shapes/circle/circle";
 import { Square } from "../../_assets/shapes/square/square";
 import { Triangle } from "../../_assets/shapes/triangle/triangle";
@@ -84,7 +83,6 @@ export function buildCraftResolver(): Resolver {
   const PaginationComp = asComponent(Pagination, ContainerComp);
   const RatingComp = asComponent(Rating, ContainerComp);
   const BooleanFieldComp = asComponent(BooleanField, ContainerComp);
-  const IconRowComp = asComponent(IconRow, ContainerComp);
   const base: Resolver = {
     Container: ContainerComp,
     container: ContainerComp,
@@ -142,8 +140,6 @@ export function buildCraftResolver(): Resolver {
     BooleanField: BooleanFieldComp,
     booleanfield: BooleanFieldComp,
     BOOLEANFIELD: BooleanFieldComp,
-    IconRow: IconRowComp,
-    iconrow: IconRowComp,
   };
   base.Image = ImageComp;
   base.image = ImageComp;
