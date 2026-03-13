@@ -118,7 +118,7 @@ function CheckIcon({ color }: { color: string }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function SubscriptionPage() {
-  const { colors } = useTheme();
+  const { colors, theme } = useTheme();
   const { showAlert } = useAlert();
 
   const user = getStoredUser();
@@ -156,7 +156,7 @@ export default function SubscriptionPage() {
 
   return (
     <div
-      className="relative mx-auto w-full max-w-[1240px] 2xl:max-w-[1320px] px-1 sm:px-2 pb-12"
+      className="dashboard-landing-light relative mx-auto w-full max-w-[1240px] 2xl:max-w-[1320px] px-1 sm:px-2 pb-12"
       style={{ fontFamily: "var(--font-outfit), 'Outfit', sans-serif" }}
     >
       {/* Ambient glows */}
@@ -175,7 +175,7 @@ export default function SubscriptionPage() {
           transition={{ duration: 0.5 }}
           className="text-[42px] sm:text-[58px] lg:text-[76px] font-extrabold leading-[0.95] tracking-tight"
         >
-          <span className="block text-white">Choose Your</span>
+          <span className="block" style={{ color: colors.text.primary }}>Choose Your</span>
           <span
             className="block text-transparent bg-clip-text"
             style={{ backgroundImage: 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' }}
@@ -256,10 +256,14 @@ export default function SubscriptionPage() {
               className="relative overflow-hidden rounded-[26px] border flex flex-col"
               style={{
                 borderColor: isCurrent ? `${plan.accent}66` : isHighlighted ? `${colors.accent.yellow}44` : colors.border.faint,
-                background: `linear-gradient(160deg, ${colors.bg.card} 0%, rgba(10, 3, 50, 0.9) 100%)`,
+                background: theme === 'dark'
+                  ? `linear-gradient(160deg, ${colors.bg.card} 0%, rgba(10, 3, 50, 0.9) 100%)`
+                  : `linear-gradient(160deg, ${colors.bg.card} 0%, ${colors.bg.searchBar} 100%)`,
                 boxShadow: isCurrent
                   ? `0 0 0 2px ${plan.accent}44, 0 20px 48px ${plan.glow}`
-                  : `0 12px 36px rgba(6,3,30,0.5)`,
+                  : theme === 'dark'
+                    ? `0 12px 36px rgba(6,3,30,0.5)`
+                    : `0 10px 30px rgba(21,9,62,0.10)`,
               }}
             >
               {/* Accent glow blob */}
@@ -330,7 +334,9 @@ export default function SubscriptionPage() {
         className="rounded-[26px] border overflow-hidden"
         style={{
           borderColor: colors.border.faint,
-          background: `linear-gradient(180deg, ${colors.bg.card} 0%, rgba(8,2,40,0.9) 100%)`,
+          background: theme === 'dark'
+            ? `linear-gradient(180deg, ${colors.bg.card} 0%, rgba(8,2,40,0.9) 100%)`
+            : `linear-gradient(180deg, ${colors.bg.card} 0%, ${colors.bg.searchBar} 100%)`,
         }}
       >
         <div className="px-5 sm:px-6 pt-5 pb-2 flex items-center justify-between">
@@ -395,7 +401,7 @@ export default function SubscriptionPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 z-50 flex items-center justify-center p-4"
-              style={{ backgroundColor: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(6px)' }}
+              style={{ backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.72)' : 'rgba(15,23,42,0.24)', backdropFilter: 'blur(6px)' }}
               onClick={() => setConfirmTarget(null)}
             >
               <motion.div
