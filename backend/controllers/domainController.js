@@ -250,13 +250,14 @@ exports.publish = async (req, res) => {
 exports.unpublish = async (req, res) => {
   try {
     const { projectId } = req.body;
-    if (!projectId || !String(projectId).trim()) {
+    const trimmedProjectId = projectId ? String(projectId).trim() : '';
+    if (!trimmedProjectId) {
       return res.status(400).json({ success: false, message: 'projectId is required' });
     }
     const userId = req.user.id;
     const userEmail = (req.user.email || '').toLowerCase();
 
-    const resolved = await resolveProjectOwner(userId, String(projectId).trim(), userEmail);
+    const resolved = await resolveProjectOwner(userId, trimmedProjectId, userEmail);
     if (!resolved) {
       return res.status(404).json({ success: false, message: 'Project not found' });
     }
@@ -265,19 +266,19 @@ exports.unpublish = async (req, res) => {
     }
 
     const ownerId = resolved.ownerId;
-    const project = await Project.get(ownerId, String(projectId).trim());
+    const project = await Project.get(ownerId, trimmedProjectId);
     if (!project) {
       return res.status(404).json({ success: false, message: 'Project not found' });
     }
-    const data = await Domain.unpublishForClient(ownerId, String(projectId).trim());
+    const data = await Domain.unpublishForClient(ownerId, trimmedProjectId);
     if (!data) {
       return res.status(400).json({ success: false, message: 'Domain not found or already in draft' });
     }
-    await Project.update(ownerId, projectId, { status: 'draft' });
+    await Project.update(ownerId, trimmedProjectId, { status: 'draft' });
     const rtdb = getRealtimeDb();
     if (rtdb) {
       try {
-        const rtdbRef = rtdb.ref(`user/roles/client/${ownerId}/projects/${projectId}`);
+        const rtdbRef = rtdb.ref(`user/roles/client/${ownerId}/projects/${trimmedProjectId}`);
         await rtdbRef.update({ status: 'draft' });
       } catch (e) {
         console.warn('unpublish: Realtime DB sync failed:', e.message);
