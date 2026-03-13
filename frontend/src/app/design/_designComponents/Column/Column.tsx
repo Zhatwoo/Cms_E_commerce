@@ -87,6 +87,7 @@ export const Column = ({
         height,
         boxSizing: "border-box",
         containerType: "inline-size",
+        contain: "layout",
         maxWidth: "100%",
         minWidth: width === "auto" ? "min(160px, 100%)" : 0,
         borderRadius: `${borderRadius}px`,
