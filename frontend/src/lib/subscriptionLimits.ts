@@ -8,7 +8,7 @@ export const SUBSCRIPTION_LIMITS = {
     basic: {
         domains: 10,
         projects: 10,
-        codeEditor: false,
+        codeEditor: true,
         storageLimit: 3 * 1024 * 1024 * 1024,
     },
     pro: {
