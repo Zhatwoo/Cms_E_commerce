@@ -18,7 +18,7 @@ import {
     Sun
 } from 'lucide-react';
 
-type SettingTab = 'notifications' | 'security' | 'appearance' | 'billing';
+type SettingTab = 'notifications' | 'security' | 'appearance' | 'api' | 'billing';
 
 export default function SettingsPage() {
     const { colors, theme, toggleTheme } = useTheme();
@@ -36,6 +36,7 @@ export default function SettingsPage() {
         { id: 'notifications' as SettingTab, label: 'Notifications', icon: Bell },
         { id: 'security' as SettingTab, label: 'Security', icon: Shield },
         { id: 'appearance' as SettingTab, label: 'Appearance', icon: Palette },
+        { id: 'api' as SettingTab, label: 'API Keys', icon: Code },
         { id: 'billing' as SettingTab, label: 'Billing', icon: CreditCard },
     ];
 
@@ -45,7 +46,7 @@ export default function SettingsPage() {
     };
 
     return (
-        <div className="relative space-y-6 [font-family:var(--font-outfit),sans-serif]">
+        <div className="dashboard-landing-light relative space-y-6 [font-family:var(--font-outfit),sans-serif]">
             <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
                 <div
                     className="absolute left-[12%] top-[80px] h-[280px] w-[280px] rounded-full opacity-20 blur-3xl"
