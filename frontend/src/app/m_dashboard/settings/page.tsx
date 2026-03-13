@@ -46,7 +46,7 @@ export default function SettingsPage() {
     };
 
     return (
-        <div className="relative space-y-6 [font-family:var(--font-outfit),sans-serif]">
+        <div className="dashboard-landing-light relative space-y-6 [font-family:var(--font-outfit),sans-serif]">
             <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
                 <div
                     className="absolute left-[12%] top-[80px] h-[280px] w-[280px] rounded-full opacity-20 blur-3xl"

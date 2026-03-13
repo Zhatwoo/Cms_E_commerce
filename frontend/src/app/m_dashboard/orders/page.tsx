@@ -308,7 +308,7 @@ export default function OrdersPage() {
   };
 
   return (
-    <div className="relative mx-auto w-full max-w-[1220px] px-0.5 sm:px-1 [font-family:var(--font-outfit),sans-serif]">
+    <div className="dashboard-landing-light relative mx-auto w-full max-w-[1220px] px-0.5 sm:px-1 [font-family:var(--font-outfit),sans-serif]">
       <div
         className="pointer-events-none absolute top-24 right-6 h-56 w-56 opacity-20"
         style={{ background: `radial-gradient(circle at center, ${colors.accent.purple} 0%, transparent 72%)` }}

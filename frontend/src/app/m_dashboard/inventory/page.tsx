@@ -37,14 +37,14 @@ import ProductAddModal from '../products/components/productAddModal';
 // ─── Design tokens (original — unchanged) ────────────────────────────────────
 const T = {
   bg:           'radial-gradient(120% 100% at 50% 0%, #24104b 0%, #140836 42%, #0a0624 100%)',
-  card:         '#141446',
-  cardBorder:   '#1F1F51',
-  elevated:     '#141446',
-  input:        '#141446',
-  inputBorder:  '#1F1F51',
-  text:         '#ffffff',
-  textMuted:    'rgba(219,212,255,0.45)',
-  textSub:      'rgba(234,229,255,0.72)',
+  card:         'var(--dashboard-light-surface, #141446)',
+  cardBorder:   'var(--dashboard-light-border, #1F1F51)',
+  elevated:     'var(--dashboard-light-surface, #141446)',
+  input:        'var(--dashboard-light-surface, #141446)',
+  inputBorder:  'var(--dashboard-light-border, #1F1F51)',
+  text:         'var(--dashboard-light-text, #ffffff)',
+  textMuted:    'var(--dashboard-light-muted, rgba(219,212,255,0.45))',
+  textSub:      'var(--dashboard-light-muted, rgba(234,229,255,0.72))',
   accent:       '#a855f7',
   brandGradient:'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)',
   green:        '#22c55e',
@@ -1229,6 +1229,7 @@ export default function InventoryPage() {
 
   return (
     <div
+      className="dashboard-landing-light"
       style={{ fontFamily: T.font, color: T.text, minHeight: '100%', position: 'relative' }}
       onKeyDownCapture={handleNumberKeyDownCapture}
       onInputCapture={handleNumberInputCapture}
@@ -1296,7 +1297,7 @@ export default function InventoryPage() {
               lineHeight: 1.06,
             }}
           >
-            <span style={{ color: T.text }}>My </span>
+            <span style={{ color: 'var(--dashboard-light-text, #ffffff)' }}>My </span>
             <span
               style={{
                 backgroundImage: T.brandGradient,
@@ -1313,7 +1314,7 @@ export default function InventoryPage() {
               Inventory
             </span>
           </h1>
-          <p style={{ color: T.textMuted, fontSize: 14, marginTop: 8 }}>
+          <p style={{ color: 'var(--dashboard-light-muted, rgba(219,212,255,0.45))', fontSize: 14, marginTop: 8 }}>
             Track stock levels, movements, and alerts across your catalog.
           </p>
         </div>
@@ -1345,7 +1346,7 @@ export default function InventoryPage() {
               background: 'transparent',
               boxShadow: 'none',
               fontSize: 14,
-              color: '#ffffff',
+              color: 'var(--dashboard-light-text, #ffffff)',
             }}
             className="placeholder:text-[#6F70A8]"
           />
@@ -1480,9 +1481,9 @@ export default function InventoryPage() {
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
                 <span style={{ color: card.accent, display: 'inline-flex', alignItems: 'center' }}>{card.icon}</span>
-                <span style={{ color: '#7e72a9', fontSize: 10, letterSpacing: 0.8 }}>{card.label}</span>
+                <span style={{ color: T.textMuted, fontSize: 10, letterSpacing: 0.8 }}>{card.label}</span>
               </div>
-              <div style={{ color: '#f2ecff', fontSize: 24, fontWeight: 700, letterSpacing: -0.8, lineHeight: 1.2 }}>
+              <div style={{ color: T.text, fontSize: 24, fontWeight: 700, letterSpacing: -0.8, lineHeight: 1.2 }}>
                 {typeof card.value === 'number' ? String(card.value) : card.value}
               </div>
             </motion.div>
@@ -1497,7 +1498,7 @@ export default function InventoryPage() {
               display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr 1.2fr',
               gap: 16, padding: '13px 24px', minWidth: 760,
               borderBottom: `1px solid ${T.cardBorder}`,
-              background: T.card, color: '#8273a8', fontSize: 11, letterSpacing: 0.9, textTransform: 'uppercase',
+              background: T.card, color: T.textMuted, fontSize: 11, letterSpacing: 0.9, textTransform: 'uppercase',
             }}>
               <span>Product</span><span>SKU</span><span>Stock</span>
               <span>Pre Orders</span><span>Stock Status</span><span>Product Status</span>
@@ -1532,7 +1533,7 @@ export default function InventoryPage() {
                       style={{
                         display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr 1.2fr',
                         gap: 16, padding: '15px 24px', alignItems: 'center', fontSize: 14, minWidth: 760,
-                        borderBottom: i < filteredItems.length - 1 ? `1px solid rgba(255,255,255,0.055)` : 'none',
+                        borderBottom: i < filteredItems.length - 1 ? `1px solid ${T.cardBorder}` : 'none',
                         transition: 'background 0.15s',
                       }}
                       onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.018)')}
