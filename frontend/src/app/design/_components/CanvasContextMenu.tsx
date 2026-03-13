@@ -94,10 +94,27 @@ export function CanvasContextMenu() {
     const handleContextMenu = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
-      if (target.closest("[data-panel]")) return;
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable) return;
+      const canvasContainer = document.querySelector("[data-canvas-container]") as HTMLElement | null;
+      if (!canvasContainer) return;
 
-      const nodeEl = target.closest("[data-node-id]") as HTMLElement | null;
+      const canvasRect = canvasContainer.getBoundingClientRect();
+      const insideCanvasBounds =
+        e.clientX >= canvasRect.left &&
+        e.clientX <= canvasRect.right &&
+        e.clientY >= canvasRect.top &&
+        e.clientY <= canvasRect.bottom;
+      if (!insideCanvasBounds) return;
+
+      const isResizeOverlay = !!target.closest("[data-panel='resize-overlay']");
+      if (target.closest("[data-panel]") && !isResizeOverlay) return;
+
+      const isFormControl = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT";
+      const isInlineTextEditor = target.isContentEditable && !!target.closest("[data-inline-text-edit]");
+      if (isFormControl || isInlineTextEditor) return;
+
+      const pointStack = document.elementsFromPoint(e.clientX, e.clientY) as HTMLElement[];
+      const nodeElFromPoint = pointStack.find((el) => el.hasAttribute("data-node-id")) ?? null;
+      const nodeEl = (target.closest("[data-node-id]") as HTMLElement | null) ?? nodeElFromPoint;
       const nodeId = nodeEl?.getAttribute("data-node-id") ?? null;
       const state = query.getState();
       const nodesMap = state.nodes;
