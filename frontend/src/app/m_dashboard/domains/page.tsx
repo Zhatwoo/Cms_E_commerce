@@ -92,7 +92,7 @@ type DomainEntry = { project: Project; subdomain: string | null };
 export default function DomainsPage() {
   const { colors } = useTheme();
   const { user, loading: authLoading } = useAuth();
-  const { selectedProject } = useProject();
+  const { selectedProject, refreshProjects: refreshContextProjects } = useProject();
   const { showAlert } = useAlert();
 
   const [projects, setProjects] = useState<Project[]>([]);
@@ -195,6 +195,7 @@ export default function DomainsPage() {
           const updated = res2.projects?.find(p => p.id === projectId);
           setSelectedDomain(updated ? { project: updated, subdomain: selectedDomain.subdomain } : null);
         }
+        await refreshContextProjects?.();
         showAlert('Site taken offline.', 'Take down');
       } else showAlert(res.message || 'Failed to take down', 'Error');
     } catch { showAlert('Failed to take down. Please try again.', 'Error'); }
