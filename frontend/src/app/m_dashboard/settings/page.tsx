@@ -67,7 +67,7 @@ export default function SettingsPage() {
                 >
                     <span
                         className="text-transparent bg-clip-text"
-                        style={{ backgroundImage: 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)' }}
+                        style={{ backgroundImage: theme === 'dark' ? 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)' : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)' }}
                     >
                         Settings
                     </span>
@@ -149,7 +149,7 @@ export default function SettingsPage() {
                                         <button
                                             onClick={() => setEmailNotifications(!emailNotifications)}
                                             className="relative w-12 h-6 rounded-full transition-colors"
-                                            style={{ backgroundColor: emailNotifications ? '#B13BFF' : 'rgba(148,163,184,0.5)' }}
+                                            style={{ backgroundColor: emailNotifications ? (theme === 'dark' ? '#B13BFF' : '#8B5CF6') : 'rgba(148,163,184,0.5)' }}
                                         >
                                             <span
                                                 className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
@@ -171,7 +171,7 @@ export default function SettingsPage() {
                                         <button
                                             onClick={() => setOrderNotifications(!orderNotifications)}
                                             className="relative w-12 h-6 rounded-full transition-colors"
-                                            style={{ backgroundColor: orderNotifications ? '#B13BFF' : 'rgba(148,163,184,0.5)' }}
+                                            style={{ backgroundColor: orderNotifications ? (theme === 'dark' ? '#B13BFF' : '#8B5CF6') : 'rgba(148,163,184,0.5)' }}
                                         >
                                             <span
                                                 className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
@@ -193,7 +193,7 @@ export default function SettingsPage() {
                                         <button
                                             onClick={() => setMarketingEmails(!marketingEmails)}
                                             className="relative w-12 h-6 rounded-full transition-colors"
-                                            style={{ backgroundColor: marketingEmails ? '#B13BFF' : 'rgba(148,163,184,0.5)' }}
+                                            style={{ backgroundColor: marketingEmails ? (theme === 'dark' ? '#B13BFF' : '#8B5CF6') : 'rgba(148,163,184,0.5)' }}
                                         >
                                             <span
                                                 className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
@@ -215,7 +215,7 @@ export default function SettingsPage() {
                                         <button
                                             onClick={() => setSecurityAlerts(!securityAlerts)}
                                             className="relative w-12 h-6 rounded-full transition-colors"
-                                            style={{ backgroundColor: securityAlerts ? '#B13BFF' : 'rgba(148,163,184,0.5)' }}
+                                            style={{ backgroundColor: securityAlerts ? (theme === 'dark' ? '#B13BFF' : '#8B5CF6') : 'rgba(148,163,184,0.5)' }}
                                         >
                                             <span
                                                 className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
@@ -230,7 +230,7 @@ export default function SettingsPage() {
                                     <button
                                         onClick={handleSave}
                                         className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-85"
-                                        style={{ background: 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' }}
+                                        style={{ background: theme === 'dark' ? 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)', textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)' }}
                                     >
                                         {saveSuccess ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
                                         {saveSuccess ? 'Saved!' : 'Save Preferences'}
@@ -347,7 +347,7 @@ export default function SettingsPage() {
                                     <button
                                         onClick={handleSave}
                                         className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-85"
-                                        style={{ background: 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' }}
+                                        style={{ background: theme === 'dark' ? 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)', textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)' }}
                                     >
                                         {saveSuccess ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
                                         {saveSuccess ? 'Saved!' : 'Update Password'}
@@ -481,7 +481,7 @@ export default function SettingsPage() {
                                                 sk_live_••••••••••••••••1234
                                             </code>
                                             <button className="px-4 py-2 rounded-lg text-white text-sm font-medium transition-opacity hover:opacity-85"
-                                                style={{ background: 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' }}>
+                                                style={{ background: theme === 'dark' ? 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)', textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)' }}>
                                                 Copy
                                             </button>
                                         </div>
@@ -516,7 +516,7 @@ export default function SettingsPage() {
                                                 sk_test_••••••••••••••••5678
                                             </code>
                                             <button className="px-4 py-2 rounded-lg text-white text-sm font-medium transition-opacity hover:opacity-85"
-                                                style={{ background: 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' }}>
+                                                style={{ background: theme === 'dark' ? 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)', textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)' }}>
                                                 Copy
                                             </button>
                                         </div>
@@ -563,7 +563,7 @@ export default function SettingsPage() {
                                         </div>
                                         <div className="flex gap-3">
                                             <button className="px-4 py-2 rounded-lg text-white text-sm font-medium transition-opacity hover:opacity-85"
-                                                style={{ background: 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' }}>
+                                                style={{ background: theme === 'dark' ? 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)', textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)' }}>
                                                 Upgrade Plan
                                             </button>
                                             <button className="px-4 py-2 rounded-lg border hover:bg-opacity-50 transition-colors text-sm font-medium"
