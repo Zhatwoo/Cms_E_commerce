@@ -44,15 +44,15 @@ export function CentricTools({ isDarkMode = false }: { isDarkMode?: boolean }) {
   /* ─── Section / wrapper tokens (respond to isDarkMode) ─── */
   const section = isDarkMode
     ? 'border-[#281b78] bg-[#0a0141] text-white'
-    : 'border-[#e5e6ee] bg-[#f2f2f6] text-[#0b0b17]';         // light: same as CommercePlatform
+    : 'border-[#e5e5ed] bg-white text-[#120533]';
 
   const outer = isDarkMode
     ? 'bg-[#0b0646] shadow-[0_26px_80px_rgba(6,3,37,0.72)]'
-    : 'bg-[#f8f8fc] shadow-[0_20px_60px_rgba(28,25,70,0.08)]'; // light: same as CommercePlatform
+    : 'bg-[#fcfcff] shadow-none';
 
   /* ─── Section-level text (heading, description) ─── */
-  const desc     = isDarkMode ? 'text-white/55'  : 'text-[#7a7699]';
-  const headText = isDarkMode ? 'text-white'      : 'text-[#262547]';
+  const desc     = isDarkMode ? 'text-white/55'  : 'text-[#616170]';
+  const headText = isDarkMode ? 'text-white'      : 'text-[#120533]';
 
   const eyebrowClass = isDarkMode
     ? 'border-[#3d2fa0]/60 bg-[#1a1572]/40 text-[#a78bfa]'
@@ -60,27 +60,25 @@ export function CentricTools({ isDarkMode = false }: { isDarkMode?: boolean }) {
 
   const eyebrowDot = isDarkMode ? 'bg-[#a78bfa]' : 'bg-[#8b3dff]';
 
-  /* ─── Frames — always dark (#0d1733), regardless of mode ─── */
-  //   The inner builder frames keep their dark navy bg in both modes.
-  const card    = 'bg-[#0d1733]';           // always dark
-  const cardTxt = 'text-white';             // always white text inside frames
+  /* ─── Frames (toggle based on isDarkMode) ─── */
+  const card    = isDarkMode ? 'bg-[#0d1733]' : 'bg-white border border-[#e5e5ed] shadow-sm';
+  const cardTxt = isDarkMode ? 'text-white' : 'text-[#120533]';
 
-  // Tokens INSIDE the dark frames (always dark-mode values)
-  const frameDesc    = 'text-white/55';
-  const frameHead    = 'text-white';
-  const frameRow     = 'border-white/10 bg-white/5';
-  const frameIcon    = 'bg-white/5 text-white/80';
-  const framePill    = 'bg-[#1b2b68] text-[#95a2d6]';
-  const frameBtn     = 'border-white/10 bg-white/6 text-white/90 hover:bg-white/10 hover:border-white/20';
-  const frameSk      = 'bg-white/7';
-  const frameSkMd    = 'bg-white/10';
-  const frameHtml    = 'border-white/8 bg-white/8 text-[#8da0e4]';
-  const frameCode    = 'border-white/8 bg-[#0a0e2a]/50 text-white/35';
-  const frameDivLine = 'border-white/15';
-  const frameTabAct  = 'text-[#ffcc00]';
-  const frameTabBar  = 'bg-[#ffcc00]';
-  const frameHtmlBdg = 'border-[#2d3580]/50 bg-[#1b1f6e]/60 text-[#ffcc00]';
-  const frameAddSrc  = 'border-white/10 hover:border-white/20 hover:bg-white/5';
+  const frameDesc    = isDarkMode ? 'text-white/55' : 'text-[#888899]';
+  const frameHead    = isDarkMode ? 'text-white' : 'text-[#120533]';
+  const frameRow     = isDarkMode ? 'border-white/10 bg-white/5' : 'border-[#e5e5ed] bg-white';
+  const frameIcon    = isDarkMode ? 'bg-white/5 text-white/80' : 'bg-[#f0f0f4] text-[#888899]';
+  const framePill    = isDarkMode ? 'bg-[#1b2b68] text-[#95a2d6]' : 'bg-[#f0f0f4] text-[#888899]';
+  const frameBtn     = isDarkMode ? 'border-white/10 bg-white/6 text-white/90 hover:bg-white/10 hover:border-white/20' : 'border-[#e5e5ed] bg-[#f8f8fb] text-[#120533] hover:bg-[#f0f0f4]';
+  const frameSk      = isDarkMode ? 'bg-white/7' : 'bg-[#f0f0f4]';
+  const frameSkMd    = isDarkMode ? 'bg-white/10' : 'bg-[#e5e5ed]';
+  const frameHtml    = isDarkMode ? 'border-white/8 bg-white/8 text-[#8da0e4]' : 'border-[#e5e5ed] bg-[#f8f8fb] text-[#888899]';
+  const frameCode    = isDarkMode ? 'border-white/8 bg-[#0a0e2a]/50 text-white/35' : 'border-[#e5e5ed] bg-[#f8f8fb] text-[#888899]';
+  const frameDivLine = isDarkMode ? 'border-white/15' : 'border-[#e5e5ed]';
+  const frameTabAct  = isDarkMode ? 'text-[#ffcc00]' : 'text-[#f5a213]';
+  const frameTabBar  = isDarkMode ? 'bg-[#ffcc00]' : 'bg-[#f5a213]';
+  const frameHtmlBdg = isDarkMode ? 'border-[#2d3580]/50 bg-[#1b1f6e]/60 text-[#ffcc00]' : 'border-[#e5e5ed] bg-[#f8f8fb] text-[#f5a213]';
+  const frameAddSrc  = isDarkMode ? 'border-white/10 hover:border-white/20 hover:bg-white/5' : 'border-[#d0d0dc] hover:border-[#888899] hover:bg-[#f8f8fb] text-[#888899]';
 
   return (
     <section className={`relative overflow-hidden border-t px-4 pb-24 pt-12 md:px-8 md:pb-28 md:pt-16 ${section}`}>
@@ -161,12 +159,12 @@ export function CentricTools({ isDarkMode = false }: { isDarkMode?: boolean }) {
             </Reveal>
 
             {/* ── CENTRE: Preview (dark frames) ── */}
-            <Reveal delay={0.2} className="space-y-4">
+            <Reveal delay={0.2} className="flex h-full flex-col gap-4">
 
               {/* Top: custom frontend result */}
               <div className={`overflow-hidden rounded-2xl ${card}`}>
-                <div className="flex items-center justify-between bg-gradient-to-r from-[#bf4dff] to-[#8b3dff] px-5 py-2.5">
-                  <span className="text-xs font-bold tracking-wide text-white">Custom frontend result</span>
+                <div className={`flex items-center justify-between px-5 py-2.5 ${isDarkMode ? 'bg-gradient-to-r from-[#bf4dff] to-[#8b3dff]' : 'bg-[#0bc298]'}`}>
+                  <span className="text-xs font-bold tracking-wide text-white">Custom frontend without custom code</span>
                   <div className="flex gap-1.5">
                     <span className="h-2 w-2 rounded-full bg-white/30" />
                     <span className="h-2 w-2 rounded-full bg-white/22" />
@@ -190,7 +188,9 @@ export function CentricTools({ isDarkMode = false }: { isDarkMode?: boolean }) {
                         transition={{ delay: 0.26 + i * 0.08, duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
                       >
                         <div className={`absolute inset-0 bg-gradient-to-br ${
-                          i === 0 ? 'from-[#7c3aed]/12' : i === 1 ? 'from-[#d946ef]/10' : 'from-[#ffcc00]/8'
+                          isDarkMode 
+                            ? (i === 0 ? 'from-[#7c3aed]/12' : i === 1 ? 'from-[#d946ef]/10' : 'from-[#ffcc00]/8')
+                            : (i === 0 ? 'from-[#fecdd3]/40' : i === 1 ? 'from-[#fef3c7]/40' : 'from-[#e0f2fe]/40')
                         } to-transparent`} />
                       </motion.div>
                     ))}
@@ -211,7 +211,7 @@ export function CentricTools({ isDarkMode = false }: { isDarkMode?: boolean }) {
               </div>
 
               {/* Bottom: HTML output */}
-              <div className={`rounded-2xl p-4 md:p-5 ${card}`}>
+              <div className={`flex flex-1 flex-col rounded-2xl p-4 md:p-5 ${card}`}>
                 <div className="flex items-center justify-between">
                   <div className="space-y-1.5">
                     <div className={`h-4 w-2/5 rounded-md ${frameSkMd}`} />
@@ -245,7 +245,7 @@ export function CentricTools({ isDarkMode = false }: { isDarkMode?: boolean }) {
                   <span className="text-[#d946ef]/80">&gt;</span>
                 </div>
 
-                <p className={`mt-4 text-right text-xs font-semibold ${frameDesc}`}>HTML Output</p>
+                <p className={`mt-auto pt-4 text-right text-xs font-semibold ${frameDesc}`}>HTML Output</p>
               </div>
             </Reveal>
 
@@ -292,10 +292,12 @@ export function CentricTools({ isDarkMode = false }: { isDarkMode?: boolean }) {
 
               <dl className="mt-4 space-y-3 text-sm">
                 {[
+                  { dt: 'Fill',   dd: isDarkMode ? '#FFCC00' : '#F5A213', ddCls: isDarkMode ? 'text-[#ffcc00]' : 'text-[#f5a213]' },
+                  { dt: 'Contents', dd: '8 layers',    ddCls: frameDesc },
                   { dt: 'Layout', dd: 'Flex',    ddCls: frameHead },
-                  { dt: 'Fill',   dd: '#FFCC00', ddCls: 'text-[#ffcc00]' },
-                  { dt: 'Stroke', dd: 'None',    ddCls: frameDesc },
-                  { dt: 'Radius', dd: '12px',    ddCls: frameHead },
+                  { dt: 'Flex', dd: 'Row',    ddCls: frameHead },
+                  { dt: 'Grid', dd: 'Cols: 3',    ddCls: frameHead },
+                  { dt: 'Rows', dd: 'Infinite',    ddCls: frameDesc },
                 ].map(({ dt, dd, ddCls }) => (
                   <div key={dt} className={`flex items-center justify-between ${frameDesc}`}>
                     <dt>{dt}</dt>
