@@ -63,10 +63,7 @@ export function Footer({ isDarkMode = false }: { isDarkMode?: boolean }) {
   return (
     <footer className={`relative w-full overflow-hidden ${bg} ${text}`}>
 
-      {/* ── Faint grid overlay (dark only) ── */}
-      {isDarkMode && (
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.013)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.013)_1px,transparent_1px)] bg-[size:56px_56px]" />
-      )}
+
 
       {/* ── Ambient glows (dark only) ── */}
       {isDarkMode && (

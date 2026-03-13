@@ -180,7 +180,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                       alt="Centric logo"
                       width={20}
                       height={20}
-                      className={`h-5 w-5 ${isDarkMode ? '' : 'brightness-0'}`}
+                      className="h-5 w-5"
                       priority
                     />
                   </span>

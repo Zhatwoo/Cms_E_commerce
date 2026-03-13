@@ -1,6 +1,7 @@
 'use client';
 
 import { motion, useMotionValue, useTransform, useSpring } from 'framer-motion';
+import Link from 'next/link';
 import { useRef } from 'react';
 
 function Reveal({
@@ -59,7 +60,7 @@ function TiltCard({ children, className }: { children: React.ReactNode; classNam
   );
 }
 
-export function CommercePlatform({ isDarkMode = false }: { isDarkMode?: boolean }) {
+export function CommercePlatform({ isDarkMode = false, onAuthClick }: { isDarkMode?: boolean; onAuthClick?: (mode: 'login' | 'register') => void }) {
   const sectionClass = isDarkMode ? 'bg-[#0a0141] text-white' : 'bg-white text-[#120533]';
   const descriptionClass = isDarkMode ? 'text-white/50' : 'text-[#616170]';
 
@@ -95,8 +96,7 @@ export function CommercePlatform({ isDarkMode = false }: { isDarkMode?: boolean 
         <>
           <div className="pointer-events-none absolute left-[-8%] top-[10%] h-[500px] w-[500px] rounded-full bg-[#4c1d95]/12 blur-[140px]" />
           <div className="pointer-events-none absolute bottom-[-5%] right-[-5%] h-[400px] w-[400px] rounded-full bg-[#7c3aed]/10 blur-[120px]" />
-          {/* Faint grid overlay */}
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.018)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.018)_1px,transparent_1px)] bg-[size:56px_56px]" />
+
         </>
       )}
 
@@ -104,11 +104,10 @@ export function CommercePlatform({ isDarkMode = false }: { isDarkMode?: boolean 
         {/* Section header */}
         <Reveal className="mx-auto max-w-[780px] text-center">
           {/* Eyebrow */}
-          <span className={`inline-flex items-center gap-2 rounded-full border px-4 py-1 text-xs font-bold uppercase tracking-widest ${
-            isDarkMode
+          <span className={`inline-flex items-center gap-2 rounded-full border px-4 py-1 text-xs font-bold uppercase tracking-widest ${isDarkMode
               ? 'border-[#3d2fa0]/60 bg-[#1a1572]/40 text-[#a78bfa]'
               : 'border-[#d8d0f7] bg-[#f3f0ff] text-[#7c5cba]'
-          }`}>
+            }`}>
             <span className={`h-1.5 w-1.5 rounded-full ${isDarkMode ? 'bg-[#a78bfa]' : 'bg-[#8b3dff]'} animate-pulse`} />
             Commerce Platform
           </span>
@@ -130,15 +129,14 @@ export function CommercePlatform({ isDarkMode = false }: { isDarkMode?: boolean 
           </p>
 
           {/* Stats row */}
-          <div className={`mx-auto mt-8 flex max-w-[480px] items-center justify-center gap-0 divide-x rounded-2xl border p-1 ${
-            isDarkMode
+          <div className={`mx-auto mt-8 flex max-w-[480px] items-center justify-center gap-0 divide-x rounded-2xl border p-1 ${isDarkMode
               ? 'divide-[#2a2075]/60 border-[#2a2075]/60 bg-[#0f0c5a]/50'
               : 'divide-[#c1c1cd] border-[#c1c1cd] bg-white/80'
-          }`}>
+            }`}>
             {[
               { n: '2.4k+', label: 'Stores built' },
               { n: '99.9%', label: 'Uptime' },
-              { n: '4.9★', label: 'Avg rating' },
+              { n: '4.9★', label: 'Average rating' },
             ].map(({ n, label }) => (
               <div key={label} className="flex flex-1 flex-col items-center gap-0.5 px-3 py-2.5">
                 <span className={`text-lg font-black leading-none ${isDarkMode ? 'text-white' : 'text-[#120533]'}`}>{n}</span>
@@ -178,9 +176,8 @@ export function CommercePlatform({ isDarkMode = false }: { isDarkMode?: boolean 
                   { tag: 'Cart', color: isDarkMode ? '' : 'text-[#d97706] bg-[#fef3c7] border-[#fde68a]' },
                   { tag: 'Checkout', color: isDarkMode ? '' : 'text-[#c026d3] bg-[#fae8ff] border-[#f5d0fe]' }
                 ].map(({ tag, color }) => (
-                  <span key={tag} className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition-colors ${
-                    isDarkMode ? tagClass : color
-                  }`}>
+                  <span key={tag} className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition-colors ${isDarkMode ? tagClass : color
+                    }`}>
                     {tag}
                   </span>
                 ))}
@@ -192,9 +189,8 @@ export function CommercePlatform({ isDarkMode = false }: { isDarkMode?: boolean 
                   {[1, 2, 3].map((i) => (
                     <span
                       key={i}
-                      className={`h-8 w-8 rounded-full border-2 ${
-                        isDarkMode ? 'border-[#13106a] bg-[#1e2a7a]' : 'border-white bg-[#eceef6]'
-                      }`}
+                      className={`h-8 w-8 rounded-full border-2 ${isDarkMode ? 'border-[#13106a] bg-[#1e2a7a]' : 'border-white bg-[#eceef6]'
+                        }`}
                     />
                   ))}
                 </div>
@@ -243,19 +239,17 @@ export function CommercePlatform({ isDarkMode = false }: { isDarkMode?: boolean 
                 Design, configure, preview, and deploy your online store — all in one unified builder environment.
               </p>
 
-              <motion.button
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                suppressHydrationWarning
-                className={`mt-5 rounded-full px-6 py-2.5 text-sm font-bold text-white transition-shadow ${
-                  isDarkMode 
-                    ? 'bg-gradient-to-r from-[#7c3aed] to-[#9d3fff] shadow-[0_4px_20px_rgba(139,61,255,0.5)] hover:shadow-[0_6px_28px_rgba(139,61,255,0.65)]' 
-                    : 'bg-[#f43f5e] shadow-[0_4px_20px_rgba(244,63,94,0.4)] hover:shadow-[0_6px_28px_rgba(244,63,94,0.5)]'
-                }`}
+              <button
                 type="button"
+                onClick={() => onAuthClick?.('register')}
+                suppressHydrationWarning
+                className={`mt-5 inline-block rounded-full px-6 py-2.5 text-sm font-bold text-white transition-all hover:scale-[1.03] active:scale-[0.97] ${isDarkMode
+                    ? 'bg-gradient-to-r from-[#7c3aed] to-[#9d3fff] shadow-[0_4px_20px_rgba(139,61,255,0.5)] hover:shadow-[0_6px_28px_rgba(139,61,255,0.65)]'
+                    : 'bg-[#f43f5e] shadow-[0_4px_20px_rgba(244,63,94,0.4)] hover:shadow-[0_6px_28px_rgba(244,63,94,0.5)]'
+                  }`}
               >
                 Start designing
-              </motion.button>
+              </button>
 
               {/* Template chips */}
               <div className="mt-5 grid grid-cols-3 gap-2">
@@ -277,9 +271,8 @@ export function CommercePlatform({ isDarkMode = false }: { isDarkMode?: boolean 
               <div className="mt-5 flex flex-col gap-2">
                 {['AI-powered layout engine', 'One-click publishing', 'Team collaboration'].map((feat) => (
                   <div key={feat} className="flex items-center gap-2">
-                    <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] font-black ${
-                      isDarkMode ? 'bg-[#7c3aed]/30 text-[#a78bfa]' : 'bg-[#ede8ff] text-[#8b3dff]'
-                    }`}>✓</span>
+                    <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] font-black ${isDarkMode ? 'bg-[#7c3aed]/30 text-[#a78bfa]' : 'bg-[#ede8ff] text-[#8b3dff]'
+                      }`}>✓</span>
                     <span className={`text-[11px] font-medium ${descriptionClass}`}>{feat}</span>
                   </div>
                 ))}
@@ -319,13 +312,12 @@ export function CommercePlatform({ isDarkMode = false }: { isDarkMode?: boolean 
                     transition={{ duration: 0.45, delay: 0.1 + i * 0.07, ease: [0.22, 1, 0.36, 1] }}
                   >
                     {/* Shimmer highlight */}
-                    <div className={`absolute inset-0 bg-gradient-to-br ${
-                      i % 3 === 0
+                    <div className={`absolute inset-0 bg-gradient-to-br ${i % 3 === 0
                         ? 'from-[#7c3aed]/15 to-transparent'
                         : i % 3 === 1
-                        ? 'from-[#d946ef]/10 to-transparent'
-                        : 'from-[#ffcc00]/8 to-transparent'
-                    }`} />
+                          ? 'from-[#d946ef]/10 to-transparent'
+                          : 'from-[#ffcc00]/8 to-transparent'
+                      }`} />
                   </motion.div>
                 ))}
               </div>
@@ -334,11 +326,10 @@ export function CommercePlatform({ isDarkMode = false }: { isDarkMode?: boolean 
                 <p className={`text-xs font-medium ${descriptionClass}`}>
                   Visual asset library
                 </p>
-                <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${
-                  isDarkMode
+                <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${isDarkMode
                     ? 'border-[#2d3580]/50 bg-[#1b1f6e]/60 text-[#8da0e4]'
                     : 'border-[#e2e4f0] bg-[#eef0f8] text-[#7f7ca1]'
-                }`}>
+                  }`}>
                   1,240 assets
                 </span>
               </div>
@@ -346,11 +337,10 @@ export function CommercePlatform({ isDarkMode = false }: { isDarkMode?: boolean 
               {/* Upload CTA */}
               <motion.div
                 whileHover={{ scale: 1.02 }}
-                className={`mt-4 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed p-3 transition-colors ${
-                  isDarkMode
+                className={`mt-4 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed p-3 transition-colors ${isDarkMode
                     ? 'border-[#2d3580]/70 bg-[#141860]/40 hover:border-[#7c3aed]/50 hover:bg-[#1a1d7a]/40'
                     : 'border-[#d8d8ee] bg-[#f7f7fd] hover:border-[#c0aff5] hover:bg-[#f3f0ff]'
-                }`}
+                  }`}
               >
                 <span className={`text-base ${isDarkMode ? 'text-white/30' : 'text-[#c0b8e0]'}`}>⊕</span>
                 <span className={`text-[11px] font-semibold ${descriptionClass}`}>Upload or generate</span>
@@ -359,7 +349,7 @@ export function CommercePlatform({ isDarkMode = false }: { isDarkMode?: boolean 
           </Reveal>
         </div>
 
-        
+
       </div>
     </section>
   );

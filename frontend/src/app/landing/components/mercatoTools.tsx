@@ -88,7 +88,7 @@ export function CentricTools({ isDarkMode = false }: { isDarkMode?: boolean }) {
         <>
           <div className="pointer-events-none absolute right-[-6%] top-[8%] h-[400px] w-[400px] rounded-full bg-[#7c3aed]/10 blur-[130px]" />
           <div className="pointer-events-none absolute bottom-[-4%] left-[-6%] h-[340px] w-[340px] rounded-full bg-[#d946ef]/7 blur-[110px]" />
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.015)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:56px_56px]" />
+
         </>
       )}
 
