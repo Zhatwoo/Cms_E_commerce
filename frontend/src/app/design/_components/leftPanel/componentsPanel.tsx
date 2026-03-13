@@ -21,6 +21,7 @@ import { Tabs } from "../../_designComponents/Tabs/Tabs";
 import { Accordion } from "../../_designComponents/Accordion/Accordion";
 import { Banner } from "../../_designComponents/Banner/banner";
 import { Badge as BadgeComponent } from "../../_designComponents/Badge/badge";
+import { IconRow } from "../../_designComponents/IconRow/IconRow";
 import { CRAFT_RESOLVER } from "../craftResolver";
 import { ImportedBlock } from "../../_designComponents/ImportedBlock/ImportedBlock";
 import { Spacer } from "../../_designComponents/Spacer/Spacer";
@@ -114,6 +115,13 @@ export const ComponentsPanel = () => {
     { label: "Checkbox / Radio", preview: "Boolean Field", element: <BooleanField label="Option" controlType="checkbox" />, icon: <CheckSquare className="w-5 h-5" />, color: "bg-lime-500/10" },
     { label: "Pagination", preview: "Pagination", element: <Pagination />, icon: <ListIcon className="w-5 h-5" />, color: "bg-indigo-500/10" },
     { label: "Rating", preview: "Rating", element: <Rating value={2} />, icon: <Star className="w-5 h-5" />, color: "bg-amber-500/10" },
+    {
+      label: "Icon Row",
+      preview: "Icon Row",
+      element: <Element is={IconRow} canvas />,
+      icon: <LinkIcon className="w-5 h-5" />,
+      color: "bg-slate-500/10",
+    },
     { label: "Divider", preview: "── Divider ──", element: <Divider />, icon: <Minus className="w-5 h-5" />, color: "bg-gray-500/10" },
     {
       label: "Tabs",
