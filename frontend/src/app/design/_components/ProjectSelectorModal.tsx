@@ -300,7 +300,7 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
   const filteredTrashedProjects = trashedProjects.filter((p) => (p.title || 'Untitled Project').toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
-    <div className={asPage ? 'w-full py-1' : 'fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4'}>
+    <div className={asPage ? 'project-selector-page dashboard-landing-light w-full py-1' : 'fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4'}>
       <motion.div initial={{ opacity: 0, scale: 0.96, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.22, ease: [0.25, 0.46, 0.45, 0.94] }} className={asPage ? 'relative w-full flex flex-col' : 'relative w-full max-w-2xl rounded-2xl border border-[#1F1F51] bg-[#0E0C30] shadow-2xl overflow-hidden flex flex-col'} style={asPage ? undefined : { maxHeight: '85vh' }}>
         <div className={`px-7 pt-7 pb-5 flex items-start justify-between shrink-0 ${asPage ? '' : 'border-b border-[#1F1F51]'}`}>
           <div className="flex-1 pr-4">

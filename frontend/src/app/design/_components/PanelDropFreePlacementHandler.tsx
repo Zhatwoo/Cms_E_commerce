@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { useEditor } from "@craftjs/core";
 
 type Point = { x: number; y: number };
-type MoveMode = "margin" | "offset" | "page-canvas";
+type MoveMode = "absolute" | "page-canvas";
 
 const MOVE_THRESHOLD_PX = 6;
 const MAX_RETRY_FRAMES = 20;
@@ -36,11 +36,25 @@ function parsePxOrNumber(value: unknown): number {
   return 0;
 }
 
+function getRenderedScale(el: HTMLElement | null): { scaleX: number; scaleY: number } {
+  if (!el) return { scaleX: 1, scaleY: 1 };
+
+  const rect = el.getBoundingClientRect();
+  const baseWidth = el.offsetWidth || el.clientWidth || 0;
+  const baseHeight = el.offsetHeight || el.clientHeight || 0;
+
+  const scaleX = baseWidth > 0 ? rect.width / baseWidth : 1;
+  const scaleY = baseHeight > 0 ? rect.height / baseHeight : 1;
+
+  return {
+    scaleX: Number.isFinite(scaleX) && scaleX > 0.01 ? scaleX : 1,
+    scaleY: Number.isFinite(scaleY) && scaleY > 0.01 ? scaleY : 1,
+  };
+}
+
 function getMoveMode(displayName: string | undefined): MoveMode {
   if (displayName === "Page") return "page-canvas";
-  const offsetMoveTypes = new Set(["Image", "Text", "Icon", "Button", "Circle", "Square", "Triangle"]);
-  if (displayName && offsetMoveTypes.has(displayName)) return "offset";
-  return "margin";
+  return "absolute";
 }
 
 function isBlockedDropPoint(point: Point, newSet: Set<string>, query: ReturnType<typeof useEditor>["query"]): boolean {
@@ -187,11 +201,18 @@ export function PanelDropFreePlacementHandler() {
           const parentRect = parentDom.getBoundingClientRect();
           const nodeRect = nodeDom.getBoundingClientRect();
 
-          const rawLeft = pointerRef.current.x - parentRect.left - nodeRect.width / 2;
-          const rawTop = pointerRef.current.y - parentRect.top - nodeRect.height / 2;
+          const { scaleX, scaleY } = getRenderedScale(parentDom);
+          const parentLogicalWidth = parentDom.clientWidth || parentDom.offsetWidth || 0;
+          const parentLogicalHeight = parentDom.clientHeight || parentDom.offsetHeight || 0;
+          const nodeLogicalWidth = nodeRect.width / scaleX;
+          const nodeLogicalHeight = nodeRect.height / scaleY;
 
-          const maxLeft = Math.max(0, parentRect.width - nodeRect.width);
-          const maxTop = Math.max(0, parentRect.height - nodeRect.height);
+          // Use the exact cursor drop point (top-left anchoring), not centered placement.
+          const rawLeft = (pointerRef.current.x - parentRect.left) / scaleX;
+          const rawTop = (pointerRef.current.y - parentRect.top) / scaleY;
+
+          const maxLeft = Math.max(0, parentLogicalWidth - nodeLogicalWidth);
+          const maxTop = Math.max(0, parentLogicalHeight - nodeLogicalHeight);
           const finalLeft = Math.round(clamp(rawLeft, 0, maxLeft));
           const finalTop = Math.round(clamp(rawTop, 0, maxTop));
 
@@ -242,43 +263,15 @@ export function PanelDropFreePlacementHandler() {
               props.canvasX = finalLeft;
               props.canvasY = finalTop;
             });
-          } else if (moveMode === "offset") {
+          } else {
             actions.setProp(nodeId, (props: Record<string, unknown>) => {
-              const currentLeft = parsePxOrNumber(props.left);
-              const currentTop = parsePxOrNumber(props.top);
-              const nextLeft = Math.round(currentLeft + (finalLeft - (nodeRect.left - parentRect.left)));
-              const nextTop = Math.round(currentTop + (finalTop - (nodeRect.top - parentRect.top)));
-
-              props.position = props.position && props.position !== "static" ? props.position : "relative";
-              props.left = `${nextLeft}px`;
-              props.top = `${nextTop}px`;
+              props.position = "absolute";
+              props.left = `${finalLeft}px`;
+              props.top = `${finalTop}px`;
               props.right = "auto";
               props.bottom = "auto";
               props.marginTop = 0;
               props.marginLeft = 0;
-
-              if (shouldImageFillParent) {
-                props.width = "100%";
-                props.height = "100%";
-                props.maxWidth = "100%";
-                props.maxHeight = "100%";
-                props.minWidth = 0;
-                props.minHeight = 0;
-                if (!props.objectFit) props.objectFit = "cover";
-              }
-            });
-          } else {
-            actions.setProp(nodeId, (props: Record<string, unknown>) => {
-              const currentML = parsePxOrNumber(props.marginLeft);
-              const currentMT = parsePxOrNumber(props.marginTop);
-              const rawNextML = Math.round(currentML + (finalLeft - (nodeRect.left - parentRect.left)));
-              const rawNextMT = Math.round(currentMT + (finalTop - (nodeRect.top - parentRect.top)));
-
-              const nextML = parentDisplayName === "Section" ? Math.max(0, rawNextML) : rawNextML;
-              const nextMT = parentDisplayName === "Section" ? Math.max(0, rawNextMT) : rawNextMT;
-
-              props.marginLeft = nextML;
-              props.marginTop = nextMT;
 
               if (shouldImageFillParent) {
                 props.width = "100%";

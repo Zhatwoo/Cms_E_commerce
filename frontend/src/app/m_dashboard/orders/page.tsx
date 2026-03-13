@@ -126,7 +126,7 @@ function rowBadge(status: string, colors: ReturnType<typeof useTheme>['colors'])
 }
 
 export default function OrdersPage() {
-  const { colors } = useTheme();
+  const { colors, theme } = useTheme();
   const { selectedProject, loading: projectLoading } = useProject();
   const selectedSubdomain = normalizeSubdomain(selectedProject?.subdomain);
   const [orders, setOrders] = useState<ApiPublishedOrder[]>([]);
@@ -308,7 +308,7 @@ export default function OrdersPage() {
   };
 
   return (
-    <div className="relative mx-auto w-full max-w-[1220px] px-0.5 sm:px-1 [font-family:var(--font-outfit),sans-serif]">
+    <div className="dashboard-landing-light relative mx-auto w-full max-w-[1220px] px-0.5 sm:px-1 [font-family:var(--font-outfit),sans-serif]">
       <div
         className="pointer-events-none absolute top-24 right-6 h-56 w-56 opacity-20"
         style={{ background: `radial-gradient(circle at center, ${colors.accent.purple} 0%, transparent 72%)` }}
@@ -316,11 +316,11 @@ export default function OrdersPage() {
 
       <section className="relative z-10 mb-6 sm:mb-7 text-center">
         <h1 className="text-[38px] max-[390px]:text-[34px] sm:text-5xl md:text-7xl lg:text-[78px] font-extrabold leading-[0.96] tracking-tight">
-          <span className="block text-white">Track Buyer</span>
+          <span className={`block ${theme === 'dark' ? 'text-white' : 'text-[#1E1B4B]'}`}>Track Buyer</span>
           <span
             className="block text-transparent bg-clip-text"
             style={{
-              backgroundImage: 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)',
+              backgroundImage: theme === 'dark' ? 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)' : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)', textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)'
             }}
           >
             Checkouts
@@ -352,14 +352,14 @@ export default function OrdersPage() {
                 left: tabIndicator.left,
                 width: tabIndicator.width,
                 opacity: tabIndicator.ready ? 1 : 0,
-                background: 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)',
-                boxShadow: '0 0 12px rgba(177, 59, 255, 0.35)',
+                background: theme === 'dark' ? 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)',
+                boxShadow: theme === 'dark' ? '0 0 12px rgba(177, 59, 255, 0.35)' : '0 0 12px rgba(139, 92, 246, 0.35)',
               }}
             />
           </div>
         </div>
 
-        <div className="mx-auto mt-7 sm:mt-8 max-w-[860px] rounded-2xl border px-5 py-3.5 flex items-center gap-3 bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]">
+        <div className={`mx-auto mt-7 sm:mt-8 max-w-[860px] rounded-2xl border px-5 py-3.5 flex items-center gap-3 ${theme === 'dark' ? 'bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]' : 'bg-white/80 border-[#E2E8F0] shadow-sm backdrop-blur-md focus-within:border-[#8B5CF6] transition-colors'}`}>
           <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0" fill="none" style={{ color: colors.accent.yellow }}>
             <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
             <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="1.8" />
@@ -368,7 +368,7 @@ export default function OrdersPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search templates, designs, or actions"
-            className="w-full bg-transparent text-sm outline-none text-white placeholder:text-[#6F70A8]"
+            className={`w-full bg-transparent text-sm outline-none ${theme === 'dark' ? 'text-white placeholder:text-[#6F70A8]' : 'text-slate-900 placeholder:text-slate-400'}`}
           />
         </div>
       </section>
@@ -494,10 +494,10 @@ export default function OrdersPage() {
         </div>
       ) : viewMode === 'list' ? (
         <section
-          className="relative z-10 rounded-2xl border overflow-hidden"
+          className={`relative z-10 rounded-2xl border overflow-hidden ${theme === 'dark' ? '' : 'bg-white shadow-sm'}`}
           style={{
             borderColor: colors.border.faint,
-            background: 'linear-gradient(90deg, #110248 0%, #090029 100%)',
+            background: theme === 'dark' ? 'linear-gradient(90deg, #110248 0%, #090029 100%)' : undefined,
           }}
         >
           <div className="grid grid-cols-[1.2fr_1.05fr_1fr_0.8fr_0.9fr_0.9fr] px-4 py-3 text-[10px] uppercase font-semibold tracking-[0.16em] border-b" style={{ borderColor: colors.border.faint, color: colors.text.muted }}>
@@ -701,10 +701,10 @@ export default function OrdersPage() {
             return (
               <article
                 key={order.id}
-                className="rounded-2xl border p-3 sm:p-3.5"
+                className={`rounded-2xl border p-3 sm:p-3.5 ${theme === 'dark' ? '' : 'bg-white shadow-sm'}`}
                 style={{
                   borderColor: colors.border.faint,
-                  background: 'linear-gradient(90deg, #110248 0%, #090029 100%)',
+                  background: theme === 'dark' ? 'linear-gradient(90deg, #110248 0%, #090029 100%)' : undefined,
                 }}
               >
                 <div className="relative overflow-hidden rounded-xl border" style={{ borderColor: colors.border.faint }}>

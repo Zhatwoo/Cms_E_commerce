@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { Outfit } from 'next/font/google';
 import { CommercePlatform } from './landing/components/commercePlatform';
 import { Footer } from './landing/components/footer';
@@ -16,6 +17,7 @@ const outfit = Outfit({
 export default function Home() {
   return (
     <div className={outfit.className}>
+      <Suspense fallback={<div className="min-h-screen bg-[#030014]" />}>
       <LandingPageClient>
         <Hero />
         <CommercePlatform />
@@ -24,6 +26,7 @@ export default function Home() {
         <TrialContact />
         <Footer />
       </LandingPageClient>
+      </Suspense>
     </div>
   );
 }

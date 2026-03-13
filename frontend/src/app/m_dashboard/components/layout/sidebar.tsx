@@ -46,7 +46,6 @@ const navItems: SidebarItem[] = [
   { id: 'products', label: 'Products', icon: <ProductsIcon />, href: '/m_dashboard/products' },
   { id: 'inventory', label: 'Inventory', icon: <InventoryIcon />, href: '/m_dashboard/inventory' },
   { id: 'orders', label: 'Orders', icon: <OrdersIcon />, href: '/m_dashboard/orders' },
-  { id: 'analytics', label: 'Analytics', icon: <AnalyticsIcon />, href: '/m_dashboard/analytics' },
   { id: 'domains', label: 'Domains', icon: <DomainsIcon />, href: '/m_dashboard/domains' },
   { id: 'subscription', label: 'Subscription', icon: <SubscriptionIcon />, href: '/m_dashboard/subscription' },
   { id: 'settings', label: 'Settings', icon: <SettingsIcon />, href: '/m_dashboard/settings' },
@@ -139,7 +138,7 @@ export function DashboardSidebar({ mobile = false, onClose, onNavigateStart }: D
         >
           <div className="flex items-center gap-3">
             <Link href="/m_dashboard" onClick={handleHomeClick} aria-label="Go to dashboard home">
-              <img src="/images/logo.svg" alt="Logo" className="h-9 w-auto" />
+              <img src="/images/logo.svg" alt="Logo" className={`h-9 w-auto ${theme === 'light' ? 'brightness-0' : ''}`} />
             </Link>
           </div>
           <button
@@ -229,7 +228,7 @@ export function DashboardSidebar({ mobile = false, onClose, onNavigateStart }: D
         style={{ borderColor: colors.border.faint, height: '85px', paddingTop: '4px' }}
       >
         <Link href="/m_dashboard" onClick={handleHomeClick} aria-label="Go to dashboard home">
-          <img src="/images/logo.svg" alt="Logo" className="h-9 w-auto max-w-[48px]" />
+          <img src="/images/logo.svg" alt="Logo" className={`h-9 w-auto max-w-[48px] ${theme === 'light' ? 'brightness-0' : ''}`} />
         </Link>
       </div>
 
