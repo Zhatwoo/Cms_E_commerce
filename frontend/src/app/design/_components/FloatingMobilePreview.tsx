@@ -11,6 +11,8 @@ import type { BuilderDocument } from "../_types/schema";
 interface FloatingMobilePreviewProps {
   isOpen: boolean;
   onClose: () => void;
+  canvasWidth?: number;
+  canvasHeight?: number;
 }
 
 interface PageInfo {
@@ -52,14 +54,43 @@ const DEFAULT_MOBILE_DEVICE = MOBILE_DEVICE_PRESETS[0];
 export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
   isOpen,
   onClose,
+  canvasWidth,
+  canvasHeight,
 }) => {
   const panelRef = useRef<HTMLDivElement | null>(null);
 
-  const { query, pages, selectedPageFromCanvas, nodes } = useEditor((state) => {
+  const { query, pages, selectedPageFromCanvas, layoutSyncToken } = useEditor((state) => {
     const allNodes = state.nodes ?? {};
     const pageList: PageInfo[] = [];
+    let layoutHash = 5381;
+
+    const hashPart = (value: unknown) => {
+      const text = String(value ?? "");
+      for (let i = 0; i < text.length; i += 1) {
+        layoutHash = ((layoutHash * 33) ^ text.charCodeAt(i)) >>> 0;
+      }
+    };
 
     Object.entries(allNodes).forEach(([nodeId, node]) => {
+      const nodeData = node?.data;
+      const nodeProps = (nodeData?.props as Record<string, unknown> | undefined) ?? {};
+      hashPart(nodeId);
+      hashPart(nodeData?.displayName);
+      hashPart(nodeData?.parent);
+      hashPart(nodeProps.position);
+      hashPart(nodeProps.top);
+      hashPart(nodeProps.left);
+      hashPart(nodeProps.right);
+      hashPart(nodeProps.bottom);
+      hashPart(nodeProps.width);
+      hashPart(nodeProps.height);
+      hashPart(nodeProps.marginTop);
+      hashPart(nodeProps.marginLeft);
+      hashPart(nodeProps.rotation);
+      const childNodes = Array.isArray(nodeData?.nodes) ? nodeData.nodes : [];
+      hashPart(childNodes.length);
+      for (const childId of childNodes) hashPart(childId);
+
       if (node?.data?.displayName === "Page") {
         pageList.push({
           id: nodeId,
@@ -96,19 +127,9 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
     return {
       pages: pageList,
       selectedPageFromCanvas: detectedPageId,
-      nodes: allNodes,
+      layoutSyncToken: layoutHash,
     };
   });
-
-  const cleanDoc = useMemo<BuilderDocument | null>(() => {
-    try {
-      const raw = query.serialize();
-      const parsed = serializeCraftToClean(raw);
-      return parsed?.pages?.length ? parsed : null;
-    } catch {
-      return null;
-    }
-  }, [query, nodes]);
 
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const positionRef = useRef({ x: 0, y: 0 });
@@ -129,6 +150,16 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
 
   const previewWidth = selectedDevice.width;
   const previewHeight = selectedDevice.height;
+
+  const liveDoc = useMemo<BuilderDocument | null>(() => {
+    try {
+      const raw = query.serialize();
+      const parsed = serializeCraftToClean(raw);
+      return parsed?.pages?.length ? parsed : null;
+    } catch {
+      return null;
+    }
+  }, [query, layoutSyncToken]);
 
   useEffect(() => {
     if (isOpen && positionRef.current.x === 0 && positionRef.current.y === 0) {
@@ -154,6 +185,21 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
       setSelectedPageId(pages[0].id);
     }
   }, [isOpen, pages, selectedPageId]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!canvasWidth || canvasWidth <= 0) return;
+
+    const exactMatch = MOBILE_DEVICE_PRESETS.find(
+      (device) => device.width === canvasWidth && (!canvasHeight || device.height === canvasHeight),
+    );
+    const widthMatch = MOBILE_DEVICE_PRESETS.find((device) => device.width === canvasWidth);
+    const matched = exactMatch ?? widthMatch;
+    if (!matched) return;
+    if (matched.id === selectedDeviceId) return;
+
+    setSelectedDeviceId(matched.id);
+  }, [isOpen, canvasWidth, canvasHeight, selectedDeviceId]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest("[data-drag-handle]")) {
@@ -205,11 +251,48 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
     };
   }, [previewWidth]);
 
+  const previewDoc = useMemo<BuilderDocument | null>(() => {
+    if (!liveDoc) return null;
+
+    const targetWidth = `${previewWidth}px`;
+    const targetHeight = `${previewHeight}px`;
+    const updatedNodes = { ...liveDoc.nodes };
+
+    for (const id of Object.keys(updatedNodes)) {
+      const node = updatedNodes[id];
+      if (node?.type === "Frame") {
+        updatedNodes[id] = {
+          ...node,
+          props: {
+            ...node.props,
+            referenceWidth: previewWidth,
+            referenceHeight: previewHeight,
+          },
+        };
+      }
+    }
+
+    return {
+      ...liveDoc,
+      nodes: updatedNodes,
+      pages: liveDoc.pages.map((page) => ({
+        ...page,
+        props: {
+          ...page.props,
+          referenceWidth: page.props?.referenceWidth ?? page.props?.width,
+          referenceHeight: page.props?.referenceHeight ?? page.props?.height,
+          width: targetWidth,
+          height: page.props?.height === "auto" ? targetHeight : (page.props?.height ?? targetHeight),
+        },
+      })),
+    };
+  }, [liveDoc, previewWidth, previewHeight]);
+
   if (!isOpen) return null;
 
   const selectedPage = pages.find((p) => p.id === selectedPageId);
-  const selectedPageSlug = cleanDoc?.pages.find((p) => p.id === selectedPageId)?.slug
-    ?? cleanDoc?.pages[0]?.slug
+  const selectedPageSlug = liveDoc?.pages.find((p) => p.id === selectedPageId)?.slug
+    ?? liveDoc?.pages[0]?.slug
     ?? undefined;
 
   return (
@@ -329,7 +412,7 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
           </div>
 
           <div className="p-3">
-            {!cleanDoc || !selectedPageSlug ? (
+            {!previewDoc || !selectedPageSlug ? (
               <div
                 className="rounded-xl border border-white/10 bg-brand-white/5 flex items-center justify-center text-brand-light/50 text-sm"
                 style={{ width: previewWidth, minHeight: Math.min(previewHeight, 640) }}
@@ -345,14 +428,24 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
                   maxHeight: "70vh",
                 }}
               >
-                <div style={{ width: previewWidth, minHeight: previewHeight }}>
+                <div
+                  style={{
+                    width: previewWidth,
+                    minHeight: previewHeight,
+                    position: "relative",
+                    isolation: "isolate",
+                    overflow: "hidden",
+                  }}
+                >
                   <WebPreview
                     key={selectedPageSlug}
-                    doc={cleanDoc}
+                    doc={previewDoc}
                     initialPageSlug={selectedPageSlug}
                     simulatedWidth={previewWidth}
                     mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
                     builderParityMode={false}
+                    renderAllNodes
+                    preserveAuthoredPositioning
                   />
                 </div>
               </div>

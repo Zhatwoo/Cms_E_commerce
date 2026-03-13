@@ -61,6 +61,7 @@ import { CommentsProvider, useComments } from "../_context/CommentsContext";
 import { CommentPins } from "./CommentPins";
 import { CommentOverlay } from "./CommentOverlay";
 import { CommentsSidebar } from "./rightPanel/CommentsSidebar";
+import type { BuilderDocument, CleanNode } from "../_types/schema";
 
 /**
  * React Error Boundary to catch rendering errors in Frame component
@@ -278,6 +279,110 @@ function safeLocalRemove(key: string): void {
 }
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+type ResponsivePreflightIssue = {
+  severity: "warning" | "error";
+  nodeId: string;
+  message: string;
+};
+
+const RESPONSIVE_PREFLIGHT_WIDTH = 430;
+
+function parsePx(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized.endsWith("px")) return null;
+  const parsed = Number(normalized.slice(0, -2));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function asBuilderDocument(payload: unknown): BuilderDocument | null {
+  if (!payload || typeof payload !== "object") return null;
+  const candidate = payload as Partial<BuilderDocument>;
+  if (!Array.isArray(candidate.pages)) return null;
+  if (!candidate.nodes || typeof candidate.nodes !== "object") return null;
+  return candidate as BuilderDocument;
+}
+
+function runResponsivePreflight(snapshotJson: string): ResponsivePreflightIssue[] {
+  const issues: ResponsivePreflightIssue[] = [];
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(snapshotJson);
+  } catch {
+    return issues;
+  }
+
+  const doc = asBuilderDocument(parsed);
+  if (!doc) return issues;
+
+  for (const page of doc.pages) {
+    const pageWidthPx = parsePx(page.props?.width);
+    if (pageWidthPx !== null && pageWidthPx > RESPONSIVE_PREFLIGHT_WIDTH) {
+      issues.push({
+        severity: "warning",
+        nodeId: page.id,
+        message: `Page width is ${pageWidthPx}px (target <= ${RESPONSIVE_PREFLIGHT_WIDTH}px for mobile baseline).`,
+      });
+    }
+  }
+
+  for (const [nodeId, node] of Object.entries(doc.nodes as Record<string, CleanNode>)) {
+    const props = node.props ?? {};
+    const widthPx = parsePx(props.width);
+    const leftPx = parsePx(props.left);
+    const rightPx = parsePx(props.right);
+    const pos = String(props.position ?? "").toLowerCase();
+
+    if (widthPx !== null && widthPx > RESPONSIVE_PREFLIGHT_WIDTH && !String(props.width).includes("%")) {
+      issues.push({
+        severity: "warning",
+        nodeId,
+        message: `Fixed width ${widthPx}px may overflow mobile viewport.`,
+      });
+    }
+
+    if ((pos === "absolute" || pos === "fixed") && widthPx !== null) {
+      const combinedLeft = (leftPx ?? 0) + widthPx;
+      const combinedRight = (rightPx ?? 0) + widthPx;
+      if (combinedLeft > RESPONSIVE_PREFLIGHT_WIDTH + 8 || combinedRight > RESPONSIVE_PREFLIGHT_WIDTH + 8) {
+        issues.push({
+          severity: "error",
+          nodeId,
+          message: `Absolute/fixed positioned element likely overflows mobile (${widthPx}px + offset).`,
+        });
+      }
+    }
+
+    if (node.type === "Text") {
+      const fontPx = parsePx(props.fontSize) ?? (typeof props.fontSize === "number" ? props.fontSize : null);
+      if (fontPx !== null && fontPx > 44) {
+        issues.push({
+          severity: "warning",
+          nodeId,
+          message: `Text font size ${fontPx}px is very large for mobile.`,
+        });
+      }
+    }
+
+    if (node.type === "Container" || node.type === "Section" || node.type === "Row" || node.type === "Column") {
+      const paddingLeft = typeof props.paddingLeft === "number" ? props.paddingLeft : parsePx(props.paddingLeft);
+      const paddingRight = typeof props.paddingRight === "number" ? props.paddingRight : parsePx(props.paddingRight);
+      const horizontalPadding = (paddingLeft ?? 0) + (paddingRight ?? 0);
+      if (horizontalPadding > 64) {
+        issues.push({
+          severity: "warning",
+          nodeId,
+          message: `Horizontal padding ${horizontalPadding}px may compress content on phones.`,
+        });
+      }
+    }
+  }
+
+  return issues;
+}
 
 type EditorShellProps = {
   projectId: string;
@@ -2086,6 +2191,30 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     try {
       const snapshot = mirrorToSession(query);
       if (snapshot) {
+        const preflightIssues = runResponsivePreflight(snapshot);
+        if (preflightIssues.length > 0) {
+          const errors = preflightIssues.filter((issue) => issue.severity === "error");
+          const warnings = preflightIssues.filter((issue) => issue.severity === "warning");
+          console.group("[Responsive Preflight]");
+          console.table(preflightIssues);
+          console.groupEnd();
+
+          if (errors.length > 0) {
+            showAlert(
+              `Responsive preflight blocked preview: ${errors.length} critical issue(s) found. Check console for details.`,
+              "error"
+            );
+            return;
+          }
+
+          if (warnings.length > 0) {
+            showAlert(
+              `Responsive preflight: ${warnings.length} warning(s) found. Continuing to preview.`,
+              "error"
+            );
+          }
+        }
+
         await autoSavePage(snapshot, projectId);
         router.push(`/design/preview?projectId=${projectId}`);
       }
@@ -2094,7 +2223,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     } finally {
       setIsPreviewing(false);
     }
-  }, [projectId, router, mirrorToSession]);
+  }, [projectId, router, mirrorToSession, showAlert]);
 
   const dbSaveInFlightRef = useRef(false);
   const dbSavePendingRef = useRef(false);
@@ -2537,6 +2666,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                       <FloatingMobilePreview
                         isOpen={showDualView}
                         onClose={() => setShowDualView(false)}
+                        canvasWidth={canvasWidth}
+                        canvasHeight={canvasHeight}
                       />
                     )}
                   </InlineTextEditProvider>
