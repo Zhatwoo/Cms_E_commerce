@@ -380,13 +380,14 @@ function ClientManagementTab() {
                 <th className="px-4 py-5 text-left text-sm font-semibold text-gray-900">Email</th>
                 <th className="px-4 py-5 text-left text-sm font-semibold text-gray-900">Status</th>
                 <th className="px-4 py-5 text-left text-sm font-semibold text-gray-900">Plan</th>
+                <th className="px-4 py-5 text-left text-sm font-semibold text-gray-900">Storage</th>
                 <th className="px-4 py-5 text-left text-sm font-semibold text-gray-900">Created</th>
                 <th className="px-4 py-5 text-right text-sm font-semibold text-gray-900">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-500">Loading…</td></tr>
+                <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-500">Loading…</td></tr>
               ) : filtered.length > 0 ? (
                 filtered.map((client) => {
                   const active = isClientActive(client);
@@ -419,6 +420,25 @@ function ClientManagementTab() {
                           </select>
                           {savingId === client.id && <span className="text-xs text-gray-500">Saving…</span>}
                         </span>
+                      </td>
+                      <td className="px-4 py-5 text-sm">
+                        <div className="flex flex-col gap-1 min-w-[120px]">
+                          <div className="flex items-center justify-between gap-2 text-[10px]">
+                            <span className="font-bold text-gray-700">{client.storageReadable || '0B'}</span>
+                            <span className="text-gray-400">/ {client.storageLimitReadable || '1GB'}</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden border border-gray-200">
+                            <div 
+                              className={`h-full transition-all duration-500 rounded-full ${
+                                (client.storageBytes || 0) / (client.storageLimit || 1) > 0.9 ? 'bg-red-500' :
+                                (client.storageBytes || 0) / (client.storageLimit || 1) > 0.7 ? 'bg-amber-500' : 'bg-emerald-500'
+                              }`}
+                              style={{ 
+                                width: `${Math.min(100, ((client.storageBytes || 0) / (client.storageLimit || 1024*1024*1024)) * 100)}%` 
+                              }}
+                            />
+                          </div>
+                        </div>
                       </td>
                       <td className="px-4 py-5 text-sm text-gray-600">{formatDate(client.createdAt)}</td>
                       <td className="px-4 py-5 text-sm text-right">
@@ -462,7 +482,7 @@ function ClientManagementTab() {
                   );
                 })
               ) : (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-500">No clients found.</td></tr>
+                <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-500">No clients found.</td></tr>
               )}
             </tbody>
           </table>
