@@ -65,6 +65,4 @@ export const RenderBlocks: Record<string, any> = {
   badge: Badge,
   BooleanField,
   booleanfield: BooleanField,
-  Accordion,
-  accordion: Accordion,
 };

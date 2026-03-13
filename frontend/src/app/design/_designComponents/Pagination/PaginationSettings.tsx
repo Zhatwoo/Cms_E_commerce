@@ -182,7 +182,7 @@ export const PaginationSettings = () => {
                     <EffectsGroup
                         opacity={opacity}
                         boxShadow={boxShadow}
-                        setProp={typedSetProp}
+                        setProp={typedSetProp as any}
                     />
                 </div>
             </DesignSection>

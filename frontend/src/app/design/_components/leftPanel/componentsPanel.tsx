@@ -146,6 +146,7 @@ export const ComponentsPanel = () => {
       icon?: React.ReactNode;
       color?: string;
       dragElement?: React.ReactElement;
+      isNewPage?: boolean;
       // Pre-built details
       item?: any;
     }> = [];
@@ -230,7 +231,6 @@ export const ComponentsPanel = () => {
           connectors.create(ref, withFreePositionDefaults(dragElement));
         }
       }}
-      {...(v.isNewPage ? { "data-component-new-page": "true", "data-drag-source": "component" } : { "data-drag-source": "component" })}
       className="group relative flex flex-col gap-1.5 cursor-grab active:cursor-grabbing"
     >
       <div className={`h-16 w-full ${v.color || "bg-brand-white/5"} rounded-lg border border-brand-medium/20 flex flex-col items-center justify-center transition-all duration-300 group-hover:bg-brand-white/10 group-hover:border-brand-medium/50 group-hover:shadow-md group-hover:-translate-y-0.5 overflow-hidden`}>

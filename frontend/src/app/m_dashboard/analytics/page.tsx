@@ -907,7 +907,7 @@ export default function AnalyticsPage() {
   );
 
   return (
-    <div className="relative mx-auto w-full max-w-[1240px] 2xl:max-w-[1320px] px-1 sm:px-2 [font-family:var(--font-outfit),sans-serif]">
+    <div className="dashboard-landing-light relative mx-auto w-full max-w-[1240px] 2xl:max-w-[1320px] px-1 sm:px-2 [font-family:var(--font-outfit),sans-serif]">
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute left-1/2 top-[90px] h-[480px] w-[480px] -translate-x-1/2 rounded-full opacity-25 blur-3xl"
           style={{ backgroundColor: colors.accent.purpleDeep }} />

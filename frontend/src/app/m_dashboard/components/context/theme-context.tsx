@@ -45,30 +45,30 @@ export const THEMES = {
   },
   light: {
     bg: {
-      primary: '#F8F8FB',
-      primaryEnd: '#ECEFF6',
-      dark: '#E2E2EA',
+      primary: '#FFFFFF',
+      primaryEnd: '#EAEAEA',
+      dark: '#EAEAEA',
       card: '#FFFFFF',
       elevated: '#FFFFFF',
-      fog: '#D1D1DD',
+      fog: '#F4F4F7',
       sidebar: '#FFFFFF',
-      searchBar: '#F0F0F4',
+      searchBar: '#F7F7FA',
     },
     text: {
-      primary: '#120533',
-      secondary: '#616170',
-      muted: '#888899',
-      subtle: '#c1c1cd',
+      primary: '#15093E',
+      secondary: '#4C3F75',
+      muted: '#736A99',
+      subtle: '#B8B2CF',
     },
     border: {
-      default: '#c1c1cd',
-      faint: '#e2e2ea',
+      default: '#D9D4EA',
+      faint: '#EAE7F2',
     },
     accent: {
-      yellow: '#f5a213',
-      yellowBright: '#f5c400',
-      purple: '#9333ea',
-      purpleDeep: '#7c3aed',
+      yellow: '#FFCC00',
+      yellowBright: '#FFCC00',
+      purple: '#6702BF',
+      purpleDeep: '#6702BF',
     },
     status: {
       good: '#16A34A',
@@ -90,7 +90,7 @@ type ThemeContextType = {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('dark');
+  const [theme, setTheme] = useState<Theme>('light');
 
   useEffect(() => {
     const storedTheme = window.sessionStorage.getItem(THEME_STORAGE_KEY);
@@ -99,7 +99,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    setTheme(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    setTheme('light');
   }, []);
 
   useEffect(() => {

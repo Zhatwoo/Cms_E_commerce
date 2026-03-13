@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useDesignProject } from "../../_contexts/DesignProjectContext";
+import { useDesignProject } from "../_context/DesignProjectContext";
 import { apiFetch } from "@/lib/api";
 import { createPortal } from "react-dom";
 import {
