@@ -60,20 +60,20 @@ function TiltCard({ children, className }: { children: React.ReactNode; classNam
 }
 
 export function CommercePlatform({ isDarkMode = false }: { isDarkMode?: boolean }) {
-  const sectionClass = isDarkMode ? 'bg-[#0a0141] text-white' : 'bg-[#f2f2f6] text-[#0b0b17]';
-  const descriptionClass = isDarkMode ? 'text-white/50' : 'text-[#7a7699]';
+  const sectionClass = isDarkMode ? 'bg-[#0a0141] text-white' : 'bg-white text-[#120533]';
+  const descriptionClass = isDarkMode ? 'text-white/50' : 'text-[#616170]';
 
   const cardBase = isDarkMode
     ? 'border border-[#2a2075]/80 bg-gradient-to-b from-[#13106a]/90 to-[#0d0a55]/90 shadow-[0_20px_60px_rgba(5,2,38,0.65)]'
-    : 'border border-[#e8e8f2] bg-white shadow-[0_12px_40px_rgba(22,17,75,0.07)]';
+    : 'border border-[#e5e5ed] bg-white shadow-[0_16px_40px_rgba(20,20,50,0.06)]';
 
   const featuredCard = isDarkMode
     ? 'border-2 border-[#6b3fd4]/70 bg-gradient-to-b from-[#16126e]/95 to-[#0e0b58]/95 shadow-[0_24px_70px_rgba(5,2,38,0.7),0_0_0_1px_rgba(107,63,212,0.25)]'
-    : 'border-2 border-[#c9a0f5]/60 bg-white shadow-[0_16px_50px_rgba(139,61,255,0.12)]';
+    : 'border border-[#4ade80] bg-white shadow-[0_24px_60px_rgba(74,222,128,0.12)]';
 
   const tagClass = isDarkMode
     ? 'bg-[#1b1f6e]/80 text-[#8d9bdc] border border-[#2d3580]/50'
-    : 'bg-[#eef0f8] text-[#7f7ca1] border border-[#e2e4f0]';
+    : 'bg-[#f0f0f4] text-[#616170] border border-[#e5e5ed]';
 
   const chipClass = (color: string) =>
     isDarkMode
@@ -82,7 +82,7 @@ export function CommercePlatform({ isDarkMode = false }: { isDarkMode?: boolean 
 
   const gridCellClass = isDarkMode
     ? 'bg-gradient-to-br from-[#182070] to-[#111660] border border-[#252c85]/50'
-    : 'bg-gradient-to-br from-[#f0f2fb] to-[#e8ebf7] border border-[#dfe2f2]';
+    : 'bg-[#f8f8fb] border border-[#e5e5ed]';
 
   const dotRow = isDarkMode
     ? ['bg-[#ff5f57]', 'bg-[#febc2e]', 'bg-[#28c840]']
@@ -133,7 +133,7 @@ export function CommercePlatform({ isDarkMode = false }: { isDarkMode?: boolean 
           <div className={`mx-auto mt-8 flex max-w-[480px] items-center justify-center gap-0 divide-x rounded-2xl border p-1 ${
             isDarkMode
               ? 'divide-[#2a2075]/60 border-[#2a2075]/60 bg-[#0f0c5a]/50'
-              : 'divide-[#e8e8f2] border-[#e8e8f2] bg-white/80'
+              : 'divide-[#e5e5ed] border-[#e5e5ed] bg-white/80'
           }`}>
             {[
               { n: '2.4k+', label: 'Stores built' },
@@ -141,7 +141,7 @@ export function CommercePlatform({ isDarkMode = false }: { isDarkMode?: boolean 
               { n: '4.9★', label: 'Avg rating' },
             ].map(({ n, label }) => (
               <div key={label} className="flex flex-1 flex-col items-center gap-0.5 px-3 py-2.5">
-                <span className={`text-lg font-black leading-none ${isDarkMode ? 'text-white' : 'text-[#262547]'}`}>{n}</span>
+                <span className={`text-lg font-black leading-none ${isDarkMode ? 'text-white' : 'text-[#120533]'}`}>{n}</span>
                 <span className={`text-[10px] font-medium ${descriptionClass}`}>{label}</span>
               </div>
             ))}
@@ -164,16 +164,23 @@ export function CommercePlatform({ isDarkMode = false }: { isDarkMode?: boolean 
               {/* Window dots */}
               <div className="mb-4 flex items-center gap-1.5">
                 {dotRow.map((c, i) => <span key={i} className={`h-2.5 w-2.5 rounded-full ${c}`} />)}
-                <span className={`ml-2 text-[10px] font-medium ${descriptionClass}`}>asset-gen.tsx</span>
+                <span className={`ml-2 text-[10px] font-medium ${descriptionClass}`}>store-builder.tsx</span>
               </div>
 
-              <p className={`text-lg font-bold leading-snug sm:text-xl ${isDarkMode ? 'text-white' : 'text-[#262547]'}`}>
-                Generate stock photos with various genders for creative testing
+              <p className={`text-lg font-bold leading-snug sm:text-xl ${isDarkMode ? 'text-white' : 'text-[#120533]'}`}>
+                Drag and drop pre-built e-commerce components to assemble your storefront
               </p>
 
               <div className="mt-4 flex flex-wrap gap-1.5">
-                {['People', 'Clothing', 'Business', 'Technology'].map((tag) => (
-                  <span key={tag} className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition-colors ${tagClass}`}>
+                {[
+                  { tag: 'Hero', color: isDarkMode ? '' : 'text-[#f43f5e] bg-[#ffe4e6] border-[#fecdd3]' },
+                  { tag: 'Product Grid', color: isDarkMode ? '' : 'text-[#0284c7] bg-[#e0f2fe] border-[#bae6fd]' },
+                  { tag: 'Cart', color: isDarkMode ? '' : 'text-[#d97706] bg-[#fef3c7] border-[#fde68a]' },
+                  { tag: 'Checkout', color: isDarkMode ? '' : 'text-[#c026d3] bg-[#fae8ff] border-[#f5d0fe]' }
+                ].map(({ tag, color }) => (
+                  <span key={tag} className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition-colors ${
+                    isDarkMode ? tagClass : color
+                  }`}>
                     {tag}
                   </span>
                 ))}
@@ -191,7 +198,7 @@ export function CommercePlatform({ isDarkMode = false }: { isDarkMode?: boolean 
                     />
                   ))}
                 </div>
-                <span className={`text-[11px] font-medium ${descriptionClass}`}>+128 generated today</span>
+                <span className={`text-[11px] font-medium ${descriptionClass}`}>+128 blocks available</span>
               </div>
 
               {/* Progress bar */}
@@ -205,7 +212,7 @@ export function CommercePlatform({ isDarkMode = false }: { isDarkMode?: boolean 
                 />
               </div>
               <div className="mt-1 flex justify-between">
-                <span className={`text-[10px] ${descriptionClass}`}>Generation progress</span>
+                <span className={`text-[10px] ${descriptionClass}`}>Build progress</span>
                 <span className={`text-[10px] font-bold ${isDarkMode ? 'text-[#a78bfa]' : 'text-[#8b3dff]'}`}>72%</span>
               </div>
             </TiltCard>
@@ -221,29 +228,33 @@ export function CommercePlatform({ isDarkMode = false }: { isDarkMode?: boolean 
 
               <div className="mb-4 flex items-center gap-1.5">
                 {dotRow.map((c, i) => <span key={i} className={`h-2.5 w-2.5 rounded-full ${c}`} />)}
-                <span className={`ml-2 text-[10px] font-medium ${descriptionClass}`}>design-studio.tsx</span>
+                <span className={`ml-2 text-[10px] font-medium ${descriptionClass}`}>theme-editor.tsx</span>
               </div>
 
-              <p className={`text-xl font-bold leading-snug sm:text-2xl ${isDarkMode ? 'text-white' : 'text-[#262547]'}`}>
+              <p className={`text-xl font-bold leading-snug sm:text-2xl ${isDarkMode ? 'text-white' : 'text-[#120533]'}`}>
                 What will you{' '}
-                <span className="bg-gradient-to-r from-[#9d3fff] to-[#d946ef] bg-clip-text text-transparent">
-                  design
+                <span className={isDarkMode ? "bg-gradient-to-r from-[#9d3fff] to-[#d946ef] bg-clip-text text-transparent" : "text-[#f97316]"}>
+                  build
                 </span>{' '}
                 today?
               </p>
 
               <p className={`mt-2 text-sm leading-relaxed sm:text-[15px] ${descriptionClass}`}>
-                Design, generate, print, and work on anything — all in one creative workspace.
+                Design, configure, preview, and deploy your online store — all in one unified builder environment.
               </p>
 
               <motion.button
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
                 suppressHydrationWarning
-                className="mt-5 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#9d3fff] px-5 py-2.5 text-sm font-bold text-white shadow-[0_4px_20px_rgba(139,61,255,0.5)] transition-shadow hover:shadow-[0_6px_28px_rgba(139,61,255,0.65)]"
+                className={`mt-5 rounded-full px-6 py-2.5 text-sm font-bold text-white transition-shadow ${
+                  isDarkMode 
+                    ? 'bg-gradient-to-r from-[#7c3aed] to-[#9d3fff] shadow-[0_4px_20px_rgba(139,61,255,0.5)] hover:shadow-[0_6px_28px_rgba(139,61,255,0.65)]' 
+                    : 'bg-[#f43f5e] shadow-[0_4px_20px_rgba(244,63,94,0.4)] hover:shadow-[0_6px_28px_rgba(244,63,94,0.5)]'
+                }`}
                 type="button"
               >
-                Start designing →
+                Start designing
               </motion.button>
 
               {/* Template chips */}

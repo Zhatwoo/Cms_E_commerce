@@ -74,9 +74,9 @@ const PLANS = [
 export function Pricing({ isDarkMode = false }: { isDarkMode?: boolean }) {
   const sectionClass = isDarkMode
     ? 'bg-[#0a0141] text-white'
-    : 'bg-[#f2f2f6] text-[#0b0b17]';
+    : 'bg-[#fdfdfd] text-[#120533]';
 
-  const subtitleClass = isDarkMode ? 'text-white/50' : 'text-[#7a7796]';
+  const subtitleClass = isDarkMode ? 'text-white/50' : 'text-[#616170]';
 
   return (
     <section className={`w-full px-4 pb-24 pt-16 md:px-8 md:pb-28 md:pt-20 ${sectionClass}`}>
@@ -102,22 +102,30 @@ export function Pricing({ isDarkMode = false }: { isDarkMode?: boolean }) {
             const ringClass = isPremium
               ? isDarkMode
                 ? 'border-[3px] border-[#f5c400]'
-                : 'border-[3px] border-[#f5c400]'
+                : 'border-[3px] border-[#d946ef]'
               : isDarkMode
                 ? 'border border-[#3d2a93]'
-                : 'border border-[#e8e8ef]';
-            const titleClass = isPremium ? 'text-[#f0bb00]' : 'text-[#8b3dff]';
+                : 'border border-[#e5e5ed]';
+            const titleClass = isPremium 
+              ? isDarkMode ? 'text-[#f0bb00]' : 'text-[#d946ef]' 
+              : isDarkMode ? 'text-[#a78bfa]' : 'text-[#9333ea]';
             const buttonClass = isPremium
-              ? 'bg-[#f5c400] text-[#1c1d2b] hover:brightness-105'
-              : 'bg-gradient-to-r from-[#8b3dff] to-[#c026d3] text-white hover:brightness-110';
-            const checkClass = isPremium ? 'text-[#f5c400]' : 'text-[#a855f7]';
+              ? isDarkMode 
+                ? 'bg-[#f5c400] text-[#1c1d2b] hover:brightness-105' 
+                : 'bg-gradient-to-r from-[#9333ea] to-[#ec4899] text-white hover:brightness-110'
+              : isDarkMode 
+                ? 'bg-white/10 text-white hover:bg-white/20' 
+                : 'bg-[#f0f0f4] text-[#120533] hover:bg-[#e5e5ed]';
+            const checkClass = isPremium 
+              ? isDarkMode ? 'text-[#f5c400]' : 'text-[#d946ef]' 
+              : isDarkMode ? 'text-[#a855f7]' : 'text-[#9333ea]';
 
             return (
             <Reveal key={plan.name} delay={0.08 + index * 0.08} y={34}>
             <div className={`h-full rounded-[2rem] p-7 md:min-h-[500px] md:p-8 ${ringClass} ${
               isDarkMode
                 ? 'bg-[#111058] shadow-[8px_10px_20px_rgba(5,3,39,0.55)]'
-                : 'bg-white shadow-[8px_10px_12px_rgba(23,24,40,0.2)]'
+                : 'bg-white shadow-[8px_10px_12px_rgba(20,20,50,0.06)]'
             }`}>
               <div className="flex h-full flex-col">
                 <h3 className={`text-[35px] font-extrabold leading-none ${titleClass}`}>{plan.name}</h3>

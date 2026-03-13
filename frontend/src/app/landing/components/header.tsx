@@ -46,16 +46,20 @@ export function LandingHeader({ onAuthClick, isDarkMode = false, onThemeToggle, 
         <div
           className={`mx-auto flex h-14 w-full max-w-6xl items-center justify-between rounded-full border px-3 transition-all duration-500 ease-out sm:px-5 md:px-6 ${
             scrolled
-              ? 'border-white/15 bg-[#0d0548]/75 shadow-[0_8px_32px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.07)] backdrop-blur-xl backdrop-saturate-150'
-              : 'border-white/10 bg-[#190765]/90 shadow-[0_4px_24px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md'
+              ? isDarkMode
+                ? 'border-white/15 bg-[#0d0548]/75 shadow-[0_8px_32px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.07)] backdrop-blur-xl backdrop-saturate-150'
+                : 'border-black/10 bg-white/85 shadow-[0_8px_32px_rgba(0,0,0,0.08)] backdrop-blur-xl backdrop-saturate-150'
+              : isDarkMode
+                ? 'border-white/10 bg-[#190765]/90 shadow-[0_4px_24px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md'
+                : 'border-black/5 bg-white/95 shadow-[0_4px_24px_rgba(0,0,0,0.04)] backdrop-blur-md'
           }`}
           style={{
             WebkitBackdropFilter: scrolled ? 'blur(20px) saturate(1.5)' : 'blur(12px)',
           }}
         >
-          <Link href="/" className="flex shrink-0 items-center gap-2 text-white">
+          <Link href="/" className={`flex shrink-0 items-center gap-2 ${isDarkMode ? 'text-white' : 'text-[#1a1a2e]'}`}>
             <Image
-              src="/img/centric-logo.svg"
+              src={isDarkMode ? "/img/centric-logo.svg" : "/img/centric-logo.svg"}
               alt="Centric logo"
               width={36}
               height={36}
@@ -73,7 +77,11 @@ export function LandingHeader({ onAuthClick, isDarkMode = false, onThemeToggle, 
               <Link
                 key={link.label}
                 href={link.href}
-                className="relative rounded-full px-4 py-1.5 text-sm font-medium text-white/70 transition-all duration-200 hover:bg-white/8 hover:text-white"
+                className={`relative rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
+                  isDarkMode 
+                    ? 'text-white/70 hover:bg-white/8 hover:text-white' 
+                    : 'text-[#4a4a68] hover:bg-black/5 hover:text-[#1a1a2e]'
+                }`}
               >
                 {link.label}
               </Link>
@@ -86,7 +94,11 @@ export function LandingHeader({ onAuthClick, isDarkMode = false, onThemeToggle, 
             <button
               ref={loginRef}
               onClick={() => onAuthClick?.('login')}
-              className="hidden rounded-full border border-white/20 bg-white/5 px-5 py-1.5 text-sm font-semibold text-white/90 backdrop-blur-sm transition-all duration-200 hover:border-white/40 hover:bg-white/12 hover:text-white active:scale-95 sm:block"
+              className={`hidden rounded-full px-5 py-1.5 text-sm font-semibold transition-all duration-200 active:scale-95 sm:block ${
+                isDarkMode
+                  ? 'border border-white/20 bg-white/5 text-white/90 backdrop-blur-sm hover:border-white/40 hover:bg-white/12 hover:text-white'
+                  : 'bg-gradient-to-r from-[#a855f7] to-[#f5a213] text-white shadow-[0_4px_14px_rgba(168,85,247,0.3)] hover:shadow-[0_6px_20px_rgba(168,85,247,0.4)] hover:brightness-110'
+              }`}
               suppressHydrationWarning
             >
               Sign In
@@ -96,7 +108,11 @@ export function LandingHeader({ onAuthClick, isDarkMode = false, onThemeToggle, 
             <button
               onClick={onThemeToggle}
               disabled={isThemeSwitching}
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/15 bg-white/5 text-sm text-[#facc15] backdrop-blur-sm transition-all duration-200 hover:border-[#facc15]/40 hover:bg-[#facc15]/10 active:scale-90 disabled:cursor-not-allowed disabled:opacity-70 sm:h-9 sm:w-9 sm:text-base"
+              className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border text-sm backdrop-blur-sm transition-all duration-200 active:scale-90 disabled:cursor-not-allowed disabled:opacity-70 sm:h-9 sm:w-9 sm:text-base ${
+                isDarkMode
+                  ? 'border-white/15 bg-white/5 text-[#facc15] hover:border-[#facc15]/40 hover:bg-[#facc15]/10'
+                  : 'border-black/10 bg-white shadow-sm text-[#facc15] hover:border-[#facc15]/40 hover:bg-[#facc15]/10'
+              }`}
               suppressHydrationWarning
               aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
             >
@@ -108,21 +124,25 @@ export function LandingHeader({ onAuthClick, isDarkMode = false, onThemeToggle, 
             {/* Hamburger — mobile only */}
             <button
               onClick={() => setMobileOpen((v) => !v)}
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/15 bg-white/5 backdrop-blur-sm transition-all duration-200 hover:bg-white/10 active:scale-90 md:hidden"
+              className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border backdrop-blur-sm transition-all duration-200 active:scale-90 md:hidden ${
+                isDarkMode 
+                  ? 'border-white/15 bg-white/5 hover:bg-white/10' 
+                  : 'border-black/10 bg-white hover:bg-black/5'
+              }`}
               aria-label="Toggle menu"
               aria-expanded={mobileOpen}
             >
               <span className="flex flex-col gap-[5px]">
                 <span
-                  className="block h-[1.5px] w-4 rounded-full bg-white/80 transition-all duration-300 origin-center"
+                  className={`block h-[1.5px] w-4 rounded-full transition-all duration-300 origin-center ${isDarkMode ? 'bg-white/80' : 'bg-[#120533]'}`}
                   style={{ transform: mobileOpen ? 'translateY(6.5px) rotate(45deg)' : 'none' }}
                 />
                 <span
-                  className="block h-[1.5px] w-4 rounded-full bg-white/80 transition-all duration-300"
+                  className={`block h-[1.5px] w-4 rounded-full transition-all duration-300 ${isDarkMode ? 'bg-white/80' : 'bg-[#120533]'}`}
                   style={{ opacity: mobileOpen ? 0 : 1, transform: mobileOpen ? 'scaleX(0)' : 'none' }}
                 />
                 <span
-                  className="block h-[1.5px] w-4 rounded-full bg-white/80 transition-all duration-300 origin-center"
+                  className={`block h-[1.5px] w-4 rounded-full transition-all duration-300 origin-center ${isDarkMode ? 'bg-white/80' : 'bg-[#120533]'}`}
                   style={{ transform: mobileOpen ? 'translateY(-6.5px) rotate(-45deg)' : 'none' }}
                 />
               </span>
@@ -132,9 +152,9 @@ export function LandingHeader({ onAuthClick, isDarkMode = false, onThemeToggle, 
 
         {/* Mobile dropdown */}
         <div
-          className={`mx-auto mt-2 w-full max-w-6xl overflow-hidden rounded-2xl border border-white/10 bg-[#0d0548]/85 shadow-[0_12px_40px_rgba(0,0,0,0.5)] backdrop-blur-xl transition-all duration-300 ease-out md:hidden ${
+          className={`mx-auto mt-2 w-full max-w-6xl overflow-hidden rounded-2xl border shadow-[0_12px_40px_rgba(0,0,0,0.5)] backdrop-blur-xl transition-all duration-300 ease-out md:hidden ${
             mobileOpen ? 'max-h-64 opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
-          }`}
+          } ${isDarkMode ? 'border-white/10 bg-[#0d0548]/85' : 'border-black/10 bg-white/95 text-[#1a1a2e]'}`}
           style={{ WebkitBackdropFilter: 'blur(20px)' }}
         >
           <nav className="flex flex-col px-3 py-3">
@@ -143,17 +163,25 @@ export function LandingHeader({ onAuthClick, isDarkMode = false, onThemeToggle, 
                 key={link.label}
                 href={link.href}
                 onClick={() => setMobileOpen(false)}
-                className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-white/70 transition-all duration-150 hover:bg-white/8 hover:text-white"
+                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-150 ${
+                  isDarkMode 
+                    ? 'text-white/70 hover:bg-white/8 hover:text-white' 
+                    : 'text-[#4a4a68] hover:bg-black/5 hover:text-[#1a1a2e]'
+                }`}
                 style={{ transitionDelay: mobileOpen ? `${i * 40}ms` : '0ms' }}
               >
                 <span className="h-1 w-1 rounded-full bg-[#7c3aed]/70" />
                 {link.label}
               </Link>
             ))}
-            <div className="my-2 h-px bg-white/8" />
+            <div className={`my-2 h-px ${isDarkMode ? 'bg-white/8' : 'bg-black/5'}`} />
             <button
               onClick={() => { onAuthClick?.('login'); setMobileOpen(false); }}
-              className="mx-1 rounded-xl border border-white/15 bg-white/5 py-2.5 text-sm font-semibold text-white/90 transition-all hover:bg-white/10"
+              className={`mx-1 rounded-xl py-2.5 text-sm font-semibold transition-all ${
+                isDarkMode 
+                  ? 'border border-white/15 bg-white/5 text-white/90 hover:bg-white/10' 
+                  : 'bg-gradient-to-r from-[#a855f7] to-[#f5a213] text-white hover:brightness-110'
+              }`}
               suppressHydrationWarning
             >
               Sign In
