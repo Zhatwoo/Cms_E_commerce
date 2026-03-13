@@ -212,7 +212,7 @@ export function TrialContact({ isDarkMode = false }: { isDarkMode?: boolean }) {
             {/* Form */}
             <Reveal x={-24} delay={0.14}>
               <div className={`w-full rounded-[2rem] border p-[clamp(1.5rem,3vw,2.5rem)] shadow-[0_24px_60px_rgba(5,4,22,0.5)] ${
-                isDarkMode ? 'border-white/12 bg-[#10164a]/86' : 'border-[#e5e5ed] bg-white shadow-[0_16px_40px_rgba(20,20,50,0.06)]'
+                isDarkMode ? 'border-white/12 bg-[#10164a]/86' : 'border-[#c1c1cd] bg-white shadow-[0_16px_40px_rgba(20,20,50,0.06)]'
               }`}>
 
                 <h4 className={`text-[clamp(1.1rem,2vw,1.5rem)] font-extrabold uppercase tracking-[0.02em] ${isDarkMode ? 'text-white' : 'text-[#120533]'}`}>
@@ -242,7 +242,7 @@ export function TrialContact({ isDarkMode = false }: { isDarkMode?: boolean }) {
                         className={`h-[clamp(2.25rem,3vw,2.75rem)] w-full rounded-xl border px-4 text-[clamp(0.8rem,1vw,0.875rem)] transition focus:outline-none focus:ring-1 ${
                           isDarkMode 
                             ? 'border-white/8 bg-[#192058] text-white placeholder:text-white/25 focus:border-[#a855f7]/70 focus:bg-[#1e2870] focus:ring-[#a855f7]/30' 
-                            : 'border-[#e5e5ed] bg-[#f8f8fb] text-[#120533] placeholder:text-[#888899] focus:border-[#9333ea]/40 focus:bg-[#fff] focus:ring-[#9333ea]/30'
+                            : 'border-[#c1c1cd] bg-[#f8f8fb] text-[#120533] placeholder:text-[#888899] focus:border-[#9333ea]/40 focus:bg-[#fff] focus:ring-[#9333ea]/30'
                         }`}
                         suppressHydrationWarning
                       />
@@ -263,7 +263,7 @@ export function TrialContact({ isDarkMode = false }: { isDarkMode?: boolean }) {
                       className={`w-full resize-none rounded-xl border px-4 py-3 text-[clamp(0.8rem,1vw,0.875rem)] transition focus:outline-none focus:ring-1 ${
                         isDarkMode 
                           ? 'border-white/8 bg-[#192058] text-white placeholder:text-white/25 focus:border-[#a855f7]/70 focus:bg-[#1e2870] focus:ring-[#a855f7]/30' 
-                          : 'border-[#e5e5ed] bg-[#f8f8fb] text-[#120533] placeholder:text-[#888899] focus:border-[#9333ea]/40 focus:bg-[#fff] focus:ring-[#9333ea]/30'
+                          : 'border-[#c1c1cd] bg-[#f8f8fb] text-[#120533] placeholder:text-[#888899] focus:border-[#9333ea]/40 focus:bg-[#fff] focus:ring-[#9333ea]/30'
                       }`}
                       suppressHydrationWarning
                     />

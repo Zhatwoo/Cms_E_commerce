@@ -14,9 +14,10 @@ interface AuthModalProps {
   onClose: () => void;
   initialMode?: AuthMode;
   initialEmail?: string;
+  isDarkMode?: boolean;
 }
 
-export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail = '' }: AuthModalProps) {
+export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail = '', isDarkMode = false }: AuthModalProps) {
   const router = useRouter();
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [email, setEmail] = useState('');
@@ -159,7 +160,11 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
             }}
             className="fixed z-50 w-full max-w-md left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
           >
-            <div className="relative overflow-hidden rounded-3xl border border-[#4f36b8]/55 bg-[#09022f]/95 p-8 shadow-[0_24px_80px_rgba(8,3,36,0.75)]">
+            <div className={`relative overflow-hidden rounded-3xl border p-8 ${
+              isDarkMode 
+                ? 'border-[#4f36b8]/55 bg-[#09022f]/95 shadow-[0_24px_80px_rgba(8,3,36,0.75)]' 
+                : 'border-[#c1c1cd] bg-white/95 shadow-[0_20px_60px_rgba(0,0,0,0.15)]'
+            }`}>
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(168,85,247,0.2),transparent_40%),radial-gradient(circle_at_85%_15%,rgba(255,204,0,0.09),transparent_35%)]" />
 
               <div className="relative z-10">
@@ -167,23 +172,25 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
               <div className="flex items-center justify-between mb-6">
                 <Link
                   href="/"
-                  className="flex items-center gap-2 text-white"
+                  className="flex items-center gap-2"
                 >
-                  <span className="grid h-7 w-7 place-items-center rounded-md bg-[#1a0a62] ring-1 ring-white/10">
+                  <span className={`grid h-7 w-7 place-items-center rounded-md ring-1 ${isDarkMode ? 'bg-[#1a0a62] ring-white/10' : 'bg-white ring-black/10'}`}>
                     <Image
                       src="/img/centric-logo.svg"
                       alt="Centric logo"
                       width={20}
                       height={20}
-                      className="h-5 w-5"
+                      className={`h-5 w-5 ${isDarkMode ? '' : 'brightness-0'}`}
                       priority
                     />
                   </span>
-                  <span className="text-[1.9rem] font-semibold leading-none tracking-tight">Centric</span>
+                  <span className={`text-[1.9rem] font-semibold leading-none tracking-tight ${isDarkMode ? 'text-white' : 'text-[#120533]'}`}>Centric</span>
                 </Link>
                 <button
                   onClick={onClose}
-                  className="rounded-lg p-2 text-white/65 transition-colors hover:bg-white/10 hover:text-white"
+                  className={`rounded-lg p-2 transition-colors ${
+                    isDarkMode ? 'text-white/65 hover:bg-white/10 hover:text-white' : 'text-[#888899] hover:bg-[#f0f0f4] hover:text-[#120533]'
+                  }`}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -198,8 +205,8 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                     onClick={() => { setMode('login'); setError(''); }}
                     className={`pb-3 px-2 text-lg font-semibold transition-colors ${
                       mode === 'login'
-                        ? 'text-white border-b-2 border-[#ffcc00]'
-                        : 'text-white/55 hover:text-white/80'
+                        ? (isDarkMode ? 'text-white border-b-2 border-[#ffcc00]' : 'text-[#120533] border-b-2 border-[#f5a213]')
+                        : (isDarkMode ? 'text-white/55 hover:text-white/80' : 'text-[#888899] hover:text-[#120533]')
                     }`}
                   >
                     Login
@@ -208,8 +215,8 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                     onClick={() => { setMode('register'); setError(''); }}
                     className={`pb-3 px-2 text-lg font-semibold transition-colors ${
                       mode === 'register'
-                        ? 'text-white border-b-2 border-[#ffcc00]'
-                        : 'text-white/55 hover:text-white/80'
+                        ? (isDarkMode ? 'text-white border-b-2 border-[#ffcc00]' : 'text-[#120533] border-b-2 border-[#f5a213]')
+                        : (isDarkMode ? 'text-white/55 hover:text-white/80' : 'text-[#888899] hover:text-[#120533]')
                     }`}
                   >
                     Sign up
@@ -226,8 +233,8 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <h1 className="text-5xl font-black leading-none text-white">Log in</h1>
-                  <p className="mt-3 text-base text-white/65">
+                  <h1 className={`text-5xl font-black leading-none ${isDarkMode ? 'text-white' : 'text-[#120533]'}`}>Log in</h1>
+                  <p className={`mt-3 text-base ${isDarkMode ? 'text-white/65' : 'text-[#616170]'}`}>
                     Welcome back. Enter your credentials to continue.
                   </p>
                   <form className="mt-8 space-y-5" onSubmit={handleLogin}>
@@ -237,7 +244,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                       </p>
                     )}
                     <div>
-                      <label htmlFor="login-email" className="block text-[1.75rem] font-bold text-white/95 leading-none">
+                      <label htmlFor="login-email" className={`block text-[1.75rem] font-bold leading-none ${isDarkMode ? 'text-white/95' : 'text-[#120533]'}`}>
                         Email
                       </label>
                       <input
@@ -247,11 +254,15 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                         placeholder="Enter your email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="dark-input mt-3 w-full rounded-xl border border-white/25 bg-[#10131d]/85 px-4 py-3 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:outline-none focus:ring-2 focus:ring-[#8b3dff]/35"
+                        className={`dark-input mt-3 w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 ${
+                          isDarkMode 
+                            ? 'border-white/25 bg-[#10131d]/85 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:ring-[#8b3dff]/35' 
+                            : 'border-[#c1c1cd] bg-[#f8f8fb] text-[#120533] placeholder:text-[#888899] focus:border-[#8b3dff] focus:ring-[#8b3dff]/35'
+                        }`}
                       />
                     </div>
                     <div>
-                      <label htmlFor="login-password" className="block text-[1.75rem] font-bold text-white/95 leading-none">
+                      <label htmlFor="login-password" className={`block text-[1.75rem] font-bold leading-none ${isDarkMode ? 'text-white/95' : 'text-[#120533]'}`}>
                         Password
                       </label>
                       <input
@@ -261,7 +272,11 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                         placeholder="Password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="dark-input mt-3 w-full rounded-xl border border-white/25 bg-[#10131d]/85 px-4 py-3 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:outline-none focus:ring-2 focus:ring-[#8b3dff]/35"
+                        className={`dark-input mt-3 w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 ${
+                          isDarkMode 
+                            ? 'border-white/25 bg-[#10131d]/85 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:ring-[#8b3dff]/35' 
+                            : 'border-[#c1c1cd] bg-[#f8f8fb] text-[#120533] placeholder:text-[#888899] focus:border-[#8b3dff] focus:ring-[#8b3dff]/35'
+                        }`}
                       />
                       <Link
                         href="/auth/forgotPassword"
@@ -290,8 +305,8 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <h1 className="text-4xl font-black leading-none text-white">Create account</h1>
-                  <p className="mt-3 text-base text-white/65">
+                  <h1 className={`text-4xl font-black leading-none ${isDarkMode ? 'text-white' : 'text-[#120533]'}`}>Create account</h1>
+                  <p className={`mt-3 text-base ${isDarkMode ? 'text-white/65' : 'text-[#616170]'}`}>
                     Get started with Centric. Fill in your details below.
                   </p>
                   <form className="mt-8 space-y-5" onSubmit={handleRegister}>
@@ -301,7 +316,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                       </p>
                     )}
                     <div>
-                      <label htmlFor="reg-name" className="block text-sm font-semibold text-white/90">
+                      <label htmlFor="reg-name" className={`block text-sm font-semibold ${isDarkMode ? 'text-white/90' : 'text-[#120533]'}`}>
                         Full name
                       </label>
                       <input
@@ -311,11 +326,15 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                         placeholder="Jane Doe"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        className="dark-input mt-2 w-full rounded-xl border border-white/25 bg-[#10131d]/85 px-4 py-3 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:outline-none focus:ring-2 focus:ring-[#8b3dff]/35"
+                        className={`dark-input mt-2 w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 ${
+                          isDarkMode 
+                            ? 'border-white/25 bg-[#10131d]/85 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:ring-[#8b3dff]/35' 
+                            : 'border-[#c1c1cd] bg-[#f8f8fb] text-[#120533] placeholder:text-[#888899] focus:border-[#8b3dff] focus:ring-[#8b3dff]/35'
+                        }`}
                       />
                     </div>
                     <div>
-                      <label htmlFor="reg-email" className="block text-sm font-semibold text-white/90">
+                      <label htmlFor="reg-email" className={`block text-sm font-semibold ${isDarkMode ? 'text-white/90' : 'text-[#120533]'}`}>
                         Email
                       </label>
                       <input
@@ -325,11 +344,15 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                         placeholder="you@example.com"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="dark-input mt-2 w-full rounded-xl border border-white/25 bg-[#10131d]/85 px-4 py-3 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:outline-none focus:ring-2 focus:ring-[#8b3dff]/35"
+                        className={`dark-input mt-2 w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 ${
+                          isDarkMode 
+                            ? 'border-white/25 bg-[#10131d]/85 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:ring-[#8b3dff]/35' 
+                            : 'border-[#c1c1cd] bg-[#f8f8fb] text-[#120533] placeholder:text-[#888899] focus:border-[#8b3dff] focus:ring-[#8b3dff]/35'
+                        }`}
                       />
                     </div>
                     <div>
-                      <label htmlFor="reg-password" className="block text-sm font-semibold text-white/90">
+                      <label htmlFor="reg-password" className={`block text-sm font-semibold ${isDarkMode ? 'text-white/90' : 'text-[#120533]'}`}>
                         Password
                       </label>
                       <input
@@ -339,9 +362,13 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                         placeholder="••••••••"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="dark-input mt-2 w-full rounded-xl border border-white/25 bg-[#10131d]/85 px-4 py-3 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:outline-none focus:ring-2 focus:ring-[#8b3dff]/35"
+                        className={`dark-input mt-2 w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 ${
+                          isDarkMode 
+                            ? 'border-white/25 bg-[#10131d]/85 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:ring-[#8b3dff]/35' 
+                            : 'border-[#c1c1cd] bg-[#f8f8fb] text-[#120533] placeholder:text-[#888899] focus:border-[#8b3dff] focus:ring-[#8b3dff]/35'
+                        }`}
                       />
-                      <p className="mt-1.5 text-xs text-white/60">At least 6 characters</p>
+                      <p className={`mt-1.5 text-xs ${isDarkMode ? 'text-white/60' : 'text-[#888899]'}`}>At least 6 characters</p>
                     </div>
                     <button
                       type="submit"
@@ -369,13 +396,13 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
                   </div>
-                  <h1 className="mt-6 text-4xl font-black leading-none text-white">Check your email</h1>
-                  <p className="mt-3 text-sm text-white/70">
+                  <h1 className={`mt-6 text-4xl font-black leading-none ${isDarkMode ? 'text-white' : 'text-[#120533]'}`}>Check your email</h1>
+                  <p className={`mt-3 text-sm ${isDarkMode ? 'text-white/70' : 'text-[#616170]'}`}>
                     We sent a confirmation link to
-                    <span className="block mt-1 font-medium text-white/90">{pendingEmail || email || 'your email address'}</span>
+                    <span className={`block mt-1 font-medium ${isDarkMode ? 'text-white/90' : 'text-[#120533]'}`}>{pendingEmail || email || 'your email address'}</span>
                     Click the link to confirm your account, then you can log in.
                   </p>
-                  <p className="mt-4 text-xs text-white/60">Didn&apos;t get the email? Check your spam folder.</p>
+                  <p className={`mt-4 text-xs ${isDarkMode ? 'text-white/60' : 'text-[#888899]'}`}>Didn&apos;t get the email? Check your spam folder.</p>
 
                   {resendMessage && (
                     <p className={`mt-4 text-sm ${resendMessage.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`} role="alert">

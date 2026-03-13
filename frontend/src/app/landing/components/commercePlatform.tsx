@@ -65,7 +65,7 @@ export function CommercePlatform({ isDarkMode = false }: { isDarkMode?: boolean 
 
   const cardBase = isDarkMode
     ? 'border border-[#2a2075]/80 bg-gradient-to-b from-[#13106a]/90 to-[#0d0a55]/90 shadow-[0_20px_60px_rgba(5,2,38,0.65)]'
-    : 'border border-[#e5e5ed] bg-white shadow-[0_16px_40px_rgba(20,20,50,0.06)]';
+    : 'border border-[#c1c1cd] bg-white shadow-[0_16px_40px_rgba(20,20,50,0.06)]';
 
   const featuredCard = isDarkMode
     ? 'border-2 border-[#6b3fd4]/70 bg-gradient-to-b from-[#16126e]/95 to-[#0e0b58]/95 shadow-[0_24px_70px_rgba(5,2,38,0.7),0_0_0_1px_rgba(107,63,212,0.25)]'
@@ -73,7 +73,7 @@ export function CommercePlatform({ isDarkMode = false }: { isDarkMode?: boolean 
 
   const tagClass = isDarkMode
     ? 'bg-[#1b1f6e]/80 text-[#8d9bdc] border border-[#2d3580]/50'
-    : 'bg-[#f0f0f4] text-[#616170] border border-[#e5e5ed]';
+    : 'bg-[#f0f0f4] text-[#616170] border border-[#c1c1cd]';
 
   const chipClass = (color: string) =>
     isDarkMode
@@ -82,7 +82,7 @@ export function CommercePlatform({ isDarkMode = false }: { isDarkMode?: boolean 
 
   const gridCellClass = isDarkMode
     ? 'bg-gradient-to-br from-[#182070] to-[#111660] border border-[#252c85]/50'
-    : 'bg-[#f8f8fb] border border-[#e5e5ed]';
+    : 'bg-[#f8f8fb] border border-[#c1c1cd]';
 
   const dotRow = isDarkMode
     ? ['bg-[#ff5f57]', 'bg-[#febc2e]', 'bg-[#28c840]']
@@ -133,7 +133,7 @@ export function CommercePlatform({ isDarkMode = false }: { isDarkMode?: boolean 
           <div className={`mx-auto mt-8 flex max-w-[480px] items-center justify-center gap-0 divide-x rounded-2xl border p-1 ${
             isDarkMode
               ? 'divide-[#2a2075]/60 border-[#2a2075]/60 bg-[#0f0c5a]/50'
-              : 'divide-[#e5e5ed] border-[#e5e5ed] bg-white/80'
+              : 'divide-[#c1c1cd] border-[#c1c1cd] bg-white/80'
           }`}>
             {[
               { n: '2.4k+', label: 'Stores built' },

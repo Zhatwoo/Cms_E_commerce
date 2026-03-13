@@ -44,7 +44,7 @@ export function CentricTools({ isDarkMode = false }: { isDarkMode?: boolean }) {
   /* ─── Section / wrapper tokens (respond to isDarkMode) ─── */
   const section = isDarkMode
     ? 'border-[#281b78] bg-[#0a0141] text-white'
-    : 'border-[#e5e5ed] bg-white text-[#120533]';
+    : 'border-[#c1c1cd] bg-white text-[#120533]';
 
   const outer = isDarkMode
     ? 'bg-[#0b0646] shadow-[0_26px_80px_rgba(6,3,37,0.72)]'
@@ -61,23 +61,23 @@ export function CentricTools({ isDarkMode = false }: { isDarkMode?: boolean }) {
   const eyebrowDot = isDarkMode ? 'bg-[#a78bfa]' : 'bg-[#8b3dff]';
 
   /* ─── Frames (toggle based on isDarkMode) ─── */
-  const card    = isDarkMode ? 'bg-[#0d1733]' : 'bg-white border border-[#e5e5ed] shadow-sm';
+  const card    = isDarkMode ? 'bg-[#0d1733]' : 'bg-white border border-[#c1c1cd] shadow-[0_2px_12px_rgba(0,0,0,0.06)]';
   const cardTxt = isDarkMode ? 'text-white' : 'text-[#120533]';
 
   const frameDesc    = isDarkMode ? 'text-white/55' : 'text-[#888899]';
   const frameHead    = isDarkMode ? 'text-white' : 'text-[#120533]';
-  const frameRow     = isDarkMode ? 'border-white/10 bg-white/5' : 'border-[#e5e5ed] bg-white';
-  const frameIcon    = isDarkMode ? 'bg-white/5 text-white/80' : 'bg-[#f0f0f4] text-[#888899]';
-  const framePill    = isDarkMode ? 'bg-[#1b2b68] text-[#95a2d6]' : 'bg-[#f0f0f4] text-[#888899]';
-  const frameBtn     = isDarkMode ? 'border-white/10 bg-white/6 text-white/90 hover:bg-white/10 hover:border-white/20' : 'border-[#e5e5ed] bg-[#f8f8fb] text-[#120533] hover:bg-[#f0f0f4]';
-  const frameSk      = isDarkMode ? 'bg-white/7' : 'bg-[#f0f0f4]';
-  const frameSkMd    = isDarkMode ? 'bg-white/10' : 'bg-[#e5e5ed]';
-  const frameHtml    = isDarkMode ? 'border-white/8 bg-white/8 text-[#8da0e4]' : 'border-[#e5e5ed] bg-[#f8f8fb] text-[#888899]';
-  const frameCode    = isDarkMode ? 'border-white/8 bg-[#0a0e2a]/50 text-white/35' : 'border-[#e5e5ed] bg-[#f8f8fb] text-[#888899]';
-  const frameDivLine = isDarkMode ? 'border-white/15' : 'border-[#e5e5ed]';
+  const frameRow     = isDarkMode ? 'border-white/10 bg-white/5' : 'border-[#c1c1cd] bg-white';
+  const frameIcon    = isDarkMode ? 'bg-white/5 text-white/80' : 'bg-[#e2e2ea] text-[#888899]';
+  const framePill    = isDarkMode ? 'bg-[#1b2b68] text-[#95a2d6]' : 'bg-[#e2e2ea] text-[#888899]';
+  const frameBtn     = isDarkMode ? 'border-white/10 bg-white/6 text-white/90 hover:bg-white/10 hover:border-white/20' : 'border-[#c1c1cd] bg-[#f8f8fb] text-[#120533] hover:bg-[#e2e2ea]';
+  const frameSk      = isDarkMode ? 'bg-white/7' : 'bg-[#e2e2ea]';
+  const frameSkMd    = isDarkMode ? 'bg-white/10' : 'bg-[#d1d1dd]';
+  const frameHtml    = isDarkMode ? 'border-white/8 bg-white/8 text-[#8da0e4]' : 'border-[#c1c1cd] bg-[#f8f8fb] text-[#888899]';
+  const frameCode    = isDarkMode ? 'border-white/8 bg-[#0a0e2a]/50 text-white/35' : 'border-[#c1c1cd] bg-[#f8f8fb] text-[#888899]';
+  const frameDivLine = isDarkMode ? 'border-white/15' : 'border-[#c1c1cd]';
   const frameTabAct  = isDarkMode ? 'text-[#ffcc00]' : 'text-[#f5a213]';
   const frameTabBar  = isDarkMode ? 'bg-[#ffcc00]' : 'bg-[#f5a213]';
-  const frameHtmlBdg = isDarkMode ? 'border-[#2d3580]/50 bg-[#1b1f6e]/60 text-[#ffcc00]' : 'border-[#e5e5ed] bg-[#f8f8fb] text-[#f5a213]';
+  const frameHtmlBdg = isDarkMode ? 'border-[#2d3580]/50 bg-[#1b1f6e]/60 text-[#ffcc00]' : 'border-[#c1c1cd] bg-[#f8f8fb] text-[#f5a213]';
   const frameAddSrc  = isDarkMode ? 'border-white/10 hover:border-white/20 hover:bg-white/5' : 'border-[#d0d0dc] hover:border-[#888899] hover:bg-[#f8f8fb] text-[#888899]';
 
   return (

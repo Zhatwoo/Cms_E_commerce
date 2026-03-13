@@ -185,6 +185,7 @@ export function LandingPageClient({ children }: { children: React.ReactNode }) {
         onClose={() => setAuthModalOpen(false)}
         initialMode={authMode}
         initialEmail={authEmail}
+        isDarkMode={isDarkMode}
       />
     </>
   );

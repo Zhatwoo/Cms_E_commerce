@@ -284,14 +284,6 @@ export function Hero({ isDarkMode = false }: { isDarkMode?: boolean }) {
               <span className="relative z-10">Start for Free</span>
             </button>
           )}
-
-          <button suppressHydrationWarning className={`rounded-full border px-7 py-3 text-sm font-semibold backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 sm:px-9 sm:text-base ${
-            isDarkMode 
-              ? 'border-white/20 bg-white/5 text-white/80 hover:border-white/35 hover:bg-white/10' 
-              : 'border-black/10 bg-white text-[#120533] hover:border-black/20 shadow-sm'
-          }`}>
-            Watch Demo →
-          </button>
         </motion.div>
 
         {/* Social proof */}
@@ -318,16 +310,16 @@ export function Hero({ isDarkMode = false }: { isDarkMode?: boolean }) {
           className={`mt-12 h-[clamp(300px,46vh,520px)] w-full max-w-[1100px] overflow-hidden rounded-t-2xl border border-b-0 shadow-2xl md:mt-16 xl:max-w-[1300px] ${
             isDarkMode 
               ? 'border-[#5f45d5]/55 bg-[#11065a]/95 shadow-[0_-30px_80px_rgba(24,5,90,0.85)]' 
-              : 'border-[#e5e5ed] bg-[#fdfdfd] shadow-[0_-30px_80px_rgba(20,20,50,0.05)]'
+              : 'border-[#c1c1cd] bg-[#fdfdfd] shadow-[0_-30px_80px_rgba(20,20,50,0.05)]'
           }`}
         >
           {/* Window chrome */}
-          <div className={`flex h-10 items-center gap-2 border-b px-5 ${isDarkMode ? 'border-white/10 bg-[#1c0d72]' : 'border-[#e5e5ed] bg-[#f2f2f5]'}`}>
+          <div className={`flex h-10 items-center gap-2 border-b px-5 ${isDarkMode ? 'border-white/10 bg-[#1c0d72]' : 'border-[#c1c1cd] bg-[#f2f2f5]'}`}>
             <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
             <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
             <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
             <span className={`mx-auto flex items-center gap-1.5 rounded-md border px-3 py-0.5 text-[10px] ${
-              isDarkMode ? 'border-white/10 bg-white/5 text-white/40' : 'border-[#e0e0e8] bg-white text-[#888899]'
+              isDarkMode ? 'border-white/10 bg-white/5 text-white/40' : 'border-[#c1c1cd] bg-white text-[#888899]'
             }`}>
               <span>⚡</span> centric.app/builder/project-frontend
             </span>
@@ -336,7 +328,7 @@ export function Hero({ isDarkMode = false }: { isDarkMode?: boolean }) {
           {/* Main layout */}
           <div className="flex h-[calc(100%-2.5rem)]">
             {/* Sidebar */}
-            <div className={`hidden w-[200px] flex-col gap-3 border-r p-4 lg:flex xl:w-[250px] xl:p-5 ${isDarkMode ? 'border-white/10 bg-[#0f0551]' : 'border-[#e5e5ed] bg-[#fdfdfd]'}`}>
+            <div className={`hidden w-[200px] flex-col gap-3 border-r p-4 lg:flex xl:w-[250px] xl:p-5 ${isDarkMode ? 'border-white/10 bg-[#0f0551]' : 'border-[#c1c1cd] bg-[#fdfdfd]'}`}>
               <p className={`mb-1 text-[10px] font-bold uppercase tracking-widest ${isDarkMode ? 'text-white/30' : 'text-[#888899]'}`}>Layers</p>
               {['Header Block', 'Hero Section', 'Feature Grid', 'Footer'].map((name, i) => (
                 <div
@@ -344,7 +336,7 @@ export function Hero({ isDarkMode = false }: { isDarkMode?: boolean }) {
                   className={`flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-medium transition-colors ${
                     i < visibleBlocks.length
                       ? isDarkMode ? 'border-[#7c3aed]/60 bg-[#7c3aed]/15 text-white/90' : 'border-[#a855f7]/40 bg-[#a855f7]/10 text-[#a855f7]'
-                      : isDarkMode ? 'border-white/10 bg-white/5 text-white/40' : 'border-[#e5e5ed] bg-white text-[#888899]'
+                      : isDarkMode ? 'border-white/10 bg-white/5 text-white/40' : 'border-[#c1c1cd] bg-white text-[#888899]'
                   }`}
                 >
                   <span className={`h-1.5 w-1.5 rounded-full ${i < visibleBlocks.length ? (isDarkMode ? 'bg-[#ffcc00]' : 'bg-[#a855f7]') : (isDarkMode ? 'bg-white/20' : 'bg-[#d0d0dc]')}`} />
@@ -410,10 +402,10 @@ export function Hero({ isDarkMode = false }: { isDarkMode?: boolean }) {
                     animate={{ opacity: 1, scaleX: 1, y: 0 }}
                     transition={{ type: 'spring', stiffness: 380, damping: 28 }}
                     className={`flex h-9 items-center gap-2 rounded-lg border px-4 xl:h-10 ${
-                      isDarkMode ? 'border-white/10 bg-white/5' : 'border-[#e5e5ed] bg-white'
+                      isDarkMode ? 'border-white/10 bg-white/5' : 'border-[#c1c1cd] bg-white'
                     }`}
                   >
-                    <span className={`h-2 w-2 rounded-full ${isDarkMode ? 'bg-white/20' : 'bg-[#e5e5ed]'}`} />
+                    <span className={`h-2 w-2 rounded-full ${isDarkMode ? 'bg-white/20' : 'bg-[#d1d1dd]'}`} />
                     <span className={`h-2 w-16 rounded-full ${isDarkMode ? 'bg-white/10' : 'bg-[#f0f0f4]'}`} />
                     <span className={`ml-auto h-2 w-10 rounded-full ${isDarkMode ? 'bg-[#ffcc00]/25' : 'bg-[#f5a213]/25'}`} />
                   </motion.div>
@@ -459,11 +451,11 @@ export function Hero({ isDarkMode = false }: { isDarkMode?: boolean }) {
                       className={`h-16 rounded-xl border md:h-24 xl:h-28 ${
                         isDarkMode 
                           ? 'border-[#5a42bf] bg-gradient-to-br from-[#15096a] to-[#0f0551] shadow-[0_0_20px_rgba(90,66,191,0.2)]'
-                          : 'border-[#e5e5ed] bg-white shadow-sm'
+                          : 'border-[#c1c1cd] bg-white shadow-sm'
                       }`}
                     >
                       <div className="flex h-full flex-col justify-between p-3">
-                        <div className={`h-1.5 w-1/2 rounded-full ${isDarkMode ? 'bg-white/15' : 'bg-[#e5e5ed]'}`} />
+                        <div className={`h-1.5 w-1/2 rounded-full ${isDarkMode ? 'bg-white/15' : 'bg-[#d1d1dd]'}`} />
                         <div className={`h-1.5 w-3/4 rounded-full ${isDarkMode ? 'bg-white/10' : 'bg-[#f0f0f4]'}`} />
                       </div>
                     </motion.div>
@@ -478,11 +470,11 @@ export function Hero({ isDarkMode = false }: { isDarkMode?: boolean }) {
                       className={`h-16 rounded-xl border md:h-24 xl:h-28 ${
                         isDarkMode 
                           ? 'border-[#5a42bf] bg-gradient-to-br from-[#15096a] to-[#0f0551] shadow-[0_0_20px_rgba(90,66,191,0.2)]'
-                          : 'border-[#e5e5ed] bg-white shadow-sm'
+                          : 'border-[#c1c1cd] bg-white shadow-sm'
                       }`}
                     >
                       <div className="flex h-full flex-col justify-between p-3">
-                        <div className={`h-1.5 w-2/3 rounded-full ${isDarkMode ? 'bg-white/15' : 'bg-[#e5e5ed]'}`} />
+                        <div className={`h-1.5 w-2/3 rounded-full ${isDarkMode ? 'bg-white/15' : 'bg-[#d1d1dd]'}`} />
                         <div className={`h-1.5 w-1/2 rounded-full ${isDarkMode ? 'bg-white/10' : 'bg-[#f0f0f4]'}`} />
                       </div>
                     </motion.div>
