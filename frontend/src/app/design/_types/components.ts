@@ -114,7 +114,7 @@ export interface LayerProps {
 /** Position & display properties → PositionGroup */
 export interface PositionProps extends LayerProps {
   position?: "static" | "relative" | "absolute" | "fixed" | "sticky";
-  display?: "flex" | "grid" | "block" | "inline-block" | "none";
+  display?: "flex" | "inline-flex" | "grid" | "block" | "inline-block" | "none";
   zIndex?: number;
   top?: string;
   right?: string;
