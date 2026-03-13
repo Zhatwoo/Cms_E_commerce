@@ -51,7 +51,7 @@ const PLANS = [
     period: '/month',
     accent: 'violet',
     description: 'Perfect for starters and small teams.',
-    features: ['1 Custom Domain', 'Up to 500 Products', 'Basic Analytics', '24/7 Email Support'],
+    features: ['1 Custom Domain', 'Up to 500 Products', 'Code Editor Access', 'Priority 24/7 Support'],
     buttonLabel: 'Select Standard',
   },
   {
@@ -63,9 +63,8 @@ const PLANS = [
     features: [
       'Unlimited Domains',
       'Unlimited Products',
-      'Advanced Analytics & Reporting',
       'Priority 24/7 Support',
-      'API Access & Webhooks',
+      'Code Editor Access',
     ],
     buttonLabel: 'Select Premium',
   },

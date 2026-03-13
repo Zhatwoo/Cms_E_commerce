@@ -18,7 +18,7 @@ import {
     Sun
 } from 'lucide-react';
 
-type SettingTab = 'notifications' | 'security' | 'appearance' | 'api' | 'billing';
+type SettingTab = 'notifications' | 'security' | 'appearance' | 'billing';
 
 export default function SettingsPage() {
     const { colors, theme, toggleTheme } = useTheme();
@@ -36,7 +36,6 @@ export default function SettingsPage() {
         { id: 'notifications' as SettingTab, label: 'Notifications', icon: Bell },
         { id: 'security' as SettingTab, label: 'Security', icon: Shield },
         { id: 'appearance' as SettingTab, label: 'Appearance', icon: Palette },
-        { id: 'api' as SettingTab, label: 'API Keys', icon: Code },
         { id: 'billing' as SettingTab, label: 'Billing', icon: CreditCard },
     ];
 
@@ -439,17 +438,6 @@ export default function SettingsPage() {
                             </>
                         )}
 
-                        {/* API Keys Settings */}
-                        {activeTab === 'api' && (
-                            <>
-                                <div>
-                                    <h2 className="text-xl font-semibold mb-1" style={{ color: colors.text.primary }}>
-                                        API Keys
-                                    </h2>
-                                    <p className="text-sm" style={{ color: colors.text.muted }}>
-                                        Manage your API keys for integrations
-                                    </p>
-                                </div>
 
                                 <div className="space-y-4">
                                     <div 

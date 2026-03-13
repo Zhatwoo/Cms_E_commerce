@@ -46,7 +46,6 @@ const navItems: SidebarItem[] = [
   { id: 'products', label: 'Products', icon: <ProductsIcon />, href: '/m_dashboard/products' },
   { id: 'inventory', label: 'Inventory', icon: <InventoryIcon />, href: '/m_dashboard/inventory' },
   { id: 'orders', label: 'Orders', icon: <OrdersIcon />, href: '/m_dashboard/orders' },
-  { id: 'analytics', label: 'Analytics', icon: <AnalyticsIcon />, href: '/m_dashboard/analytics' },
   { id: 'domains', label: 'Domains', icon: <DomainsIcon />, href: '/m_dashboard/domains' },
   { id: 'subscription', label: 'Subscription', icon: <SubscriptionIcon />, href: '/m_dashboard/subscription' },
   { id: 'settings', label: 'Settings', icon: <SettingsIcon />, href: '/m_dashboard/settings' },

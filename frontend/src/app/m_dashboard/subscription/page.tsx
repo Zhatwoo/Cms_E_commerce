@@ -78,11 +78,8 @@ const COMPARISON_ROWS = [
   { label: 'Projects', values: [String(SUBSCRIPTION_LIMITS.free.projects), String(SUBSCRIPTION_LIMITS.basic.projects), 'Unlimited', 'Custom'] },
   { label: 'Domains', values: [String(SUBSCRIPTION_LIMITS.free.domains), String(SUBSCRIPTION_LIMITS.basic.domains), 'Unlimited', 'Custom'] },
   { label: 'Products', values: ['100', '500', 'Unlimited', 'Custom'] },
-  { label: 'Analytics', values: ['—', 'Basic', 'Advanced', 'Advanced'] },
-  { label: 'Code Editor', values: ['—', '—', '✓', '✓'] },
-  { label: 'Support', values: ['Community', 'Email', 'Priority', 'Dedicated'] },
-  { label: 'API Access', values: ['—', '—', '✓', '✓'] },
-  { label: 'White-label', values: ['—', '—', '—', '✓'] },
+  { label: 'Code Editor', values: ['—', 'Access', '✓', '✓'] },
+  { label: 'Support', values: ['Community', 'Priority', 'Priority', 'Dedicated'] },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
