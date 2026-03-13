@@ -18,7 +18,7 @@ import {
     Sun
 } from 'lucide-react';
 
-type SettingTab = 'notifications' | 'security' | 'appearance' | 'api' | 'billing';
+type SettingTab = 'notifications' | 'security' | 'appearance' | 'billing';
 
 export default function SettingsPage() {
     const { colors, theme, toggleTheme } = useTheme();
@@ -36,7 +36,6 @@ export default function SettingsPage() {
         { id: 'notifications' as SettingTab, label: 'Notifications', icon: Bell },
         { id: 'security' as SettingTab, label: 'Security', icon: Shield },
         { id: 'appearance' as SettingTab, label: 'Appearance', icon: Palette },
-        { id: 'api' as SettingTab, label: 'API Keys', icon: Code },
         { id: 'billing' as SettingTab, label: 'Billing', icon: CreditCard },
     ];
 
@@ -439,97 +438,7 @@ export default function SettingsPage() {
                             </>
                         )}
 
-                        {/* API Keys Settings */}
-                        {activeTab === 'api' && (
-                            <>
-                                <div>
-                                    <h2 className="text-xl font-semibold mb-1" style={{ color: colors.text.primary }}>
-                                        API Keys
-                                    </h2>
-                                    <p className="text-sm" style={{ color: colors.text.muted }}>
-                                        Manage your API keys for integrations
-                                    </p>
-                                </div>
 
-                                <div className="space-y-4">
-                                    <div 
-                                        className="p-4 rounded-lg border"
-                                        style={{ backgroundColor: colors.bg.elevated, borderColor: colors.border.faint }}
-                                    >
-                                        <div className="flex items-start justify-between mb-2">
-                                            <div>
-                                                <h3 className="font-medium" style={{ color: colors.text.primary }}>
-                                                    Production API Key
-                                                </h3>
-                                                <p className="text-xs mt-1" style={{ color: colors.text.muted }}>
-                                                    Last used 2 days ago
-                                                </p>
-                                            </div>
-                                            <span className="px-2 py-1 rounded text-xs font-medium bg-green-500/10 text-green-600">
-                                                Active
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-2 mt-3">
-                                            <code 
-                                                className="flex-1 px-3 py-2 rounded border text-sm font-mono"
-                                                style={{ 
-                                                    backgroundColor: colors.bg.elevated,
-                                                    borderColor: colors.border.faint,
-                                                    color: colors.text.secondary
-                                                }}
-                                            >
-                                                sk_live_••••••••••••••••1234
-                                            </code>
-                                            <button className="px-4 py-2 rounded-lg text-white text-sm font-medium transition-opacity hover:opacity-85"
-                                                style={{ background: 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' }}>
-                                                Copy
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div 
-                                        className="p-4 rounded-lg border"
-                                        style={{ backgroundColor: colors.bg.elevated, borderColor: colors.border.faint }}
-                                    >
-                                        <div className="flex items-start justify-between mb-2">
-                                            <div>
-                                                <h3 className="font-medium" style={{ color: colors.text.primary }}>
-                                                    Development API Key
-                                                </h3>
-                                                <p className="text-xs mt-1" style={{ color: colors.text.muted }}>
-                                                    Last used 5 hours ago
-                                                </p>
-                                            </div>
-                                            <span className="px-2 py-1 rounded text-xs font-medium bg-green-500/10 text-green-600">
-                                                Active
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-2 mt-3">
-                                            <code 
-                                                className="flex-1 px-3 py-2 rounded border text-sm font-mono"
-                                                style={{ 
-                                                    backgroundColor: colors.bg.elevated,
-                                                    borderColor: colors.border.faint,
-                                                    color: colors.text.secondary
-                                                }}
-                                            >
-                                                sk_test_••••••••••••••••5678
-                                            </code>
-                                            <button className="px-4 py-2 rounded-lg text-white text-sm font-medium transition-opacity hover:opacity-85"
-                                                style={{ background: 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' }}>
-                                                Copy
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <button className="w-full py-3 rounded-lg border-2 border-dashed hover:bg-opacity-50 transition-colors text-sm font-medium"
-                                        style={{ borderColor: colors.border.faint, color: colors.text.secondary }}
-                                    >
-                                        + Create New API Key
-                                    </button>
-                                </div>
-                            </>
-                        )}
 
                         {/* Billing Settings */}
                         {activeTab === 'billing' && (
