@@ -156,6 +156,11 @@ function toDashboardStatus(status?: string): 'active' | 'inactive' | 'draft' {
 const RECENT_MOVEMENTS_LIMIT = 5;
 const ALL_MOVEMENTS_LIMIT    = 500;
 
+function isLocalMovementId(movementId?: string | null): boolean {
+  const id = String(movementId || '').trim();
+  return id.startsWith('local-');
+}
+
 type VariantGroup = { id: string; name: string; options: Array<{ id: string; name: string }> };
 
 function getVariantGroups(product: ApiProduct): VariantGroup[] {
@@ -793,13 +798,27 @@ export default function InventoryPage() {
     if (!deleteConfirmMovement?.id) return;
 
     try {
-      setDeletingMovementId(deleteConfirmMovement.id);
-      await deleteInventoryMovement(deleteConfirmMovement.id);
+      const movementId = String(deleteConfirmMovement.id || '').trim();
+      setDeletingMovementId(movementId);
+
+      if (movementId && !isLocalMovementId(movementId)) {
+        await deleteInventoryMovement(movementId, {
+          subdomain: selectedSubdomain || undefined,
+          projectId: selectedProject?.id ? String(selectedProject.id) : undefined,
+        });
+      }
+
+      if (movementId && isLocalMovementId(movementId)) {
+        localStatusMovementsRef.current = localStatusMovementsRef.current.filter(
+          (movement) => String(movement.id || '').trim() !== movementId
+        );
+      }
+
       await loadData();
       if (showAllMovementsModal) {
         await loadAllMovements();
       }
-      setSelectedMovementIds((prev) => prev.filter((id) => id !== deleteConfirmMovement.id));
+      setSelectedMovementIds((prev) => prev.filter((id) => id !== movementId));
       setDeleteConfirmMovement(null);
       showImportPopup('Inventory movement deleted.', 'success');
     } catch (err) {
@@ -810,7 +829,7 @@ export default function InventoryPage() {
     } finally {
       setDeletingMovementId(null);
     }
-  }, [deleteConfirmMovement, loadAllMovements, loadData, showAllMovementsModal, showImportPopup]);
+  }, [deleteConfirmMovement, loadAllMovements, loadData, selectedProject?.id, selectedSubdomain, showAllMovementsModal, showImportPopup]);
 
   useEffect(() => {
     if (!deleteConfirmMovement) return;
@@ -852,18 +871,37 @@ export default function InventoryPage() {
     if (count === 0) return;
     try {
       setBulkDeleteMode('selected');
-      const res = await bulkDeleteInventoryMovements({
-        ids: selectedMovementIds,
-        subdomain: selectedSubdomain || undefined,
-        projectId: selectedProject?.id ? String(selectedProject.id) : undefined,
-      });
+      const localIds = selectedMovementIds.filter((id) => isLocalMovementId(id));
+      const remoteIds = selectedMovementIds.filter((id) => !isLocalMovementId(id));
+
+      let backendDeletedCount = 0;
+      let backendMessage = '';
+      if (remoteIds.length > 0) {
+        const res = await bulkDeleteInventoryMovements({
+          ids: remoteIds,
+          subdomain: selectedSubdomain || undefined,
+          projectId: selectedProject?.id ? String(selectedProject.id) : undefined,
+        });
+        backendDeletedCount = Number(res.data?.deleted ?? remoteIds.length);
+        backendMessage = String(res.message || '').trim();
+      }
+
+      if (localIds.length > 0) {
+        const localIdSet = new Set(localIds);
+        localStatusMovementsRef.current = localStatusMovementsRef.current.filter(
+          (movement) => !localIdSet.has(String(movement.id || '').trim())
+        );
+      }
 
       await loadData();
       if (showAllMovementsModal) await loadAllMovements();
       setSelectedMovementIds([]);
 
-      const deletedCount = res.data?.deleted ?? count;
-      showImportPopup(res.message || `Deleted ${deletedCount} selected movement${deletedCount === 1 ? '' : 's'}.`, 'success');
+      const deletedCount = backendDeletedCount + localIds.length;
+      showImportPopup(
+        backendMessage || `Deleted ${deletedCount} selected movement${deletedCount === 1 ? '' : 's'}.`,
+        'success'
+      );
     } catch (err) {
       showImportPopup(
         err instanceof Error ? err.message : 'Failed to delete selected movements',
@@ -885,6 +923,7 @@ export default function InventoryPage() {
         projectId: selectedProject?.id ? String(selectedProject.id) : undefined,
       });
 
+      localStatusMovementsRef.current = [];
       await loadData();
       if (showAllMovementsModal) await loadAllMovements();
       setSelectedMovementIds([]);
@@ -1065,6 +1104,10 @@ export default function InventoryPage() {
         if (!confirmed) return;
       }
 
+      const previousStatus = String(baseProduct?.status ?? product.status ?? 'active').toLowerCase() === 'inactive'
+        ? 'inactive'
+        : 'active';
+
       setUpdatingProductStatusId(baseProductId);
       await updateProduct(baseProductId, { status: nextStatus });
       await loadData();
@@ -1074,7 +1117,7 @@ export default function InventoryPage() {
         productName: product.name || 'Product',
         type: 'STATUS',
         quantity: 0,
-        notes: `Product status changed to ${nextStatus}`,
+        notes: `Product status changed from ${previousStatus} → ${nextStatus}`,
         createdAt: new Date().toISOString(),
       });
       showImportPopup('Product status updated.', 'success');
@@ -1155,13 +1198,16 @@ export default function InventoryPage() {
     const color = kind === 'IN' ? T.green : kind === 'OUT' ? T.red : '#a5b4fc';
     const quantityText = kind === 'IN' ? `+${m.quantity}` : kind === 'OUT' ? String(m.quantity) : '•';
     const noteText = String(m.notes || 'Inventory movement');
-    const statusNoteMatch = noteText.match(/^Product status changed to\s+(active|inactive)$/i);
-    const statusValue = statusNoteMatch?.[1]?.toLowerCase();
-    const statusColor = statusValue === 'active' ? T.green : statusValue === 'inactive' ? T.red : T.text;
+    const statusTransitionMatch = noteText.match(/^Product status changed from\s+(active|inactive)\s*(?:->|→)\s*(active|inactive)$/i);
+    const statusSingleMatch = noteText.match(/^Product status changed to\s+(active|inactive)$/i);
+    const fromStatus = statusTransitionMatch?.[1]?.toLowerCase();
+    const toStatus = statusTransitionMatch?.[2]?.toLowerCase() || statusSingleMatch?.[1]?.toLowerCase();
+    const statusWordColor = (status?: string) => (status === 'active' ? T.green : status === 'inactive' ? T.red : T.text);
     return (
       <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, marginBottom: 8 }}>
         {selectable && (
           <label
+            onClick={(e) => e.stopPropagation()}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -1195,6 +1241,11 @@ export default function InventoryPage() {
             justifyContent: 'space-between',
             alignItems: 'center',
             transition: 'border-color 0.15s, background 0.15s',
+            cursor: selectable && m.id ? 'pointer' : 'default',
+          }}
+          onClick={() => {
+            if (!selectable || !m.id) return;
+            onToggleSelect?.(m.id);
           }}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(135,153,192,0.6)';
@@ -1210,11 +1261,22 @@ export default function InventoryPage() {
             <div>
               <div style={{ fontSize: 13, color: T.text, fontWeight: 500 }}>{m.productName || 'Product'}</div>
               <div style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>
-                {statusNoteMatch ? (
+                {statusTransitionMatch ? (
+                  <>
+                    Product status changed from{' '}
+                    <span style={{ color: statusWordColor(fromStatus), fontWeight: 700 }}>
+                      {fromStatus}
+                    </span>
+                    {' '}→{' '}
+                    <span style={{ color: statusWordColor(toStatus), fontWeight: 700 }}>
+                      {toStatus}
+                    </span>
+                  </>
+                ) : statusSingleMatch ? (
                   <>
                     Product status changed to{' '}
-                    <span style={{ color: statusColor, fontWeight: 700 }}>
-                      {statusValue}
+                    <span style={{ color: statusWordColor(toStatus), fontWeight: 700 }}>
+                      {toStatus}
                     </span>
                   </>
                 ) : (
