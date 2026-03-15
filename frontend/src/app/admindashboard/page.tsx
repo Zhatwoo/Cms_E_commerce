@@ -10,24 +10,23 @@ export default function AdminDashboardPage() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     return (
-        <div className="min-h-screen bg-gray-100 flex" suppressHydrationWarning>
-            {/* Desktop Sidebar */}
-            <AdminSidebar />
+        <div className="admin-dashboard-shell relative flex min-h-screen overflow-hidden" suppressHydrationWarning>
+            <div className="relative z-10 flex min-h-screen w-full">
+                <AdminSidebar />
 
-            {/* Mobile Sidebar */}
-            <AnimatePresence>
-                {sidebarOpen && (
-                    <div className="lg:hidden">
-                        <AdminSidebar mobile onClose={() => setSidebarOpen(false)} />
+                <AnimatePresence>
+                    {sidebarOpen && (
+                        <div className="lg:hidden">
+                            <AdminSidebar mobile onClose={() => setSidebarOpen(false)} />
+                        </div>
+                    )}
+                </AnimatePresence>
+
+                <div className="flex min-h-screen flex-1 flex-col">
+                    <AdminHeader onMenuClick={() => setSidebarOpen(true)} />
+                    <div className="flex-1">
+                        <AdminDashboard />
                     </div>
-                )}
-            </AnimatePresence>
-
-            {/* Main Content */}
-            <div className="flex-1 flex flex-col min-h-screen">
-                <AdminHeader />
-                <div className="flex-1">
-                    <AdminDashboard />
                 </div>
             </div>
         </div>
