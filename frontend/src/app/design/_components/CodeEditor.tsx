@@ -6,6 +6,8 @@ import { useImportedComponents, parseImportedCode } from "../_context/ImportedCo
 import { FileType, CodeFile } from "../_types/schema";
 import { autoSavePage } from "../_lib/pageApi";
 import { serializeCraftToClean } from "../_lib/serializer";
+import { getStoredUser } from "@/lib/api";
+import { SUBSCRIPTION_LIMITS } from "@/lib/subscriptionLimits";
 import {
   Code2,
   Trash2,
@@ -231,6 +233,10 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
   const [localFiles, setLocalFiles] = useState<CodeFile[]>(propFiles || []);
   const files = propFiles || localFiles;
   const setFiles = onFilesChange || setLocalFiles;
+
+  const user = getStoredUser();
+  const plan = (user?.subscriptionPlan || 'free').toLowerCase();
+  const canImport = plan === 'pro' || plan === 'custom';
 
   const [activeFileId, setActiveFileId] = useState("instance-props");
   const [tailwindContent, setTailwindContent] = useState("");
@@ -835,7 +841,7 @@ import React from 'react';
 
           <div className="flex items-center gap-2 shrink-0">
             <div className="flex items-center bg-black/35 p-1 rounded-xl border border-white/10">
-              {activeFileId === "instance-props" && (
+              {activeFileId === "instance-props" && canImport && (
                 <button
                   onClick={() => {
                     setShowImportPaste((v) => !v);
@@ -884,7 +890,7 @@ import React from 'react';
         </div>
 
         <div data-code-editor-scroll="true" className="flex-1 min-h-0 relative group overflow-hidden flex flex-col">
-          {activeFileId === "instance-props" && showImportPaste && (
+          {activeFileId === "instance-props" && showImportPaste && canImport && (
             <div className="shrink-0 border-b border-amber-500/20 bg-amber-500/5">
               <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
                 <span className="text-[10px] text-amber-400/90 font-bold uppercase tracking-wider">React · Next.js · Tailwind · TypeScript · CSS · HTML</span>

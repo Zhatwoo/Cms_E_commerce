@@ -37,14 +37,14 @@ import ProductAddModal from '../products/components/productAddModal';
 // ─── Design tokens (original — unchanged) ────────────────────────────────────
 const T = {
   bg:           'radial-gradient(120% 100% at 50% 0%, #24104b 0%, #140836 42%, #0a0624 100%)',
-  card:         '#141446',
-  cardBorder:   '#1F1F51',
-  elevated:     '#141446',
-  input:        '#141446',
-  inputBorder:  '#1F1F51',
-  text:         '#ffffff',
-  textMuted:    'rgba(219,212,255,0.45)',
-  textSub:      'rgba(234,229,255,0.72)',
+  card:         'var(--dashboard-light-surface, #141446)',
+  cardBorder:   'var(--dashboard-light-border, #1F1F51)',
+  elevated:     'var(--dashboard-light-surface, #141446)',
+  input:        'var(--dashboard-light-surface, #141446)',
+  inputBorder:  'var(--dashboard-light-border, #1F1F51)',
+  text:         'var(--dashboard-light-text, #ffffff)',
+  textMuted:    'var(--dashboard-light-muted, rgba(219,212,255,0.45))',
+  textSub:      'var(--dashboard-light-muted, rgba(234,229,255,0.72))',
   accent:       '#a855f7',
   brandGradient:'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)',
   green:        '#22c55e',
@@ -143,6 +143,7 @@ const getDefaultAdjustmentNote = (t: StockAdjustmentType) =>
 const DEFAULT_LOW_STOCK_THRESHOLD = 5;
 const INVENTORY_VISIBLE_ROWS = 7;
 const INVENTORY_ROW_HEIGHT_PX = 72;
+const RECENT_MOVEMENTS_VISIBLE_ROWS = 5;
 type ProductUpsertPayload = Omit<Parameters<typeof createProduct>[0], 'subdomain'>;
 
 function toDashboardStatus(status?: string): 'active' | 'inactive' | 'draft' {
@@ -397,6 +398,35 @@ export default function InventoryPage() {
   const fileInputRef        = useRef<HTMLInputElement>(null);
   const inlineSaveLockRef   = useRef<string | null>(null);
   const categoryMenuRef     = useRef<HTMLDivElement>(null);
+  const localStatusMovementsRef = useRef<InventoryMovement[]>([]);
+
+  const movementTimestamp = useCallback((movement: InventoryMovement): number => {
+    const raw = String(movement.createdAt || '').trim();
+    const parsed = raw ? Date.parse(raw) : NaN;
+    return Number.isFinite(parsed) ? parsed : 0;
+  }, []);
+
+  const mergeServerAndLocalStatusMovements = useCallback((serverMovements: InventoryMovement[], limit?: number) => {
+    const normalizedServer = Array.isArray(serverMovements) ? serverMovements : [];
+
+    const dedupedLocalStatus = localStatusMovementsRef.current.filter((localMovement) => {
+      const localTime = movementTimestamp(localMovement);
+      return !normalizedServer.some((serverMovement) => {
+        if (String(serverMovement.type || '').toUpperCase() !== 'STATUS') return false;
+        if (String(serverMovement.productId || '').trim() !== String(localMovement.productId || '').trim()) return false;
+        if (String(serverMovement.notes || '').trim() !== String(localMovement.notes || '').trim()) return false;
+        const serverTime = movementTimestamp(serverMovement);
+        return Math.abs(serverTime - localTime) <= 2 * 60 * 1000;
+      });
+    });
+
+    localStatusMovementsRef.current = dedupedLocalStatus;
+
+    const merged = [...dedupedLocalStatus, ...normalizedServer]
+      .sort((a, b) => movementTimestamp(b) - movementTimestamp(a));
+
+    return typeof limit === 'number' ? merged.slice(0, limit) : merged;
+  }, [movementTimestamp]);
 
   const sanitizeNumberInput = (input: HTMLInputElement) => {
     if (input.type !== 'number') return;
@@ -598,11 +628,12 @@ export default function InventoryPage() {
       ]);
       setItems(Array.isArray(invRes.items) ? (invRes.items as InventoryRow[]) : []);
       setSummary(summaryRes.data || null);
-        setMovements(Array.isArray(movementRes.items) ? movementRes.items : []);
+      const serverMovements = Array.isArray(movementRes.items) ? movementRes.items : [];
+      setMovements(mergeServerAndLocalStatusMovements(serverMovements, RECENT_MOVEMENTS_LIMIT));
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load inventory');
       } finally { setLoading(false); }
-    }, [projectLoading, search, selectedSubdomain]);
+    }, [projectLoading, search, selectedSubdomain, mergeServerAndLocalStatusMovements]);
   
     useEffect(() => { void loadData(); }, [loadData]);
 
@@ -619,11 +650,12 @@ export default function InventoryPage() {
       }
       try {
         const res = await listInventoryMovements({ subdomain: selectedSubdomain, limit: ALL_MOVEMENTS_LIMIT });
-        setAllMovements(Array.isArray(res.items) ? res.items : []);
+        const serverMovements = Array.isArray(res.items) ? res.items : [];
+        setAllMovements(mergeServerAndLocalStatusMovements(serverMovements));
       } catch (err) {
         setAllMovementsError(err instanceof Error ? err.message : 'Failed to load movement history');
       } finally { setLoadingAllMovements(false); }
-    }, [projectLoading, selectedSubdomain]);
+    }, [projectLoading, selectedSubdomain, mergeServerAndLocalStatusMovements]);
 
   const openAllMovementsModal  = useCallback(() => { setShowAllMovementsModal(true); void loadAllMovements(); }, [loadAllMovements]);
   const closeAllMovementsModal = useCallback(() => {
@@ -883,11 +915,16 @@ export default function InventoryPage() {
   const modalOnHand = stockModal.product ? getStockNumbers(stockModal.product).onHand : 0;
 
   const prependLocalMovement = useCallback((movement: InventoryMovement) => {
+    if (String(movement.type || '').toUpperCase() === 'STATUS') {
+      localStatusMovementsRef.current = [movement, ...localStatusMovementsRef.current]
+        .sort((a, b) => movementTimestamp(b) - movementTimestamp(a))
+        .slice(0, 100);
+    }
     setMovements((prev) => [movement, ...prev].slice(0, RECENT_MOVEMENTS_LIMIT));
     if (showAllMovementsModal) {
       setAllMovements((prev) => [movement, ...prev]);
     }
-  }, [showAllMovementsModal]);
+  }, [showAllMovementsModal, movementTimestamp]);
 
   const startInlineStockEdit = useCallback((product: InventoryRow, currentOnHand: number) => {
     setEditingStockId(product.id);
@@ -1117,6 +1154,10 @@ export default function InventoryPage() {
     const kind = String(m.type || '').toUpperCase();
     const color = kind === 'IN' ? T.green : kind === 'OUT' ? T.red : '#a5b4fc';
     const quantityText = kind === 'IN' ? `+${m.quantity}` : kind === 'OUT' ? String(m.quantity) : '•';
+    const noteText = String(m.notes || 'Inventory movement');
+    const statusNoteMatch = noteText.match(/^Product status changed to\s+(active|inactive)$/i);
+    const statusValue = statusNoteMatch?.[1]?.toLowerCase();
+    const statusColor = statusValue === 'active' ? T.green : statusValue === 'inactive' ? T.red : T.text;
     return (
       <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, marginBottom: 8 }}>
         {selectable && (
@@ -1168,7 +1209,18 @@ export default function InventoryPage() {
             <MovTypeBadge type={m.type || ''} />
             <div>
               <div style={{ fontSize: 13, color: T.text, fontWeight: 500 }}>{m.productName || 'Product'}</div>
-              <div style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>{m.notes || 'Inventory movement'}</div>
+              <div style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>
+                {statusNoteMatch ? (
+                  <>
+                    Product status changed to{' '}
+                    <span style={{ color: statusColor, fontWeight: 700 }}>
+                      {statusValue}
+                    </span>
+                  </>
+                ) : (
+                  noteText
+                )}
+              </div>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
@@ -1228,6 +1280,7 @@ export default function InventoryPage() {
 
   return (
     <div
+      className="dashboard-landing-light"
       style={{ fontFamily: T.font, color: T.text, minHeight: '100%', position: 'relative' }}
       onKeyDownCapture={handleNumberKeyDownCapture}
       onInputCapture={handleNumberInputCapture}
@@ -1295,7 +1348,7 @@ export default function InventoryPage() {
               lineHeight: 1.06,
             }}
           >
-            <span style={{ color: T.text }}>My </span>
+            <span style={{ color: 'var(--dashboard-light-text, #ffffff)' }}>My </span>
             <span
               style={{
                 backgroundImage: T.brandGradient,
@@ -1312,7 +1365,7 @@ export default function InventoryPage() {
               Inventory
             </span>
           </h1>
-          <p style={{ color: T.textMuted, fontSize: 14, marginTop: 8 }}>
+          <p style={{ color: 'var(--dashboard-light-muted, rgba(219,212,255,0.45))', fontSize: 14, marginTop: 8 }}>
             Track stock levels, movements, and alerts across your catalog.
           </p>
         </div>
@@ -1344,7 +1397,7 @@ export default function InventoryPage() {
               background: 'transparent',
               boxShadow: 'none',
               fontSize: 14,
-              color: '#ffffff',
+              color: 'var(--dashboard-light-text, #ffffff)',
             }}
             className="placeholder:text-[#6F70A8]"
           />
@@ -1479,9 +1532,9 @@ export default function InventoryPage() {
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
                 <span style={{ color: card.accent, display: 'inline-flex', alignItems: 'center' }}>{card.icon}</span>
-                <span style={{ color: '#7e72a9', fontSize: 10, letterSpacing: 0.8 }}>{card.label}</span>
+                <span style={{ color: T.textMuted, fontSize: 10, letterSpacing: 0.8 }}>{card.label}</span>
               </div>
-              <div style={{ color: '#f2ecff', fontSize: 24, fontWeight: 700, letterSpacing: -0.8, lineHeight: 1.2 }}>
+              <div style={{ color: T.text, fontSize: 24, fontWeight: 700, letterSpacing: -0.8, lineHeight: 1.2 }}>
                 {typeof card.value === 'number' ? String(card.value) : card.value}
               </div>
             </motion.div>
@@ -1496,7 +1549,7 @@ export default function InventoryPage() {
               display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr 1.2fr',
               gap: 16, padding: '13px 24px', minWidth: 760,
               borderBottom: `1px solid ${T.cardBorder}`,
-              background: T.card, color: '#8273a8', fontSize: 11, letterSpacing: 0.9, textTransform: 'uppercase',
+              background: T.card, color: T.textMuted, fontSize: 11, letterSpacing: 0.9, textTransform: 'uppercase',
             }}>
               <span>Product</span><span>SKU</span><span>Stock</span>
               <span>Pre Orders</span><span>Stock Status</span><span>Product Status</span>
@@ -1531,7 +1584,7 @@ export default function InventoryPage() {
                       style={{
                         display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr 1.2fr',
                         gap: 16, padding: '15px 24px', alignItems: 'center', fontSize: 14, minWidth: 760,
-                        borderBottom: i < filteredItems.length - 1 ? `1px solid rgba(255,255,255,0.055)` : 'none',
+                        borderBottom: i < filteredItems.length - 1 ? `1px solid ${T.cardBorder}` : 'none',
                         transition: 'background 0.15s',
                       }}
                       onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.018)')}
@@ -1743,11 +1796,19 @@ export default function InventoryPage() {
               No stock movements recorded yet.
             </div>
           ) : (
-            movements.map((m, index) => {
-              const movementId = String(m.id || '').trim();
-              const movementKey = movementId || `recent-${m.productId || 'product'}-${m.createdAt || 'time'}-${index}`;
-              return <MovementRow key={movementKey} m={m} />;
-            })
+            <div
+              style={{
+                maxHeight: INVENTORY_ROW_HEIGHT_PX * RECENT_MOVEMENTS_VISIBLE_ROWS,
+                overflowY: 'auto',
+                paddingRight: 4,
+              }}
+            >
+              {movements.map((m, index) => {
+                const movementId = String(m.id || '').trim();
+                const movementKey = movementId || `recent-${m.productId || 'product'}-${m.createdAt || 'time'}-${index}`;
+                return <MovementRow key={movementKey} m={m} />;
+              })}
+            </div>
           )}
         </Card>
       </div>

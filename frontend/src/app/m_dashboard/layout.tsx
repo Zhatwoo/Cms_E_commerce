@@ -18,7 +18,7 @@ function DashboardLayoutContent({
     const { selectedProject, projects, loading: projectLoading } = useProject();
     const router = useRouter();
     const pathname = usePathname();
-    const { colors } = useTheme();
+    const { colors, theme } = useTheme();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [routeLoadingEnabled, setRouteLoadingEnabled] = useState(false);
     const [navigationStartPath, setNavigationStartPath] = useState<string | null>(null);
@@ -122,12 +122,14 @@ function DashboardLayoutContent({
                 className="no-scrollbar relative flex min-w-0 flex-1 basis-0 flex-col h-screen overflow-y-auto overflow-x-hidden"
                 style={{ background: `linear-gradient(180deg, ${colors.bg.primary} 0%, ${colors.bg.primaryEnd} 100%)` }}
             >
-                <div
-                    className="pointer-events-none absolute inset-0 -z-0"
-                    style={{
-                        background: 'radial-gradient(62% 48% at 50% 38%, rgba(207, 152, 255, 0.2) 0%, rgba(94, 21, 205, 0.14) 38%, rgba(85, 40, 218, 0.06) 58%, rgba(85, 40, 218, 0) 76%)',
-                    }}
-                />
+                {theme === 'dark' && (
+                    <div
+                        className="pointer-events-none absolute inset-0 -z-0"
+                        style={{
+                            background: 'radial-gradient(62% 48% at 50% 38%, rgba(207, 152, 255, 0.2) 0%, rgba(94, 21, 205, 0.14) 38%, rgba(85, 40, 218, 0.06) 58%, rgba(85, 40, 218, 0) 76%)',
+                        }}
+                    />
+                )}
 
                 <div className="sticky top-0 z-50 shrink-0 bg-transparent">
                     <DashboardHeader onMenuToggle={() => setSidebarOpen(true)} />
@@ -149,7 +151,7 @@ function DashboardLayoutContent({
 
             {routeLoading && (
                 <div className="pointer-events-none fixed left-0 right-0 top-0 z-[120]">
-                    <div className="h-[2px] w-full" style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}>
+                    <div className="h-[2px] w-full" style={{ backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}>
                         <motion.div
                             className="h-full"
                             initial={{ x: '-45%', width: '38%' }}

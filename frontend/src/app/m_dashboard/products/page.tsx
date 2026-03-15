@@ -237,6 +237,7 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
           {statusLabel}
         </span>
         <button
+          data-product-menu-root="true"
           type="button"
           onClick={(event) => {
             event.stopPropagation();
@@ -254,6 +255,7 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
         </button>
         {menuOpen && (
           <div
+            data-product-menu-root="true"
             className="absolute right-2.5 top-10 z-30 w-28 rounded-lg border border-[#2D3A90] bg-[#12145A] py-1 shadow-xl"
             onClick={(event) => event.stopPropagation()}
           >
@@ -584,12 +586,31 @@ function toDashboardProduct(product: ApiProduct): Product {
         name: String(variant?.name || ''),
         pricingMode: variant?.pricingMode === 'override' ? 'override' : 'modifier',
         options: Array.isArray(variant?.options)
-          ? variant.options.map((option) => ({
-            id: String(option?.id || ''),
-            name: String(option?.name || ''),
-            priceAdjustment: Number(option?.priceAdjustment || 0),
-            image: String(option?.image || '').trim(),
-          }))
+          ? variant.options.map((option) => {
+            const optionRecord = option as {
+              id?: unknown;
+              name?: unknown;
+              priceAdjustment?: unknown;
+              image?: unknown;
+              imageUrl?: unknown;
+              image_url?: unknown;
+              imgUrl?: unknown;
+              img_url?: unknown;
+            };
+            return {
+              id: String(optionRecord?.id || ''),
+              name: String(optionRecord?.name || ''),
+              priceAdjustment: Number(optionRecord?.priceAdjustment || 0),
+              image: String(
+                optionRecord?.image
+                ?? optionRecord?.imageUrl
+                ?? optionRecord?.image_url
+                ?? optionRecord?.imgUrl
+                ?? optionRecord?.img_url
+                ?? ''
+              ).trim(),
+            };
+          })
           : [],
       }))
       .filter((variant) => variant.id || variant.name || variant.options.length > 0)
@@ -730,46 +751,58 @@ export default function ProductsPage() {
     return () => document.removeEventListener('mousedown', onMouseDown);
   }, [showStatusFilterMenu, showCategoryFilterMenu]);
 
+  useEffect(() => {
+    if (!openMenuProductId) return;
+    const onMouseDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest('[data-product-menu-root="true"]')) return;
+      setOpenMenuProductId(null);
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, [openMenuProductId]);
+
   const loadProducts = useCallback(async () => {
-      if (projectLoading) {
-        setLoadingProducts(true);
-        return;
-      }
+    if (projectLoading) {
       setLoadingProducts(true);
-      if (!canAddProducts) {
+      return;
+    }
+    setLoadingProducts(true);
+    if (!canAddProducts) {
+      setProducts([]);
+      setLoadingProducts(false);
+      return;
+    }
+    try {
+      const res = await listProducts({
+        subdomain: selectedSubdomain,
+        page: 1,
+        limit: 500,
+      });
+      if (res?.success && Array.isArray(res.items)) {
+        setProducts(res.items.map(toDashboardProduct));
+      } else {
         setProducts([]);
-        setLoadingProducts(false);
-        return;
       }
-      try {
-        const res = await listProducts({
-          subdomain: selectedSubdomain,
-          page: 1,
-          limit: 500,
-        });
-        if (res?.success && Array.isArray(res.items)) {
-          setProducts(res.items.map(toDashboardProduct));
-        } else {
-          setProducts([]);
-        }
-      } catch (error) {
-        setProducts([]);
-        showAlert(error instanceof Error ? error.message : 'Failed to load products', 'error');
-      } finally {
-        setLoadingProducts(false);
-      }
-    }, [projectLoading, canAddProducts, selectedSubdomain, showAlert]);
+    } catch (error) {
+      setProducts([]);
+      showAlert(error instanceof Error ? error.message : 'Failed to load products', 'error');
+    } finally {
+      setLoadingProducts(false);
+    }
+  }, [projectLoading, canAddProducts, selectedSubdomain, showAlert]);
 
   useEffect(() => {
     void loadProducts();
   }, [loadProducts]);
 
-  useEffect(() => {
-    const handleRefreshOnFocus = () => {
-      if (showAddModal || Boolean(editingProduct) || Boolean(viewingProduct)) return;
-      void loadProducts();
-    };
+  const handleRefreshOnFocus = useCallback(() => {
+    if (showAddModal || Boolean(editingProduct) || Boolean(viewingProduct)) return;
+    void loadProducts();
+  }, [showAddModal, editingProduct, viewingProduct, loadProducts]);
 
+  useEffect(() => {
     const handleVisibilityChange = () => {
       if (showAddModal || Boolean(editingProduct) || Boolean(viewingProduct)) return;
       if (document.visibilityState === 'visible') {
@@ -783,7 +816,7 @@ export default function ProductsPage() {
       window.removeEventListener('focus', handleRefreshOnFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [loadProducts, showAddModal, editingProduct, viewingProduct]);
+  }, [loadProducts, handleRefreshOnFocus, showAddModal, editingProduct, viewingProduct]);
 
   const subcategoryCounts = products.reduce<Record<string, number>>((acc, product) => {
     const subcategory = String(product.subcategory || '').trim();
@@ -878,6 +911,13 @@ export default function ProductsPage() {
       const basePrice = Number(productData.basePrice ?? productData.price ?? 0);
       const finalPrice = Number(productData.finalPrice ?? productData.price ?? 0);
       const discount = Number(productData.discount || 0);
+      const compareAtPriceRaw = productData.compareAtPrice;
+      const compareAtPrice = compareAtPriceRaw === null || compareAtPriceRaw === undefined
+        ? null
+        : (() => {
+          const parsed = Number(compareAtPriceRaw);
+          return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+        })();
       const discountType = String(productData.discountType || 'percentage') === 'fixed' ? 'fixed' : 'percentage';
       const hasVariants = Boolean(productData.hasVariants) && variants.length > 0;
       const variantStocks = hasVariants && productData.variantStocks && typeof productData.variantStocks === 'object'
@@ -922,7 +962,7 @@ export default function ProductsPage() {
         basePrice,
         costPrice: productData.costPrice !== undefined ? Number(productData.costPrice || 0) : null,
         finalPrice,
-        compareAtPrice: discount > 0 ? basePrice : null,
+        compareAtPrice,
         discount,
         discountType,
         hasVariants,
@@ -973,7 +1013,7 @@ export default function ProductsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="dashboard-landing-light space-y-6">
       {typeof document !== 'undefined' && createPortal(
         <AnimatePresence>
           {productPopup.open && (
@@ -1014,7 +1054,10 @@ export default function ProductsPage() {
 
       <section className="max-w-[1090px] mx-auto pt-6 pb-2">
         <div className="text-center">
-          <h1 className="text-[clamp(34px,5vw,56px)] font-extrabold tracking-[-1.8px] text-white leading-[1.06]">
+          <h1
+            className="text-[clamp(34px,5vw,56px)] font-extrabold tracking-[-1.8px] leading-[1.06]"
+            style={{ color: colors.text.primary }}
+          >
             My{' '}
             <span
               style={{
@@ -1027,7 +1070,7 @@ export default function ProductsPage() {
               Products
             </span>
           </h1>
-          <p className="mt-2 text-sm" style={{ color: '#8A8FC4' }}>Track stock performance and catalog details.</p>
+          <p className="mt-2 text-sm" style={{ color: colors.text.secondary }}>Track stock performance and catalog details.</p>
         </div>
 
         <div className="mt-6 mb-7 max-w-[860px] mx-auto rounded-2xl border px-5 py-3.5 flex items-center gap-3 bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]">
@@ -1332,7 +1375,7 @@ export default function ProductsPage() {
                             </span>
                           </div>
 
-                          <div className="flex justify-center relative">
+                          <div data-product-menu-root="true" className="flex justify-center relative">
                             <button
                               type="button"
                               onClick={(event) => {

@@ -45,36 +45,36 @@ export const THEMES = {
   },
   light: {
     bg: {
-      primary: '#F5F6FA',
-      primaryEnd: '#ECEFF6',
-      dark: '#23206D',
-      card: '#23206D',
-      elevated: '#30367C',
-      fog: '#898AC2',
-      sidebar: '#1A1A4C',
-      searchBar: '#1B1F63',
+      primary: '#FFFFFF',
+      primaryEnd: '#EAEAEA',
+      dark: '#EAEAEA',
+      card: '#FFFFFF',
+      elevated: '#FFFFFF',
+      fog: '#F4F4F7',
+      sidebar: '#FFFFFF',
+      searchBar: '#F7F7FA',
     },
     text: {
-      primary: '#F8F8FF',
-      secondary: '#D7D9F3',
-      muted: '#B7BCE8',
-      subtle: '#898AC2',
+      primary: '#15093E',
+      secondary: '#4C3F75',
+      muted: '#736A99',
+      subtle: '#B8B2CF',
     },
     border: {
-      default: 'rgba(137, 138, 194, 0.55)',
-      faint: 'rgba(137, 138, 194, 0.35)',
+      default: '#D9D4EA',
+      faint: '#EAE7F2',
     },
     accent: {
-      yellow: '#EAB308',
-      yellowBright: '#FACC15',
-      purple: '#898AC2',
-      purpleDeep: '#5861A2',
+      yellow: '#FFCC00',
+      yellowBright: '#FFCC00',
+      purple: '#6702BF',
+      purpleDeep: '#6702BF',
     },
     status: {
       good: '#16A34A',
       warning: '#D97706',
       error: '#DC2626',
-      info: '#C7CCFF',
+      info: '#9333ea',
     },
   },
 };
@@ -90,7 +90,7 @@ type ThemeContextType = {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('dark');
+  const [theme, setTheme] = useState<Theme>('light');
 
   useEffect(() => {
     const storedTheme = window.sessionStorage.getItem(THEME_STORAGE_KEY);
@@ -99,7 +99,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    setTheme(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    setTheme('light');
   }, []);
 
   useEffect(() => {

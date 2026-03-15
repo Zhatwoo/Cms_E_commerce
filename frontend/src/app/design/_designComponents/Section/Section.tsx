@@ -143,6 +143,7 @@ export const Section = ({
           : { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
         display: display ?? "flex",
         containerType: "inline-size",
+        contain: "layout",
         position,
         zIndex: zIndex !== 0 ? zIndex : undefined,
         top: position !== "static" ? top : undefined,

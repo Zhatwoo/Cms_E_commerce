@@ -685,7 +685,7 @@ export default function WebBuilderPage() {
   }
 
   return (
-    <section className="space-y-8 min-h-screen pb-20 max-w-full overflow-x-hidden">
+    <section className="dashboard-landing-light space-y-8 min-h-screen pb-20 max-w-full overflow-x-hidden">
       {/* Header Section */}
       <section
         className="rounded-2xl border p-5 md:p-6"

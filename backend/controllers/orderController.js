@@ -5,7 +5,7 @@ const Project = require('../models/Project');
 const InventoryMovement = require('../models/InventoryMovement');
 const Domain = require('../models/Domain');
 const StorefrontOrder = require('../models/StorefrontOrder');
-const paymongoService = require('../services/paymongoService');
+const paypalService = require('../services/paypalService');
 
 function normalizeStatus(status) {
   return String(status || '')
@@ -469,21 +469,16 @@ exports.createPublicCheckout = async (req, res) => {
   }
 };
 
-// Public: get PayMongo public key (for card form)
+// Public: get PayMongo public key (deprecated; kept for backwards compat)
 exports.getPaymongoPublicKey = (_req, res) => {
-  const key = (process.env.PAYMONGO_PUBLIC_KEY || '').trim();
-  if (!key) {
-    return res.status(503).json({ success: false, message: 'Payment not configured' });
-  }
-  res.status(200).json({ success: true, publicKey: key });
+  return res.status(503).json({ success: false, message: 'Payment not configured (using PayPal)' });
 };
 
-// Public: create payment intent for a published order (PayMongo)
+// Public: create PayPal order for a published order (redirect to PayPal)
 exports.createPaymentIntent = async (req, res) => {
   try {
     const subdomain = StorefrontOrder.normalizeSubdomain(req.params.subdomain || '');
     const orderId = safeText(req.params.id);
-    const paymentMethod = safeText(req.body?.paymentMethod || 'card').toLowerCase();
 
     if (!subdomain || !orderId) {
       return res.status(400).json({ success: false, message: 'subdomain and order id are required' });
@@ -499,36 +494,57 @@ exports.createPaymentIntent = async (req, res) => {
 
     const baseUrl = (process.env.APP_BASE_URL || process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
     const successUrl = `${baseUrl}/sites/${subdomain}/checkout/result?order_id=${orderId}&status=success`;
-    const failedUrl = `${baseUrl}/sites/${subdomain}/checkout/result?order_id=${orderId}&status=failed`;
+    const cancelUrl = `${baseUrl}/sites/${subdomain}/checkout/result?order_id=${orderId}&status=failed`;
 
-    const amount = Math.round((order.total || 0) * 100);
+    const amount = Number(order.total || 0);
     const currency = order.currency || 'PHP';
-    const metadata = { order_id: orderId, subdomain };
 
-    if (paymentMethod === 'gcash' || paymentMethod === 'maya') {
-      const type = paymentMethod;
-      const { redirectUrl, id: sourceId } = await paymongoService.createSource({
-        amount: Math.max(10000, amount),
-        currency,
-        type,
-        successUrl,
-        failedUrl,
-        metadata,
-      });
-      await StorefrontOrder.updatePaymentFields(subdomain, orderId, { sourceId });
-      return res.status(200).json({ success: true, redirectUrl });
+    const { approveUrl, orderId: paypalOrderId } = await paypalService.createOrder({
+      amount: Math.max(0.01, amount),
+      currency,
+      returnUrl: successUrl,
+      cancelUrl,
+      customId: `${subdomain}:${orderId}`,
+    });
+
+    await StorefrontOrder.updatePaymentFields(subdomain, orderId, { paypalOrderId });
+    return res.status(200).json({ success: true, redirectUrl: approveUrl });
+  } catch (error) {
+    const statusCode = /required|invalid|not found/i.test(error.message || '') ? 400 : 500;
+    res.status(statusCode).json({ success: false, message: error.message || 'Server error' });
+  }
+};
+
+// Public: capture PayPal order after user returns (called from result page)
+exports.capturePayPal = async (req, res) => {
+  try {
+    const subdomain = StorefrontOrder.normalizeSubdomain(req.params.subdomain || '');
+    const orderId = safeText(req.params.id);
+    const token = safeText(req.query.token || req.body?.token);
+
+    if (!subdomain || !orderId || !token) {
+      return res.status(400).json({ success: false, message: 'subdomain, order id, and token are required' });
     }
 
-    const { clientKey, id: paymentIntentId } = await paymongoService.createPaymentIntent({
-      amount: Math.max(2000, amount),
-      currency,
-      orderId,
-      subdomain,
-      description: `Order ${orderId}`,
-    });
-    await StorefrontOrder.updatePaymentFields(subdomain, orderId, { paymentIntentId });
-    const publicKey = process.env.PAYMONGO_PUBLIC_KEY || '';
-    return res.status(200).json({ success: true, clientKey, publicKey: publicKey || undefined });
+    const order = await StorefrontOrder.findById(subdomain, orderId);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+    if (order.status === 'Paid') {
+      return res.status(200).json({ success: true, message: 'Already paid' });
+    }
+    if (order.status !== 'Pending') {
+      return res.status(400).json({ success: false, message: 'Order is not pending payment' });
+    }
+
+    const storedPaypalId = order.paypal_order_id || order.paypalOrderId;
+    if (!storedPaypalId || storedPaypalId !== token) {
+      return res.status(400).json({ success: false, message: 'Invalid payment session' });
+    }
+
+    await paypalService.captureOrder(token);
+    await StorefrontOrder.updateStatusBySubdomainAndId(subdomain, orderId, 'Paid');
+    return res.status(200).json({ success: true });
   } catch (error) {
     const statusCode = /required|invalid|not found/i.test(error.message || '') ? 400 : 500;
     res.status(statusCode).json({ success: false, message: error.message || 'Server error' });

@@ -21,7 +21,6 @@ import { Tabs } from "../../_designComponents/Tabs/Tabs";
 import { Accordion } from "../../_designComponents/Accordion/Accordion";
 import { Banner } from "../../_designComponents/Banner/banner";
 import { Badge as BadgeComponent } from "../../_designComponents/Badge/badge";
-import { IconRow } from "../../_designComponents/IconRow/IconRow";
 import { CRAFT_RESOLVER } from "../craftResolver";
 import { ImportedBlock } from "../../_designComponents/ImportedBlock/ImportedBlock";
 import { Spacer } from "../../_designComponents/Spacer/Spacer";
@@ -76,7 +75,7 @@ export const ComponentsPanel = () => {
 
   const WORKING_COMPONENTS: ComponentVariant[] = useMemo(() => [
     { label: "Section", preview: "Section", element: <Element is={Section} canvas />, icon: <Box className="w-5 h-5" />, color: "bg-blue-500/10" },
-    { label: "Container", preview: "Container", element: <Element is={Container} padding={20} canvas />, icon: <Layers className="w-5 h-5" />, color: "bg-purple-500/10" },
+    { label: "Container", preview: "Container", element: <Element is={Container} padding={20} height="240px" canvas />, icon: <Layers className="w-5 h-5" />, color: "bg-purple-500/10" },
     { label: "Row", preview: "Row", element: <Element is={Row} canvas />, icon: <Minus className="w-5 h-5" />, color: "bg-orange-500/10" },
     {
       label: "Banner",
@@ -115,13 +114,6 @@ export const ComponentsPanel = () => {
     { label: "Checkbox / Radio", preview: "Boolean Field", element: <BooleanField label="Option" controlType="checkbox" />, icon: <CheckSquare className="w-5 h-5" />, color: "bg-lime-500/10" },
     { label: "Pagination", preview: "Pagination", element: <Pagination />, icon: <ListIcon className="w-5 h-5" />, color: "bg-indigo-500/10" },
     { label: "Rating", preview: "Rating", element: <Rating value={2} />, icon: <Star className="w-5 h-5" />, color: "bg-amber-500/10" },
-    {
-      label: "Icon Row",
-      preview: "Icon Row",
-      element: <Element is={IconRow} canvas />,
-      icon: <LinkIcon className="w-5 h-5" />,
-      color: "bg-slate-500/10",
-    },
     { label: "Divider", preview: "── Divider ──", element: <Divider />, icon: <Minus className="w-5 h-5" />, color: "bg-gray-500/10" },
     {
       label: "Tabs",
@@ -154,6 +146,7 @@ export const ComponentsPanel = () => {
       icon?: React.ReactNode;
       color?: string;
       dragElement?: React.ReactElement;
+      isNewPage?: boolean;
       // Pre-built details
       item?: any;
     }> = [];
@@ -229,6 +222,8 @@ export const ComponentsPanel = () => {
   const renderComponentItem = (v: any) => (
     <div
       key={v.id || v.label}
+      data-drag-source="component"
+      data-component-new-page={v.isNewPage ? "true" : "false"}
       ref={(ref) => {
         if (!ref || activeTool === "hand") return;
         const dragElement = v.dragElement || v.element;
@@ -236,7 +231,6 @@ export const ComponentsPanel = () => {
           connectors.create(ref, withFreePositionDefaults(dragElement));
         }
       }}
-      {...(v.isNewPage ? { "data-component-new-page": "true", "data-drag-source": "component" } : { "data-drag-source": "component" })}
       className="group relative flex flex-col gap-1.5 cursor-grab active:cursor-grabbing"
     >
       <div className={`h-16 w-full ${v.color || "bg-brand-white/5"} rounded-lg border border-brand-medium/20 flex flex-col items-center justify-center transition-all duration-300 group-hover:bg-brand-white/10 group-hover:border-brand-medium/50 group-hover:shadow-md group-hover:-translate-y-0.5 overflow-hidden`}>
@@ -265,6 +259,8 @@ export const ComponentsPanel = () => {
       return (
         <div
           key={v.id}
+          data-drag-source="imported"
+          data-component-new-page="false"
           ref={(ref) => {
             if (!ref || activeTool === "hand") return;
             connectors.create(ref, withFreePositionDefaults(v.element));
@@ -290,6 +286,8 @@ export const ComponentsPanel = () => {
     return (
       <div
         key={v.id}
+        data-drag-source={v.type === "block" ? "asset" : "component"}
+        data-component-new-page="false"
         ref={(ref) => {
           if (!ref || activeTool === "hand") return;
           connectors.create(ref, v.element);
@@ -465,6 +463,8 @@ export const ComponentsPanel = () => {
                   {importedItems.map((item) => (
                     <div
                       key={item.id}
+                      data-drag-source="imported"
+                      data-component-new-page="false"
                       ref={(ref) => {
                         if (!ref || activeTool === "hand") return;
                         connectors.create(ref, withFreePositionDefaults(<Element is={ImportedBlock} blockName={item.name} blockCss={item.css} blockHtml={item.html} canvas />));

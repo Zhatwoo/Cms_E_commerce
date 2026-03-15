@@ -21,8 +21,6 @@ type DragSourceKind = "asset" | "component" | "imported" | null;
 
 const MAX_RETRY_FRAMES = 24;
 const LAYOUT_LIKE_TYPES = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame", "Tab Content"]);
-const SNAP_THRESHOLD = 16;
-const GRID_SIZE = 8;
 
 function selectedToIds(raw: unknown): string[] {
   if (Array.isArray(raw)) return raw;
@@ -65,11 +63,9 @@ function getSourceKind(target: EventTarget | null): DragSourceKind {
   if (!source) return null;
   if (source.getAttribute("data-component-new-page") === "true") return null;
   const kind = source.getAttribute("data-drag-source");
-  return kind === "asset" || kind === "component" || kind === "imported" ? kind : null;
-}
-
-function snapToGrid(value: number): number {
-  return Math.round(value / GRID_SIZE) * GRID_SIZE;
+  // Component/imported panel items are positioned by PanelDropFreePlacementHandler.
+  // Keep FreeDrop for asset drops only to avoid double-placement conflicts.
+  return kind === "asset" ? kind : null;
 }
 
 export function FreeDropPlacementHandler() {
@@ -203,71 +199,8 @@ export function FreeDropPlacementHandler() {
           // ignore
         }
 
-        const siblingSnapX: number[] = [0];
-        const siblingSnapY: number[] = [0];
-
-        if (parentLogicalWidth > 0 && nodeLogicalWidth > 0) {
-          siblingSnapX.push(Math.max(0, parentLogicalWidth - nodeLogicalWidth));
-        }
-        if (parentLogicalHeight > 0 && nodeLogicalHeight > 0) {
-          siblingSnapY.push(Math.max(0, parentLogicalHeight - nodeLogicalHeight));
-        }
-
-        const siblingIds = Object.keys(nodes).filter((id) => id !== nodeId && nodes[id]?.data?.parent === parentId);
-        siblingIds.forEach((id) => {
-          try {
-            const siblingDom = query.node(id).get()?.dom ?? null;
-            const parentDom = query.node(parentId).get()?.dom ?? null;
-            if (!siblingDom || !parentDom) return;
-            const siblingRect = siblingDom.getBoundingClientRect();
-            const parentRect = parentDom.getBoundingClientRect();
-            const { scaleX, scaleY } = getRenderedScale(parentDom);
-
-            const siblingLeft = (siblingRect.left - parentRect.left) / scaleX;
-            const siblingTop = (siblingRect.top - parentRect.top) / scaleY;
-            const siblingWidth = siblingDom.clientWidth || siblingDom.offsetWidth || 0;
-            const siblingHeight = siblingDom.clientHeight || siblingDom.offsetHeight || 0;
-            const siblingRight = siblingLeft + siblingWidth;
-            const siblingBottom = siblingTop + siblingHeight;
-
-            siblingSnapX.push(Math.round(siblingLeft));
-            siblingSnapX.push(Math.round(siblingRight));
-            siblingSnapY.push(Math.round(siblingTop));
-            siblingSnapY.push(Math.round(siblingBottom));
-          } catch {
-            // ignore sibling that cannot be measured
-          }
-        });
-
-        let snappedLeft = left;
-        let snappedTop = top;
-
-        let bestXDistance = SNAP_THRESHOLD + 1;
-        for (const candidate of siblingSnapX) {
-          const distance = Math.abs(candidate - left);
-          if (distance < bestXDistance) {
-            bestXDistance = distance;
-            snappedLeft = candidate;
-          }
-        }
-        if (bestXDistance > SNAP_THRESHOLD) {
-          snappedLeft = snapToGrid(left);
-        }
-
-        let bestYDistance = SNAP_THRESHOLD + 1;
-        for (const candidate of siblingSnapY) {
-          const distance = Math.abs(candidate - top);
-          if (distance < bestYDistance) {
-            bestYDistance = distance;
-            snappedTop = candidate;
-          }
-        }
-        if (bestYDistance > SNAP_THRESHOLD) {
-          snappedTop = snapToGrid(top);
-        }
-
-        left = Math.max(0, snappedLeft);
-        top = Math.max(0, snappedTop);
+        left = Math.max(0, Math.round(left));
+        top = Math.max(0, Math.round(top));
 
         if (isFlexParent && !parentIsFreeform) {
           let insertIndex = 0;
