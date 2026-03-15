@@ -249,7 +249,7 @@ export function PanelDropFreePlacementHandler() {
               const nextLeft = Math.round(currentLeft + (finalLeft - (nodeRect.left - parentRect.left)));
               const nextTop = Math.round(currentTop + (finalTop - (nodeRect.top - parentRect.top)));
 
-              props.position = props.position && props.position !== "static" ? props.position : "relative";
+              props.position = parentDisplayName === "Viewport" ? "absolute" : (props.position && props.position !== "static" ? props.position : "relative");
               props.left = `${nextLeft}px`;
               props.top = `${nextTop}px`;
               props.right = "auto";

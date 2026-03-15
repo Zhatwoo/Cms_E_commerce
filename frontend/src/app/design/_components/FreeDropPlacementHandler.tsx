@@ -128,7 +128,7 @@ export function FreeDropPlacementHandler() {
       const newIdSet = new Set(newIds);
       const rootNewIds = newIds.filter((id) => {
         const parentId = nodes[id]?.data?.parent;
-        if (!parentId || parentId === "ROOT") return false;
+        if (!parentId) return false;
         return !newIdSet.has(parentId);
       });
 
@@ -136,7 +136,7 @@ export function FreeDropPlacementHandler() {
         ? rootNewIds
         : selectedToIds(state?.events?.selected).filter((id) => {
             const parentId = nodes[id]?.data?.parent;
-            if (!parentId || parentId === "ROOT") return false;
+            if (!parentId) return false;
             return !newIdSet.has(parentId);
           });
 
@@ -155,7 +155,7 @@ export function FreeDropPlacementHandler() {
 
       idsToPlace.forEach((nodeId) => {
         const parentId = nodes[nodeId]?.data?.parent;
-        if (!parentId || parentId === "ROOT") return;
+        if (!parentId) return;
 
         const displayName = nodes[nodeId]?.data?.displayName ?? "";
         const isLayoutLike = LAYOUT_LIKE_TYPES.has(displayName);
@@ -165,12 +165,14 @@ export function FreeDropPlacementHandler() {
           displayName === "Image" && (parentDisplayName === "Section" || parentDisplayName === "Tab Content");
         const parentProps = (parentNode?.data?.props ?? {}) as Record<string, unknown>;
         const parentDisplay = String(parentProps.display ?? "flex").toLowerCase();
-        const parentIsFreeform = parentProps.isFreeform === true;
+        const parentIsFreeform = parentProps.isFreeform === true || parentDisplayName === "Viewport" || parentDisplayName === "Page";
         const isFlexParent =
-          parentDisplay === "flex" ||
+          (parentDisplay === "flex" ||
           parentDisplay === "grid" ||
           parentDisplayName === "Tab Content" ||
-          LAYOUT_LIKE_TYPES.has(parentDisplayName);
+          LAYOUT_LIKE_TYPES.has(parentDisplayName)) &&
+          parentDisplayName !== "Viewport" &&
+          parentDisplayName !== "Page";
 
         let left = 0;
         let top = 0;

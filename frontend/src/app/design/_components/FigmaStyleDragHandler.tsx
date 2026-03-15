@@ -352,8 +352,11 @@ export const FigmaStyleDragHandler = () => {
         const currentPosition = (props.position as string | undefined) ?? "static";
         const isAbsoluteLike = currentPosition === "absolute" || currentPosition === "fixed";
 
-        if (!isAbsoluteLike) {
-          props.position = "relative";
+        const parentId = entry.parentId;
+        const parentDisplayName = parentId ? String(queryRef.current.node(parentId).get()?.data?.displayName ?? "") : "";
+        const isFreeformParent = parentDisplayName === "Page" || parentDisplayName === "Viewport";
+
+        if (isFreeformParent) {
           props.top = `${rawTop}px`;
           props.left = `${rawLeft}px`;
           return;
@@ -373,6 +376,16 @@ export const FigmaStyleDragHandler = () => {
 
       const rawMarginTop = Math.round(marginTop + dy);
       const rawMarginLeft = Math.round(marginLeft + dx);
+      const parentId = entry.parentId;
+      const parentDisplayName = parentId ? String(queryRef.current.node(parentId).get()?.data?.displayName ?? "") : "";
+      const isFreeformParent = parentDisplayName === "Page" || parentDisplayName === "Viewport";
+
+      if (isFreeformParent) {
+        props.marginTop = rawMarginTop;
+        props.marginLeft = rawMarginLeft;
+        return;
+      }
+
       const bounds = getMarginBounds(id, marginTop, marginLeft);
 
       if (bounds) {
@@ -678,7 +691,10 @@ export const FigmaStyleDragHandler = () => {
                 props.left = "0px";
                 if (modeById.get(id) === "offset") {
                   const currentPosition = (props.position as string | undefined) ?? "static";
-                  if (currentPosition !== "absolute" && currentPosition !== "fixed") {
+                  const isAbsoluteLike = currentPosition === "absolute" || currentPosition === "fixed";
+                  if (dropTargetId && nodes[dropTargetId]?.data?.displayName === "Viewport") {
+                    props.position = "absolute";
+                  } else if (!isAbsoluteLike) {
                     props.position = "relative";
                   }
                 }
