@@ -308,9 +308,29 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
             <p className="text-base sm:text-lg text-[#8A8FC4] mt-1.5">{view === 'select' ? 'Select an existing project or start a new one.' : 'Give your project a name and an optional subdomain.'}</p>
             {view === 'select' && (
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-5 w-full">
-                <div className="inline-flex items-center gap-1 rounded-xl border border-[#1F1F51] bg-[#141446] p-1 w-fit">
-                  <button type="button" onClick={() => setProjectTab('active')} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${projectTab === 'active' ? 'bg-[#2D3A90] text-white shadow-sm' : 'text-[#8A8FC4] hover:text-white'}`}>Active</button>
-                  <button type="button" onClick={() => setProjectTab('trash')} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${projectTab === 'trash' ? 'bg-[#2D3A90] text-white shadow-sm' : 'text-[#8A8FC4] hover:text-white'}`}>Trash</button>
+                <div className={`inline-flex items-center gap-1 rounded-xl p-1 w-fit ${asPage ? 'border border-[#DCD2EE] bg-[#F7F7FA]' : 'border border-[#1F1F51] bg-[#141446]'}`}>
+                  <button
+                    type="button"
+                    onClick={() => setProjectTab('active')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      projectTab === 'active'
+                        ? (asPage ? 'bg-[#190765] text-white shadow-sm' : 'bg-[#2D3A90] text-white shadow-sm')
+                        : (asPage ? 'text-[#4C3F75] hover:text-[#15093E] hover:bg-[#EAEAEA]' : 'text-[#8A8FC4] hover:text-white')
+                    }`}
+                  >
+                    Active
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProjectTab('trash')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      projectTab === 'trash'
+                        ? (asPage ? 'bg-[#190765] text-white shadow-sm' : 'bg-[#2D3A90] text-white shadow-sm')
+                        : (asPage ? 'text-[#4C3F75] hover:text-[#15093E] hover:bg-[#EAEAEA]' : 'text-[#8A8FC4] hover:text-white')
+                    }`}
+                  >
+                    Trash
+                  </button>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="relative">
