@@ -1343,7 +1343,15 @@ function wrapWithPrototype(
   );
 }
 
-function PreviewTabs({ props }: { props: Record<string, any> }) {
+function PreviewTabs({
+  props,
+  childNodes,
+  childNodeIds,
+}: {
+  props: Record<string, any>;
+  childNodes?: React.ReactNode[];
+  childNodeIds?: string[];
+}) {
   const tabs = (props.tabs as any[]) || [];
   const [activeTabId, setActiveTabId] = React.useState(
     props.activeTabId || (tabs[0]?.id || "")
@@ -1408,13 +1416,22 @@ function PreviewTabs({ props }: { props: Record<string, any> }) {
       <div className="tabs-content relative w-full flex-grow min-h-[100px] overflow-hidden">
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId;
+          const expectedNodeId = typeof tab?.id === "string" ? `tab-content-${tab.id}` : "";
+          const matchedIndex = expectedNodeId
+            ? (childNodeIds ?? []).findIndex((id) => id === expectedNodeId)
+            : -1;
+          const fallbackIndex = tabs.indexOf(tab);
+          const resolvedIndex = matchedIndex >= 0 ? matchedIndex : fallbackIndex;
+
           return (
             <div
               key={tab.id}
               className={`w-full h-full transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${isActive ? "opacity-100 translate-y-0 relative" : "opacity-0 -translate-y-2 absolute inset-0 pointer-events-none"}`}
             >
-              <div className="w-full h-full min-h-[100px] p-6 flex flex-col text-sm whitespace-pre-wrap text-gray-800 leading-relaxed">
-                {tab.content}
+              <div className="w-full min-h-[100px] flex flex-col">
+                {childNodes && childNodes[resolvedIndex] != null
+                  ? childNodes[resolvedIndex]
+                  : <div className="p-6 text-sm whitespace-pre-wrap text-gray-800 leading-relaxed" style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>{tab.content}</div>}
               </div>
             </div>
           );
@@ -1440,6 +1457,8 @@ function RenderNode({
   enableFormInputs,
   builderParityMode,
   renderAllNodes,
+  parentType,
+  insideTabsContext,
 }: {
   node: CleanNode;
   nodes: Record<string, CleanNode>;
@@ -1456,6 +1475,8 @@ function RenderNode({
   enableFormInputs?: boolean;
   builderParityMode?: boolean;
   renderAllNodes?: boolean;
+  parentType?: ComponentType;
+  insideTabsContext?: boolean;
 }): React.ReactElement {
   // Normalize legacy lowercase node types so published and preview payloads render identically.
   const rawType = node.type as string;
@@ -1478,7 +1499,10 @@ function RenderNode({
     triangle: "Triangle",
     banner: "Banner",
     rating: "Rating",
+    tabs: "Tabs",
+    accordion: "Accordion",
     tabcontent: "TabContent",
+    "tab-content": "TabContent",
     "tab content": "TabContent",
     importedblock: "ImportedBlock",
   };
@@ -1497,6 +1521,7 @@ function RenderNode({
   const interactiveClick = !allowPreviewInput && toggleTarget ? () => onToggle(toggleTarget, triggerAction) : undefined;
   const animation = props.animation as AnimationConfig | undefined;
   const prototype = props.prototype as PrototypeConfig | undefined;
+  const nextInsideTabsContext = Boolean(insideTabsContext || type === "Tabs" || type === "TabContent");
   const childIds = node.children ?? [];
   const children = childIds.map((id) => {
     const n = nodes[id];
@@ -1519,6 +1544,8 @@ function RenderNode({
         enableFormInputs={enableFormInputs}
         builderParityMode={builderParityMode}
         renderAllNodes={renderAllNodes}
+        parentType={type}
+        insideTabsContext={nextInsideTabsContext}
       />
     );
   });
@@ -2088,6 +2115,12 @@ function RenderNode({
       const imgTransform = [imgRot ? `rotate(${imgRot}deg)` : null, imgFlipH ? "scaleX(-1)" : null, imgFlipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
       const normalizedImageWidth = normalizeLayoutWidthForNarrow(props.width, isNarrowPreview, builderParityMode);
       const normalizedImageHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
+      const isInsideTabs = Boolean(insideTabsContext || parentType === "Tabs" || parentType === "TabContent");
+      const autoFitInTabs = props._autoFitInTabs !== false;
+      const rawWidth = normalizedImageWidth ?? (props.width as string);
+      const rawHeight = normalizedImageHeight ?? (props.height as string);
+      const resolvedImageWidth = isInsideTabs && autoFitInTabs ? "100%" : rawWidth;
+      const resolvedImageHeight = isInsideTabs && autoFitInTabs ? "100%" : rawHeight;
       const imageWidthPx = parsePixelValue(props.width);
       const imageHeightPx = parsePixelValue(props.height);
       const mediaAspectRatio = imageWidthPx && imageHeightPx ? `${imageWidthPx} / ${imageHeightPx}` : undefined;
@@ -2099,8 +2132,8 @@ function RenderNode({
           data-fluid-media="true"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
-            width: normalizedImageWidth ?? (props.width as string),
-            height: normalizedImageHeight ?? (props.height as string),
+            width: resolvedImageWidth,
+            height: resolvedImageHeight,
             maxWidth: "100%",
             objectFit: ((props.objectFit as React.CSSProperties["objectFit"]) || "cover"),
             aspectRatio: mediaAspectRatio,
@@ -2376,6 +2409,10 @@ function RenderNode({
                     padding: "12px 14px",
                     fontSize: `${headerFontSize}px`,
                     fontWeight: 600,
+                    lineHeight: 1.35,
+                    whiteSpace: "normal",
+                    overflowWrap: "anywhere",
+                    wordBreak: "break-word",
                   }}
                 >
                   {String(item?.title ?? `Item ${index + 1}`)}
@@ -2387,9 +2424,14 @@ function RenderNode({
                     padding: "12px 14px",
                     fontSize: `${contentFontSize}px`,
                     lineHeight: 1.6,
+                    whiteSpace: "pre-wrap",
+                    overflowWrap: "anywhere",
+                    wordBreak: "break-word",
                   }}
                 >
-                  <div>{String(item?.content ?? "")}</div>
+                  <div style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", wordBreak: "break-word" }}>
+                    {String(item?.content ?? "")}
+                  </div>
                   {mediaUrl && mediaType === "image" ? (
                     <img src={mediaUrl} alt="accordion media" data-fluid-media="true" style={{ width: "100%", marginTop: 10, borderRadius: 6 }} />
                   ) : null}
@@ -3018,7 +3060,7 @@ function RenderNode({
     }
 
     case "Tabs":
-      return wrap(<PreviewTabs props={props} />);
+      return wrap(<PreviewTabs props={props} childNodes={children} childNodeIds={childIds} />);
 
     default:
       return <div data-unknown-type={type}>{children}</div>;

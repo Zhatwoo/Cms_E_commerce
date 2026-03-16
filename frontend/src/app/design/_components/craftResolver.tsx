@@ -47,6 +47,35 @@ function withResolverFallback<T extends Resolver>(base: T): T {
 
       return resolved || target.Container || Container;
     },
+    has(target, prop) {
+      if (Reflect.has(target, prop)) return true;
+      if (typeof prop !== "string") {
+        return Reflect.has(target, "Container") || Reflect.has(target, "container");
+      }
+
+      const normalized = prop.trim().toLowerCase();
+      if (Reflect.has(target, normalized)) return true;
+
+      const canonical = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+      if (Reflect.has(target, canonical)) return true;
+
+      if (
+        normalized.includes("image") ||
+        normalized === "img" ||
+        normalized === "imagecomponent"
+      ) {
+        return (
+          Reflect.has(target, "Image") ||
+          Reflect.has(target, "image") ||
+          Reflect.has(target, "IMAGE") ||
+          Reflect.has(target, "img") ||
+          Reflect.has(target, "Img") ||
+          Reflect.has(target, "ImageComponent")
+        );
+      }
+
+      return Reflect.has(target, "Container") || Reflect.has(target, "container");
+    },
   }) as T;
 }
 
@@ -94,6 +123,9 @@ export function buildCraftResolver(): Resolver {
     Image: ImageComp,
     image: ImageComp,
     IMAGE: ImageComp,
+    img: ImageComp,
+    Img: ImageComp,
+    ImageComponent: ImageComp,
     Video: VideoComp,
     video: VideoComp,
     VIDEO: VideoComp,

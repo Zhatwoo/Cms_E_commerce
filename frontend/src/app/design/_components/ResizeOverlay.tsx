@@ -1146,6 +1146,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
           const currentNode = query.getState().nodes[nodeId];
           const isTextNode = currentNode?.data?.displayName === "Text";
           const isAccordionNode = currentNode?.data?.displayName === "Accordion";
+          const isImageNode = currentNode?.data?.displayName === "Image";
           const startFontSize = parsePxOrAuto(d.startProps.fontSize);
           const nextFontSize = isTextNode
             ? computeTextFontSizeForResize(h, startW, startH, newW, newH, startFontSize)
@@ -1176,6 +1177,9 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
               const bML = typeof d.startProps.marginLeft === "number" ? d.startProps.marginLeft as number : 0;
               const nextML = (d.moveMode ?? "margin") === "margin" ? Math.max(0, bML + extraML) : (bML + extraML);
               props.marginLeft = Math.round(nextML);
+            }
+            if (isImageNode) {
+              props._autoFitInTabs = false;
             }
           });
 

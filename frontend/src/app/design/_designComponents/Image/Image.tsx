@@ -37,6 +37,7 @@ export const Image = ({
   flipHorizontal = false,
   flipVertical = false,
   customClassName = "",
+  _autoFitInTabs = true,
   _isDraggingSource = false,
 }: ImageProps) => {
   const [isDraggingOver, setIsDraggingOver] = React.useState(false);
@@ -47,11 +48,34 @@ export const Image = ({
   }));
 
   const { actions } = useEditor();
-  const { parentDisplay, parentDisplayName, parentHeight } = useEditor((state) => ({
-    parentDisplay: parentId ? String(state.nodes[parentId]?.data?.props?.display ?? "") : "",
-    parentDisplayName: parentId ? String(state.nodes[parentId]?.data?.displayName ?? "") : "",
-    parentHeight: parentId ? state.nodes[parentId]?.data?.props?.height : undefined,
-  }));
+  const { parentDisplay, parentDisplayName, parentHeight, isInsideTabsContext } = useEditor((state) => {
+    const parentNode = parentId ? state.nodes[parentId] : undefined;
+    const parentDisplayValue = parentNode ? String(parentNode.data?.props?.display ?? "") : "";
+    const parentDisplayNameValue = parentNode ? String(parentNode.data?.displayName ?? "") : "";
+    const parentHeightValue = parentNode ? parentNode.data?.props?.height : undefined;
+
+    let insideTabs = false;
+    let cursorId: string | null | undefined = parentId;
+    let guard = 0;
+    while (cursorId && cursorId !== "ROOT" && guard < 50) {
+      guard += 1;
+      const currentNode: (typeof state.nodes)[string] | undefined = state.nodes[cursorId];
+      if (!currentNode) break;
+      const rawName = String(currentNode.data?.displayName ?? "").trim().toLowerCase();
+      if (rawName === "tabs" || rawName === "tab content" || rawName === "tabcontent") {
+        insideTabs = true;
+        break;
+      }
+      cursorId = currentNode.data?.parent;
+    }
+
+    return {
+      parentDisplay: parentDisplayValue,
+      parentDisplayName: parentDisplayNameValue,
+      parentHeight: parentHeightValue,
+      isInsideTabsContext: insideTabs,
+    };
+  });
 
   // Handle auto-discard if this node was created as a side-effect of a replacement drop
   useEffect(() => {
@@ -70,14 +94,22 @@ export const Image = ({
   }, [_isDraggingSource, id, actions]);
 
   const shouldFillParent = parentDisplay === "flex" || parentDisplay === "grid";
-  const isContainerLikeParent = parentDisplayName === "Container" || parentDisplayName === "Section" || parentDisplayName === "Tab Content";
+  const isContainerLikeParent =
+    parentDisplayName === "Container" || parentDisplayName === "Section" || parentDisplayName === "Tab Content";
+  const isTabsLikeContext =
+    isInsideTabsContext || parentDisplayName === "Tabs" || parentDisplayName === "Tab Content" || parentDisplayName === "TabContent";
+  const shouldAutoFitToTabs = Boolean(isTabsLikeContext && _autoFitInTabs !== false);
   const isAutoHeight = typeof height !== "string" || height.trim().toLowerCase() === "auto";
   const parentHeightText = typeof parentHeight === "string" ? parentHeight.trim().toLowerCase() : "";
   const parentHasExplicitHeight =
     (typeof parentHeight === "number" && Number.isFinite(parentHeight) && parentHeight > 0) ||
     (typeof parentHeight === "string" && parentHeightText !== "" && parentHeightText !== "auto");
 
+  const resolvedWidth = shouldAutoFitToTabs ? "100%" : width;
   const resolvedHeight =
+    shouldAutoFitToTabs
+      ? "100%"
+      :
     isContainerLikeParent && isAutoHeight && parentHasExplicitHeight
       ? "100%"
       : (height ?? "auto");
@@ -199,7 +231,7 @@ export const Image = ({
       }}
       className={`relative group ${customClassName}`}
       style={{
-        width,
+        width: resolvedWidth,
         height: resolvedHeight,
         paddingTop: `${pt}px`,
         paddingRight: `${pr}px`,
@@ -217,7 +249,7 @@ export const Image = ({
         alt={alt}
         style={{
           width: "100%",
-          height: "100%",
+          height: resolvedHeight === "auto" ? "auto" : "100%",
           maxWidth: "100%",
           maxHeight: "100%",
           minWidth: 0,
@@ -270,6 +302,7 @@ export const ImageDefaultProps: Partial<ImageProps> = {
   marginLeft: 0,
   opacity: 1,
   boxShadow: "none",
+  _autoFitInTabs: true,
 };
 
 Image.craft = {
