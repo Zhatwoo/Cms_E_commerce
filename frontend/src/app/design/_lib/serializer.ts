@@ -620,10 +620,14 @@ function processChildren(
       (childId): childId is string => typeof childId === "string" && childId.length > 0,
     );
     const combinedChildIds = Array.from(new Set([...(rawNode.nodes ?? []), ...linkedChildIds]));
+    const cleanedProps = cleanProps(type, rawNode.props);
+    if (linkedChildIds.length > 0) {
+      cleanedProps.__linkedNodes = rawNode.linkedNodes;
+    }
 
     nodes[id] = {
       type,
-      props: cleanProps(type, rawNode.props),
+      props: cleanedProps,
       children: combinedChildIds,
     };
 
