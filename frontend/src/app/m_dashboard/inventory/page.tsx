@@ -47,7 +47,7 @@ const T = {
   textMuted:    'var(--dashboard-light-muted, rgba(219,212,255,0.45))',
   textSub:      'var(--dashboard-light-muted, rgba(234,229,255,0.72))',
   accent:       '#a855f7',
-  brandGradient:'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)',
+  brandGradient:'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)',
   green:        '#22c55e',
   greenBg:      'rgba(34,197,94,0.12)',
   greenBorder:  'rgba(34,197,94,0.28)',
