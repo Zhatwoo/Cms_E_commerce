@@ -1162,30 +1162,6 @@ export async function updatePublishedOrderStatus(
   );
 }
 
-export async function createPaymentIntent(
-  subdomain: string,
-  orderId: string,
-  paymentMethod: string
-): Promise<{ 
-  success: boolean; 
-  message?: string; 
-  redirectUrl?: string; 
-  clientKey?: string; 
-  publicKey?: string;
-}> {
-  const sub = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
-  return apiFetch<{ 
-    success: boolean; 
-    message?: string; 
-    redirectUrl?: string; 
-    clientKey?: string; 
-    publicKey?: string; 
-  }>(`/api/orders/published/${encodeURIComponent(sub)}/${encodeURIComponent(orderId)}/create-payment-intent`, {
-    method: 'POST',
-    body: JSON.stringify({ paymentMethod }),
-  });
-}
-
 export async function createStripePaymentIntent(
   subdomain: string,
   orderId: string
