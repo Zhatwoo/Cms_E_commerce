@@ -19,11 +19,15 @@ function canonicalResolvedName(rawName: unknown): string {
   if (lowered === "image") return "Image";
   if (lowered === "text") return "Text";
   if (lowered === "container") return "Container";
+  if (lowered === "tabs") return "Tabs";
+  if (lowered === "tabcontent" || lowered === "tab content") return "TabContent";
   if (lowered === "page") return "Page";
   if (lowered === "viewport") return "Viewport";
   if (lowered.includes("image")) return "Image";
   if (lowered.includes("text")) return "Text";
   if (lowered.includes("container")) return "Container";
+  if (lowered.includes("tabs")) return "Tabs";
+  if (lowered.includes("tabcontent")) return "TabContent";
   if (lowered.includes("page")) return "Page";
   if (lowered.includes("viewport")) return "Viewport";
   return name;

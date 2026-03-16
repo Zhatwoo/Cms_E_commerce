@@ -26,15 +26,35 @@ const PROTECTED = new Set(["Viewport"]);
 const UNDRAGGABLE = new Set(["ROOT", "Viewport", "Page"]);
 
 /** Display names that accept drop "inside" (canvas containers). */
-const CANVAS_CONTAINERS = new Set(["Viewport", "Page", "Section", "Row", "Column", "Container", "Frame"]);
+const CANVAS_CONTAINERS = new Set([
+  "Viewport",
+  "Page",
+  "Section",
+  "Row",
+  "Column",
+  "Container",
+  "Frame",
+  "Tabs",
+  "TabContent",
+]);
 
 /** Get ordered child node IDs from a node (Craft state or serialized shape). */
 function getChildIds(node: Record<string, unknown> | null | undefined): string[] {
   if (!node || typeof node !== "object") return [];
-  const fromData = (node.data as Record<string, unknown>)?.nodes;
-  if (Array.isArray(fromData)) return fromData as string[];
-  if (Array.isArray(node.nodes)) return node.nodes as string[];
-  return [];
+  const data = node.data as Record<string, unknown> | undefined;
+  const fromNodes = (data?.nodes ?? node.nodes) as unknown;
+  const nodeIds = Array.isArray(fromNodes) ? (fromNodes as string[]) : [];
+
+  // Craft.js nested canvases live under linkedNodes (e.g. Tabs -> TabContent).
+  // Include them so the Files tree matches what you see on the canvas.
+  const fromLinked = (data?.linkedNodes ?? (node as any).linkedNodes) as unknown;
+  const linkedIds =
+    fromLinked && typeof fromLinked === "object"
+      ? Object.values(fromLinked as Record<string, unknown>).filter((v): v is string => typeof v === "string")
+      : [];
+
+  // Keep stable order: normal nodes first, then linked nodes.
+  return [...nodeIds, ...linkedIds];
 }
 
 /** Check if nodeId is in the current selection (Set or array). */

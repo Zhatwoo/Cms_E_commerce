@@ -87,6 +87,10 @@ export const Tabs = ({
     actions: { setProp }
   } = useNode();
 
+  const { linkedNodes } = useNode((node) => ({
+    linkedNodes: (node.data as any)?.linkedNodes as Record<string, string> | undefined,
+  }));
+
   const { enabled } = useEditor((state) => ({
     enabled: state.options.enabled
   }));
@@ -247,6 +251,18 @@ export const Tabs = ({
       <div className="tabs-content relative w-full flex-grow min-h-[100px] overflow-hidden">
         {tabs.map((tab) => {
           const isActive = tab.id === currentActiveTabId;
+          const computedCanvasId = `tab-content-${tab.id}`;
+          const legacyCanvasId =
+            typeof (tab as any).content === "string" && String((tab as any).content).trim()
+              ? String((tab as any).content).trim()
+              : null;
+          const linked = linkedNodes ?? {};
+          const hasLegacy =
+            !!legacyCanvasId &&
+            (linked[legacyCanvasId] === legacyCanvasId ||
+              Object.values(linked).includes(legacyCanvasId) ||
+              Object.keys(linked).includes(legacyCanvasId));
+          const canvasId = hasLegacy ? (legacyCanvasId as string) : computedCanvasId;
           
           return (
             <div 
@@ -256,9 +272,8 @@ export const Tabs = ({
               <div
                 className="w-full h-full min-h-[100px] flex flex-col"
               >
-                <Element id={`tab-content-${tab.id}`} is={TabContent} canvas>
-                  {tab.content}
-                </Element>
+                {/* Render tab content using Element with node ID for Craft.js persistence */}
+                <Element id={canvasId} is={TabContent} canvas />
               </div>
             </div>
           );
@@ -269,7 +284,7 @@ export const Tabs = ({
 };
 
 export const TabsDefaultProps: Partial<TabsProps> = {
-  tabs: [{ id: "tab-1", title: "Tab 1", content: "Tab 1 Content goes here..." }],
+  tabs: [{ id: "tab-1", title: "Tab 1", content: "tab-content-tab-1" }],
   activeTabId: "tab-1",
   tabHeaderBackgroundColor: "#f8fafc", // slate-50
   tabHeaderTextColor: "#64748b",       // slate-500

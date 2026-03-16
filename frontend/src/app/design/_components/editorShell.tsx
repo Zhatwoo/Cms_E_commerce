@@ -177,6 +177,8 @@ function normalizeResolvedName(rawName: unknown): string {
   const lowered = name.toLowerCase();
   const exact = VALIDATOR_CANONICAL_NAME_BY_LOWER.get(lowered);
   if (exact) return exact;
+  if (lowered === "tabs" || lowered.includes("tabs")) return "Tabs";
+  if (lowered === "tabcontent" || lowered === "tab content" || lowered.includes("tabcontent")) return "TabContent";
   if (lowered.includes("image")) return "Image";
   if (lowered.includes("text")) return "Text";
   if (lowered.includes("accordion")) return "Accordion";
@@ -2149,14 +2151,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
 
         lastSavedRawRef.current = next;
 
-        let snapshot: string | null = null;
-        try {
-          snapshot = JSON.stringify(serializeCraftToClean(next));
-        } catch {
-          snapshot = next;
-        }
-
-        const toStore = snapshot ?? next;
+        // Store the raw Craft JSON as the snapshot.
+        // The preview/loader pipeline can normalize either Craft or clean-doc formats.
+        const toStore = next;
         if (typeof window !== "undefined" && window.sessionStorage && projectId) {
           try {
             const key = `${STORAGE_KEY_PREFIX}_${projectId}`;
@@ -2171,7 +2168,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
         }
 
         lastSnapshotRef.current = toStore;
-        return snapshot;
+        return toStore;
       } catch {
         return null;
       }
