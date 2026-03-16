@@ -5,6 +5,7 @@ import { Text } from "../../_designComponents/Text/Text";
 import { Image } from "../../_designComponents/Image/Image";
 import { Page } from "../../_designComponents/Page/Page";
 import { Viewport } from "../../_designComponents/Viewport/Viewport";
+import { BooleanField } from "../../_designComponents/BooleanField/BooleanField";
 import { buildCraftResolver } from "../craftResolver";
 
 const SAFE_CONTAINER: React.ComponentType<any> =

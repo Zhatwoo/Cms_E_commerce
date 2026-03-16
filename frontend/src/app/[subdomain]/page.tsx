@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
 import { LiveSite } from '@/app/design/_lib/webRenderer';
 import { parseContentToCleanDoc } from '@/app/design/_lib/contentParser';
+import { migratePublishedContent } from '@/app/design/_lib/contentMigration';
 import { PREVIEW_MOBILE_BREAKPOINT } from '@/app/design/_lib/viewportConstants';
 import type { BuilderDocument } from '@/app/design/_types/schema';
 import { StorefrontProvider, useStorefront } from '@/app/sites/_storefront/StorefrontContext';
@@ -68,9 +69,11 @@ function SubdomainContent() {
         if (!data?.success) { setError(true); setLoading(false); return; }
         if (data?.projectTitle) setSiteTitle(data.projectTitle as string);
         const content = data?.data?.content;
-        const parsed = parseContentToCleanDoc(content);
-        if (parsed) setDoc(parsed);
-        else setError(true);
+        let parsed = parseContentToCleanDoc(content);
+        if (parsed) {
+          parsed = migratePublishedContent(parsed) as BuilderDocument;
+          setDoc(parsed);
+        } else setError(true);
       } catch { if (!cancelled) setError(true); }
       finally { if (!cancelled) setLoading(false); }
     })();

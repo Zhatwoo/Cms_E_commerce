@@ -114,7 +114,7 @@ export interface LayerProps {
 /** Position & display properties → PositionGroup */
 export interface PositionProps extends LayerProps {
   position?: "static" | "relative" | "absolute" | "fixed" | "sticky";
-  display?: "flex" | "grid" | "block" | "inline-block" | "none";
+  display?: "flex" | "inline-flex" | "grid" | "block" | "inline-block" | "none";
   zIndex?: number;
   top?: string;
   right?: string;
@@ -290,27 +290,6 @@ export interface IconProps extends SpacingProps, PositionProps, AnimatableProps 
   height?: string;
   opacity?: number;
   link?: string;
-}
-
-export interface IconRowItem {
-  id: string;
-  src: string;
-  alt?: string;
-  link?: string;
-}
-
-export interface IconRowProps
-  extends SpacingProps,
-    SizeProps,
-    PositionProps,
-    EffectsProps,
-    TransformProps,
-    AnimatableProps,
-    InteractionProps {
-  items?: IconRowItem[];
-  align?: "left" | "center" | "right";
-  gap?: number;
-  size?: number;
 }
 
 export interface CircleProps

@@ -170,6 +170,8 @@ export const Text = ({
     fontSize: isFlowText
       ? `clamp(${fluidFontMin}px, ${fluidFontCqw}cqw, ${fontSize}px)`
       : `${fontSize}px`,
+    isolation: "isolate",
+    WebkitFontSmoothing: "antialiased",
     fontFamily,
     fontWeight,
     fontStyle: fontStyle || "normal",
@@ -328,7 +330,7 @@ export const Text = ({
       ) : (
         resolvedText
           ? resolvedText
-          : <span style={{ opacity: 0.58 }}>{NEW_TEXT_PLACEHOLDER}</span>
+          : <span style={{ opacity: 0.58, display: "inline-block", minWidth: 0 }}>{NEW_TEXT_PLACEHOLDER}</span>
       )}
     </div>
   );

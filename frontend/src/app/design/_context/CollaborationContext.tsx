@@ -120,7 +120,7 @@ export function CollaborationProvider({ projectId, permission = "editor", childr
 
         const socket = io(BACKEND, {
             path: "/socket.io",
-            transports: ["websocket", "polling"],
+            transports: ["polling", "websocket"],
             withCredentials: true,
             reconnection: true,
             reconnectionAttempts: 10,

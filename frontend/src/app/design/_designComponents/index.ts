@@ -20,7 +20,6 @@ import { ImportedBlock } from "./ImportedBlock/ImportedBlock";
 import { Banner } from "./Banner/banner";
 import { Badge } from "./Badge/badge";
 import { BooleanField } from "./BooleanField/BooleanField";
-import { IconRow } from "./IconRow/IconRow";
 
 export const RenderBlocks: Record<string, any> = {
   Container,
@@ -66,6 +65,4 @@ export const RenderBlocks: Record<string, any> = {
   badge: Badge,
   BooleanField,
   booleanfield: BooleanField,
-  IconRow,
-  iconrow: IconRow,
 };

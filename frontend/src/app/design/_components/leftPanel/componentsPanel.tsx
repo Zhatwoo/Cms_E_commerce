@@ -21,7 +21,6 @@ import { Tabs } from "../../_designComponents/Tabs/Tabs";
 import { Accordion } from "../../_designComponents/Accordion/Accordion";
 import { Banner } from "../../_designComponents/Banner/banner";
 import { Badge as BadgeComponent } from "../../_designComponents/Badge/badge";
-import { IconRow } from "../../_designComponents/IconRow/IconRow";
 import { CRAFT_RESOLVER } from "../craftResolver";
 import { ImportedBlock } from "../../_designComponents/ImportedBlock/ImportedBlock";
 import { Spacer } from "../../_designComponents/Spacer/Spacer";
@@ -115,13 +114,6 @@ export const ComponentsPanel = () => {
     { label: "Checkbox / Radio", preview: "Boolean Field", element: <BooleanField label="Option" controlType="checkbox" />, icon: <CheckSquare className="w-5 h-5" />, color: "bg-lime-500/10" },
     { label: "Pagination", preview: "Pagination", element: <Pagination />, icon: <ListIcon className="w-5 h-5" />, color: "bg-indigo-500/10" },
     { label: "Rating", preview: "Rating", element: <Rating value={2} />, icon: <Star className="w-5 h-5" />, color: "bg-amber-500/10" },
-    {
-      label: "Icon Row",
-      preview: "Icon Row",
-      element: <Element is={IconRow} canvas />,
-      icon: <LinkIcon className="w-5 h-5" />,
-      color: "bg-slate-500/10",
-    },
     { label: "Divider", preview: "── Divider ──", element: <Divider />, icon: <Minus className="w-5 h-5" />, color: "bg-gray-500/10" },
     {
       label: "Tabs",
@@ -154,6 +146,7 @@ export const ComponentsPanel = () => {
       icon?: React.ReactNode;
       color?: string;
       dragElement?: React.ReactElement;
+      isNewPage?: boolean;
       // Pre-built details
       item?: any;
     }> = [];
@@ -238,7 +231,6 @@ export const ComponentsPanel = () => {
           connectors.create(ref, withFreePositionDefaults(dragElement));
         }
       }}
-      {...(v.isNewPage ? { "data-component-new-page": "true", "data-drag-source": "component" } : { "data-drag-source": "component" })}
       className="group relative flex flex-col gap-1.5 cursor-grab active:cursor-grabbing"
     >
       <div className={`h-16 w-full ${v.color || "bg-brand-white/5"} rounded-lg border border-brand-medium/20 flex flex-col items-center justify-center transition-all duration-300 group-hover:bg-brand-white/10 group-hover:border-brand-medium/50 group-hover:shadow-md group-hover:-translate-y-0.5 overflow-hidden`}>
