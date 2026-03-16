@@ -27,8 +27,8 @@ import { getSubdomainSiteUrl } from '@/lib/siteUrls';
 
 const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'websitelink';
 const SITE_HOST = process.env.NEXT_PUBLIC_SITE_HOST ?? 'localhost:3000';
-const GRAD = 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #f5a213 100%)';
-const ADD_SITE_BG = 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #f5a213 100%)';
+const GRAD = 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)';
+const ADD_SITE_BG = 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)';
 const VISIT_BG = 'linear-gradient(135deg, #22c55e 0%, #16a34a 55%, #15803d 100%)';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -487,8 +487,8 @@ export default function DomainsPage() {
                             </a>
                           ) : (
                             <a href={`/design?projectId=${project.id}`} onClick={e => e.stopPropagation()}
-                              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[11px] font-semibold transition-opacity hover:opacity-75"
-                              style={{ backgroundColor: 'rgba(167,139,250,0.12)', color: '#a78bfa' }}>
+                              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[11px] font-semibold text-white transition-opacity hover:opacity-85"
+                              style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)' }}>
                               <ExternalLink size={11} /> Publish to go live
                             </a>
                           )}

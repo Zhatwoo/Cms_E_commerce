@@ -64,7 +64,7 @@ function normalizeCraftRaw(parsed: Record<string, unknown>): CraftRawDocument {
       parent: (data?.parent ?? v.parent) as string | undefined,
       hidden: (v.hidden as boolean) ?? false,
       nodes: Array.isArray(nodes) ? nodes : [],
-      linkedNodes: (v.linkedNodes as Record<string, string>) ?? {},
+      linkedNodes: ((data?.linkedNodes ?? v.linkedNodes) as Record<string, string>) ?? {},
     };
   }
   return result as CraftRawDocument;
@@ -619,15 +619,20 @@ function processChildren(
 
     const type = rawNode.type.resolvedName as ComponentType;
 
+    const linkedChildIds = Object.values(rawNode.linkedNodes ?? {}).filter(
+      (childId): childId is string => typeof childId === "string" && childId.length > 0,
+    );
+    const combinedChildIds = Array.from(new Set([...(rawNode.nodes ?? []), ...linkedChildIds]));
+
     nodes[id] = {
       type,
       props: cleanProps(type, rawNode.props),
-      children: rawNode.nodes,
+      children: combinedChildIds,
     };
 
     // Recurse into children
-    if (rawNode.nodes.length > 0) {
-      processChildren(rawNode.nodes, raw, nodes);
+    if (combinedChildIds.length > 0) {
+      processChildren(combinedChildIds, raw, nodes);
     }
   }
 }
