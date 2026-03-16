@@ -6,7 +6,7 @@ import { useCanvasTool } from "./CanvasToolContext";
 
 const DRAGGING_ATTR = "data-dragging";
 
-type NodesMap = Record<string, { data?: { parent?: string; isCanvas?: boolean; displayName?: string } }>
+type NodesMap = Record<string, { data?: { parent?: string; isCanvas?: boolean; displayName?: string; props?: Record<string, unknown> } }>
 
 const CANVAS_DISPLAY_NAMES = new Set([
   "Page",
@@ -425,10 +425,31 @@ export const FigmaStyleDragHandler = () => {
       const exists = (id: string) => !!id && id !== "ROOT" && !!nodesMap[id];
 
       const selectedIdsAtMouseDown = selectedToIds(state.events.selected).filter((id) => id && id !== "ROOT" && !!state.nodes[id]);
-      // Find the most specific (deepest) node-id in the element path
       let nodeIdFromTarget = findDeepestNodeId(target);
       if (!nodeIdFromTarget && target.closest("[data-panel='resize-overlay']") && selectedIdsAtMouseDown.length > 0) {
         nodeIdFromTarget = selectedIdsAtMouseDown[0] ?? null;
+      }
+
+      const getSelectableNodeId = (id: string, nodes: Record<string, any>, selectedIds: string[]) => {
+        let currentId = id;
+        let targetId = id;
+        while (currentId && currentId !== "ROOT" && nodes[currentId]) {
+          const node = nodes[currentId];
+          const displayName = node?.data?.displayName ?? node?.displayName;
+          if (displayName === "Group") {
+            if (!selectedIds.includes(currentId)) {
+              targetId = currentId;
+            }
+          }
+          const parentId = node?.data?.parent;
+          if (!parentId || parentId === currentId) break;
+          currentId = parentId;
+        }
+        return targetId;
+      };
+
+      if (nodeIdFromTarget && exists(nodeIdFromTarget)) {
+         nodeIdFromTarget = getSelectableNodeId(nodeIdFromTarget, nodesMap, selectedIdsAtMouseDown);
       }
 
       if (!nodeIdFromTarget || !exists(nodeIdFromTarget)) {
