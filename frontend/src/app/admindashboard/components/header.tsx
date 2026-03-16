@@ -1,27 +1,20 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
 const SearchIcon = () => (
-    <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
     </svg>
 );
 
-const BellIcon = () => (
-    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-    </svg>
-);
+type AdminHeaderProps = {
+    onMenuClick?: () => void;
+};
 
-const ProfileIcon = () => (
-    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-    </svg>
-);
-
-export function AdminHeader() {
+export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
     const router = useRouter();
 
     const handleProfileClick = () => {
@@ -33,45 +26,54 @@ export function AdminHeader() {
     };
 
     return (
-        <header className="sticky top-0 z-40 bg-black text-white border-b border-gray-800">
-            <div className="px-6 py-3 flex items-center justify-between gap-4">
-                {/* Left: Search */}
-                <div className="flex-1 max-w-sm">
-                    <div className="relative">
-                        <input
-                            type="text"
-                            placeholder="Search"
-                            className="w-full pl-4 pr-10 py-2 bg-white text-gray-900 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                            <SearchIcon />
+        <header className="relative z-20 px-4 pt-4 sm:px-6 lg:px-6 lg:pt-6">
+            <div className="flex w-full items-center justify-between gap-4">
+                <div className="flex flex-1 items-center gap-3">
+                    {onMenuClick ? (
+                        <button
+                            type="button"
+                            onClick={onMenuClick}
+                            aria-label="Open menu"
+                            className="admin-dashboard-panel inline-flex h-12 w-12 items-center justify-center rounded-2xl lg:hidden"
+                        >
+                            <Image src="/admin-dashboard/icons/toggle.png" alt="Menu" width={18} height={18} className="h-[18px] w-[18px]" />
+                        </button>
+                    ) : null}
+
+                    <div className="w-full max-w-[23rem] sm:max-w-[24rem]">
+                        <div className="relative">
+                            <input
+                                type="text"
+                                placeholder="Search"
+                                className="admin-dashboard-input admin-dashboard-panel-soft admin-dashboard-soft-text h-12 w-full rounded-2xl border-0 pl-12 pr-4 text-sm font-medium outline-none placeholder:opacity-100"
+                            />
+                            <div className="admin-dashboard-yellow pointer-events-none absolute left-4 top-1/2 -translate-y-1/2">
+                                <SearchIcon />
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Right: Icons */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                     <button
                         type="button"
                         onClick={handleNotificationsClick}
-                        className="p-2 text-white hover:bg-gray-800 rounded-lg transition-colors"
+                        className="admin-dashboard-panel inline-flex h-12 w-12 items-center justify-center rounded-full transition-transform hover:-translate-y-0.5"
                         aria-label="Notifications"
                     >
-                        <BellIcon />
+                        <Image src="/admin-dashboard/icons/notification.png" alt="Notifications" width={20} height={20} className="h-5 w-5" />
                     </button>
 
                     <button
                         type="button"
                         onClick={handleProfileClick}
-                        className="p-2 text-white hover:bg-gray-800 rounded-lg transition-colors cursor-pointer"
+                        className="admin-dashboard-panel inline-flex h-12 w-12 items-center justify-center rounded-full transition-transform hover:-translate-y-0.5"
                         aria-label="Profile"
                     >
-                        <ProfileIcon />
+                        <Image src="/admin-dashboard/icons/account-circle.png" alt="Profile" width={22} height={22} className="h-[22px] w-[22px]" />
                     </button>
                 </div>
             </div>
         </header>
     );
 }
-
-//removed settings icon and added it to account page

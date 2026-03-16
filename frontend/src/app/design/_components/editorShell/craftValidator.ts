@@ -5,7 +5,8 @@ import { Text } from "../../_designComponents/Text/Text";
 import { Image } from "../../_designComponents/Image/Image";
 import { Page } from "../../_designComponents/Page/Page";
 import { Viewport } from "../../_designComponents/Viewport/Viewport";
-import { CRAFT_RESOLVER } from "../craftResolver";
+import { BooleanField } from "../../_designComponents/BooleanField/BooleanField";
+import { buildCraftResolver } from "../craftResolver";
 
 const SAFE_CONTAINER: React.ComponentType<any> =
   (typeof Container === "function" ? Container : null) ??
@@ -16,7 +17,7 @@ const asComponent = (value: unknown): React.ComponentType<any> =>
 
 const VALIDATOR_RESOLVER: Record<string, React.ComponentType<any>> = {
   ...RenderBlocks,
-  ...CRAFT_RESOLVER,
+  ...buildCraftResolver(),
   Container: SAFE_CONTAINER,
   container: SAFE_CONTAINER,
   CONTAINER: SAFE_CONTAINER,
@@ -32,6 +33,9 @@ const VALIDATOR_RESOLVER: Record<string, React.ComponentType<any>> = {
   Viewport: asComponent(Viewport),
   viewport: asComponent(Viewport),
   VIEWPORT: asComponent(Viewport),
+  BooleanField: asComponent(BooleanField),
+  booleanfield: asComponent(BooleanField),
+  BOOLEANFIELD: asComponent(BooleanField),
 };
 
 const VALIDATOR_CANONICAL_NAME_BY_LOWER = new Map<string, string>();

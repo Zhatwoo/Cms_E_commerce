@@ -80,7 +80,7 @@ function CheckEmailContent() {
         </button>
 
         <Link
-          href="/auth/login"
+          href="/?auth=login"
           className="mt-4 inline-block w-full text-center text-sm font-medium text-violet-400 hover:text-violet-300"
         >
           Go to Log in

@@ -1,39 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const DashboardIcon = () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-    </svg>
-);
-
-const MonitoringIcon = () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-    </svg>
-);
-
-const WebsiteIcon = () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-    </svg>
-);
-
-const ModerationIcon = () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-    </svg>
-);
-
-const TemplatesIcon = () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-    </svg>
-);
 
 const LogoutIcon = () => (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -47,13 +18,18 @@ const CloseIcon = () => (
     </svg>
 );
 
-const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon />, href: '/admindashboard' },
-    { id: 'monitoring', label: 'Monitoring & Analytics', icon: <MonitoringIcon />, href: '/admindashboard/monitorAnalytics' },
-    { id: 'website', label: 'User & Website Management', icon: <WebsiteIcon />, href: '/admindashboard/usernweb' },
-    { id: 'moderation', label: 'Moderation & Compliance', icon: <ModerationIcon />, href: '/admindashboard/moderationCompliance' },
-    { id: 'templates', label: 'Templates & Assets Management', icon: <TemplatesIcon />, href: '/admindashboard/templatesnassets' },
-];
+const ChevronDownIcon = ({ isOpen }: { isOpen: boolean }) => (
+    <svg
+        className={`h-4 w-4 transition-transform duration-200${isOpen ? ' rotate-180' : ''}`}
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+    >
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
+);
+
+import { adminNavItems } from './adminConfig';
 
 interface AdminSidebarProps {
     mobile?: boolean;
@@ -62,25 +38,29 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
     const [isHovered, setIsHovered] = useState(false);
+    const [openDropdowns, setOpenDropdowns] = useState<string[]>([]);
     const pathname = usePathname();
 
-    const COLLAPSED_WIDTH = 72;
-    const EXPANDED_WIDTH = 320;
-
-    const getActiveItem = () => {
-        if (pathname.includes('monitorAnalytics')) return 'monitoring';
-        if (pathname.includes('moderationCompliance')) return 'moderation';
-        if (pathname.includes('usernweb')) return 'website';
-        if (pathname.includes('templatesnassets')) return 'templates';
-        if (pathname.includes('admindashboard') && !pathname.includes('moderationCompliance') && !pathname.includes('usernweb') && !pathname.includes('templatesnassets')) return 'dashboard';
-        return 'dashboard';
+    const toggleDropdown = (id: string) => {
+        setOpenDropdowns((prev) =>
+            prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]
+        );
     };
 
-    // For mobile → keep full drawer
+    const handleMouseLeave = () => {
+        setIsHovered(false);
+        setOpenDropdowns([]);
+    };
+
+    const activeItem = adminNavItems.find(
+        (item) => item.match(pathname) || (item.children?.some((c) => c.match(pathname)) ?? false)
+    )?.id;
+    const COLLAPSED_WIDTH = 104;
+    const EXPANDED_WIDTH = 322;
+
     if (mobile) {
         return (
             <>
-                {/* Backdrop */}
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -89,180 +69,215 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
                     onClick={onClose}
                     className="fixed inset-0 bg-black/50 z-40"
                 />
-                
-                {/* Sidebar */}
+
                 <motion.aside
                     initial={{ x: '-100%' }}
                     animate={{ x: 0 }}
                     exit={{ x: '-100%' }}
                     transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                    className="fixed inset-y-0 left-0 z-50 w-64 bg-black text-white h-full flex flex-col"
+                    className="fixed inset-y-0 left-0 z-50 flex w-[18.5rem] flex-col px-4 py-4"
                 >
-                {/* Mobile header with close */}
-                <div className="flex items-center justify-between border-b border-gray-800 px-6 py-4 shrink-0">
-                    <div className="flex items-center gap-3">
-                        <div className="text-base font-semibold">Web Builder</div>
-                    </div>
-                    <button
-                        onClick={onClose}
-                        className="rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-gray-200"
-                        aria-label="Close sidebar"
-                    >
-                        <CloseIcon />
-                    </button>
-                </div>
+                    <div className="admin-dashboard-panel flex h-full flex-col rounded-[28px] p-4">
+                        <div className="px-2 pb-5 pt-1">
+                            <div className="flex items-center justify-end">
+                                <button
+                                    onClick={onClose}
+                                    className="admin-dashboard-soft-text rounded-2xl p-2"
+                                    aria-label="Close sidebar"
+                                >
+                                    <CloseIcon />
+                                </button>
+                            </div>
+                            <div className="mt-2 flex flex-col items-center text-center">
+                                <Image src="/images/logo.svg" alt="CMS E-commerce" width={76} height={76} className="h-[76px] w-[76px] object-contain" />
+                            </div>
+                        </div>
 
-                <nav className="flex-1 px-3 py-4 overflow-y-auto">
-                    {navItems.map((item) =>
-                        item.href ? (
-                            <Link
-                                key={item.id}
-                                href={item.href}
-                                onClick={() => {
-                                    onClose?.();
-                                }}
-                                className={`w-full flex items-start gap-3 px-4 py-3 rounded-lg text-sm transition-colors mb-1 ${
-                                    getActiveItem() === item.id
-                                        ? 'bg-gray-800 text-white'
-                                        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                                }`}
-                            >
-                                <span className="flex-shrink-0 mt-0.5">{item.icon}</span>
-                                <span className="font-normal text-left leading-tight">{item.label}</span>
-                            </Link>
-                        ) : (
+                        <nav className="flex-1 space-y-1 overflow-y-auto">
+                            {adminNavItems.map((item) => {
+                                const isActive = activeItem === item.id;
+                                const hasChildren = !!(item.children?.length);
+                                const isOpen = openDropdowns.includes(item.id);
+
+                                return (
+                                    <div key={item.id}>
+                                        {hasChildren ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleDropdown(item.id)}
+                                                className={`admin-dashboard-purple flex w-full items-center gap-3 rounded-[18px] px-4 py-3 transition-transform hover:-translate-y-0.5 ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
+                                            >
+                                                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/55">
+                                                    <Image src={item.iconSrc} alt={item.iconAlt} width={20} height={20} className="h-5 w-5 object-contain" />
+                                                </span>
+                                                <span className="flex-1 text-left text-sm font-medium">{item.label}</span>
+                                                <ChevronDownIcon isOpen={isOpen} />
+                                            </button>
+                                        ) : (
+                                            <Link
+                                                href={item.href}
+                                                onClick={() => onClose?.()}
+                                                className={`admin-dashboard-purple flex items-center gap-3 rounded-[18px] px-4 py-3 transition-transform hover:-translate-y-0.5 ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
+                                            >
+                                                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/55">
+                                                    <Image src={item.iconSrc} alt={item.iconAlt} width={20} height={20} className="h-5 w-5 object-contain" />
+                                                </span>
+                                                <span className="text-sm font-medium">{item.label}</span>
+                                            </Link>
+                                        )}
+                                        <AnimatePresence initial={false}>
+                                            {hasChildren && isOpen ? (
+                                                <motion.div
+                                                    initial={{ height: 0, opacity: 0 }}
+                                                    animate={{ height: 'auto', opacity: 1 }}
+                                                    exit={{ height: 0, opacity: 0 }}
+                                                    transition={{ duration: 0.22 }}
+                                                    className="overflow-hidden"
+                                                >
+                                                    <div className="mt-1 flex flex-col gap-0.5 pl-6">
+                                                        {(item.children ?? []).map((child) => {
+                                                            const isChildActive = child.match(pathname);
+                                                            return (
+                                                                <Link
+                                                                    key={child.id}
+                                                                    href={child.href}
+                                                                    onClick={() => onClose?.()}
+                                                                    className={`admin-dashboard-purple flex items-center rounded-[14px] px-4 py-2.5 text-sm font-medium transition-colors hover:bg-white/30 ${isChildActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
+                                                                >
+                                                                    {child.label}
+                                                                </Link>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </motion.div>
+                                            ) : null}
+                                        </AnimatePresence>
+                                    </div>
+                                );
+                            })}
+                        </nav>
+
+                        <div className="pt-4">
                             <button
-                                key={item.id}
-                                onClick={() => {}}
-                                className={`w-full flex items-start gap-3 px-4 py-3 rounded-lg text-sm transition-colors mb-1 ${
-                                    getActiveItem() === item.id
-                                        ? 'bg-gray-800 text-white'
-                                        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                                }`}
+                                type="button"
+                                className="admin-dashboard-logout flex w-full items-center gap-3 rounded-[18px] px-4 py-3 text-sm font-medium"
                             >
-                                <span className="flex-shrink-0 mt-0.5">{item.icon}</span>
-                                <span className="font-normal text-left leading-tight">{item.label}</span>
+                                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/55">
+                                    <LogoutIcon />
+                                </span>
+                                <span>Log out</span>
                             </button>
-                        )
-                    )}
-                </nav>
-
-                {/* Log out */}
-                <div className="border-t border-gray-800 p-3">
-                    <button className="w-full flex items-start gap-3 px-4 py-3 rounded-lg text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
-                        <span className="flex-shrink-0 mt-0.5">
-                            <LogoutIcon />
-                        </span>
-                        <span className="font-normal text-left">Log out</span>
-                    </button>
-                </div>
-            </motion.aside>
+                        </div>
+                    </div>
+                </motion.aside>
             </>
         );
     }
 
-    // Desktop: hover-expand version
     return (
         <motion.aside
-            className="hidden lg:flex lg:flex-col lg:border-r lg:border-gray-800 lg:bg-black lg:shadow-inner lg:h-screen lg:sticky lg:top-0 overflow-hidden text-white z-20"
+            className="sticky top-0 z-20 hidden h-[100dvh] overflow-hidden px-4 py-4 lg:flex"
             initial={false}
             animate={{ width: isHovered ? EXPANDED_WIDTH : COLLAPSED_WIDTH }}
-            transition={{
-                type: 'spring',
-                stiffness: 300,
-                damping: 28,
-                mass: 0.8,
-            }}
+            transition={{ type: 'spring', stiffness: 300, damping: 28, mass: 0.8 }}
             onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
+            onMouseLeave={handleMouseLeave}
         >
-            {/* Brand header */}
-            <div className="flex items-center justify-center border-b border-gray-800 py-5 shrink-0">
-                <div className="h-9 w-9 rounded-xl bg-gray-700 flex items-center justify-center font-bold text-gray-200 shadow-md">
-                    W
+            <div className="admin-dashboard-panel flex h-full w-full flex-col items-center overflow-hidden rounded-[28px] px-2 py-5">
+                <div className="mb-4 flex w-full shrink-0 items-center justify-center px-1 pt-1">
+                    <Link href="/admindashboard" aria-label="Dashboard Home">
+                        <Image src="/images/logo.svg" alt="CMS E-commerce" width={56} height={56} className="h-14 w-14 object-contain" />
+                    </Link>
                 </div>
-            </div>
 
-            {/* Navigation */}
-            <nav className="flex-1 py-6 flex flex-col">
-                {navItems.map((item) => {
-                    const isActive = getActiveItem() === item.id;
-                    
-                    const content = (
-                        <div className={`
-                            group relative flex items-center rounded-lg transition-colors
-                            w-full px-4 py-3
-                            ${
-                                isActive
-                                    ? 'bg-gray-800/70 text-white'
-                                    : 'text-gray-300 hover:bg-gray-800/50 hover:text-white'
-                            }
-                        `}>
-                            {/* Fixed icon position */}
-                            <div className="w-12 flex items-center justify-center shrink-0">
-                                <span className="flex h-5 w-5 items-center justify-center text-gray-400 group-hover:text-gray-200 transition-colors">
-                                    {item.icon}
-                                </span>
-                            </div>
+                <nav className="mt-[50px] flex min-h-0 w-full flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden">
+                    {adminNavItems.map((item) => {
+                        const isActive = activeItem === item.id;
+                        const hasChildren = !!(item.children?.length);
+                        const isOpen = openDropdowns.includes(item.id);
 
-                            {/* Label slide-in */}
-                            <AnimatePresence>
-                                {isHovered && (
-                                    <motion.span
-                                        initial={{ opacity: 0, x: -12 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        exit={{ opacity: 0, x: -12 }}
-                                        transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-                                        className="ml-3 text-sm font-medium whitespace-nowrap"
+                        return (
+                            <div key={item.id} className="w-full shrink-0">
+                                {hasChildren ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => isHovered && toggleDropdown(item.id)}
+                                        aria-label={item.label}
+                                        className={`group relative flex w-full items-center rounded-2xl px-2 py-2 transition-transform hover:-translate-y-0.5 ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
                                     >
-                                        {item.label}
-                                    </motion.span>
+                                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/55">
+                                            <Image src={item.iconSrc} alt={item.iconAlt} width={20} height={20} className="h-5 w-5 object-contain" />
+                                        </span>
+                                        <span className={`admin-dashboard-purple ml-3 flex-1 whitespace-nowrap text-left text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
+                                            {item.label}
+                                        </span>
+                                        <span className={`admin-dashboard-purple mr-1 transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
+                                            <ChevronDownIcon isOpen={isOpen} />
+                                        </span>
+                                        {isActive ? (
+                                            <span className={`admin-dashboard-yellow-fill absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full transition-opacity duration-100 ${isHovered ? 'opacity-0' : 'opacity-100'}`} />
+                                        ) : null}
+                                    </button>
+                                ) : (
+                                    <Link
+                                        href={item.href}
+                                        aria-label={item.label}
+                                        className={`group relative flex w-full items-center rounded-2xl px-2 py-2 transition-transform hover:-translate-y-0.5 ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
+                                    >
+                                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/55">
+                                            <Image src={item.iconSrc} alt={item.iconAlt} width={20} height={20} className="h-5 w-5 object-contain" />
+                                        </span>
+                                        <span className={`admin-dashboard-purple ml-3 whitespace-nowrap text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
+                                            {item.label}
+                                        </span>
+                                        {isActive ? (
+                                            <span className={`admin-dashboard-yellow-fill absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full transition-opacity duration-100 ${isHovered ? 'opacity-0' : 'opacity-100'}`} />
+                                        ) : null}
+                                    </Link>
                                 )}
-                            </AnimatePresence>
+                                <AnimatePresence initial={false}>
+                                    {hasChildren && isHovered && isOpen ? (
+                                        <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: 'auto', opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            transition={{ duration: 0.22 }}
+                                            className="overflow-hidden"
+                                        >
+                                            <div className="mt-1 flex flex-col gap-0.5 pl-4">
+                                                {(item.children ?? []).map((child) => {
+                                                    const isChildActive = child.match(pathname);
+                                                    return (
+                                                        <Link
+                                                            key={child.id}
+                                                            href={child.href}
+                                                            className={`admin-dashboard-purple flex items-center rounded-xl px-3 py-2 text-sm font-medium transition-colors hover:bg-white/30 ${isChildActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
+                                                        >
+                                                            {child.label}
+                                                        </Link>
+                                                    );
+                                                })}
+                                            </div>
+                                        </motion.div>
+                                    ) : null}
+                                </AnimatePresence>
+                            </div>
+                        );
+                    })}
+                </nav>
 
-                            {/* Active indicator when collapsed */}
-                            {isActive && !isHovered && (
-                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-blue-500 rounded-r-full" />
-                            )}
-                        </div>
-                    );
-
-                    return item.href ? (
-                        <Link key={item.id} href={item.href}>
-                            {content}
-                        </Link>
-                    ) : (
-                        <button key={item.id} type="button" className="w-full text-left">
-                            {content}
-                        </button>
-                    );
-                })}
-            </nav>
-
-            {/* Log out */}
-            <div className="border-t border-gray-800 py-4 shrink-0">
                 <button
                     type="button"
-                    className="group relative flex items-center rounded-lg transition-colors w-full px-4 py-3 text-gray-300 hover:bg-gray-800/50 hover:text-white"
+                    className="admin-dashboard-logout mt-auto shrink-0 flex w-full items-center rounded-2xl px-2 py-2"
+                    aria-label="Log out"
+                    title="Log out"
                 >
-                    <div className="w-12 flex items-center justify-center shrink-0">
-                        <span className="flex h-5 w-5 items-center justify-center text-gray-400 group-hover:text-gray-200 transition-colors">
-                            <LogoutIcon />
-                        </span>
-                    </div>
-                    <AnimatePresence>
-                        {isHovered && (
-                            <motion.span
-                                initial={{ opacity: 0, x: -12 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -12 }}
-                                transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-                                className="ml-3 text-sm font-medium whitespace-nowrap"
-                            >
-                                Log out
-                            </motion.span>
-                        )}
-                    </AnimatePresence>
+                    <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/55">
+                        <LogoutIcon />
+                    </span>
+                    <span className={`ml-3 whitespace-nowrap text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
+                        Log out
+                    </span>
                 </button>
             </div>
         </motion.aside>

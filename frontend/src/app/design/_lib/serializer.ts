@@ -88,7 +88,7 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
     marginBottom: 0,
     marginLeft: 0,
     width: "100%",
-    height: "auto",
+    height: "240px",
     backgroundImage: "",
     backgroundSize: "cover",
     backgroundPosition: "center",
@@ -405,6 +405,9 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
     blockName: "Imported",
     blockCss: "",
     blockHtml: "<div>Empty</div>",
+  },
+  Accordion: {
+    items: [],
   },
 };
 

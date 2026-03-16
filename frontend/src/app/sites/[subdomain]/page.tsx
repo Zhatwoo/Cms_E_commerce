@@ -193,7 +193,7 @@ function PublicSiteContent() {
         pageIndex={0}
         mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
         enableFormInputs
-        builderParityMode={false}
+        builderParityMode={true}
         fillViewport
         storeContext={{ products, addToCart }}
       />

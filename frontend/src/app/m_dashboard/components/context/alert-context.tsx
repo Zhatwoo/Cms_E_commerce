@@ -11,12 +11,27 @@ type AlertState = {
   message: string;
   title?: string;
   variant: 'alert' | 'confirm';
+  confirmText?: string;
+  cancelText?: string;
   resolve: (value: boolean) => void;
-} | { open: false; message: string; title?: string; variant: 'alert' | 'confirm'; resolve?: (value: boolean) => void };
+} | {
+  open: false;
+  message: string;
+  title?: string;
+  variant: 'alert' | 'confirm';
+  confirmText?: string;
+  cancelText?: string;
+  resolve?: (value: boolean) => void;
+};
+
+type ConfirmOptions = {
+  confirmText?: string;
+  cancelText?: string;
+};
 
 type AlertContextType = {
   showAlert: (message: string, title?: string) => void;
-  showConfirm: (message: string, title?: string) => Promise<boolean>;
+  showConfirm: (message: string, title?: string, options?: ConfirmOptions) => Promise<boolean>;
 };
 
 const AlertContext = createContext<AlertContextType | undefined>(undefined);
@@ -81,21 +96,31 @@ function AlertModalBackdrop({
           className="px-6 py-4 flex justify-end gap-3 border-t"
           style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated }}
         >
-          <button
-            type="button"
-            onClick={state.variant === 'confirm' ? onConfirm : onClose}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-500 transition-colors hover:opacity-90"
-          >
-            {state.variant === 'confirm' ? 'Yes' : 'OK'}
-          </button>
-          {state.variant === 'confirm' && (
+          {state.variant === 'confirm' ? (
+            <>
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:opacity-80"
+                style={{ color: colors.text.primary }}
+              >
+                {state.cancelText ?? 'No'}
+              </button>
+              <button
+                type="button"
+                onClick={onConfirm}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-500 transition-colors hover:opacity-90"
+              >
+                {state.confirmText ?? 'Yes'}
+              </button>
+            </>
+          ) : (
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:opacity-80"
-              style={{ color: colors.text.primary }}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-500 transition-colors hover:opacity-90"
             >
-              No
+              OK
             </button>
           )}
         </div>
@@ -128,13 +153,15 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const showConfirm = useCallback((message: string, title?: string): Promise<boolean> => {
+  const showConfirm = useCallback((message: string, title?: string, options?: ConfirmOptions): Promise<boolean> => {
     return new Promise((resolve) => {
       setState({
         open: true,
         message,
         title,
         variant: 'confirm',
+        confirmText: options?.confirmText,
+        cancelText: options?.cancelText,
         resolve: (value: boolean) => {
           setState((s) => ({ ...s, open: false }));
           resolve(value);

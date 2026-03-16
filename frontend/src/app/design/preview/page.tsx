@@ -70,7 +70,7 @@ function PreviewContent() {
   const [selectedPreviewPageSlug, setSelectedPreviewPageSlug] = useState<string | undefined>(initialPageSlug);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const thumbnailCaptureRef = useRef(false);
-  const useBuilderParityMode = false;
+  const useBuilderParityMode = true;
 
   useEffect(() => {
     getMe().then((res: any) => {
@@ -326,17 +326,12 @@ function PreviewContent() {
 
   const desktopResponsiveViewportWidth = useMemo(() => {
     if (!cleanDoc?.pages?.length) return undefined;
-
-    const targetSlug = initialPageSlug;
-    const targetPage = targetSlug
-      ? cleanDoc.pages.find((page, index) => {
-        const slug = (page.props?.pageSlug as string | undefined) || `page-${index}`;
-        return slug === targetSlug;
-      })
-      : cleanDoc.pages[0];
-
+    const idx = selectedPreviewPageSlug
+      ? previewPages.findIndex((p) => p.slug === selectedPreviewPageSlug)
+      : 0;
+    const targetPage = idx >= 0 ? cleanDoc.pages[idx] : cleanDoc.pages[0];
     return toPxNumber(targetPage?.props?.width) ?? 1920;
-  }, [cleanDoc, initialPageSlug]);
+  }, [cleanDoc, previewPages, selectedPreviewPageSlug]);
 
   const capturePreviewThumbnail = async () => {
     if (thumbnailCaptureRef.current || !previewRef.current || !projectId) return;
@@ -835,10 +830,13 @@ function PreviewContent() {
                   builderParityMode={useBuilderParityMode}
                   simulatedWidth={
                     previewViewport === "desktop"
-                      ? undefined
+                      ? (desktopResponsiveViewportWidth ?? 1920)
                       : previewViewport === "tablet"
                         ? 768
                         : 390
+                  }
+                  responsiveViewportWidth={
+                    previewViewport === "desktop" ? (desktopResponsiveViewportWidth ?? 1920) : undefined
                   }
                 />
               </div>

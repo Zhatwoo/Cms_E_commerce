@@ -685,7 +685,7 @@ export default function WebBuilderPage() {
   }
 
   return (
-    <section className="space-y-8 min-h-screen pb-20 max-w-full overflow-x-hidden">
+    <section className="dashboard-landing-light space-y-8 min-h-screen pb-20 max-w-full overflow-x-hidden">
       {/* Header Section */}
       <section
         className="rounded-2xl border p-5 md:p-6"
@@ -830,23 +830,29 @@ export default function WebBuilderPage() {
               {activeTab === 'active' ? 'Edit or continue a saved draft.' : 'Recently deleted projects.'}
             </p>
           </div>
-          <div className="flex items-center gap-1 p-1 rounded-xl" style={{ backgroundColor: colors.bg.elevated }}>
+          <div
+            className="flex items-center gap-1 p-1 rounded-xl"
+            style={{
+              backgroundColor: theme === 'light' ? colors.bg.searchBar : colors.bg.elevated,
+              border: `1px solid ${colors.border.faint}`,
+            }}
+          >
             <button
               onClick={() => setActiveTab('active')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === 'active' ? 'shadow-sm' : 'opacity-60 hover:opacity-100'}`}
+              className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === 'active' ? 'shadow-sm' : 'hover:opacity-100'} ${theme === 'light' && activeTab !== 'active' ? 'opacity-100' : activeTab !== 'active' ? 'opacity-60' : ''}`}
               style={{
-                backgroundColor: activeTab === 'active' ? colors.bg.card : 'transparent',
-                color: colors.text.primary,
+                backgroundColor: activeTab === 'active' ? (theme === 'light' ? colors.accent.purpleDeep : colors.bg.card) : 'transparent',
+                color: activeTab === 'active' ? (theme === 'light' ? colors.bg.card : colors.text.primary) : (theme === 'light' ? colors.text.secondary : colors.text.primary),
               }}
             >
               Active
             </button>
             <button
               onClick={() => setActiveTab('trash')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === 'trash' ? 'shadow-sm' : 'opacity-60 hover:opacity-100'}`}
+              className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === 'trash' ? 'shadow-sm' : 'hover:opacity-100'} ${theme === 'light' && activeTab !== 'trash' ? 'opacity-100' : activeTab !== 'trash' ? 'opacity-60' : ''}`}
               style={{
-                backgroundColor: activeTab === 'trash' ? colors.bg.card : 'transparent',
-                color: colors.text.primary,
+                backgroundColor: activeTab === 'trash' ? (theme === 'light' ? colors.accent.purpleDeep : colors.bg.card) : 'transparent',
+                color: activeTab === 'trash' ? (theme === 'light' ? colors.bg.card : colors.text.primary) : (theme === 'light' ? colors.text.secondary : colors.text.primary),
               }}
             >
               Trash
