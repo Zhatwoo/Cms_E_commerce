@@ -37,7 +37,7 @@ export const Image = ({
   flipHorizontal = false,
   flipVertical = false,
   customClassName = "",
-  _autoFitInTabs = true,
+  _autoFitInTabs = false,
   _isDraggingSource = false,
 }: ImageProps) => {
   const [isDraggingOver, setIsDraggingOver] = React.useState(false);
@@ -98,7 +98,7 @@ export const Image = ({
     parentDisplayName === "Container" || parentDisplayName === "Section" || parentDisplayName === "Tab Content";
   const isTabsLikeContext =
     isInsideTabsContext || parentDisplayName === "Tabs" || parentDisplayName === "Tab Content" || parentDisplayName === "TabContent";
-  const shouldAutoFitToTabs = Boolean(isTabsLikeContext && _autoFitInTabs !== false);
+  const shouldAutoFitToTabs = Boolean(isTabsLikeContext && _autoFitInTabs === true);
   const isAutoHeight = typeof height !== "string" || height.trim().toLowerCase() === "auto";
   const parentHeightText = typeof parentHeight === "string" ? parentHeight.trim().toLowerCase() : "";
   const parentHasExplicitHeight =
@@ -302,7 +302,7 @@ export const ImageDefaultProps: Partial<ImageProps> = {
   marginLeft: 0,
   opacity: 1,
   boxShadow: "none",
-  _autoFitInTabs: true,
+  _autoFitInTabs: false,
 };
 
 Image.craft = {

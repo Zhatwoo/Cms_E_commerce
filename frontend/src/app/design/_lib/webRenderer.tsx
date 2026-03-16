@@ -1364,15 +1364,35 @@ function PreviewTabs({
   props,
   childNodes,
   childNodeIds,
+  childNodeHasChildren,
+  childNodeMap,
+  childNodeHasChildrenById,
 }: {
   props: Record<string, any>;
   childNodes?: React.ReactNode[];
   childNodeIds?: string[];
+  childNodeHasChildren?: boolean[];
+  childNodeMap?: Record<string, React.ReactNode>;
+  childNodeHasChildrenById?: Record<string, boolean>;
 }) {
   const tabs = (props.tabs as any[]) || [];
+  const linkedSlotMap = (props.__linkedNodes as Record<string, string>) ?? {};
   const [activeTabId, setActiveTabId] = React.useState(
     props.activeTabId || (tabs[0]?.id || "")
   );
+
+  React.useEffect(() => {
+    const preferred = props.activeTabId || "";
+    const hasPreferred = preferred && tabs.some((t) => t?.id === preferred);
+    if (hasPreferred) {
+      setActiveTabId(preferred);
+      return;
+    }
+    const firstId = tabs[0]?.id || "";
+    if (firstId && firstId !== activeTabId) {
+      setActiveTabId(firstId);
+    }
+  }, [props.activeTabId, tabs, activeTabId]);
 
   const br = (props.borderRadius ?? 0) as number;
   const borderColor = (props.borderColor as string) || "transparent";
@@ -1433,12 +1453,16 @@ function PreviewTabs({
       <div className="tabs-content relative w-full flex-grow min-h-[100px] overflow-hidden">
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId;
-          const expectedNodeId = typeof tab?.id === "string" ? `tab-content-${tab.id}` : "";
-          const matchedIndex = expectedNodeId
-            ? (childNodeIds ?? []).findIndex((id) => id === expectedNodeId)
+          const expectedSlotKey = typeof tab?.id === "string" ? `tab-content-${tab.id}` : "";
+          const mappedNodeId = expectedSlotKey ? linkedSlotMap[expectedSlotKey] : undefined;
+          const matchedIndex = mappedNodeId
+            ? (childNodeIds ?? []).findIndex((id) => id === mappedNodeId)
             : -1;
           const fallbackIndex = tabs.indexOf(tab);
           const resolvedIndex = matchedIndex >= 0 ? matchedIndex : fallbackIndex;
+          const fallbackNodeId = (childNodeIds ?? [])[resolvedIndex];
+          const resolvedNodeId = mappedNodeId || fallbackNodeId;
+          const resolvedNode = resolvedNodeId ? childNodeMap?.[resolvedNodeId] : childNodes?.[resolvedIndex];
 
           return (
             <div
@@ -1446,8 +1470,8 @@ function PreviewTabs({
               className={`w-full h-full transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${isActive ? "opacity-100 translate-y-0 relative" : "opacity-0 -translate-y-2 absolute inset-0 pointer-events-none"}`}
             >
               <div className="w-full min-h-[100px] flex flex-col">
-                {childNodes && childNodes[resolvedIndex] != null
-                  ? childNodes[resolvedIndex]
+                {resolvedNode != null
+                  ? resolvedNode
                   : <div className="p-6 text-sm whitespace-pre-wrap text-gray-800 leading-relaxed" style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>{tab.content}</div>}
               </div>
             </div>
@@ -1541,10 +1565,18 @@ function RenderNode({
   const prototype = props.prototype as PrototypeConfig | undefined;
   const nextInsideTabsContext = Boolean(insideTabsContext || type === "Tabs" || type === "TabContent");
   const childIds = node.children ?? [];
+  const childNodeMap: Record<string, React.ReactNode> = {};
+  const childNodeHasChildrenById: Record<string, boolean> = {};
+  const childNodeHasChildren = childIds.map((id) => {
+    const child = nodes[id];
+    const hasChildren = Boolean(child && Array.isArray(child.children) && child.children.length > 0);
+    childNodeHasChildrenById[id] = hasChildren;
+    return hasChildren;
+  });
   const children = childIds.map((id) => {
     const n = nodes[id];
     if (!n) return null;
-    return (
+    const renderedNode = (
       <RenderNode
         key={id}
         node={n}
@@ -1566,6 +1598,8 @@ function RenderNode({
         insideTabsContext={nextInsideTabsContext}
       />
     );
+    childNodeMap[id] = renderedNode;
+    return renderedNode;
   });
 
   const wrap = (el: React.ReactElement) =>
@@ -2134,11 +2168,17 @@ function RenderNode({
       const normalizedImageWidth = normalizeLayoutWidthForNarrow(props.width, isNarrowPreview, builderParityMode);
       const normalizedImageHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
       const isInsideTabs = Boolean(insideTabsContext || parentType === "Tabs" || parentType === "TabContent");
-      const autoFitInTabs = props._autoFitInTabs !== false;
-      const rawWidth = normalizedImageWidth ?? (props.width as string);
-      const rawHeight = normalizedImageHeight ?? (props.height as string);
+      const autoFitInTabs = props._autoFitInTabs === true;
+      const rawWidth =
+        isInsideTabs && !autoFitInTabs
+          ? (props.width as string)
+          : (normalizedImageWidth ?? (props.width as string));
+      const rawHeight =
+        isInsideTabs && !autoFitInTabs
+          ? (props.height as string)
+          : (normalizedImageHeight ?? (props.height as string));
       const resolvedImageWidth = isInsideTabs && autoFitInTabs ? "100%" : rawWidth;
-      const resolvedImageHeight = isInsideTabs && autoFitInTabs ? "100%" : rawHeight;
+      const resolvedImageHeight = isInsideTabs && autoFitInTabs ? "auto" : rawHeight;
       const imageWidthPx = parsePixelValue(props.width);
       const imageHeightPx = parsePixelValue(props.height);
       const mediaAspectRatio = imageWidthPx && imageHeightPx ? `${imageWidthPx} / ${imageHeightPx}` : undefined;
@@ -2175,6 +2215,13 @@ function RenderNode({
       const vidTransform = [vidRot ? `rotate(${vidRot}deg)` : null, vidFlipH ? "scaleX(-1)" : null, vidFlipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
       const normalizedVideoWidth = normalizeLayoutWidthForNarrow(props.width, isNarrowPreview, builderParityMode);
       const normalizedVideoHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
+      const isInsideTabs = Boolean(insideTabsContext || parentType === "Tabs" || parentType === "TabContent");
+      const resolvedVideoWidth = isInsideTabs
+        ? ((props.width as string) ?? "100%")
+        : (normalizedVideoWidth ?? (props.width as string) ?? "100%");
+      const resolvedVideoHeight = isInsideTabs
+        ? ((props.height as string) ?? "auto")
+        : (normalizedVideoHeight ?? (props.height as string) ?? "auto");
       const videoWidthPx = parsePixelValue(props.width);
       const videoHeightPx = parsePixelValue(props.height);
       const videoAspectRatio = videoWidthPx && videoHeightPx ? `${videoWidthPx} / ${videoHeightPx}` : "16 / 9";
@@ -2187,8 +2234,8 @@ function RenderNode({
             data-fluid-media="true"
             className={((props.customClassName as string) || "").trim() || undefined}
             style={{
-              width: normalizedVideoWidth ?? (props.width as string) ?? "100%",
-              height: normalizedVideoHeight ?? (props.height as string) ?? "auto",
+              width: resolvedVideoWidth,
+              height: resolvedVideoHeight,
               maxWidth: "100%",
               aspectRatio: videoAspectRatio,
               borderRadius: px(props.borderRadius),
@@ -2223,8 +2270,8 @@ function RenderNode({
           data-fluid-media="true"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
-            width: normalizedVideoWidth ?? (props.width as string) ?? "100%",
-            height: normalizedVideoHeight ?? (props.height as string) ?? "auto",
+            width: resolvedVideoWidth,
+            height: resolvedVideoHeight,
             maxWidth: "100%",
             objectFit: ((props.objectFit as React.CSSProperties["objectFit"]) || "cover"),
             aspectRatio: videoAspectRatio,
@@ -3090,7 +3137,16 @@ function RenderNode({
     }
 
     case "Tabs":
-      return wrap(<PreviewTabs props={props} childNodes={children} childNodeIds={childIds} />);
+      return wrap(
+        <PreviewTabs
+          props={props}
+          childNodes={children}
+          childNodeIds={childIds}
+          childNodeHasChildren={childNodeHasChildren}
+          childNodeMap={childNodeMap}
+          childNodeHasChildrenById={childNodeHasChildrenById}
+        />
+      );
 
     default:
       return <div data-unknown-type={type}>{children}</div>;
