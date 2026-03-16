@@ -1087,6 +1087,47 @@ export async function createPublishedOrder(params: {
   );
 }
 
+/** Create payment (PayPal) for a published order. Returns redirectUrl to PayPal. */
+export async function createPaymentIntent(
+  subdomain: string,
+  orderId: string,
+  _paymentMethod?: 'paypal' | 'gcash' | 'maya' | 'card'
+): Promise<{
+  success: boolean;
+  message?: string;
+  redirectUrl?: string;
+  clientKey?: string;
+  publicKey?: string;
+}> {
+  const normalizedSubdomain = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  return apiFetch<{
+    success: boolean;
+    message?: string;
+    redirectUrl?: string;
+    clientKey?: string;
+    publicKey?: string;
+  }>(
+    `/api/orders/published/${encodeURIComponent(normalizedSubdomain)}/${encodeURIComponent(orderId)}/create-payment-intent`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ paymentMethod: _paymentMethod ?? 'paypal' }),
+    }
+  );
+}
+
+/** Capture PayPal payment after user returns from PayPal (call when result page has token). */
+export async function capturePayPal(
+  subdomain: string,
+  orderId: string,
+  token: string
+): Promise<{ success: boolean; message?: string }> {
+  const normalizedSubdomain = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  const params = new URLSearchParams({ token });
+  return apiFetch<{ success: boolean; message?: string }>(
+    `/api/orders/published/${encodeURIComponent(normalizedSubdomain)}/${encodeURIComponent(orderId)}/capture-paypal?${params.toString()}`
+  );
+}
+
 export async function listMyPublishedOrders(params?: {
   subdomain?: string;
   search?: string;
@@ -1120,6 +1161,55 @@ export async function updatePublishedOrderStatus(
     }
   );
 }
+
+export async function createPaymentIntent(
+  subdomain: string,
+  orderId: string,
+  paymentMethod: string
+): Promise<{ 
+  success: boolean; 
+  message?: string; 
+  redirectUrl?: string; 
+  clientKey?: string; 
+  publicKey?: string;
+}> {
+  const sub = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  return apiFetch<{ 
+    success: boolean; 
+    message?: string; 
+    redirectUrl?: string; 
+    clientKey?: string; 
+    publicKey?: string; 
+  }>(`/api/orders/published/${encodeURIComponent(sub)}/${encodeURIComponent(orderId)}/create-payment-intent`, {
+    method: 'POST',
+    body: JSON.stringify({ paymentMethod }),
+  });
+}
+
+export async function createStripePaymentIntent(
+  subdomain: string,
+  orderId: string
+): Promise<{ 
+  success: boolean; 
+  message?: string; 
+  clientSecret?: string; 
+  publicKey?: string;
+}> {
+  const sub = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  return apiFetch<{ 
+    success: boolean; 
+    message?: string; 
+    clientSecret?: string; 
+    publicKey?: string; 
+  }>(`/api/orders/published/${encodeURIComponent(sub)}/${encodeURIComponent(orderId)}/create-stripe-payment-intent`, {
+    method: 'POST',
+  });
+}
+
+export async function getStripePublicKey(): Promise<{ success: boolean; publicKey?: string }> {
+  return apiFetch<{ success: boolean; publicKey?: string }>('/api/orders/stripe-public-key');
+}
+
 /** Admin: User and Website Management — list websites with owner and plan from user/roles/client (subscription_plan). */
 export type DomainRow = {
   id: string;

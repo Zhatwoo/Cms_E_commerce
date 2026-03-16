@@ -371,19 +371,10 @@ const ProductDetailsModal = ({ product, onClose, colors, onEditProduct }: {
 
   if (!product) return null;
 
-  const productGallerySources = (Array.isArray(product.images) && product.images.length > 0
+  const gallery = (Array.isArray(product.images) && product.images.length > 0
     ? product.images
     : [product.image]
-  )
-    .map((img) => String(img || '').trim())
-    .filter((img) => isImageSource(img));
-
-  const variantGallerySources = (Array.isArray(product.variants) ? product.variants : [])
-    .flatMap((variant) => (Array.isArray(variant.options) ? variant.options : []))
-    .map((option) => String(option?.image || '').trim())
-    .filter((img) => isImageSource(img));
-
-  const gallery = Array.from(new Set([...productGallerySources, ...variantGallerySources]));
+  ).filter((img) => isImageSource(String(img || '')));
 
   const hasGallery = gallery.length > 0;
 
@@ -460,7 +451,7 @@ const ProductDetailsModal = ({ product, onClose, colors, onEditProduct }: {
                 )}
               </div>
 
-              <div className="mt-3 flex flex-col items-center gap-3">
+              <div className="mt-3 w-fit mx-auto">
                 {hasGallery && gallery.length > 1 && (
                   <div className="flex justify-center gap-2">
                     {gallery.map((img, idx) => (
@@ -483,7 +474,7 @@ const ProductDetailsModal = ({ product, onClose, colors, onEditProduct }: {
                 <button
                   type="button"
                   onClick={() => onEditProduct(product)}
-                  className="h-10 w-40 rounded-lg text-sm font-semibold text-white"
+                  className="mt-3 h-10 w-full rounded-lg text-sm font-semibold text-white"
                   style={{ backgroundColor: '#16a34a' }}
                 >
                   Edit Product
@@ -1022,7 +1013,7 @@ export default function ProductsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="dashboard-landing-light space-y-6">
       {typeof document !== 'undefined' && createPortal(
         <AnimatePresence>
           {productPopup.open && (
@@ -1063,7 +1054,10 @@ export default function ProductsPage() {
 
       <section className="max-w-[1090px] mx-auto pt-6 pb-2">
         <div className="text-center">
-          <h1 className="text-[clamp(34px,5vw,56px)] font-extrabold tracking-[-1.8px] text-white leading-[1.06]">
+          <h1
+            className="text-[clamp(34px,5vw,56px)] font-extrabold tracking-[-1.8px] leading-[1.06]"
+            style={{ color: colors.text.primary }}
+          >
             My{' '}
             <span
               style={{
@@ -1076,7 +1070,7 @@ export default function ProductsPage() {
               Products
             </span>
           </h1>
-          <p className="mt-2 text-sm" style={{ color: '#8A8FC4' }}>Track stock performance and catalog details.</p>
+          <p className="mt-2 text-sm" style={{ color: colors.text.secondary }}>Track stock performance and catalog details.</p>
         </div>
 
         <div className="mt-6 mb-7 max-w-[860px] mx-auto rounded-2xl border px-5 py-3.5 flex items-center gap-3 bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]">

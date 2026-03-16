@@ -50,7 +50,7 @@ const ChevronDownIcon = () => (
     <svg
         viewBox="0 0 24 24"
         aria-hidden="true"
-        className="h-3 w-3"
+        className="h-3.5 w-3.5"
         fill="none"
         stroke="currentColor"
         strokeWidth="2.5"
@@ -74,6 +74,39 @@ const UserIcon = () => (
     >
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
         <circle cx="12" cy="7" r="4" />
+    </svg>
+);
+
+const ProfileMenuIcon = () => (
+    <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        className="h-4 w-4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+    >
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+    </svg>
+);
+
+const LogoutIcon = () => (
+    <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        className="h-4 w-4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+    >
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+        <polyline points="16 17 21 12 16 7" />
+        <line x1="21" y1="12" x2="9" y2="12" />
     </svg>
 );
 
@@ -232,7 +265,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                             <button
                                 type="button"
                                 onClick={() => setShowMenu((v) => !v)}
-                                className="relative h-10 w-10 rounded-full p-[2px] flex items-center justify-center shadow-sm hover:opacity-90 transition-opacity overflow-hidden"
+                                className="relative h-10 w-10 rounded-full p-[2px] flex items-center justify-center shadow-sm hover:opacity-90 transition-opacity overflow-visible"
                                 style={{
                                     background: 'linear-gradient(135deg, #FFCE00 0%, #A64CD9 50%, #5C1D8F 100%)',
                                     border: 'none',
@@ -257,7 +290,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                                 </div>
 
                                 <span
-                                    className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border flex items-center justify-center"
+                                    className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full border flex items-center justify-center"
                                     style={{
                                         backgroundColor: theme === 'dark' ? '#0F172A' : '#E2E8F0',
                                         borderColor: theme === 'dark' ? '#334155' : '#CBD5E1',
@@ -294,18 +327,20 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                                         >
                                             <Link
                                                 href="/m_dashboard/profile"
-                                                className="block px-4 py-2 text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+                                                className="flex items-center gap-2 px-4 py-2 text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/10"
                                                 style={{ color: colors.text.primary }}
                                                 onClick={() => setShowMenu(false)}
                                             >
+                                                <ProfileMenuIcon />
                                                 Profile
                                             </Link>
                                             <button
                                                 type="button"
                                                 onClick={handleLogout}
-                                                className="block w-full text-left px-4 py-2 text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+                                                className="flex w-full items-center gap-2 text-left px-4 py-2 text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/10"
                                                 style={{ color: colors.status.error }}
                                             >
+                                                <LogoutIcon />
                                                 Log out
                                             </button>
                                         </motion.div>

@@ -270,7 +270,7 @@ function buildLinePath(values: number[], width: number, height: number, padX: nu
 }
 
 export default function AnalyticsPage() {
-  const { colors } = useTheme();
+  const { colors, theme } = useTheme();
   const { selectedProject } = useProject();
 
   const [period, setPeriod] = useState<PeriodKey>('30D');
@@ -907,7 +907,7 @@ export default function AnalyticsPage() {
   );
 
   return (
-    <div className="relative mx-auto w-full max-w-[1240px] 2xl:max-w-[1320px] px-1 sm:px-2 [font-family:var(--font-outfit),sans-serif]">
+    <div className="dashboard-landing-light relative mx-auto w-full max-w-[1240px] 2xl:max-w-[1320px] px-1 sm:px-2 [font-family:var(--font-outfit),sans-serif]">
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute left-1/2 top-[90px] h-[480px] w-[480px] -translate-x-1/2 rounded-full opacity-25 blur-3xl"
           style={{ backgroundColor: colors.accent.purpleDeep }} />
@@ -916,9 +916,9 @@ export default function AnalyticsPage() {
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}
       <section className="mb-6 text-center">
         <h1 className="text-[42px] sm:text-[56px] lg:text-[74px] 2xl:text-[82px] font-extrabold leading-[0.98] tracking-tight">
-          <span className="block text-white">Analytics</span>
+          <span className={`block ${theme === 'dark' ? 'text-white' : 'text-[#1E1B4B]'}`}>Analytics</span>
           <span className="block text-transparent bg-clip-text"
-            style={{ backgroundImage: 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)' }}>
+            style={{ backgroundImage: theme === 'dark' ? 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)' : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)', textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)' }}>
             {toTitleCase(activeSectionTab)}
           </span>
         </h1>
@@ -943,15 +943,15 @@ export default function AnalyticsPage() {
                 left: sectionIndicator.left,
                 width: sectionIndicator.width,
                 opacity: sectionIndicator.ready ? 1 : 0,
-                background: 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)',
-                boxShadow: '0 0 12px rgba(177, 59, 255, 0.35)',
+                background: theme === 'dark' ? 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)',
+                boxShadow: theme === 'dark' ? '0 0 12px rgba(177, 59, 255, 0.35)' : '0 0 12px rgba(139, 92, 246, 0.35)',
               }}
             />
           </div>
         </div>
 
         <div className="mx-auto mt-4 sm:mt-5 flex w-full max-w-[860px] flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
-          <div className="flex-1 rounded-2xl border px-5 py-3.5 flex items-center gap-3 bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]">
+          <div className={`flex-1 rounded-2xl border px-5 py-3.5 flex items-center gap-3 ${theme === 'dark' ? 'bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]' : 'bg-white/80 border-[#E2E8F0] shadow-sm backdrop-blur-md focus-within:border-[#8B5CF6] transition-colors'}`}>
             <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" style={{ color: colors.accent.yellow }}>
               <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
               <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="1.8" />
@@ -960,13 +960,13 @@ export default function AnalyticsPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search orders or buyers"
-              className="w-full bg-transparent text-sm outline-none text-white placeholder:text-[#6F70A8]"
+              className={`w-full bg-transparent text-sm outline-none ${theme === 'dark' ? 'text-white placeholder:text-[#6F70A8]' : 'text-slate-900 placeholder:text-slate-400'}`}
             />
           </div>
           <button
             type="button"
-            className="rounded-xl w-full sm:w-auto min-w-[112px] px-5 py-3 text-xs font-bold flex items-center justify-center gap-2"
-            style={{ backgroundColor: '#B14CFF', color: '#fff' }}
+            className="rounded-xl w-full sm:w-auto min-w-[112px] px-5 py-3 text-xs font-bold flex items-center justify-center gap-2 text-white"
+            style={{ background: theme === 'dark' ? '#B14CFF' : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)' }}
           >
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M12 3v12m0 0l-4-4m4 4l4-4" strokeLinecap="round" strokeLinejoin="round" />

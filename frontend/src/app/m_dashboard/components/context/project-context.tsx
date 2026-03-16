@@ -73,7 +73,7 @@ export function ProjectProvider({ children }: ProviderProps) {
   const fetchProjects = useCallback(async (includeShared = false, silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const res = await listProjects({ includeShared });
+      const res = await listProjects();
       if (res?.success && Array.isArray(res.projects)) {
         setProjects(res.projects);
         if (storageKey) {
