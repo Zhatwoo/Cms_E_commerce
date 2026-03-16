@@ -74,8 +74,6 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
   const [error, setError] = useState('');
   const [actionError, setActionError] = useState('');
 
-  const goToDashboard = () => router.push('/m_dashboard');
-
   // Loads the user's active projects for the selector list.
   const loadActiveProjects = useCallback(async () => {
     setLoading(true);
@@ -322,13 +320,13 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
               <>
                 {/* Page variant uses dashboard-like hero typography for visual consistency. */}
                 <h2 className="text-4xl sm:text-6xl lg:text-[76px] font-black leading-tight tracking-tight [font-family:var(--font-outfit),sans-serif]">
-                  <span className={`block ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+                  <span className={`block ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}`}>
                     {view === 'select' ? 'Open a' : 'Create new'}{' '}
                     <span
                       style={{
                         backgroundImage: theme === 'dark'
-                          ? 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)'
-                          : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)',
+                          ? 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #ffcc00 100%)'
+                          : 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #f5a213 100%)',
                         WebkitBackgroundClip: 'text',
                         backgroundClip: 'text',
                         WebkitTextFillColor: 'transparent',
@@ -336,11 +334,11 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                         display: 'inline-block'
                       }}
                     >
-                      project
+                      Project
                     </span>
                   </span>
                 </h2>
-                <p className={`text-base sm:text-lg mt-2 ${theme === 'dark' ? 'text-[#8A8FC4]' : 'text-[#1E1B4B]/70'}`}>
+                <p className={`text-base sm:text-lg mt-2 ${theme === 'dark' ? 'text-[#8A8FC4]' : 'text-[#120533]/70'}`}>
                   {view === 'select' ? 'Select an existing project or start a new one.' : 'Give your project a name and an optional subdomain.'}
                 </p>
               </>
@@ -368,8 +366,8 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                             className={`
                               cursor-pointer relative pb-1 transition-all duration-300
                               ${projectTab === tab.id
-                                ? (theme === 'dark' ? 'text-[#FFCE00]' : 'text-black')
-                                : (theme === 'dark' ? 'text-[#807FAF]' : 'text-[#1E1B4B]/50')
+                                ? (theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#120533]')
+                                : (theme === 'dark' ? 'text-[#807FAF]' : 'text-[#120533]/50')
                               }
                               hover:opacity-70
                             `}
@@ -382,7 +380,7 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                                 style={{
                                   background: theme === 'dark'
                                     ? 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)'
-                                    : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)'
+                                    : 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)'
                                 }}
                                 transition={{ type: 'spring', stiffness: 520, damping: 38 }}
                               />
@@ -394,7 +392,7 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
 
                     <div
                       className={`
-                        w-full max-w-4xl rounded-2xl px-5 py-3.5 flex items-center gap-3 border
+                        m-dashboard-search-shadow w-full max-w-4xl rounded-2xl px-5 py-3.5 flex items-center gap-3 border
                         transition-all duration-500
                         ${theme === 'dark'
                           ? 'bg-[#141446] border-[#1F1F51]'
@@ -421,7 +419,7 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                         placeholder="Search projects..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className={`w-full bg-transparent outline-none text-sm font-medium ${theme === 'dark' ? 'text-white placeholder:text-[#6F70A8]' : 'text-[#1E1B4B] placeholder:text-[#1E1B4B]/30'}`}
+                        className={`w-full bg-transparent outline-none text-sm font-medium ${theme === 'dark' ? 'text-white placeholder:text-[#6F70A8]' : 'text-[#120533] placeholder:text-[#120533]/30'}`}
                       />
                     </div>
                   </>
@@ -440,8 +438,8 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                           className={`
                             cursor-pointer relative pb-1 transition-all duration-300
                             ${projectTab === tab.id
-                              ? (theme === 'dark' ? 'text-[#FFCE00]' : 'text-black')
-                              : (theme === 'dark' ? 'text-[#807FAF]' : 'text-[#1E1B4B]/50')
+                              ? (theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#120533]')
+                              : (theme === 'dark' ? 'text-[#807FAF]' : 'text-[#120533]/50')
                             }
                             hover:opacity-70
                           `}
@@ -454,7 +452,7 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                               style={{
                                 background: theme === 'dark'
                                   ? 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)'
-                                  : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)'
+                                    : 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)'
                               }}
                               transition={{ type: 'spring', stiffness: 520, damping: 38 }}
                             />
@@ -533,11 +531,11 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                           <div className={`absolute top-6 right-6 transition-opacity duration-500 group-hover:opacity-100 opacity-20 ${theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#8B5CF6]'}`}>
                             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 0V14M0 7H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
                           </div>
-                          <div className={`h-18 w-18 rounded-[24px] flex items-center justify-center transition-all duration-500 shadow-lg group-hover:scale-110 ${theme === 'dark' ? 'bg-[#FFCE00] text-[#11134D] shadow-[0_0_30px_rgba(255,206,0,0.2)]' : 'bg-gradient-to-br from-[#8B5CF6] to-[#D946EF] text-white shadow-[0_10px_25px_rgba(139,92,246,0.3)]'}`}>
+                          <div className={`h-18 w-18 rounded-[24px] flex items-center justify-center transition-all duration-500 shadow-lg group-hover:scale-110 ${theme === 'dark' ? 'bg-[#FFCE00] text-[#11134D] shadow-[0_0_30px_rgba(255,206,0,0.2)]' : 'bg-gradient-to-r from-[#9333ea] to-[#ec4899] text-white shadow-[0_8px_24px_rgba(217,70,239,0.4)]'}`}>
                             <svg className="w-9 h-9" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m7-7H5" /></svg>
                           </div>
                           <div className="flex flex-col items-center gap-1">
-                            <span className={`text-xl font-black uppercase tracking-tight ${theme === 'dark' ? 'text-white' : 'text-[#1E1B4B]'}`}>New Project</span>
+                            <span className={`text-xl font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}`}>New Project</span>
                             <span className={`h-1 w-8 rounded-full transition-all duration-500 scale-x-0 group-hover:scale-x-100 ${theme === 'dark' ? 'bg-[#FFCE00]' : 'bg-[#8B5CF6]'}`} />
                           </div>
                         </button>
@@ -554,6 +552,8 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                                 <button
                                   type="button"
                                   onClick={(e) => { e.stopPropagation(); setActiveMenuProjectId((prev) => (prev === project.id ? null : project.id)); }}
+                                  aria-label="Open project actions"
+                                  title="Open project actions"
                                   className={asPage
                                     ? `cursor-pointer h-8 w-8 rounded-full flex items-center justify-center transition-all backdrop-blur-md ${theme === 'dark' ? 'bg-black/20 text-white/40 hover:text-white' : 'bg-[#8B5CF6]/10 text-[#8B5CF6] hover:bg-[#8B5CF6] hover:text-white'}`
                                     : 'h-8 w-8 rounded-md bg-[#0E0D3D]/80 backdrop-blur-md text-[#8A8FC4] border border-[#2A2A60] hover:text-[#FFCE00] hover:border-[#6B72D8] transition-colors flex items-center justify-center'}
@@ -566,8 +566,8 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                                       <>
                                         {/* Dropdown item: edit project name and subdomain */}
                                         <button type="button" onClick={(e) => { e.stopPropagation(); startEditProject(project); }} className={asPage ? 'w-full px-3 py-2 rounded-xl text-left text-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors' : 'w-full px-4 py-2 text-left text-sm text-white flex items-center gap-2 hover:bg-white/5'}><svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 3.487a1.875 1.875 0 1 1 2.652 2.652L8.25 17.403 4.5 18.75l1.347-3.75L16.862 3.487Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 4.5l3.75 3.75" /></svg> Edit Details</button>
-                                        <button type="button" onClick={(e) => { e.stopPropagation(); handleMoveToTrash(project); }} disabled={actioningProjectId === project.id} className={asPage ? 'w-full px-3 py-2 rounded-xl text-left text-sm text-red-500 flex items-center gap-2 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-50' : 'w-full px-4 py-2 text-left text-sm text-red-400 flex items-center gap-2 hover:bg-red-500/10 disabled:opacity-50'}>
-                                          {actioningProjectId === project.id ? <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V1C6.477 1 2 5.477 2 11h2z" /></svg> : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>} Move to trash
+                                        <button type="button" onClick={(e) => { e.stopPropagation(); handleMoveToTrash(project); }} disabled={actioningProjectId === project.id} className={asPage ? 'w-full px-3 py-2 rounded-xl text-left text-sm !text-[#BE123C] bg-[#FFF1F2] border border-[#FDA4AF] font-semibold flex items-center gap-2 hover:bg-[#FFE4E6] transition-colors disabled:!text-[#BE123C] disabled:bg-[#FFF1F2] disabled:border-[#FDA4AF] disabled:opacity-100' : 'w-full px-4 py-2 text-left text-sm text-red-400 flex items-center gap-2 hover:bg-red-500/10 disabled:opacity-80 disabled:text-red-300'}>
+                                          {actioningProjectId === project.id ? <svg className="w-4 h-4 animate-spin shrink-0" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V1C6.477 1 2 5.477 2 11h2z" /></svg> : <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>}<span className="truncate !text-[#BE123C]">Move to trash</span>
                                         </button>
                                       </>
                                     ) : (
@@ -575,8 +575,8 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                                         <button type="button" onClick={(e) => { e.stopPropagation(); handleRestoreProject(project); }} disabled={actioningProjectId === project.id} className={asPage ? 'w-full px-3 py-2 rounded-xl text-left text-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50' : 'w-full px-4 py-2 text-left text-sm text-white flex items-center gap-2 hover:bg-white/5 disabled:opacity-50'}>
                                           {actioningProjectId === project.id ? <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V1C6.477 1 2 5.477 2 11h2z" /></svg> : <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>} Restore
                                         </button>
-                                        <button type="button" onClick={(e) => { e.stopPropagation(); handlePermanentDeleteProject(project); }} disabled={actioningProjectId === project.id} className={asPage ? 'w-full px-3 py-2 rounded-xl text-left text-sm text-red-500 flex items-center gap-2 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-50' : 'w-full px-4 py-2 text-left text-sm text-red-400 flex items-center gap-2 hover:bg-red-500/10 disabled:opacity-50'}>
-                                          {actioningProjectId === project.id ? <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V1C6.477 1 2 5.477 2 11h2z" /></svg> : <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>} Delete Permanently
+                                        <button type="button" onClick={(e) => { e.stopPropagation(); handlePermanentDeleteProject(project); }} disabled={actioningProjectId === project.id} className={asPage ? 'w-full px-3 py-2 rounded-xl text-left text-sm !text-[#BE123C] bg-[#FFF1F2] border border-[#FDA4AF] font-semibold flex items-center gap-2 hover:bg-[#FFE4E6] transition-colors disabled:!text-[#BE123C] disabled:bg-[#FFF1F2] disabled:border-[#FDA4AF] disabled:opacity-100' : 'w-full px-4 py-2 text-left text-sm text-red-400 flex items-center gap-2 hover:bg-red-500/10 disabled:opacity-80 disabled:text-red-300'}>
+                                          {actioningProjectId === project.id ? <svg className="w-4 h-4 animate-spin shrink-0" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V1C6.477 1 2 5.477 2 11h2z" /></svg> : <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>}<span className="truncate !text-[#BE123C]">Delete Permanently</span>
                                         </button>
                                       </>
                                     )}
@@ -611,7 +611,7 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                                   <div className={`${viewMode === 'list' ? 'flex-1 min-w-0 pr-4' : 'w-full'}`}>
                                     {/* Project title and status badges (Published / Draft / Shared with me) */}
                                     <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
-                                      <p className={`text-[17px] font-bold leading-tight truncate transition-colors ${asPage ? (theme === 'dark' ? 'text-white group-hover:text-[#FFCE00]' : 'text-[#1E1B4B] group-hover:text-[#8B5CF6]') : 'text-white group-hover:text-[#FFCE00]'}`}>{project.title || 'Untitled Project'}</p>
+                                      <p className={`text-[17px] font-bold leading-tight truncate transition-colors ${asPage ? (theme === 'dark' ? 'text-white group-hover:text-[#FFCE00]' : 'text-[#120533] group-hover:text-[#8B5CF6]') : 'text-white group-hover:text-[#FFCE00]'}`}>{project.title || 'Untitled Project'}</p>
                                       {(project.status === 'published' || project.status === 'live') ? <span className="flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-green-500/15 text-green-400 border border-green-500/20">Published</span> : <span className="flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-[#3A3A7A]/30 text-[#8A8FC4] border border-[#3A3A7A]/40">Draft</span>}
                                       {project.isShared && <span className="flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/20">Shared with me</span>}
                                     </div>
@@ -635,19 +635,19 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                 <motion.div key="create" initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }} transition={{ duration: 0.18 }}>
                   <form onSubmit={handleCreate} className={`${asPage ? `space-y-5 max-w-3xl mx-auto p-6 sm:p-8 rounded-4xl border ${theme === 'dark' ? 'bg-[#15093E] border-[#272261] shadow-[0_20px_40px_rgba(0,0,0,0.3)]' : 'bg-white border-[#8B5CF6]/20 shadow-[0_15px_35px_rgba(139,92,246,0.08)]'}` : 'space-y-5 max-w-xl mx-auto'}`}>
                     {/* Project title input */}
-                    <div><label className={`block text-sm font-medium mb-1.5 ${asPage ? (theme === 'dark' ? 'text-[#C4C6E8]' : 'text-[#1E1B4B]') : 'text-[#C4C6E8]'}`}>Project title</label><input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="My Awesome Store" autoFocus className={`w-full px-4 py-3 rounded-xl border text-sm transition-colors ${asPage ? (theme === 'dark' ? 'border-[#2A2A60] bg-[#0A0826] text-white placeholder:text-[#4A4A7E] focus:border-[#6B72D8]' : 'border-[#8B5CF6]/30 bg-[#F8F7FF] text-[#1E1B4B] placeholder:text-[#8B5CF6]/50 focus:border-[#8B5CF6]') : 'border-[#2A2A60] bg-[#0A0826] text-white placeholder:text-[#4A4A7E] focus:border-[#6B72D8]'} focus:outline-none shadow-inner`} /></div>
+                    <div><label className={`block text-sm font-medium mb-1.5 ${asPage ? (theme === 'dark' ? 'text-[#C4C6E8]' : 'text-[#120533]') : 'text-[#C4C6E8]'}`}>Project title</label><input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="My Awesome Store" autoFocus className={`w-full px-4 py-3 rounded-xl border text-sm transition-colors ${asPage ? (theme === 'dark' ? 'border-[#2A2A60] bg-[#0A0826] text-white placeholder:text-[#4A4A7E] focus:border-[#6B72D8]' : 'border-[#8B5CF6]/30 bg-[#F8F7FF] text-[#120533] placeholder:text-[#8B5CF6]/50 focus:border-[#8B5CF6]') : 'border-[#2A2A60] bg-[#0A0826] text-white placeholder:text-[#4A4A7E] focus:border-[#6B72D8]'} focus:outline-none shadow-inner`} /></div>
                     {/* Industry / store type dropdown */}
                     <div>
-                      <label htmlFor="project-industry" className={`block text-sm font-medium mb-1.5 ${asPage ? (theme === 'dark' ? 'text-[#C4C6E8]' : 'text-[#1E1B4B]') : 'text-[#C4C6E8]'}`}>Industry / Store type</label>
-                      <select id="project-industry" data-industry-select="true" value={industry} onChange={(e) => setIndustry(e.target.value)} className={`w-full px-4 py-3 rounded-xl border text-sm transition-colors ${asPage ? (theme === 'dark' ? 'border-[#2A2A60] bg-[#0A0826] text-white focus:border-[#6B72D8]' : 'border-[#8B5CF6]/30 bg-[#F8F7FF] text-[#1E1B4B] focus:border-[#8B5CF6]') : 'border-[#2A2A60] bg-[#0A0826] text-white focus:border-[#6B72D8]'} focus:outline-none shadow-inner`} required>
+                      <label htmlFor="project-industry" className={`block text-sm font-medium mb-1.5 ${asPage ? (theme === 'dark' ? 'text-[#C4C6E8]' : 'text-[#120533]') : 'text-[#C4C6E8]'}`}>Industry / Store type</label>
+                      <select id="project-industry" data-industry-select="true" value={industry} onChange={(e) => setIndustry(e.target.value)} className={`w-full px-4 py-3 rounded-xl border text-sm transition-colors ${asPage ? (theme === 'dark' ? 'border-[#2A2A60] bg-[#0A0826] text-white focus:border-[#6B72D8]' : 'border-[#8B5CF6]/30 bg-[#F8F7FF] text-[#120533] focus:border-[#8B5CF6]') : 'border-[#2A2A60] bg-[#0A0826] text-white focus:border-[#6B72D8]'} focus:outline-none shadow-inner`} required>
                         <option value="" disabled>Select industry</option>
                         {INDUSTRY_OPTIONS.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
                       </select>
                     </div>
                     {/* Optional subdomain input - e.g. "mystore" becomes mystore.yourdomain.com */}
                     <div>
-                      <label className={`block text-sm font-medium mb-1.5 ${asPage ? (theme === 'dark' ? 'text-[#C4C6E8]' : 'text-[#1E1B4B]') : 'text-[#C4C6E8]'}`}>Preferred subdomain <span className={`${asPage ? (theme === 'dark' ? 'text-[#6B6FA0]' : 'text-[#8B5CF6]/70') : 'text-[#6B6FA0]'} font-normal`}>(optional)</span></label>
-                      <input type="text" value={subdomain} onChange={(e) => setSubdomain(e.target.value)} placeholder="mystore" className={`w-full px-4 py-3 rounded-xl border text-sm transition-colors ${asPage ? (theme === 'dark' ? 'border-[#2A2A60] bg-[#0A0826] text-white placeholder:text-[#4A4A7E] focus:border-[#6B72D8]' : 'border-[#8B5CF6]/30 bg-[#F8F7FF] text-[#1E1B4B] placeholder:text-[#8B5CF6]/50 focus:border-[#8B5CF6]') : 'border-[#2A2A60] bg-[#0A0826] text-white placeholder:text-[#4A4A7E] focus:border-[#6B72D8]'} focus:outline-none shadow-inner`} />
+                      <label className={`block text-sm font-medium mb-1.5 ${asPage ? (theme === 'dark' ? 'text-[#C4C6E8]' : 'text-[#120533]') : 'text-[#C4C6E8]'}`}>Preferred subdomain <span className={`${asPage ? (theme === 'dark' ? 'text-[#6B6FA0]' : 'text-[#8B5CF6]/70') : 'text-[#6B6FA0]'} font-normal`}>(optional)</span></label>
+                      <input type="text" value={subdomain} onChange={(e) => setSubdomain(e.target.value)} placeholder="mystore" className={`w-full px-4 py-3 rounded-xl border text-sm transition-colors ${asPage ? (theme === 'dark' ? 'border-[#2A2A60] bg-[#0A0826] text-white placeholder:text-[#4A4A7E] focus:border-[#6B72D8]' : 'border-[#8B5CF6]/30 bg-[#F8F7FF] text-[#120533] placeholder:text-[#8B5CF6]/50 focus:border-[#8B5CF6]') : 'border-[#2A2A60] bg-[#0A0826] text-white placeholder:text-[#4A4A7E] focus:border-[#6B72D8]'} focus:outline-none shadow-inner`} />
                       <p className={`text-xs mt-2 ${asPage ? (theme === 'dark' ? 'text-[#6B6FA0]' : 'text-[#8B5CF6]/70') : 'text-[#6B6FA0]'}`}>Only letters, numbers, and hyphens. e.g. <span className={`${asPage ? (theme === 'dark' ? 'text-[#8A8FC4]' : 'text-[#8B5CF6]') : 'text-[#8A8FC4]'}`}>mystore → mystore.yourdomain.com</span></p>
                     </div>
                     {/* Error message: shown when project creation fails (e.g. plan limit reached, server error) */}
@@ -655,7 +655,7 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                     {/* Form actions: Cancel returns to project list; Submit creates the project and opens it in the editor */}
                     <div className={`flex justify-end gap-3 pt-4 border-t mt-6 ${asPage ? (theme === 'dark' ? 'border-[#272261]' : 'border-[#8B5CF6]/20') : 'border-[#1F1F51]'}`}>
                       <button type="button" onClick={() => { setView('select'); setError(''); }} className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-colors ${asPage ? (theme === 'dark' ? 'text-[#8A8FC4] hover:text-white hover:bg-white/5' : 'text-[#8B5CF6] hover:bg-[#8B5CF6]/10') : 'text-[#8A8FC4] hover:text-white hover:bg-white/5'}`}>Cancel</button>
-                      <button type="submit" disabled={creating} className={`px-6 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center min-w-[140px] ${asPage ? (theme === 'dark' ? 'bg-[#FFCE00] text-[#121241] hover:bg-[#FFD740] shadow-lg shadow-[#FFCE00]/20' : 'bg-gradient-to-r from-[#8B5CF6] to-[#D946EF] text-white shadow-[0_10px_25px_rgba(139,92,246,0.35)]') : 'bg-[#FFCE00] text-[#121241] hover:bg-[#FFD740] shadow-lg shadow-[#FFCE00]/20'}`}>{creating ? <span className="flex items-center gap-2"><svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Creating...</span> : 'Create & open'}</button>
+                      <button type="submit" disabled={creating} className={`px-6 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center min-w-[140px] ${asPage ? (theme === 'dark' ? 'bg-[#FFCE00] text-[#121241] hover:bg-[#FFD740] shadow-lg shadow-[#FFCE00]/20' : 'bg-gradient-to-r from-[#9333ea] to-[#ec4899] text-white shadow-[0_8px_24px_rgba(217,70,239,0.4)]') : 'bg-[#FFCE00] text-[#121241] hover:bg-[#FFD740] shadow-lg shadow-[#FFCE00]/20'}`}>{creating ? <span className="flex items-center gap-2"><svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Creating...</span> : 'Create & open'}</button>
                     </div>
                   </form>
                 </motion.div>

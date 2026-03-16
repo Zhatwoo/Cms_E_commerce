@@ -21,7 +21,9 @@ type MarqueeRect = {
 type DragState = {
   active: boolean;
   startedOnNode: boolean;
-  additive: boolean;
+  clearSelectionOnClick: boolean;
+  mode: "replace" | "add" | "subtract";
+  initialSelection: string[];
   startX: number;
   startY: number;
   currentX: number;
@@ -44,6 +46,15 @@ export const BoxSelectionHandler = () => {
   const queryRef = useRef(query);
   const activeToolRef = useRef(activeTool);
 
+  const clearPreviewHighlights = () => {
+    const highlighted = document.querySelectorAll("[data-box-preview-selected='true']");
+    highlighted.forEach((el) => {
+      const element = el as HTMLElement;
+      delete element.dataset.boxPreviewSelected;
+      element.classList.remove("component-selected");
+    });
+  };
+
   useEffect(() => {
     actionsRef.current = actions;
     queryRef.current = query;
@@ -58,9 +69,56 @@ export const BoxSelectionHandler = () => {
       dragRef.current = null;
       startedOnEmptyRef.current = false;
       setMarqueeRect(null);
+      clearPreviewHighlights();
       delete document.body.dataset[BOX_SELECTING_FLAG];
       delete document.body.dataset[BOX_SELECTING_INTENT_FLAG];
       document.body.style.userSelect = "";
+    };
+
+    const getIntersectingNodeIds = (selectionRect: Rect): string[] => {
+      try {
+        const state = queryRef.current.getState();
+        const nodes = state.nodes;
+        const nodeIds = Object.keys(nodes).filter((id) => {
+          if (id === "ROOT" || !nodes[id]) return false;
+          const displayName = (nodes[id]?.data?.displayName as string | undefined) ?? "";
+          if (displayName === "Viewport" || displayName === "Page") return false;
+          return true;
+        });
+
+        const intersecting: string[] = [];
+        for (const nodeId of nodeIds) {
+          try {
+            const dom = queryRef.current.node(nodeId).get()?.dom ?? null;
+            if (!dom) continue;
+            const rect = dom.getBoundingClientRect();
+            if (rectsIntersect(selectionRect, { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom })) {
+              intersecting.push(nodeId);
+            }
+          } catch {
+            // ignore bad node refs
+          }
+        }
+        return intersecting;
+      } catch {
+        return [];
+      }
+    };
+
+    const mergeSelection = (
+      mode: DragState["mode"],
+      initialSelection: string[],
+      intersecting: string[]
+    ): string[] => {
+      const initial = new Set(initialSelection);
+      if (mode === "add") {
+        return Array.from(new Set([...initialSelection, ...intersecting]));
+      }
+      if (mode === "subtract") {
+        intersecting.forEach((id) => initial.delete(id));
+        return Array.from(initial);
+      }
+      return intersecting;
     };
 
     const handleMouseDown = (e: MouseEvent) => {
@@ -84,15 +142,63 @@ export const BoxSelectionHandler = () => {
       if (document.body.dataset.canvasPan === "true") return;
       if (activeToolRef.current === "hand" || activeToolRef.current === "text") return;
 
+      let isEmptyBackground = false;
+      let isCanvasSurface = false;
+      let clearSelectionOnClick = false;
+      let initialSelection: string[] = [];
+      let mode: DragState["mode"] = "replace";
+
+      try {
+        const state = queryRef.current.getState();
+        const currentSelectedRaw = state.events.selected;
+        initialSelection = Array.isArray(currentSelectedRaw)
+          ? currentSelectedRaw
+          : currentSelectedRaw instanceof Set
+            ? Array.from(currentSelectedRaw)
+            : currentSelectedRaw && typeof currentSelectedRaw === "object"
+              ? Object.keys(currentSelectedRaw)
+              : [];
+      } catch {
+        initialSelection = [];
+      }
+
+      if (e.altKey) {
+        mode = "subtract";
+      } else if (e.shiftKey || e.ctrlKey || e.metaKey) {
+        mode = "add";
+      }
+
       const nodeEl = target.closest("[data-node-id]") as HTMLElement | null;
-      if (nodeEl) {
+      if (!nodeEl) {
+        isEmptyBackground = true;
+        clearSelectionOnClick = true;
+      } else {
         const nodeId = nodeEl.getAttribute("data-node-id");
         if (!nodeId || nodeId === "ROOT") {
-          return;
+          isEmptyBackground = true;
+          clearSelectionOnClick = true;
+        } else {
+          try {
+            const state = queryRef.current.getState();
+            const node = state.nodes[nodeId];
+            const displayName = (node?.data?.displayName as string | undefined) ?? "";
+            const isCanvasBackground =
+              node?.data?.isCanvas === true ||
+              displayName === "Page" ||
+              displayName === "Viewport" ||
+              displayName === "Tab Content";
+            if (isCanvasBackground) {
+              isEmptyBackground = true;
+              isCanvasSurface = true;
+              clearSelectionOnClick = false;
+            }
+          } catch {
+             // ignore
+          }
         }
       }
 
-      startedOnEmptyRef.current = !nodeEl;
+      startedOnEmptyRef.current = isEmptyBackground;
       // Only set box-select flags when starting on empty area so FigmaStyleDragHandler
       // can drag nodes (including multi-drag) when starting on a node
       if (startedOnEmptyRef.current) {
@@ -100,8 +206,10 @@ export const BoxSelectionHandler = () => {
       }
       dragRef.current = {
         active: true,
-        startedOnNode: !!nodeEl,
-        additive: e.ctrlKey || e.metaKey,
+        startedOnNode: !isEmptyBackground && !isCanvasSurface,
+        clearSelectionOnClick,
+        mode,
+        initialSelection,
         startX: e.clientX,
         startY: e.clientY,
         currentX: e.clientX,
@@ -130,6 +238,36 @@ export const BoxSelectionHandler = () => {
         width: Math.abs(dragState.currentX - dragState.startX),
         height: Math.abs(dragState.currentY - dragState.startY),
       });
+
+      const left = Math.min(dragState.startX, dragState.currentX);
+      const right = Math.max(dragState.startX, dragState.currentX);
+      const top = Math.min(dragState.startY, dragState.currentY);
+      const bottom = Math.max(dragState.startY, dragState.currentY);
+      const selectionRect: Rect = { left, top, right, bottom };
+      const intersecting = getIntersectingNodeIds(selectionRect);
+      const mergedPreview = mergeSelection(dragState.mode, dragState.initialSelection, intersecting);
+      const nextHighlighted = new Set(mergedPreview);
+
+      for (const nodeId of mergedPreview) {
+        try {
+          const dom = queryRef.current.node(nodeId).get()?.dom ?? null;
+          if (!dom) continue;
+          dom.dataset.boxPreviewSelected = "true";
+          dom.classList.add("component-selected");
+        } catch {
+          // ignore
+        }
+      }
+
+      const currentlyHighlighted = document.querySelectorAll("[data-box-preview-selected='true']");
+      currentlyHighlighted.forEach((el) => {
+        const element = el as HTMLElement;
+        const id = element.getAttribute("data-node-id");
+        if (!id || !nextHighlighted.has(id)) {
+          delete element.dataset.boxPreviewSelected;
+          element.classList.remove("component-selected");
+        }
+      });
     };
 
     const handleMouseUp = () => {
@@ -149,7 +287,7 @@ export const BoxSelectionHandler = () => {
       const distance = Math.hypot(dragState.currentX - dragState.startX, dragState.currentY - dragState.startY);
 
       if (distance < MARQUEE_THRESHOLD || width < 3 || height < 3) {
-        if (!dragState.startedOnNode) {
+        if (dragState.clearSelectionOnClick && dragState.mode === "replace") {
           try {
             actionsRef.current.selectNode(undefined);
           } catch {
@@ -162,48 +300,15 @@ export const BoxSelectionHandler = () => {
       const selectionRect: Rect = { left, top, right, bottom };
 
       try {
-        const state = queryRef.current.getState();
-        const nodes = state.nodes;
-        const currentSelectedRaw = state.events.selected;
-        const currentSelected: string[] = Array.isArray(currentSelectedRaw)
-          ? currentSelectedRaw
-          : currentSelectedRaw instanceof Set
-            ? Array.from(currentSelectedRaw)
-            : currentSelectedRaw && typeof currentSelectedRaw === "object"
-              ? Object.keys(currentSelectedRaw)
-              : [];
-        const nodeIds = Object.keys(nodes).filter((id) => {
-          if (id === "ROOT" || !nodes[id]) return false;
-          const displayName = (nodes[id]?.data?.displayName as string | undefined) ?? "";
-          if (displayName === "Viewport" || displayName === "Page") return false;
-          return true;
-        });
-        const intersecting: string[] = [];
+        const intersecting = getIntersectingNodeIds(selectionRect);
+        const finalIds = mergeSelection(dragState.mode, dragState.initialSelection, intersecting);
 
-        for (const nodeId of nodeIds) {
-          try {
-            const dom = queryRef.current.node(nodeId).get()?.dom ?? null;
-            if (!dom) continue;
-            const rect = dom.getBoundingClientRect();
-            if (rectsIntersect(selectionRect, { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom })) {
-              intersecting.push(nodeId);
-            }
-          } catch {
-            // ignore bad node refs
-          }
-        }
-
-        if (intersecting.length === 0) {
+        if (finalIds.length === 0) {
           actionsRef.current.selectNode(undefined);
+        } else if (finalIds.length === 1) {
+          actionsRef.current.selectNode(finalIds[0]);
         } else {
-          const finalIds = dragState.additive
-            ? Array.from(new Set([...currentSelected, ...intersecting]))
-            : intersecting;
-          if (finalIds.length === 1) {
-            actionsRef.current.selectNode(finalIds[0]);
-          } else {
-            actionsRef.current.selectNode(finalIds);
-          }
+          actionsRef.current.selectNode(finalIds);
         }
       } catch {
         // ignore

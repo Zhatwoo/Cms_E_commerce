@@ -55,7 +55,7 @@ export const THEMES = {
       searchBar: '#F7F7FA',
     },
     text: {
-      primary: '#15093E',
+      primary: '#120533',
       secondary: '#4C3F75',
       muted: '#736A99',
       subtle: '#B8B2CF',

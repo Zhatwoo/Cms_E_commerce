@@ -47,7 +47,7 @@ const T = {
   textMuted:    'var(--dashboard-light-muted, rgba(219,212,255,0.45))',
   textSub:      'var(--dashboard-light-muted, rgba(234,229,255,0.72))',
   accent:       '#a855f7',
-  brandGradient:'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)',
+  brandGradient:'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)',
   green:        '#22c55e',
   greenBg:      'rgba(34,197,94,0.12)',
   greenBorder:  'rgba(34,197,94,0.28)',
@@ -1427,7 +1427,7 @@ export default function InventoryPage() {
         {/* ── Search bar (original) ───────────────────────────────────────── */}
         <div
           style={{ position: 'relative', maxWidth: 860, margin: '0 auto 28px' }}
-          className="rounded-2xl border px-5 py-3.5 flex items-center gap-3 bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]"
+          className="m-dashboard-search-shadow rounded-2xl border px-5 py-3.5 flex items-center gap-3 bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]"
         >
           <svg
             viewBox="0 0 20 20"
@@ -1544,8 +1544,8 @@ export default function InventoryPage() {
               style={{
                 height: 46, borderRadius: 12,
                 padding: '0 14px',
-                border: '1px solid #3b82f6', color: '#ffffff',
-                background: '#2563eb', display: 'inline-flex',
+                border: 'none', color: '#ffffff',
+                background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)', display: 'inline-flex',
                 alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
                 fontSize: 13, fontWeight: 700,
               }}

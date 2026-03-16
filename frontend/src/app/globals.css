@@ -365,8 +365,6 @@
 .no-scrollbar {
   -ms-overflow-style: none;
   /* IE and Edge */
-  scrollbar-width: none;
-  /* Firefox */
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -428,6 +426,7 @@ body:has(.m-dashboard-shell) {
   background: rgba(249, 247, 255, 0.92);
   border: 1px solid rgba(147, 96, 255, 0.18);
   box-shadow: 0 16px 34px rgba(123, 78, 192, 0.16);
+  -webkit-backdrop-filter: blur(18px);
   backdrop-filter: blur(18px);
 }
 
@@ -435,6 +434,7 @@ body:has(.m-dashboard-shell) {
   background: rgba(249, 247, 255, 0.92);
   border: 1px solid rgba(147, 96, 255, 0.18);
   box-shadow: 0 10px 24px rgba(123, 78, 192, 0.12);
+  -webkit-backdrop-filter: blur(18px);
   backdrop-filter: blur(18px);
 }
 
@@ -507,6 +507,15 @@ body:has(.m-dashboard-shell) {
   background: #ffffff;
   color: #471396;
   box-shadow: 0 10px 24px rgba(123, 78, 192, 0.12);
+}
+
+/* Shared m_dashboard search field depth */
+.m-dashboard-search-shadow {
+  box-shadow: 0 10px 28px rgba(15, 10, 45, 0.18), 0 2px 6px rgba(15, 10, 45, 0.08);
+}
+
+.dark .m-dashboard-search-shadow {
+  box-shadow: 0 12px 34px rgba(12, 6, 38, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
 }
 
 .admin-dashboard-input::placeholder {
@@ -598,8 +607,8 @@ body:has(.m-dashboard-shell) {
 .dark-input:-webkit-autofill:focus,
 .dark-input:-webkit-autofill:active {
   -webkit-text-fill-color: #ffffff !important;
-  box-shadow: 0 0 0px 1000px rgba(16, 19, 29, 0.98) inset !important;
   -webkit-box-shadow: 0 0 0px 1000px rgba(16, 19, 29, 0.98) inset !important;
+  box-shadow: 0 0 0px 1000px rgba(16, 19, 29, 0.98) inset !important;
   caret-color: #ffffff;
   border-color: rgba(255, 255, 255, 0.25);
   transition: background-color 9999s ease-out 0s;
@@ -792,6 +801,7 @@ body:has(.m-dashboard-shell) {
 
 .light .dashboard-landing-light [class*='rounded-2xl'][class*='border'],
 .light .dashboard-landing-light [class*='rounded-3xl'][class*='border'] {
+  -webkit-backdrop-filter: blur(2px);
   backdrop-filter: blur(2px);
 }
 

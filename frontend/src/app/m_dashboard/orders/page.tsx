@@ -285,9 +285,9 @@ export default function OrdersPage() {
       {/* ── Header ── */}
       <section className="relative z-10 mb-6 sm:mb-7 text-center">
         <h1 className="text-[38px] max-[390px]:text-[34px] sm:text-5xl md:text-7xl lg:text-[78px] font-extrabold leading-[0.96] tracking-tight">
-          <span className={`block ${theme === 'dark' ? 'text-white' : 'text-[#1E1B4B]'}`}>Track Buyer</span>
+          <span className={`block ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}`}>Track Buyer</span>
           <span
-            className="block text-transparent bg-clip-text"
+            className="block w-fit mx-auto text-transparent bg-clip-text"
             style={{
               backgroundImage: theme === 'dark' 
                 ? 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #ffcc00 100%)' 
@@ -311,7 +311,7 @@ export default function OrdersPage() {
                   ref={(el) => { tabRefs.current[tab.id] = el; }}
                   onClick={() => setActiveTab(tab.id)}
                   className="relative whitespace-nowrap px-1 pb-2 text-[9px] max-[390px]:text-[9px] sm:text-[10px] lg:text-[11px] font-bold uppercase tracking-[0.12em] sm:tracking-[0.14em] [font-family:var(--font-outfit),sans-serif] transition-colors duration-200"
-                  style={{ color: isActive ? colors.accent.yellow : colors.text.muted }}
+                  style={{ color: isActive ? (theme === 'light' ? '#000000' : colors.accent.yellow) : colors.text.muted }}
                 >
                   {tab.label}
                 </button>
@@ -330,7 +330,7 @@ export default function OrdersPage() {
         </div>
 
         {/* Search */}
-        <div className={`mx-auto mt-7 sm:mt-8 max-w-[860px] rounded-2xl border px-5 py-3.5 flex items-center gap-3 ${theme === 'dark' ? 'bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]' : 'bg-white/80 border-[#E2E8F0] shadow-sm backdrop-blur-md focus-within:border-[#8B5CF6] transition-colors'}`}>
+        <div className={`m-dashboard-search-shadow mx-auto mt-7 sm:mt-8 max-w-[860px] rounded-2xl border px-5 py-3.5 flex items-center gap-3 ${theme === 'dark' ? 'bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]' : 'bg-white/80 border-[#E2E8F0] shadow-sm backdrop-blur-md focus-within:border-[#8B5CF6] transition-colors'}`}>
           <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0" fill="none" style={{ color: colors.accent.yellow }}>
             <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
             <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="1.8" />
@@ -339,7 +339,7 @@ export default function OrdersPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search templates, designs, or actions"
-            className={`w-full bg-transparent text-sm outline-none ${theme === 'dark' ? 'text-white placeholder:text-[#6F70A8]' : 'text-slate-900 placeholder:text-slate-400'}`}
+            className={`w-full bg-transparent text-sm outline-none ${theme === 'dark' ? 'text-white placeholder:text-[#6F70A8]' : 'text-[#120533] placeholder:text-[#8a86a3]'}`}
           />
         </div>
       </section>

@@ -243,14 +243,14 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
             event.stopPropagation();
             onToggleMenu();
           }}
-          className="absolute right-2.5 top-2.5 z-20 h-7 w-7 rounded-full bg-black text-white flex items-center justify-center"
-          style={{ backgroundColor: '#0E123D', color: '#ffffff' }}
+          className="absolute right-2.5 top-2.5 z-20 flex h-9 w-9 items-center justify-center rounded-full border shadow-md transition-transform hover:scale-[1.04]"
+          style={{ backgroundColor: 'rgba(255,255,255,0.96)', borderColor: 'rgba(174,160,255,0.95)', color: '#3B1E8C' }}
           title="Product actions"
         >
-          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <circle cx="6" cy="12" r="2" />
-            <circle cx="12" cy="12" r="2" />
-            <circle cx="18" cy="12" r="2" />
+          <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <circle cx="6" cy="12" r="2.2" />
+            <circle cx="12" cy="12" r="2.2" />
+            <circle cx="18" cy="12" r="2.2" />
           </svg>
         </button>
         {menuOpen && (
@@ -290,7 +290,7 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
               {subcategoryLabel}
             </p>
           )}
-          <p className={`${subcategoryLabel ? 'mt-0.5' : 'mt-1'} text-xs`} style={{ color: '#FFCC00' }}>
+          <p className={`${subcategoryLabel ? 'mt-0.5' : 'mt-1'} text-xs`} style={{ color: '#A78BFA' }}>
             {product.sku || '-'}
           </p>
 
@@ -341,7 +341,7 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
                 {formattedOriginalPrice}
               </p>
             )}
-            <p className="text-[15px] font-medium leading-none mt-1" style={{ color: '#FFCC00' }}>{formattedPrice}</p>
+            <p className="text-[15px] font-medium leading-none mt-1" style={{ color: '#A78BFA' }}>{formattedPrice}</p>
           </div>
           <p className={`text-[15px] font-semibold ${overallStock === 0 ? 'text-red-400' : lowStock ? 'text-orange-300' : 'text-white'}`}>
             Stock: {overallStock}
@@ -475,7 +475,7 @@ const ProductDetailsModal = ({ product, onClose, colors, onEditProduct }: {
                   type="button"
                   onClick={() => onEditProduct(product)}
                   className="mt-3 h-10 w-full rounded-lg text-sm font-semibold text-white"
-                  style={{ backgroundColor: '#16a34a' }}
+                  style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)' }}
                 >
                   Edit Product
                 </button>
@@ -490,21 +490,21 @@ const ProductDetailsModal = ({ product, onClose, colors, onEditProduct }: {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>SKU</p>
-                  <p style={{ color: '#FFCC00' }}>{product.sku || '-'}</p>
+                  <p style={{ color: '#A78BFA' }}>{product.sku || '-'}</p>
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Category</p>
-                  <p style={{ color: '#FFCC00' }}>{product.category || '-'}</p>
+                  <p style={{ color: '#A78BFA' }}>{product.category || '-'}</p>
                 </div>
               </div>
               <div>
                 <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Subcategory</p>
-                <p style={{ color: '#FFCC00' }}>{product.subcategory || '-'}</p>
+                <p style={{ color: '#A78BFA' }}>{product.subcategory || '-'}</p>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Price</p>
-                  <p className="font-semibold" style={{ color: '#FFCC00' }}>₱{product.price.toFixed(2)}</p>
+                  <p className="font-semibold" style={{ color: '#A78BFA' }}>₱{product.price.toFixed(2)}</p>
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Stock</p>
@@ -1068,7 +1068,7 @@ export default function ProductsPage() {
           <p className="mt-2 text-sm" style={{ color: colors.text.secondary }}>Track stock performance and catalog details.</p>
         </div>
 
-        <div className="mt-6 mb-7 max-w-[860px] mx-auto rounded-2xl border px-5 py-3.5 flex items-center gap-3 bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]">
+        <div className="m-dashboard-search-shadow mt-6 mb-7 max-w-[860px] mx-auto rounded-2xl border px-5 py-3.5 flex items-center gap-3 bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]">
           <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0" fill="none" style={{ color: colors.accent.yellow }}>
             <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
             <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="1.8" />
@@ -1169,7 +1169,7 @@ export default function ProductsPage() {
                   onClick={() => setShowAddModal(true)}
                   disabled={!canAddProducts}
                   className={`h-[46px] px-4 rounded-xl border flex items-center justify-center text-[13px] font-bold ${canAddProducts ? 'hover:opacity-90' : 'opacity-50 cursor-not-allowed'}`}
-                  style={{ backgroundColor: '#2563eb', borderColor: '#3b82f6', color: '#ffffff' }}
+                  style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)', borderColor: 'transparent', color: '#ffffff' }}
                   title="Add product"
                 >
                   + Add Product
@@ -1377,13 +1377,14 @@ export default function ProductsPage() {
                                 event.stopPropagation();
                                 setOpenMenuProductId((prev) => (prev === product.id ? null : product.id));
                               }}
-                              className="h-8 w-8 rounded-full bg-black text-white flex items-center justify-center"
+                              className="flex h-9 w-9 items-center justify-center rounded-full border shadow-md transition-transform hover:scale-[1.04]"
+                              style={{ backgroundColor: 'rgba(255,255,255,0.96)', borderColor: 'rgba(174,160,255,0.95)', color: '#3B1E8C' }}
                               title="Product actions"
                             >
-                              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                <circle cx="6" cy="12" r="2" />
-                                <circle cx="12" cy="12" r="2" />
-                                <circle cx="18" cy="12" r="2" />
+                              <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <circle cx="6" cy="12" r="2.2" />
+                                <circle cx="12" cy="12" r="2.2" />
+                                <circle cx="18" cy="12" r="2.2" />
                               </svg>
                             </button>
 
@@ -1449,7 +1450,8 @@ export default function ProductsPage() {
             type="button"
             onClick={() => setShowAddModal(true)}
             disabled={!canAddProducts}
-            className={`mt-6 mx-auto px-4 py-2.5 rounded-lg text-white font-medium transition-colors shadow-sm ${canAddProducts ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-400 cursor-not-allowed'}`}
+            className={`mt-6 mx-auto px-4 py-2.5 rounded-lg text-white font-medium transition-opacity shadow-sm ${canAddProducts ? 'hover:opacity-90' : 'opacity-60 cursor-not-allowed'}`}
+            style={canAddProducts ? { background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)' } : { background: 'linear-gradient(90deg, #c084fc 0%, #f9a8d4 100%)' }}
           >
             {canAddProducts ? 'Add your first product' : 'Publish website first'}
           </button>

@@ -1,4 +1,20 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+let stripeClient = null;
+
+function getStripeClient() {
+  if (stripeClient) return stripeClient;
+  const secretKey = String(process.env.STRIPE_SECRET_KEY || '').trim();
+  if (!secretKey) return null;
+  stripeClient = require('stripe')(secretKey);
+  return stripeClient;
+}
+
+function requireStripeClient() {
+  const client = getStripeClient();
+  if (!client) {
+    throw new Error('Stripe not configured: STRIPE_SECRET_KEY is missing');
+  }
+  return client;
+}
 
 /**
  * Stripe API integration
@@ -16,6 +32,7 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
  */
 async function createPaymentIntent({ amount, currency = 'php', orderId, subdomain }) {
   try {
+    const stripe = requireStripeClient();
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount),
       currency: currency.toLowerCase(),
@@ -41,7 +58,11 @@ async function createPaymentIntent({ amount, currency = 'php', orderId, subdomai
  * @returns {Object} event
  */
 function constructEvent(rawBody, sig) {
+  const stripe = requireStripeClient();
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!String(endpointSecret || '').trim()) {
+    throw new Error('Stripe not configured: STRIPE_WEBHOOK_SECRET is missing');
+  }
   return stripe.webhooks.constructEvent(rawBody, sig, endpointSecret);
 }
 

@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { AdminSidebar } from './components/sidebar';
-import { AdminHeader } from './components/header';
-import { AdminDashboard } from './components/dashboard';
+import dynamic from 'next/dynamic';
 import { AnimatePresence } from 'framer-motion';
+
+const AdminSidebar = dynamic(() => import('./components/sidebar').then((mod) => mod.AdminSidebar), { ssr: false });
+const AdminHeader = dynamic(() => import('./components/header').then((mod) => mod.AdminHeader), { ssr: false });
+const AdminDashboard = dynamic(() => import('./components/dashboard').then((mod) => mod.AdminDashboard), { ssr: false });
 
 export default function AdminDashboardPage() {
     const [sidebarOpen, setSidebarOpen] = useState(false);

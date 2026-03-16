@@ -27,8 +27,8 @@ import { getSubdomainSiteUrl } from '@/lib/siteUrls';
 
 const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'websitelink';
 const SITE_HOST = process.env.NEXT_PUBLIC_SITE_HOST ?? 'localhost:3000';
-const GRAD = 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #ffcc00 100%)';
-const ADD_SITE_BG = 'linear-gradient(135deg, #0ea5e9 0%, #2563eb 55%, #1d4ed8 100%)';
+const GRAD = 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)';
+const ADD_SITE_BG = 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)';
 const VISIT_BG = 'linear-gradient(135deg, #22c55e 0%, #16a34a 55%, #15803d 100%)';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -327,7 +327,7 @@ export default function DomainsPage() {
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}
       <section className="text-center py-4">
         <motion.h1
-          className={`text-[42px] sm:text-[58px] font-extrabold leading-[0.95] tracking-tight bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+          className={`inline-block text-[42px] sm:text-[58px] font-extrabold leading-[0.95] tracking-tight bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
           My Sites
         </motion.h1>
@@ -339,7 +339,7 @@ export default function DomainsPage() {
           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
           <button type="button" onClick={handleAddDomainClick} disabled={addSiteLoading}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-xs font-bold transition-opacity hover:opacity-85"
-            style={{ background: ADD_SITE_BG, boxShadow: '0 10px 24px rgba(37,99,235,0.42)' }}>
+            style={{ background: ADD_SITE_BG, boxShadow: '0 10px 24px rgba(217,70,239,0.42)' }}>
             {addSiteLoading ? 'loading...' : <><Plus className="w-3.5 h-3.5" /> Add Site</>}
           </button>
         </motion.div>
@@ -418,7 +418,7 @@ export default function DomainsPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: colors.text.muted }} />
                 <input type="text" placeholder="Search by title or subdomain…"
                   value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none"
+                  className="m-dashboard-search-shadow w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none"
                   style={{
                     background: theme === 'dark' ? 'rgba(255,255,255,0.04)' : colors.bg.searchBar,
                     border: theme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : `1px solid ${colors.border.faint}`,
@@ -487,8 +487,8 @@ export default function DomainsPage() {
                             </a>
                           ) : (
                             <a href={`/design?projectId=${project.id}`} onClick={e => e.stopPropagation()}
-                              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[11px] font-semibold transition-opacity hover:opacity-75"
-                              style={{ backgroundColor: 'rgba(167,139,250,0.12)', color: '#a78bfa' }}>
+                              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[11px] font-semibold text-white transition-opacity hover:opacity-85"
+                              style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)' }}>
                               <ExternalLink size={11} /> Publish to go live
                             </a>
                           )}

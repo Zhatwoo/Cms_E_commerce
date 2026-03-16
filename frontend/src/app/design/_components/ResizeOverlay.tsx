@@ -173,6 +173,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
   const { actions, query } = useEditor();
 
   const MOVE_TARGET_TYPES = new Set(["Page", "Section", "Container", "Row", "Column", "Button", "Frame", "Tab Content"]);
+  const FREEFORM_PARENT_DISPLAY_NAMES = new Set(["Page", "Viewport"]);
 
   const dragRef = useRef<DragState | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
@@ -298,8 +299,15 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
 
       const flowLayoutParents = new Set(["Container", "Section", "Row", "Column", "Frame"]);
       const offsetMoveTypes = new Set(["Image", "Text", "Icon", "Button", "Circle", "Square", "Triangle"]);
+      const parentProps = parentId ? (state.nodes[parentId]?.data?.props ?? {}) as Record<string, unknown> : {};
+      const parentDisplay = String(parentProps.display ?? "").toLowerCase();
+      const parentIsFlexOrGrid = parentDisplay === "flex" || parentDisplay === "grid";
+      const parentIsFreeform =
+        parentProps.isFreeform === true ||
+        (!parentIsFlexOrGrid && !!parentDisplayName && FREEFORM_PARENT_DISPLAY_NAMES.has(parentDisplayName));
 
       if (displayName === "Page") return "page-canvas";
+      if (parentIsFreeform) return "offset";
       if (isAbsoluteLike) return "offset";
       if (parentDisplayName && flowLayoutParents.has(parentDisplayName)) return "margin";
       if (displayName && offsetMoveTypes.has(displayName)) return "offset";
@@ -397,8 +405,12 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
 
         const dropParent = state.nodes[dropParentId];
         const dropParentName = dropParent?.data?.displayName as string | undefined;
-        const flowParents = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame", "Tab Content"]);
-        const isFlowParent = !!dropParentName && flowParents.has(dropParentName);
+        const flowParents = new Set(["Section", "Container", "Row", "Column", "Frame", "Tab Content"]);
+        const dropParentProps = (dropParent?.data?.props ?? {}) as Record<string, unknown>;
+        const dropParentDisplay = String(dropParentProps.display ?? "").toLowerCase();
+        const dropParentIsFlexOrGrid = dropParentDisplay === "flex" || dropParentDisplay === "grid";
+        const dropParentIsFreeform = dropParentProps.isFreeform === true;
+        const isFlowParent = !!dropParentName && flowParents.has(dropParentName) && dropParentIsFlexOrGrid && !dropParentIsFreeform;
         const index = Array.isArray(dropParent?.data?.nodes)
           ? (isFlowParent ? 0 : dropParent.data.nodes.length)
           : 0;
@@ -1146,6 +1158,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
           const currentNode = query.getState().nodes[nodeId];
           const isTextNode = currentNode?.data?.displayName === "Text";
           const isAccordionNode = currentNode?.data?.displayName === "Accordion";
+          const isImageNode = currentNode?.data?.displayName === "Image";
           const startFontSize = parsePxOrAuto(d.startProps.fontSize);
           const nextFontSize = isTextNode
             ? computeTextFontSizeForResize(h, startW, startH, newW, newH, startFontSize)
@@ -1176,6 +1189,9 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
               const bML = typeof d.startProps.marginLeft === "number" ? d.startProps.marginLeft as number : 0;
               const nextML = (d.moveMode ?? "margin") === "margin" ? Math.max(0, bML + extraML) : (bML + extraML);
               props.marginLeft = Math.round(nextML);
+            }
+            if (isImageNode) {
+              props._autoFitInTabs = false;
             }
           });
 
