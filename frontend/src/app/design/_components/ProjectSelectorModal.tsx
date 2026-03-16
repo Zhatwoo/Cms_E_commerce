@@ -506,7 +506,7 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                   {/* Project list: shows a loading spinner, empty state, or the grid/list of project cards */}
                   {loading && projectTab === 'active' ? (
                     <div className="flex flex-col items-center justify-center py-12 gap-3"><div className="w-6 h-6 border-2 border-[#FFCE00] border-t-transparent rounded-full animate-spin" /><p className="text-sm text-[#8A8FC4]">Loading projects…</p></div>
-                  ) : projectTab === 'active' && filteredProjects.length === 0 ? (
+                  ) : projectTab === 'active' && filteredProjects.length === 0 && !asPage ? (
                     <div className="flex flex-col items-center justify-center py-12 gap-2 text-center"><svg className="w-10 h-10 text-[#3A3A7A]" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg><p className="text-sm text-[#8A8FC4]">{searchQuery ? 'No projects match your search.' : 'No projects yet. Create your first one!'}</p></div>
                   ) : trashLoading && projectTab === 'trash' ? (
                     <div className="col-span-full flex flex-col items-center justify-center py-12 gap-3"><div className="w-6 h-6 border-2 border-[#FFCE00] border-t-transparent rounded-full animate-spin" /><p className="text-sm text-[#8A8FC4]">Loading trash…</p></div>
@@ -521,7 +521,7 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                           onClick={() => setView('create')}
                           className={`
                             group relative flex flex-col items-center justify-center gap-5
-                            w-full min-h-60 p-5 rounded-[32px] border transition-all duration-500 hover:-translate-y-1
+                            w-full h-[360px] p-5 rounded-[32px] border transition-all duration-500 hover:-translate-y-1
                             ${theme === 'dark'
                               ? 'bg-[#15093E] border-[#272261] shadow-[0_20px_40px_rgba(0,0,0,0.3)]'
                               : 'bg-white border-[#8B5CF6]/20 shadow-[0_15px_35px_rgba(139,92,246,0.08)]'
