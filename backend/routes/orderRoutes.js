@@ -9,6 +9,7 @@ const {
   updateStatus,
   createPublicCheckout,
   createPaymentIntent,
+  capturePayPal,
   getPaymongoPublicKey,
   getStripePublicKey,
   createStripePaymentIntent,

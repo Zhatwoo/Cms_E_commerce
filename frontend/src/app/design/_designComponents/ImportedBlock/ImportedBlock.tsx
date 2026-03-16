@@ -27,7 +27,7 @@ export const ImportedBlock = ({
 
   return (
     <div
-      ref={(ref) => ref && connectors.connect(connectors.drag(ref))}
+      ref={(ref) => { if (ref) connectors.connect(connectors.drag(ref)); }}
       data-node-id={id}
       className={`${scopeId} imported-block cursor-pointer`}
       style={{ display: "inline-block", minWidth: 1, minHeight: 1 }}

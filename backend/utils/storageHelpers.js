@@ -518,5 +518,4 @@ module.exports = {
   deleteAvatarByUrlForUser,
   getStoragePathFromUrl,
   getProjectStorageUsage,
-  getUserStorageUsage,
 };

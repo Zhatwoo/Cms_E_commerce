@@ -224,7 +224,7 @@ export function RecentProjects() {
         </button>
       </div>
 
-      {loading || projectsLoading ? (
+      {contextLoading || projectsLoading ? (
         <div className="flex gap-4 md:gap-5 overflow-hidden">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="animate-pulse flex-shrink-0 w-[240px]">

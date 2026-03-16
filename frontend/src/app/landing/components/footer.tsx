@@ -45,32 +45,28 @@ const SOCIAL_LINKS = [
   },
 ];
 
-export function Footer({ isDarkMode = true }: { isDarkMode?: boolean }) {
+export function Footer({ isDarkMode = false }: { isDarkMode?: boolean }) {
   const year = new Date().getFullYear();
-  const forceDarkMode = true;
 
-  const bg        = forceDarkMode ? 'bg-[#0a0141]'    : 'bg-[#f2f2f6]';
-  const text      = forceDarkMode ? 'text-white'       : 'text-[#0b0b17]';
-  const muted     = forceDarkMode ? 'text-white/50'    : 'text-[#7a7699]';
-  const subtle    = forceDarkMode ? 'text-white/30'    : 'text-[#c0bcd8]';
-  const divider   = forceDarkMode ? 'border-white/8'   : 'border-[#e0dff0]';
-  const cardBg    = forceDarkMode ? 'bg-[#0d1733]'     : 'bg-white';
-  const cardBorder= forceDarkMode ? 'border-white/8'   : 'border-[#e2e2ee]';
-  const linkHover = forceDarkMode ? 'hover:text-white' : 'hover:text-[#0b0b17]';
-  const socialBg  = forceDarkMode
+  const bg        = isDarkMode ? 'bg-[#0a0141]'    : 'bg-white';
+  const text      = isDarkMode ? 'text-white'       : 'text-[#120533]';
+  const muted     = isDarkMode ? 'text-white/50'    : 'text-[#616170]';
+  const subtle    = isDarkMode ? 'text-white/30'    : 'text-[#888899]';
+  const divider   = isDarkMode ? 'border-white/8'   : 'border-[#c1c1cd]';
+  const cardBg    = isDarkMode ? 'bg-[#0d1733]'     : 'bg-white';
+  const cardBorder= isDarkMode ? 'border-white/8'   : 'border-[#c1c1cd]';
+  const linkHover = isDarkMode ? 'hover:text-white' : 'hover:text-[#120533]';
+  const socialBg  = isDarkMode
     ? 'border-white/10 bg-white/5 text-white/60 hover:border-[#a855f7]/60 hover:bg-[#a855f7]/10 hover:text-white'
-    : 'border-[#e2e2ee] bg-white text-[#7a7699] hover:border-[#c0aff5] hover:bg-[#f3f0ff] hover:text-[#8b3dff]';
+    : 'border-[#c1c1cd] bg-[#f8f8fb] text-[#888899] hover:border-[#9333ea]/40 hover:bg-[#9333ea]/5 hover:text-[#9333ea]';
 
   return (
     <footer className={`relative w-full overflow-hidden ${bg} ${text}`}>
 
-      {/* ── Faint grid overlay (dark only) ── */}
-      {forceDarkMode && (
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.013)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.013)_1px,transparent_1px)] bg-[size:56px_56px]" />
-      )}
+
 
       {/* ── Ambient glows (dark only) ── */}
-      {forceDarkMode && (
+      {isDarkMode && (
         <>
           <div className="pointer-events-none absolute left-[-8%] top-[-10%] h-[500px] w-[500px] rounded-full bg-[#7c3aed]/10 blur-[130px]" />
           <div className="pointer-events-none absolute bottom-[-8%] right-[-6%] h-[400px] w-[400px] rounded-full bg-[#d946ef]/7 blur-[110px]" />
@@ -78,7 +74,7 @@ export function Footer({ isDarkMode = true }: { isDarkMode?: boolean }) {
       )}
 
       {/* ── Top gold rule ── */}
-      <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-[#f4bf1a] to-transparent" />
+      <div className={`h-[2px] w-full bg-gradient-to-r from-transparent ${isDarkMode ? 'via-[#f4bf1a]' : 'via-[#9333ea]/30'} to-transparent`} />
 
       <div className="relative z-10 mx-auto max-w-[1280px] px-4 sm:px-6 md:px-10 lg:px-14 xl:px-16">
 
@@ -89,18 +85,18 @@ export function Footer({ isDarkMode = true }: { isDarkMode?: boolean }) {
           <div>
             {/* Eyebrow */}
             <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-widest ${
-              forceDarkMode
+              isDarkMode
                 ? 'border-[#f4bf1a]/30 bg-[#f4bf1a]/10 text-[#f4bf1a]'
-                : 'border-[#e2d080] bg-[#fdf9e0] text-[#9a7c00]'
+                : 'border-[#9333ea]/30 bg-[#9333ea]/10 text-[#9333ea]'
             }`}>
-              <span className={`h-1.5 w-1.5 animate-pulse rounded-full ${forceDarkMode ? 'bg-[#f4bf1a]' : 'bg-[#f5c400]'}`} />
+              <span className={`h-1.5 w-1.5 animate-pulse rounded-full ${isDarkMode ? 'bg-[#f4bf1a]' : 'bg-[#9333ea]'}`} />
               Start for free today
             </span>
 
             <h2 className="mt-4 text-[clamp(2rem,5vw,4.5rem)] font-black leading-[1.03] tracking-[-0.03em]">
               Ready to build your
               <br />
-              <span className="bg-gradient-to-r from-[#f5c400] via-[#ffdd55] to-[#f5c400] bg-clip-text text-transparent">
+              <span className={`bg-gradient-to-r bg-clip-text text-transparent ${isDarkMode ? 'from-[#f5c400] via-[#ffdd55] to-[#f5c400]' : 'from-[#9333ea] via-[#c026d3] to-[#ec4899]'}`}>
                 online store?
               </span>
             </h2>
@@ -116,7 +112,11 @@ export function Footer({ isDarkMode = true }: { isDarkMode?: boolean }) {
             <button
               type="button"
               suppressHydrationWarning
-              className="group relative overflow-hidden rounded-full bg-gradient-to-r from-[#7c3aed] to-[#9d3fff] px-[clamp(1.75rem,3vw,3rem)] py-[clamp(0.8rem,1.5vw,1.1rem)] text-[clamp(0.9rem,1.3vw,1.1rem)] font-extrabold text-white shadow-[0_6px_32px_rgba(139,61,255,0.45)] transition-all duration-300 hover:shadow-[0_8px_40px_rgba(139,61,255,0.65)] hover:brightness-110"
+              className={`group relative overflow-hidden rounded-full px-[clamp(1.75rem,3vw,3rem)] py-[clamp(0.8rem,1.5vw,1.1rem)] text-[clamp(0.9rem,1.3vw,1.1rem)] font-extrabold text-white transition-all duration-300 hover:brightness-110 ${
+                isDarkMode 
+                  ? 'bg-gradient-to-r from-[#7c3aed] to-[#9d3fff] shadow-[0_6px_32px_rgba(139,61,255,0.45)] hover:shadow-[0_8px_40px_rgba(139,61,255,0.65)]' 
+                  : 'bg-gradient-to-r from-[#9333ea] to-[#ec4899] shadow-[0_6px_32px_rgba(217,70,239,0.3)] hover:shadow-[0_8px_40px_rgba(217,70,239,0.45)]'
+              }`}
             >
               {/* Shimmer sweep */}
               <span className="pointer-events-none absolute inset-0 -translate-x-full skew-x-[-20deg] bg-white/15 transition-transform duration-700 group-hover:translate-x-[200%]" />
@@ -160,7 +160,7 @@ export function Footer({ isDarkMode = true }: { isDarkMode?: boolean }) {
             {/* Quick Links */}
             <div>
               <h3 className={`text-[clamp(0.65rem,0.9vw,0.75rem)] font-bold uppercase tracking-[0.18em] ${
-                forceDarkMode ? 'text-[#f5c400]' : 'text-[#c08000]'
+                isDarkMode ? 'text-[#f5c400]' : 'text-[#f5a213]'
               }`}>
                 Quick Links
               </h3>
@@ -182,7 +182,7 @@ export function Footer({ isDarkMode = true }: { isDarkMode?: boolean }) {
             {/* Legal */}
             <div>
               <h3 className={`text-[clamp(0.65rem,0.9vw,0.75rem)] font-bold uppercase tracking-[0.18em] ${
-                forceDarkMode ? 'text-[#f5c400]' : 'text-[#c08000]'
+                isDarkMode ? 'text-[#f5c400]' : 'text-[#f5a213]'
               }`}>
                 Legal
               </h3>
@@ -204,7 +204,7 @@ export function Footer({ isDarkMode = true }: { isDarkMode?: boolean }) {
             {/* Contact */}
             <div>
               <h3 className={`text-[clamp(0.65rem,0.9vw,0.75rem)] font-bold uppercase tracking-[0.18em] ${
-                forceDarkMode ? 'text-[#f5c400]' : 'text-[#c08000]'
+                isDarkMode ? 'text-[#f5c400]' : 'text-[#f5a213]'
               }`}>
                 Contact Us
               </h3>
@@ -242,7 +242,7 @@ export function Footer({ isDarkMode = true }: { isDarkMode?: boolean }) {
       </div>
 
       {/* ── Bottom gold rule ── */}
-      <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-[#f4bf1a]/60 to-transparent" />
+      <div className={`h-[2px] w-full bg-gradient-to-r from-transparent ${isDarkMode ? 'via-[#f4bf1a]/60' : 'via-[#9333ea]/30'} to-transparent`} />
     </footer>
   );
 }

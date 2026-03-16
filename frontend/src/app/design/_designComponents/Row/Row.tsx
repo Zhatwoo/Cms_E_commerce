@@ -97,6 +97,7 @@ export const Row = ({
           : { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
         display: "flex",
         containerType: "inline-size",
+        contain: "layout",
         flexDirection,
         flexWrap,
         alignItems: effectiveAlignItems,

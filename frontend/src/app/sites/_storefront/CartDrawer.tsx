@@ -176,25 +176,12 @@ export function CartDrawer() {
         throw new Error(payRes?.message || 'Unable to create payment.');
       }
 
+      // PayPal: redirect to payment page
       if (payRes.redirectUrl) {
         removeManyFromCart(selectedItems.map((item) => item.id));
         setCheckoutOpen(false);
         closeCart();
         window.location.href = payRes.redirectUrl;
-        return;
-      }
-
-      if (payRes.clientKey) {
-        removeManyFromCart(selectedItems.map((item) => item.id));
-        setCheckoutOpen(false);
-        closeCart();
-        const base = typeof window !== 'undefined' ? window.location.origin : '';
-        const params = new URLSearchParams({
-          order_id: orderId,
-          client_key: payRes.clientKey,
-          ...(payRes.publicKey ? { public_key: payRes.publicKey } : {}),
-        });
-        window.location.href = `${base}/sites/${encodeURIComponent(subdomain)}/checkout/pay?${params.toString()}`;
         return;
       }
 

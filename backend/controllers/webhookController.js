@@ -4,6 +4,49 @@ const stripeService = require('../services/stripeService');
 const StorefrontOrder = require('../models/StorefrontOrder');
 
 /**
+ * Xendit webhook handler.
+ * Events: invoice.paid
+ * Verify x-callback-token header.
+ */
+exports.xenditWebhook = async (req, res) => {
+  try {
+    const token = req.headers['x-callback-token'];
+    if (!xenditService.verifyWebhookToken(token)) {
+      return res.status(401).json({ success: false, message: 'Invalid webhook token' });
+    }
+
+    const payload = req.body;
+    const status = payload?.status;
+    const externalId = payload?.external_id;
+
+    if (status !== 'PAID' || !externalId) {
+      return res.status(200).json({ received: true });
+    }
+
+    // external_id format: subdomain:orderId
+    const parts = String(externalId).split(':');
+    if (parts.length < 2) {
+      return res.status(200).json({ received: true });
+    }
+    const subdomain = parts[0].trim();
+    const orderId = parts.slice(1).join(':').trim();
+    if (!subdomain || !orderId) {
+      return res.status(200).json({ received: true });
+    }
+
+    const updated = await StorefrontOrder.updateStatusBySubdomainAndId(subdomain, orderId, 'Paid');
+    if (!updated) {
+      return res.status(200).json({ received: true });
+    }
+
+    res.status(200).json({ received: true });
+  } catch (error) {
+    console.error('[webhook] xendit error:', error.message);
+    res.status(500).json({ success: false, message: 'Webhook error' });
+  }
+};
+
+/**
  * PayMongo webhook handler.
  * Requires req.rawBody (set by express.json verify callback) for signature verification.
  * Events: payment_intent.succeeded, source.chargeable, payment.paid

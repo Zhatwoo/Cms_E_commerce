@@ -102,8 +102,8 @@ export const Container = ({
   const wPx = parsePx(width);
   const hPx = parsePx(resolvedHeight);
   const canScale = false;
-  const scaleX = canScale ? wPx / designWidth : 1;
-  const scaleY = canScale ? hPx / designHeight : 1;
+  const scaleX = canScale && wPx != null ? wPx / designWidth : 1;
+  const scaleY = canScale && hPx != null ? hPx / designHeight : 1;
 
   // Resolve padding
   const p = typeof padding === 'number' ? padding : 0;
@@ -196,6 +196,7 @@ export const Container = ({
         borderStyle,
         position,
         containerType: "inline-size",
+        contain: "layout",
         display: effectiveDisplay,
         zIndex: zIndex !== 0 ? zIndex : undefined,
         top: position !== "static" ? top : undefined,

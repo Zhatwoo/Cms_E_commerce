@@ -4,28 +4,24 @@ const SUBSCRIPTION_LIMITS = {
         projects: 5,
         codeEditor: false,
         customDomains: false,
-        storageLimit: 1 * 1024 * 1024 * 1024, // 1GB
     },
     basic: {
         domains: 10,
         projects: 10,
         codeEditor: false,
         customDomains: true,
-        storageLimit: 3 * 1024 * 1024 * 1024, // 3GB
     },
     pro: {
         domains: Infinity,
         projects: Infinity,
         codeEditor: true,
         customDomains: true,
-        storageLimit: 10 * 1024 * 1024 * 1024, // 10GB
     },
     custom: {
         domains: Infinity,
         projects: Infinity,
         codeEditor: true,
         customDomains: true,
-        storageLimit: Infinity, // Custom storage
     },
 };
 
