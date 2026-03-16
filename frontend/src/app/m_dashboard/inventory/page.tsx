@@ -1427,7 +1427,7 @@ export default function InventoryPage() {
         {/* ── Search bar (original) ───────────────────────────────────────── */}
         <div
           style={{ position: 'relative', maxWidth: 860, margin: '0 auto 28px' }}
-          className="rounded-2xl border px-5 py-3.5 flex items-center gap-3 bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]"
+          className="m-dashboard-search-shadow rounded-2xl border px-5 py-3.5 flex items-center gap-3 bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]"
         >
           <svg
             viewBox="0 0 20 20"

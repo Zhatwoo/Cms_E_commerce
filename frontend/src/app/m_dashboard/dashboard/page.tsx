@@ -348,7 +348,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
 
           <div 
             className={`
-              w-full max-w-4xl rounded-2xl px-5 py-3.5 flex items-center gap-3 border 
+              m-dashboard-search-shadow w-full max-w-4xl rounded-2xl px-5 py-3.5 flex items-center gap-3 border 
               transition-all duration-500
               
               ${theme === 'dark' 
