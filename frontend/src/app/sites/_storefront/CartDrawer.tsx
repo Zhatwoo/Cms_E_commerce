@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useStorefront } from './StorefrontContext';
 import { CheckoutModal } from '@/app/sites/_storefront/CheckoutModal';
-import { createPublishedOrder, createPaymentIntent } from '@/lib/api';
+import { createPublishedOrder, createPaymentIntent, createStripePaymentIntent } from '@/lib/api';
 
 export function CartDrawer() {
   const {
@@ -92,7 +92,7 @@ export function CartDrawer() {
       city: string;
       postalCode: string;
     },
-    paymentMethod: 'paypal'
+    paymentMethod: 'gcash' | 'maya' | 'card' | 'stripe'
   ) => {
     if (!subdomain) {
       window.alert('Checkout unavailable: missing subdomain context.');
@@ -151,7 +151,27 @@ export function CartDrawer() {
         throw new Error('Order created but no order ID returned.');
       }
 
-      const payRes = await createPaymentIntent(subdomain, orderId, 'paypal');
+      if (paymentMethod === 'stripe') {
+        const stripeRes = await createStripePaymentIntent(subdomain, orderId);
+        if (!stripeRes?.success) {
+          throw new Error(stripeRes?.message || 'Unable to create Stripe payment.');
+        }
+
+        removeManyFromCart(selectedItems.map((item) => item.id));
+        setCheckoutOpen(false);
+        closeCart();
+        
+        const base = typeof window !== 'undefined' ? window.location.origin : '';
+        const params = new URLSearchParams({
+          order_id: orderId,
+          client_secret: stripeRes.clientSecret || '',
+          public_key: stripeRes.publicKey || '',
+        });
+        window.location.href = `${base}/sites/${encodeURIComponent(subdomain)}/checkout/stripe-pay?${params.toString()}`;
+        return;
+      }
+
+      const payRes = await createPaymentIntent(subdomain, orderId, paymentMethod);
       if (!payRes?.success) {
         throw new Error(payRes?.message || 'Unable to create payment.');
       }

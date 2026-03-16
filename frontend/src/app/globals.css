@@ -418,6 +418,102 @@ body:has(.m-dashboard-shell) {
   cursor: grabbing !important;
 }
 
+.admin-dashboard-shell {
+  background-color: #e3e2ff;
+  background-image: linear-gradient(180deg, #f5f4ff 0%, #e3e2ff 50%, #dadcff 100%);
+  font-family: var(--font-outfit), 'Outfit', sans-serif;
+}
+
+.admin-dashboard-panel {
+  background: rgba(249, 247, 255, 0.92);
+  border: 1px solid rgba(147, 96, 255, 0.18);
+  box-shadow: 0 16px 34px rgba(123, 78, 192, 0.16);
+  backdrop-filter: blur(18px);
+}
+
+.admin-dashboard-panel-soft {
+  background: rgba(249, 247, 255, 0.92);
+  border: 1px solid rgba(147, 96, 255, 0.18);
+  box-shadow: 0 10px 24px rgba(123, 78, 192, 0.12);
+  backdrop-filter: blur(18px);
+}
+
+.admin-dashboard-inset-panel {
+  background: rgba(255, 255, 255, 0.38);
+  border: 1px solid rgba(147, 96, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.admin-dashboard-purple {
+  color: #471396;
+}
+
+.admin-dashboard-soft-text {
+  color: #471396;
+}
+
+.admin-dashboard-muted-text {
+  color: #471396;
+}
+
+.admin-dashboard-yellow {
+  color: #ffcc00;
+}
+
+.admin-dashboard-yellow-fill {
+  background-color: #ffcc00;
+}
+
+.admin-dashboard-logout {
+  color: #ff5e5e;
+}
+
+.admin-dashboard-gradient-title {
+  background-image: linear-gradient(90deg, #a63dff 0%, #471396 58%, #ffcc00 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.admin-dashboard-admin-gradient {
+  background-image: linear-gradient(90deg, #6702bf 0%, #6702bf 14%, #b36760 48%, #ffcc00 78%, #ffcc00 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.admin-dashboard-bg-spot-1 {
+  background: rgba(255, 255, 255, 0.46);
+}
+
+.admin-dashboard-bg-spot-2 {
+  background: rgba(214, 205, 255, 0.52);
+}
+
+.admin-dashboard-bg-spot-3 {
+  background: rgba(232, 228, 255, 0.72);
+}
+
+.admin-dashboard-bg-line {
+  background: linear-gradient(90deg, transparent 0%, rgba(147, 96, 255, 0.28) 25%, transparent 100%);
+}
+
+.admin-dashboard-nav-active {
+  background: rgba(126, 79, 215, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(126, 79, 215, 0.15);
+}
+
+.admin-dashboard-nav-tooltip {
+  background: #ffffff;
+  color: #471396;
+  box-shadow: 0 10px 24px rgba(123, 78, 192, 0.12);
+}
+
+.admin-dashboard-input::placeholder {
+  color: #471396;
+  opacity: 1;
+}
+
 /* While panning, disable node hit-targets so clicks never select components. */
 [data-canvas-container].canvas-hand-tool [data-node-id],
 [data-canvas-container].canvas-hand-tool [data-panel='resize-overlay'] {
@@ -512,10 +608,17 @@ body:has(.m-dashboard-shell) {
 .light .dashboard-landing-light {
   --dashboard-light-surface: #ffffff;
   --dashboard-light-surface-soft: #f8f8fb;
-  --dashboard-light-border: #eae7f2;
+  --dashboard-light-border: #dcd2ee;
+  --dashboard-light-border-strong: #c8bbdf;
   --dashboard-light-text: #15093e;
   --dashboard-light-muted: #736a99;
   --dashboard-light-subtle: #b8b2cf;
+}
+
+.light .dashboard-landing-light [class*='rounded-2xl'][class*='border'],
+.light .dashboard-landing-light [class*='rounded-3xl'][class*='border'],
+.light .dashboard-landing-light [class*='rounded-4xl'][class*='border'] {
+  border-color: var(--dashboard-light-border-strong) !important;
 }
 
 .light .dashboard-landing-light input,
@@ -566,7 +669,14 @@ body:has(.m-dashboard-shell) {
 
 .light .dashboard-landing-light [style*='rgb(45, 58, 144)'],
 .light .dashboard-landing-light [style*='rgb(31, 31, 81)'] {
-  border-color: var(--dashboard-light-border) !important;
+  border-color: var(--dashboard-light-border-strong) !important;
+}
+
+.light .dashboard-landing-light [style*='rgba(148,163,184,0.18)'],
+.light .dashboard-landing-light [style*='rgba(148,163,184,0.22)'],
+.light .dashboard-landing-light [style*='rgba(96,165,250,0.55)'],
+.light .dashboard-landing-light [style*='rgba(96,165,250,0.6)'] {
+  border-color: var(--dashboard-light-border-strong) !important;
 }
 
 .light .dashboard-landing-light [style*='#F2ECFF'],

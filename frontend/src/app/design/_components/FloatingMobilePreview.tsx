@@ -59,38 +59,11 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
 }) => {
   const panelRef = useRef<HTMLDivElement | null>(null);
 
-  const { query, pages, selectedPageFromCanvas, layoutSyncToken } = useEditor((state) => {
+  const { query, pages, selectedPageFromCanvas, nodes } = useEditor((state) => {
     const allNodes = state.nodes ?? {};
     const pageList: PageInfo[] = [];
-    let layoutHash = 5381;
-
-    const hashPart = (value: unknown) => {
-      const text = String(value ?? "");
-      for (let i = 0; i < text.length; i += 1) {
-        layoutHash = ((layoutHash * 33) ^ text.charCodeAt(i)) >>> 0;
-      }
-    };
 
     Object.entries(allNodes).forEach(([nodeId, node]) => {
-      const nodeData = node?.data;
-      const nodeProps = (nodeData?.props as Record<string, unknown> | undefined) ?? {};
-      hashPart(nodeId);
-      hashPart(nodeData?.displayName);
-      hashPart(nodeData?.parent);
-      hashPart(nodeProps.position);
-      hashPart(nodeProps.top);
-      hashPart(nodeProps.left);
-      hashPart(nodeProps.right);
-      hashPart(nodeProps.bottom);
-      hashPart(nodeProps.width);
-      hashPart(nodeProps.height);
-      hashPart(nodeProps.marginTop);
-      hashPart(nodeProps.marginLeft);
-      hashPart(nodeProps.rotation);
-      const childNodes = Array.isArray(nodeData?.nodes) ? nodeData.nodes : [];
-      hashPart(childNodes.length);
-      for (const childId of childNodes) hashPart(childId);
-
       if (node?.data?.displayName === "Page") {
         pageList.push({
           id: nodeId,
@@ -127,7 +100,7 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
     return {
       pages: pageList,
       selectedPageFromCanvas: detectedPageId,
-      layoutSyncToken: layoutHash,
+      nodes: allNodes,
     };
   });
 
@@ -159,7 +132,7 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
     } catch {
       return null;
     }
-  }, [query, layoutSyncToken]);
+  }, [query, nodes]);
 
   useEffect(() => {
     if (isOpen && positionRef.current.x === 0 && positionRef.current.y === 0) {
@@ -279,8 +252,6 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
         ...page,
         props: {
           ...page.props,
-          referenceWidth: page.props?.referenceWidth ?? page.props?.width,
-          referenceHeight: page.props?.referenceHeight ?? page.props?.height,
           width: targetWidth,
           height: page.props?.height === "auto" ? targetHeight : (page.props?.height ?? targetHeight),
         },
@@ -443,9 +414,8 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
                     initialPageSlug={selectedPageSlug}
                     simulatedWidth={previewWidth}
                     mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
-                    builderParityMode={false}
+                    builderParityMode={true}
                     renderAllNodes
-                    preserveAuthoredPositioning
                   />
                 </div>
               </div>

@@ -98,26 +98,31 @@ export function DashboardSidebar({ mobile = false, onClose, onNavigateStart }: D
   const COLLAPSED_WIDTH = 72;   // icon-only
   const EXPANDED_WIDTH = 280;  // full labels
 
+  const isLightTheme = theme === 'light';
   const sidebarBg = colors.bg.sidebar;
+  const sidebarBorderColor = isLightTheme ? 'rgba(255, 255, 255, 0.14)' : colors.border.faint;
+  const sidebarPrimaryText = isLightTheme ? '#FFFFFF' : colors.text.primary;
+  const sidebarMutedText = isLightTheme ? 'rgba(255, 255, 255, 0.72)' : colors.text.muted;
+  const sidebarSecondaryText = isLightTheme ? 'rgba(255, 255, 255, 0.8)' : colors.text.secondary;
   const accentYellow = (colors as { accent?: { yellow?: string } }).accent?.yellow ?? '#FFCE00';
   const sidebarStyle = {
     backgroundColor: sidebarBg,
-    borderColor: colors.border.faint,
-    color: colors.text.muted,
+    borderColor: sidebarBorderColor,
+    color: sidebarMutedText,
   };
 
   const itemActiveStyle = {
     backgroundColor: 'transparent',
-    color: colors.text.primary,
+    color: sidebarPrimaryText,
   };
 
   const itemInactiveStyle = {
-    color: colors.text.muted,
+    color: sidebarMutedText,
   };
 
   const itemHoverStyle = {
-    backgroundColor: theme === 'dark' ? 'rgba(92, 29, 143, 0.2)' : 'rgba(79, 70, 229, 0.08)',
-    color: colors.text.primary,
+    backgroundColor: theme === 'dark' ? 'rgba(92, 29, 143, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+    color: sidebarPrimaryText,
   };
 
   // For mobile → keep full drawer (no hover behavior)
@@ -134,17 +139,17 @@ export function DashboardSidebar({ mobile = false, onClose, onNavigateStart }: D
         {/* Mobile header with close */}
         <div
           className="flex items-center justify-between px-6 shrink-0 transition-colors duration-300"
-          style={{ borderColor: colors.border.faint, height: '85px', paddingTop: '4px' }}
+            style={{ borderColor: sidebarBorderColor, height: '85px', paddingTop: '4px' }}
         >
           <div className="flex items-center gap-3">
             <Link href="/m_dashboard" onClick={handleHomeClick} aria-label="Go to dashboard home">
-              <img src="/images/logo.svg" alt="Logo" className={`h-9 w-auto ${theme === 'light' ? 'brightness-0' : ''}`} />
+              <img src="/images/logo.svg" alt="Logo" className="h-9 w-auto" />
             </Link>
           </div>
           <button
             onClick={onClose}
             className="rounded-lg p-2 transition-colors hover:opacity-80"
-            style={{ color: colors.text.secondary }}
+            style={{ color: sidebarSecondaryText }}
             aria-label="Close sidebar"
           >
             <CloseIcon />
@@ -169,7 +174,7 @@ export function DashboardSidebar({ mobile = false, onClose, onNavigateStart }: D
             const content = (
               <div
                 className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg transition-colors`}
-                style={isActive ? { ...itemActiveStyle, color: colors.text.primary } : itemInactiveStyle}
+                style={isActive ? { ...itemActiveStyle, color: sidebarPrimaryText } : itemInactiveStyle}
               >
                 <span className="flex h-6 w-6 items-center justify-center" style={{ opacity: isActive ? 1 : 0.5 }}>
                   {item.icon}
@@ -208,8 +213,8 @@ export function DashboardSidebar({ mobile = false, onClose, onNavigateStart }: D
       className="hidden lg:flex lg:flex-col lg:h-screen lg:sticky lg:top-0 overflow-hidden z-20 backdrop-blur-xl border-r transition-colors duration-300"
       style={{
         backgroundColor: sidebarBg,
-        borderColor: colors.border.faint,
-        color: colors.text.muted
+        borderColor: sidebarBorderColor,
+        color: sidebarMutedText
       }}
       initial={false}
       animate={{ width: isHovered ? EXPANDED_WIDTH : COLLAPSED_WIDTH }}
@@ -228,7 +233,7 @@ export function DashboardSidebar({ mobile = false, onClose, onNavigateStart }: D
         style={{ borderColor: colors.border.faint, height: '85px', paddingTop: '4px' }}
       >
         <Link href="/m_dashboard" onClick={handleHomeClick} aria-label="Go to dashboard home">
-          <img src="/images/logo.svg" alt="Logo" className={`h-9 w-auto max-w-[48px] ${theme === 'light' ? 'brightness-0' : ''}`} />
+          <img src="/images/logo.svg" alt="Logo" className="h-9 w-auto max-w-[48px]" />
         </Link>
       </div>
 
@@ -284,7 +289,7 @@ export function DashboardSidebar({ mobile = false, onClose, onNavigateStart }: D
                     exit={{ opacity: 0, x: -12 }}
                     transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
                     className="relative z-10 ml-3 text-sm font-medium whitespace-nowrap"
-                    style={{ fontFamily: 'var(--font-outfit), sans-serif', color: isActive ? colors.text.primary : colors.text.muted }}
+                    style={{ fontFamily: 'var(--font-outfit), sans-serif', color: isActive ? sidebarPrimaryText : sidebarMutedText }}
                   >
                     {item.label}
                   </motion.span>
@@ -305,7 +310,7 @@ export function DashboardSidebar({ mobile = false, onClose, onNavigateStart }: D
 
       <div
         className="border-t py-4 text-xs shrink-0 flex justify-center transition-colors duration-300"
-        style={{ borderColor: colors.border.faint, color: colors.text.muted }}
+        style={{ borderColor: sidebarBorderColor, color: sidebarMutedText }}
       >
         v1.0
       </div>

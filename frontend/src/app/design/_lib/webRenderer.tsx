@@ -148,7 +148,6 @@ const frameResponsiveStyles = (
         width: 100% !important;
         max-width: 100% !important;
         min-width: 0 !important;
-        overflow-x: hidden;
       }
       .frame-responsive-inner.frame-fluid * { box-sizing: border-box; }
       .frame-responsive-inner.frame-fluid > * {
@@ -172,10 +171,8 @@ const frameResponsiveStyles = (
       .frame-responsive-inner.frame-fluid [data-node-id] {
         max-width: 100% !important;
         min-width: 0;
-        overflow-wrap: anywhere;
         overflow-wrap: break-word;
         word-break: break-word;
-        hyphens: auto;
         transition:
           width 180ms ease,
           max-width 180ms ease,
@@ -194,16 +191,8 @@ const frameResponsiveStyles = (
       .frame-responsive-inner.frame-fluid [data-fluid-media="true"],
       .frame-responsive-inner.frame-fluid [data-fluid-icon="true"] {
         max-width: 100% !important;
-        min-width: 0 !important;
-        overflow-wrap: anywhere;
         overflow-wrap: break-word;
         word-break: break-word;
-        hyphens: auto;
-      }
-
-      .frame-responsive-inner.frame-fluid [data-fluid-text="true"] {
-        white-space: pre-wrap !important;
-        line-break: anywhere;
       }
 
       .frame-responsive-inner.frame-fluid [data-fluid-media="true"] {
@@ -318,19 +307,8 @@ const frameResponsiveStyles = (
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) button,
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) a[role="button"] {
           max-width: 100% !important;
-          min-width: 0 !important;
-          overflow-wrap: anywhere;
           overflow-wrap: break-word;
           white-space: normal;
-          word-break: break-word;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-text="true"] {
-          max-width: 100% !important;
-          min-width: 0 !important;
-          overflow-wrap: anywhere !important;
-          word-break: break-word !important;
-          hyphens: auto;
         }
 
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-media="true"] {
@@ -338,7 +316,6 @@ const frameResponsiveStyles = (
           max-width: 100% !important;
           min-width: 0 !important;
           height: auto !important;
-          max-height: min(68vh, 520px);
           border-radius: clamp(8px, 2.4cqw, 14px) !important;
           overflow: hidden;
         }
@@ -348,10 +325,10 @@ const frameResponsiveStyles = (
         }
 
         /* Auto-reflow positioned elements (e.g. side labels/text) so they stack on mobile */
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow):not(.preserve-authored-positioning) [data-node-id][data-mobile-overflow="true"][style*="position: absolute"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow):not(.preserve-authored-positioning) [data-node-id][data-mobile-overflow="true"][style*="position:absolute"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow):not(.preserve-authored-positioning) [data-node-id][data-mobile-overflow="true"][style*="position: fixed"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow):not(.preserve-authored-positioning) [data-node-id][data-mobile-overflow="true"][style*="position:fixed"] {
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][data-mobile-overflow="true"][style*="position: absolute"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][data-mobile-overflow="true"][style*="position:absolute"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][data-mobile-overflow="true"][style*="position: fixed"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][data-mobile-overflow="true"][style*="position:fixed"] {
           position: relative !important;
           left: auto !important;
           right: auto !important;
@@ -370,27 +347,11 @@ const frameResponsiveStyles = (
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] { gap: clamp(6px, 2cqw, 12px) !important; }
       }
 
-      @container (max-width: 360px) {
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) {
-          padding-left: clamp(8px, 2.2cqw, 12px) !important;
-          padding-right: clamp(8px, 2.2cqw, 12px) !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-space="true"] {
-          padding-left: clamp(6px, 2.2cqw, 12px) !important;
-          padding-right: clamp(6px, 2.2cqw, 12px) !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-media="true"] {
-          max-height: min(56vh, 420px);
-        }
-      }
-
       @container (max-width: 520px) {
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow):not(.preserve-authored-positioning) [data-node-id][style*="position: absolute"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow):not(.preserve-authored-positioning) [data-node-id][style*="position:absolute"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow):not(.preserve-authored-positioning) [data-node-id][style*="position: fixed"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow):not(.preserve-authored-positioning) [data-node-id][style*="position:fixed"] {
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="position: absolute"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="position:absolute"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="position: fixed"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="position:fixed"] {
           position: relative !important;
           left: auto !important;
           right: auto !important;
@@ -788,6 +749,64 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
     opacity: 1,
     link: "",
   },
+  Spacer: {
+    width: "100%",
+    height: "20px",
+    background: "transparent",
+    padding: 0,
+    margin: 0,
+    borderRadius: 0,
+    borderWidth: 0,
+    borderColor: "transparent",
+    borderStyle: "solid",
+    opacity: 1,
+    boxShadow: "none",
+  },
+  Pagination: {
+    totalItems: 50,
+    itemsPerPage: 10,
+    currentPage: 1,
+    type: "numbers",
+    activeColor: "#3b82f6",
+    gap: 8,
+    prevText: "Prev",
+    nextText: "Next",
+    showIcons: true,
+    width: "auto",
+    height: "auto",
+    padding: 0,
+    margin: 0,
+    color: "#a1a1aa",
+    fontSize: 14,
+    fontWeight: "400",
+    textAlign: "center",
+    background: "transparent",
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#3f3f46",
+    borderStyle: "solid",
+  },
+  Badge: {
+    background: "#16a34a",
+    padding: 8,
+    margin: 0,
+    width: "120px",
+    height: "36px",
+    borderRadius: 999,
+    borderColor: "transparent",
+    borderWidth: 0,
+    borderStyle: "solid",
+    strokePlacement: "mid",
+    display: "flex",
+    flexDirection: "row",
+    flexWrap: "nowrap",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    boxShadow: "none",
+    opacity: 1,
+    overflow: "hidden",
+  },
 
   Circle: {
     color: "#10b981",
@@ -879,6 +898,19 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
     bottom: "auto",
     left: "auto",
   },
+  Accordion: {
+    items: [],
+    headerBg: "#1e1e2e",
+    headerTextColor: "#e2e8f0",
+    contentBg: "#12121c",
+    contentTextColor: "#a0aec0",
+    borderColor: "#2d2d44",
+    borderWidth: 1,
+    headerFontSize: 14,
+    contentFontSize: 13,
+    borderRadius: 8,
+    backgroundColor: "transparent",
+  },
 };
 
 function mergeProps(type: string, props: Record<string, unknown>): Record<string, unknown> {
@@ -899,15 +931,18 @@ function fluidSpace(
   minFloor = 0,
   ratio = 0.45,
   cqw = 2.2,
+  useFixedPx = false,
 ): string {
   const n = typeof value === "number" ? value : parsePixelValue(value);
   if (n === null || !Number.isFinite(n) || n <= 0) return `${minFloor}px`;
+  if (useFixedPx) return `${n}px`;
   const min = Math.max(minFloor, Math.round(n * ratio));
   return `clamp(${min}px, ${cqw}cqw, ${n}px)`;
 }
 
-function fluidFont(maxPx: number, minFloor = 12, cqw = 3.2): string {
+function fluidFont(maxPx: number, minFloor = 12, cqw = 3.2, useFixedPx = false): string {
   const safeMax = Number.isFinite(maxPx) && maxPx > 0 ? maxPx : minFloor;
+  if (useFixedPx) return `${safeMax}px`;
   const min = Math.max(minFloor, Math.round(safeMax * 0.58));
   return `clamp(${min}px, ${cqw}cqw, ${safeMax}px)`;
 }
@@ -1022,10 +1057,11 @@ function getResponsiveTypographySpec(
   rawFontSize: number,
   isNarrow: boolean,
   builderParityMode?: boolean,
+  useFixedPx = false,
 ): { fontSize: string; minLineHeight: number } {
   if (!isNarrow || builderParityMode) {
     return {
-      fontSize: fluidFont(rawFontSize, 12, 3.2),
+      fontSize: fluidFont(rawFontSize, 12, 3.2, useFixedPx),
       minLineHeight: 1.4,
     };
   }
@@ -1043,7 +1079,7 @@ function getResponsiveTypographySpec(
 
   const spec = map[level];
   return {
-    fontSize: fluidFont(rawFontSize, spec.minFloor, spec.cqw),
+    fontSize: fluidFont(rawFontSize, spec.minFloor, spec.cqw, useFixedPx),
     minLineHeight: spec.lineHeight,
   };
 }
@@ -1178,55 +1214,13 @@ function normalizeResponsivePosition(
   props: Record<string, unknown>,
   viewportWidth: number,
   builderParityMode?: boolean,
-  preserveAuthoredPositioning?: boolean,
 ): React.CSSProperties["position"] | undefined {
-  if (preserveAuthoredPositioning) return position;
   if (builderParityMode) return position;
   if (!isNarrow) return position;
   if (position === "absolute" || position === "fixed") {
     if (isLikelyOverflowingNarrowViewport(props, viewportWidth)) return "relative";
   }
   return position;
-}
-
-function normalizeAuthoredInset(
-  value: unknown,
-  axis: "x" | "y",
-  edge: "start" | "end",
-  props: Record<string, unknown>,
-  viewportWidth: number,
-  referenceWidth: number,
-  referenceHeight: number,
-  isNarrow: boolean,
-  builderParityMode?: boolean,
-  preserveAuthoredPositioning?: boolean,
-): React.CSSProperties["top"] | React.CSSProperties["left"] | React.CSSProperties["right"] | React.CSSProperties["bottom"] | undefined {
-  if (!preserveAuthoredPositioning || builderParityMode || !isNarrow) {
-    return value as React.CSSProperties["top"];
-  }
-
-  const parsed = parsePixelValue(value);
-  if (parsed === null) return value as React.CSSProperties["top"];
-
-  const safeReferenceWidth = Number.isFinite(referenceWidth) && referenceWidth > 0 ? referenceWidth : viewportWidth;
-  const safeReferenceHeight = Number.isFinite(referenceHeight) && referenceHeight > 0 ? referenceHeight : safeReferenceWidth;
-  const scale = axis === "x"
-    ? Math.min(1, viewportWidth / safeReferenceWidth)
-    : Math.min(1, viewportWidth / safeReferenceHeight);
-
-  let scaled = Math.round(parsed * scale);
-  if (axis === "x") {
-    const rawWidth = parsePixelValue(props.width);
-    const scaledWidth = rawWidth !== null ? Math.min(viewportWidth, Math.round(rawWidth * scale)) : 0;
-    const maxOffset = Math.max(0, viewportWidth - scaledWidth);
-    scaled = edge === "start" || edge === "end"
-      ? Math.max(0, Math.min(scaled, maxOffset))
-      : scaled;
-  } else {
-    scaled = Math.max(0, scaled);
-  }
-
-  return `${scaled}px`;
 }
 
 function resolvePageFrameStyles(pageWidth: string): Pick<React.CSSProperties, "width" | "maxWidth"> {
@@ -1463,9 +1457,6 @@ function RenderNode({
   enableFormInputs,
   builderParityMode,
   renderAllNodes,
-  preserveAuthoredPositioning,
-  layoutReferenceWidth,
-  layoutReferenceHeight,
 }: {
   node: CleanNode;
   nodes: Record<string, CleanNode>;
@@ -1482,9 +1473,6 @@ function RenderNode({
   enableFormInputs?: boolean;
   builderParityMode?: boolean;
   renderAllNodes?: boolean;
-  preserveAuthoredPositioning?: boolean;
-  layoutReferenceWidth?: number;
-  layoutReferenceHeight?: number;
 }): React.ReactElement {
   // Normalize legacy lowercase node types so published and preview payloads render identically.
   const rawType = node.type as string;
@@ -1505,8 +1493,6 @@ function RenderNode({
     circle: "Circle",
     square: "Square",
     triangle: "Triangle",
-    tabs: "Tabs",
-    accordion: "Accordion",
     banner: "Banner",
     rating: "Rating",
     tabcontent: "TabContent",
@@ -1515,6 +1501,7 @@ function RenderNode({
   };
   const type = (normalizedTypeMap[rawType.toLowerCase()] ?? rawType) as ComponentType;
   const props = mergeProps(type, node.props) as Record<string, unknown>;
+  const useFixedPx = Boolean(builderParityMode);
   const isNarrowPreview = isNarrowResponsivePreview(viewportWidth, builderParityMode, mobileBreakpoint);
   if (!builderParityMode && !renderAllNodes && !shouldRenderNodeAtWidth(props, viewportWidth, mobileBreakpoint)) {
     return <></>;
@@ -1550,9 +1537,6 @@ function RenderNode({
         enableFormInputs={enableFormInputs}
         builderParityMode={builderParityMode}
         renderAllNodes={renderAllNodes}
-        preserveAuthoredPositioning={preserveAuthoredPositioning}
-        layoutReferenceWidth={layoutReferenceWidth}
-        layoutReferenceHeight={layoutReferenceHeight}
       />
     );
   });
@@ -1724,22 +1708,9 @@ function RenderNode({
         props,
         viewportWidth,
         builderParityMode,
-        preserveAuthoredPositioning,
       );
       const mobileOverflowLikely = !builderParityMode && isNarrowPreview && isLikelyOverflowingNarrowViewport(props, viewportWidth);
       const resolvedContainerHeight = normalizeContainerHeight(normalizedHeight ?? (props.height as string) ?? "240px");
-      const normalizedTop = props.position !== "static"
-        ? normalizeAuthoredInset(props.top, "y", "start", props, viewportWidth, layoutReferenceWidth ?? viewportWidth, layoutReferenceHeight ?? (layoutReferenceWidth ?? viewportWidth), isNarrowPreview, builderParityMode, preserveAuthoredPositioning)
-        : undefined;
-      const normalizedRight = props.position !== "static"
-        ? normalizeAuthoredInset(props.right, "x", "end", props, viewportWidth, layoutReferenceWidth ?? viewportWidth, layoutReferenceHeight ?? (layoutReferenceWidth ?? viewportWidth), isNarrowPreview, builderParityMode, preserveAuthoredPositioning)
-        : undefined;
-      const normalizedBottom = props.position !== "static"
-        ? normalizeAuthoredInset(props.bottom, "y", "end", props, viewportWidth, layoutReferenceWidth ?? viewportWidth, layoutReferenceHeight ?? (layoutReferenceWidth ?? viewportWidth), isNarrowPreview, builderParityMode, preserveAuthoredPositioning)
-        : undefined;
-      const normalizedLeft = props.position !== "static"
-        ? normalizeAuthoredInset(props.left, "x", "start", props, viewportWidth, layoutReferenceWidth ?? viewportWidth, layoutReferenceHeight ?? (layoutReferenceWidth ?? viewportWidth), isNarrowPreview, builderParityMode, preserveAuthoredPositioning)
-        : undefined;
 
       const containerStyle: React.CSSProperties = {
         backgroundColor: props.background as string,
@@ -1751,8 +1722,8 @@ function RenderNode({
         backgroundSize: bgImage ? (props.backgroundSize as string) : undefined,
         backgroundPosition: bgImage ? (props.backgroundPosition as string) : undefined,
         backgroundRepeat: bgImage ? (props.backgroundRepeat as string) : undefined,
-        padding: `${fluidSpace(pt, 0, spacing.paddingRatio, spacing.paddingCqw)} ${fluidSpace(pr, 0, spacing.paddingRatio, spacing.paddingCqw)} ${fluidSpace(pb, 0, spacing.paddingRatio, spacing.paddingCqw)} ${fluidSpace(pl, 0, spacing.paddingRatio, spacing.paddingCqw)}`,
-        margin: `${fluidSpace(mt, 0, spacing.marginRatio, spacing.marginCqw)} ${fluidSpace(mr, 0, spacing.marginRatio, spacing.marginCqw)} ${fluidSpace(mb, 0, spacing.marginRatio, spacing.marginCqw)} ${fluidSpace(ml, 0, spacing.marginRatio, spacing.marginCqw)}`,
+        padding: `${fluidSpace(pt, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pr, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pb, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pl, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)}`,
+        margin: `${fluidSpace(mt, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mr, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mb, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(ml, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)}`,
         width: normalizedWidth ?? (props.width as string),
         maxWidth: normalizedPosition === "static" ? "100%" : (isNarrowPreview ? "100%" : undefined),
         minWidth: normalizedPosition === "static" ? 0 : (isNarrowPreview ? 0 : undefined),
@@ -1771,19 +1742,19 @@ function RenderNode({
         flexWrap: displayVal === "flex" ? (props.flexWrap as React.CSSProperties["flexWrap"]) : undefined,
         alignItems: displayVal === "flex" || displayVal === "grid" ? (props.alignItems as string) : undefined,
         justifyContent: displayVal === "flex" || displayVal === "grid" ? (props.justifyContent as string) : undefined,
-        gap: displayVal === "flex" ? fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw) : undefined,
+        gap: displayVal === "flex" ? fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx) : undefined,
         gridTemplateColumns: displayVal === "grid" ? (props.gridTemplateColumns as string) : undefined,
         gridTemplateRows: displayVal === "grid" ? (props.gridTemplateRows as string) : undefined,
-        columnGap: displayVal === "grid" ? fluidSpace(props.gridColumnGap ?? props.gridGap, 0, spacing.gapRatio, spacing.gapCqw) : undefined,
-        rowGap: displayVal === "grid" ? fluidSpace(props.gridRowGap ?? props.gridGap, 0, spacing.gapRatio, spacing.gapCqw) : undefined,
+        columnGap: displayVal === "grid" ? fluidSpace(props.gridColumnGap ?? props.gridGap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx) : undefined,
+        rowGap: displayVal === "grid" ? fluidSpace(props.gridRowGap ?? props.gridGap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx) : undefined,
         boxShadow: props.boxShadow as string,
         opacity: props.opacity as number,
         overflow: props.overflow as string,
         cursor: interactiveClick ? "pointer" : (props.cursor as string),
-        top: normalizedTop,
-        right: normalizedRight,
-        bottom: normalizedBottom,
-        left: normalizedLeft,
+        top: props.top as React.CSSProperties["top"],
+        right: props.right as React.CSSProperties["right"],
+        bottom: props.bottom as React.CSSProperties["bottom"],
+        left: props.left as React.CSSProperties["left"],
       };
 
       const containerContent = isNav ? (
@@ -1853,8 +1824,8 @@ function RenderNode({
             backgroundSize: bgImage ? (props.backgroundSize as string) : undefined,
             backgroundPosition: bgImage ? (props.backgroundPosition as string) : undefined,
             backgroundRepeat: bgImage ? (props.backgroundRepeat as string) : undefined,
-            padding: `${fluidSpace(pt, 0, spacing.paddingRatio, spacing.paddingCqw)} ${fluidSpace(pr, 0, spacing.paddingRatio, spacing.paddingCqw)} ${fluidSpace(pb, 0, spacing.paddingRatio, spacing.paddingCqw)} ${fluidSpace(pl, 0, spacing.paddingRatio, spacing.paddingCqw)}`,
-            margin: `${fluidSpace(mt, 0, spacing.marginRatio, spacing.marginCqw)} ${fluidSpace(mr, 0, spacing.marginRatio, spacing.marginCqw)} ${fluidSpace(mb, 0, spacing.marginRatio, spacing.marginCqw)} ${fluidSpace(ml, 0, spacing.marginRatio, spacing.marginCqw)}`,
+            padding: `${fluidSpace(pt, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pr, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pb, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pl, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)}`,
+            margin: `${fluidSpace(mt, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mr, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mb, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(ml, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)}`,
             width: normalizedWidth ?? (props.width as string),
             maxWidth: isNarrowPreview ? "100%" : undefined,
             minWidth: isNarrowPreview ? 0 : undefined,
@@ -1871,7 +1842,7 @@ function RenderNode({
             flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
             alignItems: props.alignItems as string,
             justifyContent: props.justifyContent as string,
-            gap: fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw),
+            gap: fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx),
             boxShadow: props.boxShadow as string,
             opacity: props.opacity as number,
             overflow: props.overflow as string,
@@ -1913,8 +1884,8 @@ function RenderNode({
       const isNavRow = isNavContainer(node, nodes, props);
       const rowStyle: React.CSSProperties = {
         backgroundColor: props.background as string,
-        padding: `${fluidSpace(pt, 0, spacing.paddingRatio, spacing.paddingCqw)} ${fluidSpace(pr, 0, spacing.paddingRatio, spacing.paddingCqw)} ${fluidSpace(pb, 0, spacing.paddingRatio, spacing.paddingCqw)} ${fluidSpace(pl, 0, spacing.paddingRatio, spacing.paddingCqw)}`,
-        margin: `${fluidSpace(mt, 0, spacing.marginRatio, spacing.marginCqw)} ${fluidSpace(mr, 0, spacing.marginRatio, spacing.marginCqw)} ${fluidSpace(mb, 0, spacing.marginRatio, spacing.marginCqw)} ${fluidSpace(ml, 0, spacing.marginRatio, spacing.marginCqw)}`,
+        padding: `${fluidSpace(pt, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pr, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pb, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pl, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)}`,
+        margin: `${fluidSpace(mt, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mr, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mb, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(ml, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)}`,
         width: normalizedWidth ?? (props.width as string),
         maxWidth: isNarrowPreview ? "100%" : undefined,
         minWidth: isNarrowPreview ? 0 : undefined,
@@ -1930,7 +1901,7 @@ function RenderNode({
         flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
         alignItems: props.alignItems as string,
         justifyContent: props.justifyContent as string,
-        gap: fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw),
+        gap: fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx),
         boxShadow: props.boxShadow as string,
         opacity: props.opacity as number,
         overflow: isNavRow ? "visible" : (props.overflow as string),
@@ -1994,8 +1965,8 @@ function RenderNode({
             minWidth: 0,
             containerType: "inline-size",
             backgroundColor: props.background as string,
-            padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
-            margin: `${fluidSpace(mt, 0, 0.35, 1.4)} ${fluidSpace(mr, 0, 0.35, 1.4)} ${fluidSpace(mb, 0, 0.35, 1.4)} ${fluidSpace(ml, 0, 0.35, 1.4)}`,
+            padding: `${fluidSpace(pt, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pr, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pb, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pl, 0, 0.45, 2.2, useFixedPx)}`,
+            margin: `${fluidSpace(mt, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mr, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mb, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(ml, 0, 0.35, 1.4, useFixedPx)}`,
             height: normalizedHeight ?? (props.height as string),
             borderRadius: px(props.borderRadius),
             ...(colStrokePlacement === "outside" && colBorderDecl
@@ -2008,7 +1979,7 @@ function RenderNode({
             flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
             alignItems: props.alignItems as string,
             justifyContent: props.justifyContent as string,
-            gap: fluidSpace(props.gap, 0, 0.4, 1.8),
+            gap: fluidSpace(props.gap, 0, 0.4, 1.8, useFixedPx),
             boxShadow: props.boxShadow as string,
             opacity: props.opacity as number,
             overflow: props.overflow as string,
@@ -2037,21 +2008,9 @@ function RenderNode({
       const normalizedTextHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
       const rawTextFontSize = parsePixelValue(props.fontSize) ?? toNumber(props.fontSize, toNumber(DEFAULTS["Text"]?.fontSize, 16));
       const typographyLevel = inferTypographyLevel(props, rawTextFontSize);
-      const typographySpec = getResponsiveTypographySpec(typographyLevel, rawTextFontSize, isNarrowPreview, builderParityMode);
+      const typographySpec = getResponsiveTypographySpec(typographyLevel, rawTextFontSize, isNarrowPreview, builderParityMode, useFixedPx);
       const shouldScaleTextFont = !builderParityMode && isNarrowPreview && rawTextFontSize > 30;
       const textOverflowLikely = !builderParityMode && isNarrowPreview && isLikelyOverflowingNarrowViewport(props, viewportWidth);
-      const normalizedTextTop = props.position !== "static"
-        ? normalizeAuthoredInset(props.top, "y", "start", props, viewportWidth, layoutReferenceWidth ?? viewportWidth, layoutReferenceHeight ?? (layoutReferenceWidth ?? viewportWidth), isNarrowPreview, builderParityMode, preserveAuthoredPositioning)
-        : undefined;
-      const normalizedTextRight = props.position !== "static"
-        ? normalizeAuthoredInset(props.right, "x", "end", props, viewportWidth, layoutReferenceWidth ?? viewportWidth, layoutReferenceHeight ?? (layoutReferenceWidth ?? viewportWidth), isNarrowPreview, builderParityMode, preserveAuthoredPositioning)
-        : undefined;
-      const normalizedTextBottom = props.position !== "static"
-        ? normalizeAuthoredInset(props.bottom, "y", "end", props, viewportWidth, layoutReferenceWidth ?? viewportWidth, layoutReferenceHeight ?? (layoutReferenceWidth ?? viewportWidth), isNarrowPreview, builderParityMode, preserveAuthoredPositioning)
-        : undefined;
-      const normalizedTextLeft = props.position !== "static"
-        ? normalizeAuthoredInset(props.left, "x", "start", props, viewportWidth, layoutReferenceWidth ?? viewportWidth, layoutReferenceHeight ?? (layoutReferenceWidth ?? viewportWidth), isNarrowPreview, builderParityMode, preserveAuthoredPositioning)
-        : undefined;
       const rot = toNumber(props.rotation, 0);
       const flipH = props.flipHorizontal === true;
       const flipV = props.flipVertical === true;
@@ -2066,21 +2025,21 @@ function RenderNode({
         textAlign: props.textAlign as React.CSSProperties["textAlign"],
         textTransform: props.textTransform as React.CSSProperties["textTransform"],
         color: (props.color as string) || "#000000",
-        position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode, preserveAuthoredPositioning),
+        position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
         display: ((props.display as React.CSSProperties["display"]) || "block"),
         zIndex: (props.zIndex as number | undefined) ?? 2,
-        top: normalizedTextTop,
-        right: normalizedTextRight,
-        bottom: normalizedTextBottom,
-        left: normalizedTextLeft,
+        top: isNarrowPreview ? undefined : (props.position !== "static" ? (props.top as React.CSSProperties["top"]) : undefined),
+        right: isNarrowPreview ? undefined : (props.position !== "static" ? (props.right as React.CSSProperties["right"]) : undefined),
+        bottom: isNarrowPreview ? undefined : (props.position !== "static" ? (props.bottom as React.CSSProperties["bottom"]) : undefined),
+        left: isNarrowPreview ? undefined : (props.position !== "static" ? (props.left as React.CSSProperties["left"]) : undefined),
         width: normalizedTextWidth ?? (props.width as string | undefined),
         height: normalizedTextHeight ?? (props.height as string | undefined),
         minHeight: "1em",
         overflow: props.height ? "hidden" : undefined,
         maxWidth: "100%",
         minWidth: 0,
-        margin: `${fluidSpace(mt, 0, 0.35, 1.4)} ${fluidSpace(mr, 0, 0.35, 1.4)} ${fluidSpace(mb, 0, 0.35, 1.4)} ${fluidSpace(ml, 0, 0.35, 1.4)}`,
-        padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
+        margin: `${fluidSpace(mt, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mr, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mb, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(ml, 0, 0.35, 1.4, useFixedPx)}`,
+        padding: `${fluidSpace(pt, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pr, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pb, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pl, 0, 0.45, 2.2, useFixedPx)}`,
         opacity: props.opacity as number,
         boxShadow: props.boxShadow as string,
         cursor: allowPreviewInput ? "text" : (interactiveClick ? "pointer" : undefined),
@@ -2147,36 +2106,6 @@ function RenderNode({
       const imgTransform = [imgRot ? `rotate(${imgRot}deg)` : null, imgFlipH ? "scaleX(-1)" : null, imgFlipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
       const normalizedImageWidth = normalizeLayoutWidthForNarrow(props.width, isNarrowPreview, builderParityMode);
       const normalizedImageHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
-      const p = typeof props.padding === "number" ? props.padding : 0;
-      const pt = toNumber(props.paddingTop ?? p, 0);
-      const pr = toNumber(props.paddingRight ?? p, 0);
-      const pb = toNumber(props.paddingBottom ?? p, 0);
-      const pl = toNumber(props.paddingLeft ?? p, 0);
-      const m = typeof props.margin === "number" ? props.margin : 0;
-      const mt = toNumber(props.marginTop ?? m, 0);
-      const mr = toNumber(props.marginRight ?? m, 0);
-      const mb = toNumber(props.marginBottom ?? m, 0);
-      const ml = toNumber(props.marginLeft ?? m, 0);
-      const imagePosition = normalizeResponsivePosition(
-        (props.position as React.CSSProperties["position"]) || "static",
-        isNarrowPreview,
-        props,
-        viewportWidth,
-        builderParityMode,
-        preserveAuthoredPositioning,
-      );
-      const normalizedImageTop = props.position !== "static"
-        ? normalizeAuthoredInset(props.top, "y", "start", props, viewportWidth, layoutReferenceWidth ?? viewportWidth, layoutReferenceHeight ?? (layoutReferenceWidth ?? viewportWidth), isNarrowPreview, builderParityMode, preserveAuthoredPositioning)
-        : undefined;
-      const normalizedImageRight = props.position !== "static"
-        ? normalizeAuthoredInset(props.right, "x", "end", props, viewportWidth, layoutReferenceWidth ?? viewportWidth, layoutReferenceHeight ?? (layoutReferenceWidth ?? viewportWidth), isNarrowPreview, builderParityMode, preserveAuthoredPositioning)
-        : undefined;
-      const normalizedImageBottom = props.position !== "static"
-        ? normalizeAuthoredInset(props.bottom, "y", "end", props, viewportWidth, layoutReferenceWidth ?? viewportWidth, layoutReferenceHeight ?? (layoutReferenceWidth ?? viewportWidth), isNarrowPreview, builderParityMode, preserveAuthoredPositioning)
-        : undefined;
-      const normalizedImageLeft = props.position !== "static"
-        ? normalizeAuthoredInset(props.left, "x", "start", props, viewportWidth, layoutReferenceWidth ?? viewportWidth, layoutReferenceHeight ?? (layoutReferenceWidth ?? viewportWidth), isNarrowPreview, builderParityMode, preserveAuthoredPositioning)
-        : undefined;
       const imageWidthPx = parsePixelValue(props.width);
       const imageHeightPx = parsePixelValue(props.height);
       const mediaAspectRatio = imageWidthPx && imageHeightPx ? `${imageWidthPx} / ${imageHeightPx}` : undefined;
@@ -2195,18 +2124,12 @@ function RenderNode({
             aspectRatio: mediaAspectRatio,
             ["--media-aspect-ratio" as any]: mediaAspectRatio,
             borderRadius: px(props.borderRadius),
-            padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
-            margin: `${fluidSpace(mt, 0, 0.35, 1.4)} ${fluidSpace(mr, 0, 0.35, 1.4)} ${fluidSpace(mb, 0, 0.35, 1.4)} ${fluidSpace(ml, 0, 0.35, 1.4)}`,
+            padding: fluidSpace(props.padding),
+            margin: fluidSpace(props.margin, 0, 0.35, 1.4),
             opacity: props.opacity as number,
             boxShadow: props.boxShadow as string,
             transform: imgTransform,
             transformOrigin: "center center",
-            position: imagePosition,
-            top: normalizedImageTop,
-            right: normalizedImageRight,
-            bottom: normalizedImageBottom,
-            left: normalizedImageLeft,
-            zIndex: (props.zIndex as number | undefined) ?? undefined,
           }}
         />
       );
@@ -2219,36 +2142,6 @@ function RenderNode({
       const vidTransform = [vidRot ? `rotate(${vidRot}deg)` : null, vidFlipH ? "scaleX(-1)" : null, vidFlipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
       const normalizedVideoWidth = normalizeLayoutWidthForNarrow(props.width, isNarrowPreview, builderParityMode);
       const normalizedVideoHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
-      const p = typeof props.padding === "number" ? props.padding : 0;
-      const pt = toNumber(props.paddingTop ?? p, 0);
-      const pr = toNumber(props.paddingRight ?? p, 0);
-      const pb = toNumber(props.paddingBottom ?? p, 0);
-      const pl = toNumber(props.paddingLeft ?? p, 0);
-      const m = typeof props.margin === "number" ? props.margin : 0;
-      const mt = toNumber(props.marginTop ?? m, 0);
-      const mr = toNumber(props.marginRight ?? m, 0);
-      const mb = toNumber(props.marginBottom ?? m, 0);
-      const ml = toNumber(props.marginLeft ?? m, 0);
-      const videoPosition = normalizeResponsivePosition(
-        (props.position as React.CSSProperties["position"]) || "static",
-        isNarrowPreview,
-        props,
-        viewportWidth,
-        builderParityMode,
-        preserveAuthoredPositioning,
-      );
-      const normalizedVideoTop = props.position !== "static"
-        ? normalizeAuthoredInset(props.top, "y", "start", props, viewportWidth, layoutReferenceWidth ?? viewportWidth, layoutReferenceHeight ?? (layoutReferenceWidth ?? viewportWidth), isNarrowPreview, builderParityMode, preserveAuthoredPositioning)
-        : undefined;
-      const normalizedVideoRight = props.position !== "static"
-        ? normalizeAuthoredInset(props.right, "x", "end", props, viewportWidth, layoutReferenceWidth ?? viewportWidth, layoutReferenceHeight ?? (layoutReferenceWidth ?? viewportWidth), isNarrowPreview, builderParityMode, preserveAuthoredPositioning)
-        : undefined;
-      const normalizedVideoBottom = props.position !== "static"
-        ? normalizeAuthoredInset(props.bottom, "y", "end", props, viewportWidth, layoutReferenceWidth ?? viewportWidth, layoutReferenceHeight ?? (layoutReferenceWidth ?? viewportWidth), isNarrowPreview, builderParityMode, preserveAuthoredPositioning)
-        : undefined;
-      const normalizedVideoLeft = props.position !== "static"
-        ? normalizeAuthoredInset(props.left, "x", "start", props, viewportWidth, layoutReferenceWidth ?? viewportWidth, layoutReferenceHeight ?? (layoutReferenceWidth ?? viewportWidth), isNarrowPreview, builderParityMode, preserveAuthoredPositioning)
-        : undefined;
       const videoWidthPx = parsePixelValue(props.width);
       const videoHeightPx = parsePixelValue(props.height);
       const videoAspectRatio = videoWidthPx && videoHeightPx ? `${videoWidthPx} / ${videoHeightPx}` : "16 / 9";
@@ -2266,8 +2159,8 @@ function RenderNode({
               maxWidth: "100%",
               aspectRatio: videoAspectRatio,
               borderRadius: px(props.borderRadius),
-              padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
-              margin: `${fluidSpace(mt, 0, 0.35, 1.4)} ${fluidSpace(mr, 0, 0.35, 1.4)} ${fluidSpace(mb, 0, 0.35, 1.4)} ${fluidSpace(ml, 0, 0.35, 1.4)}`,
+              padding: fluidSpace(props.padding),
+              margin: fluidSpace(props.margin, 0, 0.35, 1.4),
               opacity: props.opacity as number,
               boxShadow: props.boxShadow as string,
               transform: vidTransform,
@@ -2278,12 +2171,6 @@ function RenderNode({
               background: "#0f172a",
               color: "#cbd5e1",
               fontSize: "12px",
-              position: videoPosition,
-              top: normalizedVideoTop,
-              right: normalizedVideoRight,
-              bottom: normalizedVideoBottom,
-              left: normalizedVideoLeft,
-              zIndex: (props.zIndex as number | undefined) ?? undefined,
             }}
           >
             No video source
@@ -2310,20 +2197,14 @@ function RenderNode({
             aspectRatio: videoAspectRatio,
             ["--media-aspect-ratio" as any]: videoAspectRatio,
             borderRadius: px(props.borderRadius),
-            padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
-            margin: `${fluidSpace(mt, 0, 0.35, 1.4)} ${fluidSpace(mr, 0, 0.35, 1.4)} ${fluidSpace(mb, 0, 0.35, 1.4)} ${fluidSpace(ml, 0, 0.35, 1.4)}`,
+            padding: fluidSpace(props.padding),
+            margin: fluidSpace(props.margin, 0, 0.35, 1.4),
             opacity: props.opacity as number,
             boxShadow: props.boxShadow as string,
             transform: vidTransform,
             transformOrigin: "center center",
             display: "block",
             background: "#0f172a",
-            position: videoPosition,
-            top: normalizedVideoTop,
-            right: normalizedVideoRight,
-            bottom: normalizedVideoBottom,
-            left: normalizedVideoLeft,
-            zIndex: (props.zIndex as number | undefined) ?? undefined,
           }}
         />
       );
@@ -2379,13 +2260,13 @@ function RenderNode({
           style={{
             backgroundColor: bg,
             color,
-            fontSize: fluidFont(rawButtonFontSize, 12, 3),
+            fontSize: fluidFont(rawButtonFontSize, 12, 3, useFixedPx),
             fontWeight: props.fontWeight as string,
             fontFamily: (props.fontFamily as string) || "Outfit",
             borderRadius: isCta ? "0px" : px(props.borderRadius),
             border: `${borderWidth}px ${resolvedBorderStyle} ${borderColor}`,
-            padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
-            margin: `${fluidSpace(mt, 0, 0.35, 1.4)} ${fluidSpace(mr, 0, 0.35, 1.4)} ${fluidSpace(mb, 0, 0.35, 1.4)} ${fluidSpace(ml, 0, 0.35, 1.4)}`,
+            padding: `${fluidSpace(pt, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pr, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pb, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pl, 0, 0.45, 2.2, useFixedPx)}`,
+            margin: `${fluidSpace(mt, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mr, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mb, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(ml, 0, 0.35, 1.4, useFixedPx)}`,
             width: isPercentWidth ? "100%" : isAutoWidth ? "fit-content" : width,
             maxWidth: isNarrowPreview ? "100%" : undefined,
             height: height,
@@ -2460,171 +2341,6 @@ function RenderNode({
       return wrap(content);
     }
 
-    case "Spacer": {
-      const width = normalizeLayoutWidthForNarrow(
-        normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint) || (props.width as string) || "100%",
-        isNarrowPreview,
-        builderParityMode,
-      ) || "100%";
-      const height = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode) || (props.height as string) || "20px";
-      const p = typeof props.padding === "number" ? props.padding : 0;
-      const m = typeof props.margin === "number" ? props.margin : 0;
-      return wrap(
-        <div
-          data-fluid-space="true"
-          className={((props.customClassName as string) || "").trim() || undefined}
-          style={{
-            width,
-            height,
-            maxWidth: "100%",
-            minWidth: 0,
-            background: (props.background as string) || "transparent",
-            padding: `${fluidSpace(props.paddingTop ?? p)} ${fluidSpace(props.paddingRight ?? p)} ${fluidSpace(props.paddingBottom ?? p)} ${fluidSpace(props.paddingLeft ?? p)}`,
-            margin: `${fluidSpace(props.marginTop ?? m, 0, 0.35, 1.4)} ${fluidSpace(props.marginRight ?? m, 0, 0.35, 1.4)} ${fluidSpace(props.marginBottom ?? m, 0, 0.35, 1.4)} ${fluidSpace(props.marginLeft ?? m, 0, 0.35, 1.4)}`,
-            borderRadius: `${toNumber(props.radiusTopLeft ?? props.borderRadius, 0)}px ${toNumber(props.radiusTopRight ?? props.borderRadius, 0)}px ${toNumber(props.radiusBottomRight ?? props.borderRadius, 0)}px ${toNumber(props.radiusBottomLeft ?? props.borderRadius, 0)}px`,
-            border: `${toNumber(props.borderWidth, 0)}px ${((props.borderStyle as string) || "solid")} ${((props.borderColor as string) || "transparent")}`,
-            opacity: toNumber(props.opacity, 1),
-            boxShadow: (props.boxShadow as string) || "none",
-          }}
-        />
-      );
-    }
-
-    case "Badge": {
-      const width = normalizeLayoutWidthForNarrow(
-        normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint) || (props.width as string) || "fit-content",
-        isNarrowPreview,
-        builderParityMode,
-      ) || "fit-content";
-      const height = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode) || (props.height as string) || "auto";
-      const p = typeof props.padding === "number" ? props.padding : 8;
-      const m = typeof props.margin === "number" ? props.margin : 0;
-
-      return wrap(
-        <div
-          data-fluid-space="true"
-          data-layout="row"
-          className={((props.customClassName as string) || "").trim() || undefined}
-          style={{
-            width,
-            height,
-            maxWidth: "100%",
-            minWidth: 0,
-            display: ((props.display as string) || "inline-flex") as React.CSSProperties["display"],
-            flexDirection: (props.flexDirection as React.CSSProperties["flexDirection"]) || "row",
-            flexWrap: (props.flexWrap as React.CSSProperties["flexWrap"]) || "nowrap",
-            alignItems: (props.alignItems as string) || "center",
-            justifyContent: (props.justifyContent as string) || "center",
-            gap: fluidSpace(props.gap, 0, 0.4, 1.8),
-            padding: `${fluidSpace(props.paddingTop ?? p)} ${fluidSpace(props.paddingRight ?? p)} ${fluidSpace(props.paddingBottom ?? p)} ${fluidSpace(props.paddingLeft ?? p)}`,
-            margin: `${fluidSpace(props.marginTop ?? m, 0, 0.35, 1.4)} ${fluidSpace(props.marginRight ?? m, 0, 0.35, 1.4)} ${fluidSpace(props.marginBottom ?? m, 0, 0.35, 1.4)} ${fluidSpace(props.marginLeft ?? m, 0, 0.35, 1.4)}`,
-            borderRadius: px(props.borderRadius),
-            border: `${toNumber(props.borderWidth, 0)}px ${((props.borderStyle as string) || "solid")} ${((props.borderColor as string) || "transparent")}`,
-            backgroundColor: (props.background as string) || "#16a34a",
-            boxShadow: (props.boxShadow as string) || "none",
-            opacity: toNumber(props.opacity, 1),
-            overflow: (props.overflow as React.CSSProperties["overflow"]) || "hidden",
-          }}
-        >
-          {children}
-        </div>
-      );
-    }
-
-    case "Pagination": {
-      const totalItems = Math.max(1, toNumber(props.totalItems, 50));
-      const itemsPerPage = Math.max(1, toNumber(props.itemsPerPage, 10));
-      const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
-      const currentPage = Math.min(totalPages, Math.max(1, Math.round(toNumber(props.currentPage, 1))));
-      const mode = ((props.type as string) || "numbers").toLowerCase();
-      const gap = Math.max(0, toNumber(props.gap, 8));
-      const fontSize = Math.max(10, toNumber(props.fontSize, 14));
-      const width = normalizeLayoutWidthForNarrow(
-        normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint) || (props.width as string) || "100%",
-        isNarrowPreview,
-        builderParityMode,
-      ) || "100%";
-      const color = (props.color as string) || "#a1a1aa";
-      const activeColor = (props.activeColor as string) || "#3b82f6";
-      const background = (props.background as string) || "transparent";
-      const borderColor = (props.borderColor as string) || "#3f3f46";
-      const borderWidth = toNumber(props.borderWidth, 1);
-      const borderStyle = ((props.borderStyle as string) || "solid");
-      const buttonRadius = toNumber(props.borderRadius, 6);
-      const prevText = (props.prevText as string) || "Prev";
-      const nextText = (props.nextText as string) || "Next";
-      const showIcons = props.showIcons !== false;
-
-      const baseButtonStyle: React.CSSProperties = {
-        border: `${borderWidth}px ${borderStyle} ${borderColor}`,
-        borderRadius: `${buttonRadius}px`,
-        padding: `${fluidSpace(8)} ${fluidSpace(12)}`,
-        background,
-        color,
-        fontSize: fluidFont(fontSize, 11, 3.1),
-        lineHeight: 1.2,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: `${Math.max(4, Math.round(gap / 2))}px`,
-        minWidth: "42px",
-      };
-
-      return wrap(
-        <div
-          data-fluid-space="true"
-          className={((props.customClassName as string) || "").trim() || undefined}
-          style={{
-            width,
-            maxWidth: "100%",
-            minWidth: 0,
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            justifyContent:
-              (props.textAlign as string) === "right"
-                ? "flex-end"
-                : (props.textAlign as string) === "left"
-                  ? "flex-start"
-                  : "center",
-            gap: `${gap}px`,
-            rowGap: `${Math.max(gap, 6)}px`,
-          }}
-        >
-          {mode === "load-more" ? (
-            <span style={baseButtonStyle}>Load More</span>
-          ) : (
-            <>
-              <span style={baseButtonStyle}>{showIcons ? "<" : ""}{prevText}</span>
-              {mode === "numbers" ? (
-                <>
-                  {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
-                    const page = i === 4 && totalPages > 5 ? totalPages : i + 1;
-                    const isActive = page === currentPage;
-                    return (
-                      <span
-                        key={page}
-                        style={{
-                          ...baseButtonStyle,
-                          background: isActive ? activeColor : background,
-                          borderColor: isActive ? activeColor : borderColor,
-                          color: isActive ? "#ffffff" : color,
-                          fontWeight: isActive ? 700 : 500,
-                        }}
-                      >
-                        {page}
-                      </span>
-                    );
-                  })}
-                </>
-              ) : null}
-              <span style={baseButtonStyle}>{nextText}{showIcons ? ">" : ""}</span>
-            </>
-          )}
-        </div>
-      );
-    }
-
     case "Accordion": {
       const itemsRaw = Array.isArray(props.items) ? props.items : [];
       const items = itemsRaw.length > 0
@@ -2634,17 +2350,27 @@ function RenderNode({
             { title: "Item 2", content: "Accordion content" },
           ];
 
-      const headerBg = (props.headerBg as string) || "#f8fbff";
-      const headerTextColor = (props.headerTextColor as string) || "#10213f";
-      const contentBg = (props.contentBg as string) || "#ffffff";
-      const contentTextColor = (props.contentTextColor as string) || "#334155";
-      const borderColor = (props.borderColor as string) || "#d4dfef";
+      const LEGACY_LIGHT_HEADER_BG = /^#(f8fbff|ffffff|f1f5f9)$/i;
+      const LEGACY_LIGHT_CONTENT_BG = /^#(ffffff|f8fafc)$/i;
+      const LEGACY_LIGHT_TEXT = /^#(10213f|334155|1e293b)$/i;
+      const LEGACY_LIGHT_BORDER = /^#(d4dfef|e2e8f0)$/i;
+      const orDark = (val: unknown, dark: string, isBg = false, isText = false, isBorder = false) => {
+        const s = String(val ?? "").trim();
+        if (!s) return dark;
+        if (isBg && (LEGACY_LIGHT_HEADER_BG.test(s) || LEGACY_LIGHT_CONTENT_BG.test(s))) return dark;
+        if (isText && LEGACY_LIGHT_TEXT.test(s)) return dark;
+        if (isBorder && LEGACY_LIGHT_BORDER.test(s)) return dark;
+        return s;
+      };
+      const headerBg = orDark(props.headerBg, "#1e1e2e", true, false, false);
+      const headerTextColor = orDark(props.headerTextColor, "#e2e8f0", false, true, false);
+      const contentBg = orDark(props.contentBg, "#12121c", true, false, false);
+      const contentTextColor = orDark(props.contentTextColor, "#a0aec0", false, true, false);
+      const borderColor = orDark(props.borderColor, "#2d2d44", false, false, true);
       const borderWidth = toNumber(props.borderWidth, 1);
       const headerFontSize = toNumber(props.headerFontSize, 14);
       const contentFontSize = toNumber(props.contentFontSize, 13);
       const radius = toNumber(props.borderRadius, 8);
-      const responsiveHeaderFont = fluidFont(headerFontSize, 12, isNarrowPreview ? 3.5 : 2.8);
-      const responsiveContentFont = fluidFont(contentFontSize, 12, isNarrowPreview ? 3.2 : 2.6);
       const width = normalizeLayoutWidthForNarrow(
         normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint) || (props.width as string) || "100%",
         isNarrowPreview,
@@ -2677,11 +2403,9 @@ function RenderNode({
                     cursor: "pointer",
                     background: headerBg,
                     color: headerTextColor,
-                    padding: `${fluidSpace(12)} ${fluidSpace(14)}`,
-                    fontSize: responsiveHeaderFont,
+                    padding: "12px 14px",
+                    fontSize: `${headerFontSize}px`,
                     fontWeight: 600,
-                    overflowWrap: "anywhere",
-                    wordBreak: "break-word",
                   }}
                 >
                   {String(item?.title ?? `Item ${index + 1}`)}
@@ -2690,12 +2414,9 @@ function RenderNode({
                   style={{
                     background: contentBg,
                     color: contentTextColor,
-                    padding: `${fluidSpace(12)} ${fluidSpace(14)}`,
-                    fontSize: responsiveContentFont,
+                    padding: "12px 14px",
+                    fontSize: `${contentFontSize}px`,
                     lineHeight: 1.6,
-                    overflowWrap: "anywhere",
-                    wordBreak: "break-word",
-                    whiteSpace: "pre-wrap",
                   }}
                 >
                   <div>{String(item?.content ?? "")}</div>
@@ -2734,9 +2455,9 @@ function RenderNode({
             display: "flex",
             alignItems: (props.alignItems as string) || "center",
             justifyContent: (props.justifyContent as string) || "center",
-            gap: fluidSpace(props.gap, 0, 0.4, 1.8),
-            padding: `${fluidSpace(props.paddingTop ?? props.padding)} ${fluidSpace(props.paddingRight ?? props.padding)} ${fluidSpace(props.paddingBottom ?? props.padding)} ${fluidSpace(props.paddingLeft ?? props.padding)}`,
-            margin: `${fluidSpace(props.marginTop ?? props.margin, 0, 0.35, 1.4)} ${fluidSpace(props.marginRight ?? props.margin, 0, 0.35, 1.4)} ${fluidSpace(props.marginBottom ?? props.margin, 0, 0.35, 1.4)} ${fluidSpace(props.marginLeft ?? props.margin, 0, 0.35, 1.4)}`,
+            gap: fluidSpace(props.gap, 0, 0.4, 1.8, useFixedPx),
+            padding: `${fluidSpace(props.paddingTop ?? props.padding, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(props.paddingRight ?? props.padding, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(props.paddingBottom ?? props.padding, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(props.paddingLeft ?? props.padding, 0, 0.45, 2.2, useFixedPx)}`,
+            margin: `${fluidSpace(props.marginTop ?? props.margin, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(props.marginRight ?? props.margin, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(props.marginBottom ?? props.margin, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(props.marginLeft ?? props.margin, 0, 0.35, 1.4, useFixedPx)}`,
             borderRadius: px(props.borderRadius),
             overflow: "hidden",
           }}
@@ -2785,7 +2506,7 @@ function RenderNode({
             })}
           </div>
           {showValue ? (
-            <span style={{ fontSize: fluidFont(toNumber(props.fontSize, 12), 12, 3.2), color: (props.color as string) || "#e2e8f0" }}>
+            <span style={{ fontSize: fluidFont(toNumber(props.fontSize, 12), 12, 3.2, useFixedPx), color: (props.color as string) || "#e2e8f0" }}>
               {String(props.valueText ?? `${value}/${max}`)}
             </span>
           ) : null}
@@ -2802,17 +2523,286 @@ function RenderNode({
             maxWidth: "100%",
             minWidth: 0,
             minHeight: "100px",
-            padding: `${fluidSpace(props.paddingTop ?? props.padding)} ${fluidSpace(props.paddingRight ?? props.padding)} ${fluidSpace(props.paddingBottom ?? props.padding)} ${fluidSpace(props.paddingLeft ?? props.padding)}`,
-            margin: `${fluidSpace(props.marginTop ?? props.margin, 0, 0.35, 1.4)} ${fluidSpace(props.marginRight ?? props.margin, 0, 0.35, 1.4)} ${fluidSpace(props.marginBottom ?? props.margin, 0, 0.35, 1.4)} ${fluidSpace(props.marginLeft ?? props.margin, 0, 0.35, 1.4)}`,
+            padding: `${fluidSpace(props.paddingTop ?? props.padding, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(props.paddingRight ?? props.padding, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(props.paddingBottom ?? props.padding, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(props.paddingLeft ?? props.padding, 0, 0.45, 2.2, useFixedPx)}`,
+            margin: `${fluidSpace(props.marginTop ?? props.margin, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(props.marginRight ?? props.margin, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(props.marginBottom ?? props.margin, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(props.marginLeft ?? props.margin, 0, 0.35, 1.4, useFixedPx)}`,
             backgroundColor: (props.background as string) || "transparent",
             display: ((props.display as string) || "flex") as React.CSSProperties["display"],
             flexDirection: (props.flexDirection as React.CSSProperties["flexDirection"]) || "column",
             alignItems: (props.alignItems as string) || "flex-start",
             justifyContent: (props.justifyContent as string) || "flex-start",
-            gap: fluidSpace(props.gap, 0, 0.4, 1.8),
+            gap: fluidSpace(props.gap, 0, 0.4, 1.8, useFixedPx),
           }}
         >
           {children}
+        </div>
+      );
+    }
+
+    case "Spacer": {
+      const p = typeof props.padding === "number" ? props.padding : 0;
+      const pt = toNumber(props.paddingTop ?? p, 0);
+      const pr = toNumber(props.paddingRight ?? p, 0);
+      const pb = toNumber(props.paddingBottom ?? p, 0);
+      const pl = toNumber(props.paddingLeft ?? p, 0);
+      const m = typeof props.margin === "number" ? props.margin : 0;
+      const mt = toNumber(props.marginTop ?? m, 0);
+      const mr = toNumber(props.marginRight ?? m, 0);
+      const mb = toNumber(props.marginBottom ?? m, 0);
+      const ml = toNumber(props.marginLeft ?? m, 0);
+      const spacerRot = toNumber(props.rotation, 0);
+      const spacerFlipH = props.flipHorizontal === true;
+      const spacerFlipV = props.flipVertical === true;
+      const spacerTransform = [
+        spacerRot ? `rotate(${spacerRot}deg)` : null,
+        spacerFlipH ? "scaleX(-1)" : null,
+        spacerFlipV ? "scaleY(-1)" : null,
+      ].filter(Boolean).join(" ") || undefined;
+      const width = normalizeLayoutWidthForNarrow(
+        normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint) || (props.width as string) || "100%",
+        isNarrowPreview,
+        builderParityMode,
+      ) || "100%";
+      const height = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode) || (props.height as string) || "20px";
+      const bw = toNumber(props.borderWidth, 0);
+
+      return wrap(
+        <div
+          data-fluid-space="true"
+          className={((props.customClassName as string) || "").trim() || undefined}
+          style={{
+            width,
+            height,
+            maxWidth: "100%",
+            minWidth: 0,
+            boxSizing: "border-box",
+            padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
+            margin: `${fluidSpace(mt, 0, 0.35, 1.4)} ${fluidSpace(mr, 0, 0.35, 1.4)} ${fluidSpace(mb, 0, 0.35, 1.4)} ${fluidSpace(ml, 0, 0.35, 1.4)}`,
+            background: (props.background as string) || "transparent",
+            borderRadius: px(props.borderRadius),
+            border: bw > 0 ? `${bw}px ${(props.borderStyle as string) || "solid"} ${(props.borderColor as string) || "transparent"}` : undefined,
+            opacity: toNumber(props.opacity, 1),
+            boxShadow: props.boxShadow as string,
+            transform: spacerTransform,
+            transformOrigin: "center center",
+          }}
+        />
+      );
+    }
+
+    case "Badge": {
+      const p = typeof props.padding === "number" ? props.padding : 0;
+      const pt = toNumber(props.paddingTop ?? p, 0);
+      const pr = toNumber(props.paddingRight ?? p, 0);
+      const pb = toNumber(props.paddingBottom ?? p, 0);
+      const pl = toNumber(props.paddingLeft ?? p, 0);
+      const m = typeof props.margin === "number" ? props.margin : 0;
+      const mt = toNumber(props.marginTop ?? m, 0);
+      const mr = toNumber(props.marginRight ?? m, 0);
+      const mb = toNumber(props.marginBottom ?? m, 0);
+      const ml = toNumber(props.marginLeft ?? m, 0);
+      const badgeWidth = normalizeLayoutWidthForNarrow(
+        normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint) || (props.width as string) || "120px",
+        isNarrowPreview,
+        builderParityMode,
+      ) || "120px";
+      const badgeHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode) || (props.height as string) || "36px";
+      const badgeBw = toNumber(props.borderWidth, 0);
+      const badgeBorderDecl = badgeBw > 0
+        ? `${badgeBw}px ${(props.borderStyle as string) || "solid"} ${(props.borderColor as string) || "transparent"}`
+        : undefined;
+      const badgeStrokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
+
+      return wrap(
+        <div
+          data-fluid-space="true"
+          data-layout="row"
+          className={((props.customClassName as string) || "").trim() || undefined}
+          style={{
+            width: badgeWidth,
+            height: badgeHeight,
+            maxWidth: "100%",
+            minWidth: badgeWidth === "fit-content" ? fluidSpace(pl + pr + 48, 48) : 0,
+            boxSizing: "border-box",
+            backgroundColor: (props.background as string) || "#16a34a",
+            padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
+            margin: `${fluidSpace(mt, 0, 0.35, 1.4)} ${fluidSpace(mr, 0, 0.35, 1.4)} ${fluidSpace(mb, 0, 0.35, 1.4)} ${fluidSpace(ml, 0, 0.35, 1.4)}`,
+            borderRadius: px(props.borderRadius),
+            ...(badgeStrokePlacement === "outside" && badgeBorderDecl
+              ? { border: "none", outline: badgeBorderDecl, outlineOffset: 0 }
+              : badgeBorderDecl
+                ? { border: badgeBorderDecl }
+                : {}),
+            display: (props.display as React.CSSProperties["display"]) || "flex",
+            flexDirection: (props.flexDirection as React.CSSProperties["flexDirection"]) || "row",
+            flexWrap: (props.flexWrap as React.CSSProperties["flexWrap"]) || "nowrap",
+            alignItems: (props.alignItems as React.CSSProperties["alignItems"]) || "center",
+            justifyContent: (props.justifyContent as React.CSSProperties["justifyContent"]) || "center",
+            gap: fluidSpace(props.gap, 0, 0.4, 1.8),
+            overflow: (props.overflow as string) || "hidden",
+            boxShadow: props.boxShadow as string,
+            opacity: toNumber(props.opacity, 1),
+            cursor: interactiveClick ? "pointer" : undefined,
+          }}
+          onClick={interactiveClick}
+        >
+          {children}
+        </div>
+      );
+    }
+
+    case "Pagination": {
+      const totalItems = Math.max(1, Math.round(toNumber(props.totalItems, 50)));
+      const itemsPerPage = Math.max(1, Math.round(toNumber(props.itemsPerPage, 10)));
+      const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+      const currentPage = Math.min(totalPages, Math.max(1, Math.round(toNumber(props.currentPage, 1))));
+      const paginationType = String(props.type || "numbers").toLowerCase();
+      const gapValue = Math.max(0, toNumber(props.gap, 8));
+      const showIcons = props.showIcons !== false;
+      const prevText = String(props.prevText ?? "Prev");
+      const nextText = String(props.nextText ?? "Next");
+      const activeColor = (props.activeColor as string) || "#3b82f6";
+      const textColor = (props.color as string) || "#a1a1aa";
+      const baseBackground = (props.background as string) || "transparent";
+      const borderColor = (props.borderColor as string) || "#3f3f46";
+      const borderStyle = (props.borderStyle as string) || "solid";
+      const borderWidth = Math.max(0, toNumber(props.borderWidth, 1));
+      const borderRadius = toNumber(props.borderRadius, 6);
+      const fontSize = Math.max(10, toNumber(props.fontSize, 14));
+      const fontWeight = String(props.fontWeight ?? "400");
+      const width = normalizeLayoutWidthForNarrow(
+        normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint) || (props.width as string) || "auto",
+        isNarrowPreview,
+        builderParityMode,
+      ) || "auto";
+      const height = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode) || (props.height as string) || "auto";
+      const p = typeof props.padding === "number" ? props.padding : 0;
+      const m = typeof props.margin === "number" ? props.margin : 0;
+      const pt = toNumber(props.paddingTop ?? p, 0);
+      const pr = toNumber(props.paddingRight ?? p, 0);
+      const pb = toNumber(props.paddingBottom ?? p, 0);
+      const pl = toNumber(props.paddingLeft ?? p, 0);
+      const mt = toNumber(props.marginTop ?? m, 0);
+      const mr = toNumber(props.marginRight ?? m, 0);
+      const mb = toNumber(props.marginBottom ?? m, 0);
+      const ml = toNumber(props.marginLeft ?? m, 0);
+      const textAlign = String(props.textAlign ?? "center");
+      const justifyContent = textAlign === "right" ? "flex-end" : textAlign === "left" ? "flex-start" : "center";
+
+      const pageTokens =
+        totalPages <= 5
+          ? Array.from({ length: totalPages }, (_, i) => i + 1)
+          : [1, Math.max(2, currentPage - 1), currentPage, Math.min(totalPages - 1, currentPage + 1), totalPages]
+              .filter((value, idx, arr) => arr.indexOf(value) === idx)
+              .sort((a, b) => a - b)
+              .flatMap((value, idx, arr) => {
+                if (idx === 0) return [value];
+                const prev = arr[idx - 1];
+                return value - prev > 1 ? ["...", value] : [value];
+              });
+
+      const buttonBase: React.CSSProperties = {
+        fontSize: fluidFont(fontSize, 10, 3),
+        fontWeight,
+        color: textColor,
+        backgroundColor: baseBackground,
+        borderWidth: `${borderWidth}px`,
+        borderColor,
+        borderStyle,
+        borderRadius: `${borderRadius}px`,
+        lineHeight: 1.2,
+        maxWidth: "100%",
+        minWidth: 0,
+        boxSizing: "border-box",
+      };
+
+      const navButtonStyle: React.CSSProperties = {
+        ...buttonBase,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "6px",
+        padding: "8px 10px",
+        whiteSpace: "nowrap",
+      };
+
+      const pageButtonStyle: React.CSSProperties = {
+        ...buttonBase,
+        width: "36px",
+        minWidth: "36px",
+        height: "36px",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 0,
+      };
+
+      return wrap(
+        <div
+          data-fluid-space="true"
+          className={((props.customClassName as string) || "").trim() || undefined}
+          style={{
+            width,
+            height,
+            maxWidth: "100%",
+            minWidth: 0,
+            display: "inline-flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent,
+            gap: fluidSpace(gapValue, 0, 0.45, 1.8),
+            padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
+            margin: `${fluidSpace(mt, 0, 0.35, 1.4)} ${fluidSpace(mr, 0, 0.35, 1.4)} ${fluidSpace(mb, 0, 0.35, 1.4)} ${fluidSpace(ml, 0, 0.35, 1.4)}`,
+            boxSizing: "border-box",
+          }}
+        >
+          {paginationType === "load-more" ? (
+            <button type="button" style={{ ...navButtonStyle, padding: "10px 18px" }}>
+              Load More
+            </button>
+          ) : (
+            <>
+              <button type="button" style={navButtonStyle}>
+                {showIcons ? "<" : ""}
+                {prevText}
+              </button>
+
+              {paginationType === "numbers" ? (
+                <div style={{ display: "inline-flex", flexWrap: "wrap", alignItems: "center", gap: fluidSpace(gapValue, 0, 0.45, 1.8) }}>
+                  {pageTokens.map((token, idx) => {
+                    if (token === "...") {
+                      return (
+                        <span key={`ellipsis-${idx}`} style={{ color: textColor, fontSize: fluidFont(fontSize, 10, 3) }}>
+                          ...
+                        </span>
+                      );
+                    }
+
+                    const isActive = token === currentPage;
+                    return (
+                      <button
+                        key={`page-${token}`}
+                        type="button"
+                        style={{
+                          ...pageButtonStyle,
+                          backgroundColor: isActive ? activeColor : baseBackground,
+                          borderColor: isActive ? activeColor : borderColor,
+                          color: isActive ? "#ffffff" : textColor,
+                          fontWeight: isActive ? "700" : fontWeight,
+                        }}
+                      >
+                        {token}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+
+              <button type="button" style={navButtonStyle}>
+                {nextText}
+                {showIcons ? ">" : ""}
+              </button>
+            </>
+          )}
         </div>
       );
     }
@@ -3136,7 +3126,6 @@ export function WebPreview({
   builderParityMode = false,
   fillViewport = false,
   renderAllNodes = false,
-  preserveAuthoredPositioning = false,
 }: {
   doc: BuilderDocument;
   pageIndex?: number;
@@ -3154,8 +3143,6 @@ export function WebPreview({
   fillViewport?: boolean;
   /** When true, render all nodes regardless of responsive visibility/collapsible rules. */
   renderAllNodes?: boolean;
-  /** When true, keep authored absolute/fixed positioning even on narrow mobile preview. */
-  preserveAuthoredPositioning?: boolean;
 }): React.ReactElement {
   const safePages = doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page));
   const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
@@ -3232,8 +3219,6 @@ export function WebPreview({
   const frameStyles = resolvePageFrameStyles(width);
   const { ref, width: measuredWidth } = useContainerWidth(1000);
   const viewportWidth = simulatedWidth ?? responsiveViewportWidth ?? measuredWidth;
-  const layoutReferenceWidth = parsePixelValue(pageProps.referenceWidth) ?? parsePixelValue(width) ?? viewportWidth;
-  const layoutReferenceHeight = parsePixelValue(pageProps.referenceHeight) ?? parsePixelValue(pageProps.height) ?? layoutReferenceWidth;
   const effectiveMobileBreakpoint = mobileBreakpoint ?? PREVIEW_MOBILE_BREAKPOINT;
   const isPhonePreview = viewportWidth <= effectiveMobileBreakpoint;
   const isDesktopMode = simulatedWidth === undefined && viewportWidth > effectiveMobileBreakpoint;
@@ -3296,9 +3281,6 @@ export function WebPreview({
             enableFormInputs={enableFormInputs}
             builderParityMode={builderParityMode}
             renderAllNodes={renderAllNodes}
-            preserveAuthoredPositioning={preserveAuthoredPositioning}
-            layoutReferenceWidth={layoutReferenceWidth}
-            layoutReferenceHeight={layoutReferenceHeight}
           />
         );
       })}
@@ -3368,7 +3350,7 @@ export function WebPreview({
         {!isDesktopMode ? (
           <div
             ref={mobileWrapperRef}
-            className={`frame-responsive-inner frame-fluid${isPhonePreview ? " frame-mobile" : ""}${isNarrowBuilderPreview ? " builder-parity-narrow" : ""}${preserveAuthoredPositioning ? " preserve-authored-positioning" : ""}`}
+            className={`frame-responsive-inner frame-fluid${isPhonePreview ? " frame-mobile" : ""}${isNarrowBuilderPreview ? " builder-parity-narrow" : ""}`}
             style={{
               width: "100%",
               minHeight: "100%",
@@ -3444,8 +3426,12 @@ export function LiveSite({
   const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
   const background = (pageProps.background as string) || "#ffffff";
   const pageRotation = toNumber(pageProps.pageRotation, 0);
-  const { ref, width: viewportWidth } = useContainerWidth();
-  const isPhoneSize = viewportWidth <= mobileBreakpoint;
+  const pageWidthPx = parsePixelValue(width) ?? 1920;
+  const { ref, width: measuredWidth } = useContainerWidth();
+  const isPhoneSize = measuredWidth <= mobileBreakpoint;
+  const viewportWidth = !isPhoneSize ? pageWidthPx : measuredWidth;
+  const layoutReferenceWidth = pageWidthPx;
+  const layoutReferenceHeight = parsePixelValue(pageProps.height) ?? pageWidthPx;
   const liveSiteWrapperRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     if (isPhoneSize && liveSiteWrapperRef.current) {
@@ -3536,7 +3522,12 @@ export function LiveSite({
             storeContext={storeContext}
             nodeId={id}
             onPrototypeAction={onPrototypeAction}
+            mobileBreakpoint={mobileBreakpoint}
             enableFormInputs={enableFormInputs}
+            builderParityMode={true}
+            preserveAuthoredPositioning={true}
+            layoutReferenceWidth={layoutReferenceWidth}
+            layoutReferenceHeight={layoutReferenceHeight}
           />
         );
       })}

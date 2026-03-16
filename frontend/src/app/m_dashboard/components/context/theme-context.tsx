@@ -51,7 +51,7 @@ export const THEMES = {
       card: '#FFFFFF',
       elevated: '#FFFFFF',
       fog: '#F4F4F7',
-      sidebar: '#FFFFFF',
+      sidebar: '#190765',
       searchBar: '#F7F7FA',
     },
     text: {
@@ -61,8 +61,8 @@ export const THEMES = {
       subtle: '#B8B2CF',
     },
     border: {
-      default: '#D9D4EA',
-      faint: '#EAE7F2',
+      default: '#CFC4E5',
+      faint: '#DCD2EE',
     },
     accent: {
       yellow: '#FFCC00',
