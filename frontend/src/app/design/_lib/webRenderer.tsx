@@ -1360,11 +1360,25 @@ function wrapWithPrototype(
   );
 }
 
-function PreviewTabs({ props, children }: { props: Record<string, any>; children: React.ReactNode }) {
+function PreviewTabs({ props }: { props: Record<string, any> }) {
   const tabs = (props.tabs as any[]) || [];
+  const linkedSlotMap = (props.__linkedNodes as Record<string, string>) ?? {};
   const [activeTabId, setActiveTabId] = React.useState(
     props.activeTabId || (tabs[0]?.id || "")
   );
+
+  React.useEffect(() => {
+    const preferred = props.activeTabId || "";
+    const hasPreferred = preferred && tabs.some((t) => t?.id === preferred);
+    if (hasPreferred) {
+      setActiveTabId(preferred);
+      return;
+    }
+    const firstId = tabs[0]?.id || "";
+    if (firstId && firstId !== activeTabId) {
+      setActiveTabId(firstId);
+    }
+  }, [props.activeTabId, tabs, activeTabId]);
 
   const br = (props.borderRadius ?? 0) as number;
   const borderColor = (props.borderColor as string) || "transparent";
@@ -1429,21 +1443,18 @@ function PreviewTabs({ props, children }: { props: Record<string, any>; children
       </div>
       {/* Children here are per-tab content nodes rendered by RenderNode; we simply show/hide via CSS */}
       <div className="tabs-content relative w-full flex-grow min-h-[100px] overflow-hidden">
-        {React.Children.map(children, (child) => {
-          if (!React.isValidElement(child)) return null;
-          const tabId = (child.props as any)["data-tab-id"];
-          const isActive = !tabId || tabId === activeTabId;
-          return React.cloneElement(child, {
-            className: [
-              "w-full h-full transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]",
-              isActive
-                ? "opacity-100 translate-y-0 relative"
-                : "opacity-0 -translate-y-2 absolute inset-0 pointer-events-none",
-              (child.props as any).className || "",
-            ]
-              .filter(Boolean)
-              .join(" "),
-          });
+        {tabs.map((tab) => {
+          const isActive = tab.id === activeTabId;
+          return (
+            <div
+              key={tab.id}
+              className={`w-full h-full transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${isActive ? "opacity-100 translate-y-0 relative" : "opacity-0 -translate-y-2 absolute inset-0 pointer-events-none"}`}
+            >
+              <div className="w-full h-full min-h-[100px] p-6 flex flex-col text-sm whitespace-pre-wrap text-gray-800 leading-relaxed">
+                {tab.content}
+              </div>
+            </div>
+          );
         })}
       </div>
     </div>
@@ -1466,6 +1477,8 @@ function RenderNode({
   enableFormInputs,
   builderParityMode,
   renderAllNodes,
+  parentType,
+  insideTabsContext,
 }: {
   node: CleanNode;
   nodes: Record<string, CleanNode>;
@@ -1482,6 +1495,8 @@ function RenderNode({
   enableFormInputs?: boolean;
   builderParityMode?: boolean;
   renderAllNodes?: boolean;
+  parentType?: ComponentType;
+  insideTabsContext?: boolean;
 }): React.ReactElement {
   // Normalize legacy lowercase node types so published and preview payloads render identically.
   const rawType = node.type as string;
@@ -1504,8 +1519,8 @@ function RenderNode({
     triangle: "Triangle",
     banner: "Banner",
     rating: "Rating",
-    tabs: "Tabs",
     tabcontent: "TabContent",
+    "tab-content": "TabContent",
     "tab content": "TabContent",
     importedblock: "ImportedBlock",
     booleanfield: "BooleanField",
@@ -1526,11 +1541,20 @@ function RenderNode({
   const interactiveClick = !allowPreviewInput && toggleTarget ? () => onToggle(toggleTarget, triggerAction) : undefined;
   const animation = props.animation as AnimationConfig | undefined;
   const prototype = props.prototype as PrototypeConfig | undefined;
+  const nextInsideTabsContext = Boolean(insideTabsContext || type === "Tabs" || type === "TabContent");
   const childIds = node.children ?? [];
+  const childNodeMap: Record<string, React.ReactNode> = {};
+  const childNodeHasChildrenById: Record<string, boolean> = {};
+  const childNodeHasChildren = childIds.map((id) => {
+    const child = nodes[id];
+    const hasChildren = Boolean(child && Array.isArray(child.children) && child.children.length > 0);
+    childNodeHasChildrenById[id] = hasChildren;
+    return hasChildren;
+  });
   const children = childIds.map((id) => {
     const n = nodes[id];
     if (!n) return null;
-    return (
+    const renderedNode = (
       <RenderNode
         key={id}
         node={n}
@@ -1548,8 +1572,12 @@ function RenderNode({
         enableFormInputs={enableFormInputs}
         builderParityMode={builderParityMode}
         renderAllNodes={renderAllNodes}
+        parentType={type}
+        insideTabsContext={nextInsideTabsContext}
       />
     );
+    childNodeMap[id] = renderedNode;
+    return renderedNode;
   });
 
   const wrap = (el: React.ReactElement) =>
@@ -2117,6 +2145,18 @@ function RenderNode({
       const imgTransform = [imgRot ? `rotate(${imgRot}deg)` : null, imgFlipH ? "scaleX(-1)" : null, imgFlipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
       const normalizedImageWidth = normalizeLayoutWidthForNarrow(props.width, isNarrowPreview, builderParityMode);
       const normalizedImageHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
+      const isInsideTabs = Boolean(insideTabsContext || parentType === "Tabs" || parentType === "TabContent");
+      const autoFitInTabs = props._autoFitInTabs === true;
+      const rawWidth =
+        isInsideTabs && !autoFitInTabs
+          ? (props.width as string)
+          : (normalizedImageWidth ?? (props.width as string));
+      const rawHeight =
+        isInsideTabs && !autoFitInTabs
+          ? (props.height as string)
+          : (normalizedImageHeight ?? (props.height as string));
+      const resolvedImageWidth = isInsideTabs && autoFitInTabs ? "100%" : rawWidth;
+      const resolvedImageHeight = isInsideTabs && autoFitInTabs ? "auto" : rawHeight;
       const imageWidthPx = parsePixelValue(props.width);
       const imageHeightPx = parsePixelValue(props.height);
       const mediaAspectRatio = imageWidthPx && imageHeightPx ? `${imageWidthPx} / ${imageHeightPx}` : undefined;
@@ -2128,8 +2168,8 @@ function RenderNode({
           data-fluid-media="true"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
-            width: normalizedImageWidth ?? (props.width as string),
-            height: normalizedImageHeight ?? (props.height as string),
+            width: resolvedImageWidth,
+            height: resolvedImageHeight,
             maxWidth: "100%",
             objectFit: ((props.objectFit as React.CSSProperties["objectFit"]) || "cover"),
             aspectRatio: mediaAspectRatio,
@@ -2268,6 +2308,13 @@ function RenderNode({
       const vidTransform = [vidRot ? `rotate(${vidRot}deg)` : null, vidFlipH ? "scaleX(-1)" : null, vidFlipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
       const normalizedVideoWidth = normalizeLayoutWidthForNarrow(props.width, isNarrowPreview, builderParityMode);
       const normalizedVideoHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
+      const isInsideTabs = Boolean(insideTabsContext || parentType === "Tabs" || parentType === "TabContent");
+      const resolvedVideoWidth = isInsideTabs
+        ? ((props.width as string) ?? "100%")
+        : (normalizedVideoWidth ?? (props.width as string) ?? "100%");
+      const resolvedVideoHeight = isInsideTabs
+        ? ((props.height as string) ?? "auto")
+        : (normalizedVideoHeight ?? (props.height as string) ?? "auto");
       const videoWidthPx = parsePixelValue(props.width);
       const videoHeightPx = parsePixelValue(props.height);
       const videoAspectRatio = videoWidthPx && videoHeightPx ? `${videoWidthPx} / ${videoHeightPx}` : "16 / 9";
@@ -2280,8 +2327,8 @@ function RenderNode({
             data-fluid-media="true"
             className={((props.customClassName as string) || "").trim() || undefined}
             style={{
-              width: normalizedVideoWidth ?? (props.width as string) ?? "100%",
-              height: normalizedVideoHeight ?? (props.height as string) ?? "auto",
+              width: resolvedVideoWidth,
+              height: resolvedVideoHeight,
               maxWidth: "100%",
               aspectRatio: videoAspectRatio,
               borderRadius: px(props.borderRadius),
@@ -2316,8 +2363,8 @@ function RenderNode({
           data-fluid-media="true"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
-            width: normalizedVideoWidth ?? (props.width as string) ?? "100%",
-            height: normalizedVideoHeight ?? (props.height as string) ?? "auto",
+            width: resolvedVideoWidth,
+            height: resolvedVideoHeight,
             maxWidth: "100%",
             objectFit: ((props.objectFit as React.CSSProperties["objectFit"]) || "cover"),
             aspectRatio: videoAspectRatio,
@@ -2532,6 +2579,10 @@ function RenderNode({
                     padding: "12px 14px",
                     fontSize: `${headerFontSize}px`,
                     fontWeight: 600,
+                    lineHeight: 1.35,
+                    whiteSpace: "normal",
+                    overflowWrap: "anywhere",
+                    wordBreak: "break-word",
                   }}
                 >
                   {String(item?.title ?? `Item ${index + 1}`)}
@@ -2543,9 +2594,14 @@ function RenderNode({
                     padding: "12px 14px",
                     fontSize: `${contentFontSize}px`,
                     lineHeight: 1.6,
+                    whiteSpace: "pre-wrap",
+                    overflowWrap: "anywhere",
+                    wordBreak: "break-word",
                   }}
                 >
-                  <div>{String(item?.content ?? "")}</div>
+                  <div style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", wordBreak: "break-word" }}>
+                    {String(item?.content ?? "")}
+                  </div>
                   {mediaUrl && mediaType === "image" ? (
                     <img src={mediaUrl} alt="accordion media" data-fluid-media="true" style={{ width: "100%", marginTop: 10, borderRadius: 6 }} />
                   ) : null}
@@ -3174,9 +3230,7 @@ function RenderNode({
     }
 
     case "Tabs":
-      // Simpler, robust behavior: render all TabContent children as-is.
-      // This guarantees anything you drop inside Tab Content appears in preview.
-      return wrap(<PreviewTabs props={props}>{children}</PreviewTabs>);
+      return wrap(<PreviewTabs props={props} />);
 
     default:
       return <div data-unknown-type={type}>{children}</div>;

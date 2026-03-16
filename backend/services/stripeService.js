@@ -1,4 +1,14 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const Stripe = require('stripe');
+
+function getStripeClient() {
+  const secretKey = (process.env.STRIPE_SECRET_KEY || '').trim();
+  if (!secretKey) {
+    const error = new Error('Stripe not configured: missing STRIPE_SECRET_KEY');
+    error.statusCode = 503;
+    throw error;
+  }
+  return Stripe(secretKey);
+}
 
 /**
  * Stripe API integration
@@ -16,6 +26,7 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
  */
 async function createPaymentIntent({ amount, currency = 'php', orderId, subdomain }) {
   try {
+    const stripe = getStripeClient();
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount),
       currency: currency.toLowerCase(),
@@ -41,6 +52,7 @@ async function createPaymentIntent({ amount, currency = 'php', orderId, subdomai
  * @returns {Object} event
  */
 function constructEvent(rawBody, sig) {
+  const stripe = getStripeClient();
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
   return stripe.webhooks.constructEvent(rawBody, sig, endpointSecret);
 }

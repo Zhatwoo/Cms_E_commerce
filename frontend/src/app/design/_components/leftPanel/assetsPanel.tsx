@@ -41,6 +41,35 @@ function withResolverFallback<T extends Record<string, React.ComponentType<any>>
 
       return resolved || target.Container || SAFE_CONTAINER;
     },
+    has(target, prop) {
+      if (Reflect.has(target, prop)) return true;
+      if (typeof prop !== "string") {
+        return Reflect.has(target, "Container") || Reflect.has(target, "container");
+      }
+
+      const normalized = prop.trim().toLowerCase();
+      if (Reflect.has(target, normalized)) return true;
+
+      const canonical = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+      if (Reflect.has(target, canonical)) return true;
+
+      if (
+        normalized.includes("image") ||
+        normalized === "img" ||
+        normalized === "imagecomponent"
+      ) {
+        return (
+          Reflect.has(target, "Image") ||
+          Reflect.has(target, "image") ||
+          Reflect.has(target, "IMAGE") ||
+          Reflect.has(target, "img") ||
+          Reflect.has(target, "Img") ||
+          Reflect.has(target, "ImageComponent")
+        );
+      }
+
+      return Reflect.has(target, "Container") || Reflect.has(target, "container");
+    },
   }) as T;
 }
 export type AssetItem = {
@@ -116,6 +145,9 @@ const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverF
   Image: asComponent(Image),
   image: asComponent(Image),
   IMAGE: asComponent(Image),
+  img: asComponent(Image),
+  Img: asComponent(Image),
+  ImageComponent: asComponent(Image),
   Button: asComponent(Button),
   button: asComponent(Button),
   Divider: asComponent(Divider),

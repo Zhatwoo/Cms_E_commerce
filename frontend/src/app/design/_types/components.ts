@@ -184,6 +184,7 @@ export interface ImageProps extends SpacingProps, SizeProps, EffectsProps, Trans
   radiusTopRight?: number;
   radiusBottomRight?: number;
   radiusBottomLeft?: number;
+  _autoFitInTabs?: boolean;
   _isDraggingSource?: boolean;
 }
 

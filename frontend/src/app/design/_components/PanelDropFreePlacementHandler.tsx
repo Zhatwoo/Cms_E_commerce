@@ -10,6 +10,8 @@ const MOVE_THRESHOLD_PX = 6;
 const MAX_RETRY_FRAMES = 20;
 const MAX_COLUMNS_PER_ROW = 5;
 const FLOW_LAYOUT_TYPES = new Set(["Row", "Section", "Container", "Viewport", "Tab Content"]);
+const FLOW_PARENT_DISPLAY_NAMES = new Set(["Section", "Container", "Row", "Column", "Frame", "Tab Content"]);
+const FREEFORM_PARENT_DISPLAY_NAMES = new Set(["Page", "Viewport"]);
 const HORIZONTAL_COLUMN_PARENTS = new Set(["Row", "Section", "Container", "Column", "Tab Content"]);
 const DROP_TARGET_CANVAS_TYPES = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame", "Tab Content"]);
 const BLOCKED_DROP_TYPES = new Set(["Accordion"]);
@@ -153,8 +155,51 @@ export function PanelDropFreePlacementHandler() {
       }
 
       let forcedDropTargetId: string | null = null;
+      let fallbackPageId: string | null = null;
       try {
         const elems = document.elementsFromPoint(pointerRef.current.x, pointerRef.current.y) as HTMLElement[];
+        const latestState = query.getState();
+        const latestNodes = (latestState?.nodes ?? {}) as Record<string, { data?: { displayName?: string } }>;
+        const resolveDisplayName = (id: string | null): string => {
+          if (!id) return "";
+          return String(latestNodes[id]?.data?.displayName ?? "");
+        };
+        const selectedRaw = latestState?.events?.selected;
+        const selectedIds = Array.isArray(selectedRaw)
+          ? selectedRaw
+          : selectedRaw instanceof Set
+            ? Array.from(selectedRaw)
+            : selectedRaw && typeof selectedRaw === "object"
+              ? Object.keys(selectedRaw)
+              : [];
+
+        for (const id of selectedIds) {
+          const name = resolveDisplayName(typeof id === "string" ? id : null);
+          if (name === "Page") {
+            fallbackPageId = id as string;
+            break;
+          }
+        }
+        if (!fallbackPageId) {
+          const pageId = Object.keys(latestNodes).find((id) => latestNodes[id]?.data?.displayName === "Page");
+          if (pageId) fallbackPageId = pageId;
+        }
+        const findPageUnderCursor = () => {
+          for (const el of elems) {
+            const withNode = el.closest("[data-node-id]") as HTMLElement | null;
+            if (!withNode) continue;
+            const id = withNode.getAttribute("data-node-id");
+            if (!id || newSet.has(id)) continue;
+            if (resolveDisplayName(id) === "Page") return id;
+          }
+          return null;
+        };
+
+        const pageUnderCursor = findPageUnderCursor();
+        if (pageUnderCursor) {
+          forcedDropTargetId = pageUnderCursor;
+        }
+
         for (const el of elems) {
           const withNode = el.closest("[data-node-id]") as HTMLElement | null;
           if (!withNode) continue;
@@ -163,7 +208,7 @@ export function PanelDropFreePlacementHandler() {
           const node = (query.getState()?.nodes ?? {})[id] as { data?: { isCanvas?: boolean; displayName?: string } } | undefined;
           const displayName = node?.data?.displayName;
           const isCanvas = node?.data?.isCanvas === true;
-          if (isCanvas || (displayName && DROP_TARGET_CANVAS_TYPES.has(displayName)) || displayName === "Tab Content") {
+          if (!forcedDropTargetId && (isCanvas || (displayName && DROP_TARGET_CANVAS_TYPES.has(displayName)) || displayName === "Tab Content")) {
             forcedDropTargetId = id;
             break;
           }
@@ -172,15 +217,74 @@ export function PanelDropFreePlacementHandler() {
         forcedDropTargetId = null;
       }
 
+      if (!forcedDropTargetId) {
+        try {
+          const latestState = query.getState();
+          const latestNodes = (latestState?.nodes ?? {}) as Record<string, { data?: { parent?: string; isCanvas?: boolean; displayName?: string } }>;
+          const selectedRaw = latestState?.events?.selected;
+          const selectedIds = Array.isArray(selectedRaw)
+            ? selectedRaw
+            : selectedRaw instanceof Set
+              ? Array.from(selectedRaw)
+              : selectedRaw && typeof selectedRaw === "object"
+                ? Object.keys(selectedRaw)
+                : [];
+
+          const resolveCanvasAncestor = (startId: string | null): string | null => {
+            let current = startId;
+            const visited = new Set<string>();
+            while (current && !visited.has(current)) {
+              visited.add(current);
+              const node = latestNodes[current];
+              if (!node) return null;
+              const displayName = node.data?.displayName;
+              const isCanvas = node.data?.isCanvas === true;
+              if (isCanvas || (displayName && DROP_TARGET_CANVAS_TYPES.has(displayName))) {
+                return current;
+              }
+              const parentId = node.data?.parent;
+              current = typeof parentId === "string" ? parentId : null;
+            }
+            return null;
+          };
+
+          for (const id of selectedIds) {
+            const target = resolveCanvasAncestor(typeof id === "string" ? id : null);
+            if (target) {
+              forcedDropTargetId = target;
+              break;
+            }
+          }
+
+          if (!forcedDropTargetId) {
+            const pageId = Object.keys(latestNodes).find((id) => latestNodes[id]?.data?.displayName === "Page");
+            if (pageId) forcedDropTargetId = pageId;
+          }
+
+          if (!forcedDropTargetId) {
+            const viewportId = Object.keys(latestNodes).find((id) => latestNodes[id]?.data?.displayName === "Viewport");
+            if (viewportId) forcedDropTargetId = viewportId;
+          }
+        } catch {
+          forcedDropTargetId = null;
+        }
+      }
+
       if (forcedDropTargetId) {
         const latestState = query.getState();
-        const latestNodes = (latestState?.nodes ?? {}) as Record<string, { data?: { parent?: string; nodes?: string[] } }>;
-        const insertAt = ((latestNodes[forcedDropTargetId]?.data?.nodes as string[] | undefined) ?? []).length;
+        const latestNodes = (latestState?.nodes ?? {}) as Record<string, { data?: { parent?: string; nodes?: string[]; displayName?: string } }>;
         rootNewIds.forEach((id, idx) => {
           const currentParent = latestNodes[id]?.data?.parent;
           if (!currentParent || currentParent === forcedDropTargetId) return;
+          const nodeName = (latestNodes as any)[id]?.data?.displayName as string | undefined;
+          const targetName = (latestNodes as any)[forcedDropTargetId]?.data?.displayName as string | undefined;
+          const targetId =
+            targetName === "Viewport" && nodeName !== "Page" && fallbackPageId
+              ? fallbackPageId
+              : forcedDropTargetId;
+          const insertAt = ((latestNodes[targetId]?.data?.nodes as string[] | undefined) ?? []).length;
           try {
-            actions.move(id, forcedDropTargetId as string, insertAt + idx);
+            actions.move(id, targetId as string, insertAt + idx);
           } catch {
             // ignore move failures and continue with best-effort placement
           }
@@ -191,8 +295,22 @@ export function PanelDropFreePlacementHandler() {
         try {
           const latest = query.getState();
           const latestNodes = (latest?.nodes ?? {}) as Record<string, { data?: { parent?: string; displayName?: string; nodes?: string[] } }>;
-          const parentId = latestNodes[nodeId]?.data?.parent;
+          let parentId = latestNodes[nodeId]?.data?.parent;
           if (!parentId) continue;
+          const nodeDisplayName = latestNodes[nodeId]?.data?.displayName;
+          const parentDisplayName = latestNodes[parentId]?.data?.displayName;
+          if (parentDisplayName === "Viewport" && nodeDisplayName !== "Page" && (fallbackPageId || forcedDropTargetId)) {
+            const nextParent = fallbackPageId || forcedDropTargetId;
+            if (nextParent) {
+              try {
+                const insertAt = ((latestNodes[nextParent]?.data?.nodes as string[] | undefined) ?? []).length;
+                actions.move(nodeId, nextParent, insertAt);
+                parentId = nextParent;
+              } catch {
+                // ignore
+              }
+            }
+          }
 
           const parentDom = query.node(parentId).get()?.dom ?? null;
           const nodeDom = query.node(nodeId).get()?.dom ?? null;
@@ -217,7 +335,17 @@ export function PanelDropFreePlacementHandler() {
           const finalTop = Math.round(clamp(rawTop, 0, maxTop));
 
           const displayName = latestNodes[nodeId]?.data?.displayName;
-          const parentDisplayName = latestNodes[parentId]?.data?.displayName;
+          const parentProps = (latestNodes[parentId]?.data?.props ?? {}) as Record<string, unknown>;
+          const parentDisplay = String(parentProps.display ?? "").toLowerCase();
+          const parentFreeformPref = parentProps.isFreeform;
+          const parentIsFlexParent =
+            parentDisplay === "flex" ||
+            parentDisplay === "grid" ||
+            (!!parentDisplayName && FLOW_PARENT_DISPLAY_NAMES.has(parentDisplayName));
+          const parentIsFreeform =
+            parentFreeformPref === true ||
+            (!parentIsFlexParent && !!parentDisplayName && FREEFORM_PARENT_DISPLAY_NAMES.has(parentDisplayName));
+          const allowFreeformLayout = parentFreeformPref !== false;
           const shouldImageFillParent =
             displayName === "Image" && (parentDisplayName === "Section" || parentDisplayName === "Tab Content");
           if (displayName === "Column") {
@@ -253,7 +381,7 @@ export function PanelDropFreePlacementHandler() {
             continue;
           }
 
-          if (displayName && FLOW_LAYOUT_TYPES.has(displayName)) {
+          if (displayName && FLOW_LAYOUT_TYPES.has(displayName) && !allowFreeformLayout) {
             continue;
           }
 
