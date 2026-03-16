@@ -251,16 +251,38 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
 
+  const allSlides = useMemo(() => {
+    const variantSlides: Array<{ id: string; src: string; isVariant: true; label: string }> = [];
+    const seen = new Set<string>();
+    fd.variants.forEach((variant) => {
+      variant.options.forEach((option) => {
+        const src = String(option.image || '').trim();
+        if (!src || seen.has(src)) return;
+        seen.add(src);
+        variantSlides.push({
+          id: `${variant.id}:${option.id}`,
+          src,
+          isVariant: true,
+          label: `${variant.name || 'Variant'} \u2022 ${option.name || 'Option'}`.trim(),
+        });
+      });
+    });
+    return [
+      ...images.map(img => ({ id: img.id, src: img.src, isVariant: false as const, label: '' })),
+      ...variantSlides,
+    ];
+  }, [images, fd.variants]);
+
   // Auto-advance slider
   useEffect(() => {
-    if (images.length <= 1) return;
-    const t = setInterval(() => setSlide(i => (i + 1) % images.length), 3500);
+    if (allSlides.length <= 1) return;
+    const t = setInterval(() => setSlide(i => (i + 1) % allSlides.length), 3500);
     return () => clearInterval(t);
-  }, [images.length]);
+  }, [allSlides.length]);
 
   useEffect(() => {
-    if (slide >= images.length && images.length > 0) setSlide(images.length - 1);
-  }, [images.length, slide]);
+    if (slide >= allSlides.length && allSlides.length > 0) setSlide(allSlides.length - 1);
+  }, [allSlides.length, slide]);
 
   // Image helpers
   const addFiles = (files: FileList | null) => {
@@ -292,9 +314,9 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
   };
 
   const moveSlide = (dir: 1 | -1) => {
-    if (images.length <= 1) return;
+    if (allSlides.length <= 1) return;
     setSlideDir(dir);
-    setSlide((current) => (current + dir + images.length) % images.length);
+    setSlide((current) => (current + dir + allSlides.length) % allSlides.length);
   };
 
   const addImageToGallery = (src: string) => {
@@ -803,16 +825,16 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
   const labelColor = isLight ? '#5B4B8A' : '#9FB3DF';
   const sectionDividerColor = isLight ? '#D7CDED' : '#3A4473';
   const sectionCardBorder = isLight ? '#D2C7EA' : '#3140A6';
-  const sectionCardBg = isLight ? '#F7F3FF' : '#0F145A';
+  const sectionCardBg = isLight ? 'rgba(249, 247, 255, 0.92)' : '#0F145A';
   const nestedCardBorder = isLight ? '#DCCFF1' : '#3A4473';
-  const nestedCardBg = isLight ? '#FFFFFF' : '#121A63';
+  const nestedCardBg = isLight ? 'rgba(255, 255, 255, 0.72)' : '#121A63';
   const sectionTitleColor = isLight ? '#4F3C85' : '#DCE7FF';
   const sectionSubtextColor = isLight ? '#7C6AA8' : '#9FB3DF';
   const actionButtonBg = isLight ? '#EDE6FF' : '#24327A';
   const actionButtonText = isLight ? '#5B3EA3' : '#DCE7FF';
   const iCls = 'w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/40 transition-all';
   const iSt = isLight
-    ? { backgroundColor: '#FFFFFF', borderColor: '#CFC4E5', color: '#120533' }
+    ? { backgroundColor: 'rgba(249, 247, 255, 0.92)', borderColor: '#CFC4E5', color: '#120533' }
     : { backgroundColor: '#191A69', borderColor: '#3140A6', color: '#FFFFFF' };
   const lCls = 'block text-xs tracking-[0.12em] font-semibold uppercase mb-2';
 
@@ -1045,13 +1067,13 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                     backgroundColor: isLight ? '#F7F3FF' : '#2E3B63',
                   }}
                 >
-                  {images.length > 0 ? (
+                  {allSlides.length > 0 ? (
                     <div className="h-full flex flex-col">
                       <div className="relative flex-1 min-h-0">
                         <AnimatePresence mode="wait">
                           <motion.img
                             key={slide}
-                            src={images[slide]?.src}
+                            src={allSlides[slide]?.src}
                             alt=""
                             className="absolute inset-0 w-full h-full object-contain p-6"
                             initial={{ opacity: 0 }}
@@ -1061,23 +1083,30 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                           />
                         </AnimatePresence>
                         <div className="absolute left-4 top-4 px-2.5 py-1 rounded-full text-xs font-semibold" style={{ backgroundColor: 'rgba(0,0,0,0.5)', color: '#FFFFFF' }}>
-                          {`${slide + 1}/${images.length}`}
+                          {`${slide + 1}/${allSlides.length}`}
                         </div>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeImage(slide);
-                          }}
-                          className="absolute right-4 top-3 w-8 h-8 rounded-full flex items-center justify-center"
-                          style={{ backgroundColor: isLight ? 'rgba(37,17,74,0.65)' : 'rgba(0,0,0,0.5)', color: '#FFFFFF' }}
-                          title="Remove current image"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M6 6l12 12M18 6L6 18" />
-                          </svg>
-                        </button>
-                        {images.length > 1 && (
+                        {!allSlides[slide]?.isVariant && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeImage(slide);
+                            }}
+                            className="absolute right-4 top-3 w-8 h-8 rounded-full flex items-center justify-center"
+                            style={{ backgroundColor: isLight ? 'rgba(37,17,74,0.65)' : 'rgba(0,0,0,0.5)', color: '#FFFFFF' }}
+                            title="Remove current image"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M6 6l12 12M18 6L6 18" />
+                            </svg>
+                          </button>
+                        )}
+                        {allSlides[slide]?.isVariant && (
+                          <div className="absolute right-4 top-3 px-2 py-1 rounded-full text-[10px] font-semibold" style={{ backgroundColor: 'rgba(120,80,220,0.85)', color: '#FFFFFF' }}>
+                            Variant
+                          </div>
+                        )}
+                        {allSlides.length > 1 && (
                           <div className="absolute top-3 right-14 flex items-center gap-2">
                             <button
                               type="button"
@@ -1101,47 +1130,52 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
 
                       <div className="border-t px-4 pt-3 pb-3" style={{ borderColor: isLight ? '#D7CDED' : '#3A4473', backgroundColor: isLight ? 'rgba(255,255,255,0.84)' : 'rgba(24,31,57,0.9)' }}>
                         <div className="flex items-center gap-2 overflow-x-auto pb-2" onClick={(e) => e.stopPropagation()}>
-                          {images.map((img, idx) => {
+                          {allSlides.map((item, idx) => {
                             const isActive = idx === slide;
-                            const isDropTarget = thumbOver === idx;
+                            const isDropTarget = !item.isVariant && thumbOver === idx;
                             return (
                               <button
-                                key={img.id}
+                                key={item.id}
                                 type="button"
-                                draggable
+                                draggable={!item.isVariant}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setSlideDir(idx >= slide ? 1 : -1);
                                   setSlide(idx);
                                 }}
-                                onDragStart={(e) => {
+                                onDragStart={item.isVariant ? undefined : (e) => {
                                   e.stopPropagation();
                                   setThumbDrag(idx);
                                   setThumbOver(idx);
                                 }}
-                                onDragOver={(e) => {
+                                onDragOver={item.isVariant ? undefined : (e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
                                   setThumbOver(idx);
                                 }}
-                                onDrop={(e) => {
+                                onDrop={item.isVariant ? undefined : (e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
                                   dropThumb(idx);
                                 }}
-                                onDragEnd={() => {
+                                onDragEnd={item.isVariant ? undefined : () => {
                                   setThumbDrag(null);
                                   setThumbOver(null);
                                 }}
                                 className="relative h-14 w-14 rounded-lg border overflow-hidden shrink-0"
                                 style={{
-                                  borderColor: isActive ? '#4F93FF' : isDropTarget ? '#7E9CFF' : '#54658E',
+                                  borderColor: isActive ? '#4F93FF' : isDropTarget ? '#7E9CFF' : (item.isVariant ? 'rgba(180,130,255,0.6)' : '#54658E'),
                                   boxShadow: isActive ? '0 0 0 2px rgba(79,147,255,0.35)' : 'none',
-                                  opacity: thumbDrag === idx ? 0.65 : 1,
+                                  opacity: !item.isVariant && thumbDrag === idx ? 0.65 : 1,
                                 }}
-                                title="Drag to reorder"
+                                title={item.isVariant ? item.label : 'Drag to reorder'}
                               >
-                                <img src={img.src} alt="" className="w-full h-full object-cover" />
+                                <img src={item.src} alt="" className="w-full h-full object-cover" />
+                                {item.isVariant && (
+                                  <div className="absolute bottom-0 left-0 right-0 text-[8px] text-center font-semibold truncate px-0.5" style={{ backgroundColor: 'rgba(100,60,200,0.82)', color: '#fff' }}>
+                                    VAR
+                                  </div>
+                                )}
                               </button>
                             );
                           })}

@@ -71,7 +71,12 @@ function DashboardLayoutContent({
 
     if (loading || !user) {
         return (
-            <div className="min-h-screen flex items-center justify-center" style={{ background: `linear-gradient(180deg, ${colors.bg.primary} 0%, ${colors.bg.primaryEnd} 100%)`, color: colors.text.primary }}>
+            <div
+                className={`min-h-screen flex items-center justify-center ${theme === 'light' ? 'admin-dashboard-shell' : ''}`}
+                style={theme === 'dark'
+                    ? { background: `linear-gradient(180deg, ${colors.bg.primary} 0%, ${colors.bg.primaryEnd} 100%)`, color: colors.text.primary }
+                    : { color: colors.text.primary }}
+            >
                 <p style={{ color: colors.text.muted }}>Loading...</p>
             </div>
         );
@@ -79,8 +84,8 @@ function DashboardLayoutContent({
 
     return (
         <div
-            className="m-dashboard-shell h-screen w-full max-w-full flex overflow-hidden transition-colors duration-300"
-            style={{ backgroundColor: colors.bg.primary, color: colors.text.primary }}
+            className={`m-dashboard-shell h-screen w-full max-w-full flex overflow-hidden transition-colors duration-300 ${theme === 'light' ? 'admin-dashboard-shell' : ''}`}
+            style={theme === 'dark' ? { backgroundColor: colors.bg.primary, color: colors.text.primary } : { color: colors.text.primary }}
         >
             {/* Mobile sidebar drawer */}
             <div
@@ -120,7 +125,7 @@ function DashboardLayoutContent({
             <div
                 ref={contentScrollRef}
                 className="no-scrollbar relative flex min-w-0 flex-1 basis-0 flex-col h-screen overflow-y-auto overflow-x-hidden"
-                style={{ background: `linear-gradient(180deg, ${colors.bg.primary} 0%, ${colors.bg.primaryEnd} 100%)` }}
+                style={theme === 'dark' ? { background: `linear-gradient(180deg, ${colors.bg.primary} 0%, ${colors.bg.primaryEnd} 100%)` } : undefined}
             >
                 {theme === 'dark' && (
                     <div
