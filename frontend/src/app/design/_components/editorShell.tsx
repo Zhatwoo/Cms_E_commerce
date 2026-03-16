@@ -20,6 +20,7 @@ import { Accordion } from "../_designComponents/Accordion/Accordion";
 import { BooleanField } from "../_designComponents/BooleanField/BooleanField";
 import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
+import { CanvasPasteHandler } from "./CanvasPasteHandler";
 import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
 import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
@@ -2497,6 +2498,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                 <TransformModeProvider>
                   <InlineTextEditProvider>
                     <KeyboardShortcuts />
+                    <CanvasPasteHandler />
                     <CanvasSelectionHandler />
                     <BoxSelectionHandler />
                     <ScrollToSelectedHandler />

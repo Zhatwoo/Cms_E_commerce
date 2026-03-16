@@ -132,24 +132,27 @@ export const KeyboardShortcuts = () => {
 
       // ── Paste: Cmd/Ctrl + V ──
       if (ctrl && key === "v") {
-        e.preventDefault();
-        const state = query.getState();
-        const selectedIds = selectedToIds(state.events.selected);
-        let parentId: string | undefined;
-        let atIndex: number | undefined;
-        if (selectedIds.length > 0) {
-          const firstId = selectedIds[0];
-          const lastId = selectedIds[selectedIds.length - 1];
-          const firstNode = state.nodes[firstId];
-          const lastNode = state.nodes[lastId];
-          parentId = firstNode?.data?.parent as string | undefined;
-          if (parentId && state.nodes[parentId]) {
-            const siblings = (state.nodes[parentId]?.data?.nodes as string[]) ?? [];
-            const lastIndex = siblings.indexOf(lastId);
-            atIndex = lastIndex === -1 ? siblings.length : lastIndex + 1;
+        const clip = getClipboard();
+        if (clip && clip.nodeIds.length > 0) {
+          e.preventDefault();
+          const state = query.getState();
+          const selectedIds = selectedToIds(state.events.selected);
+          let parentId: string | undefined;
+          let atIndex: number | undefined;
+          if (selectedIds.length > 0) {
+            const firstId = selectedIds[0];
+            const lastId = selectedIds[selectedIds.length - 1]!;
+            const firstNode = state.nodes[firstId];
+            const lastNode = state.nodes[lastId];
+            parentId = firstNode?.data?.parent as string | undefined;
+            if (parentId && state.nodes[parentId]) {
+              const siblings = (state.nodes[parentId]?.data?.nodes as string[]) ?? [];
+              const lastIndex = siblings.indexOf(lastId);
+              atIndex = lastIndex === -1 ? siblings.length : lastIndex + 1;
+            }
           }
+          pasteClipboard(actions as any, query as any, { parentId, atIndex });
         }
-        pasteClipboard(actions as any, query as any, { parentId, atIndex });
         return;
       }
 
