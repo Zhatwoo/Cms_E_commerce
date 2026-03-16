@@ -350,7 +350,7 @@ function runResponsivePreflight(snapshotJson: string): ResponsivePreflightIssue[
       const combinedRight = (rightPx ?? 0) + widthPx;
       if (combinedLeft > RESPONSIVE_PREFLIGHT_WIDTH + 8 || combinedRight > RESPONSIVE_PREFLIGHT_WIDTH + 8) {
         issues.push({
-          severity: "error",
+          severity: "warning",
           nodeId,
           message: `Absolute/fixed positioned element likely overflows mobile (${widthPx}px + offset).`,
         });
@@ -2207,13 +2207,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
             );
             return;
           }
-
-          if (warnings.length > 0) {
-            showAlert(
-              `Responsive preflight: ${warnings.length} warning(s) found. Continuing to preview.`,
-              "error"
-            );
-          }
+          // Warnings are only logged to console; preview continues without a modal.
         }
 
         await autoSavePage(snapshot, projectId);
