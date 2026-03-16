@@ -24,7 +24,6 @@ import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
 import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
 import { FreeDropPlacementHandler } from "./FreeDropPlacementHandler";
-import { MarqueeSelectionHandler } from "./MarqueeSelectionHandler";
 import { TextToolHandler } from "./TextToolHandler";
 import { ShapeToolHandler } from "./ShapeToolHandler";
 import { TransformModeProvider } from "./TransformModeContext";

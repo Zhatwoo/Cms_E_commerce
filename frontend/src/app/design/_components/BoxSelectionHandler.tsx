@@ -84,15 +84,30 @@ export const BoxSelectionHandler = () => {
       if (document.body.dataset.canvasPan === "true") return;
       if (activeToolRef.current === "hand" || activeToolRef.current === "text") return;
 
+      let isEmptyBackground = false;
       const nodeEl = target.closest("[data-node-id]") as HTMLElement | null;
-      if (nodeEl) {
+      if (!nodeEl) {
+        isEmptyBackground = true;
+      } else {
         const nodeId = nodeEl.getAttribute("data-node-id");
         if (!nodeId || nodeId === "ROOT") {
-          return;
+          isEmptyBackground = true;
+        } else {
+          try {
+            const state = queryRef.current.getState();
+            const node = state.nodes[nodeId];
+            const displayName = (node?.data?.displayName as string | undefined) ?? "";
+            const isCanvasBackground = displayName === "Page" || displayName === "Viewport" || displayName === "Tab Content";
+            if (isCanvasBackground) {
+              isEmptyBackground = true;
+            }
+          } catch {
+             // ignore
+          }
         }
       }
 
-      startedOnEmptyRef.current = !nodeEl;
+      startedOnEmptyRef.current = isEmptyBackground;
       // Only set box-select flags when starting on empty area so FigmaStyleDragHandler
       // can drag nodes (including multi-drag) when starting on a node
       if (startedOnEmptyRef.current) {
@@ -100,7 +115,7 @@ export const BoxSelectionHandler = () => {
       }
       dragRef.current = {
         active: true,
-        startedOnNode: !!nodeEl,
+        startedOnNode: !isEmptyBackground,
         additive: e.ctrlKey || e.metaKey,
         startX: e.clientX,
         startY: e.clientY,
