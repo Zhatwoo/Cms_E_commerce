@@ -78,6 +78,7 @@ export type ComponentType =
   | "Banner"
   | "Rating"
   | "Accordion"
+  | "BooleanField"
   | "ImportedBlock";
 
 /** A single node in the document. */

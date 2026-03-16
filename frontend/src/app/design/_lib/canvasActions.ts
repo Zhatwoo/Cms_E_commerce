@@ -381,6 +381,105 @@ export function pasteClipboard(
   }
 }
 
+/** Paste an external image source (url/data-url) as an Image node. */
+export function pasteExternalImage(
+  actions: EditorActions,
+  query: EditorQuery,
+  src: string,
+  options?: { parentId?: string; atIndex?: number }
+): string | null {
+  if (typeof src !== "string" || src.trim().length === 0) return null;
+
+  try {
+    const state = query.getState();
+    const fallback = resolvePasteTargetForExternal(state);
+    const parentId = options?.parentId ?? fallback.parentId;
+    const atIndex = options?.atIndex ?? fallback.atIndex;
+    if (!parentId || !state.nodes[parentId]) return null;
+
+    const nodeId = `image-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const tree = {
+      rootNodeId: nodeId,
+      nodes: {
+        [nodeId]: {
+          type: { resolvedName: "Image" },
+          isCanvas: false,
+          props: {
+            src: src.trim(),
+            alt: "Pasted Image",
+            objectFit: "cover",
+            width: "320px",
+            height: "220px",
+            _autoFitInTabs: false,
+          },
+          displayName: "Image",
+          nodes: [],
+          linkedNodes: {},
+          custom: {},
+          hidden: false,
+        },
+      },
+    };
+
+    const addNodeTree = (actions as unknown as {
+      addNodeTree?: (tree: any, parentId?: string, index?: number) => void;
+    }).addNodeTree;
+
+    if (typeof addNodeTree !== "function") return null;
+    addNodeTree(tree, parentId, atIndex);
+    actions.selectNode(nodeId);
+    return nodeId;
+  } catch (e) {
+    console.warn("pasteExternalImage failed:", e);
+    return null;
+  }
+}
+
+function resolvePasteTargetForExternal(state: { nodes: Record<string, any>; events?: { selected?: unknown } }): {
+  parentId?: string;
+  atIndex?: number;
+} {
+  const selectedIds = selectedToIds(state.events?.selected);
+  let parentId: string | undefined;
+  let atIndex: number | undefined;
+
+  if (selectedIds.length > 0) {
+    const firstId = selectedIds[0];
+    const lastId = selectedIds[selectedIds.length - 1];
+    const firstNode = state.nodes[firstId];
+    const lastNode = state.nodes[lastId];
+    parentId = firstNode?.data?.parent as string | undefined;
+    if (parentId && state.nodes[parentId]) {
+      const siblings = (state.nodes[parentId]?.data?.nodes as string[]) ?? [];
+      const lastIndex = siblings.indexOf(lastId);
+      atIndex = lastIndex === -1 ? siblings.length : lastIndex + 1;
+    }
+  }
+
+  if (!parentId || !state.nodes[parentId]) {
+    const root = state.nodes.ROOT;
+    const viewportId = root?.data?.nodes?.[0] as string | undefined;
+    if (viewportId && state.nodes[viewportId]) {
+      const viewportKids = (state.nodes[viewportId]?.data?.nodes as string[]) ?? [];
+      const firstPageId = viewportKids[0];
+      if (firstPageId && state.nodes[firstPageId]) {
+        const pageKids = (state.nodes[firstPageId]?.data?.nodes as string[]) ?? [];
+        const firstContainerId = pageKids[0];
+        parentId = firstContainerId && state.nodes[firstContainerId] ? firstContainerId : firstPageId;
+        atIndex =
+          parentId === firstPageId
+            ? 0
+            : ((state.nodes[parentId]?.data?.nodes as string[]) ?? []).length;
+      } else {
+        parentId = viewportId;
+        atIndex = 0;
+      }
+    }
+  }
+
+  return { parentId, atIndex };
+}
+
 /** Cut = copy then delete selected. */
 export function cutSelection(
   actions: EditorActions,

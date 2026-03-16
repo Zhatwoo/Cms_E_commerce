@@ -1489,6 +1489,9 @@ function RenderNode({
   renderAllNodes,
   parentType,
   insideTabsContext,
+  preserveAuthoredPositioning,
+  layoutReferenceWidth,
+  layoutReferenceHeight,
 }: {
   node: CleanNode;
   nodes: Record<string, CleanNode>;
@@ -1507,7 +1510,13 @@ function RenderNode({
   renderAllNodes?: boolean;
   parentType?: ComponentType;
   insideTabsContext?: boolean;
+  preserveAuthoredPositioning?: boolean;
+  layoutReferenceWidth?: number;
+  layoutReferenceHeight?: number;
 }): React.ReactElement {
+  void preserveAuthoredPositioning;
+  void layoutReferenceWidth;
+  void layoutReferenceHeight;
   // Normalize legacy lowercase node types so published and preview payloads render identically.
   const rawType = node.type as string;
   const normalizedTypeMap: Record<string, ComponentType> = {
