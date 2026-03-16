@@ -32,7 +32,7 @@ export default function RegisterPage() {
         if (typeof (data as { confirmUrl?: string }).confirmUrl === 'string') {
           sessionStorage.setItem('centric_confirm_url', (data as { confirmUrl: string }).confirmUrl);
         }
-        router.push(`/auth/check-email?email=${encodeURIComponent(email)}`);
+        router.push(`/?auth=check-email&email=${encodeURIComponent(email)}`);
         router.refresh();
       } else {
         setError(data.message || 'Sign up failed.');

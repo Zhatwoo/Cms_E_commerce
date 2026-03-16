@@ -124,21 +124,24 @@ function getCanvasContainerScale(): number | null {
   return null;
 }
 
-function getDropCanvasPoint(drop: DropPoint, desktopRoot: HTMLElement): { x: number; y: number } {
+/**
+ * Convert drop screen position to canvas coordinates (canvasX, canvasY).
+ * Page uses position: absolute with left: canvasX, top: canvasY relative to viewport-desktop.
+ * So we measure offset from viewport-desktop's top-left and divide by scale.
+ */
+function getDropCanvasPoint(drop: DropPoint): { x: number; y: number } {
+  const desktopRoot = document.querySelector("[data-viewport-desktop]") as HTMLElement | null;
+  if (!desktopRoot) return { x: 0, y: 0 };
+
   const rect = desktopRoot.getBoundingClientRect();
-  
-  // Try to get scale directly from canvas container first (most accurate)
+
   let scale = getCanvasContainerScale();
-  
-  // Fallback to calculating from element dimensions if direct method fails
   if (scale === null) {
     scale = getEffectiveZoom(desktopRoot);
   }
-
-  // Ensure scale is valid
   const effectiveScale = scale > 0.01 ? scale : 1;
 
-  // Calculate position: screen offset from viewport top-left, converted to canvas coordinates
+  // canvasX/canvasY are relative to viewport-desktop; offset from its top-left, then / scale
   const x = (drop.clientX - rect.left) / effectiveScale;
   const y = (drop.clientY - rect.top) / effectiveScale;
 
@@ -177,7 +180,7 @@ export const NewPageDropPlacementHandler = () => {
 
       const desktopRoot = document.querySelector("[data-viewport-desktop]") as HTMLElement | null;
       if (!desktopRoot) return false;
-      const point = getDropCanvasPoint(drop, desktopRoot);
+      const point = getDropCanvasPoint(drop);
       // Place the page's top-left corner exactly at the drop point
       const canvasX = point.x;
       const canvasY = point.y;
@@ -273,7 +276,7 @@ export const NewPageDropPlacementHandler = () => {
       const desktopRoot = document.querySelector("[data-viewport-desktop]") as HTMLElement | null;
       if (!desktopRoot) return;
 
-      const dropPoint = getDropCanvasPoint(drop, desktopRoot);
+      const dropPoint = getDropCanvasPoint(drop);
 
       if (newPageIds.length > 0) {
         newPageIds.forEach((pageId, index) => {

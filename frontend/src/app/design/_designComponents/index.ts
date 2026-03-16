@@ -19,6 +19,7 @@ import { TabContent } from "./Tabs/TabContent";
 import { ImportedBlock } from "./ImportedBlock/ImportedBlock";
 import { Banner } from "./Banner/banner";
 import { Badge } from "./Badge/badge";
+import { BooleanField } from "./BooleanField/BooleanField";
 
 export const RenderBlocks: Record<string, any> = {
   Container,
@@ -62,6 +63,6 @@ export const RenderBlocks: Record<string, any> = {
   banner: Banner,
   Badge,
   badge: Badge,
-  Accordion,
-  accordion: Accordion,
+  BooleanField,
+  booleanfield: BooleanField,
 };

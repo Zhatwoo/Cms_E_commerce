@@ -2,11 +2,11 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { login, setStoredUser } from '@/lib/api';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnTo = searchParams.get('returnTo');
@@ -129,5 +129,13 @@ export default function LoginPage() {
           </div>
         </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="w-full max-w-md animate-pulse rounded-3xl border border-[#4f36b8]/55 bg-[#09022f]/95 p-8 h-[400px]" />}>
+      <LoginForm />
+    </Suspense>
   );
 }

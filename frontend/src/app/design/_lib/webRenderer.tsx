@@ -898,6 +898,19 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
     bottom: "auto",
     left: "auto",
   },
+  Accordion: {
+    items: [],
+    headerBg: "#1e1e2e",
+    headerTextColor: "#e2e8f0",
+    contentBg: "#12121c",
+    contentTextColor: "#a0aec0",
+    borderColor: "#2d2d44",
+    borderWidth: 1,
+    headerFontSize: 14,
+    contentFontSize: 13,
+    borderRadius: 8,
+    backgroundColor: "transparent",
+  },
 };
 
 function mergeProps(type: string, props: Record<string, unknown>): Record<string, unknown> {
@@ -918,15 +931,18 @@ function fluidSpace(
   minFloor = 0,
   ratio = 0.45,
   cqw = 2.2,
+  useFixedPx = false,
 ): string {
   const n = typeof value === "number" ? value : parsePixelValue(value);
   if (n === null || !Number.isFinite(n) || n <= 0) return `${minFloor}px`;
+  if (useFixedPx) return `${n}px`;
   const min = Math.max(minFloor, Math.round(n * ratio));
   return `clamp(${min}px, ${cqw}cqw, ${n}px)`;
 }
 
-function fluidFont(maxPx: number, minFloor = 12, cqw = 3.2): string {
+function fluidFont(maxPx: number, minFloor = 12, cqw = 3.2, useFixedPx = false): string {
   const safeMax = Number.isFinite(maxPx) && maxPx > 0 ? maxPx : minFloor;
+  if (useFixedPx) return `${safeMax}px`;
   const min = Math.max(minFloor, Math.round(safeMax * 0.58));
   return `clamp(${min}px, ${cqw}cqw, ${safeMax}px)`;
 }
@@ -1041,10 +1057,11 @@ function getResponsiveTypographySpec(
   rawFontSize: number,
   isNarrow: boolean,
   builderParityMode?: boolean,
+  useFixedPx = false,
 ): { fontSize: string; minLineHeight: number } {
   if (!isNarrow || builderParityMode) {
     return {
-      fontSize: fluidFont(rawFontSize, 12, 3.2),
+      fontSize: fluidFont(rawFontSize, 12, 3.2, useFixedPx),
       minLineHeight: 1.4,
     };
   }
@@ -1062,7 +1079,7 @@ function getResponsiveTypographySpec(
 
   const spec = map[level];
   return {
-    fontSize: fluidFont(rawFontSize, spec.minFloor, spec.cqw),
+    fontSize: fluidFont(rawFontSize, spec.minFloor, spec.cqw, useFixedPx),
     minLineHeight: spec.lineHeight,
   };
 }
@@ -1484,6 +1501,7 @@ function RenderNode({
   };
   const type = (normalizedTypeMap[rawType.toLowerCase()] ?? rawType) as ComponentType;
   const props = mergeProps(type, node.props) as Record<string, unknown>;
+  const useFixedPx = Boolean(builderParityMode);
   const isNarrowPreview = isNarrowResponsivePreview(viewportWidth, builderParityMode, mobileBreakpoint);
   if (!builderParityMode && !renderAllNodes && !shouldRenderNodeAtWidth(props, viewportWidth, mobileBreakpoint)) {
     return <></>;
@@ -1704,8 +1722,8 @@ function RenderNode({
         backgroundSize: bgImage ? (props.backgroundSize as string) : undefined,
         backgroundPosition: bgImage ? (props.backgroundPosition as string) : undefined,
         backgroundRepeat: bgImage ? (props.backgroundRepeat as string) : undefined,
-        padding: `${fluidSpace(pt, 0, spacing.paddingRatio, spacing.paddingCqw)} ${fluidSpace(pr, 0, spacing.paddingRatio, spacing.paddingCqw)} ${fluidSpace(pb, 0, spacing.paddingRatio, spacing.paddingCqw)} ${fluidSpace(pl, 0, spacing.paddingRatio, spacing.paddingCqw)}`,
-        margin: `${fluidSpace(mt, 0, spacing.marginRatio, spacing.marginCqw)} ${fluidSpace(mr, 0, spacing.marginRatio, spacing.marginCqw)} ${fluidSpace(mb, 0, spacing.marginRatio, spacing.marginCqw)} ${fluidSpace(ml, 0, spacing.marginRatio, spacing.marginCqw)}`,
+        padding: `${fluidSpace(pt, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pr, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pb, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pl, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)}`,
+        margin: `${fluidSpace(mt, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mr, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mb, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(ml, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)}`,
         width: normalizedWidth ?? (props.width as string),
         maxWidth: normalizedPosition === "static" ? "100%" : (isNarrowPreview ? "100%" : undefined),
         minWidth: normalizedPosition === "static" ? 0 : (isNarrowPreview ? 0 : undefined),
@@ -1724,11 +1742,11 @@ function RenderNode({
         flexWrap: displayVal === "flex" ? (props.flexWrap as React.CSSProperties["flexWrap"]) : undefined,
         alignItems: displayVal === "flex" || displayVal === "grid" ? (props.alignItems as string) : undefined,
         justifyContent: displayVal === "flex" || displayVal === "grid" ? (props.justifyContent as string) : undefined,
-        gap: displayVal === "flex" ? fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw) : undefined,
+        gap: displayVal === "flex" ? fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx) : undefined,
         gridTemplateColumns: displayVal === "grid" ? (props.gridTemplateColumns as string) : undefined,
         gridTemplateRows: displayVal === "grid" ? (props.gridTemplateRows as string) : undefined,
-        columnGap: displayVal === "grid" ? fluidSpace(props.gridColumnGap ?? props.gridGap, 0, spacing.gapRatio, spacing.gapCqw) : undefined,
-        rowGap: displayVal === "grid" ? fluidSpace(props.gridRowGap ?? props.gridGap, 0, spacing.gapRatio, spacing.gapCqw) : undefined,
+        columnGap: displayVal === "grid" ? fluidSpace(props.gridColumnGap ?? props.gridGap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx) : undefined,
+        rowGap: displayVal === "grid" ? fluidSpace(props.gridRowGap ?? props.gridGap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx) : undefined,
         boxShadow: props.boxShadow as string,
         opacity: props.opacity as number,
         overflow: props.overflow as string,
@@ -1806,8 +1824,8 @@ function RenderNode({
             backgroundSize: bgImage ? (props.backgroundSize as string) : undefined,
             backgroundPosition: bgImage ? (props.backgroundPosition as string) : undefined,
             backgroundRepeat: bgImage ? (props.backgroundRepeat as string) : undefined,
-            padding: `${fluidSpace(pt, 0, spacing.paddingRatio, spacing.paddingCqw)} ${fluidSpace(pr, 0, spacing.paddingRatio, spacing.paddingCqw)} ${fluidSpace(pb, 0, spacing.paddingRatio, spacing.paddingCqw)} ${fluidSpace(pl, 0, spacing.paddingRatio, spacing.paddingCqw)}`,
-            margin: `${fluidSpace(mt, 0, spacing.marginRatio, spacing.marginCqw)} ${fluidSpace(mr, 0, spacing.marginRatio, spacing.marginCqw)} ${fluidSpace(mb, 0, spacing.marginRatio, spacing.marginCqw)} ${fluidSpace(ml, 0, spacing.marginRatio, spacing.marginCqw)}`,
+            padding: `${fluidSpace(pt, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pr, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pb, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pl, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)}`,
+            margin: `${fluidSpace(mt, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mr, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mb, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(ml, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)}`,
             width: normalizedWidth ?? (props.width as string),
             maxWidth: isNarrowPreview ? "100%" : undefined,
             minWidth: isNarrowPreview ? 0 : undefined,
@@ -1824,7 +1842,7 @@ function RenderNode({
             flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
             alignItems: props.alignItems as string,
             justifyContent: props.justifyContent as string,
-            gap: fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw),
+            gap: fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx),
             boxShadow: props.boxShadow as string,
             opacity: props.opacity as number,
             overflow: props.overflow as string,
@@ -1866,8 +1884,8 @@ function RenderNode({
       const isNavRow = isNavContainer(node, nodes, props);
       const rowStyle: React.CSSProperties = {
         backgroundColor: props.background as string,
-        padding: `${fluidSpace(pt, 0, spacing.paddingRatio, spacing.paddingCqw)} ${fluidSpace(pr, 0, spacing.paddingRatio, spacing.paddingCqw)} ${fluidSpace(pb, 0, spacing.paddingRatio, spacing.paddingCqw)} ${fluidSpace(pl, 0, spacing.paddingRatio, spacing.paddingCqw)}`,
-        margin: `${fluidSpace(mt, 0, spacing.marginRatio, spacing.marginCqw)} ${fluidSpace(mr, 0, spacing.marginRatio, spacing.marginCqw)} ${fluidSpace(mb, 0, spacing.marginRatio, spacing.marginCqw)} ${fluidSpace(ml, 0, spacing.marginRatio, spacing.marginCqw)}`,
+        padding: `${fluidSpace(pt, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pr, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pb, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pl, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)}`,
+        margin: `${fluidSpace(mt, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mr, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mb, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(ml, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)}`,
         width: normalizedWidth ?? (props.width as string),
         maxWidth: isNarrowPreview ? "100%" : undefined,
         minWidth: isNarrowPreview ? 0 : undefined,
@@ -1883,7 +1901,7 @@ function RenderNode({
         flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
         alignItems: props.alignItems as string,
         justifyContent: props.justifyContent as string,
-        gap: fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw),
+        gap: fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx),
         boxShadow: props.boxShadow as string,
         opacity: props.opacity as number,
         overflow: isNavRow ? "visible" : (props.overflow as string),
@@ -1947,8 +1965,8 @@ function RenderNode({
             minWidth: 0,
             containerType: "inline-size",
             backgroundColor: props.background as string,
-            padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
-            margin: `${fluidSpace(mt, 0, 0.35, 1.4)} ${fluidSpace(mr, 0, 0.35, 1.4)} ${fluidSpace(mb, 0, 0.35, 1.4)} ${fluidSpace(ml, 0, 0.35, 1.4)}`,
+            padding: `${fluidSpace(pt, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pr, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pb, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pl, 0, 0.45, 2.2, useFixedPx)}`,
+            margin: `${fluidSpace(mt, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mr, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mb, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(ml, 0, 0.35, 1.4, useFixedPx)}`,
             height: normalizedHeight ?? (props.height as string),
             borderRadius: px(props.borderRadius),
             ...(colStrokePlacement === "outside" && colBorderDecl
@@ -1961,7 +1979,7 @@ function RenderNode({
             flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
             alignItems: props.alignItems as string,
             justifyContent: props.justifyContent as string,
-            gap: fluidSpace(props.gap, 0, 0.4, 1.8),
+            gap: fluidSpace(props.gap, 0, 0.4, 1.8, useFixedPx),
             boxShadow: props.boxShadow as string,
             opacity: props.opacity as number,
             overflow: props.overflow as string,
@@ -1990,7 +2008,7 @@ function RenderNode({
       const normalizedTextHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
       const rawTextFontSize = parsePixelValue(props.fontSize) ?? toNumber(props.fontSize, toNumber(DEFAULTS["Text"]?.fontSize, 16));
       const typographyLevel = inferTypographyLevel(props, rawTextFontSize);
-      const typographySpec = getResponsiveTypographySpec(typographyLevel, rawTextFontSize, isNarrowPreview, builderParityMode);
+      const typographySpec = getResponsiveTypographySpec(typographyLevel, rawTextFontSize, isNarrowPreview, builderParityMode, useFixedPx);
       const shouldScaleTextFont = !builderParityMode && isNarrowPreview && rawTextFontSize > 30;
       const textOverflowLikely = !builderParityMode && isNarrowPreview && isLikelyOverflowingNarrowViewport(props, viewportWidth);
       const rot = toNumber(props.rotation, 0);
@@ -2020,8 +2038,8 @@ function RenderNode({
         overflow: props.height ? "hidden" : undefined,
         maxWidth: "100%",
         minWidth: 0,
-        margin: `${fluidSpace(mt, 0, 0.35, 1.4)} ${fluidSpace(mr, 0, 0.35, 1.4)} ${fluidSpace(mb, 0, 0.35, 1.4)} ${fluidSpace(ml, 0, 0.35, 1.4)}`,
-        padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
+        margin: `${fluidSpace(mt, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mr, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mb, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(ml, 0, 0.35, 1.4, useFixedPx)}`,
+        padding: `${fluidSpace(pt, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pr, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pb, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pl, 0, 0.45, 2.2, useFixedPx)}`,
         opacity: props.opacity as number,
         boxShadow: props.boxShadow as string,
         cursor: allowPreviewInput ? "text" : (interactiveClick ? "pointer" : undefined),
@@ -2242,13 +2260,13 @@ function RenderNode({
           style={{
             backgroundColor: bg,
             color,
-            fontSize: fluidFont(rawButtonFontSize, 12, 3),
+            fontSize: fluidFont(rawButtonFontSize, 12, 3, useFixedPx),
             fontWeight: props.fontWeight as string,
             fontFamily: (props.fontFamily as string) || "Outfit",
             borderRadius: isCta ? "0px" : px(props.borderRadius),
             border: `${borderWidth}px ${resolvedBorderStyle} ${borderColor}`,
-            padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
-            margin: `${fluidSpace(mt, 0, 0.35, 1.4)} ${fluidSpace(mr, 0, 0.35, 1.4)} ${fluidSpace(mb, 0, 0.35, 1.4)} ${fluidSpace(ml, 0, 0.35, 1.4)}`,
+            padding: `${fluidSpace(pt, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pr, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pb, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pl, 0, 0.45, 2.2, useFixedPx)}`,
+            margin: `${fluidSpace(mt, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mr, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mb, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(ml, 0, 0.35, 1.4, useFixedPx)}`,
             width: isPercentWidth ? "100%" : isAutoWidth ? "fit-content" : width,
             maxWidth: isNarrowPreview ? "100%" : undefined,
             height: height,
@@ -2332,11 +2350,23 @@ function RenderNode({
             { title: "Item 2", content: "Accordion content" },
           ];
 
-      const headerBg = (props.headerBg as string) || "#f8fbff";
-      const headerTextColor = (props.headerTextColor as string) || "#10213f";
-      const contentBg = (props.contentBg as string) || "#ffffff";
-      const contentTextColor = (props.contentTextColor as string) || "#334155";
-      const borderColor = (props.borderColor as string) || "#d4dfef";
+      const LEGACY_LIGHT_HEADER_BG = /^#(f8fbff|ffffff|f1f5f9)$/i;
+      const LEGACY_LIGHT_CONTENT_BG = /^#(ffffff|f8fafc)$/i;
+      const LEGACY_LIGHT_TEXT = /^#(10213f|334155|1e293b)$/i;
+      const LEGACY_LIGHT_BORDER = /^#(d4dfef|e2e8f0)$/i;
+      const orDark = (val: unknown, dark: string, isBg = false, isText = false, isBorder = false) => {
+        const s = String(val ?? "").trim();
+        if (!s) return dark;
+        if (isBg && (LEGACY_LIGHT_HEADER_BG.test(s) || LEGACY_LIGHT_CONTENT_BG.test(s))) return dark;
+        if (isText && LEGACY_LIGHT_TEXT.test(s)) return dark;
+        if (isBorder && LEGACY_LIGHT_BORDER.test(s)) return dark;
+        return s;
+      };
+      const headerBg = orDark(props.headerBg, "#1e1e2e", true, false, false);
+      const headerTextColor = orDark(props.headerTextColor, "#e2e8f0", false, true, false);
+      const contentBg = orDark(props.contentBg, "#12121c", true, false, false);
+      const contentTextColor = orDark(props.contentTextColor, "#a0aec0", false, true, false);
+      const borderColor = orDark(props.borderColor, "#2d2d44", false, false, true);
       const borderWidth = toNumber(props.borderWidth, 1);
       const headerFontSize = toNumber(props.headerFontSize, 14);
       const contentFontSize = toNumber(props.contentFontSize, 13);
@@ -2425,9 +2455,9 @@ function RenderNode({
             display: "flex",
             alignItems: (props.alignItems as string) || "center",
             justifyContent: (props.justifyContent as string) || "center",
-            gap: fluidSpace(props.gap, 0, 0.4, 1.8),
-            padding: `${fluidSpace(props.paddingTop ?? props.padding)} ${fluidSpace(props.paddingRight ?? props.padding)} ${fluidSpace(props.paddingBottom ?? props.padding)} ${fluidSpace(props.paddingLeft ?? props.padding)}`,
-            margin: `${fluidSpace(props.marginTop ?? props.margin, 0, 0.35, 1.4)} ${fluidSpace(props.marginRight ?? props.margin, 0, 0.35, 1.4)} ${fluidSpace(props.marginBottom ?? props.margin, 0, 0.35, 1.4)} ${fluidSpace(props.marginLeft ?? props.margin, 0, 0.35, 1.4)}`,
+            gap: fluidSpace(props.gap, 0, 0.4, 1.8, useFixedPx),
+            padding: `${fluidSpace(props.paddingTop ?? props.padding, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(props.paddingRight ?? props.padding, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(props.paddingBottom ?? props.padding, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(props.paddingLeft ?? props.padding, 0, 0.45, 2.2, useFixedPx)}`,
+            margin: `${fluidSpace(props.marginTop ?? props.margin, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(props.marginRight ?? props.margin, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(props.marginBottom ?? props.margin, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(props.marginLeft ?? props.margin, 0, 0.35, 1.4, useFixedPx)}`,
             borderRadius: px(props.borderRadius),
             overflow: "hidden",
           }}
@@ -2476,7 +2506,7 @@ function RenderNode({
             })}
           </div>
           {showValue ? (
-            <span style={{ fontSize: fluidFont(toNumber(props.fontSize, 12), 12, 3.2), color: (props.color as string) || "#e2e8f0" }}>
+            <span style={{ fontSize: fluidFont(toNumber(props.fontSize, 12), 12, 3.2, useFixedPx), color: (props.color as string) || "#e2e8f0" }}>
               {String(props.valueText ?? `${value}/${max}`)}
             </span>
           ) : null}
@@ -2493,14 +2523,14 @@ function RenderNode({
             maxWidth: "100%",
             minWidth: 0,
             minHeight: "100px",
-            padding: `${fluidSpace(props.paddingTop ?? props.padding)} ${fluidSpace(props.paddingRight ?? props.padding)} ${fluidSpace(props.paddingBottom ?? props.padding)} ${fluidSpace(props.paddingLeft ?? props.padding)}`,
-            margin: `${fluidSpace(props.marginTop ?? props.margin, 0, 0.35, 1.4)} ${fluidSpace(props.marginRight ?? props.margin, 0, 0.35, 1.4)} ${fluidSpace(props.marginBottom ?? props.margin, 0, 0.35, 1.4)} ${fluidSpace(props.marginLeft ?? props.margin, 0, 0.35, 1.4)}`,
+            padding: `${fluidSpace(props.paddingTop ?? props.padding, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(props.paddingRight ?? props.padding, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(props.paddingBottom ?? props.padding, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(props.paddingLeft ?? props.padding, 0, 0.45, 2.2, useFixedPx)}`,
+            margin: `${fluidSpace(props.marginTop ?? props.margin, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(props.marginRight ?? props.margin, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(props.marginBottom ?? props.margin, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(props.marginLeft ?? props.margin, 0, 0.35, 1.4, useFixedPx)}`,
             backgroundColor: (props.background as string) || "transparent",
             display: ((props.display as string) || "flex") as React.CSSProperties["display"],
             flexDirection: (props.flexDirection as React.CSSProperties["flexDirection"]) || "column",
             alignItems: (props.alignItems as string) || "flex-start",
             justifyContent: (props.justifyContent as string) || "flex-start",
-            gap: fluidSpace(props.gap, 0, 0.4, 1.8),
+            gap: fluidSpace(props.gap, 0, 0.4, 1.8, useFixedPx),
           }}
         >
           {children}
@@ -3396,8 +3426,12 @@ export function LiveSite({
   const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
   const background = (pageProps.background as string) || "#ffffff";
   const pageRotation = toNumber(pageProps.pageRotation, 0);
-  const { ref, width: viewportWidth } = useContainerWidth();
-  const isPhoneSize = viewportWidth <= mobileBreakpoint;
+  const pageWidthPx = parsePixelValue(width) ?? 1920;
+  const { ref, width: measuredWidth } = useContainerWidth();
+  const isPhoneSize = measuredWidth <= mobileBreakpoint;
+  const viewportWidth = !isPhoneSize ? pageWidthPx : measuredWidth;
+  const layoutReferenceWidth = pageWidthPx;
+  const layoutReferenceHeight = parsePixelValue(pageProps.height) ?? pageWidthPx;
   const liveSiteWrapperRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     if (isPhoneSize && liveSiteWrapperRef.current) {
@@ -3488,7 +3522,12 @@ export function LiveSite({
             storeContext={storeContext}
             nodeId={id}
             onPrototypeAction={onPrototypeAction}
+            mobileBreakpoint={mobileBreakpoint}
             enableFormInputs={enableFormInputs}
+            builderParityMode={true}
+            preserveAuthoredPositioning={true}
+            layoutReferenceWidth={layoutReferenceWidth}
+            layoutReferenceHeight={layoutReferenceHeight}
           />
         );
       })}

@@ -106,6 +106,7 @@ exports.create = async (req, res) => {
       hasVariants,
       variants,
       variantStocks,
+      variantPrices,
       priceRangeMin,
       priceRangeMax,
       images,
@@ -149,6 +150,7 @@ exports.create = async (req, res) => {
         hasVariants: hasVariants !== undefined ? !!hasVariants : (Array.isArray(variants) && variants.length > 0),
         variants: Array.isArray(variants) ? variants : [],
         variantStocks: variantStocks && typeof variantStocks === 'object' ? variantStocks : {},
+        variantPrices: variantPrices && typeof variantPrices === 'object' ? variantPrices : {},
         priceRangeMin: priceRangeMin ?? null,
         priceRangeMax: priceRangeMax ?? null,
         images: Array.isArray(images) ? images : [],
@@ -185,6 +187,7 @@ exports.update = async (req, res) => {
       hasVariants,
       variants,
       variantStocks,
+      variantPrices,
       priceRangeMin,
       priceRangeMax,
       images,
@@ -225,6 +228,7 @@ exports.update = async (req, res) => {
     if (hasVariants !== undefined) updates.hasVariants = hasVariants;
     if (variants !== undefined) updates.variants = variants;
     if (variantStocks !== undefined) updates.variantStocks = variantStocks && typeof variantStocks === 'object' ? variantStocks : {};
+    if (variantPrices !== undefined) updates.variantPrices = variantPrices && typeof variantPrices === 'object' ? variantPrices : {};
     if (priceRangeMin !== undefined) updates.priceRangeMin = priceRangeMin;
     if (priceRangeMax !== undefined) updates.priceRangeMax = priceRangeMax;
     if (images !== undefined) updates.images = Array.isArray(images) ? images : [];

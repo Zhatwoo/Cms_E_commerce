@@ -96,7 +96,7 @@ export function EditorPhonePreview() {
         const updatedNodes = { ...doc.nodes };
         for (const id of Object.keys(updatedNodes)) {
           const node = updatedNodes[id];
-          if (node?.type === "Frame") {
+          if (String(node?.type) === "Frame") {
             updatedNodes[id] = {
               ...node,
               props: { ...node.props, referenceWidth: screenWidth, referenceHeight: screenHeight },

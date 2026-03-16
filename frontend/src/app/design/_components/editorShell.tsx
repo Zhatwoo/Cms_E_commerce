@@ -17,6 +17,7 @@ import { Section } from "../_designComponents/Section/Section";
 import { Image } from "../_designComponents/Image/Image";
 import { Button } from "../_designComponents/Button/Button";
 import { Accordion } from "../_designComponents/Accordion/Accordion";
+import { BooleanField } from "../_designComponents/BooleanField/BooleanField";
 import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
@@ -349,7 +350,7 @@ function runResponsivePreflight(snapshotJson: string): ResponsivePreflightIssue[
       const combinedRight = (rightPx ?? 0) + widthPx;
       if (combinedLeft > RESPONSIVE_PREFLIGHT_WIDTH + 8 || combinedRight > RESPONSIVE_PREFLIGHT_WIDTH + 8) {
         issues.push({
-          severity: "error",
+          severity: "warning",
           nodeId,
           message: `Absolute/fixed positioned element likely overflows mobile (${widthPx}px + offset).`,
         });
@@ -2206,13 +2207,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
             );
             return;
           }
-
-          if (warnings.length > 0) {
-            showAlert(
-              `Responsive preflight: ${warnings.length} warning(s) found. Continuing to preview.`,
-              "error"
-            );
-          }
+          // Warnings are only logged to console; preview continues without a modal.
         }
 
         await autoSavePage(snapshot, projectId);
@@ -2395,6 +2390,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
       circle: asComponent(Circle),
       square: asComponent(Square),
       triangle: asComponent(Triangle),
+      BooleanField: asComponent(BooleanField),
+      booleanfield: asComponent(BooleanField),
     };
     // Force Frame to always exist; Craft looks up by "Frame" and sometimes "frame"
     base.Frame = SAFE_CONTAINER;

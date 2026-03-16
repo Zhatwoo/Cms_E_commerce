@@ -300,7 +300,7 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
   const filteredTrashedProjects = trashedProjects.filter((p) => (p.title || 'Untitled Project').toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
-    <div className={asPage ? 'w-full py-1' : 'fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4'}>
+    <div className={asPage ? 'project-selector-page dashboard-landing-light w-full py-1' : 'fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4'}>
       <motion.div initial={{ opacity: 0, scale: 0.96, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.22, ease: [0.25, 0.46, 0.45, 0.94] }} className={asPage ? 'relative w-full flex flex-col' : 'relative w-full max-w-2xl rounded-2xl border border-[#1F1F51] bg-[#0E0C30] shadow-2xl overflow-hidden flex flex-col'} style={asPage ? undefined : { maxHeight: '85vh' }}>
         <div className={`px-7 pt-7 pb-5 flex items-start justify-between shrink-0 ${asPage ? '' : 'border-b border-[#1F1F51]'}`}>
           <div className="flex-1 pr-4">
@@ -308,9 +308,29 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
             <p className="text-base sm:text-lg text-[#8A8FC4] mt-1.5">{view === 'select' ? 'Select an existing project or start a new one.' : 'Give your project a name and an optional subdomain.'}</p>
             {view === 'select' && (
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-5 w-full">
-                <div className="inline-flex items-center gap-1 rounded-xl border border-[#1F1F51] bg-[#141446] p-1 w-fit">
-                  <button type="button" onClick={() => setProjectTab('active')} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${projectTab === 'active' ? 'bg-[#2D3A90] text-white shadow-sm' : 'text-[#8A8FC4] hover:text-white'}`}>Active</button>
-                  <button type="button" onClick={() => setProjectTab('trash')} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${projectTab === 'trash' ? 'bg-[#2D3A90] text-white shadow-sm' : 'text-[#8A8FC4] hover:text-white'}`}>Trash</button>
+                <div className={`inline-flex items-center gap-1 rounded-xl p-1 w-fit ${asPage ? 'border border-[#DCD2EE] bg-[#F7F7FA]' : 'border border-[#1F1F51] bg-[#141446]'}`}>
+                  <button
+                    type="button"
+                    onClick={() => setProjectTab('active')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      projectTab === 'active'
+                        ? (asPage ? 'bg-[#190765] text-white shadow-sm' : 'bg-[#2D3A90] text-white shadow-sm')
+                        : (asPage ? 'text-[#4C3F75] hover:text-[#15093E] hover:bg-[#EAEAEA]' : 'text-[#8A8FC4] hover:text-white')
+                    }`}
+                  >
+                    Active
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProjectTab('trash')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      projectTab === 'trash'
+                        ? (asPage ? 'bg-[#190765] text-white shadow-sm' : 'bg-[#2D3A90] text-white shadow-sm')
+                        : (asPage ? 'text-[#4C3F75] hover:text-[#15093E] hover:bg-[#EAEAEA]' : 'text-[#8A8FC4] hover:text-white')
+                    }`}
+                  >
+                    Trash
+                  </button>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="relative">
