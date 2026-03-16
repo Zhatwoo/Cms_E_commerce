@@ -236,7 +236,16 @@ export const ImageSettings = () => {
           marginRight={marginRight}
           marginTop={marginTop}
           marginBottom={marginBottom}
-          setProp={typedSetProp}
+          setProp={(updater) => {
+            typedSetProp((props) => {
+              const beforeWidth = props.width;
+              const beforeHeight = props.height;
+              updater(props);
+              if (props.width !== beforeWidth || props.height !== beforeHeight) {
+                props._autoFitInTabs = false;
+              }
+            });
+          }}
         />
       </DesignSection>
 

@@ -7,7 +7,7 @@ import { LeftPanel } from "./leftPanel";
 import { RightPanel } from "./rightPanel";
 import { TopPanel, type DevicePreset } from "./TopPanel";
 import { BottomPanel, type CanvasTool } from "./BottomPanel";
-import { FloatingMobilePreview } from "./FloatingMobilePreview";
+import { FloatingMobilePreview } from "@/app/design/_components/FloatingMobilePreview";
 import { CanvasToolProvider } from "./CanvasToolContext";
 import { Container } from "../_designComponents/Container/Container";
 import { Text } from "../_designComponents/Text/Text";
@@ -200,6 +200,35 @@ function withResolverFallback<T extends Record<string, React.ComponentType>>(bas
         Reflect.get(target, VALIDATOR_CANONICAL_NAME_BY_LOWER.get(normalized) ?? "", receiver);
 
       return resolved || target.Container || SAFE_CONTAINER;
+    },
+    has(target, prop) {
+      if (Reflect.has(target, prop)) return true;
+      if (typeof prop !== "string") {
+        return Reflect.has(target, "Container") || Reflect.has(target, "container");
+      }
+
+      const normalized = prop.trim().toLowerCase();
+      if (Reflect.has(target, normalized)) return true;
+
+      const canonical = VALIDATOR_CANONICAL_NAME_BY_LOWER.get(normalized);
+      if (canonical && Reflect.has(target, canonical)) return true;
+
+      if (
+        normalized.includes("image") ||
+        normalized === "img" ||
+        normalized === "imagecomponent"
+      ) {
+        return (
+          Reflect.has(target, "Image") ||
+          Reflect.has(target, "image") ||
+          Reflect.has(target, "IMAGE") ||
+          Reflect.has(target, "img") ||
+          Reflect.has(target, "Img") ||
+          Reflect.has(target, "ImageComponent")
+        );
+      }
+
+      return Reflect.has(target, "Container") || Reflect.has(target, "container");
     },
   }) as T;
 }
@@ -2409,6 +2438,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     base.Image = asComponent(CRAFT_RESOLVER.Image ?? Image);
     base.image = asComponent(CRAFT_RESOLVER.image ?? Image);
     base.IMAGE = asComponent(CRAFT_RESOLVER.IMAGE ?? CRAFT_RESOLVER.Image ?? Image);
+    base.img = asComponent(CRAFT_RESOLVER.Image ?? Image);
+    base.Img = asComponent(CRAFT_RESOLVER.Image ?? Image);
+    base.ImageComponent = asComponent(CRAFT_RESOLVER.Image ?? Image);
     base.Text = asComponent(CRAFT_RESOLVER.Text ?? Text);
     base.text = asComponent(CRAFT_RESOLVER.text ?? Text);
     base.Accordion = asComponent(CRAFT_RESOLVER.Accordion ?? Accordion);
