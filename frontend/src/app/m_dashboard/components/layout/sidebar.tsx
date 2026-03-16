@@ -105,6 +105,8 @@ export function DashboardSidebar({ mobile = false, onClose, onNavigateStart }: D
   const sidebarMutedText = isLightTheme ? 'rgba(255, 255, 255, 0.72)' : colors.text.muted;
   const sidebarSecondaryText = isLightTheme ? 'rgba(255, 255, 255, 0.8)' : colors.text.secondary;
   const accentYellow = (colors as { accent?: { yellow?: string } }).accent?.yellow ?? '#FFCE00';
+  const inactiveIconOpacity = isLightTheme ? 0.85 : 0.72;
+  const activeIconOpacity = 1;
   const sidebarStyle = {
     backgroundColor: sidebarBg,
     borderColor: sidebarBorderColor,
@@ -176,7 +178,7 @@ export function DashboardSidebar({ mobile = false, onClose, onNavigateStart }: D
                 className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg transition-colors`}
                 style={isActive ? { ...itemActiveStyle, color: sidebarPrimaryText } : itemInactiveStyle}
               >
-                <span className="flex h-6 w-6 items-center justify-center" style={{ opacity: isActive ? 1 : 0.5 }}>
+                <span className="flex h-6 w-6 items-center justify-center" style={{ opacity: isActive ? activeIconOpacity : inactiveIconOpacity }}>
                   {item.icon}
                 </span>
                 <span className="text-sm font-medium" style={{ fontFamily: 'var(--font-outfit), sans-serif' }}>{item.label}</span>
@@ -261,7 +263,7 @@ export function DashboardSidebar({ mobile = false, onClose, onNavigateStart }: D
                 group relative flex items-center rounded-lg transition-all duration-200
                 w-full px-4 py-3
               `}
-              style={isActive ? { ...itemActiveStyle, color: colors.text.primary } : undefined}
+              style={isActive ? { ...itemActiveStyle, color: sidebarPrimaryText } : undefined}
             >
               {/* Hover effect overlay */}
               {!isActive && (
@@ -274,7 +276,7 @@ export function DashboardSidebar({ mobile = false, onClose, onNavigateStart }: D
               <div className="relative z-10 w-12 flex items-center justify-center shrink-0">
                 <span
                   className="flex h-6 w-6 items-center justify-center transition-colors"
-                  style={{ opacity: isActive ? 1 : 0.5 }}
+                  style={{ opacity: isActive ? activeIconOpacity : inactiveIconOpacity }}
                 >
                   {item.icon}
                 </span>

@@ -74,8 +74,6 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
   const [error, setError] = useState('');
   const [actionError, setActionError] = useState('');
 
-  const goToDashboard = () => router.push('/m_dashboard');
-
   // Loads the user's active projects for the selector list.
   const loadActiveProjects = useCallback(async () => {
     setLoading(true);
@@ -336,7 +334,7 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                         display: 'inline-block'
                       }}
                     >
-                      project
+                      Project
                     </span>
                   </span>
                 </h2>
@@ -394,7 +392,7 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
 
                     <div
                       className={`
-                        w-full max-w-4xl rounded-2xl px-5 py-3.5 flex items-center gap-3 border
+                        m-dashboard-search-shadow w-full max-w-4xl rounded-2xl px-5 py-3.5 flex items-center gap-3 border
                         transition-all duration-500
                         ${theme === 'dark'
                           ? 'bg-[#141446] border-[#1F1F51]'
@@ -537,7 +535,7 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                             <svg className="w-9 h-9" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m7-7H5" /></svg>
                           </div>
                           <div className="flex flex-col items-center gap-1">
-                            <span className={`text-xl font-black uppercase tracking-tight ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}`}>New Project</span>
+                            <span className={`text-xl font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}`}>New Project</span>
                             <span className={`h-1 w-8 rounded-full transition-all duration-500 scale-x-0 group-hover:scale-x-100 ${theme === 'dark' ? 'bg-[#FFCE00]' : 'bg-[#8B5CF6]'}`} />
                           </div>
                         </button>
@@ -554,6 +552,8 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                                 <button
                                   type="button"
                                   onClick={(e) => { e.stopPropagation(); setActiveMenuProjectId((prev) => (prev === project.id ? null : project.id)); }}
+                                  aria-label="Open project actions"
+                                  title="Open project actions"
                                   className={asPage
                                     ? `cursor-pointer h-8 w-8 rounded-full flex items-center justify-center transition-all backdrop-blur-md ${theme === 'dark' ? 'bg-black/20 text-white/40 hover:text-white' : 'bg-[#8B5CF6]/10 text-[#8B5CF6] hover:bg-[#8B5CF6] hover:text-white'}`
                                     : 'h-8 w-8 rounded-md bg-[#0E0D3D]/80 backdrop-blur-md text-[#8A8FC4] border border-[#2A2A60] hover:text-[#FFCE00] hover:border-[#6B72D8] transition-colors flex items-center justify-center'}
@@ -566,8 +566,8 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                                       <>
                                         {/* Dropdown item: edit project name and subdomain */}
                                         <button type="button" onClick={(e) => { e.stopPropagation(); startEditProject(project); }} className={asPage ? 'w-full px-3 py-2 rounded-xl text-left text-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors' : 'w-full px-4 py-2 text-left text-sm text-white flex items-center gap-2 hover:bg-white/5'}><svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 3.487a1.875 1.875 0 1 1 2.652 2.652L8.25 17.403 4.5 18.75l1.347-3.75L16.862 3.487Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 4.5l3.75 3.75" /></svg> Edit Details</button>
-                                        <button type="button" onClick={(e) => { e.stopPropagation(); handleMoveToTrash(project); }} disabled={actioningProjectId === project.id} className={asPage ? 'w-full px-3 py-2 rounded-xl text-left text-sm text-red-500 flex items-center gap-2 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-50' : 'w-full px-4 py-2 text-left text-sm text-red-400 flex items-center gap-2 hover:bg-red-500/10 disabled:opacity-50'}>
-                                          {actioningProjectId === project.id ? <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V1C6.477 1 2 5.477 2 11h2z" /></svg> : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>} Move to trash
+                                        <button type="button" onClick={(e) => { e.stopPropagation(); handleMoveToTrash(project); }} disabled={actioningProjectId === project.id} className={asPage ? 'w-full px-3 py-2 rounded-xl text-left text-sm !text-[#BE123C] bg-[#FFF1F2] border border-[#FDA4AF] font-semibold flex items-center gap-2 hover:bg-[#FFE4E6] transition-colors disabled:!text-[#BE123C] disabled:bg-[#FFF1F2] disabled:border-[#FDA4AF] disabled:opacity-100' : 'w-full px-4 py-2 text-left text-sm text-red-400 flex items-center gap-2 hover:bg-red-500/10 disabled:opacity-80 disabled:text-red-300'}>
+                                          {actioningProjectId === project.id ? <svg className="w-4 h-4 animate-spin shrink-0" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V1C6.477 1 2 5.477 2 11h2z" /></svg> : <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>}<span className="truncate !text-[#BE123C]">Move to trash</span>
                                         </button>
                                       </>
                                     ) : (
@@ -575,8 +575,8 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                                         <button type="button" onClick={(e) => { e.stopPropagation(); handleRestoreProject(project); }} disabled={actioningProjectId === project.id} className={asPage ? 'w-full px-3 py-2 rounded-xl text-left text-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50' : 'w-full px-4 py-2 text-left text-sm text-white flex items-center gap-2 hover:bg-white/5 disabled:opacity-50'}>
                                           {actioningProjectId === project.id ? <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V1C6.477 1 2 5.477 2 11h2z" /></svg> : <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>} Restore
                                         </button>
-                                        <button type="button" onClick={(e) => { e.stopPropagation(); handlePermanentDeleteProject(project); }} disabled={actioningProjectId === project.id} className={asPage ? 'w-full px-3 py-2 rounded-xl text-left text-sm text-red-500 flex items-center gap-2 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-50' : 'w-full px-4 py-2 text-left text-sm text-red-400 flex items-center gap-2 hover:bg-red-500/10 disabled:opacity-50'}>
-                                          {actioningProjectId === project.id ? <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V1C6.477 1 2 5.477 2 11h2z" /></svg> : <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>} Delete Permanently
+                                        <button type="button" onClick={(e) => { e.stopPropagation(); handlePermanentDeleteProject(project); }} disabled={actioningProjectId === project.id} className={asPage ? 'w-full px-3 py-2 rounded-xl text-left text-sm !text-[#BE123C] bg-[#FFF1F2] border border-[#FDA4AF] font-semibold flex items-center gap-2 hover:bg-[#FFE4E6] transition-colors disabled:!text-[#BE123C] disabled:bg-[#FFF1F2] disabled:border-[#FDA4AF] disabled:opacity-100' : 'w-full px-4 py-2 text-left text-sm text-red-400 flex items-center gap-2 hover:bg-red-500/10 disabled:opacity-80 disabled:text-red-300'}>
+                                          {actioningProjectId === project.id ? <svg className="w-4 h-4 animate-spin shrink-0" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V1C6.477 1 2 5.477 2 11h2z" /></svg> : <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>}<span className="truncate !text-[#BE123C]">Delete Permanently</span>
                                         </button>
                                       </>
                                     )}
