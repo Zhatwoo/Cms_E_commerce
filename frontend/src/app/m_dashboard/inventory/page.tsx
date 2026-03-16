@@ -31,6 +31,7 @@ import {
 } from '@/lib/api';
 import { useAlert } from '../components/context/alert-context';
 import { useProject } from '../components/context/project-context';
+import { useTheme } from '../components/context/theme-context';
 import { type Product, type ProductVariant } from '../lib/productsData';
 import ProductAddModal from '../products/components/productAddModal';
 
@@ -359,6 +360,7 @@ const ModalBackdrop = ({ onClose, children }: { onClose: () => void; children: R
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function InventoryPage() {
+  const { theme } = useTheme();
   const { selectedProject, loading: projectLoading } = useProject();
   const { showAlert, showConfirm } = useAlert();
   const selectedSubdomain = normalizeSubdomain(selectedProject?.subdomain);
@@ -1299,17 +1301,7 @@ export default function InventoryPage() {
           >
             <span style={{ color: 'var(--dashboard-light-text, #ffffff)' }}>My </span>
             <span
-              style={{
-                backgroundImage: T.brandGradient,
-                WebkitBackgroundClip: 'text',
-                backgroundClip: 'text',
-                color: 'transparent',
-                WebkitTextFillColor: 'transparent',
-                display: 'inline-block',
-                paddingRight: '0.08em',
-                lineHeight: 1.18,
-                paddingBottom: '0.08em',
-              }}
+              className={`inline-block bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
             >
               Inventory
             </span>

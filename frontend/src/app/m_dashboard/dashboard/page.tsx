@@ -292,16 +292,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
             <span className={`block ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
               What{' '}
               <span
-                style={{
-                  backgroundImage: theme === 'dark'
-                    ? 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)'
-                    : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)', 
-                  WebkitBackgroundClip: 'text',
-                  backgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  color: 'transparent',
-                  display: 'inline-block' 
-                }}
+                className={`inline-block bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
               >
                 website
               </span>{' '}
@@ -310,16 +301,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
             <span className={`block ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
               you{' '}
               <span
-                style={{
-                  backgroundImage: theme === 'dark'
-                    ? 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)'
-                    : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)',
-                  WebkitBackgroundClip: 'text',
-                  backgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  color: 'transparent',
-                  display: 'inline-block'
-                }}
+                className={`inline-block bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
               >
                 build?
               </span>
@@ -350,8 +332,8 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                     className="absolute left-0 right-0 -bottom-0.5 h-[2.5px] rounded-full"
                     style={{ 
                       background: theme === 'dark'
-                        ? 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' 
-                        : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)' 
+                        ? 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #ffcc00 100%)' 
+                        : 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #f5a213 100%)' 
                     }}
                     transition={{ 
                       type: 'spring', 
