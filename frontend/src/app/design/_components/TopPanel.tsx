@@ -135,7 +135,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
     }
   }, [canvasWidth, canvasHeight]);
 
-  // Fetch storage usage
+  // Fetch storage usage (requires auth; skip logging when not authorized)
   const fetchStorageUsage = useCallback(async () => {
     if (!projectId) return;
     try {
@@ -144,6 +144,10 @@ export const TopPanel: React.FC<TopPanelProps> = ({
         setStorageUsage({ bytes: data.storageBytes, readable: data.storageReadable });
       }
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes("Not authorized") || msg.includes("no token")) {
+        return;
+      }
       console.error("Failed to fetch storage usage:", error);
     }
   }, [projectId]);
