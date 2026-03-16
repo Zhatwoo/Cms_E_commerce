@@ -1360,7 +1360,17 @@ function wrapWithPrototype(
   );
 }
 
-function PreviewTabs({ props }: { props: Record<string, any> }) {
+function PreviewTabs({
+  props,
+  childNodes,
+  childNodeIds,
+  childNodeMap,
+}: {
+  props: Record<string, any>;
+  childNodes?: React.ReactNode[];
+  childNodeIds?: string[];
+  childNodeMap?: Record<string, React.ReactNode>;
+}) {
   const tabs = (props.tabs as any[]) || [];
   const linkedSlotMap = (props.__linkedNodes as Record<string, string>) ?? {};
   const [activeTabId, setActiveTabId] = React.useState(
@@ -1544,13 +1554,6 @@ function RenderNode({
   const nextInsideTabsContext = Boolean(insideTabsContext || type === "Tabs" || type === "TabContent");
   const childIds = node.children ?? [];
   const childNodeMap: Record<string, React.ReactNode> = {};
-  const childNodeHasChildrenById: Record<string, boolean> = {};
-  const childNodeHasChildren = childIds.map((id) => {
-    const child = nodes[id];
-    const hasChildren = Boolean(child && Array.isArray(child.children) && child.children.length > 0);
-    childNodeHasChildrenById[id] = hasChildren;
-    return hasChildren;
-  });
   const children = childIds.map((id) => {
     const n = nodes[id];
     if (!n) return null;
@@ -3230,7 +3233,14 @@ function RenderNode({
     }
 
     case "Tabs":
-      return wrap(<PreviewTabs props={props} />);
+      return wrap(
+        <PreviewTabs
+          props={props}
+          childNodes={children}
+          childNodeIds={childIds}
+          childNodeMap={childNodeMap}
+        />
+      );
 
     default:
       return <div data-unknown-type={type}>{children}</div>;

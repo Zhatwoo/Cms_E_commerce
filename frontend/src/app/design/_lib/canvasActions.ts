@@ -170,9 +170,60 @@ export function duplicateNodes(
 export interface ClipboardEntry {
   nodeIds: string[];
   nodes: CraftData; // id -> node (with new ids already applied when pasted)
+  sourceParentsByRoot: Record<string, string | undefined>;
 }
 
 let clipboardRef: ClipboardEntry | null = null;
+
+function isPageNode(node: CraftRawNode | undefined): boolean {
+  return Boolean(node && node.displayName === "Page");
+}
+
+function isViewportNode(node: CraftRawNode | undefined): boolean {
+  return Boolean(node && node.displayName === "Viewport");
+}
+
+function firstPageUnder(data: CraftData, parentId: string | undefined): string | null {
+  if (!parentId || !data[parentId]) return null;
+  const children = getChildIds(data[parentId]);
+  for (const id of children) {
+    if (isPageNode(data[id])) return id;
+  }
+  return null;
+}
+
+function resolveDestinationPageForNonPagePaste(
+  data: CraftData,
+  targetParentId: string,
+  atIndex: number
+): string | null {
+  const targetParent = data[targetParentId];
+  if (isPageNode(targetParent)) return targetParentId;
+
+  if (targetParentId === "ROOT") {
+    const rootChildren = getChildIds(data.ROOT);
+    const inferredIndex = Math.max(0, Math.min(rootChildren.length - 1, atIndex - 1));
+    const inferredNodeId = rootChildren[inferredIndex];
+    if (inferredNodeId && isPageNode(data[inferredNodeId])) {
+      return inferredNodeId;
+    }
+
+    const firstDirectPage = firstPageUnder(data, "ROOT");
+    if (firstDirectPage) return firstDirectPage;
+
+    const viewportId = rootChildren.find((id) => isViewportNode(data[id]));
+    if (viewportId) {
+      const firstViewportPage = firstPageUnder(data, viewportId);
+      if (firstViewportPage) return firstViewportPage;
+    }
+  }
+
+  if (isViewportNode(targetParent)) {
+    return firstPageUnder(data, targetParentId);
+  }
+
+  return null;
+}
 
 export function getClipboard(): ClipboardEntry | null {
   return clipboardRef;
@@ -224,6 +275,9 @@ export function copySelection(
     clipboardRef = {
       nodeIds: nodeIds.map((id) => idMap.get(id)!).filter(Boolean),
       nodes: data,
+      sourceParentsByRoot: Object.fromEntries(
+        nodeIds.map((oldId) => [idMap.get(oldId)!, full[oldId]?.parent])
+      ),
     };
   } catch (e) {
     console.warn("copySelection failed:", e);
@@ -271,6 +325,20 @@ export function pasteClipboard(
 
     if (!targetParentId || !data[targetParentId]) return [];
 
+    const clipRootNames = clip.nodeIds
+      .map((id) => clip.nodes[id]?.displayName)
+      .filter((name): name is string => typeof name === "string");
+    const hasPageClipboardRoot = clipRootNames.some((name) => name === "Page");
+    if (!hasPageClipboardRoot) {
+      const resolvedPageId = resolveDestinationPageForNonPagePaste(data, targetParentId, atIndex);
+      if (resolvedPageId && data[resolvedPageId]) {
+        targetParentId = resolvedPageId;
+        atIndex = getChildIds(data[targetParentId]).length;
+      }
+    }
+
+    if (!targetParentId || !data[targetParentId]) return [];
+
     const idMap = new Map<string, string>();
     for (const oldId of Object.keys(clip.nodes)) {
       const newId = generateId(existingIds);
@@ -292,6 +360,13 @@ export function pasteClipboard(
     }
 
     const rootIds = clip.nodeIds.map((id) => idMap.get(id)!).filter(Boolean);
+    for (const rootId of rootIds) {
+      const rootNode = data[rootId];
+      if (rootNode) {
+        rootNode.parent = targetParentId;
+      }
+    }
+
     const parentNode = data[targetParentId];
     const newSiblings = [...parentNode.nodes];
     newSiblings.splice(atIndex, 0, ...rootIds);

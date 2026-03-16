@@ -26,17 +26,12 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
     isActive: query.getEvent('selected').contains(id),
   }));
 
-  const [mounted, setMounted] = useState(false);
   const [isDomHovered, setIsDomHovered] = useState(false);
   const pendingSelectTimerRef = useRef<number | null>(null);
   const isHandTool = activeTool === "hand";
   const isDrawingTool = activeTool === "text" || activeTool === "shape";
   const isTextNode = name === "Text";
   const canShowResizeOverlay = !isHandTool && !isDrawingTool && isActive && dom && (!isTextNode || editingTextNodeId !== id);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (!dom) return;
@@ -59,13 +54,11 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
       }
 
       const isPendingSelected = dom.dataset.pendingSelected === "true";
-      if (!isHandTool && (isActive || isPendingSelected || (isDomHovered && !suppressPassiveHover))) {
+      const isBoxPreviewSelected = dom.dataset.boxPreviewSelected === "true";
+      if (!isHandTool && (isActive || isPendingSelected || isBoxPreviewSelected || (isDomHovered && !suppressPassiveHover))) {
         dom.classList.add("component-selected");
       } else {
         dom.classList.remove("component-selected");
-        if (dom.dataset.pendingSelected === "true") {
-          delete dom.dataset.pendingSelected;
-        }
       }
     }
   }, [dom, id, name, isActive, isDomHovered, isHandTool, suppressPassiveHover]);
@@ -158,7 +151,7 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
     return <>{render}</>;
   }
 
-  const isLabelVisible = !isHandTool && mounted && ((isDomHovered && !suppressPassiveHover) || isActive) && dom && rect;
+  const isLabelVisible = !isHandTool && ((isDomHovered && !suppressPassiveHover) || isActive) && dom && rect;
 
   return (
     <>
@@ -182,7 +175,7 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
         : null}
 
       {/* Resize / Move overlay — active nodes, including Text when not inline editing */}
-      {mounted && canShowResizeOverlay ? (
+      {canShowResizeOverlay ? (
         <ResizeOverlay nodeId={id} dom={dom} />
       ) : null}
 

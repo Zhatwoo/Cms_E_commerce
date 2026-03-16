@@ -443,28 +443,6 @@ export const FigmaStyleDragHandler = () => {
         nodeIdFromTarget = selectedIdsAtMouseDown[0] ?? null;
       }
 
-      const getSelectableNodeId = (id: string, nodes: Record<string, any>, selectedIds: string[]) => {
-        let currentId = id;
-        let targetId = id;
-        while (currentId && currentId !== "ROOT" && nodes[currentId]) {
-          const node = nodes[currentId];
-          const displayName = node?.data?.displayName ?? node?.displayName;
-          if (displayName === "Group") {
-            if (!selectedIds.includes(currentId)) {
-              targetId = currentId;
-            }
-          }
-          const parentId = node?.data?.parent;
-          if (!parentId || parentId === currentId) break;
-          currentId = parentId;
-        }
-        return targetId;
-      };
-
-      if (nodeIdFromTarget && exists(nodeIdFromTarget)) {
-         nodeIdFromTarget = getSelectableNodeId(nodeIdFromTarget, nodesMap, selectedIdsAtMouseDown);
-      }
-
       if (!nodeIdFromTarget || !exists(nodeIdFromTarget)) {
         return;
       }
