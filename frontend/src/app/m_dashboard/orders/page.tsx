@@ -285,9 +285,9 @@ export default function OrdersPage() {
       {/* ── Header ── */}
       <section className="relative z-10 mb-6 sm:mb-7 text-center">
         <h1 className="text-[38px] max-[390px]:text-[34px] sm:text-5xl md:text-7xl lg:text-[78px] font-extrabold leading-[0.96] tracking-tight">
-          <span className={`block ${theme === 'dark' ? 'text-white' : 'text-[#1E1B4B]'}`}>Track Buyer</span>
+          <span className={`block ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}`}>Track Buyer</span>
           <span
-            className="block text-transparent bg-clip-text"
+            className="block w-fit mx-auto text-transparent bg-clip-text"
             style={{
               backgroundImage: theme === 'dark' 
                 ? 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #ffcc00 100%)' 
@@ -339,7 +339,7 @@ export default function OrdersPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search templates, designs, or actions"
-            className={`w-full bg-transparent text-sm outline-none ${theme === 'dark' ? 'text-white placeholder:text-[#6F70A8]' : 'text-slate-900 placeholder:text-slate-400'}`}
+            className={`w-full bg-transparent text-sm outline-none ${theme === 'dark' ? 'text-white placeholder:text-[#6F70A8]' : 'text-[#120533] placeholder:text-[#8a86a3]'}`}
           />
         </div>
       </section>

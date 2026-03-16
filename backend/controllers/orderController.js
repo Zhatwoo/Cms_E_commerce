@@ -597,7 +597,8 @@ exports.createStripePaymentIntent = async (req, res) => {
       publicKey: stripeService.getPublicKey(),
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message || 'Server error' });
+    const statusCode = Number.isInteger(error.statusCode) ? error.statusCode : 500;
+    res.status(statusCode).json({ success: false, message: error.message || 'Server error' });
   }
 };
 

@@ -1449,7 +1449,8 @@ export default function ProductsPage() {
             type="button"
             onClick={() => setShowAddModal(true)}
             disabled={!canAddProducts}
-            className={`mt-6 mx-auto px-4 py-2.5 rounded-lg text-white font-medium transition-colors shadow-sm ${canAddProducts ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-400 cursor-not-allowed'}`}
+            className={`mt-6 mx-auto px-4 py-2.5 rounded-lg text-white font-medium transition-opacity shadow-sm ${canAddProducts ? 'hover:opacity-90' : 'opacity-60 cursor-not-allowed'}`}
+            style={canAddProducts ? { background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)' } : { background: 'linear-gradient(90deg, #c084fc 0%, #f9a8d4 100%)' }}
           >
             {canAddProducts ? 'Add your first product' : 'Publish website first'}
           </button>

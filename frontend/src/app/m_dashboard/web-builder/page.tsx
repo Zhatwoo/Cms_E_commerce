@@ -104,7 +104,7 @@ const TemplateCard = ({ template, colors, onPreview, onUseTemplate }: {
           <span
             className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide backdrop-blur-md shadow-sm ${template.status === 'Coming Soon'
               ? 'bg-black/40 text-white border border-white/20'
-              : 'bg-white text-black'
+              : 'bg-white text-[#120533]'
               }`}
           >
             {template.status}
@@ -116,7 +116,7 @@ const TemplateCard = ({ template, colors, onPreview, onUseTemplate }: {
       <div className="absolute inset-0 flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/40 backdrop-blur-[2px]">
         <button
           onClick={() => onPreview(template)}
-          className="px-4 py-2 rounded-lg bg-white text-black text-sm font-medium shadow-lg hover:bg-gray-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-200"
+          className="px-4 py-2 rounded-lg bg-white text-[#120533] text-sm font-medium shadow-lg hover:bg-gray-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-200"
         >
           Preview
         </button>
@@ -267,7 +267,12 @@ const CreateProjectModal = ({
             <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium hover:opacity-80" style={{ color: colors.text.primary }}>
               Cancel
             </button>
-            <button type="submit" disabled={creating} className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">
+            <button
+              type="submit"
+              disabled={creating}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)' }}
+            >
               {creating ? 'Creating…' : 'Create & open'}
             </button>
           </div>
@@ -357,7 +362,11 @@ const PreviewModal = ({
           <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:opacity-80" style={{ color: colors.text.primary }}>
             Cancel
           </button>
-          <button onClick={() => onUseTemplate(template)} className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20">
+          <button
+            onClick={() => onUseTemplate(template)}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-opacity hover:opacity-90 shadow-lg"
+            style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)', boxShadow: '0 8px 24px rgba(217,70,239,0.35)' }}
+          >
             Use Template
           </button>
         </div>
@@ -721,7 +730,7 @@ export default function WebBuilderPage() {
               style={{
                 backgroundImage: theme === 'dark'
                   ? 'linear-gradient(180deg, #ffffff 25%, #9ca3af 100%)'
-                  : 'linear-gradient(180deg, #111827 25%, #4b5563 100%)'
+                  : 'linear-gradient(180deg, #120533 25%, #5b4a91 100%)'
               }}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -824,7 +833,7 @@ export default function WebBuilderPage() {
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <h2 className="text-xl font-semibold tracking-tight" style={{ color: colors.text.primary }}>
-              Manage Projects
+              Open a <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#7c3aed] via-[#d946ef] to-[#f5a213]">Project</span>
             </h2>
             <p className="text-sm" style={{ color: colors.text.secondary }}>
               {activeTab === 'active' ? 'Edit or continue a saved draft.' : 'Recently deleted projects.'}
@@ -843,6 +852,7 @@ export default function WebBuilderPage() {
               style={{
                 backgroundColor: activeTab === 'active' ? (theme === 'light' ? colors.accent.purpleDeep : colors.bg.card) : 'transparent',
                 color: activeTab === 'active' ? (theme === 'light' ? colors.bg.card : colors.text.primary) : (theme === 'light' ? colors.text.secondary : colors.text.primary),
+                boxShadow: activeTab === 'active' && theme === 'light' ? 'inset 0 -2px 0 #ec4899' : undefined,
               }}
             >
               Active
@@ -853,6 +863,7 @@ export default function WebBuilderPage() {
               style={{
                 backgroundColor: activeTab === 'trash' ? (theme === 'light' ? colors.accent.purpleDeep : colors.bg.card) : 'transparent',
                 color: activeTab === 'trash' ? (theme === 'light' ? colors.bg.card : colors.text.primary) : (theme === 'light' ? colors.text.secondary : colors.text.primary),
+                boxShadow: activeTab === 'trash' && theme === 'light' ? 'inset 0 -2px 0 #ec4899' : undefined,
               }}
             >
               Trash
@@ -1196,8 +1207,8 @@ export default function WebBuilderPage() {
               onClick={handleStartBlank}
               className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors hover:opacity-80 flex items-center justify-center"
               style={{
-                backgroundColor: colors.text.primary,
-                color: colors.bg.primary
+                background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)',
+                color: '#ffffff'
               }}
               title="Create new project"
             >
@@ -1273,7 +1284,14 @@ export default function WebBuilderPage() {
               />
               <div className="flex justify-end gap-2">
                 <button type="button" onClick={() => setRenamingProject(null)} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ color: colors.text.primary }}>Cancel</button>
-                <button type="button" onClick={handleRenameSubmit} className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700">Save</button>
+                <button
+                  type="button"
+                  onClick={handleRenameSubmit}
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-opacity hover:opacity-90"
+                  style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)' }}
+                >
+                  Save
+                </button>
               </div>
             </motion.div>
           </div>

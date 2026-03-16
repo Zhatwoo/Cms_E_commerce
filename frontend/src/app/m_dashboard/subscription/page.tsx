@@ -175,9 +175,9 @@ export default function SubscriptionPage() {
           transition={{ duration: 0.5 }}
           className="text-[42px] sm:text-[58px] lg:text-[76px] font-extrabold leading-[0.95] tracking-tight"
         >
-          <span className="block" style={{ color: colors.text.primary }}>Choose Your</span>
+          <span className="block" style={{ color: theme === 'dark' ? colors.text.primary : '#120533' }}>Choose Your</span>
           <span
-            className={`block text-transparent bg-clip-text bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+            className={`block w-fit mx-auto text-transparent bg-clip-text bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
           >
             Scale
           </span>
@@ -234,9 +234,9 @@ export default function SubscriptionPage() {
 
           const ctaStyles: Record<typeof action, React.CSSProperties> = {
             current: { backgroundColor: `${plan.accent}20`, color: plan.accent, border: `1px solid ${plan.accent}55`, cursor: 'default' },
-            upgrade: { background: `linear-gradient(135deg, ${plan.accent}CC, ${plan.accent})`, color: '#000', border: 'none' },
+            upgrade: { background: 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #f5a213 100%)', color: '#fff', border: 'none' },
             downgrade: { backgroundColor: 'transparent', color: colors.text.muted, border: `1px solid ${colors.border.faint}` },
-            contact: { background: `linear-gradient(135deg, #22D3EEaa, #22D3EE)`, color: '#000', border: 'none' },
+            contact: { background: 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #f5a213 100%)', color: '#fff', border: 'none' },
           };
 
           const ctaLabels: Record<typeof action, string> = {
@@ -447,10 +447,8 @@ export default function SubscriptionPage() {
                     onClick={confirmAction}
                     className="flex-1 rounded-xl px-4 py-2.5 text-xs font-bold transition-opacity hover:opacity-85"
                     style={{
-                      background: isDowngrade
-                        ? 'linear-gradient(135deg, #CA8A04, #EAB308)'
-                        : `linear-gradient(135deg, ${target.accent}cc, ${target.accent})`,
-                      color: '#000',
+                      background: 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #f5a213 100%)',
+                      color: '#fff',
                     }}
                   >
                     {isDowngrade ? `Downgrade to ${target.name}` : `Upgrade to ${target.name}`}
