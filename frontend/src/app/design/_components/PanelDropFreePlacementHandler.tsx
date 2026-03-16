@@ -393,9 +393,14 @@ export function PanelDropFreePlacementHandler() {
             });
           } else {
             actions.setProp(nodeId, (props: Record<string, unknown>) => {
-              props.position = "absolute";
-              props.left = `${finalLeft}px`;
-              props.top = `${finalTop}px`;
+              const currentLeft = parsePxOrNumber(props.left);
+              const currentTop = parsePxOrNumber(props.top);
+              const nextLeft = Math.round(currentLeft + (finalLeft - (nodeRect.left - parentRect.left)));
+              const nextTop = Math.round(currentTop + (finalTop - (nodeRect.top - parentRect.top)));
+
+              props.position = props.position && props.position !== "static" ? props.position : "relative";
+              props.left = `${nextLeft}px`;
+              props.top = `${nextTop}px`;
               props.right = "auto";
               props.bottom = "auto";
               props.marginTop = 0;
