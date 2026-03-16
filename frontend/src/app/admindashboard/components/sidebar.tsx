@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -34,12 +34,23 @@ import { adminNavItems } from './adminConfig';
 interface AdminSidebarProps {
     mobile?: boolean;
     onClose?: () => void;
+    forcedActiveItemId?: string;
+    forcedActiveChildId?: string;
 }
 
-export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
-    const [isHovered, setIsHovered] = useState(false);
+let desktopSidebarExpandedMemory = false;
+
+export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forcedActiveChildId }: AdminSidebarProps) {
+    const [isHovered, setIsHovered] = useState(() => (!mobile && desktopSidebarExpandedMemory));
     const [openDropdowns, setOpenDropdowns] = useState<string[]>([]);
+    const collapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const pathname = usePathname();
+
+    useEffect(() => {
+        if (!mobile) {
+            desktopSidebarExpandedMemory = isHovered;
+        }
+    }, [isHovered, mobile]);
 
     const toggleDropdown = (id: string) => {
         setOpenDropdowns((prev) =>
@@ -47,14 +58,38 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
         );
     };
 
-    const handleMouseLeave = () => {
-        setIsHovered(false);
-        setOpenDropdowns([]);
+    const handleMouseEnter = () => {
+        if (collapseTimerRef.current) {
+            clearTimeout(collapseTimerRef.current);
+            collapseTimerRef.current = null;
+        }
+        desktopSidebarExpandedMemory = true;
+        setIsHovered(true);
     };
 
-    const activeItem = adminNavItems.find(
+    const handleMouseLeave = () => {
+        if (collapseTimerRef.current) clearTimeout(collapseTimerRef.current);
+        collapseTimerRef.current = setTimeout(() => {
+            desktopSidebarExpandedMemory = false;
+            setIsHovered(false);
+            setOpenDropdowns([]);
+            collapseTimerRef.current = null;
+        }, 180);
+    };
+
+    useEffect(() => {
+        return () => {
+            if (collapseTimerRef.current) {
+                clearTimeout(collapseTimerRef.current);
+                collapseTimerRef.current = null;
+            }
+        };
+    }, []);
+
+    const matchedActiveItem = adminNavItems.find(
         (item) => item.match(pathname) || (item.children?.some((c) => c.match(pathname)) ?? false)
     )?.id;
+    const activeItem = forcedActiveItemId ?? matchedActiveItem;
     const COLLAPSED_WIDTH = 104;
     const EXPANDED_WIDTH = 322;
 
@@ -89,7 +124,7 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
                                 </button>
                             </div>
                             <div className="mt-2 flex flex-col items-center text-center">
-                                <Image src="/images/logo.svg" alt="CMS E-commerce" width={76} height={76} className="h-[76px] w-[76px] object-contain" />
+                                <Image src="/images/logo.svg" alt="CMS E-commerce" width={76} height={76} className="object-contain" />
                             </div>
                         </div>
 
@@ -97,7 +132,7 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
                             {adminNavItems.map((item) => {
                                 const isActive = activeItem === item.id;
                                 const hasChildren = !!(item.children?.length);
-                                const isOpen = openDropdowns.includes(item.id);
+                                const isOpen = openDropdowns.includes(item.id) || (!!forcedActiveChildId && item.id === activeItem);
 
                                 return (
                                     <div key={item.id}>
@@ -105,6 +140,7 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
                                             <button
                                                 type="button"
                                                 onClick={() => toggleDropdown(item.id)}
+                                                suppressHydrationWarning
                                                 className={`admin-dashboard-purple flex w-full items-center gap-3 rounded-[18px] px-4 py-3 transition-transform hover:-translate-y-0.5 ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
                                             >
                                                 <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/55">
@@ -136,7 +172,7 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
                                                 >
                                                     <div className="mt-1 flex flex-col gap-0.5 pl-6">
                                                         {(item.children ?? []).map((child) => {
-                                                            const isChildActive = child.match(pathname);
+                                                            const isChildActive = forcedActiveChildId ? child.id === forcedActiveChildId : child.match(pathname);
                                                             return (
                                                                 <Link
                                                                     key={child.id}
@@ -160,6 +196,7 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
                         <div className="pt-4">
                             <button
                                 type="button"
+                                suppressHydrationWarning
                                 className="admin-dashboard-logout flex w-full items-center gap-3 rounded-[18px] px-4 py-3 text-sm font-medium"
                             >
                                 <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/55">
@@ -180,13 +217,13 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
             initial={false}
             animate={{ width: isHovered ? EXPANDED_WIDTH : COLLAPSED_WIDTH }}
             transition={{ type: 'spring', stiffness: 300, damping: 28, mass: 0.8 }}
-            onMouseEnter={() => setIsHovered(true)}
+            onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
         >
             <div className="admin-dashboard-panel flex h-full w-full flex-col items-center overflow-hidden rounded-[28px] px-2 py-5">
                 <div className="mb-4 flex w-full shrink-0 items-center justify-center px-1 pt-1">
                     <Link href="/admindashboard" aria-label="Dashboard Home">
-                        <Image src="/images/logo.svg" alt="CMS E-commerce" width={56} height={56} className="h-14 w-14 object-contain" />
+                        <Image src="/images/logo.svg" alt="CMS E-commerce" width={56} height={56} className="object-contain" />
                     </Link>
                 </div>
 
@@ -194,7 +231,7 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
                     {adminNavItems.map((item) => {
                         const isActive = activeItem === item.id;
                         const hasChildren = !!(item.children?.length);
-                        const isOpen = openDropdowns.includes(item.id);
+                        const isOpen = openDropdowns.includes(item.id) || (!!forcedActiveChildId && item.id === activeItem);
 
                         return (
                             <div key={item.id} className="w-full shrink-0">
@@ -203,6 +240,7 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
                                         type="button"
                                         onClick={() => isHovered && toggleDropdown(item.id)}
                                         aria-label={item.label}
+                                        suppressHydrationWarning
                                         className={`group relative flex w-full items-center rounded-2xl px-2 py-2 transition-transform hover:-translate-y-0.5 ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
                                     >
                                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/55">
@@ -246,7 +284,7 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
                                         >
                                             <div className="mt-1 flex flex-col gap-0.5 pl-4">
                                                 {(item.children ?? []).map((child) => {
-                                                    const isChildActive = child.match(pathname);
+                                                    const isChildActive = forcedActiveChildId ? child.id === forcedActiveChildId : child.match(pathname);
                                                     return (
                                                         <Link
                                                             key={child.id}
@@ -268,6 +306,7 @@ export function AdminSidebar({ mobile = false, onClose }: AdminSidebarProps) {
 
                 <button
                     type="button"
+                    suppressHydrationWarning
                     className="admin-dashboard-logout mt-auto shrink-0 flex w-full items-center rounded-2xl px-2 py-2"
                     aria-label="Log out"
                     title="Log out"

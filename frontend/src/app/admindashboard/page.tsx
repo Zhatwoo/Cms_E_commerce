@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useSyncExternalStore } from 'react';
 import { AdminSidebar } from './components/sidebar';
 import { AdminHeader } from './components/header';
 import { AdminDashboard } from './components/dashboard';
@@ -8,6 +8,14 @@ import { AnimatePresence } from 'framer-motion';
 
 export default function AdminDashboardPage() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
+
+    const mounted = useSyncExternalStore(
+        () => () => {},
+        () => true,
+        () => false,
+    );
+
+    if (!mounted) return null;
 
     return (
         <div className="admin-dashboard-shell relative flex min-h-screen overflow-hidden" suppressHydrationWarning>

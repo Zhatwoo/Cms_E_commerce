@@ -1223,6 +1223,10 @@ export type ClientRow = {
   status: string;
   createdAt?: string;
   isActive?: boolean;
+  storageUsedBytes?: number;
+  storageLimitBytes?: number;
+  storageUsedGb?: number;
+  storageLimitGb?: number;
 };
 
 export async function getClients(): Promise<{
