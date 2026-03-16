@@ -26,6 +26,7 @@ const BOX_SELECTING_FLAG = "boxSelecting";
 const BOX_SELECTING_INTENT_FLAG = "boxSelectingIntent";
 
 const FLOW_LAYOUT_PARENTS = new Set(["Container", "Section", "Row", "Column", "Frame", "Tab Content"]);
+const FREEFORM_PARENT_DISPLAY_NAMES = new Set(["Page", "Viewport"]);
 const OFFSET_MOVE_TYPES = new Set(["Image", "Text", "Icon", "Button", "Circle", "Square", "Triangle"]);
 
 
@@ -179,12 +180,23 @@ function canAcceptNode(nodes: NodesMap, _targetId: string, _nodeId: string): boo
 
 function getMoveModeForNode(nodeId: string, state: { nodes: NodesMap }): MoveMode {
   const node = state.nodes[nodeId];
+  const props = (node?.data?.props ?? {}) as Record<string, unknown>;
   const displayName = String(node?.data?.displayName ?? "");
   const parentId = node?.data?.parent as string | undefined;
   const parentDisplayName = parentId
     ? String(state.nodes[parentId]?.data?.displayName ?? "")
     : "";
+  const parentProps = parentId ? (state.nodes[parentId]?.data?.props ?? {}) as Record<string, unknown> : {};
+  const parentDisplay = String(parentProps.display ?? "").toLowerCase();
+  const parentIsFlexOrGrid = parentDisplay === "flex" || parentDisplay === "grid";
+  const parentIsFreeform =
+    parentProps.isFreeform === true ||
+    (!parentIsFlexOrGrid && FREEFORM_PARENT_DISPLAY_NAMES.has(parentDisplayName));
+  const position = String(props.position ?? "static").toLowerCase();
+  const isAbsoluteLike = position === "absolute" || position === "fixed";
 
+  if (isAbsoluteLike) return "offset";
+  if (parentIsFreeform) return "offset";
   if (OFFSET_MOVE_TYPES.has(displayName)) return "offset";
   if (FLOW_LAYOUT_PARENTS.has(parentDisplayName)) return "margin";
   return "margin";
@@ -581,6 +593,16 @@ export const FigmaStyleDragHandler = () => {
         d.nodeMargins = ids.map((id): DragNodeState => {
           const props = state.nodes[id]?.data?.props ?? {};
           const position = (props.position as string) ?? "static";
+          const parentId = state.nodes[id]?.data?.parent as string | undefined;
+          const parentDisplayName = parentId
+            ? String(state.nodes[parentId]?.data?.displayName ?? "")
+            : "";
+          const parentProps = parentId ? (state.nodes[parentId]?.data?.props ?? {}) as Record<string, unknown> : {};
+          const parentDisplay = String(parentProps.display ?? "").toLowerCase();
+          const parentIsFlexOrGrid = parentDisplay === "flex" || parentDisplay === "grid";
+          const parentIsFreeform =
+            parentProps.isFreeform === true ||
+            (!parentIsFlexOrGrid && FREEFORM_PARENT_DISPLAY_NAMES.has(parentDisplayName));
 
           let top = parsePxOrAuto(props.top);
           let left = parsePxOrAuto(props.left);
@@ -605,8 +627,8 @@ export const FigmaStyleDragHandler = () => {
 
           return {
             id,
-            parentId: state.nodes[id]?.data?.parent as string | undefined,
-            needsAbsolute: mode === "offset" && !isAbsoluteLike,
+            parentId,
+            needsAbsolute: mode === "offset" && !isAbsoluteLike && !parentIsFreeform,
             marginTop: parseNumberOrZero(props.marginTop),
             marginLeft: parseNumberOrZero(props.marginLeft),
             mode,
