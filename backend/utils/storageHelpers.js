@@ -420,40 +420,88 @@ async function getProjectStorageUsage({ clientName, websiteName, userId, subdoma
 
 /**
  * Calculate total storage usage (in bytes) for a specific user across all their projects.
+ * Includes:
+ * 1) Media files in Firebase Storage (checking multiple possible path patterns)
+ * 2) Product images in Firebase Storage
+ * 3) All project, page, and trash data in Firestore (checking all role folders)
  */
 async function getUserStorageUsage({ clientName, userId }) {
+  const { db } = require('../config/firebase');
   const bucket = getStorageBucket();
-  if (!bucket) return 0;
-
+  
   let totalBytes = 0;
-  const client = slugPathSegment(clientName);
 
-  // 1. Clients folder: Clients/{clientSlug}/
-  // Note: We sum the entire client folder which includes all their projects
-  if (client) {
-    try {
-      const prefix = `${STORAGE_PREFIX}${client}/`;
-      const [files] = await bucket.getFiles({ prefix, autoPaginate: true });
-      files.forEach((file) => {
-        const size = parseInt(file.metadata.size || 0, 10);
-        if (!isNaN(size)) totalBytes += size;
-      });
-    } catch (err) {
-      console.warn('[storageHelpers] getUserStorageUsage Clients failed:', err.message);
+  // 1. Firebase Storage Media
+  if (bucket) {
+    const client = slugPathSegment(clientName);
+    // Possible client-level folder names
+    const clientFolders = [client];
+    if (userId) clientFolders.push(`${client}-${userId}`);
+    if (userId) clientFolders.push(userId);
+
+    const seenPrefixes = new Set();
+    for (const cFolder of clientFolders) {
+      const prefix = `${STORAGE_PREFIX}${cFolder}/`;
+      if (seenPrefixes.has(prefix)) continue;
+      seenPrefixes.add(prefix);
+
+      try {
+        const [files] = await bucket.getFiles({ prefix, autoPaginate: true });
+        files.forEach((file) => {
+          const size = parseInt(file.metadata.size || 0, 10);
+          if (!isNaN(size)) totalBytes += size;
+        });
+      } catch (err) {
+        // Ignore
+      }
+    }
+
+    // 2. Product images
+    if (userId) {
+      try {
+        const prefix = `${PRODUCT_IMAGE_PREFIX}${userId}/`;
+        const [files] = await bucket.getFiles({ prefix, autoPaginate: true });
+        files.forEach((file) => {
+          const size = parseInt(file.metadata.size || 0, 10);
+          if (!isNaN(size)) totalBytes += size;
+        });
+      } catch (err) {
+        // Ignore
+      }
     }
   }
 
-  // 2. Products folder: Products_img/{userId}/
+  // 3. Firestore Data Size
+  // We check 'client', 'admin', and 'support' role folders for projects just in case.
   if (userId) {
+    const roles = ['client', 'admin', 'support'];
     try {
-      const prefix = `${PRODUCT_IMAGE_PREFIX}${userId}/`;
-      const [files] = await bucket.getFiles({ prefix, autoPaginate: true });
-      files.forEach((file) => {
-        const size = parseInt(file.metadata.size || 0, 10);
-        if (!isNaN(size)) totalBytes += size;
-      });
+      for (const role of roles) {
+        const userRoleRef = db.collection('user').doc('roles').collection(role).doc(userId);
+        
+        const [projectsSnap, trashSnap] = await Promise.all([
+          userRoleRef.collection('projects').get(),
+          userRoleRef.collection('trash').get()
+        ]);
+        
+        const allDocs = [...projectsSnap.docs, ...trashSnap.docs];
+        if (allDocs.length === 0) continue;
+
+        const sizes = await Promise.all(allDocs.map(async (doc) => {
+          let b = Buffer.byteLength(JSON.stringify(doc.data() || {}));
+          try {
+            const pagesSnap = await doc.ref.collection('pages').get();
+            pagesSnap.forEach(p => {
+              b += Buffer.byteLength(JSON.stringify(p.data() || {}));
+            });
+          } catch (pe) {}
+          return b;
+        }));
+        
+        totalBytes += sizes.reduce((acc, s) => acc + s, 0);
+      }
     } catch (err) {
-      console.warn('[storageHelpers] getUserStorageUsage Products failed:', err.message);
+      console.warn('[storageHelpers] getUserStorageUsage Firestore error for UID:', userId, err.message);
     }
   }
 
