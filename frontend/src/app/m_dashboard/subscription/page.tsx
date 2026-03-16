@@ -177,8 +177,7 @@ export default function SubscriptionPage() {
         >
           <span className="block" style={{ color: colors.text.primary }}>Choose Your</span>
           <span
-            className="block text-transparent bg-clip-text"
-            style={{ backgroundImage: 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' }}
+            className={`block text-transparent bg-clip-text bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
           >
             Scale
           </span>
