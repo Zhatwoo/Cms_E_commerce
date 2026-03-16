@@ -175,7 +175,7 @@ export interface TextProps extends SpacingProps, TypographyProps, TransformProps
 }
 
 /** Image component props — media display with sizing, corners, and effects. */
-export interface ImageProps extends SpacingProps, SizeProps, EffectsProps, TransformProps, LayerProps, AnimatableProps, InteractableProps {
+export interface ImageProps extends SpacingProps, SizeProps, EffectsProps, TransformProps, LayerProps, PositionProps, AnimatableProps, InteractableProps {
   src?: string;
   alt?: string;
   objectFit?: "cover" | "contain" | "fill" | "none" | "scale-down";
@@ -189,7 +189,7 @@ export interface ImageProps extends SpacingProps, SizeProps, EffectsProps, Trans
 }
 
 /** Video component props — media display with sizing, corners, and effects. */
-export interface VideoProps extends SpacingProps, SizeProps, EffectsProps, TransformProps, LayerProps, AnimatableProps, InteractableProps {
+export interface VideoProps extends SpacingProps, SizeProps, EffectsProps, TransformProps, LayerProps, PositionProps, AnimatableProps, InteractableProps {
   src?: string;
   autoPlay?: boolean;
   loop?: boolean;
