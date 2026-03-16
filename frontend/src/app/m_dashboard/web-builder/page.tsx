@@ -974,10 +974,9 @@ export default function WebBuilderPage() {
                           e.stopPropagation();
                           setPublishModalProject(p);
                         }}
-                        className="mt-2 w-full py-1.5 rounded-md text-[10px] font-medium flex items-center justify-center gap-1 transition-colors"
+                        className="mt-2 w-full py-1.5 rounded-md text-[10px] font-medium text-white flex items-center justify-center gap-1 transition-opacity hover:opacity-90"
                         style={{
-                          backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                          color: 'rgb(59, 130, 246)',
+                          background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)',
                         }}
                       >
                         <Upload size={12} />

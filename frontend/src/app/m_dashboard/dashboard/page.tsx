@@ -452,16 +452,11 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                       rounded-full px-10 py-3 text-base font-bold cursor-pointer 
                       transition-all duration-300 ease-out 
                       hover:-translate-y-1 hover:brightness-110 active:scale-95
-                      
-                      /* Dark Mode: Gold Glow Styling */
-                      ${theme === 'dark' 
-                        ? 'bg-[#FFCE00] text-[#121241] shadow-[0_0_28px_rgba(255,206,0,0.35)] hover:shadow-[0_0_40px_rgba(255,206,0,0.6)]' 
-                        : 'text-white shadow-[0_8px_24px_rgba(217,70,239,0.4)] hover:shadow-[0_12px_28px_rgba(217,70,239,0.5)]'
-                      }
+                      text-white shadow-[0_8px_24px_rgba(217,70,239,0.4)] hover:shadow-[0_12px_28px_rgba(217,70,239,0.5)]
                     `}
-                    style={theme === 'light' ? { 
-                      background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)' 
-                    } : {}}
+                    style={{
+                      background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)'
+                    }}
                   >
                     View Project
                   </button>
