@@ -21,7 +21,7 @@ export function DashboardActivityPanel({ items }: DashboardActivityPanelProps) {
                     <h2 className="admin-dashboard-purple text-[1.45rem] font-semibold">
                         Recent User Actions
                     </h2>
-                    <button type="button" className="admin-dashboard-muted-text text-xs transition-opacity hover:opacity-70">
+                    <button type="button" suppressHydrationWarning className="admin-dashboard-muted-text text-xs transition-opacity hover:opacity-70">
                         View audit log
                     </button>
                 </div>
