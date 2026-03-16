@@ -443,7 +443,7 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
                     initialPageSlug={selectedPageSlug}
                     simulatedWidth={previewWidth}
                     mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
-                    builderParityMode={false}
+                    builderParityMode={true}
                     renderAllNodes
                     preserveAuthoredPositioning
                   />

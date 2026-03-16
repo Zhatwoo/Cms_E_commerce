@@ -406,6 +406,9 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
     blockCss: "",
     blockHtml: "<div>Empty</div>",
   },
+  Accordion: {
+    items: [],
+  },
 };
 
 // ─── Props that are shorthand / redundant ────────────────────────────────────
