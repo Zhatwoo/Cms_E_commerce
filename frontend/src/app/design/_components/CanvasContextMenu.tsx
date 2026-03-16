@@ -94,29 +94,56 @@ export function CanvasContextMenu() {
     const handleContextMenu = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
-      if (target.closest("[data-panel]")) return;
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable) return;
+      // Only skip for actual side/top/bottom panels (they have their own context menus or UI).
+      // Do NOT skip for canvas overlays (resize-overlay, node-label, page-name-edit, marquee, etc.)
+      const inSideOrToolPanel =
+        target.closest("[data-panel='left']") ||
+        target.closest("[data-panel='right']") ||
+        target.closest("[data-panel='configs']") ||
+        target.closest("[data-panel='top-controls']") ||
+        target.closest("[data-panel='bottom-tools']");
+      if (inSideOrToolPanel) return;
 
-      const nodeEl = target.closest("[data-node-id]") as HTMLElement | null;
-      const nodeId = nodeEl?.getAttribute("data-node-id") ?? null;
-      const state = query.getState();
-      const nodesMap = state.nodes;
-      const exists = (id: string) => !!id && id !== "ROOT" && !!nodesMap[id];
+      e.preventDefault();
+      e.stopPropagation();
 
-      if (nodeId && exists(nodeId)) {
-        const currentIds = selectedToIds(state.events.selected);
-        if (!currentIds.includes(nodeId)) {
-          actions.selectNode(nodeId);
+      let nodeId: string | null = null;
+      const isInputLike = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable;
+      if (!isInputLike) {
+        try {
+          const nodeEl = target.closest("[data-node-id]") as HTMLElement | null;
+          nodeId = nodeEl?.getAttribute("data-node-id") ?? null;
+          const state = query.getState();
+          const nodesMap = state.nodes;
+          const exists = (id: string) => !!id && id !== "ROOT" && !!nodesMap[id];
+
+          if (nodeId && exists(nodeId)) {
+            const currentIds = selectedToIds(state.events.selected);
+            if (!currentIds.includes(nodeId)) {
+              actions.selectNode(nodeId);
+            }
+          }
+        } catch {
+          nodeId = null;
         }
       }
 
-      e.preventDefault();
       setMenu({ x: e.clientX, y: e.clientY, nodeId });
       setMenuContentReady(false);
     };
 
     document.addEventListener("contextmenu", handleContextMenu, true);
-    return () => document.removeEventListener("contextmenu", handleContextMenu, true);
+    const canvasEl = document.querySelector("[data-canvas-container]");
+    const boundHandler = (ev: Event) => handleContextMenu(ev as MouseEvent);
+    if (canvasEl) {
+      canvasEl.addEventListener("contextmenu", boundHandler, true);
+    }
+    return () => {
+      document.removeEventListener("contextmenu", handleContextMenu, true);
+      if (canvasEl) {
+        canvasEl.removeEventListener("contextmenu", boundHandler, true);
+      }
+    };
   }, [actions, query]);
 
   useEffect(() => {
