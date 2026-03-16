@@ -289,10 +289,10 @@ export default function OrdersPage() {
           <span
             className="block text-transparent bg-clip-text"
             style={{
-              backgroundImage: theme === 'dark'
-                ? 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)'
-                : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)',
-              textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)',
+              backgroundImage: theme === 'dark' 
+                ? 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #ffcc00 100%)' 
+                : 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #f5a213 100%)',
+              textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)'
             }}
           >
             Checkouts
@@ -322,12 +322,8 @@ export default function OrdersPage() {
               style={{
                 left: tabIndicator.left, width: tabIndicator.width,
                 opacity: tabIndicator.ready ? 1 : 0,
-                background: theme === 'dark'
-                  ? 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)'
-                  : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)',
-                boxShadow: theme === 'dark'
-                  ? '0 0 12px rgba(177, 59, 255, 0.35)'
-                  : '0 0 12px rgba(139, 92, 246, 0.35)',
+                background: theme === 'dark' ? 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #ffcc00 100%)' : 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #f5a213 100%)',
+                boxShadow: theme === 'dark' ? '0 0 12px rgba(177, 59, 255, 0.35)' : '0 0 12px rgba(139, 92, 246, 0.35)',
               }}
             />
           </div>

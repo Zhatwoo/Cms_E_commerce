@@ -27,7 +27,7 @@ import { getSubdomainSiteUrl } from '@/lib/siteUrls';
 
 const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'websitelink';
 const SITE_HOST = process.env.NEXT_PUBLIC_SITE_HOST ?? 'localhost:3000';
-const GRAD = 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)';
+const GRAD = 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #ffcc00 100%)';
 const ADD_SITE_BG = 'linear-gradient(135deg, #0ea5e9 0%, #2563eb 55%, #1d4ed8 100%)';
 const VISIT_BG = 'linear-gradient(135deg, #22c55e 0%, #16a34a 55%, #15803d 100%)';
 
@@ -327,8 +327,7 @@ export default function DomainsPage() {
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}
       <section className="text-center py-4">
         <motion.h1
-          className="text-[42px] sm:text-[58px] font-extrabold leading-[0.95] tracking-tight bg-clip-text text-transparent"
-          style={{ backgroundImage: GRAD }}
+          className={`text-[42px] sm:text-[58px] font-extrabold leading-[0.95] tracking-tight bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
           My Sites
         </motion.h1>

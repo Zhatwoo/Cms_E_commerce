@@ -66,8 +66,7 @@ export default function SettingsPage() {
                     transition={{ duration: 0.4 }}
                 >
                     <span
-                        className="text-transparent bg-clip-text"
-                        style={{ backgroundImage: theme === 'dark' ? 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)' : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)' }}
+                        className={`text-transparent bg-clip-text bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
                     >
                         Settings
                     </span>
