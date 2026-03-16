@@ -21,6 +21,7 @@ type DragSourceKind = "asset" | "component" | "imported" | null;
 
 const MAX_RETRY_FRAMES = 24;
 const LAYOUT_LIKE_TYPES = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame", "Tab Content"]);
+const FLOW_PARENT_DISPLAY_NAMES = new Set(["Section", "Container", "Row", "Column", "Frame", "Tab Content"]);
 
 function selectedToIds(raw: unknown): string[] {
   if (Array.isArray(raw)) return raw;
@@ -160,13 +161,14 @@ export function FreeDropPlacementHandler() {
         const shouldImageFillParent =
           displayName === "Image" && (parentDisplayName === "Section" || parentDisplayName === "Tab Content");
         const parentProps = (parentNode?.data?.props ?? {}) as Record<string, unknown>;
-        const parentDisplay = String(parentProps.display ?? "flex").toLowerCase();
-        const parentIsFreeform = parentProps.isFreeform === true;
-        const isFlexParent =
+        const parentDisplay = String(parentProps.display ?? "").toLowerCase();
+        const parentFreeformPref = parentProps.isFreeform;
+        const parentIsFreeform = parentFreeformPref === true;
+        const parentIsFlexParent =
           parentDisplay === "flex" ||
           parentDisplay === "grid" ||
-          parentDisplayName === "Tab Content" ||
-          LAYOUT_LIKE_TYPES.has(parentDisplayName);
+          FLOW_PARENT_DISPLAY_NAMES.has(parentDisplayName);
+        const allowFreeformLayout = parentFreeformPref !== false;
 
         let left = 0;
         let top = 0;
@@ -200,7 +202,7 @@ export function FreeDropPlacementHandler() {
         left = Math.max(0, Math.round(left));
         top = Math.max(0, Math.round(top));
 
-        if (isFlexParent && !parentIsFreeform) {
+        if (parentIsFlexParent && !parentIsFreeform && !allowFreeformLayout) {
           let insertIndex = 0;
           try {
             const parentDom = query.node(parentId).get()?.dom ?? null;
@@ -284,16 +286,19 @@ export function FreeDropPlacementHandler() {
         });
 
         actions.setProp(nodeId, (props: Record<string, unknown>) => {
-          if (isLayoutLike) {
+          const shouldUseAbsolute = !isLayoutLike || allowFreeformLayout;
+          if (shouldUseAbsolute) {
+            props.position = "absolute";
+            props.left = `${left}px`;
+            props.top = `${top}px`;
+            props.right = "auto";
+            props.bottom = "auto";
+          } else {
             props.position = "relative";
             props.left = "auto";
             props.top = "auto";
             props.right = "auto";
             props.bottom = "auto";
-          } else {
-            props.position = "absolute";
-            props.left = `${left}px`;
-            props.top = `${top}px`;
           }
           props.marginTop = 0;
           props.marginLeft = 0;
@@ -315,11 +320,6 @@ export function FreeDropPlacementHandler() {
             } else if (rawWidth == null) {
               props.width = "100%";
             }
-          }
-
-          if (!isLayoutLike) {
-            if (props.right == null) props.right = "auto";
-            if (props.bottom == null) props.bottom = "auto";
           }
 
           if (shouldImageFillParent) {
