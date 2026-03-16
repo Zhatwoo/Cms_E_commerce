@@ -29,6 +29,20 @@ export const CanvasSelectionHandler = () => {
   }, [activeTool, actions]);
 
   useEffect(() => {
+    const findDeepestNodeId = (element: HTMLElement | null): string | null => {
+      if (!element) return null;
+      const selfId = element.getAttribute("data-node-id");
+      if (selfId) return selfId;
+
+      let current: HTMLElement | null = element;
+      while (current && current !== document.body) {
+        const id = current.getAttribute("data-node-id");
+        if (id) return id;
+        current = current.parentElement;
+      }
+      return null;
+    };
+
     const handleMouseDown = (e: MouseEvent) => {
       if (document.body.dataset[MULTI_DRAG_LOCK_FLAG] === "true") return;
 
@@ -47,8 +61,7 @@ export const CanvasSelectionHandler = () => {
       // Ignore clicks inside panel areas (left/right panels, bottom bar)
       if (target.closest("[data-panel]")) return;
 
-      const nodeEl = target.closest("[data-node-id]") as HTMLElement | null;
-      const nodeId = nodeEl?.getAttribute("data-node-id") ?? null;
+      const nodeId = findDeepestNodeId(target);
       const isMulti = e.ctrlKey || e.metaKey;
       const isRange = e.shiftKey;
 
@@ -82,27 +95,7 @@ export const CanvasSelectionHandler = () => {
         lastSelectedNodeIdRef.current = id;
       };
 
-      const getSelectableNodeId = (id: string, nodes: Record<string, any>, selectedIds: string[]) => {
-        let currentId = id;
-        let targetId = id;
-        while (currentId && currentId !== "ROOT" && nodes[currentId]) {
-          const node = nodes[currentId];
-          if (node?.data?.displayName === "Group") {
-            if (!selectedIds.includes(currentId)) {
-              targetId = currentId;
-            }
-          }
-          const parentId = node?.data?.parent;
-          if (!parentId || parentId === currentId) break;
-          currentId = parentId;
-        }
-        return targetId;
-      };
-
-      let finalNodeId = nodeId;
-      if (nodeId && exists(nodeId)) {
-         finalNodeId = getSelectableNodeId(nodeId, nodesMap, currentIds);
-      }
+      const finalNodeId = nodeId && exists(nodeId) ? nodeId : null;
 
       if (finalNodeId && exists(finalNodeId)) {
         const isAlreadySelected = currentIds.includes(finalNodeId);

@@ -220,15 +220,6 @@ export const Image = ({
           (containerRef as any).current = ref;
         }
       }}
-      draggable
-      onDragStart={(e) => {
-        if (src) {
-          e.dataTransfer.setData("canvas-image-url", src);
-          e.dataTransfer.setData("canvas-image-name", alt);
-          e.dataTransfer.setData("text/plain", src);
-          e.dataTransfer.effectAllowed = "copyMove";
-        }
-      }}
       className={`relative group ${customClassName}`}
       style={{
         width: resolvedWidth,
