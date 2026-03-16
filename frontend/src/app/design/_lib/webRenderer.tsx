@@ -1413,7 +1413,12 @@ function PreviewTabs({
         className="tabs-header flex flex-row w-full overflow-x-auto border-b no-scrollbar"
         style={{
           borderColor: borderColor !== "transparent" ? borderColor : "#e5e7eb",
-          justifyContent: props.tabAlignment === "center" ? "center" : props.tabAlignment === "right" ? "flex-end" : "flex-start"
+          justifyContent:
+            props.tabAlignment === "center"
+              ? "center"
+              : props.tabAlignment === "right"
+              ? "flex-end"
+              : "flex-start",
         }}
       >
         {tabs.map((tab) => {
@@ -1446,29 +1451,17 @@ function PreviewTabs({
           );
         })}
       </div>
+      {/* Children here are per-tab content nodes rendered by RenderNode; we simply show/hide via CSS */}
       <div className="tabs-content relative w-full flex-grow min-h-[100px] overflow-hidden">
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId;
-          const expectedSlotKey = typeof tab?.id === "string" ? `tab-content-${tab.id}` : "";
-          const mappedNodeId = expectedSlotKey ? linkedSlotMap[expectedSlotKey] : undefined;
-          const matchedIndex = mappedNodeId
-            ? (childNodeIds ?? []).findIndex((id) => id === mappedNodeId)
-            : -1;
-          const fallbackIndex = tabs.indexOf(tab);
-          const resolvedIndex = matchedIndex >= 0 ? matchedIndex : fallbackIndex;
-          const fallbackNodeId = (childNodeIds ?? [])[resolvedIndex];
-          const resolvedNodeId = mappedNodeId || fallbackNodeId;
-          const resolvedNode = resolvedNodeId ? childNodeMap?.[resolvedNodeId] : childNodes?.[resolvedIndex];
-
           return (
             <div
               key={tab.id}
               className={`w-full h-full transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${isActive ? "opacity-100 translate-y-0 relative" : "opacity-0 -translate-y-2 absolute inset-0 pointer-events-none"}`}
             >
-              <div className="w-full min-h-[100px] flex flex-col">
-                {resolvedNode != null
-                  ? resolvedNode
-                  : <div className="p-6 text-sm whitespace-pre-wrap text-gray-800 leading-relaxed" style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>{tab.content}</div>}
+              <div className="w-full h-full min-h-[100px] p-6 flex flex-col text-sm whitespace-pre-wrap text-gray-800 leading-relaxed">
+                {tab.content}
               </div>
             </div>
           );
@@ -1536,12 +1529,11 @@ function RenderNode({
     triangle: "Triangle",
     banner: "Banner",
     rating: "Rating",
-    tabs: "Tabs",
-    accordion: "Accordion",
     tabcontent: "TabContent",
     "tab-content": "TabContent",
     "tab content": "TabContent",
     importedblock: "ImportedBlock",
+    booleanfield: "BooleanField",
   };
   const type = (normalizedTypeMap[rawType.toLowerCase()] ?? rawType) as ComponentType;
   const props = mergeProps(type, node.props) as Record<string, unknown>;
@@ -2194,6 +2186,121 @@ function RenderNode({
             transformOrigin: "center center",
           }}
         />
+      );
+    }
+
+    case "BooleanField": {
+      const controlType = (props.controlType as string) === "radio" ? "radio" : "checkbox";
+      const disabled = props.disabled === true;
+      const labelColor = (props.labelColor as string) || "#000000";
+      const gap = toNumber(props.gap, 10);
+      const itemGap = toNumber(props.itemGap, 10);
+      const fontSize = toNumber(props.fontSize, 14);
+      const fontFamily = (props.fontFamily as string) || "Outfit";
+      const fontWeight = (props.fontWeight as string) || "500";
+      const showLabels = props.showLabels !== false;
+      const baseOptions = Array.isArray(props.options) && props.options.length > 0
+        ? props.options
+        : [
+            {
+              id: "opt-1",
+              label: (props.label as string) || "Option 1",
+              checked: Boolean(props.checked),
+            },
+            { id: "opt-2", label: "Option 2", checked: false },
+            { id: "opt-3", label: "Option 3", checked: false },
+          ];
+
+      const normalizedWidth =
+        normalizeLayoutWidthForNarrow(
+          normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint) ||
+            (props.width as string) ||
+            "fit-content",
+          isNarrowPreview,
+          builderParityMode,
+        ) || "fit-content";
+
+      const m = typeof props.margin === "number" ? props.margin : 0;
+      const mt = (props.marginTop ?? m) as number;
+      const mb = (props.marginBottom ?? m) as number;
+      const ml = (props.marginLeft ?? m) as number;
+      const mr = (props.marginRight ?? m) as number;
+      const p = typeof props.padding === "number" ? props.padding : 0;
+      const pt = (props.paddingTop ?? p) as number;
+      const pb = (props.paddingBottom ?? p) as number;
+      const pl = (props.paddingLeft ?? p) as number;
+      const pr = (props.paddingRight ?? p) as number;
+
+      return wrap(
+        <div
+          className={((props.customClassName as string) || "").trim() || undefined}
+          style={{
+            width: normalizedWidth,
+            height: (props.height as string) || "fit-content",
+            paddingTop: `${pt}px`,
+            paddingRight: `${pr}px`,
+            paddingBottom: `${pb}px`,
+            paddingLeft: `${pl}px`,
+            marginTop: `${mt}px`,
+            marginRight: `${mr}px`,
+            marginBottom: `${mb}px`,
+            marginLeft: `${ml}px`,
+            opacity: (props.opacity as number) ?? 1,
+            cursor: disabled ? "not-allowed" : "default",
+            userSelect: "none",
+            maxWidth: "100%",
+            boxSizing: "border-box",
+            display: "inline-flex",
+            flexDirection: "column",
+            alignItems: "flex-start",
+            gap: `${itemGap}px`,
+          }}
+        >
+          {baseOptions.map((opt: any, idx: number) => {
+            const checked =
+              controlType === "radio"
+                ? Boolean(opt.checked) && !baseOptions.some((o: any, i: number) => i < idx && o.checked)
+                : Boolean(opt.checked);
+
+            return (
+              <label
+                key={opt.id || `opt-${idx}`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: `${gap}px`,
+                  cursor: disabled ? "not-allowed" : "pointer",
+                  maxWidth: "100%",
+                }}
+              >
+                <input
+                  type={controlType}
+                  disabled={disabled || !enableFormInputs}
+                  defaultChecked={checked}
+                  readOnly={!enableFormInputs}
+                  className="h-4 w-4 accent-brand-blue"
+                />
+                {showLabels && (
+                  <span
+                    style={{
+                      color: labelColor,
+                      fontSize: `${fontSize}px`,
+                      fontFamily,
+                      fontWeight,
+                      lineHeight: 1.2,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                    title={opt.label || `Option ${idx + 1}`}
+                  >
+                    {opt.label || `Option ${idx + 1}`}
+                  </span>
+                )}
+              </label>
+            );
+          })}
+        </div>
       );
     }
 

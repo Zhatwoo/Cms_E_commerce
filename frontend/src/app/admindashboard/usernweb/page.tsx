@@ -2,10 +2,9 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence } from 'framer-motion';
-import { AdminSidebar } from '../components/sidebar';
-import { AdminHeader } from '../components/header';
 import {
   getDomainsManagement,
   getClients,
@@ -16,6 +15,9 @@ import {
   type WebsiteManagementRow,
   type ClientRow,
 } from '@/lib/api';
+
+const AdminSidebar = dynamic(() => import('../components/sidebar').then((mod) => mod.AdminSidebar), { ssr: false });
+const AdminHeader = dynamic(() => import('../components/header').then((mod) => mod.AdminHeader), { ssr: false });
 
 const SearchIcon = () => (
   <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
