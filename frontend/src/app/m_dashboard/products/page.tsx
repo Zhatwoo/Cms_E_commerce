@@ -290,7 +290,7 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
               {subcategoryLabel}
             </p>
           )}
-          <p className={`${subcategoryLabel ? 'mt-0.5' : 'mt-1'} text-xs`} style={{ color: '#FFCC00' }}>
+          <p className={`${subcategoryLabel ? 'mt-0.5' : 'mt-1'} text-xs`} style={{ color: '#A78BFA' }}>
             {product.sku || '-'}
           </p>
 
@@ -341,7 +341,7 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
                 {formattedOriginalPrice}
               </p>
             )}
-            <p className="text-[15px] font-medium leading-none mt-1" style={{ color: '#FFCC00' }}>{formattedPrice}</p>
+            <p className="text-[15px] font-medium leading-none mt-1" style={{ color: '#A78BFA' }}>{formattedPrice}</p>
           </div>
           <p className={`text-[15px] font-semibold ${overallStock === 0 ? 'text-red-400' : lowStock ? 'text-orange-300' : 'text-white'}`}>
             Stock: {overallStock}
@@ -475,7 +475,7 @@ const ProductDetailsModal = ({ product, onClose, colors, onEditProduct }: {
                   type="button"
                   onClick={() => onEditProduct(product)}
                   className="mt-3 h-10 w-full rounded-lg text-sm font-semibold text-white"
-                  style={{ backgroundColor: '#16a34a' }}
+                  style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)' }}
                 >
                   Edit Product
                 </button>
@@ -490,21 +490,21 @@ const ProductDetailsModal = ({ product, onClose, colors, onEditProduct }: {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>SKU</p>
-                  <p style={{ color: '#FFCC00' }}>{product.sku || '-'}</p>
+                  <p style={{ color: '#A78BFA' }}>{product.sku || '-'}</p>
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Category</p>
-                  <p style={{ color: '#FFCC00' }}>{product.category || '-'}</p>
+                  <p style={{ color: '#A78BFA' }}>{product.category || '-'}</p>
                 </div>
               </div>
               <div>
                 <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Subcategory</p>
-                <p style={{ color: '#FFCC00' }}>{product.subcategory || '-'}</p>
+                <p style={{ color: '#A78BFA' }}>{product.subcategory || '-'}</p>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Price</p>
-                  <p className="font-semibold" style={{ color: '#FFCC00' }}>₱{product.price.toFixed(2)}</p>
+                  <p className="font-semibold" style={{ color: '#A78BFA' }}>₱{product.price.toFixed(2)}</p>
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Stock</p>
@@ -1169,7 +1169,7 @@ export default function ProductsPage() {
                   onClick={() => setShowAddModal(true)}
                   disabled={!canAddProducts}
                   className={`h-[46px] px-4 rounded-xl border flex items-center justify-center text-[13px] font-bold ${canAddProducts ? 'hover:opacity-90' : 'opacity-50 cursor-not-allowed'}`}
-                  style={{ backgroundColor: '#2563eb', borderColor: '#3b82f6', color: '#ffffff' }}
+                  style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)', borderColor: 'transparent', color: '#ffffff' }}
                   title="Add product"
                 >
                   + Add Product

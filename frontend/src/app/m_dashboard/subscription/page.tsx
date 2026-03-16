@@ -234,9 +234,9 @@ export default function SubscriptionPage() {
 
           const ctaStyles: Record<typeof action, React.CSSProperties> = {
             current: { backgroundColor: `${plan.accent}20`, color: plan.accent, border: `1px solid ${plan.accent}55`, cursor: 'default' },
-            upgrade: { background: 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #f5a213 100%)', color: '#fff', border: 'none' },
+            upgrade: { background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)', color: '#fff', border: 'none' },
             downgrade: { backgroundColor: 'transparent', color: colors.text.muted, border: `1px solid ${colors.border.faint}` },
-            contact: { background: 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #f5a213 100%)', color: '#fff', border: 'none' },
+            contact: { background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)', color: '#fff', border: 'none' },
           };
 
           const ctaLabels: Record<typeof action, string> = {
@@ -447,7 +447,7 @@ export default function SubscriptionPage() {
                     onClick={confirmAction}
                     className="flex-1 rounded-xl px-4 py-2.5 text-xs font-bold transition-opacity hover:opacity-85"
                     style={{
-                      background: 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #f5a213 100%)',
+                      background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)',
                       color: '#fff',
                     }}
                   >
