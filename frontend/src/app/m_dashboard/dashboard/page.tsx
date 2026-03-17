@@ -44,8 +44,8 @@ const INDUSTRY_CONFIG = {
 };
 
 const DASHBOARD_TABS = [
-  { id: 'designs' as const, label: 'Your Designs' },
-  { id: 'templates' as const, label: 'Templates' },
+  { id: 'designs' as const, label: 'YOUR DESIGNS' },
+  { id: 'templates' as const, label: 'TEMPLATES' },
 ];
 
 type HeroTab = 'designs' | 'templates';
@@ -308,7 +308,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
             </span>
           </h1>
 
-          <div className="flex items-center gap-8 text-xs font-bold tracking-widest [font-family:var(--font-outfit),sans-serif]">
+          <div className="flex items-center gap-8 text-xs uppercase font-bold tracking-widest [font-family:var(--font-outfit),sans-serif]">
             {DASHBOARD_TABS.map((tab) => (
               <button
                 key={tab.id}
