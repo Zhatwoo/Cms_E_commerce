@@ -40,9 +40,9 @@ export default function RevenueGrowth({ period, onPeriodChange, revenueOverTime,
                     {
                         label: 'Revenue',
                         data,
-                        backgroundColor: '#3B82F6',
-                        borderColor: '#1D4ED8',
-                        borderWidth: 1,
+                        backgroundColor: 'rgba(255, 204, 0, 0.82)',
+                        borderColor: '#471396',
+                        borderWidth: 1.2,
                         borderRadius: 6,
                     },
                 ],
@@ -58,15 +58,22 @@ export default function RevenueGrowth({ period, onPeriodChange, revenueOverTime,
                     legend: {
                         display: true,
                         position: 'top',
+                        labels: {
+                            color: 'rgba(71, 19, 150, 0.78)',
+                            usePointStyle: true,
+                            boxWidth: 16,
+                            boxHeight: 6,
+                        },
                     },
                 },
                 scales: {
                     y: {
                         beginAtZero: true,
                         grid: {
-                            color: 'rgba(226, 232, 240, 0.5)',
+                            color: 'rgba(71, 19, 150, 0.12)',
                         },
                         ticks: {
+                            color: 'rgba(71, 19, 150, 0.64)',
                             callback: function(value) {
                                 return '₱' + value.toLocaleString();
                             }
@@ -75,6 +82,9 @@ export default function RevenueGrowth({ period, onPeriodChange, revenueOverTime,
                     x: {
                         grid: {
                             display: false,
+                        },
+                        ticks: {
+                            color: 'rgba(71, 19, 150, 0.64)',
                         },
                     },
                 },
@@ -98,10 +108,10 @@ export default function RevenueGrowth({ period, onPeriodChange, revenueOverTime,
             <div>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
                     <div>
-                        <h2 className="text-2xl font-semibold text-slate-900">Revenue Growth</h2>
-                        <p className="text-sm text-slate-500 mt-1">Revenue over time (orders)</p>
+                        <h2 className="admin-dashboard-purple text-[2rem] font-semibold leading-tight">Revenue Growth</h2>
+                        <p className="admin-dashboard-soft-text mt-1 text-sm">Revenue over time (orders)</p>
                     </div>
-                    <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
+                    <div className="admin-dashboard-inset-panel flex gap-1 rounded-xl p-1">
                         {[
                             { id: '7days' as const, label: 'Last 7 days' },
                             { id: '30days' as const, label: 'Last 30 days' },
@@ -111,10 +121,10 @@ export default function RevenueGrowth({ period, onPeriodChange, revenueOverTime,
                                 key={p.id}
                                 onClick={() => onPeriodChange(p.id)}
                                 disabled={loading}
-                                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                                className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
                                     period === p.id
-                                        ? 'bg-white text-slate-900 shadow-sm'
-                                        : 'text-slate-600 hover:text-slate-900'
+                                        ? 'admin-dashboard-yellow-fill admin-dashboard-purple shadow-sm'
+                                        : 'admin-dashboard-soft-text hover:admin-dashboard-purple'
                                 } disabled:opacity-50`}
                                 suppressHydrationWarning
                             >
@@ -124,7 +134,7 @@ export default function RevenueGrowth({ period, onPeriodChange, revenueOverTime,
                     </div>
                 </div>
 
-                <div className="bg-white rounded-xl p-8 border border-slate-200">
+                <div className="admin-dashboard-inset-panel rounded-[20px] p-6 sm:p-8">
                     <canvas ref={revenueChartRef} height="80"></canvas>
                 </div>
             </div>
