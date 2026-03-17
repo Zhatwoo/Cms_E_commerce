@@ -124,6 +124,8 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
   },
   Text: {
     text: "Edit me!",
+    width: "fit-content",
+    height: "fit-content",
     fontSize: 16,
     fontFamily: "Inter",
     fontWeight: "400",
