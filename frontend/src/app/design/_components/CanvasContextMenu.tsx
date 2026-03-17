@@ -320,7 +320,28 @@ export function CanvasContextMenu() {
     }).addNodeTree;
 
     if (typeof addNodeTree !== "function") return;
-    addNodeTree(tree, parentIdOpt, atIndexOpt);
+
+    let targetParentId = parentIdOpt;
+    let targetAtIndex = atIndexOpt;
+
+    if (!targetParentId) {
+      const st = query.getState();
+      const root = st.nodes.ROOT;
+      const viewportId = root?.data?.nodes?.[0] as string | undefined;
+      if (viewportId && st.nodes[viewportId]) {
+        const viewportKids = (st.nodes[viewportId]?.data?.nodes as string[]) ?? [];
+        const firstPageId = viewportKids[0];
+        if (firstPageId && st.nodes[firstPageId]) {
+          targetParentId = firstPageId;
+          targetAtIndex = ((st.nodes[firstPageId]?.data?.nodes as string[]) ?? []).length;
+        } else {
+          targetParentId = viewportId;
+          targetAtIndex = 0;
+        }
+      }
+    }
+
+    addNodeTree(tree, targetParentId, targetAtIndex);
     actions.selectNode(nodeId);
   };
 
@@ -330,21 +351,33 @@ export function CanvasContextMenu() {
 
     if (menu.nodeId && state.nodes[menu.nodeId]) {
       const node = state.nodes[menu.nodeId];
-      parentIdOpt = node?.data?.parent as string | undefined;
-      const sibs =
-        parentIdOpt && state.nodes[parentIdOpt]
-          ? ((state.nodes[parentIdOpt]?.data?.nodes as string[]) ?? [])
-          : [];
-      const idx = sibs.indexOf(menu.nodeId);
-      atIndexOpt = idx === -1 ? sibs.length : idx + 1;
+      const nodeIsCanvas = node?.data?.isCanvas === true;
+      if (nodeIsCanvas) {
+        parentIdOpt = menu.nodeId;
+        atIndexOpt = ((state.nodes[menu.nodeId]?.data?.nodes as string[]) ?? []).length;
+      } else {
+        parentIdOpt = node?.data?.parent as string | undefined;
+        const sibs =
+          parentIdOpt && state.nodes[parentIdOpt]
+            ? ((state.nodes[parentIdOpt]?.data?.nodes as string[]) ?? [])
+            : [];
+        const idx = sibs.indexOf(menu.nodeId);
+        atIndexOpt = idx === -1 ? sibs.length : idx + 1;
+      }
     } else if (selectedIds.length > 0) {
       const lastId = selectedIds[selectedIds.length - 1]!;
       const lastNode = state.nodes[lastId];
-      parentIdOpt = lastNode?.data?.parent as string | undefined;
-      if (parentIdOpt && state.nodes[parentIdOpt]) {
-        const sibs = (state.nodes[parentIdOpt]?.data?.nodes as string[]) ?? [];
-        const lastIndex = sibs.indexOf(lastId);
-        atIndexOpt = lastIndex === -1 ? sibs.length : lastIndex + 1;
+      const lastIsCanvas = lastNode?.data?.isCanvas === true;
+      if (lastIsCanvas) {
+        parentIdOpt = lastId;
+        atIndexOpt = ((state.nodes[lastId]?.data?.nodes as string[]) ?? []).length;
+      } else {
+        parentIdOpt = lastNode?.data?.parent as string | undefined;
+        if (parentIdOpt && state.nodes[parentIdOpt]) {
+          const sibs = (state.nodes[parentIdOpt]?.data?.nodes as string[]) ?? [];
+          const lastIndex = sibs.indexOf(lastId);
+          atIndexOpt = lastIndex === -1 ? sibs.length : lastIndex + 1;
+        }
       }
     }
 
