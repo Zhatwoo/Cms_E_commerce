@@ -36,6 +36,7 @@ const CANVAS_CONTAINERS = new Set([
   "Frame",
   "Tabs",
   "TabContent",
+  "Tab Content",
 ]);
 
 /** Get ordered child node IDs from a node (Craft state or serialized shape). */
@@ -45,9 +46,11 @@ function getChildIds(node: Record<string, unknown> | null | undefined): string[]
   const fromNodes = (data?.nodes ?? node.nodes) as unknown;
   const nodeIds = Array.isArray(fromNodes) ? (fromNodes as string[]) : [];
 
-  // Craft.js nested canvases live under linkedNodes (e.g. Tabs -> TabContent).
-  // Include them so the Files tree matches what you see on the canvas.
-  const fromLinked = (data?.linkedNodes ?? (node as any).linkedNodes) as unknown;
+  const displayName = String((data as any)?.displayName ?? "").trim();
+  const shouldIncludeLinked = displayName === "Tabs";
+
+  // Only include linkedNodes for Tabs, otherwise internal canvases can clutter the Files panel.
+  const fromLinked = shouldIncludeLinked ? ((data?.linkedNodes ?? (node as any).linkedNodes) as unknown) : null;
   const linkedIds =
     fromLinked && typeof fromLinked === "object"
       ? Object.values(fromLinked as Record<string, unknown>).filter((v): v is string => typeof v === "string")

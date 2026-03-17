@@ -315,7 +315,9 @@ Tabs.craft = {
   props: TabsDefaultProps,
   rules: {
     canDrag: () => true,
-    canDrop: () => true,
+    // Tabs itself should not be a drop target; drop into TabContent canvases instead.
+    canDrop: () => false,
+    canMoveIn: () => false,
   },
   related: {
     settings: TabsSettings
