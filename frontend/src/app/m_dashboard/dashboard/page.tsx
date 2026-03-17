@@ -44,8 +44,8 @@ const INDUSTRY_CONFIG = {
 };
 
 const DASHBOARD_TABS = [
-  { id: 'designs' as const, label: 'YOUR DESIGNS' },
-  { id: 'templates' as const, label: 'TEMPLATES' },
+  { id: 'designs' as const, label: 'Your Designs' },
+  { id: 'templates' as const, label: 'Templates' },
 ];
 
 type HeroTab = 'designs' | 'templates';
@@ -308,7 +308,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
             </span>
           </h1>
 
-          <div className="flex items-center gap-8 text-xs uppercase font-bold tracking-widest [font-family:var(--font-outfit),sans-serif]">
+          <div className="flex items-center gap-8 text-xs font-bold tracking-widest [font-family:var(--font-outfit),sans-serif]">
             {DASHBOARD_TABS.map((tab) => (
               <button
                 key={tab.id}
@@ -560,7 +560,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                 <div className="mb-4 flex items-center justify-between">
                   <h3 
                     className={`
-                      text-xs sm:text-sm font-bold tracking-[0.18em] uppercase transition-colors duration-300
+                      text-xs sm:text-sm font-bold tracking-[0.18em] transition-colors duration-300
                       ${theme === 'dark' 
                         ? 'text-[#FFCE00]' 
                         : 'text-[#8B5CF6]' 
@@ -634,7 +634,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                     <div className="flex flex-col items-center gap-1">
                       <span 
                         className={`
-                          text-xl font-black uppercase tracking-tighter transition-colors duration-300
+                          text-xl font-black tracking-tighter transition-colors duration-300
                           ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}
                         `}
                       >
@@ -733,7 +733,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                           }`}>
                             {project.title || 'Untitled Project'}
                           </h3>
-                          <p className={`text-[11px] font-bold uppercase tracking-widest mt-1 ${theme === 'dark' ? 'text-[#6F70A8]' : 'text-[#8B5CF6]/70'}`}>
+                          <p className={`text-[11px] font-bold tracking-widest mt-1 ${theme === 'dark' ? 'text-[#6F70A8]' : 'text-[#8B5CF6]/70'}`}>
                             {project.isShared ? `by ${project.ownerName}` : formatEditedDate(project.updatedAt)}
                           </p>
                         </div>
@@ -757,7 +757,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                 <div className="mb-5 flex items-center justify-between">
                   <h3 
                     className={`
-                      text-xs sm:text-sm font-bold tracking-[0.18em] uppercase transition-colors duration-300
+                      text-xs sm:text-sm font-bold tracking-[0.18em] transition-colors duration-300
                       ${theme === 'dark' 
                         ? 'text-[#FFCE00]' 
                         : 'text-[#8B5CF6]' 

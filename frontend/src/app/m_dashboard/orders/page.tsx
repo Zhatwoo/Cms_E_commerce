@@ -29,10 +29,10 @@ type CheckoutTab = 'all' | 'pending' | 'transit' | 'completed';
 type ViewMode = 'list' | 'grid';
 
 const CHECKOUT_TABS: { id: CheckoutTab; label: string }[] = [
-  { id: 'all', label: 'ALL CHECKOUTS' },
-  { id: 'pending', label: 'PENDING' },
-  { id: 'transit', label: 'IN TRANSIT' },
-  { id: 'completed', label: 'COMPLETED' },
+  { id: 'all', label: 'All Checkouts' },
+  { id: 'pending', label: 'Pending' },
+  { id: 'transit', label: 'In Transit' },
+  { id: 'completed', label: 'Completed' },
 ];
 
 const ORDER_CATEGORIES = [
@@ -277,10 +277,6 @@ export default function OrdersPage() {
 
   return (
     <div className="dashboard-landing-light relative mx-auto w-full max-w-[1320px] px-0.5 sm:px-1 [font-family:var(--font-outfit),sans-serif]">
-      <div
-        className="pointer-events-none absolute top-24 right-6 h-56 w-56 opacity-20"
-        style={{ background: `radial-gradient(circle at center, ${colors.accent.purple} 0%, transparent 72%)` }}
-      />
 
       {/* ── Header ── */}
       <section className="relative z-10 mb-6 sm:mb-7 text-center">
@@ -396,17 +392,30 @@ export default function OrdersPage() {
 
         {/* View toggle */}
         <div className="justify-self-center md:justify-self-end flex items-center gap-2">
-          {(['list', 'grid'] as ViewMode[]).map((mode) => (
-            <button key={mode} type="button" onClick={() => setViewMode(mode)}
-              className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg border inline-flex items-center justify-center"
-              style={{ borderColor: colors.border.faint, backgroundColor: viewMode === mode ? colors.accent.purple : colors.bg.card, color: colors.text.primary }}
-              aria-label={`${mode} view`}>
-              {mode === 'list'
-                ? <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" strokeLinecap="round" /></svg>
-                : <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><rect x="4" y="4" width="6" height="6" rx="1" /><rect x="14" y="4" width="6" height="6" rx="1" /><rect x="4" y="14" width="6" height="6" rx="1" /><rect x="14" y="14" width="6" height="6" rx="1" /></svg>
-              }
-            </button>
-          ))}
+          {(['list', 'grid'] as ViewMode[]).map((mode) => {
+            const isActive = viewMode === mode;
+            return (
+              <button 
+                key={mode} 
+                type="button" 
+                onClick={() => setViewMode(mode)}
+                className={`h-9 w-9 sm:h-10 sm:w-10 rounded-xl border inline-flex items-center justify-center transition-all duration-300 ${isActive ? 'shadow-md scale-105' : 'hover:scale-105 opacity-70'}`}
+                style={{ 
+                  borderColor: isActive ? 'transparent' : colors.border.faint, 
+                  backgroundColor: isActive 
+                    ? (theme === 'light' ? '#14034A' : colors.accent.purple) 
+                    : (theme === 'light' ? '#FFFFFF' : colors.bg.card), 
+                  color: isActive ? '#FFFFFF' : (theme === 'light' ? '#14034A' : colors.text.primary) 
+                }}
+                aria-label={`${mode} view`}
+              >
+                {mode === 'list'
+                  ? <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" strokeLinecap="round" /></svg>
+                  : <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><rect x="4" y="4" width="6" height="6" rx="1.5" /><rect x="14" y="4" width="6" height="6" rx="1.5" /><rect x="4" y="14" width="6" height="6" rx="1.5" /><rect x="14" y="14" width="6" height="6" rx="1.5" /></svg>
+                }
+              </button>
+            );
+          })}
         </div>
       </section>
 
