@@ -313,7 +313,7 @@ export interface TriangleProps extends CircleProps { }
 export interface TabItem {
   id: string;
   title: string;
-  content: string;
+  content: string; // node ID for Craft.js
 }
 
 export interface TabsProps

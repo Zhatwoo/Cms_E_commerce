@@ -82,7 +82,7 @@ export const TabsSettings = () => {
   const handleAddTab = () => {
     typedSetProp(props => {
       const newTabId = `tab-${generateId()}`;
-      props.tabs = [...props.tabs, { id: newTabId, title: "New Tab", content: "New Tab Content" }];
+      props.tabs = [...props.tabs, { id: newTabId, title: "New Tab", content: `tab-content-${newTabId}` }];
       props.activeTabId = newTabId;
     });
   };
@@ -107,7 +107,7 @@ export const TabsSettings = () => {
     });
   };
 
-  const handleContentChange = (id: string, newContent: string) => {
+  const handleContentChange = (id: string, newContent: React.ReactNode | string) => {
     typedSetProp(props => {
       const idx = props.tabs.findIndex(t => t.id === id);
       if (idx !== -1) {
