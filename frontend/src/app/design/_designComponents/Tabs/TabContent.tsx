@@ -58,7 +58,7 @@ export const TabContent = ({
       }}
       data-node-id={id}
       data-tab-content-canvas="true"
-      className="w-full min-h-[100px]"
+      className="w-full min-h-[100px] relative"
       style={style}
     >
       {children}
@@ -80,6 +80,8 @@ TabContent.craft = {
     position: "relative",
     width: "100%",
     height: "auto",
+    // Tab panels should behave like a normal flow layout (not freeform canvas).
+    isFreeform: false,
   },
   rules: {
     canDrag: () => false,

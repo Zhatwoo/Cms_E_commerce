@@ -18,6 +18,7 @@ const CANVAS_DISPLAY_NAMES = new Set([
   "Frame",
   "Button",
   "Tab Content",
+  "TabContent",
 ]);
 const EDITOR_DRAGGING_FLAG = "editorDragging";
 const EDITOR_DROP_COMMIT_FLAG = "editorDropCommit";
@@ -25,7 +26,7 @@ const MULTI_DRAG_LOCK_FLAG = "multiDragLock";
 const BOX_SELECTING_FLAG = "boxSelecting";
 const BOX_SELECTING_INTENT_FLAG = "boxSelectingIntent";
 
-const FLOW_LAYOUT_PARENTS = new Set(["Container", "Section", "Row", "Column", "Frame", "Tab Content"]);
+const FLOW_LAYOUT_PARENTS = new Set(["Container", "Section", "Row", "Column", "Frame", "Tab Content", "TabContent"]);
 const FREEFORM_PARENT_DISPLAY_NAMES = new Set(["Page", "Viewport"]);
 const OFFSET_MOVE_TYPES = new Set(["Image", "Text", "Icon", "Button", "Circle", "Square", "Triangle"]);
 
