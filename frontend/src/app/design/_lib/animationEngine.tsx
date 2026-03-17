@@ -215,7 +215,9 @@ function useGsapScrollEffect(
     if (!config.enabled || config.type === "none" || !ref.current) return;
 
     const el = ref.current;
-    const tweenProps = getScrollEffectTweenProps(config);
+    if (!el) return;
+
+    const { from, to } = getScrollEffectRange(config);
 
     const tl = gsap.timeline({
       scrollTrigger: {
@@ -227,8 +229,8 @@ function useGsapScrollEffect(
       },
     });
 
-    tl.to(el, {
-      ...tweenProps,
+    tl.fromTo(el, from, {
+      ...to,
       ease: "none",
     });
 
@@ -247,42 +249,112 @@ function useGsapScrollEffect(
     config.scrub,
     config.start,
     config.end,
+    config.fromX,
+    config.fromY,
+    config.toX,
+    config.toY,
   ]);
 }
 
 export function getScrollEffectTweenProps(
   config: AnimationConfig["scrollEffect"]
 ): Record<string, unknown> {
+  return getScrollEffectRange(config).to;
+}
+
+export function getScrollEffectRange(config: AnimationConfig["scrollEffect"]): {
+  from: Record<string, unknown>;
+  to: Record<string, unknown>;
+} {
   const speed = config.speed;
   const isVertical = config.direction === "vertical";
-  const tweenProps: Record<string, unknown> = {};
+  const from: Record<string, unknown> = {};
+  const to: Record<string, unknown> = {};
 
   switch (config.type as ScrollEffectType) {
-    case "parallax":
+    case "parallax": {
+      const p = speed * 150;
       if (isVertical) {
-        tweenProps.y = `${speed * 100}`;
+        from.y = -p;
+        to.y = p;
       } else {
-        tweenProps.x = `${speed * 100}`;
+        from.x = -p;
+        to.x = p;
       }
       break;
+    }
     case "fade":
-      tweenProps.opacity = speed > 0 ? 0 : 1;
+      from.opacity = speed >= 0 ? 0 : 1;
+      to.opacity = speed >= 0 ? 1 : 0;
       break;
-    case "scale":
-      tweenProps.scale = 1 + speed * 0.5;
+    case "scale": {
+      const s = Math.abs(speed) * 0.5;
+      from.scale = speed >= 0 ? 1 : 1 + s;
+      to.scale = speed >= 0 ? 1 + s : 1;
       break;
-    case "rotate":
-      tweenProps.rotation = speed * 180;
+    }
+    case "rotate": {
+      const r = speed * 180;
+      from.rotation = -r;
+      to.rotation = r;
       break;
-    case "blur":
-      tweenProps.filter = `blur(${Math.abs(speed) * 10}px)`;
+    }
+    case "blur": {
+      const b = Math.abs(speed) * 20;
+      from.filter = `blur(${b}px)`;
+      to.filter = "blur(0px)";
       break;
-    case "horizontalMove":
-      tweenProps.x = `${speed * 200}`;
+    }
+    case "horizontalMove": {
+      const h = speed * 300;
+      from.x = -h;
+      to.x = h;
       break;
+    }
+    case "skew": {
+      const sk = speed * 25;
+      if (isVertical) {
+        from.skewY = -sk;
+        to.skewY = sk;
+      } else {
+        from.skewX = -sk;
+        to.skewX = sk;
+      }
+      break;
+    }
+    case "reveal":
+      from.clipPath = speed >= 0 ? "inset(0% 100% 0% 0%)" : "inset(100% 0% 0% 0%)";
+      to.clipPath = "inset(0% 0% 0% 0%)";
+      break;
+    case "zoom": {
+      const zScale = Math.abs(speed) * 1.5;
+      const zDepth = speed * 200;
+      from.scale = 1;
+      from.z = -zDepth;
+      to.scale = 1 + zScale;
+      to.z = zDepth;
+      break;
+    }
+    case "tilt3d": {
+      const t = speed * 35;
+      from.rotationX = -t;
+      from.rotationY = isVertical ? 0 : -t;
+      from.transformPerspective = 1200;
+      to.rotationX = t;
+      to.rotationY = isVertical ? 0 : t;
+      to.transformPerspective = 1200;
+      break;
+    }
+    case "customMove": {
+      from.x = (config.fromX ?? 0) * speed;
+      from.y = (config.fromY ?? 0) * speed;
+      to.x = (config.toX ?? 0) * speed;
+      to.y = (config.toY ?? 0) * speed;
+      break;
+    }
   }
 
-  return tweenProps;
+  return { from, to };
 }
 
 // ─── AnimationWrapper Component ──────────────────────────────────────────────
@@ -372,10 +444,10 @@ export function AnimationWrapper({
 
   const inTransition = hasIn
     ? {
-        duration: config.animateIn.duration,
-        delay: config.animateIn.delay,
-        ease: mapEasing(config.animateIn.easing),
-      }
+      duration: config.animateIn.duration,
+      delay: config.animateIn.delay,
+      ease: mapEasing(config.animateIn.easing),
+    }
     : {};
 
   const combinedInitial = hasIn ? inVariants.hidden : {};

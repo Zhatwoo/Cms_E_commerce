@@ -125,7 +125,7 @@ export function FreeDropPlacementHandler() {
       const newIdSet = new Set(newIds);
       const rootNewIds = newIds.filter((id) => {
         const parentId = nodes[id]?.data?.parent;
-        if (!parentId || parentId === "ROOT") return false;
+        if (!parentId) return false;
         return !newIdSet.has(parentId);
       });
 
@@ -133,7 +133,7 @@ export function FreeDropPlacementHandler() {
         ? rootNewIds
         : selectedToIds(state?.events?.selected).filter((id) => {
             const parentId = nodes[id]?.data?.parent;
-            if (!parentId || parentId === "ROOT") return false;
+            if (!parentId) return false;
             return !newIdSet.has(parentId);
           });
 
@@ -152,7 +152,7 @@ export function FreeDropPlacementHandler() {
 
       idsToPlace.forEach((nodeId) => {
         const parentId = nodes[nodeId]?.data?.parent;
-        if (!parentId || parentId === "ROOT") return;
+        if (!parentId) return;
 
         const displayName = nodes[nodeId]?.data?.displayName ?? "";
         const isLayoutLike = LAYOUT_LIKE_TYPES.has(displayName);
@@ -161,14 +161,13 @@ export function FreeDropPlacementHandler() {
         const shouldImageFillParent =
           displayName === "Image" && (parentDisplayName === "Section" || parentDisplayName === "Tab Content");
         const parentProps = (parentNode?.data?.props ?? {}) as Record<string, unknown>;
-        const parentDisplay = String(parentProps.display ?? "").toLowerCase();
-        const parentFreeformPref = parentProps.isFreeform;
-        const parentIsFreeform = parentFreeformPref === true;
-        const parentIsFlexParent =
+        const parentDisplay = String(parentProps.display ?? "flex").toLowerCase();
+        const parentIsFreeform = parentProps.isFreeform === true;
+        const isFlexParent =
           parentDisplay === "flex" ||
           parentDisplay === "grid" ||
-          FLOW_PARENT_DISPLAY_NAMES.has(parentDisplayName);
-        const allowFreeformLayout = parentFreeformPref !== false;
+          parentDisplayName === "Tab Content" ||
+          LAYOUT_LIKE_TYPES.has(parentDisplayName);
 
         let left = 0;
         let top = 0;

@@ -53,14 +53,14 @@ export const DesignTooltip: React.FC<DesignTooltipProps> = ({
                         transition={{ duration: 0.15, ease: "easeOut" }}
                         className={`absolute z-[9999] pointer-events-none ${positions[position]}`}
                     >
-                        <div className="px-2 py-1 bg-brand-black/90 backdrop-blur-md border border-white/10 rounded-md shadow-xl whitespace-nowrap">
+                        <div className="px-2 py-1 bg-brand-black/90 backdrop-blur-md border border-transparent rounded-md shadow-xl whitespace-nowrap">
                             <span className="text-[10px] font-medium text-brand-light tracking-wide">
                                 {content}
                             </span>
                         </div>
                         {/* Arrow */}
                         <div
-                            className={`absolute w-1.5 h-1.5 bg-brand-black/90 border-white/10 rotate-45 pointer-events-none
+                            className={`absolute w-1.5 h-1.5 bg-brand-black/90 border-transparent rotate-45 pointer-events-none
                 ${position === "top" ? "bottom-[-4px] left-1/2 -translate-x-1/2 border-r border-b" : ""}
                 ${position === "bottom" ? "top-[-4px] left-1/2 -translate-x-1/2 border-l border-t" : ""}
                 ${position === "left" ? "right-[-4px] top-1/2 -translate-y-1/2 border-r border-t" : ""}

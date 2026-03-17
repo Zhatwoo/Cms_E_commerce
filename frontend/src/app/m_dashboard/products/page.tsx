@@ -139,6 +139,22 @@ function getSelectedVariantImage(product: Product, selectedOptions: Record<strin
   return null;
 }
 
+function getVariantOptionImages(product: Product): string[] {
+  const seen = new Set<string>();
+  const images: string[] = [];
+
+  for (const variant of getVariantGroups(product)) {
+    for (const option of variant.options) {
+      const image = String(option?.image || '').trim();
+      if (!isImageSource(image) || seen.has(image)) continue;
+      seen.add(image);
+      images.push(image);
+    }
+  }
+
+  return images;
+}
+
 function colorFromName(value: string): string {
   const trimmed = value.trim();
   if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(trimmed)) return trimmed;
@@ -160,6 +176,7 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
   onToggleMenu: () => void;
   onCloseMenu: () => void;
 }) => {
+  const { theme } = useTheme();
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => getInitialVariantSelection(product));
   const selectedVariantImage = getSelectedVariantImage(product, selectedOptions);
   const imageValue = String(selectedVariantImage || product.image || '').trim();
@@ -208,8 +225,8 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
     normalizedStatus === 'inactive'
       ? { color: '#fca5a5', backgroundColor: 'rgba(153,27,27,0.72)', borderColor: 'rgba(248,113,113,0.75)' }
       : normalizedStatus === 'active'
-      ? { color: '#86efac', backgroundColor: 'rgba(20,83,45,0.72)', borderColor: 'rgba(74,222,128,0.75)' }
-      : { color: '#c4b5fd', backgroundColor: 'rgba(76,29,149,0.62)', borderColor: 'rgba(167,139,250,0.7)' };
+        ? { color: '#86efac', backgroundColor: 'rgba(20,83,45,0.72)', borderColor: 'rgba(74,222,128,0.75)' }
+        : { color: '#c4b5fd', backgroundColor: 'rgba(76,29,149,0.62)', borderColor: 'rgba(167,139,250,0.7)' };
 
   useEffect(() => {
     setSelectedOptions(getInitialVariantSelection(product));
@@ -222,14 +239,14 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
       exit={{ opacity: 0 }}
       transition={{ duration: 0.12, ease: 'easeOut' }}
       onClick={() => onView(product)}
-      className="group border overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col h-full cursor-pointer"
+      className={`group border overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col h-full cursor-pointer ${theme === 'light' ? 'admin-dashboard-panel-soft border-0' : ''}`}
       style={{
-        backgroundColor: '#141446',
-        borderColor: '#2D3A90',
+        backgroundColor: theme === 'dark' ? '#141446' : undefined,
+        borderColor: theme === 'dark' ? '#2D3A90' : undefined,
         borderRadius: '20px',
       }}
     >
-      <div className="relative w-full h-44 md:h-48 overflow-hidden flex items-center justify-center border-b" style={{ borderColor: '#2D3A90', backgroundColor: '#1A1F66' }}>
+      <div className="relative w-full h-44 md:h-48 overflow-hidden flex items-center justify-center border-b" style={{ borderColor: theme === 'dark' ? '#2D3A90' : 'rgba(147,96,255,0.12)', backgroundColor: theme === 'dark' ? '#1A1F66' : 'rgba(255,255,255,0.3)' }}>
         <span
           className="absolute left-2.5 top-2.5 z-10 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em]"
           style={statusStyle}
@@ -243,14 +260,14 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
             event.stopPropagation();
             onToggleMenu();
           }}
-          className="absolute right-2.5 top-2.5 z-20 h-7 w-7 rounded-full bg-black text-white flex items-center justify-center"
-          style={{ backgroundColor: '#0E123D', color: '#ffffff' }}
+          className="absolute right-2.5 top-2.5 z-20 flex h-9 w-9 items-center justify-center rounded-full border shadow-md transition-transform hover:scale-[1.04]"
+          style={{ backgroundColor: 'rgba(255,255,255,0.96)', borderColor: 'rgba(174,160,255,0.95)', color: '#3B1E8C' }}
           title="Product actions"
         >
-          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <circle cx="6" cy="12" r="2" />
-            <circle cx="12" cy="12" r="2" />
-            <circle cx="18" cy="12" r="2" />
+          <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <circle cx="6" cy="12" r="2.2" />
+            <circle cx="12" cy="12" r="2.2" />
+            <circle cx="18" cy="12" r="2.2" />
           </svg>
         </button>
         {menuOpen && (
@@ -280,22 +297,21 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
         )}
       </div>
 
-      <div className="p-3.5 md:p-4 flex-1 flex flex-col" style={{ backgroundColor: '#141446' }}>
-        <h3 className="font-semibold text-[18px] leading-tight line-clamp-2" style={{ color: '#F2ECFF' }}>
+      <div className="p-3.5 md:p-4 flex-1 flex flex-col" style={{ backgroundColor: theme === 'dark' ? '#141446' : 'transparent' }}>
+        <h3 className="font-semibold text-[18px] leading-tight line-clamp-2" style={{ color: colors.text.primary }}>
           {product.name}
         </h3>
         <div className="mt-auto">
           {subcategoryLabel && (
-            <p className="mt-1 text-[10px] uppercase tracking-[0.08em]" style={{ color: '#8A8FC4' }}>
+            <p className="mt-1 text-[10px] uppercase tracking-[0.08em]" style={{ color: colors.text.muted }}>
               {subcategoryLabel}
             </p>
           )}
-          <p className={`${subcategoryLabel ? 'mt-0.5' : 'mt-1'} text-xs`} style={{ color: '#A78BFA' }}>
+          <p className={`${subcategoryLabel ? 'mt-0.5' : 'mt-1'} text-xs`} style={{ color: colors.accent.purple }}>
             {product.sku || '-'}
           </p>
-
           {variantGroups.length > 1 && hasColorVariant && (
-            <p className="mt-2 text-[11px] mb-2.5" style={{ color: '#D2D6F7' }}>
+            <p className="mt-2 text-[11px] mb-2.5" style={{ color: colors.text.secondary }}>
               Color Variants: {colorVariantCount}
             </p>
           )}
@@ -305,16 +321,16 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
               {visibleVariantOptions.map((option) => (
                 <span
                   key={`${product.id}-${singleVariantId}-${option.id}`}
-                  className="px-1.5 py-0.5 text-[9px] border text-white rounded-sm"
-                  style={{ borderColor: '#6C72B2', backgroundColor: 'transparent' }}
+                  className="px-1.5 py-0.5 text-[9px] border rounded-sm"
+                  style={{ borderColor: colors.border.default, backgroundColor: 'transparent', color: colors.text.secondary }}
                 >
                   {option.name}
                 </span>
               ))}
               {hiddenVariantCount > 0 && (
                 <span
-                  className="px-1.5 py-0.5 text-[9px] border text-white rounded-sm"
-                  style={{ borderColor: '#6C72B2', backgroundColor: 'transparent' }}
+                  className="px-1.5 py-0.5 text-[9px] border rounded-sm"
+                  style={{ borderColor: colors.border.default, backgroundColor: 'transparent', color: colors.text.secondary }}
                 >
                   +{hiddenVariantCount}
                 </span>
@@ -325,8 +341,8 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
           {variantGroups.length === 0 && (
             <div className="mt-2.5 mb-3 flex flex-wrap gap-1">
               <span
-                className="px-1.5 py-0.5 text-[9px] border text-white rounded-sm"
-                style={{ borderColor: '#6C72B2', backgroundColor: 'transparent' }}
+                className="px-1.5 py-0.5 text-[9px] border rounded-sm"
+                style={{ borderColor: colors.border.default, backgroundColor: 'transparent', color: colors.text.secondary }}
               >
                 NO VARIANT
               </span>
@@ -334,16 +350,25 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
           )}
         </div>
 
-        <div className="mt-3 pt-3 flex items-end justify-between border-t" style={{ borderColor: '#2D3A90' }}>
+        <div className="mt-3 pt-3 flex items-end justify-between border-t" style={{ borderColor: colors.border.faint }}>
           <div className="flex flex-col">
             {formattedOriginalPrice && (
               <p className="text-[11px] leading-none line-through" style={{ color: '#8f94b8' }}>
                 {formattedOriginalPrice}
               </p>
             )}
-            <p className="text-[15px] font-medium leading-none mt-1" style={{ color: '#A78BFA' }}>{formattedPrice}</p>
+            <p className="text-[15px] font-medium leading-none mt-1" style={{ color: colors.accent.purple }}>{formattedPrice}</p>
           </div>
-          <p className={`text-[15px] font-semibold ${overallStock === 0 ? 'text-red-400' : lowStock ? 'text-orange-300' : 'text-white'}`}>
+          <p
+            className="text-[15px] font-semibold"
+            style={{
+              color: overallStock === 0
+                ? colors.status.error
+                : lowStock
+                  ? colors.status.warning
+                  : colors.text.primary
+            }}
+          >
             Stock: {overallStock}
           </p>
         </div>
@@ -359,6 +384,7 @@ const ProductDetailsModal = ({ product, onClose, colors, onEditProduct }: {
   onEditProduct: (product: Product) => void;
 }) => {
   const [currentImage, setCurrentImage] = useState(0);
+  const thumbnailStripRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!product) return;
@@ -371,12 +397,32 @@ const ProductDetailsModal = ({ product, onClose, colors, onEditProduct }: {
 
   if (!product) return null;
 
-  const gallery = (Array.isArray(product.images) && product.images.length > 0
+  const baseGallery = (Array.isArray(product.images) && product.images.length > 0
     ? product.images
     : [product.image]
   ).filter((img) => isImageSource(String(img || '')));
+  const variantGallery = getVariantOptionImages(product);
+  const gallery = Array.from(new Set([...baseGallery, ...variantGallery]));
 
   const hasGallery = gallery.length > 0;
+
+  useEffect(() => {
+    setCurrentImage(0);
+  }, [product.id]);
+
+  useEffect(() => {
+    if (currentImage < gallery.length) return;
+    setCurrentImage(0);
+  }, [currentImage, gallery.length]);
+
+  const handleThumbnailWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+    const element = thumbnailStripRef.current;
+    if (!element) return;
+    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+
+    event.preventDefault();
+    element.scrollLeft += event.deltaY;
+  };
 
   if (typeof document === 'undefined') return null;
 
@@ -451,23 +497,29 @@ const ProductDetailsModal = ({ product, onClose, colors, onEditProduct }: {
                 )}
               </div>
 
-              <div className="mt-3 w-fit mx-auto">
+              <div className="mt-3 mx-auto w-full" style={{ maxWidth: 312 }}>
                 {hasGallery && gallery.length > 1 && (
-                  <div className="flex justify-center gap-2">
-                    {gallery.map((img, idx) => (
-                      <button
-                        type="button"
-                        key={`${product.id}-thumb-${idx}`}
-                        onClick={() => setCurrentImage(idx)}
-                        className="w-14 h-14 rounded-lg overflow-hidden border flex-shrink-0"
-                        style={{
-                          borderColor: idx === currentImage ? '#3b82f6' : colors.border.faint,
-                          backgroundColor: colors.bg.elevated,
-                        }}
-                      >
-                        <img src={img} alt={`${product.name} ${idx + 1}`} className="w-full h-full object-cover" />
-                      </button>
-                    ))}
+                  <div
+                    ref={thumbnailStripRef}
+                    onWheel={handleThumbnailWheel}
+                    className="overflow-x-scroll pb-1"
+                  >
+                    <div className="flex gap-2 min-w-max">
+                      {gallery.map((img, idx) => (
+                        <button
+                          type="button"
+                          key={`${product.id}-thumb-${idx}`}
+                          onClick={() => setCurrentImage(idx)}
+                          className="w-14 h-14 rounded-lg overflow-hidden border shrink-0"
+                          style={{
+                            borderColor: idx === currentImage ? '#3b82f6' : colors.border.faint,
+                            backgroundColor: colors.bg.elevated,
+                          }}
+                        >
+                          <img src={img} alt={`${product.name} ${idx + 1}`} className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
 
@@ -1068,17 +1120,17 @@ export default function ProductsPage() {
           <p className="mt-2 text-sm" style={{ color: colors.text.secondary }}>Track stock performance and catalog details.</p>
         </div>
 
-        <div className="mt-6 mb-7 max-w-[860px] mx-auto rounded-2xl border px-5 py-3.5 flex items-center gap-3 bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]">
-          <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0" fill="none" style={{ color: colors.accent.yellow }}>
+        <div className={`m-dashboard-search-shadow mt-6 mb-7 max-w-[860px] mx-auto rounded-2xl border px-5 py-3.5 flex items-center gap-3 transition-all duration-300 ${theme === 'light' ? 'admin-dashboard-panel-soft border-0' : 'bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]'}`}>
+          <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0 transition-colors duration-300" fill="none" style={{ color: theme === 'dark' ? colors.accent.yellow : colors.accent.purple }}>
             <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
             <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="1.8" />
           </svg>
           <input
             type="text"
-            placeholder="Search templates, designs, or actions"
+            placeholder="Search products by name or SKU"
             value={searchTerm}
             onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-            className="w-full bg-transparent outline-none text-sm text-white placeholder:text-[#6F70A8]"
+            className={`w-full bg-transparent outline-none text-sm transition-colors duration-300 ${theme === 'dark' ? 'text-white placeholder:text-[#6F70A8]' : 'text-[#120533] placeholder:text-[#120533]/30'}`}
           />
         </div>
 
@@ -1095,21 +1147,58 @@ export default function ProductsPage() {
             return (
               <motion.div
                 key={card.id}
-                initial={{ opacity: 0, y: 16 }}
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.06 }}
-                className="rounded-2xl border"
-                style={{ backgroundColor: '#141446', borderColor: '#2D3A90', minHeight: 72, padding: '10px 14px 12px' }}
+                transition={{ delay: idx * 0.1, ease: [0.23, 1, 0.32, 1] }}
+                className="relative overflow-hidden rounded-[24px] border transition-all duration-500 hover:shadow-xl"
+                style={{
+                  backgroundColor: colors.bg.card,
+                  borderColor: `${accentColor}25`,
+                  minHeight: 100,
+                  padding: '20px 24px',
+                  boxShadow: '0 4px 20px -12px rgba(0,0,0,0.3)'
+                }}
               >
-                <div className="flex items-center gap-[7px] mb-1">
-                  <Icon className="w-3 h-3" style={{ color: accentColor }} />
-                  <span className="text-[10px] uppercase tracking-[0.08em]" style={{ color: '#7e72a9', letterSpacing: '0.8px' }}>
-                    {card.label}
-                  </span>
+                <div
+                  className="absolute -right-4 -top-4 w-20 h-20 opacity-[0.05] blur-2xl rounded-full"
+                  style={{ backgroundColor: accentColor }}
+                />
+
+                <div className="flex items-center gap-5">
+                  <div
+                    className="flex items-center justify-center shrink-0 w-12 h-12 rounded-2xl"
+                    style={{
+                      backgroundColor: `${accentColor}10`,
+                      border: `1px solid ${accentColor}20`
+                    }}
+                  >
+                    <Icon className="w-6 h-6" style={{ color: accentColor }} />
+                  </div>
+
+                  <div className="flex flex-col">
+                    <span
+                      className="text-[11px] font-black uppercase tracking-[0.2em] mb-1 opacity-60"
+                      style={{
+                        color: colors.text.muted,
+                        fontFamily: 'var(--font-outfit), sans-serif'
+                      }}
+                    >
+                      {card.label}
+                    </span>
+                    <div className="flex items-baseline">
+                      <span
+                        className="text-3xl font-black leading-none"
+                        style={{
+                          color: colors.text.primary,
+                          letterSpacing: '-1.5px',
+                          fontFamily: 'var(--font-outfit), sans-serif'
+                        }}
+                      >
+                        {String(value)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <span className="text-2xl font-bold" style={{ color: '#f2ecff', letterSpacing: '-0.8px', lineHeight: 1.2 }}>
-                  {String(value)}
-                </span>
               </motion.div>
             );
           })}
@@ -1129,17 +1218,17 @@ export default function ProductsPage() {
                   <button
                     type="button"
                     onClick={() => setShowCategoryFilterMenu((prev) => !prev)}
-                    className="h-[46px] px-4 rounded-xl border text-[13px] font-semibold min-w-[156px] pr-9 text-left relative"
-                    style={{ backgroundColor: '#141446', borderColor: '#2D3A90', color: '#ddd1ff' }}
+                    className={`h-[46px] px-4 rounded-xl border text-[13px] font-semibold min-w-[156px] pr-9 text-left relative transition-all duration-300 ${theme === 'light' ? 'admin-dashboard-panel-soft border-0' : ''}`}
+                    style={{ backgroundColor: theme === 'dark' ? '#141446' : undefined, borderColor: theme === 'dark' ? '#2D3A90' : undefined, color: colors.text.primary }}
                     title="Filter by subcategory"
                   >
                     <span className="truncate block">{selectedCategoryLabel}</span>
-                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px]" style={{ color: '#b6abd6' }}>▼</span>
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px]" style={{ color: colors.text.muted }}>▼</span>
                   </button>
                   {showCategoryFilterMenu && (
                     <div
-                      className="absolute left-0 top-full mt-2 w-56 rounded-xl border p-2 z-30"
-                      style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
+                      className={`absolute left-0 top-full mt-2 w-56 rounded-xl border p-2 z-30 transition-all duration-300 ${theme === 'light' ? 'admin-dashboard-panel border-0' : ''}`}
+                      style={{ backgroundColor: theme === 'dark' ? '#141446' : undefined, borderColor: theme === 'dark' ? '#2D3A90' : undefined }}
                     >
                       {filterOptions.map((option) => {
                         const checked = selectedCategory === option.value;
@@ -1152,8 +1241,8 @@ export default function ProductsPage() {
                               setCurrentPage(1);
                               setShowCategoryFilterMenu(false);
                             }}
-                            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm hover:bg-white/5"
-                            style={{ color: '#D2D6F7' }}
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors duration-300 ${theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}
+                            style={{ color: colors.text.primary }}
                           >
                             <span>{option.label}</span>
                             <span>{checked ? '✓' : ''}</span>
@@ -1181,16 +1270,16 @@ export default function ProductsPage() {
                   <button
                     type="button"
                     onClick={() => setShowStatusFilterMenu((prev) => !prev)}
-                    className="h-10 w-10 rounded-xl border flex items-center justify-center hover:opacity-90"
-                    style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
+                    className={`h-10 w-10 rounded-xl border flex items-center justify-center hover:opacity-90 transition-all duration-300 ${theme === 'light' ? 'admin-dashboard-panel-soft border-0' : ''}`}
+                    style={{ backgroundColor: theme === 'dark' ? '#141446' : undefined, borderColor: theme === 'dark' ? '#2D3A90' : undefined }}
                     title="Filter products"
                   >
-                    <img src="/icons/products/Sort%20Amount%20Up.png" alt="Filter" className="h-5 w-5" />
+                    <img src="/icons/products/Sort%20Amount%20Up.png" alt="Filter" className={`h-5 w-5 ${theme === 'light' ? 'brightness-0' : ''}`} />
                   </button>
                   {showStatusFilterMenu && (
                     <div
-                      className="absolute right-0 top-full mt-2 w-56 rounded-xl border p-2 z-30"
-                      style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
+                      className={`absolute right-0 top-full mt-2 w-56 rounded-xl border p-2 z-30 transition-all duration-300 ${theme === 'light' ? 'admin-dashboard-panel border-0' : ''}`}
+                      style={{ backgroundColor: theme === 'dark' ? '#141446' : undefined, borderColor: theme === 'dark' ? '#2D3A90' : undefined }}
                     >
                       {[
                         { value: 'all', label: 'All' },
@@ -1207,8 +1296,8 @@ export default function ProductsPage() {
                               setCurrentPage(1);
                               setShowStatusFilterMenu(false);
                             }}
-                            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm hover:bg-white/5"
-                            style={{ color: '#D2D6F7' }}
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors duration-300 ${theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}
+                            style={{ color: colors.text.primary }}
                           >
                             <span>{item.label}</span>
                             <span>{checked ? '✓' : ''}</span>
@@ -1222,14 +1311,14 @@ export default function ProductsPage() {
                 <button
                   type="button"
                   onClick={() => setViewMode((prev) => (prev === 'tile' ? 'list' : 'tile'))}
-                  className="h-10 w-10 rounded-xl border flex items-center justify-center hover:opacity-90"
-                  style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
+                  className={`h-10 w-10 rounded-xl border flex items-center justify-center hover:opacity-90 transition-all duration-300 ${theme === 'light' ? 'admin-dashboard-panel-soft border-0' : ''}`}
+                  style={{ backgroundColor: theme === 'dark' ? '#141446' : undefined, borderColor: theme === 'dark' ? '#2D3A90' : undefined }}
                   title={viewMode === 'tile' ? 'Switch to list view' : 'Switch to tile view'}
                 >
                   {viewMode === 'tile' ? (
-                    <img src="/icons/products/Bulleted%20List.png" alt="List view" className="h-5 w-5" />
+                    <img src="/icons/products/Bulleted%20List.png" alt="List view" className={`h-5 w-5 ${theme === 'light' ? 'brightness-0' : ''}`} />
                   ) : (
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <svg className={`h-5 w-5 ${theme === 'light' ? 'text-black' : 'text-white'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <rect x="4" y="4" width="6" height="6" rx="1" />
                       <rect x="14" y="4" width="6" height="6" rx="1" />
                       <rect x="4" y="14" width="6" height="6" rx="1" />
@@ -1251,15 +1340,18 @@ export default function ProductsPage() {
                   key={`page-dot-${page}`}
                   type="button"
                   onClick={() => setCurrentPage(page)}
-                  className={`h-8 w-8 rounded-full text-sm ${active ? 'bg-white/20 text-white' : 'bg-[#1A2165] text-[#BBC1E9]'}`}
+                  className={`h-8 w-8 rounded-full text-sm font-bold flex items-center justify-center transition-all duration-300 ${active ? (theme === 'dark' ? 'bg-white/20 text-white' : 'bg-purple-600 text-white shadow-lg scale-110') : (theme === 'dark' ? 'bg-[#1A2165] text-[#BBC1E9] hover:bg-white/10' : 'admin-dashboard-panel-soft border-0 text-purple-900 hover:bg-purple-50')}`}
                 >
                   {page}
                 </button>
               );
             })}
-            {totalPages > 5 && <span className="px-1">...</span>}
+            {totalPages > 5 && <span className="px-1" style={{ color: colors.text.muted }}>...</span>}
             {totalPages > 5 && (
-              <button type="button" onClick={() => setCurrentPage(totalPages)} className={`h-8 w-8 rounded-full text-sm ${currentPage === totalPages ? 'bg-white/20 text-white' : 'bg-[#1A2165] text-[#BBC1E9]'}`}>{totalPages}</button>
+              <button type="button" onClick={() => setCurrentPage(totalPages)}
+                className={`h-8 w-8 rounded-full text-sm font-bold flex items-center justify-center transition-all duration-300 ${currentPage === totalPages ? (theme === 'dark' ? 'bg-white/20 text-white' : 'bg-purple-600 text-white shadow-lg scale-110') : (theme === 'dark' ? 'bg-[#1A2165] text-[#BBC1E9] hover:bg-white/10' : 'admin-dashboard-panel-soft border-0 text-purple-900 hover:bg-purple-50')}`}>
+                {totalPages}
+              </button>
             )}
             <button type="button" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="h-8 w-8 rounded-full text-sm disabled:opacity-40">›</button>
           </div>
@@ -1286,7 +1378,11 @@ export default function ProductsPage() {
                   </AnimatePresence>
                 </div>
               ) : (
-                <div className="max-w-[1090px] mx-auto overflow-hidden rounded-3xl border" style={{ borderColor: '#2D3A90', backgroundColor: '#141446' }}>
+                <div className={`max-w-[1090px] mx-auto overflow-hidden rounded-3xl border transition-all duration-300 ${theme === 'light' ? 'admin-dashboard-panel border-0' : ''}`}
+                  style={{
+                    borderColor: theme === 'dark' ? '#2D3A90' : undefined,
+                    backgroundColor: theme === 'dark' ? '#141446' : undefined
+                  }}>
                   <div style={{ overflowX: 'auto' }}>
                     <div
                       style={{
@@ -1295,10 +1391,11 @@ export default function ProductsPage() {
                         gap: 16,
                         padding: '13px 24px',
                         minWidth: 860,
-                        borderBottom: '1px solid #2D3A90',
-                        background: '#141446',
-                        color: '#8273a8',
-                        fontSize: 11,
+                        borderBottom: theme === 'dark' ? '1px solid #2D3A90' : '1px solid rgba(147,96,255,0.12)',
+                        backgroundColor: theme === 'dark' ? '#141446' : 'transparent',
+                        color: theme === 'dark' ? '#8273a8' : colors.text.muted,
+                        fontSize: 10,
+                        fontWeight: 700,
                         letterSpacing: 0.9,
                         textTransform: 'uppercase',
                       }}
@@ -1377,13 +1474,14 @@ export default function ProductsPage() {
                                 event.stopPropagation();
                                 setOpenMenuProductId((prev) => (prev === product.id ? null : product.id));
                               }}
-                              className="h-8 w-8 rounded-full bg-black text-white flex items-center justify-center"
+                              className="flex h-9 w-9 items-center justify-center rounded-full border shadow-md transition-transform hover:scale-[1.04]"
+                              style={{ backgroundColor: 'rgba(255,255,255,0.96)', borderColor: 'rgba(174,160,255,0.95)', color: '#3B1E8C' }}
                               title="Product actions"
                             >
-                              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                <circle cx="6" cy="12" r="2" />
-                                <circle cx="12" cy="12" r="2" />
-                                <circle cx="18" cy="12" r="2" />
+                              <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <circle cx="6" cy="12" r="2.2" />
+                                <circle cx="12" cy="12" r="2.2" />
+                                <circle cx="18" cy="12" r="2.2" />
                               </svg>
                             </button>
 

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useEditor } from "@craftjs/core";
+import { useEditor, Element } from "@craftjs/core";
 import {
   selectedToIds,
   duplicateNodes,
@@ -7,10 +7,11 @@ import {
   pasteClipboard,
   pasteToReplaceSelection,
   cutSelection,
+  getClipboard,
   groupSelection,
   ungroupSelection,
-  getClipboard,
 } from "../_lib/canvasActions";
+import { Container } from "../_designComponents/Container/Container";
 
 const STORAGE_KEY = "craftjs_preview_json";
 
@@ -132,24 +133,27 @@ export const KeyboardShortcuts = () => {
 
       // ── Paste: Cmd/Ctrl + V ──
       if (ctrl && key === "v") {
-        e.preventDefault();
-        const state = query.getState();
-        const selectedIds = selectedToIds(state.events.selected);
-        let parentId: string | undefined;
-        let atIndex: number | undefined;
-        if (selectedIds.length > 0) {
-          const firstId = selectedIds[0];
-          const lastId = selectedIds[selectedIds.length - 1];
-          const firstNode = state.nodes[firstId];
-          const lastNode = state.nodes[lastId];
-          parentId = firstNode?.data?.parent as string | undefined;
-          if (parentId && state.nodes[parentId]) {
-            const siblings = (state.nodes[parentId]?.data?.nodes as string[]) ?? [];
-            const lastIndex = siblings.indexOf(lastId);
-            atIndex = lastIndex === -1 ? siblings.length : lastIndex + 1;
+        const clip = getClipboard();
+        if (clip && clip.nodeIds.length > 0) {
+          e.preventDefault();
+          const state = query.getState();
+          const selectedIds = selectedToIds(state.events.selected);
+          let parentId: string | undefined;
+          let atIndex: number | undefined;
+          if (selectedIds.length > 0) {
+            const firstId = selectedIds[0];
+            const lastId = selectedIds[selectedIds.length - 1]!;
+            const firstNode = state.nodes[firstId];
+            const lastNode = state.nodes[lastId];
+            parentId = firstNode?.data?.parent as string | undefined;
+            if (parentId && state.nodes[parentId]) {
+              const siblings = (state.nodes[parentId]?.data?.nodes as string[]) ?? [];
+              const lastIndex = siblings.indexOf(lastId);
+              atIndex = lastIndex === -1 ? siblings.length : lastIndex + 1;
+            }
           }
+          pasteClipboard(actions as any, query as any, { parentId, atIndex });
         }
-        pasteClipboard(actions as any, query as any, { parentId, atIndex });
         return;
       }
 
@@ -175,24 +179,6 @@ export const KeyboardShortcuts = () => {
         return;
       }
 
-      // ── Group: Cmd/Ctrl + G ──
-      if (ctrl && !e.shiftKey && key === "g") {
-        e.preventDefault();
-        const state = query.getState();
-        const ids = selectedToIds(state.events.selected);
-        groupSelection(actions as any, query as any, ids);
-        return;
-      }
-
-      // ── Ungroup: Cmd/Ctrl + Shift + G ──
-      if (ctrl && e.shiftKey && key === "g") {
-        e.preventDefault();
-        const state = query.getState();
-        const ids = selectedToIds(state.events.selected);
-        ungroupSelection(actions as any, query as any, ids);
-        return;
-      }
-
       // ── Paste to replace: Shift + Cmd/Ctrl + R ──
       if (ctrl && e.shiftKey && key === "r") {
         e.preventDefault();
@@ -201,6 +187,28 @@ export const KeyboardShortcuts = () => {
         const clip = getClipboard();
         if (ids.length === 1 && clip && clip.nodeIds.length > 0) {
           pasteToReplaceSelection(actions as any, query as any, ids);
+        }
+        return;
+      }
+
+      // ── Group: Cmd/Ctrl + G ──
+      if (ctrl && !e.shiftKey && key === "g") {
+        e.preventDefault();
+        const state = query.getState();
+        const ids = selectedToIds(state.events.selected);
+        if (ids.length >= 2) {
+          groupSelection(actions as any, query as any, ids, Container, Element);
+        }
+        return;
+      }
+
+      // ── Ungroup: Shift + Cmd/Ctrl + G ──
+      if (ctrl && e.shiftKey && key === "g") {
+        e.preventDefault();
+        const state = query.getState();
+        const ids = selectedToIds(state.events.selected);
+        if (ids.length === 1) {
+          ungroupSelection(actions as any, query as any, ids);
         }
         return;
       }

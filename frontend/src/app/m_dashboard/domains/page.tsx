@@ -418,7 +418,7 @@ export default function DomainsPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: colors.text.muted }} />
                 <input type="text" placeholder="Search by title or subdomain…"
                   value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none"
+                  className="m-dashboard-search-shadow w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none"
                   style={{
                     background: theme === 'dark' ? 'rgba(255,255,255,0.04)' : colors.bg.searchBar,
                     border: theme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : `1px solid ${colors.border.faint}`,

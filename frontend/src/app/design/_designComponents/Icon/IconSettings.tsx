@@ -51,7 +51,7 @@ export const IconSettings = () => {
         <div className="flex flex-col gap-3">
           {/* Size */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter">Size</label>
+            <label className="text-[10px] text-[var(--builder-text)]">Size</label>
             <NumericInput
               value={size ?? 24}
               onChange={(val) =>
@@ -67,7 +67,7 @@ export const IconSettings = () => {
 
           {/* Color */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter">Color</label>
+            <label className="text-[10px] text-[var(--builder-text)]">Color</label>
             <ColorPicker
               value={color || "#ffffff"}
               onChange={(val) => typedSetProp((props) => { props.color = val; })}
@@ -77,7 +77,7 @@ export const IconSettings = () => {
 
           {/* Link URL */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter">Link URL</label>
+            <label className="text-[10px] text-[var(--builder-text)]">Link URL</label>
             <input
               type="text"
               value={link}
@@ -87,7 +87,7 @@ export const IconSettings = () => {
                 })
               }
               placeholder="https://..."
-              className="w-full bg-brand-black border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-2 focus:outline-none focus:border-brand-light"
+              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
             />
           </div>
         </div>

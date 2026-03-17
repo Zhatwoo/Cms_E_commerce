@@ -31,10 +31,10 @@ export const BooleanInput = ({
         checked={value}
         disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4 accent-brand-blue"
+        className="h-4 w-4 accent-[var(--builder-accent)]"
       />
       {label ? (
-        <span className="text-[10px] text-brand-lighter font-medium">{label}</span>
+        <span className="text-[10px] text-[var(--builder-text)] font-medium">{label}</span>
       ) : null}
       {layout === "spread" && !label ? <span className="flex-1" /> : null}
     </label>

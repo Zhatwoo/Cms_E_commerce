@@ -37,6 +37,12 @@ export const Image = ({
   flipHorizontal = false,
   flipVertical = false,
   customClassName = "",
+  position = "relative",
+  top = "auto",
+  right = "auto",
+  bottom = "auto",
+  left = "auto",
+  zIndex = 0,
   _autoFitInTabs = false,
   _isDraggingSource = false,
 }: ImageProps) => {
@@ -220,15 +226,6 @@ export const Image = ({
           (containerRef as any).current = ref;
         }
       }}
-      draggable
-      onDragStart={(e) => {
-        if (src) {
-          e.dataTransfer.setData("canvas-image-url", src);
-          e.dataTransfer.setData("canvas-image-name", alt);
-          e.dataTransfer.setData("text/plain", src);
-          e.dataTransfer.effectAllowed = "copyMove";
-        }
-      }}
       className={`relative group ${customClassName}`}
       style={{
         width: resolvedWidth,
@@ -241,6 +238,12 @@ export const Image = ({
         marginRight: `${mr}px`,
         marginBottom: `${mb}px`,
         marginLeft: `${ml}px`,
+        position: position as any,
+        top,
+        left,
+        right,
+        bottom,
+        zIndex,
         transform: [rotation ? `rotate(${rotation}deg)` : null, flipHorizontal ? "scaleX(-1)" : null, flipVertical ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined,
       }}
     >
