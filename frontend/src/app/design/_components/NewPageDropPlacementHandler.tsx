@@ -19,11 +19,15 @@ function canonicalResolvedName(rawName: unknown): string {
   if (lowered === "image") return "Image";
   if (lowered === "text") return "Text";
   if (lowered === "container") return "Container";
+  if (lowered === "tabs") return "Tabs";
+  if (lowered === "tabcontent" || lowered === "tab content") return "TabContent";
   if (lowered === "page") return "Page";
   if (lowered === "viewport") return "Viewport";
   if (lowered.includes("image")) return "Image";
   if (lowered.includes("text")) return "Text";
   if (lowered.includes("container")) return "Container";
+  if (lowered.includes("tabs")) return "Tabs";
+  if (lowered.includes("tabcontent")) return "TabContent";
   if (lowered.includes("page")) return "Page";
   if (lowered.includes("viewport")) return "Viewport";
   return name;
@@ -204,16 +208,26 @@ export const NewPageDropPlacementHandler = () => {
 
       const dropPoint = getDropCanvasPoint(drop);
 
-      // Only reposition the first new page (there should only ever be one)
-      const pageId = newPageIds[0];
-      actions.setProp(pageId, (props: Record<string, unknown>) => {
-        props.canvasX = Math.round(dropPoint.x);
-        props.canvasY = Math.round(dropPoint.y);
-      });
+      if (newPageIds.length > 0) {
+        newPageIds.forEach((pageId, index) => {
+          const canvasX = Math.round(dropPoint.x + index * 36);
+          const canvasY = Math.round(dropPoint.y + index * 36);
 
-      lastDropPointRef.current = null;
-      preDropPageIdsRef.current = new Set(currentPageIds);
-      return true;
+          actions.setProp(pageId, (props: Record<string, unknown>) => {
+            props.canvasX = canvasX;
+            props.canvasY = canvasY;
+          });
+        });
+
+        lastDropPointRef.current = null;
+        preDropPageIdsRef.current = new Set(currentPageIds);
+        return;
+      }
+
+      // No new page detected yet. Do not create a fallback page here:
+      // Craft may commit the dragged "New Page" asynchronously. We retry placement for a few frames
+      // and only create a fallback once (see schedulePlacementRetry → createPageAtDropPoint).
+      return;
     } catch (err) {
       console.error("placeDroppedPage unexpected error:", err);
       lastDropPointRef.current = null;

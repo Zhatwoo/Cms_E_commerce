@@ -21,6 +21,29 @@ function parsePxValue(value: unknown): number {
   }
   return 0;
 }
+
+function getRenderedScale(el: HTMLElement | null): { scaleX: number; scaleY: number } {
+  if (!el) return { scaleX: 1, scaleY: 1 };
+  const rect = el.getBoundingClientRect();
+  const baseWidth = el.offsetWidth || el.clientWidth || 0;
+  const baseHeight = el.offsetHeight || el.clientHeight || 0;
+  const scaleX = baseWidth > 0 ? rect.width / baseWidth : 1;
+  const scaleY = baseHeight > 0 ? rect.height / baseHeight : 1;
+  return {
+    scaleX: Number.isFinite(scaleX) && scaleX > 0.01 ? scaleX : 1,
+    scaleY: Number.isFinite(scaleY) && scaleY > 0.01 ? scaleY : 1,
+  };
+}
+
+function getNodePositionFallback(node: CraftRawNode | undefined): { left: number; top: number; width: number; height: number } | null {
+  if (!node) return null;
+  const props = node.props ?? {};
+  const left = parsePxValue(props.left);
+  const top = parsePxValue(props.top);
+  const width = parsePxValue(props.width);
+  const height = parsePxValue(props.height);
+  return { left, top, width, height };
+}
 type EditorActions = {
   deserialize: (json: string) => void;
   selectNode: (nodeIdSelector?: NodeSelector) => void;
@@ -461,6 +484,59 @@ export function groupSelection(
     if (indices.length === 0) return null;
     const insertIndex = Math.min(...indices);
 
+    const parentNode = state.nodes[parentId];
+    const parentDisplayName = parentNode?.data?.displayName as string | undefined;
+    const parentProps = (parentNode?.data?.props ?? {}) as Record<string, unknown>;
+    const parentDisplay = String(parentProps.display ?? "").toLowerCase();
+    const parentIsFlexOrGrid = parentDisplay === "flex" || parentDisplay === "grid";
+    const parentIsFreeform =
+      parentProps.isFreeform === true ||
+      parentDisplayName === "Page" ||
+      parentDisplayName === "Viewport" ||
+      (!parentIsFlexOrGrid && parentDisplayName === "Frame");
+
+    const parentDom = query.node(parentId).get()?.dom ?? null;
+    const parentRect = parentDom?.getBoundingClientRect() ?? null;
+    const parentScale = getRenderedScale(parentDom);
+
+    const nodeOffsets = new Map<string, { left: number; top: number }>();
+    let minLeft = Number.POSITIVE_INFINITY;
+    let minTop = Number.POSITIVE_INFINITY;
+    let maxRight = Number.NEGATIVE_INFINITY;
+    let maxBottom = Number.NEGATIVE_INFINITY;
+
+    if (parentIsFreeform && parentRect) {
+      nodeIds.forEach((id) => {
+        const nodeDom = query.node(id).get()?.dom ?? null;
+        if (nodeDom) {
+          const rect = nodeDom.getBoundingClientRect();
+          const left = (rect.left - parentRect.left) / parentScale.scaleX;
+          const top = (rect.top - parentRect.top) / parentScale.scaleY;
+          const width = rect.width / parentScale.scaleX;
+          const height = rect.height / parentScale.scaleY;
+          nodeOffsets.set(id, { left, top });
+          minLeft = Math.min(minLeft, left);
+          minTop = Math.min(minTop, top);
+          maxRight = Math.max(maxRight, left + width);
+          maxBottom = Math.max(maxBottom, top + height);
+          return;
+        }
+
+        const fallback = getNodePositionFallback(state.nodes[id]?.data as CraftRawNode | undefined);
+        if (fallback) {
+          const left = fallback.left;
+          const top = fallback.top;
+          const width = fallback.width;
+          const height = fallback.height;
+          nodeOffsets.set(id, { left, top });
+          minLeft = Math.min(minLeft, left);
+          minTop = Math.min(minTop, top);
+          maxRight = Math.max(maxRight, left + width);
+          maxBottom = Math.max(maxBottom, top + height);
+        }
+      });
+    }
+
     const groupEl = React.createElement(
       elementComponent,
       {
@@ -470,8 +546,8 @@ export function groupSelection(
         padding: 0,
         width: "fit-content",
         height: "fit-content",
-        display: "flex",
-        flexDirection: "column",
+        display: parentIsFreeform ? "block" : "flex",
+        flexDirection: parentIsFreeform ? undefined : "column",
         position: "relative",
       },
     );
@@ -490,6 +566,49 @@ export function groupSelection(
       } catch {
         /* skip */
       }
+    }
+
+    if (parentIsFreeform && nodeOffsets.size > 0 && Number.isFinite(minLeft) && Number.isFinite(minTop)) {
+      const width = Math.max(1, Math.round(maxRight - minLeft));
+      const height = Math.max(1, Math.round(maxBottom - minTop));
+      const left = Math.round(minLeft);
+      const top = Math.round(minTop);
+
+      actions.setProp(groupNodeId, (props: Record<string, unknown>) => {
+        props.position = "relative";
+        props.top = `${top}px`;
+        props.left = `${left}px`;
+        props.right = "auto";
+        props.bottom = "auto";
+        props.width = `${width}px`;
+        props.height = `${height}px`;
+        props.display = "block";
+        props.padding = 0;
+        props.paddingTop = 0;
+        props.paddingRight = 0;
+        props.paddingBottom = 0;
+        props.paddingLeft = 0;
+        props.marginTop = 0;
+        props.marginRight = 0;
+        props.marginBottom = 0;
+        props.marginLeft = 0;
+      });
+
+      sorted.forEach((id) => {
+        const offset = nodeOffsets.get(id);
+        if (!offset) return;
+        const nextLeft = Math.round(offset.left - minLeft);
+        const nextTop = Math.round(offset.top - minTop);
+        actions.setProp(id, (props: Record<string, unknown>) => {
+          props.position = "absolute";
+          props.left = `${nextLeft}px`;
+          props.top = `${nextTop}px`;
+          props.right = "auto";
+          props.bottom = "auto";
+          props.marginTop = 0;
+          props.marginLeft = 0;
+        });
+      });
     }
 
     actions.selectNode(groupNodeId);
