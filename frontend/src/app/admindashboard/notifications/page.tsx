@@ -5,115 +5,199 @@ import { AnimatePresence, motion } from "framer-motion";
 import { AdminSidebar } from "../components/sidebar";
 import { AdminHeader } from "../components/header";
 
-export default function NotificationsPage() {
+type NotificationTab = "list" | "configure" | "trash";
+
+type NotificationItem = {
+	id: string;
+	title: string;
+	time: string;
+	date: string;
+	read: boolean;
+};
+
+type NotificationSetting = {
+	id: string;
+	label: string;
+	email: boolean;
+	push: boolean;
+};
+
+const CheckIcon = () => (
+	<svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor">
+		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.5 8.5L6.5 11.5L12.5 4.5" />
+	</svg>
+);
+
+const TrashIcon = () => (
+	<svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor">
+		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M2.5 4.5h11" />
+		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M6 2.75h4" />
+		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M5 4.5v7.25a1 1 0 001 1h4a1 1 0 001-1V4.5" />
+		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M6.75 6.75v3.5" />
+		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M9.25 6.75v3.5" />
+	</svg>
+);
+
+const RestoreIcon = () => (
+	<svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor">
+		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M5 5H2.75V2.75" />
+		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M2.75 5a5.25 5.25 0 109.45 3.15" />
+	</svg>
+);
+
+function ModalShell({
+	children,
+	isOpen,
+	onClose,
+}: {
+	children: React.ReactNode;
+	isOpen: boolean;
+	onClose: () => void;
+}) {
+	if (!isOpen) return null;
+
+	return (
+		<AnimatePresence>
+			<motion.div
+				initial={{ opacity: 0 }}
+				animate={{ opacity: 1 }}
+				exit={{ opacity: 0 }}
+				className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(215,204,245,0.66)] p-4 backdrop-blur-[4px]"
+				onClick={onClose}
+			>
+				<motion.div
+					initial={{ scale: 0.97, opacity: 0, y: 12 }}
+					animate={{ scale: 1, opacity: 1, y: 0 }}
+					exit={{ scale: 0.97, opacity: 0, y: 8 }}
+					transition={{ duration: 0.22 }}
+					className="admin-dashboard-panel w-full max-w-[520px] rounded-[28px] border border-[rgba(177,59,255,0.24)] bg-[#F5F4FF] p-8 shadow-[0_16px_40px_rgba(123,78,192,0.16)]"
+					onClick={(event) => event.stopPropagation()}
+				>
+					{children}
+				</motion.div>
+			</motion.div>
+		</AnimatePresence>
+	);
+}
+
+function NotificationCheckbox({
+	checked,
+	onChange,
+	label,
+}: {
+	checked: boolean;
+	onChange: (checked: boolean) => void;
+	label: string;
+}) {
+	return (
+		<label className="inline-flex cursor-pointer items-center justify-center">
+			<input
+				type="checkbox"
+				checked={checked}
+				onChange={(event) => onChange(event.target.checked)}
+				className="peer sr-only"
+				aria-label={label}
+			/>
+			<span className="flex h-5 w-5 items-center justify-center rounded-[3px] border border-[#A148FF] bg-white text-white transition peer-checked:bg-[#A148FF] peer-checked:text-white">
+				<CheckIcon />
+			</span>
+		</label>
+	);
+}
+
+function ActionButton({
+	children,
+	onClick,
+	disabled,
+	icon,
+}: {
+	children: React.ReactNode;
+	onClick: () => void;
+	disabled?: boolean;
+	icon?: React.ReactNode;
+}) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			disabled={disabled}
+			className="inline-flex items-center gap-3 rounded-[18px] border border-[rgba(177,59,255,0.16)] bg-white px-6 py-3 text-[1.05rem] font-semibold text-[#857E9F] shadow-[0_5px_0_rgba(208,168,255,0.55)] transition hover:-translate-y-[1px] hover:text-[#471396] disabled:cursor-not-allowed disabled:opacity-50"
+		>
+			{icon}
+			<span>{children}</span>
+		</button>
+	);
+}
+
+function NotificationsPageContent() {
 	const [sidebarOpen, setSidebarOpen] = useState(false);
-	const [activeTab, setActiveTab] = useState("list");
-	const [actionState, setActionState] = useState<"none" | "read" | "delete">("none");
+	const [activeTab, setActiveTab] = useState<NotificationTab>("list");
 	const [selectedIds, setSelectedIds] = useState<string[]>([]);
 	const [trashSelectedIds, setTrashSelectedIds] = useState<string[]>([]);
 	const [showRestoreModal, setShowRestoreModal] = useState(false);
 	const [showPermanentDeleteModal, setShowPermanentDeleteModal] = useState(false);
-	const [notifications, setNotifications] = useState([
-		{
-			id: "n1",
-			title: "New notification available",
-			time: "17 : 00",
-			date: "January 1, 2026",
-			read: false,
-		},
-		{
-			id: "n2",
-			title: "New notification available",
-			time: "14 : 00",
-			date: "January 1, 2026",
-			read: false,
-		},
+	const [notifications, setNotifications] = useState<NotificationItem[]>([
+		{ id: "n1", title: "New notification available", time: "9:00", date: "January 28, 2026", read: true },
+		{ id: "n2", title: "New notification available", time: "18:30", date: "January 28, 2026", read: false },
 	]);
-	const [trash, setTrash] = useState<typeof notifications>([]);
-	const [notificationSettings, setNotificationSettings] = useState([
-		{
-			id: "evt-site-publish",
-			label: "A site was published",
-			email: true,
-			push: true,
-		},
-		{
-			id: "evt-template-update",
-			label: "A template was updated",
-			email: true,
-			push: true,
-		},
-		{
-			id: "evt-custom-domain",
-			label: "Custom domain verification failed",
-			email: true,
-			push: true,
-		},
+	const [trash, setTrash] = useState<NotificationItem[]>([]);
+	const [notificationSettings, setNotificationSettings] = useState<NotificationSetting[]>([
+		{ id: "evt-site-publish", label: "New notification", email: true, push: false },
+		{ id: "evt-template-update", label: "New notification", email: true, push: false },
+		{ id: "evt-custom-domain", label: "New notification", email: true, push: false },
 	]);
 
+	const unreadCount = notifications.filter((item) => !item.read).length;
 	const allSelected = notifications.length > 0 && selectedIds.length === notifications.length;
+	const trashAllSelected = trash.length > 0 && trashSelectedIds.length === trash.length;
+
+	const setUniqueSelection = (ids: string[]) => Array.from(new Set(ids));
 
 	const toggleSelectAll = (checked: boolean) => {
 		setSelectedIds(checked ? notifications.map((item) => item.id) : []);
 	};
 
 	const toggleSelectOne = (id: string, checked: boolean) => {
-		setSelectedIds((prev) => (checked ? [...prev, id] : prev.filter((item) => item !== id)));
-	};
-
-	const handleMarkAsRead = () => {
-		const shouldMarkUnread = actionState === "read";
-		setActionState(shouldMarkUnread ? "none" : "read");
-		setNotifications((prev) =>
-			prev.map((item) =>
-				selectedIds.includes(item.id) ? { ...item, read: shouldMarkUnread ? false : true } : item
-			)
+		setSelectedIds((prev) =>
+			checked ? setUniqueSelection([...prev, id]) : prev.filter((item) => item !== id)
 		);
 	};
-
-	const handleDelete = () => {
-		if (actionState === "delete") {
-			setActionState("none");
-			return;
-		}
-		const toTrash = notifications.filter((item) => selectedIds.includes(item.id));
-		setActionState("delete");
-		if (toTrash.length > 0) {
-			setTrash((current) => {
-				const existingIds = new Set(current.map((item) => item.id));
-				const uniqueItems = toTrash.filter((item) => !existingIds.has(item.id));
-				return uniqueItems.length > 0 ? [...uniqueItems, ...current] : current;
-			});
-		}
-		setNotifications((prev) => prev.filter((item) => !selectedIds.includes(item.id)));
-		setSelectedIds([]);
-	};
-
-	const handleRestore = (id: string) => {
-		const restored = trash.find((item) => item.id === id);
-		if (!restored) {
-			return;
-		}
-		setTrash((prev) => prev.filter((item) => item.id !== id));
-		setNotifications((current) =>
-			current.some((item) => item.id === restored.id) ? current : [restored, ...current]
-		);
-	};
-
-	const handlePermanentDelete = (id: string) => {
-		setTrash((prev) => prev.filter((item) => item.id !== id));
-	};
-
-	const unreadCount = notifications.filter((item) => !item.read).length;
-
-	const trashAllSelected = trash.length > 0 && trashSelectedIds.length === trash.length;
 
 	const toggleTrashSelectAll = (checked: boolean) => {
 		setTrashSelectedIds(checked ? trash.map((item) => item.id) : []);
 	};
 
 	const toggleTrashSelectOne = (id: string, checked: boolean) => {
-		setTrashSelectedIds((prev) => (checked ? [...prev, id] : prev.filter((item) => item !== id)));
+		setTrashSelectedIds((prev) =>
+			checked ? setUniqueSelection([...prev, id]) : prev.filter((item) => item !== id)
+		);
+	};
+
+	const handleMarkAsRead = () => {
+		if (selectedIds.length === 0) return;
+		setNotifications((prev) =>
+			prev.map((item) => (selectedIds.includes(item.id) ? { ...item, read: true } : item))
+		);
+		setSelectedIds([]);
+	};
+
+	const handleDelete = () => {
+		if (selectedIds.length === 0) return;
+		const toTrash = notifications.filter((item) => selectedIds.includes(item.id));
+		setTrash((current) => [...toTrash.filter((item) => !current.some((entry) => entry.id === item.id)), ...current]);
+		setNotifications((prev) => prev.filter((item) => !selectedIds.includes(item.id)));
+		setSelectedIds([]);
+	};
+
+	const handleRestore = (id: string) => {
+		const restored = trash.find((item) => item.id === id);
+		if (!restored) return;
+		setTrash((prev) => prev.filter((item) => item.id !== id));
+		setNotifications((current) => (current.some((item) => item.id === restored.id) ? current : [restored, ...current]));
+	};
+
+	const handlePermanentDelete = (id: string) => {
+		setTrash((prev) => prev.filter((item) => item.id !== id));
 	};
 
 	const handleBulkRestore = () => {
@@ -129,399 +213,276 @@ export default function NotificationsPage() {
 	};
 
 	const handleSettingToggle = (id: string, channel: "email" | "push") => {
-		setNotificationSettings((prev) =>
-			prev.map((item) =>
-				item.id === id ? { ...item, [channel]: !item[channel] } : item
-			)
-		);
+		setNotificationSettings((prev) => prev.map((item) => (item.id === id ? { ...item, [channel]: !item[channel] } : item)));
 	};
 
 	return (
-		<div className="min-h-screen bg-gray-100 flex">
-			<div className="hidden lg:block">
-				<AdminSidebar />
-			</div>
+		<div className="admin-dashboard-shell relative flex min-h-screen overflow-hidden" suppressHydrationWarning>
+			<div className="relative z-10 flex min-h-screen w-full">
+				<AdminSidebar forcedActiveItemId="notifications" />
 
-			{sidebarOpen && (
-				<>
-					<div
-						className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-						onClick={() => setSidebarOpen(false)}
-					/>
-					<div className="lg:hidden">
-						<AdminSidebar mobile onClose={() => setSidebarOpen(false)} />
-					</div>
-				</>
-			)}
-
-			<div className="flex-1 flex flex-col min-h-screen">
-				<AdminHeader />
-
-				<div className="flex-1 p-8 bg-gray-100">
-					<div className="w-full max-w-none">
-						<motion.div
-							initial={{ opacity: 0, y: 10 }}
-							animate={{ opacity: 1, y: 0 }}
-							transition={{ duration: 0.45 }}
-							className="mb-6"
-						>
-							<h1 className="text-3xl font-semibold text-gray-900">Notifications</h1>
-							<div className="text-sm text-slate-500 mt-1">Inbox and delivery preferences</div>
-						</motion.div>
-
-						<div className="inline-flex rounded-full bg-slate-200 p-1 mb-6 shadow-inner">
-							<button
-								onClick={() => setActiveTab("list")}
-								className={`px-4 py-2 text-sm font-semibold rounded-full transition-colors ${
-									activeTab === "list"
-										? "bg-blue-500 text-white shadow"
-										: "text-gray-700 hover:bg-gray-300"
-								}`}
-							>
-								<span className="mr-2">List</span>
-								<span className="inline-flex items-center justify-center w-5 h-5 text-xs rounded-full bg-white text-gray-900">
-									{unreadCount}
-								</span>
-							</button>
-							<button
-								onClick={() => setActiveTab("configure")}
-								className={`px-4 py-2 text-sm font-semibold rounded-full transition-colors ${
-									activeTab === "configure"
-										? "bg-white text-gray-900 shadow"
-										: "text-gray-700 hover:bg-gray-300"
-								}`}
-							>
-								Configure
-							</button>
-							<button
-								onClick={() => setActiveTab("trash")}
-								className={`px-4 py-2 text-sm font-semibold rounded-full transition-colors ${
-									activeTab === "trash"
-										? "bg-white text-gray-900 shadow"
-										: "text-gray-700 hover:bg-gray-300"
-								}`}
-							>
-								Trash
-							</button>
+				<AnimatePresence>
+					{sidebarOpen && (
+						<div className="lg:hidden">
+							<AdminSidebar mobile onClose={() => setSidebarOpen(false)} forcedActiveItemId="notifications" />
 						</div>
+					)}
+				</AnimatePresence>
 
-						<div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
-							<AnimatePresence mode="wait">
-								{activeTab === "list" && (
-									<motion.div
-										key="list"
-										initial={{ opacity: 0, y: 10 }}
-										animate={{ opacity: 1, y: 0 }}
-										exit={{ opacity: 0, y: -10 }}
-										transition={{ duration: 0.3 }}
-									>
-										<div className="text-sm text-gray-600 mb-4">Today</div>
+				<div className="flex min-h-screen flex-1 flex-col">
+					<AdminHeader onMenuClick={() => setSidebarOpen(true)} />
 
-										<div className="flex flex-wrap items-center gap-4 text-sm text-gray-700 mb-6">
-											<label className="inline-flex items-center gap-2">
-												<input
-													type="checkbox"
-													checked={allSelected}
-													onChange={(event) => toggleSelectAll(event.target.checked)}
-													className="h-4 w-4"
-													aria-label="Select all notifications"
-												/>
-												Select All
-											</label>
-											<motion.button
-												whileHover={{ scale: 1.02 }}
-												whileTap={{ scale: 0.98 }}
-												onClick={handleMarkAsRead}
-												className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 text-gray-800 hover:bg-emerald-500 hover:text-white transition-colors"
-											>
-												<span>Mark as Read</span>
-												<svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-													<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-												</svg>
-											</motion.button>
-											<motion.button
-												whileHover={{ scale: 1.02 }}
-												whileTap={{ scale: 0.98 }}
-												onClick={handleDelete}
-												className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 text-gray-800 hover:bg-red-500 hover:text-white transition-colors"
-											>
-												<svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-													<path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
-													<path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
-												</svg>
-												<span>Delete</span>
-											</motion.button>
-										</div>
+					<main className="flex-1 overflow-y-auto">
+						<div className="p-8">
+							<motion.div
+								initial={{ opacity: 0, y: 16 }}
+								animate={{ opacity: 1, y: 0 }}
+								transition={{ duration: 0.45 }}
+								className="space-y-6"
+							>
+								<div>
+									<h1 className="text-3xl font-bold text-[#B13BFF] sm:text-4xl">Notifications</h1>
+									<p className="mt-2 text-base text-[#A78BFA]">Inbox and delivery preferences</p>
+								</div>
 
-										{notifications.length === 0 ? (
+								<div className="inline-flex rounded-[12px] border border-[rgba(177,59,255,0.26)] bg-[#F7F2FF] p-0.5 shadow-[0_6px_14px_rgba(178,110,255,0.08)]">
+									{([
+										{ key: "list", label: "List", extra: unreadCount },
+										{ key: "configure", label: "Configure" },
+										{ key: "trash", label: "Trash" },
+									] as Array<{ key: NotificationTab; label: string; extra?: number }>).map((tab) => (
+										<button
+											key={tab.key}
+											type="button"
+											onClick={() => setActiveTab(tab.key)}
+											className={`min-w-[130px] rounded-[10px] px-6 py-3 text-[1rem] font-semibold transition ${
+												activeTab === tab.key
+													? "bg-[#FFCC00] text-[#2F1859]"
+													: "text-[#787593] hover:bg-white/60"
+											}`}
+										>
+											<span className="inline-flex items-center gap-2">
+												<span>{tab.label}</span>
+												{typeof tab.extra === "number" && (
+													<span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-white px-1.5 text-sm text-[#514A73]">
+														{tab.extra}
+													</span>
+												)}
+											</span>
+										</button>
+									))}
+								</div>
+
+								<div className="admin-dashboard-panel min-h-[470px] rounded-[32px] border border-[rgba(177,59,255,0.2)] bg-[#F8F5FF] p-8 shadow-[0_12px_30px_rgba(123,78,192,0.12)]">
+									<AnimatePresence mode="wait">
+										{activeTab === "list" && (
 											<motion.div
-												initial={{ opacity: 0, y: 8 }}
+												key="list"
+												initial={{ opacity: 0, y: 10 }}
 												animate={{ opacity: 1, y: 0 }}
-												className="border border-gray-200 rounded-xl p-6 text-center text-gray-600"
+												exit={{ opacity: 0, y: -10 }}
+												transition={{ duration: 0.25 }}
 											>
-												No new notifications
-											</motion.div>
-										) : (
-											<motion.div
-												initial="hidden"
-												animate="visible"
-												variants={{
-													hidden: { opacity: 0 },
-													visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
-												}}
-												className="space-y-4"
-											>
-												{notifications.map((item) => (
-													<motion.div
-														key={item.id}
-														variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }}
-														className="border border-gray-200 rounded-2xl p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)]"
-												>
-														<div className="flex items-center justify-between">
-															<div className="flex items-center gap-4">
-																<input
-																	type="checkbox"
-																	checked={selectedIds.includes(item.id)}
-																	onChange={(event) => toggleSelectOne(item.id, event.target.checked)}
-																	className="h-4 w-4"
-																	aria-label={`Select notification at ${item.time}`}
-																/>
-																<div>
-																	<div className="text-gray-900 font-semibold">{item.title}</div>
-																	<div className="text-xs text-gray-500">{item.time}</div>
-																</div>
-															</div>
-															<div className="flex items-center gap-4 text-sm text-gray-500">
-																<span>{item.date}</span>
-																<span className={item.read ? "text-emerald-500" : "text-rose-500"}>
-																	{item.read ? "✔" : "✖"}
-																</span>
-															</div>
-														</div>
-													</motion.div>
-												))}
-											</motion.div>
-										)}
+												<div className="mb-8 text-sm font-medium text-[#8D87A8]">Today</div>
 
-										<div className="text-sm text-gray-600 mt-8">Yesterday</div>
-									</motion.div>
-								)}
-
-								{activeTab === "configure" && (
-									<motion.div
-										key="configure"
-										initial={{ opacity: 0, y: 10 }}
-										animate={{ opacity: 1, y: 0 }}
-										exit={{ opacity: 0, y: -10 }}
-										transition={{ duration: 0.3 }}
-										className="border border-gray-200 rounded-2xl overflow-hidden"
-									>
-										<div className="grid grid-cols-[80px_80px_1fr] gap-4 px-6 py-4 bg-gray-50 text-sm font-semibold text-gray-700 justify-items-center">
-											<div>Email</div>
-											<div>Push</div>
-											<div className="justify-self-start">Event</div>
-										</div>
-										<div className="divide-y divide-gray-200">
-											{notificationSettings.map((item) => (
-												<div key={item.id} className="grid grid-cols-[80px_80px_1fr] gap-4 px-6 py-4 text-sm text-gray-800 justify-items-center">
-													<div className="flex items-center justify-center">
-														<input
-															type="checkbox"
-															checked={item.email}
-															onChange={() => handleSettingToggle(item.id, "email")}
-															className="h-4 w-4"
-															aria-label={`Email notification for ${item.label}`}
-														/>
+												<div className="mb-7 flex flex-wrap items-center gap-5">
+													<div className="inline-flex items-center gap-4 text-[1.05rem] font-semibold text-[#3E2E7D]">
+														<NotificationCheckbox checked={allSelected} onChange={toggleSelectAll} label="Select all notifications" />
+														<span>Select All</span>
 													</div>
-													<div className="flex items-center justify-center">
-														<input
-															type="checkbox"
-															checked={item.push}
-															onChange={() => handleSettingToggle(item.id, "push")}
-															className="h-4 w-4"
-															aria-label={`Push notification for ${item.label}`}
-														/>
-													</div>
-													<div className="justify-self-start">{item.label}</div>
-												</div>
-											))}
-										</div>
-									</motion.div>
-								)}
-
-								{activeTab === "trash" && (
-									<motion.div
-										key="trash"
-										initial={{ opacity: 0, y: 10 }}
-										animate={{ opacity: 1, y: 0 }}
-										exit={{ opacity: 0, y: -10 }}
-										transition={{ duration: 0.3 }}
-										className="space-y-4"
-									>
-										{trash.length === 0 ? (
-											<div className="border border-gray-200 rounded-xl p-6 text-center text-gray-600">
-												Trash is empty
-											</div>
-										) : (
-											<>
-												<div className="flex flex-wrap items-center gap-4 text-sm text-gray-700 mb-6">
-													<label className="inline-flex items-center gap-2">
-														<input
-															type="checkbox"
-															checked={trashAllSelected}
-															onChange={(event) => toggleTrashSelectAll(event.target.checked)}
-															className="h-4 w-4"
-															aria-label="Select all trash items"
-														/>
-														Select All
-													</label>
-													<motion.button
-														whileHover={{ scale: 1.02 }}
-														whileTap={{ scale: 0.98 }}
-														onClick={() => setShowRestoreModal(true)}
-														disabled={trashSelectedIds.length === 0}
-														className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 text-gray-800 hover:bg-emerald-500 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-													>
-														<span>Restore</span>
-													</motion.button>
-													<motion.button
-														whileHover={{ scale: 1.02 }}
-														whileTap={{ scale: 0.98 }}
-														onClick={() => setShowPermanentDeleteModal(true)}
-														disabled={trashSelectedIds.length === 0}
-														className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 text-gray-800 hover:bg-red-500 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-													>
-														<span>Delete Permanently</span>
-													</motion.button>
+													<ActionButton onClick={handleMarkAsRead} disabled={selectedIds.length === 0} icon={<CheckIcon />}>
+														Mark as Read
+													</ActionButton>
+													<ActionButton onClick={handleDelete} disabled={selectedIds.length === 0} icon={<TrashIcon />}>
+														Delete
+													</ActionButton>
 												</div>
 
-												<motion.div
-													initial="hidden"
-													animate="visible"
-													variants={{
-														hidden: { opacity: 0 },
-														visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
-													}}
-													className="space-y-4"
-												>
-													{trash.map((item) => (
-														<motion.div
-															key={item.id}
-															variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }}
-															className="border border-gray-200 rounded-2xl p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)]"
-														>
-															<div className="flex items-center justify-between">
-																<div className="flex items-center gap-4">
-																	<input
-																		type="checkbox"
-																		checked={trashSelectedIds.includes(item.id)}
-																		onChange={(event) => toggleTrashSelectOne(item.id, event.target.checked)}
-																		className="h-4 w-4"
-																		aria-label={`Select trash item at ${item.time}`}
+												{notifications.length === 0 ? (
+													<div className="rounded-[24px] border border-[rgba(177,59,255,0.18)] bg-white px-8 py-12 text-center text-lg font-medium text-[#8D87A8]">
+														No new notifications
+													</div>
+												) : (
+													<div className="space-y-4">
+														{notifications.map((item) => (
+															<motion.div
+																key={item.id}
+																initial={{ opacity: 0, y: 8 }}
+																animate={{ opacity: 1, y: 0 }}
+																className="flex items-center justify-between gap-4 border-b border-[rgba(177,59,255,0.2)] bg-white px-4 py-5 shadow-[0_3px_0_rgba(210,175,255,0.7)]"
+															>
+																<div className="flex min-w-0 items-center gap-4">
+																	<div className="h-18 w-1 self-stretch rounded-full bg-[#FFCC00]" />
+																	<NotificationCheckbox
+																		checked={selectedIds.includes(item.id)}
+																		onChange={(checked) => toggleSelectOne(item.id, checked)}
+																		label={`Select notification at ${item.time}`}
 																	/>
-																	<div>
-																		<div className="text-gray-900 font-semibold">{item.title}</div>
-																		<div className="text-xs text-gray-500">{item.time}</div>
+																	<div className="min-w-0">
+																		<div className="truncate text-[1.08rem] font-semibold text-[#412793]">{item.title}</div>
+																		<div className="mt-1 text-sm text-[#8B85A5]">{item.time}</div>
 																	</div>
 																</div>
-																<div className="text-sm text-gray-500">
+																<div className="flex items-center gap-5 pl-4 text-sm text-[#8B85A5]">
 																	<span>{item.date}</span>
+																	<span className={item.read ? "text-[#1AA54B]" : "text-[#FF5252]"}>{item.read ? <CheckIcon /> : "×"}</span>
 																</div>
-															</div>
-														</motion.div>
-													))}
-												</motion.div>
-											</>
+															</motion.div>
+														))}
+													</div>
+												)}
+											</motion.div>
 										)}
-									</motion.div>
-								)}
-							</AnimatePresence>
+
+										{activeTab === "configure" && (
+											<motion.div
+												key="configure"
+												initial={{ opacity: 0, y: 10 }}
+												animate={{ opacity: 1, y: 0 }}
+												exit={{ opacity: 0, y: -10 }}
+												transition={{ duration: 0.25 }}
+											>
+												<div className="grid grid-cols-[90px_90px_minmax(0,1fr)] gap-y-8 px-4 py-8 text-[1.1rem] font-semibold text-[#352B75] sm:px-8">
+													<div>Email</div>
+													<div>Push</div>
+													<div>Event</div>
+													{notificationSettings.map((item) => (
+														<React.Fragment key={item.id}>
+															<div className="flex items-center">
+																<NotificationCheckbox
+																	checked={item.email}
+																	onChange={() => handleSettingToggle(item.id, "email")}
+																	label={`Email notification for ${item.label}`}
+																/>
+															</div>
+															<div className="flex items-center">
+																<NotificationCheckbox
+																	checked={item.push}
+																	onChange={() => handleSettingToggle(item.id, "push")}
+																	label={`Push notification for ${item.label}`}
+																/>
+															</div>
+															<div className="text-[1.08rem] font-semibold text-[#412793]">{item.label}</div>
+														</React.Fragment>
+													))}
+												</div>
+											</motion.div>
+										)}
+
+										{activeTab === "trash" && (
+											<motion.div
+												key="trash"
+												initial={{ opacity: 0, y: 10 }}
+												animate={{ opacity: 1, y: 0 }}
+												exit={{ opacity: 0, y: -10 }}
+												transition={{ duration: 0.25 }}
+											>
+												<div className="mb-8 text-sm font-medium text-[#8D87A8]">Today</div>
+
+												{trash.length === 0 ? (
+													<div className="rounded-[24px] border border-[rgba(177,59,255,0.18)] bg-white px-8 py-12 text-center text-lg font-medium text-[#8D87A8]">
+														Trash is empty
+													</div>
+												) : (
+													<>
+														<div className="mb-7 flex flex-wrap items-center gap-5">
+															<div className="inline-flex items-center gap-4 text-[1.05rem] font-semibold text-[#3E2E7D]">
+																<NotificationCheckbox checked={trashAllSelected} onChange={toggleTrashSelectAll} label="Select all trash notifications" />
+																<span>Select All</span>
+															</div>
+															<ActionButton onClick={() => setShowRestoreModal(true)} disabled={trashSelectedIds.length === 0} icon={<RestoreIcon />}>
+																Restore
+															</ActionButton>
+															<ActionButton onClick={() => setShowPermanentDeleteModal(true)} disabled={trashSelectedIds.length === 0} icon={<TrashIcon />}>
+																Delete Permanently
+															</ActionButton>
+														</div>
+
+														<div className="space-y-4">
+															{trash.map((item) => (
+																<motion.div
+																	key={item.id}
+																	initial={{ opacity: 0, y: 8 }}
+																	animate={{ opacity: 1, y: 0 }}
+																	className="flex items-center justify-between gap-4 border-b border-[rgba(177,59,255,0.2)] bg-white px-4 py-5 shadow-[0_3px_0_rgba(210,175,255,0.7)]"
+																>
+																	<div className="flex min-w-0 items-center gap-4">
+																		<div className="h-18 w-1 self-stretch rounded-full bg-[#FFCC00]" />
+																		<NotificationCheckbox
+																			checked={trashSelectedIds.includes(item.id)}
+																			onChange={(checked) => toggleTrashSelectOne(item.id, checked)}
+																			label={`Select trashed notification at ${item.time}`}
+																		/>
+																		<div className="min-w-0">
+																			<div className="truncate text-[1.08rem] font-semibold text-[#412793]">{item.title}</div>
+																			<div className="mt-1 text-sm text-[#8B85A5]">{item.time}</div>
+																		</div>
+																	</div>
+																	<div className="pl-4 text-sm text-[#8B85A5]">{item.date}</div>
+																</motion.div>
+															))}
+														</div>
+													</>
+												)}
+											</motion.div>
+										)}
+									</AnimatePresence>
+								</div>
+							</motion.div>
 						</div>
-					</div>
+					</main>
 				</div>
 			</div>
 
-			<AnimatePresence>
-				{showRestoreModal && (
-					<motion.div
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						exit={{ opacity: 0 }}
-						className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+			<ModalShell isOpen={showRestoreModal} onClose={() => setShowRestoreModal(false)}>
+				<h3 className="text-2xl font-semibold text-[#471396]">Restore notifications</h3>
+				<p className="mt-3 text-base leading-7 text-[#7A7497]">
+					Restore {trashSelectedIds.length} selected {trashSelectedIds.length === 1 ? "notification" : "notifications"} to the list?
+				</p>
+				<div className="mt-8 flex justify-end gap-4">
+					<button
+						type="button"
+						onClick={() => setShowRestoreModal(false)}
+						className="rounded-2xl px-6 py-3 text-base font-semibold text-[#8B85A5]"
 					>
-						<motion.div
-							initial={{ y: 12, opacity: 0, scale: 0.98 }}
-							animate={{ y: 0, opacity: 1, scale: 1 }}
-							exit={{ y: 8, opacity: 0, scale: 0.98 }}
-							transition={{ duration: 0.2 }}
-							className="w-full max-w-md rounded-2xl bg-white p-6 shadow-[0_20px_50px_rgba(15,23,42,0.25)]"
-						>
-							<h3 className="text-lg font-semibold text-gray-900">Restore items</h3>
-							<p className="mt-2 text-sm text-gray-500">
-								Are you sure you want to restore {trashSelectedIds.length} selected {trashSelectedIds.length === 1 ? "item" : "items"} back to the list?
-							</p>
-							<div className="mt-6 flex items-center justify-end gap-3">
-								<button
-									type="button"
-									onClick={() => setShowRestoreModal(false)}
-									className="rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-gray-50"
-								>
-									Cancel
-								</button>
-								<button
-									type="button"
-									onClick={handleBulkRestore}
-									className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
-								>
-									Restore
-								</button>
-							</div>
-						</motion.div>
-					</motion.div>
-				)}
-			</AnimatePresence>
+						Cancel
+					</button>
+					<button
+						type="button"
+						onClick={handleBulkRestore}
+						className="rounded-2xl bg-[#FFCC00] px-7 py-3 text-base font-semibold text-[#2F1859] transition-opacity hover:opacity-90"
+					>
+						Restore
+					</button>
+				</div>
+			</ModalShell>
 
-			<AnimatePresence>
-				{showPermanentDeleteModal && (
-					<motion.div
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						exit={{ opacity: 0 }}
-						className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+			<ModalShell isOpen={showPermanentDeleteModal} onClose={() => setShowPermanentDeleteModal(false)}>
+				<h3 className="text-2xl font-semibold text-[#471396]">Delete permanently</h3>
+				<p className="mt-3 text-base leading-7 text-[#7A7497]">
+					Delete {trashSelectedIds.length} selected {trashSelectedIds.length === 1 ? "notification" : "notifications"} permanently? This cannot be undone.
+				</p>
+				<div className="mt-8 flex justify-end gap-4">
+					<button
+						type="button"
+						onClick={() => setShowPermanentDeleteModal(false)}
+						className="rounded-2xl px-6 py-3 text-base font-semibold text-[#8B85A5]"
 					>
-						<motion.div
-							initial={{ y: 12, opacity: 0, scale: 0.98 }}
-							animate={{ y: 0, opacity: 1, scale: 1 }}
-							exit={{ y: 8, opacity: 0, scale: 0.98 }}
-							transition={{ duration: 0.2 }}
-							className="w-full max-w-md rounded-2xl bg-white p-6 shadow-[0_20px_50px_rgba(15,23,42,0.25)]"
-						>
-							<h3 className="text-lg font-semibold text-gray-900">Delete permanently</h3>
-							<p className="mt-2 text-sm text-gray-500">
-								Are you sure you want to permanently delete {trashSelectedIds.length} selected {trashSelectedIds.length === 1 ? "item" : "items"}? This action cannot be undone.
-							</p>
-							<div className="mt-6 flex items-center justify-end gap-3">
-								<button
-									type="button"
-									onClick={() => setShowPermanentDeleteModal(false)}
-									className="rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-gray-50"
-								>
-									Cancel
-								</button>
-								<button
-									type="button"
-									onClick={handleBulkPermanentDelete}
-									className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
-								>
-									Delete Permanently
-								</button>
-							</div>
-						</motion.div>
-					</motion.div>
-				)}
-			</AnimatePresence>
+						Cancel
+					</button>
+					<button
+						type="button"
+						onClick={handleBulkPermanentDelete}
+						className="rounded-2xl bg-[#FF5252] px-7 py-3 text-base font-semibold text-white transition-opacity hover:opacity-90"
+					>
+						Delete Permanently
+					</button>
+				</div>
+			</ModalShell>
 		</div>
 	);
 }
 
-//added feature
+export default function NotificationsPage() {
+	return <NotificationsPageContent />;
+}
