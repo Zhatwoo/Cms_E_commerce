@@ -139,6 +139,22 @@ function getSelectedVariantImage(product: Product, selectedOptions: Record<strin
   return null;
 }
 
+function getVariantOptionImages(product: Product): string[] {
+  const seen = new Set<string>();
+  const images: string[] = [];
+
+  for (const variant of getVariantGroups(product)) {
+    for (const option of variant.options) {
+      const image = String(option?.image || '').trim();
+      if (!isImageSource(image) || seen.has(image)) continue;
+      seen.add(image);
+      images.push(image);
+    }
+  }
+
+  return images;
+}
+
 function colorFromName(value: string): string {
   const trimmed = value.trim();
   if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(trimmed)) return trimmed;
@@ -359,6 +375,7 @@ const ProductDetailsModal = ({ product, onClose, colors, onEditProduct }: {
   onEditProduct: (product: Product) => void;
 }) => {
   const [currentImage, setCurrentImage] = useState(0);
+  const thumbnailStripRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!product) return;
@@ -371,12 +388,32 @@ const ProductDetailsModal = ({ product, onClose, colors, onEditProduct }: {
 
   if (!product) return null;
 
-  const gallery = (Array.isArray(product.images) && product.images.length > 0
+  const baseGallery = (Array.isArray(product.images) && product.images.length > 0
     ? product.images
     : [product.image]
   ).filter((img) => isImageSource(String(img || '')));
+  const variantGallery = getVariantOptionImages(product);
+  const gallery = Array.from(new Set([...baseGallery, ...variantGallery]));
 
   const hasGallery = gallery.length > 0;
+
+  useEffect(() => {
+    setCurrentImage(0);
+  }, [product.id]);
+
+  useEffect(() => {
+    if (currentImage < gallery.length) return;
+    setCurrentImage(0);
+  }, [currentImage, gallery.length]);
+
+  const handleThumbnailWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+    const element = thumbnailStripRef.current;
+    if (!element) return;
+    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+
+    event.preventDefault();
+    element.scrollLeft += event.deltaY;
+  };
 
   if (typeof document === 'undefined') return null;
 
@@ -451,23 +488,29 @@ const ProductDetailsModal = ({ product, onClose, colors, onEditProduct }: {
                 )}
               </div>
 
-              <div className="mt-3 w-fit mx-auto">
+              <div className="mt-3 mx-auto w-full" style={{ maxWidth: 312 }}>
                 {hasGallery && gallery.length > 1 && (
-                  <div className="flex justify-center gap-2">
-                    {gallery.map((img, idx) => (
-                      <button
-                        type="button"
-                        key={`${product.id}-thumb-${idx}`}
-                        onClick={() => setCurrentImage(idx)}
-                        className="w-14 h-14 rounded-lg overflow-hidden border flex-shrink-0"
-                        style={{
-                          borderColor: idx === currentImage ? '#3b82f6' : colors.border.faint,
-                          backgroundColor: colors.bg.elevated,
-                        }}
-                      >
-                        <img src={img} alt={`${product.name} ${idx + 1}`} className="w-full h-full object-cover" />
-                      </button>
-                    ))}
+                  <div
+                    ref={thumbnailStripRef}
+                    onWheel={handleThumbnailWheel}
+                    className="overflow-x-scroll pb-1"
+                  >
+                    <div className="flex gap-2 min-w-max">
+                      {gallery.map((img, idx) => (
+                        <button
+                          type="button"
+                          key={`${product.id}-thumb-${idx}`}
+                          onClick={() => setCurrentImage(idx)}
+                          className="w-14 h-14 rounded-lg overflow-hidden border shrink-0"
+                          style={{
+                            borderColor: idx === currentImage ? '#3b82f6' : colors.border.faint,
+                            backgroundColor: colors.bg.elevated,
+                          }}
+                        >
+                          <img src={img} alt={`${product.name} ${idx + 1}`} className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
 
