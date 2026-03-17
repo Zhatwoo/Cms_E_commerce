@@ -72,7 +72,7 @@ export const MultiSelectInput = ({
               selected.slice(0, 2).map((s) => (
                 <span
                   key={s.id}
-                  className="inline-flex items-center gap-1 bg-black/25 border border-transparent rounded px-1.5 py-0.5"
+                  className="inline-flex items-center gap-1 bg-[var(--builder-surface-3)] border border-[var(--builder-border)] rounded px-1.5 py-0.5"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <span className="truncate max-w-[120px]">{s.label || s.id}</span>
@@ -111,13 +111,13 @@ export const MultiSelectInput = ({
                       key={it.id}
                       type="button"
                       onClick={() => toggle(it.id)}
-                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white/5 text-left"
+                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-[var(--builder-surface-2)] text-left"
                     >
                       <input
                         type="checkbox"
                         checked={checked}
                         readOnly
-                        className="h-4 w-4 accent-brand-blue"
+                        className="h-4 w-4 accent-[var(--builder-accent)]"
                       />
                       <span className="text-xs text-[var(--builder-text)] truncate">{it.label || it.id}</span>
                     </button>

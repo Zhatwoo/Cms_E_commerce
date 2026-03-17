@@ -824,7 +824,7 @@ import React from 'react';
   if (!mounted) return null;
 
   return (
-    <div className={`flex flex-col h-full bg-[#0F1116] border border-transparent rounded-2xl overflow-hidden shadow-xl ${className}`}>
+    <div data-theme="dark" className={`flex flex-col h-full bg-[#0F1116] border border-transparent rounded-2xl overflow-hidden shadow-xl ${className}`} style={{ colorScheme: 'dark' }}>
       <div className="flex-1 flex flex-col bg-[#0F1116] relative">
         <div className="min-h-[64px] border-b border-transparent flex items-center justify-between gap-3 px-4 py-2.5 bg-black/20 backdrop-blur-md sticky top-0 z-20">
           <div className="flex items-center gap-3 overflow-hidden flex-1 min-w-0">

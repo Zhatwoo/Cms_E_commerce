@@ -355,7 +355,7 @@ const ColorPickerPopover = ({ value, onChange, onClose, anchorRef }: {
                 <div className="flex flex-col items-center gap-2">
                     <button
                         onClick={handleEyeDropper}
-                        className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[var(--builder-text-muted)] transition-colors group"
+                        className="p-1.5 rounded-lg bg-[var(--builder-surface-2)] hover:bg-[var(--builder-surface-3)] text-[var(--builder-text-muted)] transition-colors group"
                         title="Pick color from screen"
                     >
                         <Pipette size={14} className="group-active:scale-90 transition-transform" />
@@ -372,10 +372,10 @@ const ColorPickerPopover = ({ value, onChange, onClose, anchorRef }: {
             {/* Mode Switcher & Inputs */}
             <div className="flex flex-col gap-2">
                 <div className="flex gap-2">
-                    <div className="flex-1 flex bg-white/5 rounded-lg border border-transparent overflow-hidden text-[11px]">
+                    <div className="flex-1 flex bg-[var(--builder-surface-2)] rounded-lg border border-[var(--builder-border)] overflow-hidden text-[11px]">
                         <button
                             onClick={() => setMode(m => m === 'HEX' ? 'RGB' : m === 'RGB' ? 'HSL' : 'HEX')}
-                            className="px-2 py-1.5 bg-white/5 text-[var(--builder-text-faint)] flex items-center gap-1 border-r border-transparent hover:text-white transition-colors capitalize"
+                            className="px-2 py-1.5 bg-[var(--builder-surface-3)] text-[var(--builder-text-faint)] flex items-center gap-1 border-r border-[var(--builder-border)] hover:text-[var(--builder-text)] transition-colors capitalize"
                         >
                             {mode.toLowerCase()} <ChevronDown size={10} />
                         </button>
@@ -397,7 +397,7 @@ const ColorPickerPopover = ({ value, onChange, onClose, anchorRef }: {
                         )}
 
                         {mode === 'RGB' && (
-                            <div className="flex-1 flex divide-x divide-white/5">
+                            <div className="flex-1 flex divide-x divide-[var(--builder-border)]">
                                 {[rgba.r, rgba.g, rgba.b].map((v, i) => (
                                     <input
                                         key={i}
@@ -417,7 +417,7 @@ const ColorPickerPopover = ({ value, onChange, onClose, anchorRef }: {
                         )}
 
                         {mode === 'HSL' && (
-                            <div className="flex-1 flex divide-x divide-white/5">
+                            <div className="flex-1 flex divide-x divide-[var(--builder-border)]">
                                 {(() => {
                                     const hsl = rgbaToHsla(rgba.r, rgba.g, rgba.b, rgba.a);
                                     return [hsl.h, hsl.s, hsl.l].map((v, i) => (
@@ -442,7 +442,7 @@ const ColorPickerPopover = ({ value, onChange, onClose, anchorRef }: {
                         )}
                     </div>
 
-                    <div className="w-16 flex bg-white/5 rounded-lg border border-transparent overflow-hidden text-[11px]">
+                    <div className="w-16 flex bg-[var(--builder-surface-2)] rounded-lg border border-[var(--builder-border)] overflow-hidden text-[11px]">
                         <input
                             type="text"
                             value={Math.round(hsva.a * 100)}

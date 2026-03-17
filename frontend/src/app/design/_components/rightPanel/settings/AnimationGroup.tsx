@@ -29,8 +29,8 @@ const selectClass =
   "w-full bg-[var(--builder-surface-2)] rounded-md text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none appearance-none cursor-pointer";
 const labelClass = "text-[12px] text-[var(--builder-text)] font-base";
 const subLabelClass = "text-[10px] text-[var(--builder-text-muted)]";
-const sliderClass = "w-full accent-brand-light cursor-pointer";
-const checkboxClass = "accent-brand-light cursor-pointer";
+const sliderClass = "w-full accent-[var(--builder-accent)] cursor-pointer";
+const checkboxClass = "accent-[var(--builder-accent)] cursor-pointer";
 
 function getAnimation(props: Record<string, unknown>): AnimationConfig {
   const raw = props.animation as AnimationConfig | undefined;

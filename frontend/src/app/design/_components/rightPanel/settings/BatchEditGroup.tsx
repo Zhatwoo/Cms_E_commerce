@@ -7,7 +7,7 @@ import { ColorPicker } from "./inputs/ColorPicker";
 
 const labelClass = "text-[12px] text-[var(--builder-text)] font-base";
 const inputClass = "w-full bg-[var(--builder-surface-2)] rounded-md text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none";
-const sliderClass = "w-full accent-brand-light cursor-pointer";
+const sliderClass = "w-full accent-[var(--builder-accent)] cursor-pointer";
 
 interface BatchEditGroupProps {
   selectedIds: string[];
