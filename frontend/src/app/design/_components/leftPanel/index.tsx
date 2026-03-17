@@ -3,6 +3,7 @@ import { useEditor } from "@craftjs/core";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ChevronDown,
+  ChevronRight,
   Save,
   Settings,
   FileDown,
