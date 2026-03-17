@@ -16,6 +16,8 @@ import {
   ChevronDown,
   Play,
   MonitorSmartphone,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { MIN_SCALE, MAX_SCALE, ZOOM_STEP, ZOOM_PRESETS } from "./zoomConstants";
 import { selectedToIds } from "../_lib/canvasActions";
@@ -83,6 +85,8 @@ interface TopPanelProps {
   scale?: number;
   onScaleChange?: (scale: number) => void;
   onZoomFit?: () => void;
+  isDarkMode?: boolean;
+  onThemeToggle?: (e?: React.MouseEvent) => void;
 }
 
 export const TopPanel: React.FC<TopPanelProps> = ({
@@ -98,6 +102,8 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   scale = 1,
   onScaleChange,
   onZoomFit,
+  isDarkMode = true,
+  onThemeToggle,
 }) => {
   const { actions, query } = useEditor();
   const [showSizeDropdown, setShowSizeDropdown] = useState(false);
@@ -309,7 +315,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   return (
     <div
       data-panel="top-controls"
-      className="absolute top-0 left-0 right-0 z-[9999] bg-brand-dark/90 backdrop-blur-lg border-b border-white/10 pointer-events-auto antialiased"
+      className="absolute top-0 left-0 right-0 z-[9999] bg-builder-surface/95 backdrop-blur-lg border-b border-builder-border pointer-events-auto antialiased"
       style={toolbarTextSmoothingStyle}
     >
       <div className="flex items-center justify-between px-4 py-2 h-12">
@@ -318,10 +324,10 @@ export const TopPanel: React.FC<TopPanelProps> = ({
           <DesignTooltip content="Back to Dashboard" position="bottom">
             <Link
               href="/m_dashboard"
-              className="px-3 py-2 rounded-lg bg-brand-medium-dark hover:bg-brand-medium transition-colors border border-white/10 inline-flex items-center gap-2"
+              className="px-3 py-2 rounded-lg bg-builder-surface-2 hover:bg-builder-surface-3 transition-colors border border-builder-border inline-flex items-center gap-2"
             >
-              <ArrowLeft className="w-4 h-4 text-brand-light" />
-              <span className="text-xs font-medium text-brand-light">Back</span>
+              <ArrowLeft className="w-4 h-4 text-builder-text-muted" />
+              <span className="text-xs font-medium text-builder-text-muted">Back</span>
             </Link>
           </DesignTooltip>
 
@@ -330,14 +336,14 @@ export const TopPanel: React.FC<TopPanelProps> = ({
             <div className="flex flex-col gap-1 min-w-[140px] ml-2 group/storage cursor-help">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-1.5 overflow-hidden">
-                  <HardDrive className="w-3 h-3 text-white/40 group-hover/storage:text-emerald-400 transition-colors shrink-0" />
-                  <span className="text-[10px] font-bold text-white/50 group-hover/storage:text-white/80 transition-colors truncate uppercase tracking-wider">Project Storage</span>
+                  <HardDrive className="w-3 h-3 text-[var(--builder-text-faint)] group-hover/storage:text-emerald-400 transition-colors shrink-0" />
+                  <span className="text-[10px] font-bold text-[var(--builder-text-faint)] group-hover/storage:text-[var(--builder-text-muted)] transition-colors truncate uppercase tracking-wider">Project Storage</span>
                 </div>
-                <span className="text-[9px] font-black text-white/30 group-hover/storage:text-white/60 transition-colors tabular-nums shrink-0">{storageUsage.readable} / 1 GB</span>
+                <span className="text-[9px] font-black text-[var(--builder-text-faint)] group-hover/storage:text-[var(--builder-text-muted)] transition-colors tabular-nums shrink-0">{storageUsage.readable} / 1 GB</span>
               </div>
-              <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5 relative">
+              <div className="h-1.5 w-full bg-[var(--builder-surface-3)] rounded-full overflow-hidden border border-[var(--builder-border)] relative">
                 <div
-                  className="h-full transition-all duration-1000 ease-out rounded-full shadow-[0_0_12px_rgba(16,185,129,0.2)]"
+                  className="h-full transition-all duration-1000 ease-out rounded-full"
                   style={{
                     width: `${Math.min(100, (storageUsage.bytes / STORAGE_LIMIT) * 100)}%`,
                     background: (storageUsage.bytes / STORAGE_LIMIT) > 0.9 
@@ -361,7 +367,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
             {selectedUser && (
               <div
                 ref={userModalRef}
-                className="absolute top-full left-0 mt-3 w-64 bg-[#1a1a2e]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl z-[1000] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
+                className="absolute top-full left-0 mt-3 w-64 bg-[var(--builder-surface-2)] backdrop-blur-xl border border-[var(--builder-border)] rounded-2xl shadow-2xl z-[1000] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
               >
                 <div
                   className="h-1.5 w-full"
@@ -376,15 +382,15 @@ export const TopPanel: React.FC<TopPanelProps> = ({
                       {selectedUser.displayName.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-white truncate">
+                      <p className="text-sm font-bold text-[var(--builder-text)] truncate">
                         {selectedUser.displayName}
                         {selectedUser.isSelf && <span className="ml-1.5 text-[10px] text-blue-400 font-black uppercase tracking-widest">(You)</span>}
                       </p>
-                      <p className="text-[11px] text-white/40 truncate">{selectedUser.email}</p>
+                      <p className="text-[11px] text-[var(--builder-text-muted)] truncate">{selectedUser.email}</p>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-white/5 border border-white/5">
-                    <span className="text-[10px] text-white/30 font-bold uppercase tracking-widest">Role</span>
+                  <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-[var(--builder-surface-3)] border border-[var(--builder-border)]">
+                    <span className="text-[10px] text-[var(--builder-text-faint)] font-bold uppercase tracking-widest">Role</span>
                     <span className="text-[10px] text-blue-400 font-black uppercase tracking-widest">{selectedUser.role}</span>
                   </div>
                 </div>
@@ -400,12 +406,10 @@ export const TopPanel: React.FC<TopPanelProps> = ({
                 color: myColor,
                 isSelf: true
               })}
-              className="relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-brand-dark cursor-pointer z-10 hover:scale-105 active:scale-95 transition-all"
+              className="relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-[var(--builder-surface)] cursor-pointer z-10 hover:scale-105 active:scale-95 transition-all"
               style={{ background: myColor }}
             >
               {selfInitial}
-              {/* Online indicator */}
-              {/* Online indicator removed as per user request */}
             </button>
 
             {/* Remote collaborators (max 3 visible) */}
@@ -418,7 +422,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
                   role: collab.role,
                   color: collab.color
                 })}
-                className="relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-brand-dark -ml-2 cursor-pointer hover:scale-105 active:scale-95 transition-all"
+                className="relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-[var(--builder-surface)] -ml-2 cursor-pointer hover:scale-105 active:scale-95 transition-all"
                 style={{ background: collab.color, zIndex: 9 - i }}
               >
                 {(collab.displayName || "?").charAt(0).toUpperCase()}
@@ -426,7 +430,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
             ))}
             {collaborators.length > 3 && (
               <div
-                className="relative w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white/70 ring-2 ring-brand-dark -ml-2 bg-brand-medium cursor-default"
+                className="relative w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-[var(--builder-text-muted)] ring-2 ring-[var(--builder-surface)] -ml-2 bg-[var(--builder-surface-3)] cursor-default"
                 title={`${collaborators.length - 3} more collaborators`}
               >
                 +{collaborators.length - 3}
@@ -440,23 +444,23 @@ export const TopPanel: React.FC<TopPanelProps> = ({
                 setShowCollabList(!showCollabList);
                 setSelectedUser(null);
               }}
-              className="ml-2 w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
+              className="ml-2 w-7 h-7 flex items-center justify-center rounded-full hover:bg-[var(--builder-surface-2)] transition-colors"
             >
-              <ChevronDown className={`w-4 h-4 text-white/70 transition-transform duration-200 ${showCollabList ? "rotate-180" : ""}`} />
+              <ChevronDown className={`w-4 h-4 text-[var(--builder-text-muted)] transition-transform duration-200 ${showCollabList ? "rotate-180" : ""}`} />
             </button>
 
             {showCollabList && (
               <div
                 ref={collabListRef}
-                className="absolute top-full left-0 mt-3 w-72 bg-[#1a1a2e]/98 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl z-[1000] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
+                className="absolute top-full left-0 mt-3 w-72 bg-[var(--builder-surface-2)] backdrop-blur-xl border border-[var(--builder-border)] rounded-2xl shadow-2xl z-[1000] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
               >
-                <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between bg-white/5">
-                  <span className="text-[11px] uppercase tracking-widest font-black text-white/50">Collaborators</span>
+                <div className="px-4 py-3 border-b border-[var(--builder-border)] flex items-center justify-between bg-[var(--builder-surface-3)]">
+                  <span className="text-[11px] uppercase tracking-widest font-black text-[var(--builder-text-faint)]">Collaborators</span>
                   <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">{collaborators.length + 1} Active</span>
                 </div>
                 <div className="max-h-[300px] overflow-y-auto p-2 flex flex-col gap-1">
                   {/* Self */}
-                  <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
+                  <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-[var(--builder-surface-3)] transition-colors cursor-pointer"
                     onClick={() => {
                       setSelectedUser({
                         displayName: selfUser?.name || selfUser?.username || "You",
@@ -470,21 +474,20 @@ export const TopPanel: React.FC<TopPanelProps> = ({
                   >
                     <div className="relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ background: myColor }}>
                       {selfInitial}
-                      {/* Online indicator removed */}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-white truncate">
+                      <p className="text-sm font-bold text-[var(--builder-text)] truncate">
                         {selfUser?.name || selfUser?.username || "You"}
                         <span className="ml-1.5 text-[10px] text-blue-400 font-black uppercase tracking-widest">(You)</span>
                       </p>
-                      <p className="text-[11px] text-white/40 truncate">{selfUser?.email}</p>
+                      <p className="text-[11px] text-[var(--builder-text-faint)] truncate">{selfUser?.email}</p>
                     </div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">{projectPermission}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--builder-text-faint)]">{projectPermission}</span>
                   </div>
 
                   {/* Others */}
                   {collaborators.map(collab => (
-                    <div key={collab.socketId} className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
+                    <div key={collab.socketId} className="flex items-center gap-3 p-2 rounded-xl hover:bg-[var(--builder-surface-3)] transition-colors cursor-pointer"
                       onClick={() => {
                         setSelectedUser({
                           displayName: collab.displayName,
@@ -497,13 +500,12 @@ export const TopPanel: React.FC<TopPanelProps> = ({
                     >
                       <div className="relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ background: collab.color }}>
                         {(collab.displayName || "?").charAt(0).toUpperCase()}
-                        {/* Online indicator removed */}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-white truncate">{collab.displayName}</p>
-                        <p className="text-[11px] text-white/40 truncate">{collab.email}</p>
+                        <p className="text-sm font-bold text-[var(--builder-text)] truncate">{collab.displayName}</p>
+                        <p className="text-[11px] text-[var(--builder-text-faint)] truncate">{collab.email}</p>
                       </div>
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">{collab.role}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--builder-text-faint)]">{collab.role}</span>
                     </div>
                   ))}
                 </div>
@@ -512,7 +514,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
           </div>
 
           {/* Divider */}
-          <div className="w-px h-6 bg-white/10" />
+          <div className="w-px h-6 bg-[var(--builder-border-mid)]" />
 
           {/* Share Button */}
           <button
@@ -531,15 +533,29 @@ export const TopPanel: React.FC<TopPanelProps> = ({
           </button>
 
           {/* Divider */}
-          <div className="w-px h-6 bg-white/10" />
+          <div className="w-px h-6 bg-[var(--builder-border-mid)]" />
+
+          {/* Theme Toggle */}
+          <DesignTooltip content={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"} position="bottom">
+            <button
+              onClick={(e) => onThemeToggle?.(e)}
+              className="p-2 rounded-lg transition-all border border-[var(--builder-border)] bg-[var(--builder-surface-2)] hover:bg-[var(--builder-surface-3)] text-[var(--builder-text-muted)] hover:text-[var(--builder-accent)] active:scale-95"
+              aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+          </DesignTooltip>
+
+          {/* Divider */}
+          <div className="w-px h-6 bg-[var(--builder-border-mid)]" />
 
           {/* Device Preview Toggle Button */}
           <DesignTooltip content={showDualView ? "Hide Device Preview" : "Show Device Preview"} position="bottom">
             <button
               onClick={onDualViewToggle}
-              className={`p-2 rounded-lg transition-colors border border-white/10 flex items-center gap-2 ${showDualView
+              className={`p-2 rounded-lg transition-colors border border-builder-border flex items-center gap-2 ${showDualView
                 ? "bg-blue-500/30 text-blue-400 border-blue-400/30"
-                : "bg-brand-medium-dark hover:bg-brand-medium text-brand-lighter"
+                : "bg-builder-surface-2 hover:bg-builder-surface-3 text-builder-text"
                 }`}
             >
               <Smartphone className="w-4 h-4" />
@@ -554,7 +570,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
                 onClick={() => setShowSizeDropdown((prev) => !prev)}
                 className={`flex items-center gap-2 p-2 rounded-lg transition-colors border ${showSizeDropdown
                     ? "bg-blue-500/20 border-blue-500/50 text-blue-400"
-                    : "bg-brand-medium-dark hover:bg-brand-medium border-white/10 text-brand-lighter"
+                    : "bg-builder-surface-2 hover:bg-builder-surface-3 border-builder-border text-builder-text"
                   }`}
               >
                 <MonitorSmartphone className="w-4 h-4" />
@@ -563,13 +579,13 @@ export const TopPanel: React.FC<TopPanelProps> = ({
             </DesignTooltip>
 
             <div
-              className={`absolute top-full right-0 mt-2 w-48 bg-brand-dark/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl py-1 z-[100] transition-all duration-200 ${showSizeDropdown
+              className={`absolute top-full right-0 mt-2 w-48 bg-[var(--builder-surface)]/95 backdrop-blur-xl border border-[var(--builder-border)] rounded-xl shadow-2xl py-1 z-[100] transition-all duration-200 ${showSizeDropdown
                   ? "opacity-100 translate-y-0 pointer-events-auto"
                   : "opacity-0 translate-y-2 pointer-events-none"
                 }`}
             >
-              <div className="px-3 py-2 border-b border-white/5 bg-white/5">
-                <span className="text-[10px] uppercase tracking-widest font-black text-white/40">Breakpoints</span>
+              <div className="px-3 py-2 border-b border-[var(--builder-border)] bg-[var(--builder-surface-3)]">
+                <span className="text-[10px] uppercase tracking-widest font-black text-[var(--builder-text-faint)]">Breakpoints</span>
               </div>
               {DEVICE_PRESETS.map((preset, index) => (
                 <button
@@ -578,9 +594,9 @@ export const TopPanel: React.FC<TopPanelProps> = ({
                     handlePresetSelect(preset);
                     setShowSizeDropdown(false);
                   }}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 text-xs transition-colors hover:bg-white/5 ${selectedPreset?.name === preset.name
+                  className={`w-full flex items-center justify-between px-3 py-2.5 text-xs transition-colors hover:bg-[var(--builder-surface-2)] ${selectedPreset?.name === preset.name
                     ? "text-blue-400 font-bold bg-blue-500/10"
-                    : "text-white/70"
+                    : "text-[var(--builder-text-muted)]"
                     }`}
                 >
                   <div className="flex items-center gap-2">
@@ -598,13 +614,13 @@ export const TopPanel: React.FC<TopPanelProps> = ({
           </div>
 
           {/* Divider */}
-          <div className="w-px h-6 bg-white/10" />
+          <div className="w-px h-6 bg-[var(--builder-border-mid)]" />
 
           {/* Preview Button */}
           <DesignTooltip content="Preview" position="bottom">
             <button
               onClick={onPreview}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all hover:bg-white/10 active:scale-95 text-brand-light group/preview"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all hover:bg-[var(--builder-surface-2)] active:scale-95 text-[var(--builder-text-muted)] group/preview"
             >
               <Play className="w-3.5 h-3.5 fill-current transition-transform group-hover/preview:scale-110" />
             </button>

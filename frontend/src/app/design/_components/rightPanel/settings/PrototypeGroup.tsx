@@ -14,9 +14,9 @@ import type { EasingType } from "../../../_types/animation";
 import { DEFAULT_PROTOTYPE } from "../../../_types/prototype";
 
 const selectClass =
-  "w-full bg-brand-medium-dark rounded-md text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none appearance-none cursor-pointer";
-const labelClass = "text-[12px] text-brand-lighter font-base";
-const sliderClass = "w-full accent-brand-light cursor-pointer";
+  "w-full bg-[var(--builder-surface-2)] rounded-md text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none appearance-none cursor-pointer";
+const labelClass = "text-[12px] text-[var(--builder-text)] font-base";
+const sliderClass = "w-full accent-[var(--builder-accent)] cursor-pointer";
 
 const TRIGGER_LABELS: Record<InteractionTrigger, string> = {
   click: "On click",
@@ -188,27 +188,27 @@ export const PrototypeGroup = ({ selectedIds }: PrototypeGroupProps) => {
             <button
               type="button"
               onClick={addInteraction}
-              className="text-xs px-2 py-1 rounded bg-brand-medium hover:bg-brand-medium-light text-brand-lighter"
+              className="text-xs px-2 py-1 rounded bg-[var(--builder-surface-3)] hover:bg-[var(--builder-surface-hover)] text-[var(--builder-text)]"
             >
               Add interaction
             </button>
           </div>
 
           {prototype.interactions.length === 0 ? (
-            <p className="text-[10px] text-brand-medium">No interactions. Add one to link to a page or URL.</p>
+            <p className="text-[10px] text-[var(--builder-text-faint)]">No interactions. Add one to link to a page or URL.</p>
           ) : (
             <div className="flex flex-col gap-4">
               {prototype.interactions.map((interaction, index) => (
                 <div
                   key={index}
-                  className="border border-brand-medium rounded-lg p-2.5 space-y-2 bg-brand-darker/50"
+                  className="border border-[var(--builder-border-mid)] rounded-lg p-2.5 space-y-2 bg-[var(--builder-surface)]er/50"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] text-brand-medium uppercase">Interaction {index + 1}</span>
+                    <span className="text-[10px] text-[var(--builder-text-faint)] uppercase">Interaction {index + 1}</span>
                     <button
                       type="button"
                       onClick={() => removeInteraction(index)}
-                      className="text-brand-medium hover:text-red-400 text-xs cursor-pointer"
+                      className="text-[var(--builder-text-faint)] hover:text-red-400 text-xs cursor-pointer"
                     >
                       Remove
                     </button>
@@ -275,7 +275,7 @@ export const PrototypeGroup = ({ selectedIds }: PrototypeGroupProps) => {
                             updateInteraction(index, { destination: e.target.value || undefined })
                           }
                           placeholder={interaction.action === "openUrl" ? "https://..." : "Element ID"}
-                          className="w-full bg-brand-medium-dark rounded-md text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none"
+                          className="w-full bg-[var(--builder-surface-2)] rounded-md text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none"
                         />
                       )}
                     </div>
@@ -300,7 +300,7 @@ export const PrototypeGroup = ({ selectedIds }: PrototypeGroupProps) => {
                       <div className="flex flex-col gap-1">
                         <div className="flex justify-between">
                           <label className={labelClass}>Duration</label>
-                          <span className="text-[10px] text-brand-medium">{interaction.duration ?? 300}ms</span>
+                          <span className="text-[10px] text-[var(--builder-text-faint)]">{interaction.duration ?? 300}ms</span>
                         </div>
                         <input
                           type="range"

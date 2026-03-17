@@ -255,7 +255,7 @@ export const CodeSnippetsManager: React.FC<CodeSnippetsManagerProps> = ({
           placeholder="Search snippets..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-lg text-xs text-brand-light placeholder-brand-light/50 focus:border-blue-500 focus:outline-none"
+          className="w-full pl-9 pr-3 py-2 bg-white/5 border border-transparent rounded-lg text-xs text-brand-light placeholder-brand-light/50 focus:border-blue-500 focus:outline-none"
         />
       </div>
 
@@ -284,7 +284,7 @@ export const CodeSnippetsManager: React.FC<CodeSnippetsManagerProps> = ({
           filteredSnippets.map((snippet) => (
             <div
               key={snippet.id}
-              className="group p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-colors cursor-pointer"
+              className="group p-3 bg-white/5 hover:bg-white/10 border border-transparent rounded-lg transition-colors cursor-pointer"
             >
               <div
                 onClick={() => onSelectSnippet(snippet)}

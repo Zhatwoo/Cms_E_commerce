@@ -74,7 +74,7 @@ function MenuItem({
 }
 
 function Divider() {
-  return <div className="border-t border-white/10 my-0.5" />;
+  return <div className="border-t border-transparent my-0.5" />;
 }
 
 /**
@@ -216,7 +216,7 @@ export function CanvasContextMenu() {
       <div
         ref={menuRef}
         data-context-menu
-        className="fixed z-[10050] min-w-[200px] max-h-[calc(100vh-16px)] overflow-y-auto bg-brand-darker border border-white/10 rounded-lg shadow-2xl py-2 px-3 text-brand-light/60 text-sm"
+        className="fixed z-[10050] min-w-[200px] max-h-[calc(100vh-16px)] overflow-y-auto bg-brand-darker border border-transparent rounded-lg shadow-2xl py-2 px-3 text-brand-light/60 text-sm"
         style={{ left: menuPosition?.left ?? menu.x, top: menuPosition?.top ?? menu.y }}
       >
         Loading…
@@ -472,7 +472,7 @@ export function CanvasContextMenu() {
     <div
       ref={menuRef}
       data-context-menu
-      className="fixed z-[10050] min-w-[200px] max-h-[calc(100vh-16px)] overflow-y-auto bg-brand-darker border border-white/10 rounded-lg shadow-2xl py-1 text-sm"
+      className="fixed z-[10050] min-w-[200px] max-h-[calc(100vh-16px)] overflow-y-auto bg-brand-darker border border-transparent rounded-lg shadow-2xl py-1 text-sm"
       style={{ left: menuPosition?.left ?? menu.x, top: menuPosition?.top ?? menu.y }}
       onClick={(e) => e.stopPropagation()}
     >

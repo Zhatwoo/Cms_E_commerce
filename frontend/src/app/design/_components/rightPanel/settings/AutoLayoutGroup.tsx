@@ -85,12 +85,12 @@ export const AutoLayoutGroup = ({
           e.preventDefault();
         }}
         className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${active
-          ? "bg-brand-light text-brand-dark scale-110"
-          : "bg-brand-medium/50 text-brand-light hover:bg-brand-medium/40"
+          ? "bg-[var(--builder-accent)] text-black scale-110"
+          : "bg-brand-medium/50 text-[var(--builder-text-muted)] hover:bg-[var(--builder-surface-3)]"
           }`}
       >
         {/* center dot */}
-        <div className={`w-1.5 h-1.5 rounded-full ${active ? "bg-brand-darker" : "bg-brand-light"}`} />
+        <div className={`w-1.5 h-1.5 rounded-full ${active ? "bg-[var(--builder-surface)]er" : "bg-brand-light"}`} />
       </button>
     );
   };
@@ -98,11 +98,11 @@ export const AutoLayoutGroup = ({
   return (
     <div className="flex flex-col gap-4">
       {/* Direction & Wrap */}
-      <div className="flex items-center gap-2 bg-brand-medium-dark rounded-[10px] border-2 border-brand-medium-dark p-.1">
+      <div className="flex items-center gap-2 bg-[var(--builder-surface-2)] rounded-[10px] border-2 border-[var(--builder-border-mid)]-dark p-.1">
         <button
           type="button"
           onClick={() => handleDirection("column")}
-          className={`p-1.5 rounded-lg flex-1 flex justify-center ${flexDirection === "column" ? "bg-brand-medium/50 text-brand-lighter" : "text-brand-light hover:text-brand-lighter"}`}
+          className={`p-1.5 rounded-lg flex-1 flex justify-center ${flexDirection === "column" ? "bg-brand-medium/50 text-[var(--builder-text)]" : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"}`}
           title="Vertical (Column)"
         >
           <ArrowDown size={16} />
@@ -110,7 +110,7 @@ export const AutoLayoutGroup = ({
         <button
           type="button"
           onClick={() => handleDirection("row")}
-          className={`p-1.5 rounded-lg flex-1 flex justify-center ${flexDirection === "row" ? "bg-brand-medium/50 text-brand-lighter" : "text-brand-light hover:text-brand-lighter"}`}
+          className={`p-1.5 rounded-lg flex-1 flex justify-center ${flexDirection === "row" ? "bg-brand-medium/50 text-[var(--builder-text)]" : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"}`}
           title="Horizontal (Row)"
         >
           <ArrowRight size={16} />
@@ -119,7 +119,7 @@ export const AutoLayoutGroup = ({
         <button
           type="button"
           onClick={handleWrap}
-          className={`p-1.5 rounded-lg flex-1 flex justify-center ${flexWrap === "wrap" ? "bg-brand-light text-brand-dark" : "text-brand-light hover:text-brand-lighter"}`}
+          className={`p-1.5 rounded-lg flex-1 flex justify-center ${flexWrap === "wrap" ? "bg-[var(--builder-accent)] text-black" : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"}`}
           title="Wrap Items"
         >
           <WrapText size={16} />
@@ -129,7 +129,7 @@ export const AutoLayoutGroup = ({
       {/* Alignment Matrix & Gap */}
       <div className="flex gap-4">
         {/* 3x3 Matrix */}
-        <div className="bg-brand-medium-dark p-1.5 rounded-xl inline-grid grid-cols-3 gap-2">
+        <div className="bg-[var(--builder-surface-2)] p-1.5 rounded-xl inline-grid grid-cols-3 gap-2">
           {["start", "center", "end"].map(v =>
             ["start", "center", "end"].map(h =>
               renderMatrixCell(h as "start" | "center" | "end", v as "start" | "center" | "end")
@@ -140,8 +140,8 @@ export const AutoLayoutGroup = ({
         {/* Gap & Distribution */}
         <div className="flex flex-col justify-between flex-1 gap-2">
           <div className="flex flex-col gap-1">
-            <label className="text-[12px] text-brand-lighter font-base">Gap</label>
-            <div className="bg-brand-medium-dark px-2.5 rounded-lg">
+            <label className="text-[12px] text-[var(--builder-text)] font-base">Gap</label>
+            <div className="bg-[var(--builder-surface-2)] px-2.5 rounded-lg">
               <NumericInput
                 value={gap}
                 onChange={(val) => setProp((props) => { props.gap = val; })}
@@ -152,10 +152,10 @@ export const AutoLayoutGroup = ({
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-[12px] text-brand-lighter font-base">Distribute</label>
-            <div className="bg-brand-medium-dark px-2 rounded-lg">
+            <label className="text-[12px] text-[var(--builder-text)] font-base">Distribute</label>
+            <div className="bg-[var(--builder-surface-2)] px-2 rounded-lg">
               <select
-                className="text-xs bg-brand-medium-dark text-brand-lighter py-1.5 px-2.5 focus:outline-none appearance-none"
+                className="text-xs bg-[var(--builder-surface-2)] text-[var(--builder-text)] py-1.5 px-2.5 focus:outline-none appearance-none"
                 value={justifyContent === "space-between" ? "space-between" : "packed"}
                 onChange={(e) => {
                   if (e.target.value === "space-between") {
