@@ -842,7 +842,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                           </div>
 
                           {/* Hover Overlay */}
-                          <div className="absolute inset-0 bg-[var(--builder-surface)]/60 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <div className="absolute inset-0 bg-[var(--builder-surface)]/60 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                             <button
                               type="button"
                               onClick={(e) => {
@@ -850,8 +850,20 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                                 addMediaToCanvas(item);
                               }}
                               className="p-2.5 rounded-full bg-[var(--builder-purple)] text-white hover:scale-110 active:scale-95 transition-all shadow-xl"
+                              title="Add to canvas"
                             >
                               <Plus className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteItem(item.id);
+                              }}
+                              className="p-2.5 rounded-full bg-red-500 text-white hover:scale-110 active:scale-95 transition-all shadow-xl"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
 
