@@ -346,11 +346,11 @@ export function DashboardSidebar({ mobile = false, onClose, onNavigateStart }: D
                 )}
               </AnimatePresence>
 
-              {/* Active indicator when collapsed */}
-              {isActive && !isHovered && (
+              {/* Active indicator when collapsed or expanded */}
+              {isActive && (
                 <div
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full"
-                  style={{ backgroundColor: accentYellow }}
+                  className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full transition-all duration-300 ${!isHovered ? 'opacity-100' : 'opacity-0'}`}
+                  style={{ backgroundColor: theme === 'light' ? '#14034A' : accentYellow }}
                 />
               )}
             </Link>
