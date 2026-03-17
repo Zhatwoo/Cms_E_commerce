@@ -41,6 +41,7 @@ type DragNodeState = {
   marginLeft: number;
   top: number;
   left: number;
+  startRect: { left: number; top: number; width: number; height: number } | null;
 };
 
 function getEffectiveZoom(el: HTMLElement | null): number {
@@ -76,6 +77,22 @@ function parseNumberOrZero(value: unknown): number {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function getRenderedScale(el: HTMLElement | null): { scaleX: number; scaleY: number } {
+  if (!el) return { scaleX: 1, scaleY: 1 };
+
+  const rect = el.getBoundingClientRect();
+  const baseWidth = el.offsetWidth || el.clientWidth || 0;
+  const baseHeight = el.offsetHeight || el.clientHeight || 0;
+
+  const scaleX = baseWidth > 0 ? rect.width / baseWidth : 1;
+  const scaleY = baseHeight > 0 ? rect.height / baseHeight : 1;
+
+  return {
+    scaleX: Number.isFinite(scaleX) && scaleX > 0.01 ? scaleX : 1,
+    scaleY: Number.isFinite(scaleY) && scaleY > 0.01 ? scaleY : 1,
+  };
 }
 
 function selectedToIds(raw: unknown): string[] {
@@ -145,6 +162,34 @@ function getDropTargetAt(
     if (node.data.displayName && CANVAS_DISPLAY_NAMES.has(node.data.displayName)) return id;
   }
   return null;
+}
+
+function findPageTargetAt(
+  clientX: number,
+  clientY: number,
+  nodes: NodesMap,
+  excludeIds: string[]
+): string | null {
+  const exclude = new Set(excludeIds);
+  const elements = document.elementsFromPoint(clientX, clientY) as HTMLElement[];
+  for (const el of elements) {
+    const withNode = el.closest("[data-node-id]") as HTMLElement | null;
+    if (!withNode) continue;
+    const id = withNode.getAttribute("data-node-id");
+    if (!id || exclude.has(id)) continue;
+    if (String(nodes[id]?.data?.displayName ?? "") === "Page") return id;
+  }
+  const fallback = Object.keys(nodes).find((id) => String(nodes[id]?.data?.displayName ?? "") === "Page");
+  return fallback ?? null;
+}
+
+function isPointerInsideCanvas(clientX: number, clientY: number): boolean {
+  try {
+    const elements = document.elementsFromPoint(clientX, clientY) as HTMLElement[];
+    return elements.some((el) => el.closest?.("[data-canvas-container]"));
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -557,7 +602,9 @@ export const FigmaStyleDragHandler = () => {
         }
 
         // If we clicked on a specific node and it's not in the selection, use the clicked node
-        // This prevents dragging parent containers when clicking on child elements
+        // This prevents dragging parent containers when clicking on child elements.
+        // Exception: if a single parent (group) is selected, keep dragging the group when
+        // clicking on its descendants (Figma-like behavior).
         if (d.fallbackNodeId && state.nodes[d.fallbackNodeId]) {
           const clickedNodeId = d.fallbackNodeId;
           const clickedNodeInSelection = ids.includes(clickedNodeId);
@@ -577,9 +624,11 @@ export const FigmaStyleDragHandler = () => {
               return false;
             });
 
-            // If clicked node is a descendant, use the clicked node instead
+            // If clicked node is a descendant, keep group drag when only one item is selected.
             if (isDescendant) {
-              ids = [clickedNodeId];
+              if (ids.length > 1) {
+                ids = [clickedNodeId];
+              }
             }
           } else if (ids.length === 0) {
             // No selection, use clicked node
@@ -636,6 +685,16 @@ export const FigmaStyleDragHandler = () => {
 
           const mode = getMoveModeForNode(id, { nodes: state.nodes as NodesMap });
           const isAbsoluteLike = position === "absolute" || position === "fixed";
+          let startRect: { left: number; top: number; width: number; height: number } | null = null;
+          try {
+            const dom = queryRef.current.node(id).get()?.dom ?? null;
+            if (dom) {
+              const rect = dom.getBoundingClientRect();
+              startRect = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+            }
+          } catch {
+            startRect = null;
+          }
 
           return {
             id,
@@ -646,6 +705,7 @@ export const FigmaStyleDragHandler = () => {
             mode,
             top,
             left,
+            startRect,
           };
         });
 
@@ -688,7 +748,10 @@ export const FigmaStyleDragHandler = () => {
         const currentParentId = nodes[ids[0]]?.data?.parent ?? null;
 
         const doms = getDraggedDoms(ids, queryRef.current.node);
-        const dropTargetId = getDropTargetAt(d.lastX, d.lastY, nodes, ids, doms);
+        let dropTargetId = getDropTargetAt(d.lastX, d.lastY, nodes, ids, doms);
+        if (!dropTargetId && isPointerInsideCanvas(d.lastX, d.lastY)) {
+          dropTargetId = findPageTargetAt(d.lastX, d.lastY, nodes, ids);
+        }
 
         if (
           dropTargetId &&
@@ -697,6 +760,30 @@ export const FigmaStyleDragHandler = () => {
         ) {
           try {
             const insertIndex = computeInsertIndex(dropTargetId, d.lastX, d.lastY, nodes, ids, queryRef.current.node);
+            const dropTargetDom = queryRef.current.node(dropTargetId).get()?.dom ?? null;
+            const dropTargetRect = dropTargetDom?.getBoundingClientRect() ?? null;
+            const { scaleX: dropScaleX, scaleY: dropScaleY } = getRenderedScale(dropTargetDom);
+            const dxScreen = d.lastX - d.startX;
+            const dyScreen = d.lastY - d.startY;
+
+            const dropTargetProps = (nodes[dropTargetId]?.data?.props ?? {}) as Record<string, unknown>;
+            const dropTargetDisplayName = String(nodes[dropTargetId]?.data?.displayName ?? "");
+            const dropTargetDisplay = String(dropTargetProps.display ?? "").toLowerCase();
+            const dropTargetIsFlexOrGrid = dropTargetDisplay === "flex" || dropTargetDisplay === "grid";
+            const dropTargetIsFreeform =
+              dropTargetProps.isFreeform === true ||
+              FREEFORM_PARENT_DISPLAY_NAMES.has(dropTargetDisplayName) ||
+              (!dropTargetIsFlexOrGrid && dropTargetDisplayName === "Page");
+
+            const placementById = new Map<string, { left: number; top: number }>();
+            if (dropTargetRect) {
+              d.nodeMargins.forEach((entry) => {
+                if (!entry.startRect) return;
+                const nextLeft = Math.round((entry.startRect.left + dxScreen - dropTargetRect.left) / dropScaleX);
+                const nextTop = Math.round((entry.startRect.top + dyScreen - dropTargetRect.top) / dropScaleY);
+                placementById.set(entry.id, { left: nextLeft, top: nextTop });
+              });
+            }
 
             ids.forEach((nodeId, i) => {
               actionsRef.current.move(nodeId, dropTargetId, insertIndex + i);
@@ -708,15 +795,24 @@ export const FigmaStyleDragHandler = () => {
               actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
                 props.marginTop = 0;
                 props.marginLeft = 0;
-                props.top = "0px";
-                props.left = "0px";
-                if (modeById.get(id) === "offset") {
-                  const currentPosition = (props.position as string | undefined) ?? "static";
-                  const isAbsoluteLike = currentPosition === "absolute" || currentPosition === "fixed";
-                  if (dropTargetId && nodes[dropTargetId]?.data?.displayName === "Viewport") {
-                    props.position = "absolute";
-                  } else if (!isAbsoluteLike) {
-                    props.position = "relative";
+                if (dropTargetIsFreeform) {
+                  const placement = placementById.get(id);
+                  props.position = "absolute";
+                  props.top = `${placement?.top ?? 0}px`;
+                  props.left = `${placement?.left ?? 0}px`;
+                  props.right = "auto";
+                  props.bottom = "auto";
+                } else {
+                  props.top = "0px";
+                  props.left = "0px";
+                  if (modeById.get(id) === "offset") {
+                    const currentPosition = (props.position as string | undefined) ?? "static";
+                    const isAbsoluteLike = currentPosition === "absolute" || currentPosition === "fixed";
+                    if (dropTargetId && nodes[dropTargetId]?.data?.displayName === "Viewport") {
+                      props.position = "absolute";
+                    } else if (!isAbsoluteLike) {
+                      props.position = "relative";
+                    }
                   }
                 }
               });
