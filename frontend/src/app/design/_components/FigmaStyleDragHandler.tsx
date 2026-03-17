@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useEditor } from "@craftjs/core";
 import { useCanvasTool } from "./CanvasToolContext";
+import { getSnapGuides, getBoundingRect, Rect, SnapGuide } from "./snapUtils";
 
 const DRAGGING_ATTR = "data-dragging";
 
@@ -289,7 +290,9 @@ export const FigmaStyleDragHandler = () => {
   const draggedDomsRef = useRef<HTMLElement[]>([]);
   const dropTargetHighlightRef = useRef<HTMLElement | null>(null);
   const insertIndicatorRef = useRef<HTMLElement | null>(null);
-  const { activeTool } = useCanvasTool();
+  const { activeTool, setSnapGuides } = useCanvasTool();
+  const setSnapGuidesRef = useRef(setSnapGuides);
+  useEffect(() => { setSnapGuidesRef.current = setSnapGuides; }, [setSnapGuides]);
 
 
   const dragRef = useRef<{
@@ -306,6 +309,8 @@ export const FigmaStyleDragHandler = () => {
     clickedWasInSelection: boolean;
     preferMultiDrag: boolean;
     dirty: boolean;
+    targetRects: Rect[];
+    initialSelectionRect: Rect | null;
   } | null>(null);
 
   useEffect(() => {
@@ -318,9 +323,39 @@ export const FigmaStyleDragHandler = () => {
       rafRef.current = 0;
       const d = dragRef.current;
       if (!d || !d.committed || !d.dirty) return;
-      const dx = (d.lastX - d.startX) / d.zoom;
-      const dy = (d.lastY - d.startY) / d.zoom;
-      setDragPreview(draggedDomsRef.current, dx, dy);
+
+      const baseDx = (d.lastX - d.startX) / d.zoom;
+      const baseDy = (d.lastY - d.startY) / d.zoom;
+
+      if (d.initialSelectionRect) {
+        const movingRect: Rect = {
+          ...d.initialSelectionRect,
+          left: d.initialSelectionRect.left + baseDx * d.zoom,
+          top: d.initialSelectionRect.top + baseDy * d.zoom,
+          right: d.initialSelectionRect.right + baseDx * d.zoom,
+          bottom: d.initialSelectionRect.bottom + baseDy * d.zoom,
+          centerX: d.initialSelectionRect.centerX + baseDx * d.zoom,
+          centerY: d.initialSelectionRect.centerY + baseDy * d.zoom,
+        };
+
+        const { snappedX, snappedY, guides } = getSnapGuides(movingRect, d.targetRects);
+
+        let finalDx = baseDx;
+        let finalDy = baseDy;
+
+        if (snappedX !== null) {
+          finalDx = (snappedX - d.initialSelectionRect.left) / d.zoom;
+        }
+        if (snappedY !== null) {
+          finalDy = (snappedY - d.initialSelectionRect.top) / d.zoom;
+        }
+
+        setDragPreview(draggedDomsRef.current, finalDx, finalDy);
+        setSnapGuidesRef.current(guides);
+      } else {
+        setDragPreview(draggedDomsRef.current, baseDx, baseDy);
+      }
+      
       d.dirty = false;
     };
     processDragRef.current = tick;
@@ -521,6 +556,8 @@ export const FigmaStyleDragHandler = () => {
         preferMultiDrag,
         committed: false,
         dirty: false,
+        targetRects: [],
+        initialSelectionRect: null,
       };
     };
 
@@ -709,6 +746,40 @@ export const FigmaStyleDragHandler = () => {
           };
         });
 
+        // Gather target rects from all other nodes visible on the canvas
+        const otherNodes = Object.entries(state.nodes)
+          .filter(([id, node]) => id !== "ROOT" && !ids.includes(id) && !!(node as any).data?.displayName)
+          .map(([id]) => queryRef.current.node(id).get()?.dom)
+          .filter((dom): dom is HTMLElement => !!dom && dom.offsetParent !== null);
+        
+        d.targetRects = otherNodes.map(dom => getBoundingRect(dom));
+        // Also add the canvas/viewport boundary as a target
+        const viewpointDom = document.querySelector(".craftjs-renderer") as HTMLElement;
+        if (viewpointDom) {
+            d.targetRects.push(getBoundingRect(viewpointDom));
+        }
+
+        // Calculate initial selection rect
+        let initialRect: Rect | null = null;
+        for (const dom of draggedDomsRef.current) {
+          const r = getBoundingRect(dom);
+          if (!initialRect) {
+            initialRect = { ...r };
+          } else {
+            initialRect.left = Math.min(initialRect.left, r.left);
+            initialRect.top = Math.min(initialRect.top, r.top);
+            initialRect.right = Math.max(initialRect.right, r.right);
+            initialRect.bottom = Math.max(initialRect.bottom, r.bottom);
+          }
+        }
+        if (initialRect) {
+          initialRect.width = initialRect.right - initialRect.left;
+          initialRect.height = initialRect.bottom - initialRect.top;
+          initialRect.centerX = initialRect.left + initialRect.width / 2;
+          initialRect.centerY = initialRect.top + initialRect.height / 2;
+          d.initialSelectionRect = initialRect;
+        }
+
         draggedDomsRef.current = getDraggedDoms(ids, queryRef.current.node);
         setDraggingStyle(draggedDomsRef.current, true);
         document.body.dataset[EDITOR_DRAGGING_FLAG] = "true";
@@ -831,8 +902,31 @@ export const FigmaStyleDragHandler = () => {
           }
         } else {
           const nodes = queryRef.current?.getState()?.nodes ?? {};
-          const dx = (d.lastX - d.startX) / d.zoom;
-          const dy = (d.lastY - d.startY) / d.zoom;
+          let dx = (d.lastX - d.startX) / d.zoom;
+          let dy = (d.lastY - d.startY) / d.zoom;
+
+          if (d.initialSelectionRect) {
+            const movingRect: Rect = {
+              ...d.initialSelectionRect,
+              left: d.initialSelectionRect.left + dx * d.zoom,
+              top: d.initialSelectionRect.top + dy * d.zoom,
+              right: d.initialSelectionRect.right + dx * d.zoom,
+              bottom: d.initialSelectionRect.bottom + dx * d.zoom,
+              centerX: d.initialSelectionRect.centerX + dx * d.zoom,
+              centerY: d.initialSelectionRect.centerY + dy * d.zoom,
+            };
+
+            const { snappedX, snappedY } = getSnapGuides(movingRect, d.targetRects);
+            if (snappedX !== null) {
+              dx = (snappedX - d.initialSelectionRect.left) / d.zoom;
+            }
+            if (snappedY !== null) {
+              dy = (snappedY - d.initialSelectionRect.top) / d.zoom;
+            }
+          }
+
+          const finalDx = dx;
+          const finalDy = dy;
 
           d.nodeMargins.filter((e) => e.id && nodes[e.id]).forEach((entry) => {
             const { id } = entry;
@@ -852,10 +946,11 @@ export const FigmaStyleDragHandler = () => {
                 if (props.right == null) props.right = "auto";
                 if (props.bottom == null) props.bottom = "auto";
               }
-              applyBoundedMove(entry, dx, dy, props);
+              applyBoundedMove(entry, finalDx, finalDy, props);
             });
           });
         }
+
 
         const validMovedIds = ids.filter((id) => !!queryRef.current?.getState()?.nodes?.[id]);
         if (validMovedIds.length > 1) {
@@ -876,6 +971,7 @@ export const FigmaStyleDragHandler = () => {
       clearDragPreview(draggedDomsRef.current);
       setDraggingStyle(draggedDomsRef.current, false);
       draggedDomsRef.current = [];
+      setSnapGuidesRef.current([]);
       dragRef.current = null;
     };
 

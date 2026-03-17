@@ -3,6 +3,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import { useEditor } from "@craftjs/core";
+import { useCanvasTool } from "./CanvasToolContext";
+import { getSnapGuides, Rect } from "./snapUtils";
 
 type Handle = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 
@@ -63,7 +65,7 @@ function getOverlayRect(el: HTMLElement): DOMRect {
   return el.getBoundingClientRect();
 }
 
-const SNAP_THRESHOLD = 0;
+const SNAP_THRESHOLD = 5;
 
 type SiblingRect = {
   left: number;
@@ -183,6 +185,9 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
   const [dragType, setDragType] = useState<"move" | "resize" | "rotate" | null>(null);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [guides, setGuides] = useState<GuideState>(null);
+  const { setSnapGuides } = useCanvasTool();
+  const setSnapGuidesRef = useRef(setSnapGuides);
+  useEffect(() => { setSnapGuidesRef.current = setSnapGuides; }, [setSnapGuides]);
   const [rotateAngle, setRotateAngle] = useState<number | null>(null);
   const [isExternalDragActive, setIsExternalDragActive] = useState(false);
 
@@ -747,6 +752,51 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
           snapOffsetY = snapH - centerY;
         }
 
+        // Use the new snap markers system
+        const movingRect: Rect = {
+          left: r.left,
+          top: r.top,
+          right: r.right,
+          bottom: r.bottom,
+          width: r.width,
+          height: r.height,
+          centerX: r.left + r.width / 2,
+          centerY: r.top + r.height / 2,
+        };
+
+        const otherRects: Rect[] = (d.siblingRects ?? []).map(s => ({
+          left: s.left,
+          top: s.top,
+          right: s.right,
+          bottom: s.bottom,
+          width: s.right - s.left,
+          height: s.bottom - s.top,
+          centerX: s.centerX,
+          centerY: s.centerY,
+        }));
+        if (d.guideBounds) {
+          otherRects.push({
+            left: d.guideBounds.left,
+            top: d.guideBounds.top,
+            right: d.guideBounds.right,
+            bottom: d.guideBounds.bottom,
+            width: d.guideBounds.right - d.guideBounds.left,
+            height: d.guideBounds.bottom - d.guideBounds.top,
+            centerX: (d.guideBounds.left + d.guideBounds.right) / 2,
+            centerY: (d.guideBounds.top + d.guideBounds.bottom) / 2,
+          });
+        }
+
+        const { snappedX, snappedY, guides: snapGuides } = getSnapGuides(movingRect, otherRects, SNAP_THRESHOLD);
+        setSnapGuidesRef.current(snapGuides);
+
+        if (snappedX !== null) {
+           snapOffsetX = snappedX - movingRect.left;
+        }
+        if (snappedY !== null) {
+           snapOffsetY = snappedY - movingRect.top;
+        }
+
         if (snapOffsetX !== 0 || snapOffsetY !== 0) {
           d.previewX = (d.previewX ?? 0) + snapOffsetX / zoom;
           d.previewY = (d.previewY ?? 0) + snapOffsetY / zoom;
@@ -1228,7 +1278,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       setRect(finalRect);
       setIsDragging(false);
       setDragType(null);
-      setGuides(null);
+      setSnapGuidesRef.current([]);
       setRotateAngle(null);
       if (d?.type === "resize") {
         dom.style.willChange = d.previousWillChange ?? "";
@@ -1284,45 +1334,8 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         willChange: isDragging ? "left, top, width, height" : undefined,
       }}
     >
-      {isDragging && dragType === "move" && guides?.bounds && (
-        <>
-          {guides.lines?.map((line, i) =>
-            line.type === "v" ? (
-              <div
-                key={`v-${i}-${line.value}`}
-                style={{
-                  position: "fixed",
-                  left: line.value,
-                  top: guides.bounds!.top,
-                  width: 1,
-                  height: guides.bounds!.bottom - guides.bounds!.top,
-                  backgroundColor: "#38bdf8",
-                  boxShadow: "0 0 0 1px rgba(56, 189, 248, 0.3)",
-                  pointerEvents: "none",
-                  zIndex: 10000,
-                }}
-              />
-            ) : (
-              <div
-                key={`h-${i}-${line.value}`}
-                style={{
-                  position: "fixed",
-                  top: line.value,
-                  left: guides.bounds!.left,
-                  height: 1,
-                  width: guides.bounds!.right - guides.bounds!.left,
-                  backgroundColor: "#38bdf8",
-                  boxShadow: "0 0 0 1px rgba(56, 189, 248, 0.3)",
-                  pointerEvents: "none",
-                  zIndex: 10000,
-                }}
-              />
-            )
-          )}
-        </>
-      )}
-
       {isDragging && dragRef.current?.guideBounds && (
+
         <div
           style={{
             position: "fixed",
