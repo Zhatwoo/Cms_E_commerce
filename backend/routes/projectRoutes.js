@@ -5,7 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const router = express.Router();
-const { list, create, getOne, getBySubdomain, update, delete: deleteProject, listTrash, restore, permanentDelete, uploadMedia, getStorageUsage } = require('../controllers/projectController');
+const { list, create, getOne, getBySubdomain, update, delete: deleteProject, listTrash, restore, permanentDelete, uploadMedia, deleteMedia, getStorageUsage } = require('../controllers/projectController');
 const { protect } = require('../middleware/auth');
 
 const mediaUpload = multer({
@@ -44,6 +44,7 @@ router.post('/:id/media', (req, res, next) => {
     next();
   });
 }, uploadMedia);
+router.delete('/:id/media', deleteMedia);
 router.get('/:id', getOne);
 router.get('/:id/storage', getStorageUsage);
 router.patch('/:id', update);
