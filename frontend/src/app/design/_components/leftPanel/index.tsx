@@ -3,6 +3,7 @@ import { useEditor } from "@craftjs/core";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ChevronDown,
+  ChevronRight,
   Save,
   Settings,
   FileDown,
@@ -11,8 +12,6 @@ import {
   Layout,
   Image as ImageIcon,
   LayoutTemplate,
-  ChevronRight,
-  ChevronLeft,
   Search,
   Plus,
   Component,
@@ -38,9 +37,10 @@ import { Video } from "../../_designComponents/Video/Video";
 import { uploadMediaApi } from "@/lib/api";
 
 import { deleteDraft } from "../../_lib/pageApi";
+import { type MediaLibraryItem, MEDIA_LIBRARY_KEY_PREFIX, MEDIA_LIBRARY_UPDATED_EVENT, removeFilesFromMediaLibrary } from "../../_lib/mediaActions";
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
-const MEDIA_LIBRARY_KEY_PREFIX = "craftjs_media_library";
+
 const VIEWPORT_EDGE_PADDING = 100000;
 const PAGE_GRID_ORIGIN_X = VIEWPORT_EDGE_PADDING;
 const PAGE_GRID_ORIGIN_Y = VIEWPORT_EDGE_PADDING;
@@ -88,14 +88,7 @@ interface LeftPanelProps {
   width?: number;
 }
 
-type MediaLibraryItem = {
-  id: string;
-  name: string;
-  url: string;
-  mimeType: string;
-  size: number;
-  createdAt: number;
-};
+
 
 export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePanel: setControlledPanel, frameReady = true, width = 320 }: LeftPanelProps) => {
   const [internalPanel, setInternalPanel] = useState<LeftPanelTabId>("files");
@@ -195,13 +188,65 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
     }
   };
 
-  const removeMediaItem = (id: string) => {
-    setMediaItems((prev) => {
-      const next = prev.filter((item) => item.id !== id);
-      persistMediaItems(next);
-      return next;
-    });
+  const handleDeleteSelected = async () => {
+    if (!projectId || selectedItems.size === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedItems.size} item(s)?`)) return;
+
+    try {
+      setUploading(true);
+      await removeFilesFromMediaLibrary(projectId, Array.from(selectedItems));
+      setSelectedItems(new Set());
+    } catch (err: any) {
+      setUploadError(err.message || "Failed to delete items");
+    } finally {
+      setUploading(false);
+    }
   };
+
+  const handleDeleteItem = async (id: string) => {
+    if (!projectId) return;
+    if (!window.confirm("Are you sure you want to delete this item?")) return;
+
+    try {
+      setUploading(true);
+      await removeFilesFromMediaLibrary(projectId, [id]);
+      const next = new Set(selectedItems);
+      next.delete(id);
+      setSelectedItems(next);
+    } catch (err: any) {
+      setUploadError(err.message || "Failed to delete item");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const filteredMedia = mediaItems
+    .filter(item => {
+      const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+      if (!matchesSearch) return false;
+      if (activeMediaCategory === "all") return true;
+      if (activeMediaCategory === "images") return item.mimeType.startsWith("image/");
+      if (activeMediaCategory === "videos") return item.mimeType.startsWith("video/");
+      if (activeMediaCategory === "audio") return item.mimeType.startsWith("audio/");
+      if (activeMediaCategory === "documents") return !item.mimeType.startsWith("image/") && !item.mimeType.startsWith("video/") && !item.mimeType.startsWith("audio/");
+      return true;
+    })
+    .sort((a, b) => {
+      let res = 0;
+      if (sortBy === "name") res = a.name.localeCompare(b.name);
+      else res = b.createdAt - a.createdAt;
+      return sortOrder === "asc" ? -res : res;
+    });
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedItems(new Set(filteredMedia.map(i => i.id)));
+    } else {
+      setSelectedItems(new Set());
+    }
+  };
+
+  const allSelected = filteredMedia.length > 0 && filteredMedia.every(i => selectedItems.has(i.id));
 
 
   const handleUploadFiles = async (fileList: FileList | null) => {
@@ -268,23 +313,32 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    try {
-      const fromSession = window.sessionStorage.getItem(mediaStorageKey);
-      const fromLocal = window.localStorage.getItem(mediaStorageKey);
-      const raw = fromSession || fromLocal;
-      if (!raw) {
+
+    const loadMediaItems = () => {
+      try {
+        const fromSession = window.sessionStorage.getItem(mediaStorageKey);
+        const fromLocal = window.localStorage.getItem(mediaStorageKey);
+        const raw = fromSession || fromLocal;
+        if (!raw) {
+          setMediaItems([]);
+          return;
+        }
+        const parsed = JSON.parse(raw) as MediaLibraryItem[];
+        if (Array.isArray(parsed)) {
+          setMediaItems(parsed);
+        } else {
+          setMediaItems([]);
+        }
+      } catch {
         setMediaItems([]);
-        return;
       }
-      const parsed = JSON.parse(raw) as MediaLibraryItem[];
-      if (Array.isArray(parsed)) {
-        setMediaItems(parsed);
-      } else {
-        setMediaItems([]);
-      }
-    } catch {
-      setMediaItems([]);
-    }
+    };
+
+    loadMediaItems();
+
+    // Listen for external updates (like pasting images)
+    window.addEventListener(MEDIA_LIBRARY_UPDATED_EVENT, loadMediaItems);
+    return () => window.removeEventListener(MEDIA_LIBRARY_UPDATED_EVENT, loadMediaItems);
   }, [mediaStorageKey]);
 
   // Close dropdown on click outside or Escape
@@ -568,7 +622,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                     }`}
                   title="Select all"
                 >
-                  {selectedItems.size > 0 && <Check className="w-2.5 h-2.5 text-white" />}
+                  {allSelected && <Check className="w-2.5 h-2.5 text-white" />}
                 </button>
                 {selectedItems.size > 0 && (
                   <span className="text-[9px] font-black uppercase tracking-widest text-builder-text-muted">
@@ -578,6 +632,17 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
               </div>
 
               <div className="flex items-center gap-1">
+                {selectedItems.size > 0 && (
+                  <button
+                    onClick={handleDeleteSelected}
+                    disabled={uploading}
+                    className="p-2 text-red-500/40 hover:text-red-500 hover:bg-red-500/5 rounded-lg transition-all"
+                    title="Delete selected"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
                 {/* Type Filter */}
                 <div className="relative">
                   <button
@@ -777,7 +842,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                           </div>
 
                           {/* Hover Overlay */}
-                          <div className="absolute inset-0 bg-[var(--builder-surface)]/60 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <div className="absolute inset-0 bg-[var(--builder-surface)]/60 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                             <button
                               type="button"
                               onClick={(e) => {
@@ -785,8 +850,20 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                                 addMediaToCanvas(item);
                               }}
                               className="p-2.5 rounded-full bg-[var(--builder-purple)] text-white hover:scale-110 active:scale-95 transition-all shadow-xl"
+                              title="Add to canvas"
                             >
                               <Plus className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteItem(item.id);
+                              }}
+                              className="p-2.5 rounded-full bg-red-500 text-white hover:scale-110 active:scale-95 transition-all shadow-xl"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
 
@@ -801,38 +878,8 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
               )}
             </div>
 
-            {/* Storage Indicator */}
-            {permission !== "viewer" && (
-              <div className="mt-auto pt-4 border-t border-[var(--builder-border)] pb-2">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex flex-col">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-builder-text-muted">Storage Used</span>
-                    <span className="text-[10px] text-[var(--builder-text-faint)] font-bold uppercase tracking-tight">
-                      {(mediaItems.reduce((acc, i) => acc + (i.size || 0), 0) / (1024 * 1024)).toFixed(1)}MB / 500MB
-                    </span>
-                  </div>
-                  <button className="text-[9px] font-black uppercase tracking-widest text-[var(--builder-accent)] hover:text-[var(--builder-text)] transition-colors cursor-pointer flex items-center gap-1 group">
-                    <span>Upgrade</span>
-                    <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                  </button>
-                </div>
-                
-                <div className="h-1.5 w-full bg-[var(--builder-surface-3)] rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full transition-all duration-500 rounded-full ${
-                      (mediaItems.reduce((acc, i) => acc + (i.size || 0), 0) / (500 * 1024 * 1024)) > 0.9 
-                        ? "bg-red-500" 
-                        : "bg-[var(--builder-purple)]"
-                    }`}
-                    style={{ width: `${Math.min(100, (mediaItems.reduce((acc, i) => acc + (i.size || 0), 0) / (500 * 1024 * 1024)) * 100)}%` }}
-                  />
-                </div>
-                
-                <p className="mt-2 text-[8px] italic text-[var(--builder-text-faint)] uppercase tracking-widest text-center">
-                  Get unlimited storage for your assets
-                </p>
-              </div>
-            )}
+
+
 
             {/* Read-only status */}
             {permission === "viewer" && (

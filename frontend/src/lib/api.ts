@@ -471,6 +471,22 @@ export async function uploadMediaApi(
   return { url: data.url };
 }
 
+
+/** Delete media files by their public URLs. */
+export async function deleteMediaApi(
+  projectId: string,
+  urls: string[]
+): Promise<{ success: boolean; message?: string; summary?: { deleted: number; skipped: number } }> {
+  return apiFetch<{ success: boolean; message?: string; summary?: { deleted: number; skipped: number } }>(
+    `/api/projects/${projectId}/media`,
+    {
+      method: 'DELETE',
+      body: JSON.stringify({ urls }),
+    }
+  );
+}
+
+
 /** Update subdomain for an existing published project. */
 export async function updateDomainSubdomain(
   projectId: string,
