@@ -3,14 +3,13 @@
 import React, { useState, useEffect, useCallback, useLayoutEffect, useRef } from "react";
 import ReactDOM from "react-dom";
 import { useEditor } from "@craftjs/core";
+import { Element } from "@craftjs/core";
 import {
   Copy,
   ClipboardPaste,
   Replace,
   ChevronsUp,
   ChevronsDown,
-  Group,
-  Ungroup,
   Eye,
   EyeOff,
   Lock,
@@ -18,6 +17,8 @@ import {
   ArrowLeftRight,
   ArrowUpDown,
   Trash2,
+  Group,
+  Ungroup,
 } from "lucide-react";
 import {
   selectedToIds,
@@ -29,8 +30,9 @@ import {
   groupSelection,
   ungroupSelection,
 } from "../_lib/canvasActions";
+import { Container } from "../_designComponents/Container/Container";
 import { useDesignProject } from "../_context/DesignProjectContext";
-import { addFileToMediaLibrary } from "../_lib/mediaActions";
+import { uploadMediaApi } from "@/lib/api";
 import { Image } from "../_designComponents/Image/Image";
 
 const PROTECTED = new Set(["Viewport", "ROOT"]);
@@ -74,12 +76,12 @@ function MenuItem({
 }
 
 function Divider() {
-  return <div className="border-t border-transparent my-0.5" />;
+  return <div className="border-t border-white/10 my-0.5" />;
 }
 
 /**
  * Right-click context menu on canvas: components, content, or empty area.
- * Shows Copy, Paste, Bring to front, Send to back, Group, Ungroup, Show/Hide, Lock, Flip, Delete.
+ * Shows Copy, Paste, Bring to front, Send to back, Show/Hide, Lock, Flip, Delete.
  */
 export function CanvasContextMenu() {
   const { actions, query } = useEditor();
@@ -216,7 +218,7 @@ export function CanvasContextMenu() {
       <div
         ref={menuRef}
         data-context-menu
-        className="fixed z-[10050] min-w-[200px] max-h-[calc(100vh-16px)] overflow-y-auto bg-brand-darker border border-transparent rounded-lg shadow-2xl py-2 px-3 text-brand-light/60 text-sm"
+        className="fixed z-[10050] min-w-[200px] max-h-[calc(100vh-16px)] overflow-y-auto bg-brand-darker border border-white/10 rounded-lg shadow-2xl py-2 px-3 text-brand-light/60 text-sm"
         style={{ left: menuPosition?.left ?? menu.x, top: menuPosition?.top ?? menu.y }}
       >
         Loading…
@@ -227,21 +229,25 @@ export function CanvasContextMenu() {
 
   const state = query.getState();
   const selectedIds = selectedToIds(state.events.selected);
-  const hasSelection = selectedIds.length > 0;
-  const singleSelected = selectedIds.length === 1;
-  const firstId = selectedIds[0] ?? null;
+  // Use menu.nodeId as fallback when right-click selects a node but selection hasn't propagated yet
+  const effectiveIds = selectedIds.length > 0
+    ? selectedIds
+    : menu.nodeId && state.nodes[menu.nodeId]
+      ? [menu.nodeId]
+      : [];
+  const hasSelection = effectiveIds.length > 0;
+  const singleSelected = effectiveIds.length === 1;
+  const firstId = effectiveIds[0] ?? null;
   const clipboard = getClipboard();
   const hasClipboard = clipboard !== null && clipboard.nodeIds.length > 0;
   const firstNode = firstId ? state.nodes[firstId] : null;
   const displayName = firstNode?.data?.displayName as string | undefined;
-  const canUngroup = singleSelected && (displayName === "Container" || displayName === "Group");
-  const canGroup = selectedIds.length >= 1;
   const visibility = (firstNode?.data?.props as Record<string, unknown>)?.visibility as string | undefined;
   const isHidden = visibility === "hidden";
   const locked = (firstNode?.data?.props as Record<string, unknown>)?.locked as boolean | undefined;
   const flipH = (firstNode?.data?.props as Record<string, unknown>)?.flipHorizontal as boolean | undefined;
   const flipV = (firstNode?.data?.props as Record<string, unknown>)?.flipVertical as boolean | undefined;
-  const deletable = hasSelection && selectedIds.every((id) => {
+  const deletable = hasSelection && effectiveIds.every((id) => {
     try {
       if (PROTECTED.has(state.nodes[id]?.data?.displayName as string)) return false;
       return query.node(id).isDeletable();
@@ -250,15 +256,15 @@ export function CanvasContextMenu() {
 
   const parentId = firstNode?.data?.parent as string | undefined;
   const siblings = parentId && state.nodes[parentId] ? (state.nodes[parentId]?.data?.nodes as string[]) ?? [] : [];
-  const selectedIndices = selectedIds.map((id) => siblings.indexOf(id)).filter((i) => i >= 0);
+  const selectedIndices = effectiveIds.map((id) => siblings.indexOf(id)).filter((i) => i >= 0);
   const minSelectedIndex = selectedIndices.length > 0 ? Math.min(...selectedIndices) : -1;
   const maxSelectedIndex = selectedIndices.length > 0 ? Math.max(...selectedIndices) : -1;
-  const allSameParent = hasSelection && parentId && selectedIds.every((id) => (state.nodes[id]?.data?.parent as string) === parentId);
+  const allSameParent = hasSelection && parentId && effectiveIds.every((id) => (state.nodes[id]?.data?.parent as string) === parentId);
   const canBringForward = hasSelection && allSameParent && maxSelectedIndex >= 0 && maxSelectedIndex < siblings.length - 1 && actions.move;
   const canSendBackward = hasSelection && allSameParent && minSelectedIndex > 0 && actions.move;
 
   const handleCopy = () => {
-    copySelection(query as any, selectedIds);
+    copySelection(query as any, effectiveIds);
     close();
   };
 
@@ -276,8 +282,8 @@ export function CanvasContextMenu() {
         const sibs = parentIdOpt && state.nodes[parentIdOpt] ? (state.nodes[parentIdOpt]?.data?.nodes as string[]) ?? [] : [];
         const idx = sibs.indexOf(menu.nodeId);
         atIndexOpt = idx === -1 ? sibs.length : idx + 1;
-      } else if (selectedIds.length > 0) {
-        const lastId = selectedIds[selectedIds.length - 1]!;
+      } else if (effectiveIds.length > 0) {
+        const lastId = effectiveIds[effectiveIds.length - 1]!;
         const lastNode = state.nodes[lastId];
         parentIdOpt = lastNode?.data?.parent as string | undefined;
         if (parentIdOpt && state.nodes[parentIdOpt]) {
@@ -301,26 +307,34 @@ export function CanvasContextMenu() {
             const blob = await item.getType(type);
             const file = new File([blob], "pasted-image.png", { type });
             
-            if (!projectId) {
-              console.warn("CanvasContextMenu: No projectId, cannot upload and sync image.");
-              close();
-              return;
+            let imageUrl: string;
+            if (projectId) {
+              try {
+                const result = await uploadMediaApi(projectId, file, { folder: "images" });
+                imageUrl = result.url;
+              } catch (err) {
+                imageUrl = await new Promise((resolve) => {
+                  const reader = new FileReader();
+                  reader.onload = (e) => resolve(e.target?.result as string);
+                  reader.readAsDataURL(file);
+                });
+              }
+            } else {
+              imageUrl = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target?.result as string);
+                reader.readAsDataURL(file);
+              });
             }
-
-            // 3. Upload to project storage AND add to media library
-            // If this fails, the catch block will prevent the paste
-            const mediaItem = await addFileToMediaLibrary(projectId, file);
-            const imageUrl = mediaItem.url;
-
 
             // Determine parent
             let targetParentId = "ROOT";
             if (menu.nodeId && state.nodes[menu.nodeId]) {
               const node = state.nodes[menu.nodeId];
               targetParentId = node?.data?.isCanvas ? menu.nodeId : (node?.data?.parent || "ROOT");
-            } else if (selectedIds.length > 0) {
-              const node = state.nodes[selectedIds[0]];
-              targetParentId = node?.data?.isCanvas ? selectedIds[0] : (node?.data?.parent || "ROOT");
+            } else if (effectiveIds.length > 0) {
+              const node = state.nodes[effectiveIds[0]];
+              targetParentId = node?.data?.isCanvas ? effectiveIds[0] : (node?.data?.parent || "ROOT");
             }
 
             // Create node
@@ -365,13 +379,13 @@ export function CanvasContextMenu() {
     close();
   };
   const handlePasteToReplace = () => {
-    if (singleSelected) pasteToReplaceSelection(actions as any, query as any, selectedIds);
+    if (singleSelected) pasteToReplaceSelection(actions as any, query as any, effectiveIds);
     close();
   };
   const handleBringToFront = () => {
     if (!hasSelection || !parentId || !actions.move || !allSameParent) return;
     // Sort by current sibling index so we preserve document order at the end
-    const sorted = [...selectedIds].sort((a, b) => siblings.indexOf(a) - siblings.indexOf(b));
+    const sorted = [...effectiveIds].sort((a, b) => siblings.indexOf(a) - siblings.indexOf(b));
     for (const id of sorted) {
       try {
         const st = query.getState();
@@ -390,7 +404,7 @@ export function CanvasContextMenu() {
   const handleSendToBack = () => {
     if (!hasSelection || !parentId || !actions.move || !allSameParent) return;
     // Sort by current sibling index so we preserve document order at the front
-    const sorted = [...selectedIds].sort((a, b) => siblings.indexOf(a) - siblings.indexOf(b));
+    const sorted = [...effectiveIds].sort((a, b) => siblings.indexOf(a) - siblings.indexOf(b));
     for (let i = 0; i < sorted.length; i++) {
       try {
         const st = query.getState();
@@ -405,21 +419,13 @@ export function CanvasContextMenu() {
     }
     close();
   };
-  const handleGroup = () => {
-    groupSelection(actions as any, query as any, selectedIds);
-    close();
-  };
-  const handleUngroup = () => {
-    ungroupSelection(actions as any, query as any, selectedIds);
-    close();
-  };
   const handleDuplicate = () => {
-      duplicateNodes(actions as any, query as any, selectedIds);
+    duplicateNodes(actions as any, query as any, effectiveIds);
     close();
   };
   const handleShowHide = () => {
     const next = isHidden ? "visible" : "hidden";
-    selectedIds.forEach((id) => {
+    effectiveIds.forEach((id) => {
       try {
         actions.setProp(id, (p: Record<string, unknown>) => { p.visibility = next; });
       } catch { /* skip */ }
@@ -428,7 +434,7 @@ export function CanvasContextMenu() {
   };
   const handleLockUnlock = () => {
     const next = !locked;
-    selectedIds.forEach((id) => {
+    effectiveIds.forEach((id) => {
       try {
         actions.setProp(id, (p: Record<string, unknown>) => { p.locked = next; });
       } catch { /* skip */ }
@@ -436,7 +442,7 @@ export function CanvasContextMenu() {
     close();
   };
   const handleFlipH = () => {
-    selectedIds.forEach((id) => {
+    effectiveIds.forEach((id) => {
       try {
         actions.setProp(id, (p: Record<string, unknown>) => { p.flipHorizontal = !(p.flipHorizontal as boolean); });
       } catch { /* skip */ }
@@ -444,17 +450,37 @@ export function CanvasContextMenu() {
     close();
   };
   const handleFlipV = () => {
-    selectedIds.forEach((id) => {
+    effectiveIds.forEach((id) => {
       try {
         actions.setProp(id, (p: Record<string, unknown>) => { p.flipVertical = !(p.flipVertical as boolean); });
       } catch { /* skip */ }
     });
     close();
   };
+  const UNGROUPABLE_TYPES = new Set([
+    "Container", "Section", "Row", "Column", "Banner", "Frame",
+  ]);
+  const canGroup = effectiveIds.length >= 2 && allSameParent;
+  const canUngroup =
+    singleSelected &&
+    firstNode &&
+    UNGROUPABLE_TYPES.has(displayName ?? "") &&
+    ((firstNode.data?.nodes as string[]) ?? []).length > 0;
+
+  const handleGroup = () => {
+    if (!canGroup) return;
+    groupSelection(actions as any, query as any, effectiveIds, Container, Element);
+    close();
+  };
+  const handleUngroup = () => {
+    if (!canUngroup) return;
+    ungroupSelection(actions as any, query as any, effectiveIds);
+    close();
+  };
   const handleDelete = () => {
     if (!deletable) return;
     try {
-      (actions as any).delete(selectedIds.length === 1 ? selectedIds[0]! : selectedIds);
+      (actions as any).delete(effectiveIds.length === 1 ? effectiveIds[0]! : effectiveIds);
       (actions as any).selectNode(undefined);
     } catch { /* ignore */ }
     close();
@@ -464,7 +490,7 @@ export function CanvasContextMenu() {
     <div
       ref={menuRef}
       data-context-menu
-      className="fixed z-[10050] min-w-[200px] max-h-[calc(100vh-16px)] overflow-y-auto bg-brand-darker border border-transparent rounded-lg shadow-2xl py-1 text-sm"
+      className="fixed z-[10050] min-w-[200px] max-h-[calc(100vh-16px)] overflow-y-auto bg-brand-darker border border-white/10 rounded-lg shadow-2xl py-1 text-sm"
       style={{ left: menuPosition?.left ?? menu.x, top: menuPosition?.top ?? menu.y }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -475,9 +501,10 @@ export function CanvasContextMenu() {
       <MenuItem icon={ChevronsUp} label="Bring to front" shortcut="]" onClick={handleBringToFront} disabled={!canBringForward} />
       <MenuItem icon={ChevronsDown} label="Send to back" shortcut="[" onClick={handleSendToBack} disabled={!canSendBackward} />
       <Divider />
+      <MenuItem icon={Copy} label="Duplicate" shortcut="⌘D" onClick={handleDuplicate} disabled={!hasSelection} />
+      <Divider />
       <MenuItem icon={Group} label="Group selection" shortcut="⌘G" onClick={handleGroup} disabled={!canGroup} />
       <MenuItem icon={Ungroup} label="Ungroup" shortcut="⇧⌘G" onClick={handleUngroup} disabled={!canUngroup} />
-      <MenuItem icon={Copy} label="Duplicate" shortcut="⌘D" onClick={handleDuplicate} disabled={!hasSelection} />
       <Divider />
       <MenuItem
         icon={isHidden ? Eye : EyeOff}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useTransition } from "react";
 import ReactDOM from "react-dom";
 import { useEditor } from "@craftjs/core";
+import { Element } from "@craftjs/core";
 import {
   ChevronDown,
   Box,
@@ -10,14 +11,15 @@ import {
   MousePointer2,
   Copy,
   Trash2,
-  Group,
-  Ungroup,
   Eye,
   EyeOff,
   Lock,
   LockOpen,
+  Group,
+  Ungroup,
 } from "lucide-react";
-import { duplicateNodes, groupSelection, ungroupSelection, selectedToIds } from "../../_lib/canvasActions";
+import { duplicateNodes, selectedToIds, groupSelection, ungroupSelection } from "../../_lib/canvasActions";
+import { Container } from "../../_designComponents/Container/Container";
 import { useCanvasTool } from "../CanvasToolContext";
 import { useDesignProject } from "../../_context/DesignProjectContext";
 
@@ -178,18 +180,6 @@ export const FilesPanel = () => {
     [actions, query, startTransition]
   );
 
-  const handleGroup = useCallback(() => {
-    const ids = selectedToIds(selected);
-    if (ids.length >= 1) groupSelection(actions as any, query as any, ids);
-    setContextMenu(null);
-  }, [actions, query, selected]);
-
-  const handleUngroup = useCallback(() => {
-    const ids = selectedToIds(selected);
-    if (ids.length === 1) ungroupSelection(actions as any, query as any, ids);
-    setContextMenu(null);
-  }, [actions, query, selected]);
-
   const handleDelete = useCallback(
     (nodeId: string) => {
       startTransition(() => {
@@ -205,6 +195,22 @@ export const FilesPanel = () => {
     },
     [actions, query, startTransition]
   );
+
+  const handleGroup = useCallback(() => {
+    const ids = selectedToIds(selected);
+    if (ids.length >= 2) {
+      groupSelection(actions as any, query as any, ids, Container, Element);
+    }
+    setContextMenu(null);
+  }, [actions, query, selected]);
+
+  const handleUngroup = useCallback(() => {
+    const ids = selectedToIds(selected);
+    if (ids.length === 1) {
+      ungroupSelection(actions as any, query as any, ids);
+    }
+    setContextMenu(null);
+  }, [actions, query, selected]);
 
   const isProtected = (nodeId: string): boolean => {
     if (nodeId === "ROOT") return true;
@@ -747,8 +753,18 @@ export const FilesPanel = () => {
     const nodeProtected = isProtected(contextMenu.nodeId);
     const nodeName = nodes[contextMenu.nodeId]?.data.displayName || "Node";
     const selectedIds = selectedToIds(selected);
-    const canGroup = selectedIds.length >= 1;
-    const canUngroup = selectedIds.length === 1 && (nodes[selectedIds[0]!]?.data?.displayName === "Container" || nodes[selectedIds[0]!]?.data?.displayName === "Group");
+
+    const UNGROUPABLE_TYPES = new Set([
+      "Container", "Section", "Row", "Column", "Banner", "Frame",
+    ]);
+    const canGroupSel = selectedIds.length >= 2 && (() => {
+      const p = nodes[selectedIds[0]]?.data?.parent;
+      return p && selectedIds.every((id) => nodes[id]?.data?.parent === p);
+    })();
+    const canUngroupSel =
+      selectedIds.length === 1 &&
+      UNGROUPABLE_TYPES.has(nodes[selectedIds[0]]?.data?.displayName || "") &&
+      ((nodes[selectedIds[0]]?.data?.nodes as string[]) ?? []).length > 0;
 
     return ReactDOM.createPortal(
       <div
@@ -776,23 +792,24 @@ export const FilesPanel = () => {
           <Copy className="w-3.5 h-3.5" />
           Duplicate
         </button>
+        <div className="border-t border-[var(--builder-border)] my-0.5" />
         <button
-          onClick={() => canGroup && permission !== "viewer" && handleGroup()}
-          disabled={!canGroup || permission === "viewer"}
-          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${!canGroup || permission === "viewer" ? "text-[var(--builder-text-faint)] cursor-not-allowed" : "text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] cursor-pointer"
-            }`}
+          onClick={() => canGroupSel && permission !== "viewer" && handleGroup()}
+          disabled={!canGroupSel || permission === "viewer"}
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${!canGroupSel || permission === "viewer" ? "text-[var(--builder-text-faint)] cursor-not-allowed" : "text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] cursor-pointer"}`}
         >
           <Group className="w-3.5 h-3.5" />
           Group
+          <span className="ml-auto text-[var(--builder-text-faint)] text-xs">⌘G</span>
         </button>
         <button
-          onClick={() => canUngroup && permission !== "viewer" && handleUngroup()}
-          disabled={!canUngroup || permission === "viewer"}
-          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${!canUngroup || permission === "viewer" ? "text-[var(--builder-text-faint)] cursor-not-allowed" : "text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] cursor-pointer"
-            }`}
+          onClick={() => canUngroupSel && permission !== "viewer" && handleUngroup()}
+          disabled={!canUngroupSel || permission === "viewer"}
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${!canUngroupSel || permission === "viewer" ? "text-[var(--builder-text-faint)] cursor-not-allowed" : "text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] cursor-pointer"}`}
         >
           <Ungroup className="w-3.5 h-3.5" />
           Ungroup
+          <span className="ml-auto text-[var(--builder-text-faint)] text-xs">⇧⌘G</span>
         </button>
         <div className="border-t border-[var(--builder-border)] my-0.5" />
         <button
