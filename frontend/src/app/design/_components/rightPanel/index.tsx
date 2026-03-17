@@ -110,20 +110,20 @@ const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeT
       <div
         ref={panelRef}
         data-panel="configs"
-        className="bg-brand-darker h-full border-l border-white/10 transition-[width,transform,opacity] duration-300 ease-out overflow-hidden flex flex-col"
+        className="bg-builder-surface h-full border-l border-builder-border transition-[width,transform,opacity] duration-300 ease-out overflow-hidden flex flex-col"
         style={{
           width: `${width}px`,
         }}
       >
         <div className="h-full p-4 flex flex-col min-h-0">
           <div className="flex items-center justify-between mb-6 gap-2">
-            <h3 className="text-brand-lighter font-bold text-lg">Configs</h3>
+            <h3 className="text-builder-text font-bold text-lg">Configs</h3>
             <div className="flex items-center gap-1">
               {permission !== "viewer" && onClose && (
                 <button
                   type="button"
                   onClick={onClose}
-                  className="p-1 rounded-lg transition-colors hover:bg-brand-medium/40 text-brand-light hover:text-brand-lighter"
+                  className="p-1 rounded-lg transition-colors hover:bg-builder-surface-3 text-builder-text-muted hover:text-builder-text"
                   title="Close panel"
                 >
                   <X className="w-5 h-5" strokeWidth={2} />
@@ -137,8 +137,8 @@ const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeT
             {selectedIds.length > 0 ? (
               <div className={activeTab === "code" ? "h-full min-h-0 flex flex-col" : undefined}>
                 <div className="mb-6">
-                  <div className="flex items-center gap-2 bg-brand-medium/20 p-2 rounded-lg border border-brand-medium/30">
-                    <span className="flex-1 text-brand-lighter font-medium text-sm text-center">
+                  <div className="flex items-center gap-2 bg-builder-surface-2 p-2 rounded-lg border border-builder-border">
+                    <span className="flex-1 text-builder-text font-medium text-sm text-center">
                       {selectedIds.length === 1 && primary
                         ? primary.name
                         : `${selectedIds.length} components selected`}
@@ -155,7 +155,7 @@ const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeT
                               } catch { /* skip */ }
                             });
                           }}
-                          className={`p-1.5 rounded transition-colors ${primary.visibility === "hidden" ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
+                          className={`p-1.5 rounded transition-colors ${primary.visibility === "hidden" ? "text-builder-text-muted" : "text-builder-text-muted hover:text-builder-text"}`}
                           title={primary.visibility === "hidden" ? "Show" : "Hide"}
                         >
                           {primary.visibility === "hidden" ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -170,7 +170,7 @@ const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeT
                               } catch { /* skip */ }
                             });
                           }}
-                          className={`p-1.5 rounded transition-colors ${primary.locked ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
+                          className={`p-1.5 rounded transition-colors ${primary.locked ? "text-builder-text-muted" : "text-builder-text-muted hover:text-builder-text"}`}
                           title={primary.locked ? "Unlock" : "Lock"}
                         >
                           {primary.locked ? <Lock size={14} /> : <LockOpen size={14} />}
@@ -180,9 +180,9 @@ const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeT
                   </div>
                 </div>
 
-                {/* Tab Bar - Modern Pill Style */}
-                <div className="w-full mb-8 px-0.5">
-                  <div className="grid grid-cols-4 w-full p-1 bg-black/40 backdrop-blur-xl rounded-2xl border border-white/5 shadow-2xl">
+                {/* Tab Bar */}
+                <div className="w-full mb-6 px-0.5">
+                  <div className="grid grid-cols-4 w-full p-1 rounded-xl" style={{ background: "var(--builder-surface-2)" }}>
                     {(() => {
                       const limits = getLimits(user?.subscriptionPlan);
                       return TABS.map((tab) => {
@@ -199,33 +199,28 @@ const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeT
                               }
                               setActiveTab(tab.id);
                             }}
-                            className={`relative group z-10 w-full px-1 py-2.5 rounded-xl transition-all duration-300 flex flex-col items-center justify-center gap-1 min-w-0 ${isActive
-                              ? "text-white"
-                              : isRestricted || (permission === "viewer" && tab.id === "code") 
-                                ? "text-white/20 hover:text-white/40" 
-                                : "text-white/40 hover:text-white/60"
+                            className={`relative group z-10 w-full px-1 py-2 rounded-lg transition-all duration-200 flex flex-col items-center justify-center gap-0.5 min-w-0 ${isActive
+                              ? "text-[var(--builder-accent)]"
+                              : isRestricted || (permission === "viewer" && tab.id === "code")
+                                ? "text-[var(--builder-text-faint)] cursor-not-allowed"
+                                : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
                               }`}
                           >
                             {isActive && (
-                              <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl shadow-[0_0_15px_rgba(37,99,235,0.3)] animate-in fade-in zoom-in-95 duration-300" style={{ zIndex: -1 }} />
+                              <div className="absolute inset-0 rounded-lg"
+                                style={{ background: "var(--builder-surface-3)", boxShadow: "0 0 10px var(--builder-accent-glow)" }}
+                              />
                             )}
-                            
-                            <div className="flex items-center gap-1.5 min-w-0 w-full justify-center px-1">
+                            <div className="flex items-center gap-1 min-w-0 w-full justify-center relative z-10">
                               {isRestricted ? (
                                 <Lock size={10} className="text-amber-500/60 shrink-0" />
                               ) : (
-                                <div className={`shrink-0 transition-transform duration-300 ${isActive ? "scale-110" : "group-hover:scale-105"}`}>
+                                <div className={`shrink-0 transition-transform duration-200 ${isActive ? "scale-110 drop-shadow-[0_0_4px_var(--builder-accent-glow)]" : "group-hover:scale-105"}`}>
                                   {React.cloneElement(tab.icon as React.ReactElement<any>, { size: 12 })}
                                 </div>
                               )}
-                              <span className={`text-[9px] font-bold tracking-tight truncate transition-all duration-300 ${isActive ? "opacity-100" : "opacity-80 group-hover:opacity-100"}`}>
-                                {tab.label}
-                              </span>
+                              <span className="text-[9px] font-bold tracking-tight truncate">{tab.label}</span>
                             </div>
-
-                            {isActive && (
-                              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-white rounded-full shadow-[0_0_8px_white]" />
-                            )}
                           </button>
                         );
                       });
@@ -241,7 +236,7 @@ const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeT
                     ) : primary?.settings ? (
                       React.createElement(primary.settings)
                     ) : (
-                      <div className="flex flex-col items-center justify-center py-8 text-brand-lighter opacity-50">
+                      <div className="flex flex-col items-center justify-center py-8 text-[var(--builder-text-muted)]">
                         <p className="text-sm">No design settings available</p>
                       </div>
                     ))}
@@ -257,7 +252,7 @@ const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeT
                   {activeTab === "code" && (
                     <div className="h-full min-h-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
                       {permission === "viewer" ? (
-                        <div className="flex flex-col items-center justify-center h-full text-brand-light/40 text-center px-4">
+                        <div className="flex flex-col items-center justify-center h-full text-builder-text-muted/40 text-center px-4">
                           <Lock className="w-8 h-8 mb-2 opacity-20" />
                           <p className="text-sm">Code editor is disabled in view-only mode</p>
                         </div>
@@ -275,7 +270,7 @@ const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeT
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-64 text-brand-lighter opacity-50">
+              <div className="flex flex-col items-center justify-center h-64 text-[var(--builder-text-muted)]">
                 <p className="text-sm">Select an element to edit</p>
               </div>
             )}
@@ -303,7 +298,7 @@ export const RightPanel: React.FC<RightPanelProps> = (props) => {
     return (
       <div
         data-panel="configs"
-        className="bg-brand-darker p-4 h-full overflow-y-auto border-l border-white/10 transition-[width,opacity] duration-300 ease-out flex items-center justify-center text-xs text-brand-light/60"
+        className="bg-builder-surface p-4 h-full overflow-y-auto border-l border-builder-border transition-[width,opacity] duration-300 ease-out flex items-center justify-center text-xs text-builder-text-muted"
         style={{ width: `${props.width ?? RIGHT_PANEL_DEFAULT_WIDTH}px` }}
       >
         Loading inspector…

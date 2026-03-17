@@ -129,12 +129,12 @@ export const ColorPicker = ({ value, onChange, label, className = "" }: ColorPic
 
     return (
         <div className={`relative flex flex-col gap-1 ${className}`}>
-            {label && <label className="text-[10px] text-brand-lighter font-medium">{label}</label>}
-            <div className="flex items-center gap-2 bg-brand-medium-dark rounded-lg p-1 border border-brand-medium/20 hover:border-brand-medium/40 transition-colors">
+            {label && <label className="text-[10px] text-[var(--builder-text)] font-medium">{label}</label>}
+            <div className="flex items-center gap-2 bg-[var(--builder-surface-2)] rounded-lg p-1 border border-[var(--builder-border)] hover:border-[var(--builder-border-mid)] transition-colors">
                 <button
                     ref={swatchRef}
                     onClick={toggle}
-                    className="w-8 h-8 rounded-md border border-white/10 relative overflow-hidden flex-shrink-0"
+                    className="w-8 h-8 rounded-md border border-transparent relative overflow-hidden flex-shrink-0"
                     style={{ background: `linear-gradient(45deg, #808080 25%, transparent 25%), linear-gradient(-45deg, #808080 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #808080 75%), linear-gradient(-45deg, transparent 75%, #808080 75%)`, backgroundSize: '8px 8px', backgroundPosition: '0 0, 0 4px, 4px 4px, 4px 0' }}
                 >
                     <div className="absolute inset-0" style={{ backgroundColor: effectiveColor }} />
@@ -144,8 +144,8 @@ export const ColorPicker = ({ value, onChange, label, className = "" }: ColorPic
                     <ColorTextValue value={value} onChange={onChange} />
                 </div>
 
-                <div className="flex items-center gap-1 pr-1 border-l border-white/5 pl-2">
-                    <span className="text-[10px] text-brand-medium font-bold">{Math.round(rgba.a * 100)}%</span>
+                <div className="flex items-center gap-1 pr-1 border-l border-transparent pl-2">
+                    <span className="text-[10px] text-[var(--builder-text-faint)] font-bold">{Math.round(rgba.a * 100)}%</span>
                 </div>
             </div>
 
@@ -298,7 +298,7 @@ const ColorPickerPopover = ({ value, onChange, onClose, anchorRef }: {
     return ReactDOM.createPortal(
         <div
             ref={popoverRef}
-            className="fixed z-[9999] w-[240px] bg-brand-dark p-3 rounded-xl border border-white/10 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in duration-150"
+            className="fixed z-[9999] w-[240px] bg-[var(--builder-surface)] p-3 rounded-xl border border-transparent shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in duration-150"
             style={{
                 top: coords ? `${coords.top}px` : '-9999px',
                 left: coords ? `${coords.left}px` : '-9999px',
@@ -355,13 +355,13 @@ const ColorPickerPopover = ({ value, onChange, onClose, anchorRef }: {
                 <div className="flex flex-col items-center gap-2">
                     <button
                         onClick={handleEyeDropper}
-                        className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-brand-light transition-colors group"
+                        className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[var(--builder-text-muted)] transition-colors group"
                         title="Pick color from screen"
                     >
                         <Pipette size={14} className="group-active:scale-90 transition-transform" />
                     </button>
                     <div
-                        className="w-10 h-10 rounded-full border border-white/10 shadow-inner relative overflow-hidden"
+                        className="w-10 h-10 rounded-full border border-transparent shadow-inner relative overflow-hidden"
                         style={{ background: `linear-gradient(45deg, #808080 25%, transparent 25%), linear-gradient(-45deg, #808080 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #808080 75%), linear-gradient(-45deg, transparent 75%, #808080 75%)`, backgroundSize: '8px 8px', backgroundPosition: '0 0, 0 4px, 4px 4px, 4px 0' }}
                     >
                         <div className="absolute inset-0" style={{ backgroundColor: value }} />
@@ -372,10 +372,10 @@ const ColorPickerPopover = ({ value, onChange, onClose, anchorRef }: {
             {/* Mode Switcher & Inputs */}
             <div className="flex flex-col gap-2">
                 <div className="flex gap-2">
-                    <div className="flex-1 flex bg-white/5 rounded-lg border border-white/10 overflow-hidden text-[11px]">
+                    <div className="flex-1 flex bg-white/5 rounded-lg border border-transparent overflow-hidden text-[11px]">
                         <button
                             onClick={() => setMode(m => m === 'HEX' ? 'RGB' : m === 'RGB' ? 'HSL' : 'HEX')}
-                            className="px-2 py-1.5 bg-white/5 text-brand-medium flex items-center gap-1 border-r border-white/5 hover:text-white transition-colors capitalize"
+                            className="px-2 py-1.5 bg-white/5 text-[var(--builder-text-faint)] flex items-center gap-1 border-r border-transparent hover:text-white transition-colors capitalize"
                         >
                             {mode.toLowerCase()} <ChevronDown size={10} />
                         </button>
@@ -391,7 +391,7 @@ const ColorPickerPopover = ({ value, onChange, onClose, anchorRef }: {
                                         onChange("#" + val + (alphaHex === "FF" ? "" : alphaHex));
                                     }
                                 }}
-                                className="flex-1 bg-transparent px-2 py-1.5 text-brand-lighter focus:outline-none uppercase tracking-wider"
+                                className="flex-1 bg-transparent px-2 py-1.5 text-[var(--builder-text)] focus:outline-none uppercase tracking-wider"
                                 spellCheck={false}
                             />
                         )}
@@ -410,7 +410,7 @@ const ColorPickerPopover = ({ value, onChange, onClose, anchorRef }: {
                                                 onChange(rgbaToHex(newRgba.r, newRgba.g, newRgba.b, newRgba.a));
                                             }
                                         }}
-                                        className="w-full bg-transparent px-1 py-1.5 text-brand-lighter focus:outline-none text-center"
+                                        className="w-full bg-transparent px-1 py-1.5 text-[var(--builder-text)] focus:outline-none text-center"
                                     />
                                 ))}
                             </div>
@@ -434,7 +434,7 @@ const ColorPickerPopover = ({ value, onChange, onClose, anchorRef }: {
                                                     onChange(rgbaToHex(newRgb.r, newRgb.g, newRgb.b, rgba.a));
                                                 }
                                             }}
-                                            className="w-full bg-transparent px-1 py-1.5 text-brand-lighter focus:outline-none text-center"
+                                            className="w-full bg-transparent px-1 py-1.5 text-[var(--builder-text)] focus:outline-none text-center"
                                         />
                                     ));
                                 })()}
@@ -442,7 +442,7 @@ const ColorPickerPopover = ({ value, onChange, onClose, anchorRef }: {
                         )}
                     </div>
 
-                    <div className="w-16 flex bg-white/5 rounded-lg border border-white/10 overflow-hidden text-[11px]">
+                    <div className="w-16 flex bg-white/5 rounded-lg border border-transparent overflow-hidden text-[11px]">
                         <input
                             type="text"
                             value={Math.round(hsva.a * 100)}
@@ -450,9 +450,9 @@ const ColorPickerPopover = ({ value, onChange, onClose, anchorRef }: {
                                 const v = parseInt(e.target.value, 10);
                                 if (!isNaN(v)) updateColor({ a: Math.max(0, Math.min(100, v)) / 100 });
                             }}
-                            className="w-full bg-transparent px-2 py-1.5 text-brand-lighter focus:outline-none text-center"
+                            className="w-full bg-transparent px-2 py-1.5 text-[var(--builder-text)] focus:outline-none text-center"
                         />
-                        <div className="pr-2 py-1.5 text-brand-medium flex items-center whitespace-nowrap">
+                        <div className="pr-2 py-1.5 text-[var(--builder-text-faint)] flex items-center whitespace-nowrap">
                             %
                         </div>
                     </div>
@@ -498,7 +498,7 @@ const ColorTextValue = ({ value, onChange }: { value: string, onChange: (v: stri
             onChange={(e) => setLocal(e.target.value)}
             onBlur={(e) => submit(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && submit(e.currentTarget.value)}
-            className="bg-transparent text-[11px] text-brand-lighter focus:outline-none uppercase tracking-widest px-1 w-full"
+            className="bg-transparent text-[11px] text-[var(--builder-text)] focus:outline-none uppercase tracking-widest px-1 w-full"
             placeholder="HEX"
             spellCheck={false}
         />

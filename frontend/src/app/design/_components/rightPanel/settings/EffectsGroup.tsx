@@ -18,11 +18,11 @@ export const EffectsGroup = ({
       {/* Overflow & Cursor */}
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
-          <label className="text-[12px] text-brand-lighter font-base">Overflow</label>
+          <label className="text-[12px] text-[var(--builder-text)] font-base">Overflow</label>
           <select
             value={overflow}
             onChange={(e) => setProp((props) => { props.overflow = e.target.value; })}
-            className="w-full bg-brand-medium-dark rounded-md text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none appearance-none"
+            className="w-full bg-[var(--builder-surface-2)] rounded-md text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none appearance-none"
           >
             <option value="visible">Visible</option>
             <option value="hidden">Hidden</option>
@@ -32,11 +32,11 @@ export const EffectsGroup = ({
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-[12px] text-brand-lighter font-base">Cursor</label>
+          <label className="text-[12px] text-[var(--builder-text)] font-base">Cursor</label>
           <select
             value={cursor}
             onChange={(e) => setProp((props) => { props.cursor = e.target.value; })}
-            className="w-full bg-brand-medium-dark rounded-md text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none appearance-none"
+            className="w-full bg-[var(--builder-surface-2)] rounded-md text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none appearance-none"
           >
             <option value="default">Default</option>
             <option value="pointer">Pointer</option>
@@ -48,7 +48,7 @@ export const EffectsGroup = ({
 
       {/* Box Shadow presets */}
       <div className="flex flex-col gap-1">
-        <label className="text-[12px] text-brand-lighter font-base">Shadow</label>
+        <label className="text-[12px] text-[var(--builder-text)] font-base">Shadow</label>
         <select
           value={(() => {
             if (!boxShadow || boxShadow === "none") return "none";
@@ -67,7 +67,7 @@ export const EffectsGroup = ({
             else if (val === "md") setProp((props) => { props.boxShadow = "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)"; });
             else setProp((props) => { props.boxShadow = "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"; });
           }}
-          className="w-full bg-brand-medium-dark rounded-md text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none appearance-none"
+          className="w-full bg-[var(--builder-surface-2)] rounded-md text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none appearance-none"
         >
           <option value="none">None</option>
           <option value="sm">Small</option>

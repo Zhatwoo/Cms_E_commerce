@@ -34,7 +34,7 @@ export const BooleanInput = ({
         className="h-4 w-4 accent-brand-blue"
       />
       {label ? (
-        <span className="text-[10px] text-brand-lighter font-medium">{label}</span>
+        <span className="text-[10px] text-[var(--builder-text)] font-medium">{label}</span>
       ) : null}
       {layout === "spread" && !label ? <span className="flex-1" /> : null}
     </label>
