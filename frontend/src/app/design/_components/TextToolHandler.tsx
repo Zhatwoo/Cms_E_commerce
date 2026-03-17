@@ -176,10 +176,7 @@ export const TextToolHandler = () => {
             const didDrag = dragState.hasDragged;
             const left = didDrag ? Math.min(dragState.startX, dragState.currentX) : e.clientX;
             const top = didDrag ? Math.min(dragState.startY, dragState.currentY) : e.clientY;
-            const width = didDrag ? Math.max(Math.abs(dragState.currentX - dragState.startX), 150) : 220;
-            const height = didDrag ? Math.abs(dragState.currentY - dragState.startY) : 0;
             const forceAbsoluteForClick = !didDrag;
-            const clickDefaultHeight = 36;
 
             if (dragState.targetNodeId) {
                 try {
@@ -193,18 +190,12 @@ export const TextToolHandler = () => {
                     const targetDom = queryRef.current.node(normalizedTargetId).get()?.dom;
                     let finalLeft = left;
                     let finalTop = top;
-                    let finalWidth = width;
-                    let finalHeight = height;
 
                     if (targetDom) {
                         const rect = targetDom.getBoundingClientRect();
                         const { scaleX, scaleY } = getRenderedScale(targetDom);
                         finalLeft = Math.max(0, Math.round((left - rect.left) / scaleX));
                         finalTop = Math.max(0, Math.round((top - rect.top) / scaleY));
-                        finalWidth = Math.max(150, Math.round(width / scaleX));
-                        finalHeight = didDrag
-                            ? Math.max(0, Math.round(height / scaleY))
-                            : clickDefaultHeight;
                     }
 
                     const parentDisplay = String(parentProps.display ?? "").toLowerCase();
@@ -219,8 +210,6 @@ export const TextToolHandler = () => {
                         parentPosition === "sticky";
                     const shouldUseAbsolute = forceAbsoluteForClick || parentIsFreeform || (!parentIsFlexOrGrid && parentIsPositioned);
 
-                    const flowWidth = !shouldUseAbsolute ? `${finalWidth}px` : undefined;
-
                     const node = queryRef.current.parseFreshNode({
                         data: {
                             type: Text,
@@ -231,8 +220,8 @@ export const TextToolHandler = () => {
                                 position: shouldUseAbsolute ? "absolute" : "relative",
                                 left: shouldUseAbsolute ? `${finalLeft}px` : "auto",
                                 top: shouldUseAbsolute ? `${finalTop}px` : "auto",
-                                width: shouldUseAbsolute ? `${finalWidth}px` : flowWidth,
-                                height: shouldUseAbsolute ? `${Math.max(finalHeight, clickDefaultHeight)}px` : undefined,
+                                width: "fit-content",
+                                height: "fit-content",
                             },
                             displayName: "Text",
                         },
