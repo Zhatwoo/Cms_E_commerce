@@ -42,6 +42,12 @@ export const Badge = ({
 	opacity = 1,
 	overflow = "hidden",
 	rotation = 0,
+	position = "relative",
+	top = "auto",
+	right = "auto",
+	bottom = "auto",
+	left = "auto",
+	zIndex = 0,
 	customClassName = "",
 	children,
 }: BadgeProps) => {
@@ -102,6 +108,12 @@ export const Badge = ({
 				boxShadow,
 				opacity,
 				overflow,
+				position,
+				top: position !== "static" ? top : undefined,
+				right: position !== "static" ? right : undefined,
+				bottom: position !== "static" ? bottom : undefined,
+				left: position !== "static" ? left : undefined,
+				zIndex: zIndex !== 0 ? zIndex : undefined,
 				transform: rotation ? `rotate(${rotation}deg)` : undefined,
 			}}
 		>

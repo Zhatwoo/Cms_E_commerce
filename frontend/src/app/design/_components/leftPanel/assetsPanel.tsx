@@ -12,6 +12,10 @@ import { Viewport } from "../../_designComponents/Viewport/Viewport";
 import { Image } from "../../_designComponents/Image/Image";
 import { Button } from "../../_designComponents/Button/Button";
 import { Divider } from "../../_designComponents/Divider/Divider";
+import { Banner } from "../../_designComponents/Banner/banner";
+import { Badge } from "../../_designComponents/Badge/badge";
+import { Pagination } from "../../_designComponents/Pagination/Pagination";
+import { BooleanField } from "../../_designComponents/BooleanField/BooleanField";
 import { Section } from "../../_designComponents/Section/Section";
 import { Row } from "../../_designComponents/Row/Row";
 import { Column } from "../../_designComponents/Column/Column";
@@ -150,7 +154,29 @@ const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverF
   ImageComponent: asComponent(Image),
   Button: asComponent(Button),
   button: asComponent(Button),
+  BUTTON: asComponent(Button),
   Divider: asComponent(Divider),
+  divider: asComponent(Divider),
+  DIVIDER: asComponent(Divider),
+  Banner: asComponent(Banner),
+  banner: asComponent(Banner),
+  BANNER: asComponent(Banner),
+  Badge: asComponent(Badge),
+  badge: asComponent(Badge),
+  BADGE: asComponent(Badge),
+  Pagination: asComponent(Pagination),
+  pagination: asComponent(Pagination),
+  PAGINATION: asComponent(Pagination),
+  BooleanField: asComponent(BooleanField),
+  booleanfield: asComponent(BooleanField),
+  BOOLEANFIELD: asComponent(BooleanField),
+  "Boolean Field": asComponent(BooleanField),
+  "boolean field": asComponent(BooleanField),
+  Checkbox: asComponent(BooleanField),
+  checkbox: asComponent(BooleanField),
+  CheckBox: asComponent(BooleanField),
+  Radio: asComponent(BooleanField),
+  radio: asComponent(BooleanField),
   Section: asComponent(Section),
   Row: asComponent(Row),
   Column: asComponent(Column),
