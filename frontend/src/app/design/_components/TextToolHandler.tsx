@@ -6,7 +6,6 @@ import { useEditor } from "@craftjs/core";
 import { useCanvasTool } from "./CanvasToolContext";
 import { useInlineTextEdit } from "./InlineTextEditContext";
 import { Text } from "../_designComponents/Text/Text";
-import { CRAFT_RESOLVER } from "./craftResolver";
 
 const DRAG_THRESHOLD = 8;
 const TEXT_ADDING_FLAG = "textAdding";
@@ -221,28 +220,30 @@ export const TextToolHandler = () => {
                     const shouldUseAbsolute = forceAbsoluteForClick || parentIsFreeform || (!parentIsFlexOrGrid && parentIsPositioned);
 
                     const flowWidth = !shouldUseAbsolute ? `${finalWidth}px` : undefined;
-                    const ResolverText =
-                        (typeof CRAFT_RESOLVER.Text === "function" ? CRAFT_RESOLVER.Text : null) ??
-                        (typeof CRAFT_RESOLVER.text === "function" ? CRAFT_RESOLVER.text : null) ??
-                        Text;
 
-                    const tree = queryRef.current.parseReactElement(
-                        <ResolverText
-                            text=""
-                            fontSize={18}
-                            position={shouldUseAbsolute ? "absolute" : "relative"}
-                            left={shouldUseAbsolute ? `${finalLeft}px` : "auto"}
-                            top={shouldUseAbsolute ? `${finalTop}px` : "auto"}
-                            width={shouldUseAbsolute ? `${finalWidth}px` : flowWidth}
-                            height={shouldUseAbsolute ? `${Math.max(finalHeight, clickDefaultHeight)}px` : undefined}
-                        />
-                    ).toNodeTree();
+                    const node = queryRef.current.parseFreshNode({
+                        data: {
+                            type: Text,
+                            isCanvas: false,
+                            props: {
+                                text: "",
+                                fontSize: 18,
+                                position: shouldUseAbsolute ? "absolute" : "relative",
+                                left: shouldUseAbsolute ? `${finalLeft}px` : "auto",
+                                top: shouldUseAbsolute ? `${finalTop}px` : "auto",
+                                width: shouldUseAbsolute ? `${finalWidth}px` : flowWidth,
+                                height: shouldUseAbsolute ? `${Math.max(finalHeight, clickDefaultHeight)}px` : undefined,
+                            },
+                            displayName: "Text",
+                        },
+                    }).toNode();
 
-                    (actionsRef.current as any).addNodeTree(tree, normalizedTargetId);
+                    const textId = node.id;
+                    (actionsRef.current as any).add(node, normalizedTargetId);
 
                     setTimeout(() => {
-                        actionsRef.current.selectNode(tree.rootNodeId);
-                        setEditingTextNodeId(tree.rootNodeId);
+                        actionsRef.current.selectNode(textId);
+                        setEditingTextNodeId(textId);
                         // One-shot text tool: after placing one text box, return to cursor tool.
                         setActiveTool("move");
                     }, 50);
