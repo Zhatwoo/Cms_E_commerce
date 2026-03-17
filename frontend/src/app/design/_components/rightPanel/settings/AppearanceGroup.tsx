@@ -98,7 +98,7 @@ export const AppearanceGroup = ({
     <div className="flex flex-col gap-4">
       {/* Fill */}
       <div className="flex flex-col gap-1">
-        <label className="text-[12px] text-brand-lighter font-base">Fill</label>
+        <label className="text-[12px] text-[var(--builder-text)] font-base">Fill</label>
         <ColorPicker
           value={background || "transparent"}
           onChange={(val) => setProp((props) => { props.background = val; })}
@@ -110,7 +110,7 @@ export const AppearanceGroup = ({
           {/* Background Image */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <label className="text-[12px] text-brand-lighter font-base">Background Image</label>
+              <label className="text-[12px] text-[var(--builder-text)] font-base">Background Image</label>
               <button
                 onClick={() => {
                   if (showBgImage) {
@@ -118,7 +118,7 @@ export const AppearanceGroup = ({
                   }
                   setShowBgImage(!showBgImage);
                 }}
-                className="p-0.5 rounded text-brand-medium hover:text-brand-lighter"
+                className="p-0.5 rounded text-[var(--builder-text-faint)] hover:text-[var(--builder-text)]"
                 title={showBgImage ? "Remove background image" : "Add background image"}
               >
                 {showBgImage ? <X size={12} /> : <ImageIcon size={12} />}
@@ -143,19 +143,19 @@ export const AppearanceGroup = ({
                     onChange={(e) => setProp((props) => { props.backgroundImage = e.target.value; })}
                     onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
                     placeholder="https://example.com/image.jpg"
-                    className="flex-1 bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none placeholder:text-brand-medium"
+                    className="flex-1 bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none placeholder:text-[var(--builder-text-faint)]"
                   />
                   <button
                     type="button"
                     onClick={() => bgFileInputRef.current?.click()}
                     disabled={uploadingBg}
-                    className="px-2.5 py-1.5 bg-brand-medium/30 hover:bg-brand-medium/50 border border-brand-medium/30 rounded-lg transition-colors flex items-center justify-center disabled:opacity-50"
+                    className="px-2.5 py-1.5 bg-brand-medium/30 hover:bg-brand-medium/50 border border-[var(--builder-border)] rounded-lg transition-colors flex items-center justify-center disabled:opacity-50"
                     title="Upload image"
                   >
                     {uploadingBg ? (
-                      <Loader2 className="w-3.5 h-3.5 text-brand-light animate-spin" />
+                      <Loader2 className="w-3.5 h-3.5 text-[var(--builder-text-muted)] animate-spin" />
                     ) : (
-                      <Upload className="w-3.5 h-3.5 text-brand-light" />
+                      <Upload className="w-3.5 h-3.5 text-[var(--builder-text-muted)]" />
                     )}
                   </button>
                 </div>
@@ -163,26 +163,26 @@ export const AppearanceGroup = ({
                 {/* Size & Position Row */}
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex flex-col gap-1">
-                    <span className="text-[10px] text-brand-light">Size</span>
+                    <span className="text-[10px] text-[var(--builder-text-muted)]">Size</span>
                     <select
                       value={backgroundSize}
                       onChange={(e) => setProp((props) => { props.backgroundSize = e.target.value as AppearanceProps["backgroundSize"]; })}
-                      className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2 py-1.5 focus:outline-none appearance-none"
+                      className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2 py-1.5 focus:outline-none appearance-none"
                     >
                       {BG_SIZE_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value} className="bg-brand-dark">{opt.label}</option>
+                        <option key={opt.value} value={opt.value} className="bg-[var(--builder-surface)]">{opt.label}</option>
                       ))}
                     </select>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <span className="text-[10px] text-brand-light">Position</span>
+                    <span className="text-[10px] text-[var(--builder-text-muted)]">Position</span>
                     <select
                       value={backgroundPosition}
                       onChange={(e) => setProp((props) => { props.backgroundPosition = e.target.value; })}
-                      className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2 py-1.5 focus:outline-none appearance-none"
+                      className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2 py-1.5 focus:outline-none appearance-none"
                     >
                       {BG_POSITION_OPTIONS.map((pos) => (
-                        <option key={pos} value={pos} className="bg-brand-dark capitalize">{pos}</option>
+                        <option key={pos} value={pos} className="bg-[var(--builder-surface)] capitalize">{pos}</option>
                       ))}
                     </select>
                   </div>
@@ -190,21 +190,21 @@ export const AppearanceGroup = ({
 
                 {/* Repeat */}
                 <div className="flex flex-col gap-1">
-                  <span className="text-[10px] text-brand-light">Repeat</span>
+                  <span className="text-[10px] text-[var(--builder-text-muted)]">Repeat</span>
                   <select
                     value={backgroundRepeat}
                     onChange={(e) => setProp((props) => { props.backgroundRepeat = e.target.value as AppearanceProps["backgroundRepeat"]; })}
-                    className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2 py-1.5 focus:outline-none appearance-none"
+                    className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2 py-1.5 focus:outline-none appearance-none"
                   >
                     {BG_REPEAT_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value} className="bg-brand-dark">{opt.label}</option>
+                      <option key={opt.value} value={opt.value} className="bg-[var(--builder-surface)]">{opt.label}</option>
                     ))}
                   </select>
                 </div>
 
                 {/* Overlay Color */}
                 <div className="flex flex-col gap-1">
-                  <span className="text-[10px] text-brand-light">Overlay</span>
+                  <span className="text-[10px] text-[var(--builder-text-muted)]">Overlay</span>
                   <ColorPicker
                     value={backgroundOverlay || "transparent"}
                     onChange={(val) => setProp((props) => { props.backgroundOverlay = val; })}
@@ -218,7 +218,7 @@ export const AppearanceGroup = ({
 
       {/* Stroke / Border */}
       <div className="flex flex-col gap-2">
-        <label className="text-[12px] text-brand-lighter font-base">Stroke</label>
+        <label className="text-[12px] text-[var(--builder-text)] font-base">Stroke</label>
         <div className="flex gap-2">
           {/* Color Picker */}
           <ColorPicker
@@ -227,7 +227,7 @@ export const AppearanceGroup = ({
             className="flex-1 min-w-0"
           />
           {/* Thickness Input */}
-          <div className="w-16 bg-brand-medium-dark rounded-lg px-2.5">
+          <div className="w-16 bg-[var(--builder-surface-2)] rounded-lg px-2.5">
             <NumericInput
               value={borderWidth}
               onChange={(val) => setProp((props) => { props.borderWidth = val; })}
@@ -239,7 +239,7 @@ export const AppearanceGroup = ({
           <select
             value={borderStyle}
             onChange={(e) => setProp((props) => { props.borderStyle = e.target.value; })}
-            className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none appearance-none"
+            className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none appearance-none"
           >
             <option value="solid">Solid</option>
             <option value="dashed">Dashed</option>
@@ -248,7 +248,7 @@ export const AppearanceGroup = ({
           <select
             value={strokePlacement}
             onChange={(e) => setProp((props) => { props.strokePlacement = e.target.value as "mid" | "inside" | "outside"; })}
-            className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none appearance-none"
+            className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none appearance-none"
             title="Stroke placement"
           >
             <option value="mid">Mid</option>
@@ -261,51 +261,51 @@ export const AppearanceGroup = ({
       {/* Corner Radius */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <label className="text-[12px] text-brand-lighter">Corners</label>
+          <label className="text-[12px] text-[var(--builder-text)]">Corners</label>
           <button
             onClick={() => setExpandRadius(!expandRadius)}
-            className={`p-0.5 rounded ${expandRadius ? "bg-brand-light text-brand-dark" : "text-brand-medium hover:text-brand-lighter"}`}
+            className={`p-0.5 rounded ${expandRadius ? "bg-[var(--builder-accent)] text-black" : "text-[var(--builder-text-faint)] hover:text-[var(--builder-text)]"}`}
           >
-            <Scan strokeWidth={2} size={12} className={`text-brand-lighter hover:text-brand-lighter ${expandRadius ? "rotate-90" : "rotate-0"}`} />
+            <Scan strokeWidth={2} size={12} className={`text-[var(--builder-text)] hover:text-[var(--builder-text)] ${expandRadius ? "rotate-90" : "rotate-0"}`} />
           </button>
         </div>
 
         {expandRadius ? (
           <div className="grid grid-cols-2 gap-2">
-            <div className="flex bg-brand-medium-dark rounded-lg px-2 items-center gap-2">
+            <div className="flex bg-[var(--builder-surface-2)] rounded-lg px-2 items-center gap-2">
 
               <NumericInput
                 value={radiusTopLeft}
                 onChange={(val) => handleRadiusChange("tl", val)}
-                icon={<div className="w-2 h-2 border-t border-l border-brand-medium mr-2" />}
+                icon={<div className="w-2 h-2 border-t border-l border-[var(--builder-border-mid)] mr-2" />}
               />
             </div>
-            <div className="flex bg-brand-medium-dark rounded-lg px-2 items-center gap-2">
+            <div className="flex bg-[var(--builder-surface-2)] rounded-lg px-2 items-center gap-2">
               <NumericInput
                 value={radiusTopRight}
                 onChange={(val) => handleRadiusChange("tr", val)}
-                icon={<div className="w-2 h-2 border-t border-r border-brand-medium mr-2" />}
+                icon={<div className="w-2 h-2 border-t border-r border-[var(--builder-border-mid)] mr-2" />}
               />
             </div>
 
-            <div className="flex bg-brand-medium-dark rounded-lg px-2 items-center gap-2">
+            <div className="flex bg-[var(--builder-surface-2)] rounded-lg px-2 items-center gap-2">
               <NumericInput
                 value={radiusBottomLeft}
                 onChange={(val) => handleRadiusChange("bl", val)}
-                icon={<div className="w-2 h-2 border-b border-l border-brand-medium mr-2" />}
+                icon={<div className="w-2 h-2 border-b border-l border-[var(--builder-border-mid)] mr-2" />}
               />
             </div>
-            <div className="flex bg-brand-medium-dark rounded-lg px-2 items-center gap-2">
+            <div className="flex bg-[var(--builder-surface-2)] rounded-lg px-2 items-center gap-2">
               <NumericInput
                 value={radiusBottomRight}
                 onChange={(val) => handleRadiusChange("br", val)}
-                icon={<div className="w-2 h-2 border-b border-r border-brand-medium mr-2" />}
+                icon={<div className="w-2 h-2 border-b border-r border-[var(--builder-border-mid)] mr-2" />}
               />
             </div>
           </div>
         ) : (
-          <div className="flex bg-brand-medium-dark rounded-lg px-2 items-center gap-2">
-            <SquareRoundCorner size={16} className="text-brand-lighter mx-2.5" />
+          <div className="flex bg-[var(--builder-surface-2)] rounded-lg px-2 items-center gap-2">
+            <SquareRoundCorner size={16} className="text-[var(--builder-text)] mx-2.5" />
             <NumericInput
               value={radiusTopLeft}
               onChange={(val) => handleRadiusChange("all", val)}

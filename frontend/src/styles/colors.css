@@ -9,6 +9,49 @@
   --brand-light: #9999A1;
   --brand-lighter: #E6E6E9;
   --brand-white: #F4F4F6;
+
+  /* ── Web Builder — Dark Mode (default) ── */
+  --builder-bg:             #0C0A1E;
+  --builder-surface:        #120F2A;
+  --builder-surface-2:      #1A1640;
+  --builder-surface-3:      #231E52;
+  --builder-surface-hover:  #2A2560;
+  --builder-border:         rgba(138, 92, 246, 0.18);
+  --builder-border-mid:     rgba(138, 92, 246, 0.30);
+  --builder-text:           #EDE9FF;
+  --builder-text-muted:     #9B94CC;
+  --builder-text-faint:     #5A5490;
+  --builder-accent:         #FFCC00;
+  --builder-accent-hover:   #FFD740;
+  --builder-accent-glow:    rgba(255, 204, 0, 0.25);
+  --builder-purple:         #7C3AED;
+  --builder-purple-light:   #A78BFA;
+  --builder-purple-glow:    rgba(124, 58, 237, 0.30);
+  --builder-canvas-bg:      #07051A;
+  --builder-icon-glow:      rgba(167, 139, 250, 0.6);
+}
+
+/* ── Web Builder — Light Mode ── */
+.light [data-web-builder-root],
+[data-web-builder-root].light {
+  --builder-bg:             #ECEAF6;
+  --builder-surface:        #F5F3FF;
+  --builder-surface-2:      #EAE7F8;
+  --builder-surface-3:      #DDD9F0;
+  --builder-surface-hover:  #D4D0EA;
+  --builder-border:         rgba(90, 50, 180, 0.16);
+  --builder-border-mid:     rgba(90, 50, 180, 0.28);
+  --builder-text:           #12082E;
+  --builder-text-muted:     #3D2E72;
+  --builder-text-faint:     #7060A8;
+  --builder-accent:         #B8900A;
+  --builder-accent-hover:   #D4A800;
+  --builder-accent-glow:    rgba(184, 144, 10, 0.22);
+  --builder-purple:         #5B21B6;
+  --builder-purple-light:   #6D28D9;
+  --builder-purple-glow:    rgba(91, 33, 182, 0.18);
+  --builder-canvas-bg:      #D8D4EE;
+  --builder-icon-glow:      rgba(91, 33, 182, 0.5);
 }
 
 @theme inline {
@@ -22,4 +65,19 @@
   --color-brand-light: var(--brand-light);
   --color-brand-lighter: var(--brand-lighter);
   --color-brand-white: var(--brand-white);
+
+  /* Builder palette utilities */
+  --color-builder-bg:             var(--builder-bg);
+  --color-builder-surface:        var(--builder-surface);
+  --color-builder-surface-2:      var(--builder-surface-2);
+  --color-builder-surface-3:      var(--builder-surface-3);
+  --color-builder-surface-hover:  var(--builder-surface-hover);
+  --color-builder-text:           var(--builder-text);
+  --color-builder-text-muted:     var(--builder-text-muted);
+  --color-builder-text-faint:     var(--builder-text-faint);
+  --color-builder-accent:         var(--builder-accent);
+  --color-builder-accent-hover:   var(--builder-accent-hover);
+  --color-builder-purple:         var(--builder-purple);
+  --color-builder-purple-light:   var(--builder-purple-light);
+  --color-builder-canvas-bg:      var(--builder-canvas-bg);
 }

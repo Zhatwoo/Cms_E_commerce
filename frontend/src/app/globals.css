@@ -390,6 +390,64 @@ body:has(.m-dashboard-shell) {
   overflow: hidden !important;
 }
 
+/* ── Web Builder UI ── */
+[data-web-builder-root] {
+  background-color: var(--builder-bg) !important;
+  color: var(--builder-text);
+}
+
+/* Panels */
+[data-web-builder-root] [data-panel="left"] {
+  background-color: var(--builder-surface) !important;
+  border-right: 1px solid var(--builder-border) !important;
+}
+
+[data-web-builder-root] [data-panel="configs"] {
+  background-color: var(--builder-surface) !important;
+  border-left: 1px solid var(--builder-border) !important;
+}
+
+[data-web-builder-root] [data-panel="top-controls"] {
+  background-color: var(--builder-surface) !important;
+  border-bottom: 1px solid var(--builder-border) !important;
+}
+
+/* Canvas */
+[data-web-builder-root] [data-canvas-container] {
+  background-color: var(--builder-canvas-bg) !important;
+}
+
+/* Yellow accent line on left edge of left panel */
+[data-web-builder-root] [data-panel="left"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, var(--builder-accent) 0%, var(--builder-purple) 100%);
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Builder accent glow keyframe */
+@keyframes builder-pulse-accent {
+  0%, 100% { opacity: 0.6; }
+  50%       { opacity: 1; }
+}
+
+/* Component card icon glow on hover */
+[data-web-builder-root] .builder-comp-card:hover .builder-comp-icon {
+  filter: drop-shadow(0 0 6px var(--builder-icon-glow));
+}
+
+/* Active tab yellow underline */
+[data-web-builder-root] .builder-tab-active {
+  color: var(--builder-accent) !important;
+  border-bottom: 2px solid var(--builder-accent);
+}
+
 /* Builder Styles */
 .component-selected {
   outline: 2px solid #3b82f6 !important;

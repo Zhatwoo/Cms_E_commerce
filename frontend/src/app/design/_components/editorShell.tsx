@@ -49,6 +49,7 @@ import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializ
 import { migratePublishedContent } from "../_lib/contentMigration";
 import { useRouter } from "next/navigation";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
+import { useThemeOptional } from "@/app/m_dashboard/components/context/theme-context";
 import { Circle } from "../../_assets/shapes/circle/circle";
 import { Square } from "../../_assets/shapes/square/square";
 import { Triangle } from "../../_assets/shapes/triangle/triangle";
@@ -977,6 +978,19 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   const [activeTool, setActiveTool] = useState<CanvasTool>(permission === "viewer" ? "hand" : "move");
   const [frameReady, setFrameReady] = useState(false);
   const [showDualView, setShowDualView] = useState(false);
+  const themeCtx = useThemeOptional();
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    // Prefer ThemeProvider state if available, fall back to builder_theme localStorage
+    const stored = window.localStorage.getItem("builder_theme");
+    return stored !== "light";
+  });
+
+  // Keep isDarkMode in sync with ThemeProvider when it changes externally
+  useEffect(() => {
+    if (!themeCtx) return;
+    setIsDarkMode(themeCtx.theme === "dark");
+  }, [themeCtx?.theme]);
   const [isDeviceSwitching, setIsDeviceSwitching] = useState(false);
   const hasInitialCenteringRef = useRef(false);
   const hasForcedRightPanelOpenRef = useRef(false);
@@ -2493,7 +2507,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   }, [initialJson]);
 
   return (
-    <div data-web-builder-root className="h-screen bg-brand-black text-brand-lighter overflow-hidden font-sans relative">
+    <div data-web-builder-root className={`h-screen bg-builder-bg text-builder-text overflow-hidden font-sans relative${isDarkMode ? "" : " light"}`}>
       <style>{`
           div[style*="position: fixed"][style*="z-index: 99999"][style*="border-style: solid"],
           div[style*="position: fixed"][style*="z-index: 99999"][style*="background-color: rgb(98, 196, 98)"],
@@ -2558,13 +2572,27 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                         scale={scale}
                         onScaleChange={handleScaleChange}
                         onZoomFit={handleFitToCanvas}
+                        isDarkMode={isDarkMode}
+                        onThemeToggle={(e) => {
+                          // Let ThemeProvider drive the state — the useEffect below syncs isDarkMode
+                          if (themeCtx) {
+                            themeCtx.toggleTheme(e);
+                          } else {
+                            // Fallback when ThemeProvider is unavailable
+                            setIsDarkMode((v) => {
+                              const next = !v;
+                              window.localStorage.setItem("builder_theme", next ? "dark" : "light");
+                              return next;
+                            });
+                          }
+                        }}
                       />
                     )}
                     {/* Canvas Area — Infinite Scroll Area */}
                     <div
                       ref={containerRef}
                       data-canvas-container
-                      className={`absolute inset-0 overflow-auto bg-brand-darker canvas-scroll-container ${canPanWithPointerDrag ? "canvas-hand-tool" : ""} ${canPanWithPointerDrag && isPanning ? "canvas-hand-panning" : ""} ${isPanelDragging ? "transition-none" : "transition-[left,right] duration-300 ease-out"}`}
+                      className={`absolute inset-0 overflow-auto bg-builder-canvas-bg canvas-scroll-container ${canPanWithPointerDrag ? "canvas-hand-tool" : ""} ${canPanWithPointerDrag && isPanning ? "canvas-hand-panning" : ""} ${isPanelDragging ? "transition-none" : "transition-[left,right] duration-300 ease-out"}`}
                       style={{
                         top: `${TOP_PANEL_HEIGHT_PX}px`,
                         left: panelsReady && leftPanelOpen && permission !== "viewer" ? `${leftPanelWidth}px` : "0px",
@@ -2622,7 +2650,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                       <button
                         type="button"
                         onClick={() => setRightPanelOpen(true)}
-                        className="absolute top-14 right-4 z-[60] p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110"
+                        className="absolute top-14 right-4 z-[60] p-3 bg-builder-surface/80 backdrop-blur-lg rounded-3xl border border-builder-border hover:bg-builder-surface-3 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110"
                         title="Show Configs panel"
                       >
                         <PanelRight className="w-5 h-5 text-brand-light" />
@@ -2659,7 +2687,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                           </div>
                           <button
                             onClick={() => setLeftPanelOpen((open) => !open)}
-                            className={`absolute left-4 top-2 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${leftPanelOpen ? "opacity-0 pointer-events-none scale-95" : "opacity-100 pointer-events-auto scale-100"
+                            className={`absolute left-4 top-2 p-3 bg-builder-surface/80 backdrop-blur-lg rounded-3xl border border-builder-border hover:bg-builder-surface-3 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${leftPanelOpen ? "opacity-0 pointer-events-none scale-95" : "opacity-100 pointer-events-auto scale-100"
                               }`}
                             title={leftPanelOpen ? "Hide left panel" : "Show left panel"}
                           >
