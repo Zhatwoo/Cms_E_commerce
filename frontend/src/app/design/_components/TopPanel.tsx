@@ -145,7 +145,11 @@ export const TopPanel: React.FC<TopPanelProps> = ({
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes("Not authorized") || msg.includes("no token")) {
+      if (
+        msg.includes("Not authorized") ||
+        msg.includes("no token") ||
+        msg.includes("Backend is unreachable")
+      ) {
         return;
       }
       console.error("Failed to fetch storage usage:", error);
