@@ -105,7 +105,7 @@ export const Page = ({
 export const PageDefaultProps: Partial<PageProps> = {
   width: "1920px",
   height: "1200px",
-  background: "#E6E6E9",
+  background: "#ffffff",
   pageRotation: 0,
   canvasX: 0,
   canvasY: 0,
