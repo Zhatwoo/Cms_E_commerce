@@ -43,6 +43,7 @@ import { NewPageDropPlacementHandler } from "./NewPageDropPlacementHandler";
 import { HeaderFooterDropPlacementHandler } from "./HeaderFooterDropPlacementHandler";
 import PanelDropFreePlacementHandler from "./PanelDropFreePlacementHandler";
 import { ScrollToSelectedHandler } from "./ScrollToSelectedHandler";
+import { SnapMarkers } from "./SnapMarkers";
 import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
@@ -2554,6 +2555,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                     <TextToolHandler />
                     <ShapeToolHandler />
                     <DoubleClickTransformHandler />
+                    <SnapMarkers />
                     <PrototypeFlowLines />
                     {/* Top Panel */}
                     {panelsReady && (
