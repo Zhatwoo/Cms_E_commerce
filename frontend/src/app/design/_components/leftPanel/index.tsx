@@ -878,37 +878,8 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
               )}
             </div>
 
-            {/* Storage Indicator */}
-            {permission !== "viewer" && (
-              <div className="mt-auto pt-4 border-t border-[var(--builder-border)] pb-2">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex flex-col">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-builder-text-muted">Storage Used</span>
-                    <span className="text-[10px] text-[var(--builder-text-faint)] font-bold uppercase tracking-tight">
-                      {(mediaItems.reduce((acc, i) => acc + (i.size || 0), 0) / (1024 * 1024)).toFixed(1)}MB / 500MB
-                    </span>
-                  </div>
-                  <button className="text-[9px] font-black uppercase tracking-widest text-[var(--builder-accent)] hover:text-[var(--builder-text)] transition-colors cursor-pointer flex items-center gap-1 group">
-                    <span>Upgrade</span>
-                    <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                  </button>
-                </div>
 
-                <div className="h-1.5 w-full bg-[var(--builder-surface-3)] rounded-full overflow-hidden">
-                  <div
-                    className={`h-full transition-all duration-500 rounded-full ${(mediaItems.reduce((acc, i) => acc + (i.size || 0), 0) / (500 * 1024 * 1024)) > 0.9
-                        ? "bg-red-500"
-                        : "bg-[var(--builder-purple)]"
-                      }`}
-                    style={{ width: `${Math.min(100, (mediaItems.reduce((acc, i) => acc + (i.size || 0), 0) / (500 * 1024 * 1024)) * 100)}%` }}
-                  />
-                </div>
 
-                <p className="mt-2 text-[8px] italic text-[var(--builder-text-faint)] uppercase tracking-widest text-center">
-                  Get unlimited storage for your assets
-                </p>
-              </div>
-            )}
 
             {/* Read-only status */}
             {permission === "viewer" && (
