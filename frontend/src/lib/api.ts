@@ -25,6 +25,8 @@ export type User = {
   lastLogin?: string;
   username?: string;
   website?: string;
+  paymentMethods?: any[];
+  paymentMethod?: any; // kept for compatibility
 };
 
 export type AuthResponse = {
@@ -166,11 +168,19 @@ export async function apiFetch<T>(
         headers,
         credentials: 'include', // ✅ cookie only
       });
+      const data = await handleResponse<T>(res);
       activeApiBase = base;
-      return await handleResponse<T>(res);
-    } catch (error) {
+      return data;
+    } catch (error: any) {
       lastError = error;
-      // Only retry on network-level failures (e.g. backend down / wrong port).
+      // Retry on network-level failures OR 404s on local candidates (could be hit a zombie server)
+      const isLocal = base.includes('localhost') || base.includes('127.0.0.1');
+      const isNotFoundError = error.message?.includes('Route not found') || error.message?.includes('Not Found');
+      
+      if (isLocal && isNotFoundError && candidates.indexOf(base) < candidates.length - 1) {
+        continue;
+      }
+
       if (!(error instanceof TypeError)) {
         throw error;
       }
@@ -284,11 +294,23 @@ export async function updateProfile(data: {
   username?: string;
   website?: string;
   bio?: string;
+  paymentMethods?: any[];
+  paymentMethod?: any;
 }): Promise<{ success: boolean; message?: string; user?: User }> {
   return apiFetch<{ success: boolean; message?: string; user?: User }>('/api/auth/profile', {
     method: 'PUT',
     body: JSON.stringify(data),
   });
+}
+
+export async function createStripeSetupIntent(): Promise<{ success: boolean; clientSecret: string }> {
+  return apiFetch<{ success: boolean; clientSecret: string }>('/api/auth/billing/setup-intent', {
+    method: 'POST',
+  });
+}
+
+export async function getUnionBankLink(): Promise<{ success: boolean; url: string }> {
+  return apiFetch<{ success: boolean; url: string }>('/api/payments/unionbank/link');
 }
 
 /** Upload avatar via backend: file is saved in Storage only at Clients/profile_picture/{username}/profile-{uid}. */
@@ -1338,3 +1360,4 @@ export async function getAnalytics(period: '7days' | '30days' | '3months' = '7da
   }
   return apiFetch<AnalyticsResponse>(`/api/dashboard/analytics?period=${encodeURIComponent(period)}`);
 }
+const api = { getMe, updateProfile }; export default api;
