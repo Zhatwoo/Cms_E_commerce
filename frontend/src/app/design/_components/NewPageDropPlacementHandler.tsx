@@ -170,103 +170,29 @@ export const NewPageDropPlacementHandler = () => {
     document.body.style.userSelect = locked ? "none" : "";
   };
 
-  const createPageAtDropPoint = (drop: DropPoint) => {
-    try {
-      const state = query.getState();
-      const nodes = state?.nodes ?? {};
-      const viewportId = resolveViewportId(nodes);
-      if (!viewportId) return false;
-
-      const viewportChildren = Array.isArray(nodes[viewportId]?.data?.nodes)
-        ? (nodes[viewportId].data.nodes as string[])
-        : [];
-      const currentPageIds = viewportChildren.filter((id) => nodes[id]?.data?.displayName === "Page");
-
-      const desktopRoot = document.querySelector("[data-viewport-desktop]") as HTMLElement | null;
-      if (!desktopRoot) return false;
-      const point = getDropCanvasPoint(drop);
-      // Place the page's top-left corner exactly at the drop point
-      const canvasX = point.x;
-      const canvasY = point.y;
-
-      let snapshot: Record<string, any> | null = null;
-      try {
-        const serialized = (query as any).serialize ? (query as any).serialize() : null;
-        snapshot = serialized ? JSON.parse(serialized) : null;
-      } catch {
-        snapshot = null;
-      }
-
-      if (!snapshot || typeof snapshot !== "object" || !snapshot[viewportId]) {
-        return false;
-      }
-
-      const pageId = `page-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-      const pageName = `Page ${currentPageIds.length + 1}`;
-
-      snapshot[pageId] = {
-        type: { resolvedName: "Page" },
-        isCanvas: true,
-        props: {
-          pageName,
-          width: `${NEW_PAGE_WIDTH}px`,
-          height: `${NEW_PAGE_HEIGHT}px`,
-          background: "#E6E6E9",
-          canvasX,
-          canvasY,
-        },
-        displayName: "Page",
-        custom: {},
-        parent: viewportId,
-        hidden: false,
-        nodes: [],
-        linkedNodes: {},
-      };
-
-      const vp = snapshot[viewportId] as any;
-      if (!Array.isArray(vp.nodes)) vp.nodes = [];
-      vp.nodes = [...vp.nodes, pageId];
-
-      actions.deserialize(JSON.stringify(sanitizeTreeTypes(snapshot)));
-      requestAnimationFrame(() => {
-        try {
-          actions.setProp(pageId, (props: Record<string, unknown>) => {
-            props.canvasX = canvasX;
-            props.canvasY = canvasY;
-          });
-          actions.selectNode(pageId);
-        } catch {
-          // Ignore if node is not yet available in this frame
-        }
-      });
-
-      preDropPageIdsRef.current = new Set([...currentPageIds, pageId]);
-      return true;
-    } catch (error) {
-      console.error("createPageAtDropPoint failed:", error);
-      return false;
-    }
-  };
-
-  const placeDroppedPage = () => {
+  /**
+   * Repositions the page node that CraftJS already created via drag-create.
+   * This handler NEVER creates a new page — CraftJS owns creation.
+   * Returns true when the new page was found and repositioned (done), false to retry.
+   */
+  const placeDroppedPage = (): boolean => {
     try {
       const drop = lastDropPointRef.current;
       if (!drop || Date.now() - drop.ts > 2000) {
         lastDropPointRef.current = null;
-        return;
+        return true; // timed out — stop retrying
       }
 
       const state = query.getState();
       if (!state) {
-        console.error("placeDroppedPage: invalid editor state", state);
         lastDropPointRef.current = null;
-        return;
+        return true;
       }
       const nodes = state.nodes ?? {};
       const viewportId = resolveViewportId(nodes);
       if (!viewportId) {
         lastDropPointRef.current = null;
-        return;
+        return true;
       }
 
       const viewportChildren = Array.isArray(nodes[viewportId]?.data?.nodes)
@@ -277,8 +203,8 @@ export const NewPageDropPlacementHandler = () => {
       const preDrop = preDropPageIdsRef.current;
       const newPageIds = currentPageIds.filter((id) => !preDrop.has(id));
 
-      const desktopRoot = document.querySelector("[data-viewport-desktop]") as HTMLElement | null;
-      if (!desktopRoot) return;
+      // Not yet created by CraftJS — keep retrying
+      if (newPageIds.length === 0) return false;
 
       const dropPoint = getDropCanvasPoint(drop);
 
@@ -303,32 +229,24 @@ export const NewPageDropPlacementHandler = () => {
       // and only create a fallback once (see schedulePlacementRetry → createPageAtDropPoint).
       return;
     } catch (err) {
-      console.error("placeDroppedPage unexpected error:", err, { drop: lastDropPointRef.current });
+      console.error("placeDroppedPage unexpected error:", err);
       lastDropPointRef.current = null;
+      return true;
     }
   };
 
   const schedulePlacementRetry = () => {
     let attempts = 0;
-    const maxAttempts = 20;
+    const maxAttempts = 30;
 
     const tick = () => {
       attempts += 1;
-      const before = lastDropPointRef.current;
-      placeDroppedPage();
-      const after = lastDropPointRef.current;
-
-      const done = before !== null && after === null;
+      const done = placeDroppedPage();
       if (done) return;
-
       if (attempts >= maxAttempts) {
-        if (before) {
-          createPageAtDropPoint(before);
-        }
         lastDropPointRef.current = null;
         return;
       }
-
       requestAnimationFrame(tick);
     };
 
@@ -420,7 +338,6 @@ export const NewPageDropPlacementHandler = () => {
         ts: Date.now(),
       };
 
-      placeDroppedPage();
       schedulePlacementRetry();
 
       armedDragRef.current = false;
