@@ -12,6 +12,10 @@ import { Viewport } from "../../_designComponents/Viewport/Viewport";
 import { Image } from "../../_designComponents/Image/Image";
 import { Button } from "../../_designComponents/Button/Button";
 import { Divider } from "../../_designComponents/Divider/Divider";
+import { Banner } from "../../_designComponents/Banner/banner";
+import { Badge } from "../../_designComponents/Badge/badge";
+import { Pagination } from "../../_designComponents/Pagination/Pagination";
+import { BooleanField } from "../../_designComponents/BooleanField/BooleanField";
 import { Section } from "../../_designComponents/Section/Section";
 import { Row } from "../../_designComponents/Row/Row";
 import { Column } from "../../_designComponents/Column/Column";
@@ -40,6 +44,35 @@ function withResolverFallback<T extends Record<string, React.ComponentType<any>>
         Reflect.get(target, normalized.charAt(0).toUpperCase() + normalized.slice(1), receiver);
 
       return resolved || target.Container || SAFE_CONTAINER;
+    },
+    has(target, prop) {
+      if (Reflect.has(target, prop)) return true;
+      if (typeof prop !== "string") {
+        return Reflect.has(target, "Container") || Reflect.has(target, "container");
+      }
+
+      const normalized = prop.trim().toLowerCase();
+      if (Reflect.has(target, normalized)) return true;
+
+      const canonical = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+      if (Reflect.has(target, canonical)) return true;
+
+      if (
+        normalized.includes("image") ||
+        normalized === "img" ||
+        normalized === "imagecomponent"
+      ) {
+        return (
+          Reflect.has(target, "Image") ||
+          Reflect.has(target, "image") ||
+          Reflect.has(target, "IMAGE") ||
+          Reflect.has(target, "img") ||
+          Reflect.has(target, "Img") ||
+          Reflect.has(target, "ImageComponent")
+        );
+      }
+
+      return Reflect.has(target, "Container") || Reflect.has(target, "container");
     },
   }) as T;
 }
@@ -116,9 +149,34 @@ const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverF
   Image: asComponent(Image),
   image: asComponent(Image),
   IMAGE: asComponent(Image),
+  img: asComponent(Image),
+  Img: asComponent(Image),
+  ImageComponent: asComponent(Image),
   Button: asComponent(Button),
   button: asComponent(Button),
+  BUTTON: asComponent(Button),
   Divider: asComponent(Divider),
+  divider: asComponent(Divider),
+  DIVIDER: asComponent(Divider),
+  Banner: asComponent(Banner),
+  banner: asComponent(Banner),
+  BANNER: asComponent(Banner),
+  Badge: asComponent(Badge),
+  badge: asComponent(Badge),
+  BADGE: asComponent(Badge),
+  Pagination: asComponent(Pagination),
+  pagination: asComponent(Pagination),
+  PAGINATION: asComponent(Pagination),
+  BooleanField: asComponent(BooleanField),
+  booleanfield: asComponent(BooleanField),
+  BOOLEANFIELD: asComponent(BooleanField),
+  "Boolean Field": asComponent(BooleanField),
+  "boolean field": asComponent(BooleanField),
+  Checkbox: asComponent(BooleanField),
+  checkbox: asComponent(BooleanField),
+  CheckBox: asComponent(BooleanField),
+  Radio: asComponent(BooleanField),
+  radio: asComponent(BooleanField),
   Section: asComponent(Section),
   Row: asComponent(Row),
   Column: asComponent(Column),
@@ -170,7 +228,7 @@ export const AssetLivePreview = ({
 
   if (previewMode === "icon") {
     return (
-      <div className="h-16 w-full rounded-lg border border-dashed border-brand-medium/50 bg-brand-medium/10 flex items-center justify-center text-brand-light pointer-events-none group-hover:bg-brand-medium/20 transition-colors">
+      <div className="h-16 w-full rounded-lg border border-dashed border-[var(--builder-border)] bg-[var(--builder-surface-2)] flex items-center justify-center text-[var(--builder-text-muted)] pointer-events-none group-hover:bg-[var(--builder-surface-3)] transition-colors">
         <AssetPreviewErrorBoundary fallback={<span className="text-[10px] opacity-70">Preview unavailable</span>}>
           <Editor resolver={PREVIEW_RESOLVER} enabled={false}>
             <Frame>{item.element}</Frame>
@@ -191,7 +249,7 @@ export const AssetLivePreview = ({
     });
 
     return (
-      <div className="h-20 w-full rounded-lg border border-dashed border-brand-medium/50 bg-brand-medium/10 flex items-center justify-center pointer-events-none overflow-hidden group-hover:bg-brand-medium/20 transition-colors">
+      <div className="h-20 w-full rounded-lg border border-dashed border-[var(--builder-border)] bg-[var(--builder-surface-2)] flex items-center justify-center pointer-events-none overflow-hidden group-hover:bg-[var(--builder-surface-3)] transition-colors">
         {shapePreviewElement}
       </div>
     );
@@ -200,7 +258,7 @@ export const AssetLivePreview = ({
   return (
     <div
       ref={previewRef}
-      className="w-full rounded-lg border border-dashed border-brand-medium/50 bg-brand-medium/10 overflow-hidden pointer-events-none relative group-hover:bg-brand-medium/20 transition-colors"
+      className="w-full rounded-lg border border-dashed border-[var(--builder-border)] bg-[var(--builder-surface-2)] overflow-hidden pointer-events-none relative group-hover:bg-[var(--builder-surface-3)] transition-colors"
       style={{ height: previewHeight > 0 ? `${Math.min(previewHeight, maxHeight)}px` : "100px" }}
     >
       <div
@@ -211,7 +269,7 @@ export const AssetLivePreview = ({
           transform: `scale(${scale})`,
         }}
       >
-        <AssetPreviewErrorBoundary fallback={<div className="h-[100px] w-full flex items-center justify-center text-[10px] text-brand-light/70">Preview unavailable</div>}>
+        <AssetPreviewErrorBoundary fallback={<div className="h-[100px] w-full flex items-center justify-center text-[10px] text-[var(--builder-text-faint)]">Preview unavailable</div>}>
           <Editor resolver={PREVIEW_RESOLVER} enabled={false}>
             <Frame>{item.element}</Frame>
           </Editor>
@@ -266,18 +324,18 @@ export const AssetsPanel = () => {
                   setPanelView("items");
                   setSelectedAsset(null);
                 }}
-                className="group relative w-full bg-brand-white/5 rounded-xl border border-brand-medium/30 overflow-hidden hover:bg-brand-white/10 transition-all duration-300 hover:border-brand-medium/50 shadow-sm h-16"
+                className="group relative w-full bg-[var(--builder-surface-2)] rounded-xl border border-[var(--builder-border)] overflow-hidden hover:bg-[var(--builder-surface-3)] transition-all duration-300 hover:border-[var(--builder-border-mid)] shadow-sm h-16"
               >
                 <div className="flex h-full items-center p-2.5 gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-brand-dark/50 flex items-center justify-center text-brand-light group-hover:text-white transition-colors border border-white/5 shadow-inner shrink-0">
+                  <div className="w-10 h-10 rounded-lg bg-[var(--builder-surface-3)] flex items-center justify-center text-[var(--builder-purple-light)] group-hover:text-[var(--builder-accent)] transition-colors border border-[var(--builder-border)] shadow-inner shrink-0">
                     {ASSET_ICONS[group.folder] || <Layout className="w-5 h-5" />}
                   </div>
                   <div className="flex-1 text-left">
-                    <div className="text-sm font-semibold text-brand-white group-hover:translate-x-1 transition-transform">
+                    <div className="text-sm font-semibold text-[var(--builder-text)] group-hover:translate-x-1 transition-transform">
                       {group.folder}
                     </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-brand-medium group-hover:text-brand-lighter transition-all group-hover:translate-x-1" />
+                  <ChevronRight className="w-4 h-4 text-[var(--builder-text-faint)] group-hover:text-[var(--builder-accent)] transition-all group-hover:translate-x-1" />
                 </div>
               </button>
             ))}
@@ -290,15 +348,15 @@ export const AssetsPanel = () => {
             }`}
         >
           <div className="h-full overflow-y-auto">
-            <div className="flex items-center gap-2 px-1 pb-2 border-b border-white/10 mb-4 sticky top-0 bg-brand-dark z-10">
+            <div className="flex items-center gap-2 px-1 pb-2 border-b border-[var(--builder-border)] mb-4 sticky top-0 bg-[var(--builder-surface)] z-10">
               <button
                 type="button"
                 onClick={() => setPanelView("folders")}
-                className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-white/10 text-brand-light hover:text-white hover:bg-white/5 transition-all"
+                className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-[var(--builder-border)] text-[var(--builder-text-muted)] hover:text-[var(--builder-accent)] hover:bg-[var(--builder-surface-2)] transition-all"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <div className="text-xs font-bold text-brand-lighter">{activeGroup?.folder}</div>
+              <div className="text-xs font-bold text-[var(--builder-text)]">{activeGroup?.folder}</div>
             </div>
 
             {activeGroup ? (
@@ -349,13 +407,13 @@ export const AssetsPanel = () => {
                           key: assetKey,
                         });
                       }}
-                      className={`group bg-brand-white/5 p-3 rounded-xl hover:bg-brand-white/10 transition-all border cursor-move shadow-sm ${isSelected ? "border-brand-light bg-brand-white/10" : "border-brand-medium/30"
+                      className={`group bg-[var(--builder-surface-2)] p-3 rounded-xl hover:bg-[var(--builder-surface-3)] transition-all border cursor-move shadow-sm ${isSelected ? "border-[var(--builder-accent)] bg-[var(--builder-surface-3)]" : "border-[var(--builder-border)] hover:border-[var(--builder-border-mid)]"
                         }`}
                     >
                       <div className="flex flex-col gap-2">
                         {!iconFolder && (
                           <div className="flex items-center justify-between gap-2 mb-1">
-                            <div className="text-sm text-brand-white font-medium leading-tight line-clamp-1">
+                            <div className="text-sm text-[var(--builder-text)] font-medium leading-tight line-clamp-1">
                               {item?.label ?? ""}
                             </div>
                           </div>
@@ -372,7 +430,7 @@ export const AssetsPanel = () => {
                 })}
               </div>
             ) : (
-              <div className="rounded-sm border border-white/10 bg-transparent p-4 text-center text-xs text-brand-light/65">
+              <div className="rounded-sm border border-transparent bg-transparent p-4 text-center text-xs text-[var(--builder-text-faint)]">
                 Select a category.
               </div>
             )}

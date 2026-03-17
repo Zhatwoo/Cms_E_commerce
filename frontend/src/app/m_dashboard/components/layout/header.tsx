@@ -187,7 +187,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                 <div className="flex items-center">
                     <button
                         type="button"
-                        className="lg:hidden p-2 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+                        className={`lg:hidden p-2 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-black/5'}`}
                         style={{ color: theme === 'light' ? '#475569' : colors.text.secondary }}
                         onClick={onMenuToggle}
                         aria-label="Open menu"
@@ -208,7 +208,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                     <button
                         type="button"
                         onClick={toggleTheme}
-                        className="p-2 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+                        className={`p-2 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-black/5'}`}
                         style={{ color: theme === 'light' ? '#475569' : colors.text.secondary }}
                         aria-label="Toggle theme"
                     >
@@ -218,7 +218,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                         <button
                             type="button"
                             onClick={() => setShowNotifications(!showNotifications)}
-                            className="p-2 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10 relative"
+                            className={`p-2 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-black/5'} relative`}
                             style={{ color: theme === 'light' ? '#475569' : colors.text.secondary }}
                             aria-label="Notifications"
                         >
@@ -265,7 +265,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                             <button
                                 type="button"
                                 onClick={() => setShowMenu((v) => !v)}
-                                className="relative h-10 w-10 rounded-full p-[2px] flex items-center justify-center shadow-sm hover:opacity-90 transition-opacity overflow-visible"
+                                className="relative h-10 w-10 rounded-full p-[2px] flex items-center justify-center shadow-sm hover:opacity-90 transition-opacity overflow-visible cursor-pointer"
                                 style={{
                                     background: 'linear-gradient(135deg, #FFCE00 0%, #A64CD9 50%, #5C1D8F 100%)',
                                     border: 'none',

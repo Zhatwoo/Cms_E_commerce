@@ -224,7 +224,15 @@ export const Tabs = ({
           return (
             <button
               key={tab.id}
-              onClick={() => {
+              data-canvas-interactive="true"
+              draggable={false}
+              onDragStart={(e) => e.preventDefault()}
+              onPointerDownCapture={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
                 setLocalActiveTabId(tab.id);
                 if (enabled) {
                   setProp((props: any) => {
@@ -248,7 +256,7 @@ export const Tabs = ({
       </div>
 
       {/* Tab Content Areas */}
-      <div className="tabs-content relative w-full flex-grow min-h-[100px] overflow-hidden">
+      <div className="tabs-content relative w-full flex-grow min-h-[100px]">
         {tabs.map((tab) => {
           const isActive = tab.id === currentActiveTabId;
           const computedCanvasId = `tab-content-${tab.id}`;
@@ -267,10 +275,11 @@ export const Tabs = ({
           return (
             <div 
               key={tab.id}
-              className={`w-full h-full transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${isActive ? "opacity-100 translate-y-0 relative" : "opacity-0 -translate-y-2 absolute inset-0 pointer-events-none"}`}
+              style={{ pointerEvents: isActive ? "auto" : "none" }}
+              className={`w-full transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${isActive ? "opacity-100 translate-y-0 relative" : "opacity-0 -translate-y-2 absolute inset-0"}`}
             >
               <div
-                className="w-full h-full min-h-[100px] flex flex-col"
+                className="w-full min-h-[100px] flex flex-col"
               >
                 {/* Render tab content using Element with node ID for Craft.js persistence */}
                 <Element id={canvasId} is={TabContent} canvas />

@@ -289,37 +289,19 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
           <h1
             className="text-4xl sm:text-6xl lg:text-[76px] font-black leading-[1.06] tracking-tight max-w-5xl [font-family:var(--font-outfit),sans-serif] text-white"
           >
-            <span className={`block ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+            <span className={`block ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}`}>
               What{' '}
               <span
-                style={{
-                  backgroundImage: theme === 'dark'
-                    ? 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)'
-                    : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)', 
-                  WebkitBackgroundClip: 'text',
-                  backgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  color: 'transparent',
-                  display: 'inline-block' 
-                }}
+                className={`inline-block bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
               >
                 website
               </span>{' '}
               will
             </span>
-            <span className={`block ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+            <span className={`block ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}`}>
               you{' '}
               <span
-                style={{
-                  backgroundImage: theme === 'dark'
-                    ? 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)'
-                    : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)',
-                  WebkitBackgroundClip: 'text',
-                  backgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  color: 'transparent',
-                  display: 'inline-block'
-                }}
+                className={`inline-block bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
               >
                 build?
               </span>
@@ -336,8 +318,8 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                 className={`
                   cursor-pointer relative pb-1 transition-all duration-300
                   ${activeTab === tab.id 
-                    ? (theme === 'dark' ? 'text-[#FFCE00]' : 'text-black') 
-                    : (theme === 'dark' ? 'text-[#807FAF]' : 'text-[#1E1B4B]/50')
+                    ? (theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#120533]') 
+                    : (theme === 'dark' ? 'text-[#807FAF]' : 'text-[#120533]/50')
                   }
                   hover:opacity-70
                 `}
@@ -350,8 +332,8 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                     className="absolute left-0 right-0 -bottom-0.5 h-[2.5px] rounded-full"
                     style={{ 
                       background: theme === 'dark'
-                        ? 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' 
-                        : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)' 
+                        ? 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #ffcc00 100%)' 
+                        : 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #f5a213 100%)' 
                     }}
                     transition={{ 
                       type: 'spring', 
@@ -366,7 +348,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
 
           <div 
             className={`
-              w-full max-w-4xl rounded-2xl px-5 py-3.5 flex items-center gap-3 border 
+              m-dashboard-search-shadow w-full max-w-4xl rounded-2xl px-5 py-3.5 flex items-center gap-3 border 
               transition-all duration-500
               
               ${theme === 'dark' 
@@ -413,7 +395,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                 w-full bg-transparent text-sm outline-none font-medium
                 ${theme === 'dark'
                   ? 'text-white placeholder:text-[#6F70A8]'
-                  : 'text-[#1E1B4B] placeholder:text-[#1E1B4B]/30'
+                  : 'text-[#120533] placeholder:text-[#120533]/30'
                 }
               `}
             />
@@ -433,7 +415,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                 <div className="space-y-5 w-full max-w-190 lg:justify-self-start">
                   <h2
                     className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[0.94] [font-family:var(--font-outfit),sans-serif]"
-                    style={{ color: theme === 'dark' ? '#FFFFFF' : '#000000' }}
+                    style={{ color: theme === 'dark' ? '#FFFFFF' : '#120533' }}
                   >
                     Most Recent Project
                   </h2>
@@ -470,16 +452,11 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                       rounded-full px-10 py-3 text-base font-bold cursor-pointer 
                       transition-all duration-300 ease-out 
                       hover:-translate-y-1 hover:brightness-110 active:scale-95
-                      
-                      /* Dark Mode: Gold Glow Styling */
-                      ${theme === 'dark' 
-                        ? 'bg-[#FFCE00] text-[#121241] shadow-[0_0_28px_rgba(255,206,0,0.35)] hover:shadow-[0_0_40px_rgba(255,206,0,0.6)]' 
-                        : 'text-white shadow-[0_10px_25px_-5px_rgba(139,92,246,0.4)] hover:shadow-[0_15px_35px_-5px_rgba(139,92,246,0.6)]'
-                      }
+                      text-white shadow-[0_8px_24px_rgba(217,70,239,0.4)] hover:shadow-[0_12px_28px_rgba(217,70,239,0.5)]
                     `}
-                    style={theme === 'light' ? { 
-                      background: 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)' 
-                    } : {}}
+                    style={{
+                      background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)'
+                    }}
                   >
                     View Project
                   </button>
@@ -658,7 +635,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                       <span 
                         className={`
                           text-xl font-black uppercase tracking-tighter transition-colors duration-300
-                          ${theme === 'dark' ? 'text-white' : 'text-[#1E1B4B]'}
+                          ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}
                         `}
                       >
                         New Project
@@ -753,7 +730,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
 
                         <div className="p-6">
                           <h3 className={`text-lg font-black tracking-tight truncate transition-colors duration-300 ${
-                            theme === 'dark' ? 'text-white group-hover:text-[#FFCE00]' : 'text-[#1E1B4B] group-hover:text-[#8B5CF6]'
+                            theme === 'dark' ? 'text-white group-hover:text-[#FFCE00]' : 'text-[#120533] group-hover:text-[#8B5CF6]'
                           }`}>
                             {project.title || 'Untitled Project'}
                           </h3>
@@ -916,7 +893,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                       </span>
                       <h4 className={`
                         text-2xl sm:text-3xl font-extrabold leading-tight transition-colors
-                        ${theme === 'dark' ? 'text-white' : 'text-[#1E1B4B]'}
+                        ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}
                       `}>
                         Fashion Website
                       </h4>
@@ -953,7 +930,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                         </span>
                         <h4 className={`
                           text-xl font-extrabold leading-tight
-                          ${theme === 'dark' ? 'text-white' : 'text-[#1E1B4B]'}
+                          ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}
                         `}>
                           Simple Website
                         </h4>
@@ -979,7 +956,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                         </span>
                         <h4 className={`
                           text-xl font-extrabold leading-tight
-                          ${theme === 'dark' ? 'text-white' : 'text-[#1E1B4B]'}
+                          ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}
                         `}>
                           Fashion Website
                         </h4>
@@ -1003,7 +980,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
             className={`w-full max-w-md rounded-2xl border p-5 shadow-2xl ${theme === 'dark' ? 'border-[#2D3A90] bg-[#12145A]' : 'border-[#8B5CF6]/20 bg-white'}`}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-[#1E1B4B]'}`}>Rename project</h3>
+            <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}`}>Rename project</h3>
             <p className={`mt-1 text-xs ${theme === 'dark' ? 'text-[#8A8FC4]' : 'text-[#8B5CF6]/70'}`}>Update the project title.</p>
 
             <input
@@ -1020,7 +997,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
               className={`mt-4 w-full rounded-lg border px-3 py-2 text-sm outline-none ${
                 theme === 'dark'
                   ? 'border-[#2D3A90] bg-[#0E0D3D] text-white focus:border-[#6B72D8]'
-                  : 'border-[#8B5CF6]/20 bg-[#F8F9FF] text-[#1E1B4B] focus:border-[#8B5CF6] placeholder:text-gray-400'
+                  : 'border-[#8B5CF6]/20 bg-[#F8F9FF] text-[#120533] focus:border-[#8B5CF6] placeholder:text-gray-400'
               }`}
               placeholder="Untitled Project"
             />
@@ -1033,7 +1010,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                   setRenameTitle('');
                 }}
                 disabled={actioningProjectId === renamingProject.id}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium hover:text-white disabled:opacity-50 ${theme === 'dark' ? 'text-[#8A8FC4]' : 'text-gray-500 hover:text-[#1E1B4B]'}`}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium hover:text-white disabled:opacity-50 ${theme === 'dark' ? 'text-[#8A8FC4]' : 'text-gray-500 hover:text-[#120533]'}`}
               >
                 Cancel
               </button>

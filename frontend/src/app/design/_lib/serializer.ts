@@ -96,7 +96,7 @@ function normalizeCraftRaw(parsed: Record<string, unknown>): CraftRawDocument {
       parent: (data?.parent ?? v.parent) as string | undefined,
       hidden: (v.hidden as boolean) ?? false,
       nodes: Array.isArray(nodes) ? nodes : [],
-      linkedNodes: linkedNodes ?? {},
+      linkedNodes: (v.linkedNodes as Record<string, string>) ?? {},
     };
   }
   return result as CraftRawDocument;
@@ -156,6 +156,8 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
   },
   Text: {
     text: "Edit me!",
+    width: "fit-content",
+    height: "fit-content",
     fontSize: 16,
     fontFamily: "Inter",
     fontWeight: "400",
@@ -649,15 +651,12 @@ function processChildren(
     // Already processed (shared node)
     if (nodes[id]) continue;
 
-    const type = normalizeComponentType(rawNode.type.resolvedName);
-
-    const linkedChildIds = rawNode.linkedNodes ? Object.values(rawNode.linkedNodes) : [];
-    const combinedChildIds = [...(rawNode.nodes ?? []), ...linkedChildIds].filter(Boolean);
+    const type = rawNode.type.resolvedName as ComponentType;
 
     nodes[id] = {
       type,
       props: cleanProps(type, rawNode.props),
-      children: combinedChildIds,
+      children: rawNode.nodes,
     };
 
     // Recurse into children

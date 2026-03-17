@@ -471,6 +471,22 @@ export async function uploadMediaApi(
   return { url: data.url };
 }
 
+
+/** Delete media files by their public URLs. */
+export async function deleteMediaApi(
+  projectId: string,
+  urls: string[]
+): Promise<{ success: boolean; message?: string; summary?: { deleted: number; skipped: number } }> {
+  return apiFetch<{ success: boolean; message?: string; summary?: { deleted: number; skipped: number } }>(
+    `/api/projects/${projectId}/media`,
+    {
+      method: 'DELETE',
+      body: JSON.stringify({ urls }),
+    }
+  );
+}
+
+
 /** Update subdomain for an existing published project. */
 export async function updateDomainSubdomain(
   projectId: string,
@@ -1161,6 +1177,31 @@ export async function updatePublishedOrderStatus(
     }
   );
 }
+
+export async function createStripePaymentIntent(
+  subdomain: string,
+  orderId: string
+): Promise<{ 
+  success: boolean; 
+  message?: string; 
+  clientSecret?: string; 
+  publicKey?: string;
+}> {
+  const sub = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  return apiFetch<{ 
+    success: boolean; 
+    message?: string; 
+    clientSecret?: string; 
+    publicKey?: string; 
+  }>(`/api/orders/published/${encodeURIComponent(sub)}/${encodeURIComponent(orderId)}/create-stripe-payment-intent`, {
+    method: 'POST',
+  });
+}
+
+export async function getStripePublicKey(): Promise<{ success: boolean; publicKey?: string }> {
+  return apiFetch<{ success: boolean; publicKey?: string }>('/api/orders/stripe-public-key');
+}
+
 /** Admin: User and Website Management — list websites with owner and plan from user/roles/client (subscription_plan). */
 export type DomainRow = {
   id: string;
@@ -1223,6 +1264,10 @@ export type ClientRow = {
   status: string;
   createdAt?: string;
   isActive?: boolean;
+  storageUsedBytes?: number;
+  storageLimitBytes?: number;
+  storageUsedGb?: number;
+  storageLimitGb?: number;
 };
 
 export async function getClients(): Promise<{

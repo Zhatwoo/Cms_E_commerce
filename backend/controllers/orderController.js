@@ -5,7 +5,8 @@ const Project = require('../models/Project');
 const InventoryMovement = require('../models/InventoryMovement');
 const Domain = require('../models/Domain');
 const StorefrontOrder = require('../models/StorefrontOrder');
-const paypalService = require('../services/paypalService');
+const paymongoService = require('../services/paymongoService');
+const stripeService = require('../services/stripeService');
 
 function normalizeStatus(status) {
   return String(status || '')
@@ -547,6 +548,56 @@ exports.capturePayPal = async (req, res) => {
     return res.status(200).json({ success: true });
   } catch (error) {
     const statusCode = /required|invalid|not found/i.test(error.message || '') ? 400 : 500;
+    res.status(statusCode).json({ success: false, message: error.message || 'Server error' });
+  }
+};
+
+// Public: get Stripe public key
+exports.getStripePublicKey = (_req, res) => {
+  const key = stripeService.getPublicKey();
+  if (!key) {
+    return res.status(503).json({ success: false, message: 'Stripe not configured' });
+  }
+  res.status(200).json({ success: true, publicKey: key });
+};
+
+// Public: create Stripe payment intent for a published order
+exports.createStripePaymentIntent = async (req, res) => {
+  try {
+    const subdomain = StorefrontOrder.normalizeSubdomain(req.params.subdomain || '');
+    const orderId = safeText(req.params.id);
+
+    if (!subdomain || !orderId) {
+      return res.status(400).json({ success: false, message: 'subdomain and order id are required' });
+    }
+
+    const order = await StorefrontOrder.findById(subdomain, orderId);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+    if (order.status !== 'Pending') {
+      return res.status(400).json({ success: false, message: 'Order is not pending payment' });
+    }
+
+    const amount = Math.round((order.total || 0) * 100);
+    const currency = order.currency || 'PHP';
+
+    const paymentIntent = await stripeService.createPaymentIntent({
+      amount,
+      currency,
+      orderId,
+      subdomain,
+    });
+
+    await StorefrontOrder.updatePaymentFields(subdomain, orderId, { stripePaymentIntentId: paymentIntent.id });
+
+    return res.status(200).json({
+      success: true,
+      clientSecret: paymentIntent.client_secret,
+      publicKey: stripeService.getPublicKey(),
+    });
+  } catch (error) {
+    const statusCode = Number.isInteger(error.statusCode) ? error.statusCode : 500;
     res.status(statusCode).json({ success: false, message: error.message || 'Server error' });
   }
 };

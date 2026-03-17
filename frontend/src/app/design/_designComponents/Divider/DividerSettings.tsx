@@ -26,15 +26,15 @@ export const DividerSettings = () => {
         <div className="flex flex-col gap-3">
           {/* Style */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter">Style</label>
-            <div className="grid grid-cols-3 gap-1 bg-brand-dark/30 p-1 rounded-lg border border-brand-medium/20">
+            <label className="text-[10px] text-[var(--builder-text)]">Style</label>
+            <div className="grid grid-cols-3 gap-1 bg-[var(--builder-surface-2)] p-1 rounded-lg border border-[var(--builder-border)]">
               {(["solid", "dashed", "dotted"] as const).map((s) => (
                 <button
                   key={s}
                   onClick={() => typedSetProp((props) => { props.dividerStyle = s; })}
                   className={`text-[10px] py-1.5 rounded capitalize transition-colors ${dividerStyle === s
-                    ? "bg-brand-medium/50 text-brand-lighter"
-                    : "text-brand-light hover:text-brand-lighter"
+                    ? "bg-[var(--builder-accent)] text-black"
+                    : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
                     }`}
                 >
                   {s}
@@ -45,7 +45,7 @@ export const DividerSettings = () => {
 
           {/* Color */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter">Color</label>
+            <label className="text-[10px] text-[var(--builder-text)]">Color</label>
             <ColorPicker
               value={color ?? "#4a4a4a"}
               onChange={(val) => typedSetProp((props) => { props.color = val; })}
@@ -56,7 +56,7 @@ export const DividerSettings = () => {
           {/* Thickness & Width */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter">Thickness</label>
+              <label className="text-[10px] text-[var(--builder-text)]">Thickness</label>
               <NumericInput
                 value={thickness ?? 1}
                 onChange={(val) => typedSetProp((props) => { props.thickness = val; })}
@@ -65,11 +65,11 @@ export const DividerSettings = () => {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter">Width</label>
+              <label className="text-[10px] text-[var(--builder-text)]">Width</label>
               <select
                 value={width}
                 onChange={(e) => typedSetProp((props) => { props.width = e.target.value; })}
-                className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none"
+                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
               >
                 <option value="100%">Full</option>
                 <option value="75%">75%</option>
@@ -82,7 +82,7 @@ export const DividerSettings = () => {
           {/* Spacing */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter">Margin Top</label>
+              <label className="text-[10px] text-[var(--builder-text)]">Margin Top</label>
               <NumericInput
                 value={marginTop ?? 8}
                 onChange={(val) => typedSetProp((props) => { props.marginTop = val; })}
@@ -91,7 +91,7 @@ export const DividerSettings = () => {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter">Margin Bottom</label>
+              <label className="text-[10px] text-[var(--builder-text)]">Margin Bottom</label>
               <NumericInput
                 value={marginBottom ?? 8}
                 onChange={(val) => typedSetProp((props) => { props.marginBottom = val; })}

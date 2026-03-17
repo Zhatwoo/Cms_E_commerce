@@ -1,7 +1,8 @@
+const fs = require('fs');
 const Project = require('../models/Project');
 const User = require('../models/User');
 const Domain = require('../models/Domain');
-const { deleteProjectStorageFolder, uploadClientMedia, getProjectStorageUsage } = require('../utils/storageHelpers');
+const { deleteProjectStorageFolder, uploadClientMedia, getProjectStorageUsage, deleteStorageFilesByUrls, slugPathSegment, STORAGE_PREFIX } = require('../utils/storageHelpers');
 const { getLimits } = require('../utils/subscriptionLimits');
 const { getTrashRetentionDays } = require('../utils/trashConfig');
 const { resolveProjectOwner } = require('../utils/resolveProjectOwner');
@@ -311,12 +312,13 @@ exports.delete = async (req, res) => {
 // @route   POST /api/projects/:id/media
 // @access  Private (owner or editor)
 exports.uploadMedia = async (req, res) => {
+  const tempPath = req.file?.path;
   try {
     const userId = req.user.id;
     const userEmail = (req.user.email || '').toLowerCase();
     const projectId = req.params.id;
 
-    if (!req.file || !req.file.buffer) {
+    if (!req.file || !req.file.path) {
       return res.status(400).json({
         success: false,
         message: 'No file uploaded. Use field name "media".',
@@ -360,7 +362,7 @@ exports.uploadMedia = async (req, res) => {
     const originalName = req.file.originalname || 'file';
 
     const url = await uploadClientMedia({
-      buffer: req.file.buffer,
+      filePath: req.file.path,
       mimeType,
       originalName,
       clientName,
@@ -379,6 +381,14 @@ exports.uploadMedia = async (req, res) => {
       message: error.message || 'Upload failed',
       error: error.message,
     });
+  } finally {
+    if (tempPath) {
+      try {
+        fs.unlinkSync(tempPath);
+      } catch (unlinkErr) {
+        console.warn('[uploadMedia] Failed to remove temp file:', unlinkErr?.message);
+      }
+    }
   }
 };
 
@@ -472,6 +482,75 @@ exports.getStorageUsage = async (req, res) => {
   }
 };
 
+// @desc    Delete media files
+// @route   DELETE /api/projects/:id/media
+// @access  Private (owner or editor)
+exports.deleteMedia = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userEmail = (req.user.email || '').toLowerCase();
+    const projectId = req.params.id;
+    const { urls } = req.body;
+
+    if (!Array.isArray(urls) || urls.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'URLs array is required.',
+      });
+    }
+
+    const resolved = await resolveProjectOwner(userId, projectId, userEmail);
+    if (!resolved) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found',
+      });
+    }
+    if (resolved.permission === 'viewer') {
+      return res.status(403).json({
+        success: false,
+        message: 'Viewers cannot delete media from this project.',
+      });
+    }
+
+    const project = await Project.get(resolved.ownerId, projectId);
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found',
+      });
+    }
+
+    const owner = await User.findById(resolved.ownerId);
+    if (!owner) {
+      return res.status(404).json({
+        success: false,
+        message: 'Owner not found',
+      });
+    }
+
+    const clientName = (owner.displayName || owner.username || owner.email || 'client').trim();
+    const websiteName = project.title;
+    const client = slugPathSegment(clientName);
+    const website = slugPathSegment(websiteName);
+    const prefix = `${STORAGE_PREFIX}${client}/${website}/`;
+
+    const summary = await deleteStorageFilesByUrls(urls, { allowedPrefixes: [prefix] });
+
+    res.status(200).json({
+      success: true,
+      message: 'Media deleted',
+      summary,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Delete failed',
+      error: error.message,
+    });
+  }
+};
+
 function formatBytes(bytes, decimals = 2) {
   if (!bytes || bytes === 0) return '0 Bytes';
   const k = 1024;
@@ -492,5 +571,6 @@ module.exports = {
   restore: exports.restore,
   permanentDelete: exports.permanentDelete,
   uploadMedia: exports.uploadMedia,
+  deleteMedia: exports.deleteMedia,
   getStorageUsage: exports.getStorageUsage,
 };

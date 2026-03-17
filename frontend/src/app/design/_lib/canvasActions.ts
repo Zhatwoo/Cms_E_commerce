@@ -9,8 +9,17 @@ import type { NodeSelector } from "@craftjs/core";
 type EditorQuery = {
   serialize: () => string;
   getState: () => { nodes: Record<string, any>; events?: { selected?: unknown } };
-  node: (id: string) => { get: () => { data?: { parent?: string | null; displayName?: string } } | null; isDeletable: () => boolean };
+  node: (id: string) => { get: () => { data?: { parent?: string | null; displayName?: string }; dom?: HTMLElement | null } | null; isDeletable: () => boolean };
 };
+
+function parsePxValue(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const n = parseFloat(value.replace("px", ""));
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
 type EditorActions = {
   deserialize: (json: string) => void;
   selectNode: (nodeIdSelector?: NodeSelector) => void;
@@ -161,9 +170,60 @@ export function duplicateNodes(
 export interface ClipboardEntry {
   nodeIds: string[];
   nodes: CraftData; // id -> node (with new ids already applied when pasted)
+  sourceParentsByRoot: Record<string, string | undefined>;
 }
 
 let clipboardRef: ClipboardEntry | null = null;
+
+function isPageNode(node: CraftRawNode | undefined): boolean {
+  return Boolean(node && node.displayName === "Page");
+}
+
+function isViewportNode(node: CraftRawNode | undefined): boolean {
+  return Boolean(node && node.displayName === "Viewport");
+}
+
+function firstPageUnder(data: CraftData, parentId: string | undefined): string | null {
+  if (!parentId || !data[parentId]) return null;
+  const children = getChildIds(data[parentId]);
+  for (const id of children) {
+    if (isPageNode(data[id])) return id;
+  }
+  return null;
+}
+
+function resolveDestinationPageForNonPagePaste(
+  data: CraftData,
+  targetParentId: string,
+  atIndex: number
+): string | null {
+  const targetParent = data[targetParentId];
+  if (isPageNode(targetParent)) return targetParentId;
+
+  if (targetParentId === "ROOT") {
+    const rootChildren = getChildIds(data.ROOT);
+    const inferredIndex = Math.max(0, Math.min(rootChildren.length - 1, atIndex - 1));
+    const inferredNodeId = rootChildren[inferredIndex];
+    if (inferredNodeId && isPageNode(data[inferredNodeId])) {
+      return inferredNodeId;
+    }
+
+    const firstDirectPage = firstPageUnder(data, "ROOT");
+    if (firstDirectPage) return firstDirectPage;
+
+    const viewportId = rootChildren.find((id) => isViewportNode(data[id]));
+    if (viewportId) {
+      const firstViewportPage = firstPageUnder(data, viewportId);
+      if (firstViewportPage) return firstViewportPage;
+    }
+  }
+
+  if (isViewportNode(targetParent)) {
+    return firstPageUnder(data, targetParentId);
+  }
+
+  return null;
+}
 
 export function getClipboard(): ClipboardEntry | null {
   return clipboardRef;
@@ -215,6 +275,9 @@ export function copySelection(
     clipboardRef = {
       nodeIds: nodeIds.map((id) => idMap.get(id)!).filter(Boolean),
       nodes: data,
+      sourceParentsByRoot: Object.fromEntries(
+        nodeIds.map((oldId) => [idMap.get(oldId)!, full[oldId]?.parent])
+      ),
     };
   } catch (e) {
     console.warn("copySelection failed:", e);
@@ -262,6 +325,20 @@ export function pasteClipboard(
 
     if (!targetParentId || !data[targetParentId]) return [];
 
+    const clipRootNames = clip.nodeIds
+      .map((id) => clip.nodes[id]?.displayName)
+      .filter((name): name is string => typeof name === "string");
+    const hasPageClipboardRoot = clipRootNames.some((name) => name === "Page");
+    if (!hasPageClipboardRoot) {
+      const resolvedPageId = resolveDestinationPageForNonPagePaste(data, targetParentId, atIndex);
+      if (resolvedPageId && data[resolvedPageId]) {
+        targetParentId = resolvedPageId;
+        atIndex = getChildIds(data[targetParentId]).length;
+      }
+    }
+
+    if (!targetParentId || !data[targetParentId]) return [];
+
     const idMap = new Map<string, string>();
     for (const oldId of Object.keys(clip.nodes)) {
       const newId = generateId(existingIds);
@@ -283,6 +360,13 @@ export function pasteClipboard(
     }
 
     const rootIds = clip.nodeIds.map((id) => idMap.get(id)!).filter(Boolean);
+    for (const rootId of rootIds) {
+      const rootNode = data[rootId];
+      if (rootNode) {
+        rootNode.parent = targetParentId;
+      }
+    }
+
     const parentNode = data[targetParentId];
     const newSiblings = [...parentNode.nodes];
     newSiblings.splice(atIndex, 0, ...rootIds);
@@ -385,11 +469,66 @@ export function groupSelection(
     const firstIndex = siblings.indexOf(nodeIds[0]);
     if (firstIndex === -1) return null;
 
+    let minLeft = Infinity, minTop = Infinity, maxRight = -Infinity, maxBottom = -Infinity;
+    let hasDOM = false;
+    let parentScaleX = 1, parentScaleY = 1;
+    let parentRect: DOMRect | null = null;
+    let parentDom: HTMLElement | null = null;
+
+    try {
+      parentDom = query.node(parentId).get()?.dom ?? null;
+      if (parentDom) {
+        parentRect = parentDom.getBoundingClientRect();
+        const pw = parentDom.offsetWidth || 1;
+        const ph = parentDom.offsetHeight || 1;
+        parentScaleX = parentRect.width / pw;
+        parentScaleY = parentRect.height / ph;
+        if (!Number.isFinite(parentScaleX) || parentScaleX < 0.01) parentScaleX = 1;
+        if (!Number.isFinite(parentScaleY) || parentScaleY < 0.01) parentScaleY = 1;
+      }
+    } catch { }
+
+    const childRects = new Map<string, DOMRect>();
+    for (const id of nodeIds) {
+      try {
+        const dom = query.node(id).get()?.dom;
+        if (dom) {
+          const rect = dom.getBoundingClientRect();
+          childRects.set(id, rect);
+          minLeft = Math.min(minLeft, rect.left);
+          minTop = Math.min(minTop, rect.top);
+          maxRight = Math.max(maxRight, rect.right);
+          maxBottom = Math.max(maxBottom, rect.bottom);
+          hasDOM = true;
+        }
+      } catch { }
+    }
+
+    let groupLeft = 0;
+    let groupTop = 0;
+    let groupWidth: string | number = "auto";
+    let groupHeight: string | number = "auto";
+
+    if (hasDOM && parentRect) {
+      groupLeft = Math.round((minLeft - parentRect.left) / parentScaleX);
+      groupTop = Math.round((minTop - parentRect.top) / parentScaleY);
+      groupWidth = Math.round((maxRight - minLeft) / parentScaleX);
+      groupHeight = Math.round((maxBottom - minTop) / parentScaleY);
+    }
+
     const containerNode: CraftRawNode = {
       type: { resolvedName: "Container" },
       isCanvas: true,
-      props: { padding: 12, background: "transparent" },
-      displayName: "Container",
+      props: { 
+        padding: 0, 
+        background: "transparent",
+        position: "absolute",
+        top: `${groupTop}px`,
+        left: `${groupLeft}px`,
+        width: typeof groupWidth === "number" ? `${groupWidth}px` : groupWidth,
+        height: typeof groupHeight === "number" ? `${groupHeight}px` : groupHeight,
+      },
+      displayName: "Group",
       custom: {},
       parent: parentId,
       hidden: false,
@@ -406,6 +545,26 @@ export function groupSelection(
         siblings.splice(idx, 1);
         newContainerChildren.push(id);
         data[id].parent = containerId;
+
+        const props = data[id].props ?? {};
+        if (hasDOM && childRects.has(id)) {
+           const r = childRects.get(id)!;
+           const childLeft = Math.round((r.left - minLeft) / parentScaleX);
+           const childTop = Math.round((r.top - minTop) / parentScaleY);
+           props.position = "absolute";
+           props.left = `${childLeft}px`;
+           props.top = `${childTop}px`;
+           props.marginTop = 0;
+           props.marginLeft = 0;
+           props.right = "auto";
+           props.bottom = "auto";
+        } else {
+           const oldLeft = parsePxValue(props.left);
+           const oldTop = parsePxValue(props.top);
+           props.left = `${oldLeft - groupLeft}px`;
+           props.top = `${oldTop - groupTop}px`;
+        }
+        data[id].props = props;
       }
     }
     containerNode.nodes = newContainerChildren;
@@ -451,8 +610,18 @@ export function ungroupSelection(
     siblings.splice(containerIndex, 1, ...children);
     parentNode.nodes = siblings;
 
+    const containerLeft = parsePxValue(container.props.left);
+    const containerTop = parsePxValue(container.props.top);
+
     for (const childId of children) {
-      if (data[childId]) data[childId].parent = parentId;
+      const child = data[childId];
+      if (child) {
+        child.parent = parentId;
+        const childLeft = parsePxValue(child.props.left);
+        const childTop = parsePxValue(child.props.top);
+        child.props.left = `${childLeft + containerLeft}px`;
+        child.props.top = `${childTop + containerTop}px`;
+      }
     }
     delete data[containerId];
 

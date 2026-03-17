@@ -34,6 +34,13 @@ export const BooleanField = ({
   fontFamily = "Outfit",
   fontWeight = "500",
   showLabels = true,
+  position = "relative",
+  top = "auto",
+  right = "auto",
+  bottom = "auto",
+  left = "auto",
+  zIndex = 0,
+  display,
   options,
   // back-compat single option
   label,
@@ -85,6 +92,13 @@ export const BooleanField = ({
         userSelect: "none",
         maxWidth: "100%",
         boxSizing: "border-box",
+        position,
+        top: position !== "static" ? top : undefined,
+        right: position !== "static" ? right : undefined,
+        bottom: position !== "static" ? bottom : undefined,
+        left: position !== "static" ? left : undefined,
+        zIndex: zIndex !== 0 ? zIndex : undefined,
+        display: display ?? "inline-flex",
       }}
     >
       {normalizedOptions.map((opt, idx) => {

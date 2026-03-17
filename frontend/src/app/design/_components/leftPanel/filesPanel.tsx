@@ -666,7 +666,7 @@ export const FilesPanel = () => {
           onContextMenu={openContextMenu}
           className={`
             group flex items-center gap-1 py-2 px-1 rounded-lg transition-colors relative
-            ${isSel ? "bg-blue-400/20 text-white" : "text-white/80 hover:bg-brand-medium/20 hover:text-white"}
+            ${isSel ? "bg-[var(--builder-accent)]/15 text-[var(--builder-text)]" : "text-[var(--builder-text-muted)] hover:bg-[var(--builder-surface-2)] hover:text-[var(--builder-text)]"}
             ${permission === "viewer" ? "cursor-default" : "cursor-pointer"}
           `}
           style={{ paddingLeft: `${depth * 10 + 5}px` }}
@@ -675,7 +675,7 @@ export const FilesPanel = () => {
           <div
             data-layer-expand
             className={`
-              p-1 rounded-md hover:bg-white/10 cursor-pointer shrink-0
+              p-1 rounded-md hover:bg-[var(--builder-surface-2)] cursor-pointer shrink-0
               ${!hasChildren ? "opacity-0 pointer-events-none" : "opacity-100"}
             `}
             onClick={(e) => { e.stopPropagation(); toggleExpanded(nodeId); }}
@@ -701,7 +701,7 @@ export const FilesPanel = () => {
                     actions.setProp(nodeId, (p: Record<string, unknown>) => { p.visibility = next; });
                   } catch { /* skip */ }
                 }}
-                className={`p-1 rounded transition-colors ${visibility === "hidden" ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
+                className={`p-1 rounded transition-colors ${visibility === "hidden" ? "text-[var(--builder-text-muted)]" : "text-[var(--builder-text-faint)] hover:text-[var(--builder-text)]"}`}
               >
                 {visibility === "hidden" ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
@@ -715,7 +715,7 @@ export const FilesPanel = () => {
                     actions.setProp(nodeId, (p: Record<string, unknown>) => { p.locked = next; });
                   } catch { /* skip */ }
                 }}
-                className={`p-1 rounded transition-colors ${locked ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
+                className={`p-1 rounded transition-colors ${locked ? "text-[var(--builder-text-muted)]" : "text-[var(--builder-text-faint)] hover:text-[var(--builder-text)]"}`}
               >
                 {locked ? <Lock size={14} /> : <LockOpen size={14} />}
               </button>
@@ -773,16 +773,16 @@ export const FilesPanel = () => {
     return ReactDOM.createPortal(
       <div
         data-context-menu
-        className="fixed z-[10050] min-w-[160px] max-h-[calc(100vh-16px)] overflow-y-auto bg-brand-darker border border-white/10 rounded-lg shadow-2xl px-2.5 py-1 text-sm"
+        className="fixed z-[10050] min-w-[160px] max-h-[calc(100vh-16px)] overflow-y-auto bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-lg shadow-2xl px-2.5 py-1 text-sm"
         style={menuStyle}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-white/50 font-semibold border-b border-white/5">
+        <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-[var(--builder-text-faint)] font-semibold border-b border-[var(--builder-border)]">
           {nodeName}
         </div>
         <button
           onClick={() => handleSelect(contextMenu.nodeId)}
-          className="flex items-center gap-2 w-full px-3 py-1.5 text-white hover:bg-white/10 transition-colors cursor-pointer"
+          className="flex items-center gap-2 w-full px-3 py-1.5 text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] transition-colors cursor-pointer"
         >
           <MousePointer2 className="w-3.5 h-3.5" />
           Select
@@ -790,7 +790,7 @@ export const FilesPanel = () => {
         <button
           onClick={() => !nodeProtected && permission !== "viewer" && handleDuplicate(contextMenu.nodeId)}
           disabled={nodeProtected || permission === "viewer"}
-          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${nodeProtected || permission === "viewer" ? "text-brand-light/30 cursor-not-allowed" : "text-brand-lighter hover:bg-white/10 cursor-pointer"
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${nodeProtected || permission === "viewer" ? "text-[var(--builder-text-faint)] cursor-not-allowed" : "text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] cursor-pointer"
             }`}
         >
           <Copy className="w-3.5 h-3.5" />
@@ -799,7 +799,7 @@ export const FilesPanel = () => {
         <button
           onClick={() => canGroup && permission !== "viewer" && handleGroup()}
           disabled={!canGroup || permission === "viewer"}
-          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${!canGroup || permission === "viewer" ? "text-brand-light/30 cursor-not-allowed" : "text-brand-lighter hover:bg-white/10 cursor-pointer"
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${!canGroup || permission === "viewer" ? "text-[var(--builder-text-faint)] cursor-not-allowed" : "text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] cursor-pointer"
             }`}
         >
           <Group className="w-3.5 h-3.5" />
@@ -808,17 +808,17 @@ export const FilesPanel = () => {
         <button
           onClick={() => canUngroup && permission !== "viewer" && handleUngroup()}
           disabled={!canUngroup || permission === "viewer"}
-          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${!canUngroup || permission === "viewer" ? "text-brand-light/30 cursor-not-allowed" : "text-brand-lighter hover:bg-white/10 cursor-pointer"
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${!canUngroup || permission === "viewer" ? "text-[var(--builder-text-faint)] cursor-not-allowed" : "text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] cursor-pointer"
             }`}
         >
           <Ungroup className="w-3.5 h-3.5" />
           Ungroup
         </button>
-        <div className="border-t border-white/5 my-0.5" />
+        <div className="border-t border-[var(--builder-border)] my-0.5" />
         <button
           onClick={() => !nodeProtected && permission !== "viewer" && handleDelete(contextMenu.nodeId)}
           disabled={nodeProtected || permission === "viewer"}
-          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${nodeProtected || permission === "viewer" ? "text-brand-light/30 cursor-not-allowed" : "text-red-400 hover:bg-red-500/10 cursor-pointer"
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${nodeProtected || permission === "viewer" ? "text-[var(--builder-text-faint)] cursor-not-allowed" : "text-red-400 hover:bg-red-500/10 cursor-pointer"
             }`}
         >
           <Trash2 className="w-3.5 h-3.5" />
