@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNode } from "@craftjs/core";
 import { AccordionSettings } from "./AccordionSettings";
+import type { PositionProps } from "../../_types/components";
 
 export interface AccordionItem {
   title: string;
@@ -11,7 +12,7 @@ export interface AccordionItem {
   mediaUrl?: string;
 }
 
-export interface AccordionProps {
+export interface AccordionProps extends PositionProps {
   items?: AccordionItem[];
   stylePreset?: "classic" | "wix";
   editorPreviewMode?: "normal" | "expand-all" | "collapse-all";
@@ -85,6 +86,13 @@ export const Accordion = ({
   borderColor = "#2d2d44",
   borderWidth = 1,
   iconColor = "#94a3b8",
+  position = "relative",
+  top = "auto",
+  right = "auto",
+  bottom = "auto",
+  left = "auto",
+  zIndex = 0,
+  display,
 }: AccordionProps) => {
   const { id, connectors: { connect } } = useNode();
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -207,10 +215,16 @@ export const Accordion = ({
         borderRadius: `${borderRadius}px`,
         overflow: "hidden",
         cursor: "pointer",
-        display: "flex",
+        display: display ?? "flex",
         flexDirection: "column",
         gap: isWix ? "0px" : "10px",
         border: isWix ? `${borderWidth}px solid ${borderColor}` : undefined,
+        position,
+        top: position !== "static" ? top : undefined,
+        right: position !== "static" ? right : undefined,
+        bottom: position !== "static" ? bottom : undefined,
+        left: position !== "static" ? left : undefined,
+        zIndex: zIndex !== 0 ? zIndex : undefined,
       }}
     >
       {safeItems.map((item, index) => {

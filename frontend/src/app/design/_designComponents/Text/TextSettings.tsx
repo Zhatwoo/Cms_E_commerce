@@ -11,6 +11,7 @@ export const TextSettings = () => {
   const {
     text,
     fontSize, fontFamily, fontWeight, fontStyle, lineHeight, letterSpacing, textAlign, textTransform, color,
+    width, height,
     margin, marginTop, marginBottom, marginLeft, marginRight,
     padding, paddingTop, paddingBottom, paddingLeft, paddingRight,
     opacity, boxShadow,
@@ -31,6 +32,8 @@ export const TextSettings = () => {
     textAlign: node.data.props.textAlign,
     textTransform: node.data.props.textTransform,
     color: node.data.props.color,
+    width: node.data.props.width,
+    height: node.data.props.height,
     margin: node.data.props.margin,
     marginTop: node.data.props.marginTop,
     marginBottom: node.data.props.marginBottom,
@@ -101,8 +104,8 @@ export const TextSettings = () => {
 
       <DesignSection title="Size & Spacing">
         <SizePositionGroup
-          width="auto"
-          height="auto"
+          width={width ?? "fit-content"}
+          height={height ?? "fit-content"}
           paddingLeft={paddingLeft}
           paddingRight={paddingRight}
           paddingTop={paddingTop}

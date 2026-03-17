@@ -16,6 +16,10 @@ import { Viewport } from "../_designComponents/Viewport/Viewport";
 import { Section } from "../_designComponents/Section/Section";
 import { Image } from "../_designComponents/Image/Image";
 import { Button } from "../_designComponents/Button/Button";
+import { Divider } from "../_designComponents/Divider/Divider";
+import { Banner } from "../_designComponents/Banner/banner";
+import { Badge } from "../_designComponents/Badge/badge";
+import { Pagination } from "../_designComponents/Pagination/Pagination";
 import { Accordion } from "../_designComponents/Accordion/Accordion";
 import { BooleanField } from "../_designComponents/BooleanField/BooleanField";
 import { RenderNode } from "./RenderNode";
@@ -179,6 +183,12 @@ function normalizeResolvedName(rawName: unknown): string {
   if (exact) return exact;
   if (lowered.includes("image")) return "Image";
   if (lowered.includes("text")) return "Text";
+  if (lowered.includes("button")) return "Button";
+  if (lowered.includes("divider")) return "Divider";
+  if (lowered.includes("banner")) return "Banner";
+  if (lowered.includes("badge")) return "Badge";
+  if (lowered.includes("pagination")) return "Pagination";
+  if (lowered.includes("boolean") || lowered.includes("checkbox") || lowered.includes("radio")) return "BooleanField";
   if (lowered.includes("accordion")) return "Accordion";
   if (lowered.includes("container")) return "Container";
   if (lowered.includes("page")) return "Page";
@@ -2409,10 +2419,23 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
       ...buildCraftResolver(),
       Button: asComponent(Button),
       button: asComponent(Button),
+      BUTTON: asComponent(Button),
       Text: asComponent(Text),
       text: asComponent(Text),
       Image: asComponent(Image),
       image: asComponent(Image),
+      Divider: asComponent(Divider),
+      divider: asComponent(Divider),
+      DIVIDER: asComponent(Divider),
+      Banner: asComponent(Banner),
+      banner: asComponent(Banner),
+      BANNER: asComponent(Banner),
+      Badge: asComponent(Badge),
+      badge: asComponent(Badge),
+      BADGE: asComponent(Badge),
+      Pagination: asComponent(Pagination),
+      pagination: asComponent(Pagination),
+      PAGINATION: asComponent(Pagination),
       Circle: asComponent(Circle),
       Square: asComponent(Square),
       Triangle: asComponent(Triangle),
@@ -2421,6 +2444,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
       triangle: asComponent(Triangle),
       BooleanField: asComponent(BooleanField),
       booleanfield: asComponent(BooleanField),
+      BOOLEANFIELD: asComponent(BooleanField),
+      "Boolean Field": asComponent(BooleanField),
+      "boolean field": asComponent(BooleanField),
+      Checkbox: asComponent(BooleanField),
+      checkbox: asComponent(BooleanField),
+      CheckBox: asComponent(BooleanField),
+      Radio: asComponent(BooleanField),
+      radio: asComponent(BooleanField),
     };
     // Force Frame to always exist; Craft looks up by "Frame" and sometimes "frame"
     base.Frame = SAFE_CONTAINER;
@@ -2441,8 +2472,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     base.img = asComponent(CRAFT_RESOLVER.Image ?? Image);
     base.Img = asComponent(CRAFT_RESOLVER.Image ?? Image);
     base.ImageComponent = asComponent(CRAFT_RESOLVER.Image ?? Image);
-    base.Text = asComponent(CRAFT_RESOLVER.Text ?? Text);
-    base.text = asComponent(CRAFT_RESOLVER.text ?? Text);
+    base.Text = asComponent(Text);
+    base.text = asComponent(Text);
+    base.TEXT = asComponent(Text);
     base.Accordion = asComponent(CRAFT_RESOLVER.Accordion ?? Accordion);
     base.accordion = asComponent(CRAFT_RESOLVER.accordion ?? Accordion);
     return withResolverFallback(base);
