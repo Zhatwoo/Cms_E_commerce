@@ -2472,8 +2472,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     base.img = asComponent(CRAFT_RESOLVER.Image ?? Image);
     base.Img = asComponent(CRAFT_RESOLVER.Image ?? Image);
     base.ImageComponent = asComponent(CRAFT_RESOLVER.Image ?? Image);
-    base.Text = asComponent(CRAFT_RESOLVER.Text ?? Text);
-    base.text = asComponent(CRAFT_RESOLVER.text ?? Text);
+    base.Text = asComponent(Text);
+    base.text = asComponent(Text);
+    base.TEXT = asComponent(Text);
     base.Accordion = asComponent(CRAFT_RESOLVER.Accordion ?? Accordion);
     base.accordion = asComponent(CRAFT_RESOLVER.accordion ?? Accordion);
     return withResolverFallback(base);
