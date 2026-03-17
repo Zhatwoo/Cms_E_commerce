@@ -22,9 +22,17 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
   }));
   const suppressPassiveHover = name === "Page";
 
-  const { isActive, actions } = useEditor((_, query) => ({
+  const { isActive, actions, query, selectedRaw } = useEditor((state, query) => ({
     isActive: query.getEvent('selected').contains(id),
+    selectedRaw: state.events.selected,
   }));
+
+  const selectedToIds = (raw: unknown): string[] => {
+    if (Array.isArray(raw)) return raw.filter((v): v is string => typeof v === "string");
+    if (raw instanceof Set) return Array.from(raw).filter((v): v is string => typeof v === "string");
+    if (raw && typeof raw === "object") return Object.keys(raw as Record<string, unknown>);
+    return [];
+  };
 
   const [isDomHovered, setIsDomHovered] = useState(false);
   const pendingSelectTimerRef = useRef<number | null>(null);
@@ -88,6 +96,42 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
       if (!target) return;
       if (target.closest("[data-panel]")) return;
       if (target.closest("input, textarea, select, [contenteditable='true']")) return;
+
+      if (!event.ctrlKey && !event.metaKey) {
+        try {
+          const nodes = query.getState().nodes;
+          const selectableGroupNames = new Set(["Container", "Section", "Row", "Column", "Frame", "Banner"]);
+          let cursor: string | undefined = id;
+          let groupAncestorId: string | null = null;
+
+          while (cursor && cursor !== "ROOT") {
+            const parentId = nodes[cursor]?.data?.parent as string | undefined;
+            if (!parentId || parentId === "ROOT") break;
+            const parentNode = nodes[parentId];
+            const displayName = parentNode?.data?.displayName as string | undefined;
+            const isCanvas = parentNode?.data?.isCanvas === true;
+            const isPageLike = displayName === "Page" || displayName === "Viewport";
+
+            if ((isCanvas || (displayName && selectableGroupNames.has(displayName))) && !isPageLike) {
+              groupAncestorId = parentId;
+              break;
+            }
+            cursor = parentId;
+          }
+
+          if (groupAncestorId && groupAncestorId !== id) {
+            if (event.cancelable) event.preventDefault();
+            event.stopPropagation();
+            if (typeof event.stopImmediatePropagation === "function") {
+              event.stopImmediatePropagation();
+            }
+            actions.selectNode(groupAncestorId);
+            return;
+          }
+        } catch {
+          // ignore
+        }
+      }
 
       dom.dataset.pendingSelected = "true";
       dom.classList.add("component-selected");
