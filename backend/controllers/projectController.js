@@ -1,3 +1,4 @@
+const fs = require('fs');
 const Project = require('../models/Project');
 const User = require('../models/User');
 const Domain = require('../models/Domain');
@@ -311,12 +312,13 @@ exports.delete = async (req, res) => {
 // @route   POST /api/projects/:id/media
 // @access  Private (owner or editor)
 exports.uploadMedia = async (req, res) => {
+  const tempPath = req.file?.path;
   try {
     const userId = req.user.id;
     const userEmail = (req.user.email || '').toLowerCase();
     const projectId = req.params.id;
 
-    if (!req.file || !req.file.buffer) {
+    if (!req.file || !req.file.path) {
       return res.status(400).json({
         success: false,
         message: 'No file uploaded. Use field name "media".',
@@ -360,7 +362,7 @@ exports.uploadMedia = async (req, res) => {
     const originalName = req.file.originalname || 'file';
 
     const url = await uploadClientMedia({
-      buffer: req.file.buffer,
+      filePath: req.file.path,
       mimeType,
       originalName,
       clientName,
@@ -379,6 +381,14 @@ exports.uploadMedia = async (req, res) => {
       message: error.message || 'Upload failed',
       error: error.message,
     });
+  } finally {
+    if (tempPath) {
+      try {
+        fs.unlinkSync(tempPath);
+      } catch (unlinkErr) {
+        console.warn('[uploadMedia] Failed to remove temp file:', unlinkErr?.message);
+      }
+    }
   }
 };
 
