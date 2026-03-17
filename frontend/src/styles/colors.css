@@ -54,6 +54,24 @@
   --builder-icon-glow:      rgba(91, 33, 182, 0.5);
 }
 
+/* ── Code Editor — always dark regardless of theme ── */
+[data-theme="dark"] {
+  --builder-bg:             #0C0A1E;
+  --builder-surface:        #120F2A;
+  --builder-surface-2:      #1A1640;
+  --builder-surface-3:      #231E52;
+  --builder-surface-hover:  #2A2560;
+  --builder-border:         rgba(138, 92, 246, 0.18);
+  --builder-border-mid:     rgba(138, 92, 246, 0.30);
+  --builder-text:           #EDE9FF;
+  --builder-text-muted:     #9B94CC;
+  --builder-text-faint:     #5A5490;
+  --builder-accent:         #FFCC00;
+  --builder-accent-hover:   #FFD740;
+  --builder-purple:         #7C3AED;
+  --builder-purple-light:   #A78BFA;
+}
+
 @theme inline {
   /* Custom Color Palette Utilities */
   --color-brand-black: var(--brand-black);

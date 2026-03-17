@@ -16,7 +16,7 @@ export const DesignSection = ({
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
-    <div className="flex flex-col border-b border-[var(--builder-border-mid)]-light last:border-b-0 pb-2">
+    <div className="flex flex-col border-b border-[var(--builder-border-mid)] last:border-b-0 pb-2">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center justify-between py-2 group cursor-pointer"

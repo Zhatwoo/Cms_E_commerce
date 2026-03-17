@@ -86,11 +86,11 @@ export const AutoLayoutGroup = ({
         }}
         className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${active
           ? "bg-[var(--builder-accent)] text-black scale-110"
-          : "bg-brand-medium/50 text-[var(--builder-text-muted)] hover:bg-[var(--builder-surface-3)]"
+          : "bg-[var(--builder-surface-3)] text-[var(--builder-text-muted)] hover:bg-[var(--builder-surface-hover)]"
           }`}
       >
         {/* center dot */}
-        <div className={`w-1.5 h-1.5 rounded-full ${active ? "bg-[var(--builder-surface)]er" : "bg-brand-light"}`} />
+        <div className={`w-1.5 h-1.5 rounded-full ${active ? "bg-[var(--builder-surface)]" : "bg-[var(--builder-text-faint)]"}`} />
       </button>
     );
   };
@@ -98,11 +98,11 @@ export const AutoLayoutGroup = ({
   return (
     <div className="flex flex-col gap-4">
       {/* Direction & Wrap */}
-      <div className="flex items-center gap-2 bg-[var(--builder-surface-2)] rounded-[10px] border-2 border-[var(--builder-border-mid)]-dark p-.1">
+      <div className="flex items-center gap-2 bg-[var(--builder-surface-2)] rounded-[10px] border border-[var(--builder-border)] p-0.5">
         <button
           type="button"
           onClick={() => handleDirection("column")}
-          className={`p-1.5 rounded-lg flex-1 flex justify-center ${flexDirection === "column" ? "bg-brand-medium/50 text-[var(--builder-text)]" : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"}`}
+          className={`p-1.5 rounded-lg flex-1 flex justify-center ${flexDirection === "column" ? "bg-[var(--builder-surface-3)] text-[var(--builder-text)]" : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"}`}
           title="Vertical (Column)"
         >
           <ArrowDown size={16} />
@@ -110,12 +110,12 @@ export const AutoLayoutGroup = ({
         <button
           type="button"
           onClick={() => handleDirection("row")}
-          className={`p-1.5 rounded-lg flex-1 flex justify-center ${flexDirection === "row" ? "bg-brand-medium/50 text-[var(--builder-text)]" : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"}`}
+          className={`p-1.5 rounded-lg flex-1 flex justify-center ${flexDirection === "row" ? "bg-[var(--builder-surface-3)] text-[var(--builder-text)]" : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"}`}
           title="Horizontal (Row)"
         >
           <ArrowRight size={16} />
         </button>
-        <div className="w-px h-4 bg-brand-medium mx-1" />
+        <div className="w-px h-4 bg-[var(--builder-border-mid)] mx-1" />
         <button
           type="button"
           onClick={handleWrap}
