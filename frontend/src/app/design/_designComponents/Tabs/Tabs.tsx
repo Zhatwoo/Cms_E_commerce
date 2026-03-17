@@ -257,12 +257,14 @@ export const Tabs = ({
 
       {/* Tab Content Areas */}
       <div className="tabs-content relative w-full flex-grow min-h-[100px]">
-        {tabs.map((tab) => {
-          const isActive = tab.id === currentActiveTabId;
-          const computedCanvasId = `tab-content-${tab.id}`;
+        {(() => {
+          const active = tabs.find((t) => t.id === currentActiveTabId) ?? tabs[0];
+          if (!active) return null;
+
+          const computedCanvasId = `tab-content-${active.id}`;
           const legacyCanvasId =
-            typeof (tab as any).content === "string" && String((tab as any).content).trim()
-              ? String((tab as any).content).trim()
+            typeof (active as any).content === "string" && String((active as any).content).trim()
+              ? String((active as any).content).trim()
               : null;
           const linked = linkedNodes ?? {};
           const hasLegacy =
@@ -271,22 +273,15 @@ export const Tabs = ({
               Object.values(linked).includes(legacyCanvasId) ||
               Object.keys(linked).includes(legacyCanvasId));
           const canvasId = hasLegacy ? (legacyCanvasId as string) : computedCanvasId;
-          
+
+          // Mount only the active tab panel to avoid overlapping absolute layers
+          // interfering with Craft.js drop hit-testing.
           return (
-            <div 
-              key={tab.id}
-              style={{ pointerEvents: isActive ? "auto" : "none" }}
-              className={`w-full transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${isActive ? "opacity-100 translate-y-0 relative" : "opacity-0 -translate-y-2 absolute inset-0"}`}
-            >
-              <div
-                className="w-full min-h-[100px] flex flex-col"
-              >
-                {/* Render tab content using Element with node ID for Craft.js persistence */}
-                <Element id={canvasId} is={TabContent} canvas />
-              </div>
+            <div className="w-full min-h-[100px] flex flex-col relative">
+              <Element id={canvasId} is={TabContent} canvas />
             </div>
           );
-        })}
+        })()}
       </div>
     </div>
   );
