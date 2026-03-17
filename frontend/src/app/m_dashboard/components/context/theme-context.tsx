@@ -45,13 +45,13 @@ export const THEMES = {
   },
   light: {
     bg: {
-      primary: '#FFFFFF',
-      primaryEnd: '#EAEAEA',
-      dark: '#EAEAEA',
-      card: '#FFFFFF',
-      elevated: '#FFFFFF',
+      primary: '#f5f4ff',
+      primaryEnd: '#dadcff',
+      dark: '#dadcff',
+      card: 'rgba(249, 247, 255, 0.92)',
+      elevated: 'rgba(255, 255, 255, 0.38)',
       fog: '#F4F4F7',
-      sidebar: '#190765',
+      sidebar: 'rgba(255, 255, 255, 0.42)', // Semi-transparent for blur effect
       searchBar: '#F7F7FA',
     },
     text: {
@@ -61,8 +61,8 @@ export const THEMES = {
       subtle: '#B8B2CF',
     },
     border: {
-      default: '#CFC4E5',
-      faint: '#DCD2EE',
+      default: 'rgba(147, 96, 255, 0.18)',
+      faint: 'rgba(147, 96, 255, 0.12)',
     },
     accent: {
       yellow: '#FFCC00',

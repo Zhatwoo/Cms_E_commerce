@@ -176,11 +176,9 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                     : 'transparent',
                 backdropFilter: scrolled ? 'blur(14px)' : 'none',
                 WebkitBackdropFilter: scrolled ? 'blur(14px)' : 'none',
-                borderBottom: scrolled
-                    ? theme === 'dark'
-                        ? '1px solid rgba(255,255,255,0.07)'
-                        : '1px solid rgba(15,23,42,0.08)'
-                    : 'none',
+                borderBottom: theme === 'dark'
+                    ? scrolled ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.05)'
+                    : scrolled ? '1px solid rgba(15,23,42,0.12)' : '1px solid rgba(15,23,42,0.08)',
             }}
         >
             <div className="relative flex items-center justify-between px-4 sm:px-6" style={{ height: '84px' }}>
