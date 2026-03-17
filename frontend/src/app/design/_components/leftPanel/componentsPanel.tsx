@@ -104,7 +104,7 @@ export const ComponentsPanel = () => {
     {
       label: "Text",
       preview: "Text",
-      element: <Text text="" fontSize={18} width="100%" position="relative" />,
+      element: <Text text="" fontSize={18} width="fit-content" height="fit-content" position="relative" />,
       icon: <Type className="w-5 h-5" />,
       color: "bg-pink-500/10",
     },
