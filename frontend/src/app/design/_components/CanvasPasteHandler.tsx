@@ -2,7 +2,7 @@
 
 import React, { useEffect, useCallback } from "react";
 import { useEditor } from "@craftjs/core";
-import { uploadMediaApi } from "@/lib/api";
+import { addFileToMediaLibrary } from "../_lib/mediaActions";
 import { useDesignProject } from "../_context/DesignProjectContext";
 import { Image } from "../_designComponents/Image/Image";
 
@@ -50,29 +50,17 @@ export const CanvasPasteHandler = () => {
         const file = item.getAsFile();
         if (!file) continue;
 
-        try {
-          let imageUrl: string;
+        if (!projectId) {
+          console.warn("CanvasPasteHandler: No projectId, cannot upload and sync image.");
+          continue;
+        }
 
-          // 3. Upload to project storage if possible, otherwise fallback to base64
-          if (projectId) {
-            try {
-              const result = await uploadMediaApi(projectId, file, { folder: "images" });
-              imageUrl = result.url;
-            } catch (err) {
-              console.error("Paste upload failed, falling back to local data URL:", err);
-              imageUrl = await new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = (event) => resolve(event.target?.result as string);
-                reader.readAsDataURL(file);
-              });
-            }
-          } else {
-            imageUrl = await new Promise((resolve) => {
-              const reader = new FileReader();
-              reader.onload = (event) => resolve(event.target?.result as string);
-              reader.readAsDataURL(file);
-            });
-          }
+        try {
+          // 3. Upload to project storage AND add to media library
+          // If this fails, the catch block will prevent the paste
+          const mediaItem = await addFileToMediaLibrary(projectId, file);
+          const imageUrl = mediaItem.url;
+
 
           // 4. Determine where to paste
           const state = query.getState();

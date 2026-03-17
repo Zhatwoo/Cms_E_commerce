@@ -30,7 +30,7 @@ import {
   ungroupSelection,
 } from "../_lib/canvasActions";
 import { useDesignProject } from "../_context/DesignProjectContext";
-import { uploadMediaApi } from "@/lib/api";
+import { addFileToMediaLibrary } from "../_lib/mediaActions";
 import { Image } from "../_designComponents/Image/Image";
 
 const PROTECTED = new Set(["Viewport", "ROOT"]);
@@ -301,25 +301,17 @@ export function CanvasContextMenu() {
             const blob = await item.getType(type);
             const file = new File([blob], "pasted-image.png", { type });
             
-            let imageUrl: string;
-            if (projectId) {
-              try {
-                const result = await uploadMediaApi(projectId, file, { folder: "images" });
-                imageUrl = result.url;
-              } catch (err) {
-                imageUrl = await new Promise((resolve) => {
-                  const reader = new FileReader();
-                  reader.onload = (e) => resolve(e.target?.result as string);
-                  reader.readAsDataURL(file);
-                });
-              }
-            } else {
-              imageUrl = await new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = (e) => resolve(e.target?.result as string);
-                reader.readAsDataURL(file);
-              });
+            if (!projectId) {
+              console.warn("CanvasContextMenu: No projectId, cannot upload and sync image.");
+              close();
+              return;
             }
+
+            // 3. Upload to project storage AND add to media library
+            // If this fails, the catch block will prevent the paste
+            const mediaItem = await addFileToMediaLibrary(projectId, file);
+            const imageUrl = mediaItem.url;
+
 
             // Determine parent
             let targetParentId = "ROOT";

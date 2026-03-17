@@ -11,8 +11,6 @@ import {
   Layout,
   Image as ImageIcon,
   LayoutTemplate,
-  ChevronRight,
-  ChevronLeft,
   Search,
   Plus,
   Component,
@@ -38,9 +36,10 @@ import { Video } from "../../_designComponents/Video/Video";
 import { uploadMediaApi } from "@/lib/api";
 
 import { deleteDraft } from "../../_lib/pageApi";
+import { type MediaLibraryItem, MEDIA_LIBRARY_KEY_PREFIX, MEDIA_LIBRARY_UPDATED_EVENT, removeFilesFromMediaLibrary } from "../../_lib/mediaActions";
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
-const MEDIA_LIBRARY_KEY_PREFIX = "craftjs_media_library";
+
 const VIEWPORT_EDGE_PADDING = 100000;
 const PAGE_GRID_ORIGIN_X = VIEWPORT_EDGE_PADDING;
 const PAGE_GRID_ORIGIN_Y = VIEWPORT_EDGE_PADDING;
@@ -88,14 +87,7 @@ interface LeftPanelProps {
   width?: number;
 }
 
-type MediaLibraryItem = {
-  id: string;
-  name: string;
-  url: string;
-  mimeType: string;
-  size: number;
-  createdAt: number;
-};
+
 
 export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePanel: setControlledPanel, frameReady = true, width = 320 }: LeftPanelProps) => {
   const [internalPanel, setInternalPanel] = useState<LeftPanelTabId>("files");
@@ -195,13 +187,65 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
     }
   };
 
-  const removeMediaItem = (id: string) => {
-    setMediaItems((prev) => {
-      const next = prev.filter((item) => item.id !== id);
-      persistMediaItems(next);
-      return next;
-    });
+  const handleDeleteSelected = async () => {
+    if (!projectId || selectedItems.size === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedItems.size} item(s)?`)) return;
+
+    try {
+      setUploading(true);
+      await removeFilesFromMediaLibrary(projectId, Array.from(selectedItems));
+      setSelectedItems(new Set());
+    } catch (err: any) {
+      setUploadError(err.message || "Failed to delete items");
+    } finally {
+      setUploading(false);
+    }
   };
+
+  const handleDeleteItem = async (id: string) => {
+    if (!projectId) return;
+    if (!window.confirm("Are you sure you want to delete this item?")) return;
+
+    try {
+      setUploading(true);
+      await removeFilesFromMediaLibrary(projectId, [id]);
+      const next = new Set(selectedItems);
+      next.delete(id);
+      setSelectedItems(next);
+    } catch (err: any) {
+      setUploadError(err.message || "Failed to delete item");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const filteredMedia = mediaItems
+    .filter(item => {
+      const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+      if (!matchesSearch) return false;
+      if (activeMediaCategory === "all") return true;
+      if (activeMediaCategory === "images") return item.mimeType.startsWith("image/");
+      if (activeMediaCategory === "videos") return item.mimeType.startsWith("video/");
+      if (activeMediaCategory === "audio") return item.mimeType.startsWith("audio/");
+      if (activeMediaCategory === "documents") return !item.mimeType.startsWith("image/") && !item.mimeType.startsWith("video/") && !item.mimeType.startsWith("audio/");
+      return true;
+    })
+    .sort((a, b) => {
+      let res = 0;
+      if (sortBy === "name") res = a.name.localeCompare(b.name);
+      else res = b.createdAt - a.createdAt;
+      return sortOrder === "asc" ? -res : res;
+    });
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedItems(new Set(filteredMedia.map(i => i.id)));
+    } else {
+      setSelectedItems(new Set());
+    }
+  };
+
+  const allSelected = filteredMedia.length > 0 && filteredMedia.every(i => selectedItems.has(i.id));
 
 
   const handleUploadFiles = async (fileList: FileList | null) => {
@@ -268,23 +312,32 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    try {
-      const fromSession = window.sessionStorage.getItem(mediaStorageKey);
-      const fromLocal = window.localStorage.getItem(mediaStorageKey);
-      const raw = fromSession || fromLocal;
-      if (!raw) {
+    
+    const loadMediaItems = () => {
+      try {
+        const fromSession = window.sessionStorage.getItem(mediaStorageKey);
+        const fromLocal = window.localStorage.getItem(mediaStorageKey);
+        const raw = fromSession || fromLocal;
+        if (!raw) {
+          setMediaItems([]);
+          return;
+        }
+        const parsed = JSON.parse(raw) as MediaLibraryItem[];
+        if (Array.isArray(parsed)) {
+          setMediaItems(parsed);
+        } else {
+          setMediaItems([]);
+        }
+      } catch {
         setMediaItems([]);
-        return;
       }
-      const parsed = JSON.parse(raw) as MediaLibraryItem[];
-      if (Array.isArray(parsed)) {
-        setMediaItems(parsed);
-      } else {
-        setMediaItems([]);
-      }
-    } catch {
-      setMediaItems([]);
-    }
+    };
+
+    loadMediaItems();
+
+    // Listen for external updates (like pasting images)
+    window.addEventListener(MEDIA_LIBRARY_UPDATED_EVENT, loadMediaItems);
+    return () => window.removeEventListener(MEDIA_LIBRARY_UPDATED_EVENT, loadMediaItems);
   }, [mediaStorageKey]);
 
   // Close dropdown on click outside or Escape
@@ -557,27 +610,31 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
             </div>
 
             {/* Selection & Toolbar (Minimalist Style) */}
-            <div className="flex items-center justify-between py-2 border-b border-white/5 shrink-0">
-              <div className="flex items-center gap-4">
+            <div className="flex items-center justify-between py-2 border-b border-white/5 shrink-0 px-1">
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={() => {
-                    if (selectedItems.size === mediaItems.length) setSelectedItems(new Set());
-                    else setSelectedItems(new Set(mediaItems.map(i => i.id)));
-                  }}
-                  className={`w-4 h-4 rounded border transition-all flex items-center justify-center ${selectedItems.size > 0 ? "bg-brand-medium border-brand-medium" : "border-white/10 hover:border-white/30"
-                    }`}
-                  title="Select all"
+                  onClick={() => handleSelectAll(!allSelected)}
+                  className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${allSelected ? "bg-brand-medium border-brand-medium" : "border-white/20 hover:border-white/40 bg-white/5"}`}
                 >
-                  {selectedItems.size > 0 && <Check className="w-2.5 h-2.5 text-white" />}
+                  {allSelected && <Check className="w-2.5 h-2.5 text-white" />}
                 </button>
-                {selectedItems.size > 0 && (
-                  <span className="text-[9px] font-black uppercase tracking-widest text-brand-light">
-                    {selectedItems.size} Selected
-                  </span>
-                )}
+                <div className="text-[10px] font-bold uppercase tracking-widest text-white/20">
+                  {selectedItems.size > 0 ? `${selectedItems.size} Selected` : "Media library"}
+                </div>
               </div>
 
               <div className="flex items-center gap-1">
+                {selectedItems.size > 0 && (
+                  <button
+                    onClick={handleDeleteSelected}
+                    disabled={uploading}
+                    className="p-2 text-red-500/40 hover:text-red-500 hover:bg-red-500/5 rounded-lg transition-all"
+                    title="Delete selected"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                
                 {/* Type Filter */}
                 <div className="relative">
                   <button
@@ -652,25 +709,8 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
             </div>
 
             {/* Media Items Scrollable Grid */}
-            <div className="flex-1 overflow-y-auto no-scrollbar min-h-0">
-              {mediaItems
-                .filter(item => {
-                  const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-                  if (!matchesSearch) return false;
-                  if (activeMediaCategory === "all") return true;
-                  if (activeMediaCategory === "images") return item.mimeType.startsWith("image/");
-                  if (activeMediaCategory === "videos") return item.mimeType.startsWith("video/");
-                  if (activeMediaCategory === "audio") return item.mimeType.startsWith("audio/");
-                  if (activeMediaCategory === "documents") return !item.mimeType.startsWith("image/") && !item.mimeType.startsWith("video/") && !item.mimeType.startsWith("audio/");
-                  return true;
-                })
-                .sort((a, b) => {
-                  let res = 0;
-                  if (sortBy === "name") res = a.name.localeCompare(b.name);
-                  else res = b.createdAt - a.createdAt;
-                  return sortOrder === "asc" ? -res : res;
-                })
-                .length === 0 ? (
+            <div className="flex-1 overflow-y-auto no-scrollbar min-h-0 pt-3">
+              {filteredMedia.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center py-20 opacity-10 text-center gap-4">
                   <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
                     <ImageIcon className="w-6 h-6" />
@@ -681,158 +721,118 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3 pb-20">
-                  {mediaItems
-                    .filter(item => {
-                      const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-                      if (!matchesSearch) return false;
-                      if (activeMediaCategory === "all") return true;
-                      if (activeMediaCategory === "images") return item.mimeType.startsWith("image/");
-                      if (activeMediaCategory === "videos") return item.mimeType.startsWith("video/");
-                      if (activeMediaCategory === "audio") return item.mimeType.startsWith("audio/");
-                      if (activeMediaCategory === "documents") return !item.mimeType.startsWith("image/") && !item.mimeType.startsWith("video/") && !item.mimeType.startsWith("audio/");
-                      return true;
-                    })
-                    .sort((a, b) => {
-                      let res = 0;
-                      if (sortBy === "name") res = a.name.localeCompare(b.name);
-                      else res = b.createdAt - a.createdAt;
-                      return sortOrder === "asc" ? -res : res;
-                    })
-                    .map((item) => {
-                      return (
-                        <div
-                          key={item.id}
-                          className={`group relative aspect-video rounded-lg overflow-hidden border transition-all duration-300 cursor-move ${selectedItems.has(item.id) ? "border-brand-medium ring-1 ring-brand-medium" : "border-white/5 bg-brand-darker"
-                            }`}
-                          draggable
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData("media-library-url", item.url);
-                            e.dataTransfer.setData("media-library-name", item.name);
-                            e.dataTransfer.setData("text/plain", item.url);
-                          }}
-                          onClick={() => {
-                            const next = new Set(selectedItems);
-                            if (next.has(item.id)) next.delete(item.id);
-                            else next.add(item.id);
-                            setSelectedItems(next);
-                          }}
-                          ref={(ref) => {
-                            if (ref) {
-                              const isVideo = item.mimeType.startsWith("video/");
-                              connectors.create(
-                                ref,
-                                isVideo ? (
-                                  <Video
-                                    src={item.url}
-                                    width="220px"
-                                    height="180px"
-                                    objectFit="cover"
-                                    _isDraggingSource={true}
-                                  />
-                                ) : (
-                                  <Image
-                                    src={item.url}
-                                    alt={item.name}
-                                    width="220px"
-                                    height="180px"
-                                    objectFit="cover"
-                                    _isDraggingSource={true}
-                                  />
-                                )
-                              );
-                            }
-                          }}
-                        >
-                          {item.mimeType.startsWith("video/") ? (
-                            <div className="w-full h-full relative bg-black/40 overflow-hidden">
-                              <video
-                                src={`${item.url}#t=0.1`}
-                                className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity"
-                                preload="metadata"
-                                muted
-                                playsInline
+                  {filteredMedia.map((item) => (
+                    <div
+                      key={item.id}
+                      className={`group relative aspect-video rounded-lg overflow-hidden border transition-all duration-300 cursor-move ${selectedItems.has(item.id) ? "border-brand-medium ring-1 ring-brand-medium" : "border-white/5 bg-brand-darker"
+                        }`}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("media-library-url", item.url);
+                        e.dataTransfer.setData("media-library-name", item.name);
+                        e.dataTransfer.setData("text/plain", item.url);
+                      }}
+                      onClick={() => {
+                        const next = new Set(selectedItems);
+                        if (next.has(item.id)) next.delete(item.id);
+                        else next.add(item.id);
+                        setSelectedItems(next);
+                      }}
+                      ref={(ref) => {
+                        if (ref) {
+                          const isVideo = item.mimeType.startsWith("video/");
+                          connectors.create(
+                            ref,
+                            isVideo ? (
+                              <Video
+                                src={item.url}
+                                width="220px"
+                                height="180px"
+                                objectFit="cover"
+                                _isDraggingSource={true}
                               />
-                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none group-hover:opacity-0 transition-opacity">
-                                <VideoIcon className="w-5 h-5 text-white/50" />
-                              </div>
-                            </div>
-                          ) : item.mimeType.startsWith("audio/") ? (
-                            <div className="w-full h-full flex items-center justify-center bg-brand-dark/50">
-                              <Music className="w-5 h-5 text-brand-light" />
-                            </div>
-                          ) : item.mimeType.startsWith("image/") ? (
-                            <img src={item.url} alt={item.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <FileStack className="w-5 h-5 text-white/10" />
-                            </div>
-                          )}
-
-                          {/* Selection Checkbox */}
-                          <div className={`absolute top-2 left-2 transition-all duration-300 ${selectedItems.has(item.id) ? "opacity-100" : "opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100"}`}>
-                            <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shadow-lg ${selectedItems.has(item.id) ? "bg-brand-medium border-brand-medium" : "border-white bg-brand-dark/60"
-                              }`}>
-                              {selectedItems.has(item.id) && <Check className="w-2.5 h-2.5 text-white" />}
-                            </div>
-                          </div>
-
-                          {/* Hover Overlay */}
-                          <div className="absolute inset-0 bg-brand-dark/40 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                addMediaToCanvas(item);
-                              }}
-                              className="p-2.5 rounded-full bg-brand-medium text-white hover:scale-110 active:scale-95 transition-all shadow-xl"
-                            >
-                              <Plus className="w-4 h-4" />
-                            </button>
-                          </div>
-
-                          {/* Info Tag */}
-                          <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-brand-dark/60 backdrop-blur-md rounded text-[8px] font-black uppercase tracking-tighter text-white/40">
-                            {Math.round(item.size / 1024)}KB
+                            ) : (
+                              <Image
+                                src={item.url}
+                                alt={item.name}
+                                width="220px"
+                                height="180px"
+                                objectFit="cover"
+                                _isDraggingSource={true}
+                              />
+                            )
+                          );
+                        }
+                      }}
+                    >
+                      {item.mimeType.startsWith("video/") ? (
+                        <div className="w-full h-full relative bg-black/40 overflow-hidden">
+                          <video
+                            src={`${item.url}#t=0.1`}
+                            className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity"
+                            preload="metadata"
+                            muted
+                            playsInline
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none group-hover:opacity-0 transition-opacity">
+                            <VideoIcon className="w-5 h-5 text-white/50" />
                           </div>
                         </div>
-                      );
-                    })}
+                      ) : item.mimeType.startsWith("audio/") ? (
+                        <div className="w-full h-full flex items-center justify-center bg-brand-dark/50">
+                          <Music className="w-5 h-5 text-brand-light" />
+                        </div>
+                      ) : item.mimeType.startsWith("image/") ? (
+                        <img src={item.url} alt={item.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <FileStack className="w-5 h-5 text-white/10" />
+                        </div>
+                      )}
+
+                      {/* Selection Checkbox */}
+                      <div className={`absolute top-2 left-2 transition-all duration-300 ${selectedItems.has(item.id) ? "opacity-100" : "opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100"}`}>
+                        <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shadow-lg ${selectedItems.has(item.id) ? "bg-brand-medium border-brand-medium" : "border-white bg-brand-dark/60"
+                          }`}>
+                          {selectedItems.has(item.id) && <Check className="w-2.5 h-2.5 text-white" />}
+                        </div>
+                      </div>
+
+                      {/* Hover Overlay */}
+                      <div className="absolute inset-0 bg-brand-dark/40 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            addMediaToCanvas(item);
+                          }}
+                          className="p-2.5 rounded-full bg-brand-medium text-white hover:scale-110 active:scale-95 transition-all shadow-xl"
+                          title="Add to canvas"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteItem(item.id);
+                          }}
+                          className="p-2.5 rounded-full bg-red-500 text-white hover:scale-110 active:scale-95 transition-all shadow-xl"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Info Tag */}
+                      <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-brand-dark/60 backdrop-blur-md rounded text-[8px] font-black uppercase tracking-tighter text-white/40">
+                        {Math.round(item.size / 1024)}KB
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
-
-            {/* Storage Indicator */}
-            {permission !== "viewer" && (
-              <div className="mt-auto pt-4 border-t border-white/5 pb-2">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex flex-col">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-brand-light">Storage Used</span>
-                    <span className="text-[10px] text-white/40 font-bold uppercase tracking-tight">
-                      {(mediaItems.reduce((acc, i) => acc + (i.size || 0), 0) / (1024 * 1024)).toFixed(1)}MB / 500MB
-                    </span>
-                  </div>
-                  <button className="text-[9px] font-black uppercase tracking-widest text-brand-medium hover:text-brand-lighter transition-colors cursor-pointer flex items-center gap-1 group">
-                    <span>Upgrade</span>
-                    <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                  </button>
-                </div>
-                
-                <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full transition-all duration-500 rounded-full ${
-                      (mediaItems.reduce((acc, i) => acc + (i.size || 0), 0) / (500 * 1024 * 1024)) > 0.9 
-                        ? "bg-red-500" 
-                        : "bg-brand-medium"
-                    }`}
-                    style={{ width: `${Math.min(100, (mediaItems.reduce((acc, i) => acc + (i.size || 0), 0) / (500 * 1024 * 1024)) * 100)}%` }}
-                  />
-                </div>
-                
-                <p className="mt-2 text-[8px] italic text-white/20 uppercase tracking-widest text-center">
-                  Get unlimited storage for your assets
-                </p>
-              </div>
-            )}
 
             {/* Read-only status */}
             {permission === "viewer" && (
