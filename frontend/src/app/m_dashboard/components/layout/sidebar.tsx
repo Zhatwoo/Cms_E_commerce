@@ -100,10 +100,10 @@ export function DashboardSidebar({ mobile = false, onClose, onNavigateStart }: D
 
   const isLightTheme = theme === 'light';
   const sidebarBg = colors.bg.sidebar;
-  const sidebarBorderColor = isLightTheme ? 'rgba(255, 255, 255, 0.14)' : colors.border.faint;
-  const sidebarPrimaryText = isLightTheme ? '#FFFFFF' : colors.text.primary;
-  const sidebarMutedText = isLightTheme ? 'rgba(255, 255, 255, 0.72)' : colors.text.muted;
-  const sidebarSecondaryText = isLightTheme ? 'rgba(255, 255, 255, 0.8)' : colors.text.secondary;
+  const sidebarBorderColor = isLightTheme ? colors.border.default : colors.border.faint;
+  const sidebarPrimaryText = colors.text.primary;
+  const sidebarMutedText = colors.text.muted;
+  const sidebarSecondaryText = colors.text.secondary;
   const accentYellow = (colors as { accent?: { yellow?: string } }).accent?.yellow ?? '#FFCE00';
   const inactiveIconOpacity = isLightTheme ? 0.85 : 0.72;
   const activeIconOpacity = 1;

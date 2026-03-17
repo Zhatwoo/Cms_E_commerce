@@ -8,6 +8,8 @@ import { ThemeProvider, useTheme } from './components/context/theme-context';
 import { AuthProvider, useAuth } from './components/context/auth-context';
 import { AlertProvider } from './components/context/alert-context';
 import { ProjectProvider, useProject } from './components/context/project-context';
+import { DashboardBackground } from './components/layout/DashboardBackground';
+
 
 function DashboardLayoutContent({
     children,
@@ -71,7 +73,7 @@ function DashboardLayoutContent({
 
     if (loading || !user) {
         return (
-            <div className="min-h-screen flex items-center justify-center" style={{ background: `linear-gradient(180deg, ${colors.bg.primary} 0%, ${colors.bg.primaryEnd} 100%)`, color: colors.text.primary }}>
+            <div className="min-h-screen flex items-center justify-center" style={{ backgroundImage: `linear-gradient(180deg, ${colors.bg.primary} 0%, ${colors.bg.primaryEnd} 100%)`, color: colors.text.primary }}>
                 <p style={{ color: colors.text.muted }}>Loading...</p>
             </div>
         );
@@ -79,9 +81,11 @@ function DashboardLayoutContent({
 
     return (
         <div
-            className="m-dashboard-shell h-screen w-full max-w-full flex overflow-hidden transition-colors duration-300"
-            style={{ backgroundColor: colors.bg.primary, color: colors.text.primary }}
+            className={`m-dashboard-shell h-screen w-full max-w-full flex overflow-hidden transition-colors duration-300 ${theme === 'light' ? 'admin-dashboard-shell' : ''}`}
+            style={{ backgroundColor: theme === 'dark' ? colors.bg.primary : undefined, color: colors.text.primary }}
         >
+            {theme === 'light' && <DashboardBackground />}
+
             {/* Mobile sidebar drawer */}
             <div
                 className={`fixed inset-0 z-40 lg:hidden transition-[opacity] ${sidebarOpen
@@ -120,7 +124,10 @@ function DashboardLayoutContent({
             <div
                 ref={contentScrollRef}
                 className="no-scrollbar relative flex min-w-0 flex-1 basis-0 flex-col h-screen overflow-y-auto overflow-x-hidden"
-                style={{ background: `linear-gradient(180deg, ${colors.bg.primary} 0%, ${colors.bg.primaryEnd} 100%)` }}
+                style={{ 
+                    backgroundImage: theme === 'dark' ? `linear-gradient(180deg, ${colors.bg.primary} 0%, ${colors.bg.primaryEnd} 100%)` : 'none',
+                    backgroundColor: theme === 'dark' ? undefined : 'transparent'
+                }}
             >
                 {theme === 'dark' && (
                     <div
