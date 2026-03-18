@@ -6,6 +6,7 @@ const path = require('path');
 
 /** Fixed prefix: always "Clients/" to match frontend. Never "clients/". */
 const STORAGE_PREFIX = 'Clients/';
+exports.STORAGE_PREFIX = STORAGE_PREFIX;
 /** Product image root folder requested by user. */
 const PRODUCT_IMAGE_PREFIX = 'Products_img/';
 

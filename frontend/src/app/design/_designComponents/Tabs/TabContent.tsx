@@ -25,7 +25,7 @@ export const TabContent = ({
 }: any) => {
   const {
     id,
-    connectors: { connect, drag },
+    connectors: { connect },
   } = useNode();
 
   const style = {
@@ -54,10 +54,11 @@ export const TabContent = ({
   return (
     <div
       ref={(ref) => {
-        if (ref) connect(drag(ref));
+        if (ref) connect(ref);
       }}
       data-node-id={id}
-      className="w-full h-full"
+      data-tab-content-canvas="true"
+      className="w-full min-h-[100px] relative"
       style={style}
     >
       {children}
@@ -66,7 +67,7 @@ export const TabContent = ({
 };
 
 TabContent.craft = {
-  displayName: "Tab Content",
+  displayName: "TabContent",
   props: {
     padding: 24,
     margin: 0,
@@ -79,6 +80,8 @@ TabContent.craft = {
     position: "relative",
     width: "100%",
     height: "auto",
+    // Tab panels should behave like a normal flow layout (not freeform canvas).
+    isFreeform: false,
   },
   rules: {
     canDrag: () => false,

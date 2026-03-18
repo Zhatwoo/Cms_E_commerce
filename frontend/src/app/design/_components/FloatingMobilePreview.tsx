@@ -279,7 +279,7 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
   return (
     <div
       ref={panelRef}
-      className={`fixed z-[100] bg-brand-darker/95 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl ${
+      className={`fixed z-[100] bg-brand-darker/95 backdrop-blur-xl rounded-2xl border border-transparent shadow-2xl ${
         isDragging ? "cursor-grabbing" : "transition-[width] duration-200"
       }`}
       style={{
@@ -293,7 +293,7 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
     >
       <div
         data-drag-handle
-        className="flex items-center justify-between px-4 py-3 border-b border-white/10 cursor-grab active:cursor-grabbing"
+        className="flex items-center justify-between px-4 py-3 border-b border-transparent cursor-grab active:cursor-grabbing"
       >
         <div className="flex items-center gap-2">
           <Move className="w-4 h-4 text-brand-light/50" />
@@ -320,7 +320,7 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
 
       {!isMinimized && (
         <>
-          <div className="px-3 py-2 border-b border-white/10">
+          <div className="px-3 py-2 border-b border-transparent">
             <div className="grid grid-cols-1 gap-2">
               <div className="relative">
                 <button
@@ -339,7 +339,7 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
                   )}
                 </button>
                 {showPageDropdown && pages.length > 1 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-brand-dark border border-white/10 rounded-lg shadow-lg py-1 z-10 max-h-48 overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-brand-dark border border-transparent rounded-lg shadow-lg py-1 z-10 max-h-48 overflow-y-auto">
                     {pages.map((page) => (
                       <button
                         key={page.id}
@@ -376,7 +376,7 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
                   </div>
                 </button>
                 {showDeviceDropdown && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-brand-dark border border-white/10 rounded-lg shadow-lg py-1 z-20 max-h-48 overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-brand-dark border border-transparent rounded-lg shadow-lg py-1 z-20 max-h-48 overflow-y-auto">
                     {MOBILE_DEVICE_PRESETS.map((device) => (
                       <button
                         key={device.id}

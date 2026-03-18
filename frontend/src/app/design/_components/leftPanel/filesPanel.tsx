@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useTransition } from "react";
 import ReactDOM from "react-dom";
 import { useEditor } from "@craftjs/core";
+import { Element } from "@craftjs/core";
 import {
   ChevronDown,
   Box,
@@ -10,14 +11,15 @@ import {
   MousePointer2,
   Copy,
   Trash2,
-  Group,
-  Ungroup,
   Eye,
   EyeOff,
   Lock,
   LockOpen,
+  Group,
+  Ungroup,
 } from "lucide-react";
-import { duplicateNodes, groupSelection, ungroupSelection, selectedToIds } from "../../_lib/canvasActions";
+import { duplicateNodes, selectedToIds, groupSelection, ungroupSelection } from "../../_lib/canvasActions";
+import { Container } from "../../_designComponents/Container/Container";
 import { useCanvasTool } from "../CanvasToolContext";
 import { useDesignProject } from "../../_context/DesignProjectContext";
 
@@ -26,15 +28,38 @@ const PROTECTED = new Set(["Viewport"]);
 const UNDRAGGABLE = new Set(["ROOT", "Viewport", "Page"]);
 
 /** Display names that accept drop "inside" (canvas containers). */
-const CANVAS_CONTAINERS = new Set(["Viewport", "Page", "Section", "Row", "Column", "Container", "Frame"]);
+const CANVAS_CONTAINERS = new Set([
+  "Viewport",
+  "Page",
+  "Section",
+  "Row",
+  "Column",
+  "Container",
+  "Frame",
+  "Tabs",
+  "TabContent",
+  "Tab Content",
+]);
 
 /** Get ordered child node IDs from a node (Craft state or serialized shape). */
 function getChildIds(node: Record<string, unknown> | null | undefined): string[] {
   if (!node || typeof node !== "object") return [];
-  const fromData = (node.data as Record<string, unknown>)?.nodes;
-  if (Array.isArray(fromData)) return fromData as string[];
-  if (Array.isArray(node.nodes)) return node.nodes as string[];
-  return [];
+  const data = node.data as Record<string, unknown> | undefined;
+  const fromNodes = (data?.nodes ?? node.nodes) as unknown;
+  const nodeIds = Array.isArray(fromNodes) ? (fromNodes as string[]) : [];
+
+  const displayName = String((data as any)?.displayName ?? "").trim();
+  const shouldIncludeLinked = displayName === "Tabs";
+
+  // Only include linkedNodes for Tabs, otherwise internal canvases can clutter the Files panel.
+  const fromLinked = shouldIncludeLinked ? ((data?.linkedNodes ?? (node as any).linkedNodes) as unknown) : null;
+  const linkedIds =
+    fromLinked && typeof fromLinked === "object"
+      ? Object.values(fromLinked as Record<string, unknown>).filter((v): v is string => typeof v === "string")
+      : [];
+
+  // Keep stable order: normal nodes first, then linked nodes.
+  return [...nodeIds, ...linkedIds];
 }
 
 /** Check if nodeId is in the current selection (Set or array). */
@@ -178,18 +203,6 @@ export const FilesPanel = () => {
     [actions, query, startTransition]
   );
 
-  const handleGroup = useCallback(() => {
-    const ids = selectedToIds(selected);
-    if (ids.length >= 1) groupSelection(actions as any, query as any, ids);
-    setContextMenu(null);
-  }, [actions, query, selected]);
-
-  const handleUngroup = useCallback(() => {
-    const ids = selectedToIds(selected);
-    if (ids.length === 1) ungroupSelection(actions as any, query as any, ids);
-    setContextMenu(null);
-  }, [actions, query, selected]);
-
   const handleDelete = useCallback(
     (nodeId: string) => {
       startTransition(() => {
@@ -205,6 +218,22 @@ export const FilesPanel = () => {
     },
     [actions, query, startTransition]
   );
+
+  const handleGroup = useCallback(() => {
+    const ids = selectedToIds(selected);
+    if (ids.length >= 2) {
+      groupSelection(actions as any, query as any, ids, Container, Element);
+    }
+    setContextMenu(null);
+  }, [actions, query, selected]);
+
+  const handleUngroup = useCallback(() => {
+    const ids = selectedToIds(selected);
+    if (ids.length === 1) {
+      ungroupSelection(actions as any, query as any, ids);
+    }
+    setContextMenu(null);
+  }, [actions, query, selected]);
 
   const isProtected = (nodeId: string): boolean => {
     if (nodeId === "ROOT") return true;
@@ -646,7 +675,7 @@ export const FilesPanel = () => {
           onContextMenu={openContextMenu}
           className={`
             group flex items-center gap-1 py-2 px-1 rounded-lg transition-colors relative
-            ${isSel ? "bg-blue-400/20 text-white" : "text-white/80 hover:bg-brand-medium/20 hover:text-white"}
+            ${isSel ? "bg-[var(--builder-accent)]/15 text-[var(--builder-text)]" : "text-[var(--builder-text-muted)] hover:bg-[var(--builder-surface-2)] hover:text-[var(--builder-text)]"}
             ${permission === "viewer" ? "cursor-default" : "cursor-pointer"}
           `}
           style={{ paddingLeft: `${depth * 10 + 5}px` }}
@@ -655,7 +684,7 @@ export const FilesPanel = () => {
           <div
             data-layer-expand
             className={`
-              p-1 rounded-md hover:bg-white/10 cursor-pointer shrink-0
+              p-1 rounded-md hover:bg-[var(--builder-surface-2)] cursor-pointer shrink-0
               ${!hasChildren ? "opacity-0 pointer-events-none" : "opacity-100"}
             `}
             onClick={(e) => { e.stopPropagation(); toggleExpanded(nodeId); }}
@@ -681,7 +710,7 @@ export const FilesPanel = () => {
                     actions.setProp(nodeId, (p: Record<string, unknown>) => { p.visibility = next; });
                   } catch { /* skip */ }
                 }}
-                className={`p-1 rounded transition-colors ${visibility === "hidden" ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
+                className={`p-1 rounded transition-colors ${visibility === "hidden" ? "text-[var(--builder-text-muted)]" : "text-[var(--builder-text-faint)] hover:text-[var(--builder-text)]"}`}
               >
                 {visibility === "hidden" ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
@@ -695,7 +724,7 @@ export const FilesPanel = () => {
                     actions.setProp(nodeId, (p: Record<string, unknown>) => { p.locked = next; });
                   } catch { /* skip */ }
                 }}
-                className={`p-1 rounded transition-colors ${locked ? "text-brand-light" : "text-brand-medium hover:text-brand-lighter"}`}
+                className={`p-1 rounded transition-colors ${locked ? "text-[var(--builder-text-muted)]" : "text-[var(--builder-text-faint)] hover:text-[var(--builder-text)]"}`}
               >
                 {locked ? <Lock size={14} /> : <LockOpen size={14} />}
               </button>
@@ -747,22 +776,32 @@ export const FilesPanel = () => {
     const nodeProtected = isProtected(contextMenu.nodeId);
     const nodeName = nodes[contextMenu.nodeId]?.data.displayName || "Node";
     const selectedIds = selectedToIds(selected);
-    const canGroup = selectedIds.length >= 1;
-    const canUngroup = selectedIds.length === 1 && (nodes[selectedIds[0]!]?.data?.displayName === "Container" || nodes[selectedIds[0]!]?.data?.displayName === "Group");
+
+    const UNGROUPABLE_TYPES = new Set([
+      "Container", "Section", "Row", "Column", "Banner", "Frame",
+    ]);
+    const canGroupSel = selectedIds.length >= 2 && (() => {
+      const p = nodes[selectedIds[0]]?.data?.parent;
+      return p && selectedIds.every((id) => nodes[id]?.data?.parent === p);
+    })();
+    const canUngroupSel =
+      selectedIds.length === 1 &&
+      UNGROUPABLE_TYPES.has(nodes[selectedIds[0]]?.data?.displayName || "") &&
+      ((nodes[selectedIds[0]]?.data?.nodes as string[]) ?? []).length > 0;
 
     return ReactDOM.createPortal(
       <div
         data-context-menu
-        className="fixed z-[10050] min-w-[160px] max-h-[calc(100vh-16px)] overflow-y-auto bg-brand-darker border border-white/10 rounded-lg shadow-2xl px-2.5 py-1 text-sm"
+        className="fixed z-[10050] min-w-[160px] max-h-[calc(100vh-16px)] overflow-y-auto bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-lg shadow-2xl px-2.5 py-1 text-sm"
         style={menuStyle}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-white/50 font-semibold border-b border-white/5">
+        <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-[var(--builder-text-faint)] font-semibold border-b border-[var(--builder-border)]">
           {nodeName}
         </div>
         <button
           onClick={() => handleSelect(contextMenu.nodeId)}
-          className="flex items-center gap-2 w-full px-3 py-1.5 text-white hover:bg-white/10 transition-colors cursor-pointer"
+          className="flex items-center gap-2 w-full px-3 py-1.5 text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] transition-colors cursor-pointer"
         >
           <MousePointer2 className="w-3.5 h-3.5" />
           Select
@@ -770,35 +809,36 @@ export const FilesPanel = () => {
         <button
           onClick={() => !nodeProtected && permission !== "viewer" && handleDuplicate(contextMenu.nodeId)}
           disabled={nodeProtected || permission === "viewer"}
-          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${nodeProtected || permission === "viewer" ? "text-brand-light/30 cursor-not-allowed" : "text-brand-lighter hover:bg-white/10 cursor-pointer"
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${nodeProtected || permission === "viewer" ? "text-[var(--builder-text-faint)] cursor-not-allowed" : "text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] cursor-pointer"
             }`}
         >
           <Copy className="w-3.5 h-3.5" />
           Duplicate
         </button>
+        <div className="border-t border-[var(--builder-border)] my-0.5" />
         <button
-          onClick={() => canGroup && permission !== "viewer" && handleGroup()}
-          disabled={!canGroup || permission === "viewer"}
-          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${!canGroup || permission === "viewer" ? "text-brand-light/30 cursor-not-allowed" : "text-brand-lighter hover:bg-white/10 cursor-pointer"
-            }`}
+          onClick={() => canGroupSel && permission !== "viewer" && handleGroup()}
+          disabled={!canGroupSel || permission === "viewer"}
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${!canGroupSel || permission === "viewer" ? "text-[var(--builder-text-faint)] cursor-not-allowed" : "text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] cursor-pointer"}`}
         >
           <Group className="w-3.5 h-3.5" />
           Group
+          <span className="ml-auto text-[var(--builder-text-faint)] text-xs">⌘G</span>
         </button>
         <button
-          onClick={() => canUngroup && permission !== "viewer" && handleUngroup()}
-          disabled={!canUngroup || permission === "viewer"}
-          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${!canUngroup || permission === "viewer" ? "text-brand-light/30 cursor-not-allowed" : "text-brand-lighter hover:bg-white/10 cursor-pointer"
-            }`}
+          onClick={() => canUngroupSel && permission !== "viewer" && handleUngroup()}
+          disabled={!canUngroupSel || permission === "viewer"}
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${!canUngroupSel || permission === "viewer" ? "text-[var(--builder-text-faint)] cursor-not-allowed" : "text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] cursor-pointer"}`}
         >
           <Ungroup className="w-3.5 h-3.5" />
           Ungroup
+          <span className="ml-auto text-[var(--builder-text-faint)] text-xs">⇧⌘G</span>
         </button>
-        <div className="border-t border-white/5 my-0.5" />
+        <div className="border-t border-[var(--builder-border)] my-0.5" />
         <button
           onClick={() => !nodeProtected && permission !== "viewer" && handleDelete(contextMenu.nodeId)}
           disabled={nodeProtected || permission === "viewer"}
-          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${nodeProtected || permission === "viewer" ? "text-brand-light/30 cursor-not-allowed" : "text-red-400 hover:bg-red-500/10 cursor-pointer"
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${nodeProtected || permission === "viewer" ? "text-[var(--builder-text-faint)] cursor-not-allowed" : "text-red-400 hover:bg-red-500/10 cursor-pointer"
             }`}
         >
           <Trash2 className="w-3.5 h-3.5" />

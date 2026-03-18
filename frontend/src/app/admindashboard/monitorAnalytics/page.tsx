@@ -66,7 +66,7 @@ export default function MonitoringAnalyticsPage() {
     const workspace = analytics?.workspace;
 
     return (
-        <div className="min-h-screen bg-gray-100 flex">
+        <div className="admin-dashboard-shell flex h-screen overflow-hidden">
             {/* Desktop Sidebar */}
             <AdminSidebar />
 
@@ -80,10 +80,10 @@ export default function MonitoringAnalyticsPage() {
             </AnimatePresence>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col min-h-screen">
+            <div className="flex min-h-0 flex-1 flex-col">
                 <AdminHeader />
-                <main className="flex-1 overflow-y-auto bg-slate-50">
-                    <div className="p-8 space-y-8">
+                <main className="flex-1 min-h-0 overflow-y-auto">
+                    <div className="min-h-full space-y-8 p-8">
                 {/* Header Section */}
                 <motion.div
                     className="space-y-3"
@@ -91,13 +91,13 @@ export default function MonitoringAnalyticsPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.45, ease: [0.25, 0.8, 0.25, 1] }}
                 >
-                    <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900">
+                    <h1 className="mb-1 text-3xl font-bold text-[#B13BFF] sm:text-4xl">
                         Monitoring and Analytics
                     </h1>
-                    <div className="flex items-center gap-2 text-sm text-slate-500">
+                    <div className="flex items-center gap-2 text-sm text-[#A78BFA]">
                         <span>Monitoring & Analytics</span>
                         <ChevronRightIcon />
-                        <span className="text-slate-700">{tabNames[activeTab]}</span>
+                        <span className="font-semibold text-[#471396]">{tabNames[activeTab]}</span>
                     </div>
                 </motion.div>
 
@@ -119,7 +119,7 @@ export default function MonitoringAnalyticsPage() {
                     ].map((card) => (
                         <motion.div
                             key={card.label}
-                            className="relative overflow-hidden bg-white rounded-2xl p-6 border border-slate-200 shadow-[0_12px_36px_rgba(15,23,42,0.08)]"
+                            className="admin-dashboard-panel relative overflow-hidden rounded-2xl border border-[rgba(177,59,255,0.29)] bg-[#F5F4FF] p-6 shadow-sm"
                             variants={cardVariants}
                             whileHover={{ y: -4, scale: 1.01 }}
                             transition={{
@@ -131,11 +131,11 @@ export default function MonitoringAnalyticsPage() {
                             }}
                         >
                             <div className="relative space-y-2">
-                                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-[0.2em]">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#471396]">
                                     {card.label}
                                 </p>
-                                <p className="text-3xl font-semibold text-slate-900">{card.value}</p>
-                                <p className="text-xs text-slate-500">{card.change}</p>
+                                <p className="text-5xl font-bold leading-none text-[#FFCC00]">{card.value}</p>
+                                <p className="text-xs text-[#B13BFF]">{card.change}</p>
                             </div>
                         </motion.div>
                     ))}
@@ -143,13 +143,13 @@ export default function MonitoringAnalyticsPage() {
 
                 {/* Main Content */}
                 <motion.div
-                    className="bg-white rounded-2xl border border-slate-200 shadow-[0_12px_36px_rgba(15,23,42,0.08)] overflow-hidden"
+                    className="admin-dashboard-panel overflow-hidden rounded-2xl border border-[rgba(177,59,255,0.29)] bg-[#F5F4FF] shadow-sm"
                     initial={{ opacity: 0, y: 18 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.55, delay: 0.32, ease: [0.22, 0.84, 0.25, 1] }}
                 >
                     {/* Tabs */}
-                    <div className="border-b border-slate-200">
+                    <div className="border-b border-[rgba(177,59,255,0.29)]">
                         <div className="flex gap-8 px-6 pt-6">
                             {[
                                 { id: 'platform', label: 'Platform Traffic' },
@@ -161,8 +161,8 @@ export default function MonitoringAnalyticsPage() {
                                     onClick={() => setActiveTab(tab.id)}
                                     className={`pb-4 px-1 text-sm font-semibold border-b-2 transition-colors ${
                                         activeTab === tab.id
-                                            ? 'border-blue-600 text-blue-600'
-                                            : 'border-transparent text-slate-600 hover:text-slate-900'
+                                            ? 'border-[#FFCC00] text-[#471396]'
+                                            : 'border-transparent text-[#471396]/80 hover:text-[#471396]'
                                     }`}
                                 >
                                     {tab.label}
@@ -201,8 +201,8 @@ export default function MonitoringAnalyticsPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.55, delay: 0.48, ease: [0.22, 0.84, 0.25, 1] }}
                 >
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_12px_36px_rgba(15,23,42,0.08)] p-8">
-                        <h3 className="text-lg font-semibold text-slate-900 mb-6">Workspace Statistics</h3>
+                    <div className="admin-dashboard-panel rounded-2xl border border-[rgba(177,59,255,0.29)] bg-[#F5F4FF] p-8 shadow-sm">
+                        <h3 className="mb-6 text-lg font-semibold text-[#471396]">Workspace Statistics</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                             {[
                                 { label: 'Total Projects', value: loading ? '—' : String(workspace?.totalProjects ?? 0) },
@@ -212,13 +212,13 @@ export default function MonitoringAnalyticsPage() {
                             ].map((stat, idx) => (
                                 <motion.div
                                     key={stat.label}
-                                    className="flex flex-col border-l-4 border-blue-500 pl-4"
+                                    className="flex flex-col border-l-2 border-[#FFCC00] pl-4"
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.35, delay: 0.5 + 0.05 * idx }}
                                 >
-                                    <p className="text-sm text-slate-600 font-medium mb-1">{stat.label}</p>
-                                    <p className="text-2xl font-bold text-slate-900">{stat.value}</p>
+                                    <p className="mb-1 text-sm font-medium text-[#471396]">{stat.label}</p>
+                                    <p className="text-4xl font-bold leading-none text-[#B13BFF]">{stat.value}</p>
                                 </motion.div>
                             ))}
                         </div>

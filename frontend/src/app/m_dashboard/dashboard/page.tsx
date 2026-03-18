@@ -353,7 +353,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
               
               ${theme === 'dark' 
                 ? 'bg-[#141446] border-[#1F1F51]' 
-                : 'bg-white/80 backdrop-blur-md border-[#E2E8F0]'
+                : 'admin-dashboard-panel-soft border-0'
               }
 
               ${theme === 'light' && 'shadow-[0_0_15px_rgba(139,92,246,0.1),0_0_1px_rgba(139,92,246,0.2)]'}
@@ -466,7 +466,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                   relative rounded-4xl border p-5 text-left overflow-hidden transition-all duration-500
                   ${theme === 'dark' 
                     ? 'bg-linear-to-br from-[#0D0C37] via-[#110F4D] to-[#0D0C37] border-[#6E6ABF]/40 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]' 
-                    : 'bg-linear-to-br from-[#F8F9FF] via-[#F1F3F9] to-[#F8F9FF] border-[#8B5CF6]/20 shadow-[0_15px_35px_rgba(139,92,246,0.08)]'
+                    : 'admin-dashboard-panel border-0'
                   }
                 `}>
                   {/* Ambient Background Glows */}
@@ -560,7 +560,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                 <div className="mb-4 flex items-center justify-between">
                   <h3 
                     className={`
-                      text-xs sm:text-sm font-bold tracking-[0.18em] uppercase transition-colors duration-300
+                      text-xs sm:text-sm font-bold tracking-[0.18em] transition-colors duration-300
                       ${theme === 'dark' 
                         ? 'text-[#FFCE00]' 
                         : 'text-[#8B5CF6]' 
@@ -601,7 +601,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                       
                       ${theme === 'dark' 
                         ? 'bg-[#15093E] border border-[#280E59] shadow-[0_20px_40px_rgba(0,0,0,0.3)]' 
-                        : 'bg-white border border-[#F1F1F4] shadow-[0_15px_35px_rgba(139,92,246,0.06)] hover:shadow-[0_25px_50px_rgba(139,92,246,0.12)]'
+                        : 'admin-dashboard-panel border-0'
                       }
                     `}
                   >
@@ -634,7 +634,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                     <div className="flex flex-col items-center gap-1">
                       <span 
                         className={`
-                          text-xl font-black uppercase tracking-tighter transition-colors duration-300
+                          text-xl font-black tracking-tighter transition-colors duration-300
                           ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}
                         `}
                       >
@@ -643,7 +643,6 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                       <div className={`h-1 w-8 rounded-full transition-all duration-500 scale-x-0 group-hover:scale-x-100 ${theme === 'dark' ? 'bg-[#FFCE00]' : 'bg-[#8B5CF6]'}`} />
                     </div>
                   </button>
-
                   {otherProjects.map((project) => (
                     <div
                       key={project.id}
@@ -651,7 +650,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                         group relative rounded-4xl overflow-hidden transition-all duration-500 cursor-pointer
                         ${theme === 'dark' 
                           ? 'bg-[#15093E] border border-[#272261] shadow-[0_20px_40px_rgba(0,0,0,0.3)]' 
-                          : 'bg-[#ffffff] border border-[#8B5CF6]/20 shadow-[0_15px_35px_rgba(139,92,246,0.06)] hover:shadow-[0_25px_50px_rgba(139,92,246,0.12)]'
+                          : 'admin-dashboard-panel-soft border-0'
                         }
                         hover:-translate-y-2
                       `}
@@ -734,7 +733,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                           }`}>
                             {project.title || 'Untitled Project'}
                           </h3>
-                          <p className={`text-[11px] font-bold uppercase tracking-widest mt-1 ${theme === 'dark' ? 'text-[#6F70A8]' : 'text-[#8B5CF6]/70'}`}>
+                          <p className={`text-[11px] font-bold tracking-widest mt-1 ${theme === 'dark' ? 'text-[#6F70A8]' : 'text-[#8B5CF6]/70'}`}>
                             {project.isShared ? `by ${project.ownerName}` : formatEditedDate(project.updatedAt)}
                           </p>
                         </div>
@@ -758,7 +757,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                 <div className="mb-5 flex items-center justify-between">
                   <h3 
                     className={`
-                      text-xs sm:text-sm font-bold tracking-[0.18em] uppercase transition-colors duration-300
+                      text-xs sm:text-sm font-bold tracking-[0.18em] transition-colors duration-300
                       ${theme === 'dark' 
                         ? 'text-[#FFCE00]' 
                         : 'text-[#8B5CF6]' 
@@ -785,8 +784,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                           /* Dark Mode: Original preserved */
                           ${theme === 'dark' 
                             ? 'border-[#272261]/50 bg-[#23164E] hover:border-[#B13BFF] hover:bg-[#2A1756]' 
-                            /* Light Mode: Just a touch lighter, pure warm violet */
-                            : 'border-[#A855F7]/25 bg-linear-to-br from-[#F3E8FF] via-[#E9D5FF] to-[#F5F3FF] hover:bg-[#D8B4FE] hover:border-[#A855F7]/40 shadow-sm'
+                            : 'admin-dashboard-panel border-0'
                           }
                           hover:-translate-y-1 active:scale-95
                         `}

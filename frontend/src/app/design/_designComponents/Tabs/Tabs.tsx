@@ -87,6 +87,10 @@ export const Tabs = ({
     actions: { setProp }
   } = useNode();
 
+  const { linkedNodes } = useNode((node) => ({
+    linkedNodes: (node.data as any)?.linkedNodes as Record<string, string> | undefined,
+  }));
+
   const { enabled } = useEditor((state) => ({
     enabled: state.options.enabled
   }));
@@ -253,32 +257,38 @@ export const Tabs = ({
 
       {/* Tab Content Areas */}
       <div className="tabs-content relative w-full flex-grow min-h-[100px]">
-        {tabs.map((tab) => {
-          const isActive = tab.id === currentActiveTabId;
-          
+        {(() => {
+          const active = tabs.find((t) => t.id === currentActiveTabId) ?? tabs[0];
+          if (!active) return null;
+
+          const computedCanvasId = `tab-content-${active.id}`;
+          const legacyCanvasId =
+            typeof (active as any).content === "string" && String((active as any).content).trim()
+              ? String((active as any).content).trim()
+              : null;
+          const linked = linkedNodes ?? {};
+          const hasLegacy =
+            !!legacyCanvasId &&
+            (linked[legacyCanvasId] === legacyCanvasId ||
+              Object.values(linked).includes(legacyCanvasId) ||
+              Object.keys(linked).includes(legacyCanvasId));
+          const canvasId = hasLegacy ? (legacyCanvasId as string) : computedCanvasId;
+
+          // Mount only the active tab panel to avoid overlapping absolute layers
+          // interfering with Craft.js drop hit-testing.
           return (
-            <div 
-              key={tab.id}
-              style={{ pointerEvents: isActive ? "auto" : "none" }}
-              className={`w-full transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${isActive ? "opacity-100 translate-y-0 relative" : "opacity-0 -translate-y-2 absolute inset-0"}`}
-            >
-              <div
-                className="w-full min-h-[100px] flex flex-col"
-              >
-                <Element id={`tab-content-${tab.id}`} is={TabContent} canvas>
-                  {tab.content}
-                </Element>
-              </div>
+            <div className="w-full min-h-[100px] flex flex-col relative">
+              <Element id={canvasId} is={TabContent} canvas />
             </div>
           );
-        })}
+        })()}
       </div>
     </div>
   );
 };
 
 export const TabsDefaultProps: Partial<TabsProps> = {
-  tabs: [{ id: "tab-1", title: "Tab 1", content: "Tab 1 Content goes here..." }],
+  tabs: [{ id: "tab-1", title: "Tab 1", content: "tab-content-tab-1" }],
   activeTabId: "tab-1",
   tabHeaderBackgroundColor: "#f8fafc", // slate-50
   tabHeaderTextColor: "#64748b",       // slate-500
@@ -300,7 +310,9 @@ Tabs.craft = {
   props: TabsDefaultProps,
   rules: {
     canDrag: () => true,
-    canDrop: () => true,
+    // Tabs itself should not be a drop target; drop into TabContent canvases instead.
+    canDrop: () => false,
+    canMoveIn: () => false,
   },
   related: {
     settings: TabsSettings

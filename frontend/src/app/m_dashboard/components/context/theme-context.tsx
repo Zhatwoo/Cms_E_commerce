@@ -45,13 +45,13 @@ export const THEMES = {
   },
   light: {
     bg: {
-      primary: '#FFFFFF',
-      primaryEnd: '#EAEAEA',
-      dark: '#EAEAEA',
-      card: '#FFFFFF',
-      elevated: '#FFFFFF',
+      primary: '#f5f4ff',
+      primaryEnd: '#dadcff',
+      dark: '#dadcff',
+      card: 'rgba(249, 247, 255, 0.92)',
+      elevated: 'rgba(255, 255, 255, 0.38)',
       fog: '#F4F4F7',
-      sidebar: '#190765',
+      sidebar: 'rgba(255, 255, 255, 0.42)', // Semi-transparent for blur effect
       searchBar: '#F7F7FA',
     },
     text: {
@@ -61,8 +61,8 @@ export const THEMES = {
       subtle: '#B8B2CF',
     },
     border: {
-      default: '#CFC4E5',
-      faint: '#DCD2EE',
+      default: 'rgba(147, 96, 255, 0.18)',
+      faint: 'rgba(147, 96, 255, 0.12)',
     },
     accent: {
       yellow: '#FFCC00',
@@ -93,7 +93,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>('light');
 
   useEffect(() => {
-    const storedTheme = window.sessionStorage.getItem(THEME_STORAGE_KEY);
+    const storedTheme = window.sessionStorage.getItem(THEME_STORAGE_KEY)
+      || window.localStorage.getItem('builder_theme');
     if (storedTheme === 'dark' || storedTheme === 'light') {
       setTheme(storedTheme);
       return;
@@ -109,21 +110,31 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     try {
       window.sessionStorage.setItem(THEME_STORAGE_KEY, theme);
+      // Keep builder theme in sync so the design editor reads the correct initial value
+      window.localStorage.setItem('builder_theme', theme);
     } catch {
-      // ignore sessionStorage errors
+      // ignore storage errors
     }
   }, [theme]);
 
   useEffect(() => {
-    // Inject CSS to disable the default browser fade animation for view transitions.
     const styleId = 'view-transition-style';
     if (document.getElementById(styleId)) return;
 
+    // Keep the old snapshot static (visible) as the background.
+    // The new snapshot expands over it via clip-path circle animation.
+    // This prevents any flash — at all times either old or new is visible.
     const css = `
-      ::view-transition-old(root),
-      ::view-transition-new(root) {
+      ::view-transition-old(root) {
         animation: none;
         mix-blend-mode: normal;
+      }
+      ::view-transition-new(root) {
+        mix-blend-mode: normal;
+        animation: none;
+      }
+      ::view-transition-image-pair(root) {
+        isolation: isolate;
       }
     `;
     const style = document.createElement('style');
@@ -135,6 +146,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const toggleTheme = useCallback((e?: React.MouseEvent) => {
     const newTheme = theme === "dark" ? "light" : "dark";
 
+    // No event, no API, or reduced motion — skip animation
     if (
       !e ||
       !(document as any).startViewTransition ||
@@ -151,18 +163,32 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       Math.max(y, window.innerHeight - y)
     );
 
-    const transition = (document as any).startViewTransition(() => setTheme(newTheme));
-
-    transition.ready.then(() => {
-      const clipPath = [
-        `circle(0px at ${x}px ${y}px)`,
-        `circle(${endRadius}px at ${x}px ${y}px)`,
-      ];
-      document.documentElement.animate(
-        { clipPath },
-        { duration: 1000, easing: 'ease-in-out', pseudoElement: '::view-transition-new(root)' }
-      );
+    const transition = (document as any).startViewTransition(() => {
+      setTheme(newTheme);
     });
+
+    transition.ready
+      .then(() => {
+        // New snapshot (the target theme) expands from the click point over the old snapshot.
+        // Old snapshot stays fully visible underneath — no flash, no blank frame.
+        document.documentElement.animate(
+          {
+            clipPath: [
+              `circle(0px at ${x}px ${y}px)`,
+              `circle(${endRadius}px at ${x}px ${y}px)`,
+            ],
+          },
+          {
+            duration: 600,
+            easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+            pseudoElement: '::view-transition-new(root)',
+            fill: 'forwards',
+          }
+        );
+      })
+      .catch(() => {
+        // Transition was skipped or aborted — state is already set, nothing to do
+      });
   }, [theme]);
 
   return (

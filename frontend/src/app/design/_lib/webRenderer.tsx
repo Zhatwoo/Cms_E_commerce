@@ -1455,6 +1455,11 @@ function PreviewTabs({
       <div className="tabs-content relative w-full flex-grow min-h-[100px] overflow-hidden">
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId;
+          const fallbackId = `tab-content-${tab.id}`;
+          const candidateId =
+            typeof tab?.content === "string" && tab.content.trim() ? tab.content.trim() : fallbackId;
+          const contentNodeId =
+            props.nodes && props.nodes[candidateId] ? candidateId : fallbackId;
           const slotKey = `tab-content-${tab.id}`;
           const contentNodeId = linkedSlotMap[slotKey];
           const contentNode = contentNodeId ? childNodeMap?.[contentNodeId] : undefined;
@@ -1463,11 +1468,33 @@ function PreviewTabs({
               key={tab.id}
               className={`w-full h-full transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${isActive ? "opacity-100 translate-y-0 relative" : "opacity-0 -translate-y-2 absolute inset-0 pointer-events-none"}`}
             >
-              {contentNode ?? (
-                <div className="w-full h-full min-h-[100px] p-6 flex flex-col text-sm whitespace-pre-wrap text-gray-800 leading-relaxed">
-                  {tab.content}
-                </div>
-              )}
+              <div className="w-full h-full min-h-[100px] p-6 flex flex-col text-sm whitespace-pre-wrap text-gray-800 leading-relaxed">
+                {/* Render tab content canvas as nodes */}
+                {props.nodes && props.nodes[contentNodeId] ? (
+                  <RenderNode
+                    node={props.nodes[contentNodeId]}
+                    nodes={props.nodes}
+                    pages={props.pages || []}
+                    pageIndex={props.pageIndex || 0}
+                    viewportWidth={props.viewportWidth || 1200}
+                    interactionState={props.interactionState || {}}
+                    availableTriggerTargets={props.availableTriggerTargets || new Set()}
+                    onToggle={props.onToggle || (() => {})}
+                    storeContext={props.storeContext || null}
+                    nodeId={contentNodeId}
+                    onPrototypeAction={props.onPrototypeAction}
+                    mobileBreakpoint={props.mobileBreakpoint}
+                    enableFormInputs={props.enableFormInputs}
+                    builderParityMode={props.builderParityMode}
+                    renderAllNodes={props.renderAllNodes}
+                    preserveAuthoredPositioning={props.preserveAuthoredPositioning}
+                    layoutReferenceWidth={props.layoutReferenceWidth}
+                    layoutReferenceHeight={props.layoutReferenceHeight}
+                  />
+                ) : (
+                  <span />
+                )}
+              </div>
             </div>
           );
         })}
@@ -3249,14 +3276,7 @@ function RenderNode({
     }
 
     case "Tabs":
-      return wrap(
-        <PreviewTabs
-          props={props}
-          childNodes={children}
-          childNodeIds={childIds}
-          childNodeMap={childNodeMap}
-        />
-      );
+      return wrap(<PreviewTabs props={props} />);
 
     default:
       return <div data-unknown-type={type}>{children}</div>;

@@ -1,8 +1,9 @@
 /**
  * Shared canvas actions: duplicate, copy/paste/cut, group/ungroup.
- * Used by KeyboardShortcuts and filesPanel for Figma-like UX.
+ * Used by KeyboardShortcuts, filesPanel, and CanvasContextMenu for Figma-like UX.
  */
 
+import React from "react";
 import type { NodeSelector } from "@craftjs/core";
 
 /** Minimal query/actions types to avoid @craftjs/core internal type dependency */
@@ -19,6 +20,29 @@ function parsePxValue(value: unknown): number {
     return Number.isFinite(n) ? n : 0;
   }
   return 0;
+}
+
+function getRenderedScale(el: HTMLElement | null): { scaleX: number; scaleY: number } {
+  if (!el) return { scaleX: 1, scaleY: 1 };
+  const rect = el.getBoundingClientRect();
+  const baseWidth = el.offsetWidth || el.clientWidth || 0;
+  const baseHeight = el.offsetHeight || el.clientHeight || 0;
+  const scaleX = baseWidth > 0 ? rect.width / baseWidth : 1;
+  const scaleY = baseHeight > 0 ? rect.height / baseHeight : 1;
+  return {
+    scaleX: Number.isFinite(scaleX) && scaleX > 0.01 ? scaleX : 1,
+    scaleY: Number.isFinite(scaleY) && scaleY > 0.01 ? scaleY : 1,
+  };
+}
+
+function getNodePositionFallback(node: CraftRawNode | undefined): { left: number; top: number; width: number; height: number } | null {
+  if (!node) return null;
+  const props = node.props ?? {};
+  const left = parsePxValue(props.left);
+  const top = parsePxValue(props.top);
+  const width = parsePxValue(props.width);
+  const height = parsePxValue(props.height);
+  return { left, top, width, height };
 }
 type EditorActions = {
   deserialize: (json: string) => void;
@@ -49,15 +73,51 @@ function canonicalResolvedName(rawName: unknown): string {
   const lowered = name.toLowerCase();
   if (lowered === "image") return "Image";
   if (lowered === "text") return "Text";
-  if (lowered === "container") return "Container";
+  if (lowered === "container" || lowered === "group") return "Container";
   if (lowered === "page") return "Page";
   if (lowered === "viewport") return "Viewport";
   if (lowered.includes("image")) return "Image";
   if (lowered.includes("text")) return "Text";
-  if (lowered.includes("container")) return "Container";
+  if (lowered.includes("container") || lowered.includes("group")) return "Container";
   if (lowered.includes("page")) return "Page";
   if (lowered.includes("viewport")) return "Viewport";
   return name;
+}
+
+/**
+ * Craft.js can serialize in two shapes:
+ * 1) Storage: { id: { type, nodes, props, displayName, parent, ... } }
+ * 2) State:   { id: { type, data: { nodes, props, displayName, parent, ... } } }
+ * Normalize to flat shape so duplicate/paste work correctly.
+ */
+function normalizeParsedToFlat(parsed: Record<string, unknown>): CraftData {
+  const result: CraftData = {};
+  for (const [id, value] of Object.entries(parsed)) {
+    if (!value || typeof value !== "object") continue;
+    const v = value as Record<string, unknown>;
+    const data = v.data as Record<string, unknown> | undefined;
+    const typeObj = (v.type as { resolvedName?: string }) || (data?.type as { resolvedName?: string });
+    const resolvedName =
+      (typeof typeObj?.resolvedName === "string" ? typeObj.resolvedName : null) ??
+      (typeof data?.displayName === "string" ? data.displayName : null) ??
+      (typeof v.displayName === "string" ? v.displayName : null) ??
+      "Unknown";
+    const nodes = (data?.nodes ?? v.nodes) as string[] | undefined;
+    const props = (data?.props ?? v.props) as Record<string, unknown> | undefined;
+    const parent = (data?.parent ?? v.parent) as string | undefined;
+    result[id] = {
+      type: { resolvedName },
+      isCanvas: (v.isCanvas as boolean) ?? false,
+      props: props ?? {},
+      displayName: (data?.displayName as string) ?? (v.displayName as string) ?? resolvedName,
+      custom: (v.custom as Record<string, unknown>) ?? {},
+      parent,
+      hidden: (v.hidden as boolean) ?? false,
+      nodes: Array.isArray(nodes) ? nodes : [],
+      linkedNodes: ((data?.linkedNodes ?? v.linkedNodes) as Record<string, string>) ?? {},
+    };
+  }
+  return result;
 }
 
 function sanitizeCraftData(data: CraftData): CraftData {
@@ -132,7 +192,8 @@ export function duplicateNodes(
   if (nodeIds.length === 0) return [];
   try {
     const serialized = query.serialize();
-    const data: CraftData = JSON.parse(serialized);
+    const parsed = JSON.parse(serialized) as Record<string, unknown>;
+    const data = normalizeParsedToFlat(parsed);
     const existingIds = new Set(Object.keys(data));
     const clonedIds: string[] = [];
 
@@ -237,7 +298,8 @@ export function copySelection(
   if (nodeIds.length === 0) return;
   try {
     const serialized = query.serialize();
-    const full: CraftData = JSON.parse(serialized);
+    const parsed = JSON.parse(serialized) as Record<string, unknown>;
+    const full = normalizeParsedToFlat(parsed);
     const nodeIdsSet = new Set(nodeIds);
     const collectIds = (id: string): string[] => {
       const node = full[id];
@@ -296,7 +358,8 @@ export function pasteClipboard(
 
   try {
     const serialized = query.serialize();
-    const data: CraftData = JSON.parse(serialized);
+    const parsed = JSON.parse(serialized) as Record<string, unknown>;
+    const data = normalizeParsedToFlat(parsed);
     const existingIds = new Set(Object.keys(data));
 
     let targetParentId = options?.parentId;
@@ -480,6 +543,240 @@ function resolvePasteTargetForExternal(state: { nodes: Record<string, any>; even
   return { parentId, atIndex };
 }
 
+// ─── Group / Ungroup (Figma-style) ──────────────────────────────────────────
+
+const UNGROUPABLE_TYPES = new Set([
+  "Container", "Section", "Row", "Column", "Banner", "Frame",
+]);
+
+/**
+ * Group selected nodes into a new Container.
+ * Uses native Craft.js parseReactElement + addNodeTree + move.
+ * `containerComponent` must be the Container React component,
+ * `elementComponent` must be Craft.js `Element`.
+ */
+export function groupSelection(
+  actions: EditorActions & {
+    addNodeTree: (tree: any, parentId: string, index?: number) => void;
+    setProp: (id: string, cb: (props: Record<string, unknown>) => void) => void;
+  },
+  query: EditorQuery & {
+    parseReactElement: (el: React.ReactElement) => { toNodeTree: () => any };
+  },
+  nodeIds: string[],
+  containerComponent: React.ComponentType<any>,
+  elementComponent: React.ComponentType<any>,
+): string | null {
+  if (nodeIds.length < 2) return null;
+  try {
+    const state = query.getState();
+    const parentId = state.nodes[nodeIds[0]]?.data?.parent as string | undefined;
+    if (!parentId || !state.nodes[parentId]) return null;
+
+    const allSameParent = nodeIds.every(
+      (id) => (state.nodes[id]?.data?.parent as string) === parentId,
+    );
+    if (!allSameParent) return null;
+
+    const siblings = (state.nodes[parentId]?.data?.nodes as string[]) ?? [];
+    const indices = nodeIds.map((id) => siblings.indexOf(id)).filter((i) => i >= 0);
+    if (indices.length === 0) return null;
+    const insertIndex = Math.min(...indices);
+
+    const parentNode = state.nodes[parentId];
+    const parentDisplayName = parentNode?.data?.displayName as string | undefined;
+    const parentProps = (parentNode?.data?.props ?? {}) as Record<string, unknown>;
+    const parentDisplay = String(parentProps.display ?? "").toLowerCase();
+    const parentIsFlexOrGrid = parentDisplay === "flex" || parentDisplay === "grid";
+    const parentIsFreeform =
+      parentProps.isFreeform === true ||
+      parentDisplayName === "Page" ||
+      parentDisplayName === "Viewport" ||
+      (!parentIsFlexOrGrid && parentDisplayName === "Frame");
+
+    const parentDom = query.node(parentId).get()?.dom ?? null;
+    const parentRect = parentDom?.getBoundingClientRect() ?? null;
+    const parentScale = getRenderedScale(parentDom);
+
+    const nodeOffsets = new Map<string, { left: number; top: number }>();
+    let minLeft = Number.POSITIVE_INFINITY;
+    let minTop = Number.POSITIVE_INFINITY;
+    let maxRight = Number.NEGATIVE_INFINITY;
+    let maxBottom = Number.NEGATIVE_INFINITY;
+
+    if (parentIsFreeform && parentRect) {
+      nodeIds.forEach((id) => {
+        const nodeDom = query.node(id).get()?.dom ?? null;
+        if (nodeDom) {
+          const rect = nodeDom.getBoundingClientRect();
+          const left = (rect.left - parentRect.left) / parentScale.scaleX;
+          const top = (rect.top - parentRect.top) / parentScale.scaleY;
+          const width = rect.width / parentScale.scaleX;
+          const height = rect.height / parentScale.scaleY;
+          nodeOffsets.set(id, { left, top });
+          minLeft = Math.min(minLeft, left);
+          minTop = Math.min(minTop, top);
+          maxRight = Math.max(maxRight, left + width);
+          maxBottom = Math.max(maxBottom, top + height);
+          return;
+        }
+
+        const fallback = getNodePositionFallback(state.nodes[id]?.data as CraftRawNode | undefined);
+        if (fallback) {
+          const left = fallback.left;
+          const top = fallback.top;
+          const width = fallback.width;
+          const height = fallback.height;
+          nodeOffsets.set(id, { left, top });
+          minLeft = Math.min(minLeft, left);
+          minTop = Math.min(minTop, top);
+          maxRight = Math.max(maxRight, left + width);
+          maxBottom = Math.max(maxBottom, top + height);
+        }
+      });
+    }
+
+    const groupEl = React.createElement(
+      elementComponent,
+      {
+        is: containerComponent,
+        canvas: true,
+        background: "transparent",
+        padding: 0,
+        width: "fit-content",
+        height: "fit-content",
+        display: parentIsFreeform ? "block" : "flex",
+        flexDirection: parentIsFreeform ? undefined : "column",
+        position: "relative",
+      },
+    );
+
+    const tree = query.parseReactElement(groupEl).toNodeTree();
+    const groupNodeId: string = tree.rootNodeId;
+
+    actions.addNodeTree(tree, parentId, insertIndex);
+
+    const sorted = [...nodeIds].sort(
+      (a, b) => siblings.indexOf(a) - siblings.indexOf(b),
+    );
+    for (let i = 0; i < sorted.length; i++) {
+      try {
+        if (actions.move) actions.move(sorted[i], groupNodeId, i);
+      } catch {
+        /* skip */
+      }
+    }
+
+    if (parentIsFreeform && nodeOffsets.size > 0 && Number.isFinite(minLeft) && Number.isFinite(minTop)) {
+      const width = Math.max(1, Math.round(maxRight - minLeft));
+      const height = Math.max(1, Math.round(maxBottom - minTop));
+      const left = Math.round(minLeft);
+      const top = Math.round(minTop);
+
+      actions.setProp(groupNodeId, (props: Record<string, unknown>) => {
+        props.position = "relative";
+        props.top = `${top}px`;
+        props.left = `${left}px`;
+        props.right = "auto";
+        props.bottom = "auto";
+        props.width = `${width}px`;
+        props.height = `${height}px`;
+        props.display = "block";
+        props.padding = 0;
+        props.paddingTop = 0;
+        props.paddingRight = 0;
+        props.paddingBottom = 0;
+        props.paddingLeft = 0;
+        props.marginTop = 0;
+        props.marginRight = 0;
+        props.marginBottom = 0;
+        props.marginLeft = 0;
+      });
+
+      sorted.forEach((id) => {
+        const offset = nodeOffsets.get(id);
+        if (!offset) return;
+        const nextLeft = Math.round(offset.left - minLeft);
+        const nextTop = Math.round(offset.top - minTop);
+        actions.setProp(id, (props: Record<string, unknown>) => {
+          props.position = "absolute";
+          props.left = `${nextLeft}px`;
+          props.top = `${nextTop}px`;
+          props.right = "auto";
+          props.bottom = "auto";
+          props.marginTop = 0;
+          props.marginLeft = 0;
+        });
+      });
+    }
+
+    actions.selectNode(groupNodeId);
+    return groupNodeId;
+  } catch (e) {
+    console.warn("groupSelection failed:", e);
+    return null;
+  }
+}
+
+/**
+ * Ungroup: move children of the selected container out to its parent,
+ * preserving order, then delete the empty container.
+ */
+export function ungroupSelection(
+  actions: EditorActions & {
+    setProp: (id: string, cb: (props: Record<string, unknown>) => void) => void;
+  },
+  query: EditorQuery,
+  nodeIds: string[],
+): string[] {
+  if (nodeIds.length !== 1) return [];
+  const groupId = nodeIds[0];
+  try {
+    const state = query.getState();
+    const groupNode = state.nodes[groupId];
+    if (!groupNode) return [];
+
+    const displayName = groupNode.data?.displayName as string | undefined;
+    if (!displayName || !UNGROUPABLE_TYPES.has(displayName)) return [];
+
+    const parentId = groupNode.data?.parent as string | undefined;
+    if (!parentId || !state.nodes[parentId]) return [];
+
+    const childIds = (groupNode.data?.nodes as string[]) ?? [];
+    if (childIds.length === 0) return [];
+
+    const parentSiblings = (state.nodes[parentId]?.data?.nodes as string[]) ?? [];
+    let insertIndex = parentSiblings.indexOf(groupId);
+    if (insertIndex < 0) insertIndex = parentSiblings.length;
+
+    const movedIds: string[] = [];
+    for (let i = 0; i < childIds.length; i++) {
+      try {
+        if (actions.move) {
+          actions.move(childIds[i], parentId, insertIndex + i);
+          movedIds.push(childIds[i]);
+        }
+      } catch {
+        /* skip */
+      }
+    }
+
+    try {
+      actions.delete(groupId);
+    } catch {
+      /* skip */
+    }
+
+    if (movedIds.length > 0) {
+      actions.selectNode(movedIds.length === 1 ? movedIds[0] : movedIds);
+    }
+    return movedIds;
+  } catch (e) {
+    console.warn("ungroupSelection failed:", e);
+    return [];
+  }
+}
+
 /** Cut = copy then delete selected. */
 export function cutSelection(
   actions: EditorActions,
@@ -532,203 +829,4 @@ export function pasteToReplaceSelection(
   }
   if (deletable.length > 0) actions.delete(deletable.length === 1 ? deletable[0] : deletable);
   return pasted;
-}
-
-/** Recursively collect all descendant ids. */
-function getDescendantIds(data: CraftData, nodeId: string): string[] {
-  const node = data[nodeId];
-  if (!node) return [];
-  const out: string[] = [nodeId];
-  for (const c of getChildIds(node)) out.push(...getDescendantIds(data, c));
-  return out;
-}
-
-/** Group selected nodes (same parent) into a new Container. Returns new container id or null. */
-export function groupSelection(
-  actions: EditorActions,
-  query: EditorQuery,
-  nodeIds: string[]
-): string | null {
-  if (nodeIds.length === 0) return null;
-  try {
-    const state = query.getState();
-    const parentId = state.nodes[nodeIds[0]]?.data?.parent as string | undefined;
-    if (!parentId || !state.nodes[parentId]) return null;
-    for (const id of nodeIds) {
-      if ((state.nodes[id]?.data?.parent as string) !== parentId) return null;
-    }
-
-    const serialized = query.serialize();
-    const data: CraftData = JSON.parse(serialized);
-    const existingIds = new Set(Object.keys(data));
-    const containerId = generateId(existingIds);
-
-    const parentNode = data[parentId];
-    const siblings = [...getChildIds(parentNode)];
-    const firstIndex = siblings.indexOf(nodeIds[0]);
-    if (firstIndex === -1) return null;
-
-    let minLeft = Infinity, minTop = Infinity, maxRight = -Infinity, maxBottom = -Infinity;
-    let hasDOM = false;
-    let parentScaleX = 1, parentScaleY = 1;
-    let parentRect: DOMRect | null = null;
-    let parentDom: HTMLElement | null = null;
-
-    try {
-      parentDom = query.node(parentId).get()?.dom ?? null;
-      if (parentDom) {
-        parentRect = parentDom.getBoundingClientRect();
-        const pw = parentDom.offsetWidth || 1;
-        const ph = parentDom.offsetHeight || 1;
-        parentScaleX = parentRect.width / pw;
-        parentScaleY = parentRect.height / ph;
-        if (!Number.isFinite(parentScaleX) || parentScaleX < 0.01) parentScaleX = 1;
-        if (!Number.isFinite(parentScaleY) || parentScaleY < 0.01) parentScaleY = 1;
-      }
-    } catch { }
-
-    const childRects = new Map<string, DOMRect>();
-    for (const id of nodeIds) {
-      try {
-        const dom = query.node(id).get()?.dom;
-        if (dom) {
-          const rect = dom.getBoundingClientRect();
-          childRects.set(id, rect);
-          minLeft = Math.min(minLeft, rect.left);
-          minTop = Math.min(minTop, rect.top);
-          maxRight = Math.max(maxRight, rect.right);
-          maxBottom = Math.max(maxBottom, rect.bottom);
-          hasDOM = true;
-        }
-      } catch { }
-    }
-
-    let groupLeft = 0;
-    let groupTop = 0;
-    let groupWidth: string | number = "auto";
-    let groupHeight: string | number = "auto";
-
-    if (hasDOM && parentRect) {
-      groupLeft = Math.round((minLeft - parentRect.left) / parentScaleX);
-      groupTop = Math.round((minTop - parentRect.top) / parentScaleY);
-      groupWidth = Math.round((maxRight - minLeft) / parentScaleX);
-      groupHeight = Math.round((maxBottom - minTop) / parentScaleY);
-    }
-
-    const containerNode: CraftRawNode = {
-      type: { resolvedName: "Container" },
-      isCanvas: true,
-      props: { 
-        padding: 0, 
-        background: "transparent",
-        position: "absolute",
-        top: `${groupTop}px`,
-        left: `${groupLeft}px`,
-        width: typeof groupWidth === "number" ? `${groupWidth}px` : groupWidth,
-        height: typeof groupHeight === "number" ? `${groupHeight}px` : groupHeight,
-      },
-      displayName: "Group",
-      custom: {},
-      parent: parentId,
-      hidden: false,
-      nodes: [],
-      linkedNodes: {},
-    };
-    data[containerId] = containerNode;
-
-    const toMove = nodeIds.filter((id) => data[id]);
-    const newContainerChildren: string[] = [];
-    for (const id of toMove) {
-      const idx = siblings.indexOf(id);
-      if (idx !== -1) {
-        siblings.splice(idx, 1);
-        newContainerChildren.push(id);
-        data[id].parent = containerId;
-
-        const props = data[id].props ?? {};
-        if (hasDOM && childRects.has(id)) {
-           const r = childRects.get(id)!;
-           const childLeft = Math.round((r.left - minLeft) / parentScaleX);
-           const childTop = Math.round((r.top - minTop) / parentScaleY);
-           props.position = "absolute";
-           props.left = `${childLeft}px`;
-           props.top = `${childTop}px`;
-           props.marginTop = 0;
-           props.marginLeft = 0;
-           props.right = "auto";
-           props.bottom = "auto";
-        } else {
-           const oldLeft = parsePxValue(props.left);
-           const oldTop = parsePxValue(props.top);
-           props.left = `${oldLeft - groupLeft}px`;
-           props.top = `${oldTop - groupTop}px`;
-        }
-        data[id].props = props;
-      }
-    }
-    containerNode.nodes = newContainerChildren;
-    siblings.splice(firstIndex, 0, containerId);
-    parentNode.nodes = siblings;
-
-    actions.deserialize(JSON.stringify(sanitizeCraftData(data)));
-    actions.selectNode(containerId);
-    return containerId;
-  } catch (e) {
-    console.warn("groupSelection failed:", e);
-    return null;
-  }
-}
-
-/** Ungroup: selected must be a single Container; its children move to container's parent. */
-export function ungroupSelection(
-  actions: EditorActions,
-  query: EditorQuery,
-  nodeIds: string[]
-): string[] {
-  if (nodeIds.length !== 1) return [];
-  const containerId = nodeIds[0];
-  try {
-    const state = query.getState();
-    const node = state.nodes[containerId];
-    const displayName = node?.data?.displayName as string | undefined;
-    if (displayName !== "Container" && displayName !== "Group") return [];
-
-    const serialized = query.serialize();
-    const data: CraftData = JSON.parse(serialized);
-    const container = data[containerId];
-    if (!container) return [];
-    const parentId = container.parent;
-    if (!parentId || !data[parentId]) return [];
-
-    const parentNode = data[parentId];
-    const siblings = [...getChildIds(parentNode)];
-    const containerIndex = siblings.indexOf(containerId);
-    if (containerIndex === -1) return [];
-
-    const children = getChildIds(container);
-    siblings.splice(containerIndex, 1, ...children);
-    parentNode.nodes = siblings;
-
-    const containerLeft = parsePxValue(container.props.left);
-    const containerTop = parsePxValue(container.props.top);
-
-    for (const childId of children) {
-      const child = data[childId];
-      if (child) {
-        child.parent = parentId;
-        const childLeft = parsePxValue(child.props.left);
-        const childTop = parsePxValue(child.props.top);
-        child.props.left = `${childLeft + containerLeft}px`;
-        child.props.top = `${childTop + containerTop}px`;
-      }
-    }
-    delete data[containerId];
-
-    actions.deserialize(JSON.stringify(sanitizeCraftData(data)));
-    actions.selectNode(children.length === 1 ? children[0] : children);
-    return children;
-  } catch (e) {
-    console.warn("ungroupSelection failed:", e);
-    return [];
-  }
 }

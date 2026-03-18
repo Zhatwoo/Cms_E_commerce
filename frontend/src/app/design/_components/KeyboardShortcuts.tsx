@@ -1,7 +1,5 @@
-"use client";
-
-import { useEffect, useRef } from "react";
-import { useEditor } from "@craftjs/core";
+import { useEffect } from "react";
+import { useEditor, Element } from "@craftjs/core";
 import {
   selectedToIds,
   duplicateNodes,
@@ -9,10 +7,11 @@ import {
   pasteClipboard,
   pasteToReplaceSelection,
   cutSelection,
+  getClipboard,
   groupSelection,
   ungroupSelection,
-  getClipboard,
 } from "../_lib/canvasActions";
+import { Container } from "../_designComponents/Container/Container";
 
 const STORAGE_KEY = "craftjs_preview_json";
 
@@ -308,24 +307,6 @@ export const KeyboardShortcuts = () => {
         return;
       }
 
-      // ── Group: Cmd/Ctrl + G ──
-      if (ctrl && !e.shiftKey && key === "g") {
-        e.preventDefault();
-        const state = query.getState();
-        const ids = selectedToIds(state.events.selected);
-        groupSelection(actions as any, query as any, ids);
-        return;
-      }
-
-      // ── Ungroup: Cmd/Ctrl + Shift + G ──
-      if (ctrl && e.shiftKey && key === "g") {
-        e.preventDefault();
-        const state = query.getState();
-        const ids = selectedToIds(state.events.selected);
-        ungroupSelection(actions as any, query as any, ids);
-        return;
-      }
-
       // ── Paste to replace: Shift + Cmd/Ctrl + R ──
       if (ctrl && e.shiftKey && key === "r") {
         e.preventDefault();
@@ -334,6 +315,28 @@ export const KeyboardShortcuts = () => {
         const clip = getClipboard();
         if (ids.length === 1 && clip && clip.nodeIds.length > 0) {
           pasteToReplaceSelection(actions as any, query as any, ids);
+        }
+        return;
+      }
+
+      // ── Group: Cmd/Ctrl + G ──
+      if (ctrl && !e.shiftKey && key === "g") {
+        e.preventDefault();
+        const state = query.getState();
+        const ids = selectedToIds(state.events.selected);
+        if (ids.length >= 2) {
+          groupSelection(actions as any, query as any, ids, Container, Element);
+        }
+        return;
+      }
+
+      // ── Ungroup: Shift + Cmd/Ctrl + G ──
+      if (ctrl && e.shiftKey && key === "g") {
+        e.preventDefault();
+        const state = query.getState();
+        const ids = selectedToIds(state.events.selected);
+        if (ids.length === 1) {
+          ungroupSelection(actions as any, query as any, ids);
         }
         return;
       }
