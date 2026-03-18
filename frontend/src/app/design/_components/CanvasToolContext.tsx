@@ -1,13 +1,14 @@
-"use client";
-
 import React, { createContext, useContext, useState } from "react";
 import type { CanvasTool, ShapeType } from "./BottomPanel";
+import { SnapGuide } from "./snapUtils";
 
 type CanvasToolContextValue = {
     activeTool: CanvasTool;
     setActiveTool: (tool: CanvasTool) => void;
     activeShape: ShapeType;
     setActiveShape: (shape: ShapeType) => void;
+    snapGuides: SnapGuide[];
+    setSnapGuides: (guides: SnapGuide[]) => void;
 };
 
 const CanvasToolContext = createContext<CanvasToolContextValue | null>(null);
@@ -28,6 +29,7 @@ export const CanvasToolProvider = ({
     onToolChange: (tool: CanvasTool) => void;
 }) => {
     const [activeShape, setActiveShape] = useState<ShapeType>("Square");
+    const [snapGuides, setSnapGuides] = useState<SnapGuide[]>([]);
 
     return (
         <CanvasToolContext.Provider
@@ -35,10 +37,13 @@ export const CanvasToolProvider = ({
                 activeTool: value,
                 setActiveTool: onToolChange,
                 activeShape,
-                setActiveShape
+                setActiveShape,
+                snapGuides,
+                setSnapGuides
             }}
         >
             {children}
         </CanvasToolContext.Provider>
     );
 };
+

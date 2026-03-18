@@ -114,7 +114,6 @@ export function buildCraftResolver(): Resolver {
 <<<<<<<<< Temporary merge branch 1
   const RatingComp = asComponent(Rating, ContainerComp);
   const BooleanFieldComp = asComponent(BooleanField, ContainerComp);
-  const IconRowComp = asComponent(IconRow, ContainerComp);
   const base: Resolver = {
     Container: ContainerComp,
     container: ContainerComp,
@@ -182,6 +181,20 @@ export function buildCraftResolver(): Resolver {
   base.text = TextComp;
   base.Container = ContainerComp;
   base.container = ContainerComp;
+  addAliases(base, "Button", ButtonComp);
+  addAliases(base, "Divider", DividerComp);
+  addAliases(base, "Banner", BannerComp);
+  addAliases(base, "Badge", BadgeComp);
+  addAliases(base, "Pagination", PaginationComp);
+  addAliases(base, "BooleanField", BooleanFieldComp, [
+    "Boolean Field",
+    "boolean field",
+    "Checkbox",
+    "checkbox",
+    "CheckBox",
+    "Radio",
+    "radio",
+  ]);
   return base;
 }
 

@@ -109,14 +109,14 @@ export const VideoSettings = () => {
                 <div className="flex flex-col gap-3">
                     {/* Source URL */}
                     <div className="flex flex-col gap-1">
-                        <label className="text-[10px] text-brand-lighter">Source URL</label>
+                        <label className="text-[10px] text-[var(--builder-text)]">Source URL</label>
                         <div className="flex gap-2">
                             <input
                                 type="text"
                                 value={src}
                                 onChange={(e) => typedSetProp((props) => { props.src = e.target.value; })}
                                 placeholder="https://example.com/video.mp4"
-                                className="flex-1 bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-2 focus:outline-none focus:border-brand-light"
+                                className="flex-1 bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
                             />
                             <input
                                 ref={fileInputRef}
@@ -129,13 +129,13 @@ export const VideoSettings = () => {
                                 type="button"
                                 onClick={handleBrowseClick}
                                 disabled={uploading}
-                                className="px-3 py-2 bg-brand-medium/30 hover:bg-brand-medium/50 border border-brand-medium/30 rounded-md transition-colors flex items-center justify-center disabled:opacity-50"
+                                className="px-3 py-2 bg-[var(--builder-surface-3)] hover:bg-[var(--builder-surface-3)] border border-[var(--builder-border)] rounded-md transition-colors flex items-center justify-center disabled:opacity-50"
                                 title="Browse files"
                             >
                                 {uploading ? (
-                                    <Loader2 className="w-4 h-4 text-brand-light animate-spin" />
+                                    <Loader2 className="w-4 h-4 text-[var(--builder-text-muted)] animate-spin" />
                                 ) : (
-                                    <Upload className="w-4 h-4 text-brand-light" />
+                                    <Upload className="w-4 h-4 text-[var(--builder-text-muted)]" />
                                 )}
                             </button>
                             {src && (
@@ -151,13 +151,13 @@ export const VideoSettings = () => {
                         </div>
                         {uploading && (
                             <div className="mt-1.5 flex flex-col gap-1">
-                                <div className="h-1.5 w-full bg-brand-medium/30 rounded-full overflow-hidden">
+                                <div className="h-1.5 w-full bg-[var(--builder-surface-3)] rounded-full overflow-hidden">
                                     <div
-                                        className="h-full bg-brand-light/80 rounded-full transition-[width] duration-150"
+                                        className="h-full bg-[var(--builder-accent)] rounded-full transition-[width] duration-150"
                                         style={{ width: `${uploadProgress}%` }}
                                     />
                                 </div>
-                                <p className="text-[10px] text-brand-light">{uploadProgress}% uploaded</p>
+                                <p className="text-[10px] text-[var(--builder-text-muted)]">{uploadProgress}% uploaded</p>
                             </div>
                         )}
                         {uploadError && (
@@ -169,13 +169,13 @@ export const VideoSettings = () => {
 
                     {/* Object Fit */}
                     <div className="flex flex-col gap-1">
-                        <label className="text-[10px] text-brand-lighter">Object Fit</label>
+                        <label className="text-[10px] text-[var(--builder-text)]">Object Fit</label>
                         <select
                             value={objectFit}
                             onChange={(e) => typedSetProp((props) => {
                                 props.objectFit = e.target.value as VideoProps["objectFit"];
                             })}
-                            className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none"
+                            className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
                         >
                             <option value="cover">Cover</option>
                             <option value="contain">Contain</option>
@@ -189,40 +189,40 @@ export const VideoSettings = () => {
 
             <DesignSection title="Playback Settings">
                 <div className="grid grid-cols-2 gap-4">
-                    <div className="flex items-center justify-between p-2 bg-brand-medium-dark/30 rounded-md border border-brand-medium/20">
-                        <span className="text-[10px] text-brand-lighter uppercase tracking-wider">Autoplay</span>
+                    <div className="flex items-center justify-between p-2 bg-[var(--builder-surface-2)]/30 rounded-md border border-[var(--builder-border)]">
+                        <span className="text-[10px] text-[var(--builder-text)] uppercase tracking-wider">Autoplay</span>
                         <input
                             type="checkbox"
                             checked={autoPlay}
                             onChange={(e) => typedSetProp(props => { props.autoPlay = e.target.checked; })}
-                            className="w-3 h-3 accent-brand-light"
+                            className="w-3 h-3 accent-[var(--builder-accent)]"
                         />
                     </div>
-                    <div className="flex items-center justify-between p-2 bg-brand-medium-dark/30 rounded-md border border-brand-medium/20">
-                        <span className="text-[10px] text-brand-lighter uppercase tracking-wider">Loop</span>
+                    <div className="flex items-center justify-between p-2 bg-[var(--builder-surface-2)]/30 rounded-md border border-[var(--builder-border)]">
+                        <span className="text-[10px] text-[var(--builder-text)] uppercase tracking-wider">Loop</span>
                         <input
                             type="checkbox"
                             checked={loop}
                             onChange={(e) => typedSetProp(props => { props.loop = e.target.checked; })}
-                            className="w-3 h-3 accent-brand-light"
+                            className="w-3 h-3 accent-[var(--builder-accent)]"
                         />
                     </div>
-                    <div className="flex items-center justify-between p-2 bg-brand-medium-dark/30 rounded-md border border-brand-medium/20">
-                        <span className="text-[10px] text-brand-lighter uppercase tracking-wider">Muted</span>
+                    <div className="flex items-center justify-between p-2 bg-[var(--builder-surface-2)]/30 rounded-md border border-[var(--builder-border)]">
+                        <span className="text-[10px] text-[var(--builder-text)] uppercase tracking-wider">Muted</span>
                         <input
                             type="checkbox"
                             checked={muted}
                             onChange={(e) => typedSetProp(props => { props.muted = e.target.checked; })}
-                            className="w-3 h-3 accent-brand-light"
+                            className="w-3 h-3 accent-[var(--builder-accent)]"
                         />
                     </div>
-                    <div className="flex items-center justify-between p-2 bg-brand-medium-dark/30 rounded-md border border-brand-medium/20">
-                        <span className="text-[10px] text-brand-lighter uppercase tracking-wider">Controls</span>
+                    <div className="flex items-center justify-between p-2 bg-[var(--builder-surface-2)]/30 rounded-md border border-[var(--builder-border)]">
+                        <span className="text-[10px] text-[var(--builder-text)] uppercase tracking-wider">Controls</span>
                         <input
                             type="checkbox"
                             checked={controls}
                             onChange={(e) => typedSetProp(props => { props.controls = e.target.checked; })}
-                            className="w-3 h-3 accent-brand-light"
+                            className="w-3 h-3 accent-[var(--builder-accent)]"
                         />
                     </div>
                 </div>

@@ -221,7 +221,7 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
                 }}
             >
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-5 border-b border-white/10">
+                <div className="flex items-center justify-between px-6 py-5 border-b border-transparent">
                     <div className="flex items-center gap-3">
                         <div
                             className="p-2 rounded-xl"
@@ -260,7 +260,7 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
                                         placeholder="friend@example.com"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value.toLowerCase())}
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-3.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all"
+                                        className="w-full bg-white/5 border border-transparent rounded-xl py-2.5 pl-10 pr-3.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all"
                                     />
                                 </div>
 
@@ -272,7 +272,7 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
                                             e.stopPropagation();
                                             setPermDropdown(permDropdown === "selector" ? null : "selector");
                                         }}
-                                        className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-medium text-white/70 hover:bg-white/10 transition-colors h-full"
+                                        className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white/5 border border-transparent text-xs font-medium text-white/70 hover:bg-white/10 transition-colors h-full"
                                     >
                                         {PERMISSION_LABELS[role].icon}
                                         <span>{PERMISSION_LABELS[role].label}</span>
@@ -280,7 +280,7 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
                                     </button>
 
                                     {permDropdown === "selector" && (
-                                        <div className="absolute right-0 top-full mt-2 bg-[#1a1a2e] border border-white/10 rounded-xl shadow-2xl z-[110] min-w-[140px] py-1 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                        <div className="absolute right-0 top-full mt-2 bg-[#1a1a2e] border border-transparent rounded-xl shadow-2xl z-[110] min-w-[140px] py-1 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                                             {(["editor", "viewer"] as Permission[]).map((p) => (
                                                 <button
                                                     key={p}
@@ -322,7 +322,7 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
                             )}
                         </form>
                     ) : (
-                        <div className="p-4 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-center">
+                        <div className="p-4 rounded-xl bg-white/5 border border-transparent flex items-center justify-center text-center">
                             <p className="text-xs text-white/40 italic">
                                 Only the project owner can invite new collaborators.
                             </p>
@@ -334,7 +334,7 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
                         <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">
                             General access
                         </label>
-                        <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-transparent">
                             <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0">
                                 {generalAccess === "restricted" ? (
                                     <Lock className="w-4 h-4 text-white/70" />
@@ -358,7 +358,7 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
                                         </button>
 
                                         {permDropdown === "generalAccess" && (
-                                            <div className="absolute left-0 top-full mt-1 bg-[#1a1a2e] border border-white/10 rounded-xl shadow-2xl z-[110] min-w-[200px] py-1">
+                                            <div className="absolute left-0 top-full mt-1 bg-[#1a1a2e] border border-transparent rounded-xl shadow-2xl z-[110] min-w-[200px] py-1">
                                                 <button
                                                     onMouseDown={(e) => {
                                                         e.preventDefault();
@@ -414,7 +414,7 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
                                                 </button>
 
                                                 {permDropdown === "generalAccessRole" && (
-                                                    <div className="absolute left-0 top-full mt-1 bg-[#1a1a2e] border border-white/10 rounded-xl shadow-2xl z-[120] min-w-[120px] py-1">
+                                                    <div className="absolute left-0 top-full mt-1 bg-[#1a1a2e] border border-transparent rounded-xl shadow-2xl z-[120] min-w-[120px] py-1">
                                                         {(["viewer", "editor"] as ("viewer" | "editor")[]).map((r) => (
                                                             <button
                                                                 key={r}
@@ -466,7 +466,7 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
                         <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-1 -mr-1">
                             {/* Owner entry */}
                             {owner && (
-                                <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/5 group ring-1 ring-blue-500/20">
+                                <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.03] border border-transparent group ring-1 ring-blue-500/20">
                                     <div
                                         className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0 shadow-lg"
                                         style={{ background: owner.color || "#6c8fff" }}
@@ -495,7 +495,7 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
                             {collaborators.map((c) => (
                                 <div
                                     key={c.id}
-                                    className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] transition-all group"
+                                    className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.02] border border-transparent hover:bg-white/[0.05] transition-all group"
                                 >
                                     {/* Avatar */}
                                     <div
@@ -534,7 +534,7 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
                                                     <ChevronDown className="w-3 h-3" />
                                                 </button>
                                                 {permDropdown === c.id && (
-                                                    <div className="absolute right-0 top-full mt-1 bg-[#1a1a2e] border border-white/10 rounded-xl shadow-2xl z-[110] min-w-[130px] py-1">
+                                                    <div className="absolute right-0 top-full mt-1 bg-[#1a1a2e] border border-transparent rounded-xl shadow-2xl z-[110] min-w-[130px] py-1">
                                                         {(["editor", "viewer"] as Permission[]).map(p => (
                                                             <button
                                                                 key={p}
@@ -596,7 +596,7 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
                 <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setRemovingCollab(null)} />
                     <div
-                        className="relative w-full max-w-sm bg-[#1a1a2e] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200"
+                        className="relative w-full max-w-sm bg-[#1a1a2e] border border-transparent rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200"
                         style={{
                             background: "linear-gradient(145deg, #1a1a2e 0%, #16213e 100%)",
                         }}
@@ -612,7 +612,7 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
                             <div className="flex gap-3">
                                 <button
                                     onClick={() => setRemovingCollab(null)}
-                                    className="flex-1 px-4 py-2.5 rounded-xl border border-white/10 text-white/60 hover:bg-white/5 transition-colors text-sm font-medium"
+                                    className="flex-1 px-4 py-2.5 rounded-xl border border-transparent text-white/60 hover:bg-white/5 transition-colors text-sm font-medium"
                                 >
                                     Cancel
                                 </button>

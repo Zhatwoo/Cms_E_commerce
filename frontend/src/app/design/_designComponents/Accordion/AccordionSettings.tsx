@@ -184,14 +184,14 @@ export const AccordionSettings = () => {
       <DesignSection title="Items">
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter">Canvas Preview</label>
-            <div className="grid grid-cols-2 gap-1 bg-brand-dark/30 p-1 rounded-lg border border-brand-medium/20">
+            <label className="text-[10px] text-[var(--builder-text)]">Canvas Preview</label>
+            <div className="grid grid-cols-2 gap-1 bg-[var(--builder-surface-2)] p-1 rounded-lg border border-[var(--builder-border)]">
               <button
                 type="button"
                 onClick={() => setProp((props: AccordionStyleProps) => { props.editorPreviewMode = "expand-all"; })}
                 className={`text-[10px] py-1.5 rounded transition-colors ${editorPreviewMode === "expand-all"
-                  ? "bg-brand-medium/50 text-brand-lighter"
-                  : "text-brand-light hover:text-brand-lighter"
+                  ? "bg-[var(--builder-accent)] text-black"
+                  : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
                   }`}
               >
                 Expand
@@ -200,8 +200,8 @@ export const AccordionSettings = () => {
                 type="button"
                 onClick={() => setProp((props: AccordionStyleProps) => { props.editorPreviewMode = "collapse-all"; })}
                 className={`text-[10px] py-1.5 rounded transition-colors ${editorPreviewMode === "collapse-all"
-                  ? "bg-brand-medium/50 text-brand-lighter"
-                  : "text-brand-light hover:text-brand-lighter"
+                  ? "bg-[var(--builder-accent)] text-black"
+                  : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
                   }`}
               >
                 Collapse
@@ -210,9 +210,9 @@ export const AccordionSettings = () => {
           </div>
 
           {safeItems.map((item, index) => (
-            <div key={index} className="flex flex-col gap-1.5 bg-brand-dark/30 rounded-lg p-2 border border-brand-medium/20">
+            <div key={index} className="flex flex-col gap-1.5 bg-[var(--builder-surface-2)] rounded-lg p-2 border border-[var(--builder-border)]">
               <div className="flex items-center justify-between">
-                <span className="text-[9px] font-bold uppercase tracking-widest text-brand-medium">Item {index + 1}</span>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--builder-text-faint)]">Item {index + 1}</span>
                 {safeItems.length > 1 && (
                   <button
                     type="button"
@@ -224,30 +224,30 @@ export const AccordionSettings = () => {
                 )}
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-brand-lighter">Title</label>
+                <label className="text-[10px] text-[var(--builder-text)]">Title</label>
                 <input
                   type="text"
                   value={item.title}
                   onChange={(e) => updateItem(index, "title", e.target.value)}
-                  className="w-full bg-brand-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none focus:border-brand-light/50"
+                  className="w-full bg-[var(--builder-surface-1)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-[var(--builder-accent)]"
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-brand-lighter">Content</label>
+                <label className="text-[10px] text-[var(--builder-text)]">Content</label>
                 <textarea
                   value={item.content}
                   rows={3}
                   onChange={(e) => updateItem(index, "content", e.target.value)}
-                  className="w-full bg-brand-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none focus:border-brand-light/50 resize-none"
+                  className="w-full bg-[var(--builder-surface-1)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-[var(--builder-accent)] resize-none"
                 />
               </div>
 
               <div className="grid grid-cols-1 gap-1">
-                <label className="text-[10px] text-brand-lighter">Media Type</label>
+                <label className="text-[10px] text-[var(--builder-text)]">Media Type</label>
                 <select
                   value={item.mediaType ?? "none"}
                   onChange={(e) => updateItem(index, "mediaType", e.target.value as "none" | "image" | "video")}
-                  className="w-full bg-brand-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none focus:border-brand-light/50"
+                  className="w-full bg-[var(--builder-surface-1)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-[var(--builder-accent)]"
                 >
                   <option value="none">None</option>
                   <option value="image">Image</option>
@@ -257,7 +257,7 @@ export const AccordionSettings = () => {
 
               {(item.mediaType ?? "none") !== "none" && (
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-brand-lighter">
+                  <label className="text-[10px] text-[var(--builder-text)]">
                     {(item.mediaType ?? "none") === "image" ? "Image URL" : "Video URL"}
                   </label>
                   <input
@@ -265,7 +265,7 @@ export const AccordionSettings = () => {
                     value={item.mediaUrl ?? ""}
                     placeholder={(item.mediaType ?? "none") === "image" ? "https://.../image.jpg" : "https://.../video.mp4"}
                     onChange={(e) => updateItem(index, "mediaUrl", e.target.value)}
-                    className="w-full bg-brand-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none focus:border-brand-light/50"
+                    className="w-full bg-[var(--builder-surface-1)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-[var(--builder-accent)]"
                   />
                   <input
                     ref={(el) => { fileInputRefs.current[index] = el; }}
@@ -282,7 +282,7 @@ export const AccordionSettings = () => {
                       type="button"
                       onClick={() => fileInputRefs.current[index]?.click()}
                       disabled={uploadingIndex === index}
-                      className="w-full rounded-md border border-brand-medium/30 bg-brand-dark/40 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-brand-lighter hover:bg-brand-medium/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      className="w-full rounded-md border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
                       {uploadingIndex === index ? "Uploading..." : "Upload"}
                     </button>
@@ -307,7 +307,7 @@ export const AccordionSettings = () => {
             <button
               type="button"
               onClick={addItem}
-              className="flex items-center justify-center gap-2 w-full py-2 rounded-lg border border-dashed border-brand-medium/40 text-[10px] font-bold uppercase tracking-widest text-brand-light hover:text-brand-lighter hover:border-brand-medium/70 transition-colors"
+              className="flex items-center justify-center gap-2 w-full py-2 rounded-lg border border-dashed border-[var(--builder-border)] text-[10px] font-bold uppercase tracking-widest text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:border-[var(--builder-border-mid)] transition-colors"
             >
               <Plus className="w-3 h-3" />
               Add Item
@@ -316,11 +316,11 @@ export const AccordionSettings = () => {
 
           {/* Allow Multiple Toggle */}
           <div className="flex items-center justify-between mt-1">
-            <span className="text-[10px] text-brand-lighter">Allow Multiple Open</span>
+            <span className="text-[10px] text-[var(--builder-text)]">Allow Multiple Open</span>
             <button
               type="button"
               onClick={() => setProp((props: AccordionStyleProps) => { props.allowMultiple = !props.allowMultiple; })}
-              className={`relative w-9 h-5 rounded-full transition-colors ${allowMultiple ? "bg-blue-500" : "bg-brand-medium/40"}`}
+              className={`relative w-9 h-5 rounded-full transition-colors ${allowMultiple ? "bg-blue-500" : "bg-[var(--builder-surface-3)]"}`}
             >
               <span
                 className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${allowMultiple ? "translate-x-[18px]" : "translate-x-0.5"}`}
@@ -329,11 +329,11 @@ export const AccordionSettings = () => {
           </div>
 
           <div className="flex items-center justify-between mt-1">
-            <span className="text-[10px] text-brand-lighter">Allow Collapse All</span>
+            <span className="text-[10px] text-[var(--builder-text)]">Allow Collapse All</span>
             <button
               type="button"
               onClick={() => setProp((props: AccordionStyleProps) => { props.allowCollapseAll = !props.allowCollapseAll; })}
-              className={`relative w-9 h-5 rounded-full transition-colors ${allowCollapseAll !== false ? "bg-blue-500" : "bg-brand-medium/40"}`}
+              className={`relative w-9 h-5 rounded-full transition-colors ${allowCollapseAll !== false ? "bg-blue-500" : "bg-[var(--builder-surface-3)]"}`}
             >
               <span
                 className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${allowCollapseAll !== false ? "translate-x-[18px]" : "translate-x-0.5"}`}
@@ -343,18 +343,18 @@ export const AccordionSettings = () => {
 
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter">Style Preset</label>
+              <label className="text-[10px] text-[var(--builder-text)]">Style Preset</label>
               <select
                 value={stylePreset ?? "wix"}
                 onChange={(e) => setProp((props: AccordionStyleProps) => { props.stylePreset = e.target.value as "classic" | "wix"; })}
-                className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none"
+                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
               >
                 <option value="wix">Wix</option>
                 <option value="classic">Classic</option>
               </select>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter">Default Open Index</label>
+              <label className="text-[10px] text-[var(--builder-text)]">Default Open Index</label>
               <NumericInput
                 value={defaultOpenIndex ?? 0}
                 min={0}
@@ -363,7 +363,7 @@ export const AccordionSettings = () => {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter">Animation (ms)</label>
+              <label className="text-[10px] text-[var(--builder-text)]">Animation (ms)</label>
               <NumericInput
                 value={animationDurationMs ?? 280}
                 min={80}
@@ -381,24 +381,24 @@ export const AccordionSettings = () => {
       <DesignSection title="Header">
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter">Background</label>
+            <label className="text-[10px] text-[var(--builder-text)]">Background</label>
             <ColorPicker value={headerBg ?? "#1e1e2e"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.headerBg = v; })} className="w-full" />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter">Text Color</label>
+            <label className="text-[10px] text-[var(--builder-text)]">Text Color</label>
             <ColorPicker value={headerTextColor ?? "#e2e8f0"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.headerTextColor = v; })} className="w-full" />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter">Font Size</label>
+              <label className="text-[10px] text-[var(--builder-text)]">Font Size</label>
               <NumericInput value={headerFontSize ?? 14} min={8} max={48} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.headerFontSize = v; })} />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter">Weight</label>
+              <label className="text-[10px] text-[var(--builder-text)]">Weight</label>
               <select
                 value={headerFontWeight ?? "600"}
                 onChange={(e) => setProp((p: AccordionStyleProps) => { p.headerFontWeight = e.target.value; })}
-                className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none"
+                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
               >
                 {["400", "500", "600", "700", "800"].map((w) => (
                   <option key={w} value={w}>{w}</option>
@@ -407,7 +407,7 @@ export const AccordionSettings = () => {
             </div>
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter">Icon Color</label>
+            <label className="text-[10px] text-[var(--builder-text)]">Icon Color</label>
             <ColorPicker value={iconColor ?? "#94a3b8"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.iconColor = v; })} className="w-full" />
           </div>
         </div>
@@ -417,15 +417,15 @@ export const AccordionSettings = () => {
       <DesignSection title="Content">
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter">Background</label>
+            <label className="text-[10px] text-[var(--builder-text)]">Background</label>
             <ColorPicker value={contentBg ?? "#12121c"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.contentBg = v; })} className="w-full" />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter">Text Color</label>
+            <label className="text-[10px] text-[var(--builder-text)]">Text Color</label>
             <ColorPicker value={contentTextColor ?? "#a0aec0"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.contentTextColor = v; })} className="w-full" />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter">Font Size</label>
+            <label className="text-[10px] text-[var(--builder-text)]">Font Size</label>
             <NumericInput value={contentFontSize ?? 13} min={8} max={48} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.contentFontSize = v; })} />
           </div>
         </div>
@@ -435,21 +435,21 @@ export const AccordionSettings = () => {
       <DesignSection title="Border & Shape">
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter">Border Color</label>
+            <label className="text-[10px] text-[var(--builder-text)]">Border Color</label>
             <ColorPicker value={borderColor ?? "#2d2d44"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.borderColor = v; })} className="w-full" />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter">Border Width</label>
+              <label className="text-[10px] text-[var(--builder-text)]">Border Width</label>
               <NumericInput value={borderWidth ?? 1} min={0} max={8} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.borderWidth = v; })} />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter">Radius</label>
+              <label className="text-[10px] text-[var(--builder-text)]">Radius</label>
               <NumericInput value={borderRadius ?? 8} min={0} max={32} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.borderRadius = v; })} />
             </div>
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter">Container Background</label>
+            <label className="text-[10px] text-[var(--builder-text)]">Container Background</label>
             <ColorPicker value={backgroundColor ?? "transparent"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.backgroundColor = v; })} className="w-full" />
           </div>
         </div>
@@ -459,11 +459,11 @@ export const AccordionSettings = () => {
       <DesignSection title="Spacing">
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter">Width</label>
+            <label className="text-[10px] text-[var(--builder-text)]">Width</label>
             <select
               value={width ?? "100%"}
               onChange={(e) => setProp((p: AccordionStyleProps) => { p.width = e.target.value; })}
-              className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none"
+              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
             >
               <option value="100%">Full (100%)</option>
               <option value="75%">75%</option>
@@ -472,24 +472,24 @@ export const AccordionSettings = () => {
             </select>
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter">Min Height</label>
+            <label className="text-[10px] text-[var(--builder-text)]">Min Height</label>
             <NumericInput value={minHeight ?? 0} min={0} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.minHeight = v; })} />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter">Margin Top</label>
+              <label className="text-[10px] text-[var(--builder-text)]">Margin Top</label>
               <NumericInput value={marginTop ?? 0} min={0} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.marginTop = v; })} />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter">Margin Bottom</label>
+              <label className="text-[10px] text-[var(--builder-text)]">Margin Bottom</label>
               <NumericInput value={marginBottom ?? 16} min={0} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.marginBottom = v; })} />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter">Margin Left</label>
+              <label className="text-[10px] text-[var(--builder-text)]">Margin Left</label>
               <NumericInput value={marginLeft ?? 0} min={0} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.marginLeft = v; })} />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter">Margin Right</label>
+              <label className="text-[10px] text-[var(--builder-text)]">Margin Right</label>
               <NumericInput value={marginRight ?? 0} min={0} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.marginRight = v; })} />
             </div>
           </div>

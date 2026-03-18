@@ -18,7 +18,15 @@ export const Pagination = ({
     width = "auto",
     height = "auto",
     padding = 0,
+    paddingTop,
+    paddingRight,
+    paddingBottom,
+    paddingLeft,
     margin = 0,
+    marginTop,
+    marginRight,
+    marginBottom,
+    marginLeft,
     color = "#a1a1aa", // text color
     fontSize = 14,
     fontWeight = "400",
@@ -33,10 +41,29 @@ export const Pagination = ({
     borderWidth = 1,
     borderColor = "#3f3f46", // zinc-700 / brand-medium/30
     borderStyle = "solid",
+    position = "relative",
+    top = "auto",
+    right = "auto",
+    bottom = "auto",
+    left = "auto",
+    zIndex = 0,
+    display,
 }: PaginationProps) => {
     const { connectors: { connect, drag } } = useNode();
 
     const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+    const p = typeof padding === "number" ? padding : 0;
+    const pt = paddingTop ?? p;
+    const pr = paddingRight ?? p;
+    const pb = paddingBottom ?? p;
+    const pl = paddingLeft ?? p;
+
+    const m = typeof margin === "number" ? margin : 0;
+    const mt = marginTop ?? m;
+    const mr = marginRight ?? m;
+    const mb = marginBottom ?? m;
+    const ml = marginLeft ?? m;
 
     // Resolve border radius
     const br = borderRadius || 0;
@@ -142,9 +169,22 @@ export const Pagination = ({
             style={{
                 width,
                 height,
-                padding: typeof padding === "number" ? `${padding}px` : padding,
-                margin: typeof margin === "number" ? `${margin}px` : margin,
+                paddingTop: `${pt}px`,
+                paddingRight: `${pr}px`,
+                paddingBottom: `${pb}px`,
+                paddingLeft: `${pl}px`,
+                marginTop: `${mt}px`,
+                marginRight: `${mr}px`,
+                marginBottom: `${mb}px`,
+                marginLeft: `${ml}px`,
                 justifyContent: textAlign === "center" ? "center" : textAlign === "right" ? "flex-end" : "flex-start",
+                position,
+                top: position !== "static" ? top : undefined,
+                right: position !== "static" ? right : undefined,
+                bottom: position !== "static" ? bottom : undefined,
+                left: position !== "static" ? left : undefined,
+                zIndex: zIndex !== 0 ? zIndex : undefined,
+                display: display ?? "inline-flex",
             }}
         >
             {renderContent()}
