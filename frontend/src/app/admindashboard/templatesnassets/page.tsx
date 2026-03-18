@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminSidebar } from '../components/sidebar';
 import { AdminHeader } from '../components/header';
@@ -17,13 +18,22 @@ interface Template {
 }
 
 const SearchIcon = () => (
-  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
   </svg>
 );
 
 export default function TemplatesAssetsPage() {
+  const searchParams = useSearchParams();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'builtin' | 'user'>('builtin');
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'user' || tab === 'builtin') {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
   const [searchQuery, setSearchQuery] = useState('');
 
   const builtInTemplates: Template[] = [];
@@ -44,104 +54,92 @@ export default function TemplatesAssetsPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-100 flex">
-      {/* Desktop Sidebar */}
-      <AdminSidebar />
+    <div className="admin-dashboard-shell flex h-screen overflow-hidden" suppressHydrationWarning>
+      <AdminSidebar forcedActiveItemId="templates" forcedActiveChildId={activeTab === 'builtin' ? 'builtin-templates' : 'user-templates'} />
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-screen">
-        <AdminHeader />
-        <main className="flex-1 overflow-y-auto bg-slate-50">
-          <div className="p-8">
+      <AnimatePresence>
+        {sidebarOpen && (
+          <div className="lg:hidden">
+            <AdminSidebar
+              mobile
+              onClose={() => setSidebarOpen(false)}
+              forcedActiveItemId="templates"
+              forcedActiveChildId={activeTab === 'builtin' ? 'builtin-templates' : 'user-templates'}
+            />
+          </div>
+        )}
+      </AnimatePresence>
+
+      <div className="flex min-h-0 flex-1 flex-col">
+        <AdminHeader onMenuClick={() => setSidebarOpen(true)} />
+        <main className="flex-1 min-h-0 overflow-y-auto">
+          <div className="space-y-6 p-8">
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="space-y-6"
+              transition={{ duration: 0.45 }}
             >
-              {/* Header */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2 }}
-                className="mb-2"
-              >
-                <h1 className="text-3xl font-bold text-gray-900 mb-1">
-                  Templates & Assets Management
-                </h1>
-                <div className="text-sm text-gray-600 mt-1">
-                  Templates & Assets Management &gt; {activeTab === 'builtin' ? 'Built-in Templates' : 'User Templates'}
-                </div>
-              </motion.div>
-
-              {/* Search Bar */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="space-y-4"
-              >
-                <div className="relative max-w-sm">
-                  <input
-                    type="text"
-                    placeholder="Search templates..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-lg shadow-sm text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                    <SearchIcon />
-                  </div>
-                </div>
-
-                {/* Tabs */}
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.4 }}
-                  className="bg-white border border-gray-200 rounded-lg overflow-hidden"
-                >
-                  <div className="flex items-center bg-gray-50 border-b border-gray-200">
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => setActiveTab('builtin')}
-                      className={`py-3 px-6 font-medium transition-all ${
-                        activeTab === 'builtin'
-                          ? 'text-blue-600 bg-white border-b-2 border-blue-600'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                      }`}
-                    >
-                      Built-in Templates
-                    </motion.button>
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => setActiveTab('user')}
-                      className={`py-3 px-6 font-medium transition-all ${
-                        activeTab === 'user'
-                          ? 'text-blue-600 bg-white border-b-2 border-blue-600'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                      }`}
-                    >
-                      User Templates
-                    </motion.button>
-                  </div>
-
-                  <div className="p-6 min-h-[400px]">
-                    <AnimatePresence mode="wait">
-                      {activeTab === 'builtin' && (
-                        <BuiltInTemplates templates={filteredBuiltInTemplates} />
-                      )}
-
-                      {activeTab === 'user' && (
-                        <UserTemplates templates={filteredUserTemplates} />
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </motion.div>
-              </motion.div>
+              <h1 className="mb-2 text-3xl font-bold text-[#B13BFF] sm:text-4xl">Templates &amp; Assets</h1>
+              <p className="text-sm font-medium text-[#A78BFA]">Templates &amp; Assets</p>
             </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, delay: 0.08 }}
+              className="flex flex-wrap items-center gap-3"
+            >
+              <button
+                type="button"
+                className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#FFCC00] text-[#471396] shadow-sm"
+                aria-label="Search templates"
+              >
+                <SearchIcon />
+              </button>
+
+              <div className="min-w-[17rem] flex-1">
+                <input
+                  type="text"
+                  placeholder="Search templates or assets"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  suppressHydrationWarning
+                  className="admin-dashboard-panel-soft h-12 w-full rounded-2xl border border-[rgba(177,59,255,0.29)] bg-[#F5F4FF] px-4 text-sm font-medium text-[#471396] outline-none placeholder:text-[#82788F]"
+                />
+              </div>
+
+              <div className="ml-auto flex gap-1 rounded-xl border border-[rgba(177,59,255,0.29)] bg-[#F5F4FF] p-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('builtin')}
+                  className={`rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors ${
+                    activeTab === 'builtin'
+                      ? 'bg-[#FFCC00] text-[#471396] shadow-sm'
+                      : 'text-[#6F657E] hover:text-[#471396]'
+                  }`}
+                >
+                  Built-in Templates
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('user')}
+                  className={`rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors ${
+                    activeTab === 'user'
+                      ? 'bg-[#FFCC00] text-[#471396] shadow-sm'
+                      : 'text-[#6F657E] hover:text-[#471396]'
+                  }`}
+                >
+                  User Templates
+                </button>
+              </div>
+            </motion.div>
+
+            <div>
+              <AnimatePresence mode="wait">
+                {activeTab === 'builtin' && <BuiltInTemplates templates={filteredBuiltInTemplates} />}
+                {activeTab === 'user' && <UserTemplates templates={filteredUserTemplates} />}
+              </AnimatePresence>
+            </div>
           </div>
         </main>
       </div>
