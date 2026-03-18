@@ -30,9 +30,9 @@ export function LandingHeader({ onAuthClick, isDarkMode = false, onThemeToggle, 
   }, []);
 
   const navLinks = [
-    { label: 'Home', href: '#' },
-    { label: 'About', href: '#' },
-    { label: 'Company', href: '#' },
+    { label: 'Home',    href: '#home' },
+    { label: 'About',   href: '#about' },
+    { label: 'Company', href: '#company' },
   ];
 
   return (

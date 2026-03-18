@@ -9,6 +9,7 @@
   --dur-fast: 220ms;
   --dur-medium: 320ms;
   --dur-slow: 460ms;
+  scroll-behavior: smooth;
 }
 
 :root {
