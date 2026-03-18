@@ -409,10 +409,10 @@ const frameResponsiveStyles = (
           height: auto !important;
         }
 
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: absolute"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:absolute"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: fixed"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:fixed"] {
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: absolute"]:not([data-preserve-position="true"]),
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:absolute"]:not([data-preserve-position="true"]),
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: fixed"]:not([data-preserve-position="true"]),
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:fixed"]:not([data-preserve-position="true"]) {
           position: relative !important;
           left: auto !important;
           right: auto !important;
@@ -448,10 +448,10 @@ const frameResponsiveStyles = (
       }
 
       @container (max-width: 520px) {
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: absolute"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:absolute"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: fixed"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:fixed"] {
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: absolute"]:not([data-preserve-position="true"]),
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:absolute"]:not([data-preserve-position="true"]),
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: fixed"]:not([data-preserve-position="true"]),
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:fixed"]:not([data-preserve-position="true"]) {
           position: relative !important;
           left: auto !important;
           right: auto !important;
@@ -1498,9 +1498,16 @@ function PreviewTabs({
   const br = (props.borderRadius ?? 0) as number;
   const borderColor = (props.borderColor as string) || "transparent";
   const borderWidth = (props.borderWidth ?? 0) as number;
+  const narrowTabsPreview = isNarrowResponsivePreview(
+    toNumber(props.viewportWidth, 1200),
+    Boolean(props.builderParityMode),
+    toNumber(props.mobileBreakpoint, PREVIEW_MOBILE_BREAKPOINT),
+  );
 
   return (
     <div
+      data-fluid-space="true"
+      data-layout="column"
       className="tabs-component w-full flex flex-col"
       style={{
         backgroundColor: (props.background as string) || "transparent",
@@ -1518,6 +1525,7 @@ function PreviewTabs({
         className="tabs-header flex flex-row w-full overflow-x-auto border-b no-scrollbar"
         style={{
           borderColor: borderColor !== "transparent" ? borderColor : "#e5e7eb",
+          flexWrap: narrowTabsPreview ? "wrap" : "nowrap",
           justifyContent:
             props.tabAlignment === "center"
               ? "center"
@@ -1547,8 +1555,11 @@ function PreviewTabs({
                 borderTop: "none",
                 borderLeft: "none",
                 borderRight: "none",
-                padding: "16px 24px",
+                padding: narrowTabsPreview ? "10px 12px" : "16px 24px",
+                fontSize: narrowTabsPreview ? "13px" : undefined,
                 cursor: "pointer",
+                maxWidth: narrowTabsPreview ? "100%" : undefined,
+                minWidth: narrowTabsPreview ? "0" : undefined,
               }}
             >
               {tab.title}
@@ -1557,9 +1568,11 @@ function PreviewTabs({
         })}
       </div>
       {/* Tab content: render actual child nodes from linkedNodes (via linkedSlotMap + childNodeMap) */}
-      <div className="tabs-content relative w-full flex-grow min-h-[100px] overflow-hidden">
+      <div className="tabs-content relative w-full flex-grow min-h-[100px] overflow-visible">
         {(() => {
-          const active = tabs.find((tab) => tab?.id === activeTabId) ?? tabs[0];
+          const activeIndex = tabs.findIndex((tab) => tab?.id === activeTabId);
+          const safeIndex = activeIndex >= 0 ? activeIndex : 0;
+          const active = tabs[safeIndex] ?? tabs[0];
           if (!active) return <span />;
 
           const fallbackId = `tab-content-${active.id}`;
@@ -1567,13 +1580,24 @@ function PreviewTabs({
             typeof active?.content === "string" && active.content.trim() ? active.content.trim() : fallbackId;
           const slotKey = `tab-content-${active.id}`;
           const linkedContentNodeId = linkedSlotMap[slotKey];
+          const indexedChildId = Array.isArray(childNodeIds) ? childNodeIds[safeIndex] : undefined;
+          const candidates = [linkedContentNodeId, candidateId, fallbackId, indexedChildId].filter(
+            (v): v is string => typeof v === "string" && !!v.trim(),
+          );
           const contentNodeId =
-            linkedContentNodeId ||
-            (props.nodes && props.nodes[candidateId] ? candidateId : fallbackId);
+            candidates.find((id) => Boolean(props.nodes && props.nodes[id])) || fallbackId;
 
           return (
-            <div className="w-full h-full transition-all duration-300 ease-out opacity-100 translate-y-0 relative">
-              <div className="w-full h-full min-h-[100px] p-6 flex flex-col text-sm whitespace-pre-wrap text-gray-800 leading-relaxed">
+            <div className="w-full min-h-[100px] transition-all duration-300 ease-out opacity-100 translate-y-0 relative">
+              <div
+                className="w-full min-h-[100px] flex flex-col text-sm whitespace-pre-wrap text-gray-800 leading-relaxed"
+                style={{
+                  padding: narrowTabsPreview ? "12px" : "24px",
+                  maxWidth: "100%",
+                  minWidth: 0,
+                  overflow: "visible",
+                }}
+              >
                 {props.nodes && props.nodes[contentNodeId] ? (
                   <RenderNode
                     node={props.nodes[contentNodeId]}
@@ -1594,6 +1618,8 @@ function PreviewTabs({
                     preserveAuthoredPositioning={props.preserveAuthoredPositioning}
                     layoutReferenceWidth={props.layoutReferenceWidth}
                     layoutReferenceHeight={props.layoutReferenceHeight}
+                    parentType={"Tabs" as ComponentType}
+                    insideTabsContext
                   />
                 ) : (
                   <span />
@@ -2359,7 +2385,9 @@ function RenderNode({
     }
 
     case "BooleanField": {
-      const controlType = (props.controlType as string) === "radio" ? "radio" : "checkbox";
+      const controlTypeRaw = String(props.controlType ?? "checkbox").trim().toLowerCase();
+      const controlType = controlTypeRaw === "radio" ? "radio" : "checkbox";
+      const isRadio = controlType === "radio";
       const disabled = props.disabled === true;
       const labelColor = (props.labelColor as string) || "#000000";
       const gap = toNumber(props.gap, 10);
@@ -2368,6 +2396,7 @@ function RenderNode({
       const fontFamily = (props.fontFamily as string) || "Outfit";
       const fontWeight = (props.fontWeight as string) || "500";
       const showLabels = props.showLabels !== false;
+      const controlSize = isNarrowPreview ? 18 : 16;
       const baseOptions = Array.isArray(props.options) && props.options.length > 0
         ? props.options
         : [
@@ -2430,7 +2459,7 @@ function RenderNode({
         >
           {baseOptions.map((opt: any, idx: number) => {
             const checked =
-              controlType === "radio"
+              isRadio
                 ? Boolean(opt.checked) && !baseOptions.some((o: any, i: number) => i < idx && o.checked)
                 : Boolean(opt.checked);
 
@@ -2454,13 +2483,20 @@ function RenderNode({
                   defaultChecked={checked}
                   readOnly={!enableFormInputs}
                   className="h-4 w-4 accent-brand-blue"
-                  style={{ flexShrink: 0, marginTop: isNarrowPreview ? "2px" : undefined }}
+                  style={{
+                    flexShrink: 0,
+                    width: `${controlSize}px`,
+                    height: `${controlSize}px`,
+                    minWidth: `${controlSize}px`,
+                    minHeight: `${controlSize}px`,
+                    marginTop: isNarrowPreview ? "2px" : undefined,
+                  }}
                 />
                 {showLabels && (
                   <span
                     style={{
                       color: labelColor,
-                      fontSize: fluidFont(fontSize, 12, 3, useFixedPx),
+                      fontSize: fluidFont(fontSize, isNarrowPreview ? 13 : 12, isNarrowPreview ? 3.6 : 3, useFixedPx),
                       fontFamily,
                       fontWeight,
                       lineHeight: 1.35,
@@ -2854,7 +2890,8 @@ function RenderNode({
     case "Rating": {
       const value = Math.max(0, toNumber(props.value, 4.2));
       const max = Math.max(1, Math.round(toNumber(props.max, 5)));
-      const size = Math.max(10, toNumber(props.size, 24));
+      const baseSize = Math.max(10, toNumber(props.size, 24));
+      const size = isNarrowPreview ? Math.max(12, Math.min(baseSize, 22)) : baseSize;
       const gap = Math.max(0, toNumber(props.gap, 8));
       const filledColor = (props.filledColor as string) || "#f7c200";
       const emptyColor = (props.emptyColor as string) || "#6b6b6b";
@@ -2862,17 +2899,20 @@ function RenderNode({
 
       return wrap(
         <div
+          data-fluid-space="true"
+          data-layout="row"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
-            display: "inline-flex",
+            display: "flex",
             alignItems: "center",
+            flexWrap: isNarrowPreview ? "wrap" : "nowrap",
             gap: `${Math.max(0, toNumber(props.valueGap, 8))}px`,
-            width: normalizeLayoutWidthForNarrow(props.width, isNarrowPreview, builderParityMode) || undefined,
+            width: normalizeLayoutWidthForNarrow(props.width, isNarrowPreview, builderParityMode) || (isNarrowPreview ? "100%" : undefined),
             maxWidth: "100%",
             minWidth: 0,
           }}
         >
-          <div style={{ display: "inline-flex", alignItems: "center", gap: `${gap}px` }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: `${gap}px`, flexWrap: "wrap", maxWidth: "100%" }}>
             {Array.from({ length: max }).map((_, index) => {
               const fillRatio = Math.max(0, Math.min(1, value - index));
               return (
@@ -2880,7 +2920,7 @@ function RenderNode({
                   <svg viewBox="0 0 24 24" width={size} height={size} style={{ display: "block" }}>
                     <path fill={emptyColor} d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
                   </svg>
-                  <span style={{ position: "absolute", inset: 0, overflow: "hidden", width: `${fillRatio * 100}%` }}>
+                  <span data-preserve-position="true" style={{ position: "absolute", inset: 0, overflow: "hidden", width: `${fillRatio * 100}%` }}>
                     <svg viewBox="0 0 24 24" width={size} height={size} style={{ display: "block" }}>
                       <path fill={filledColor} d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
                     </svg>
@@ -3434,8 +3474,14 @@ function RenderNode({
     case "Tabs": {
       const tabs = Array.isArray(props.tabs) ? (props.tabs as Array<{ id?: string; content?: unknown }>) : [];
       const linkedSlotMap: Record<string, string> = {};
+      const tabContentChildIds = childIds.filter((id) => {
+        const child = nodes[id];
+        const childType = String(child?.type || "").toLowerCase();
+        return childType === "tabcontent" || childType === "tab-content" || childType === "tab content";
+      });
 
-      for (const tab of tabs) {
+      for (let index = 0; index < tabs.length; index += 1) {
+        const tab = tabs[index];
         const tabId = typeof tab?.id === "string" ? tab.id.trim() : "";
         if (!tabId) continue;
 
@@ -3444,7 +3490,8 @@ function RenderNode({
           typeof tab?.content === "string" && tab.content.trim() ? tab.content.trim() : fallbackId;
         const resolvedId =
           (nodes[candidateId] ? candidateId : undefined) ||
-          (nodes[fallbackId] ? fallbackId : undefined);
+          (nodes[fallbackId] ? fallbackId : undefined) ||
+          (tabContentChildIds[index] && nodes[tabContentChildIds[index]] ? tabContentChildIds[index] : undefined);
 
         if (resolvedId) {
           linkedSlotMap[`tab-content-${tabId}`] = resolvedId;
@@ -3476,7 +3523,7 @@ function RenderNode({
         <PreviewTabs
           props={previewTabsProps}
           childNodes={children}
-          childNodeIds={childIds}
+          childNodeIds={tabContentChildIds.length > 0 ? tabContentChildIds : childIds}
           childNodeMap={childNodeMap}
         />
       );

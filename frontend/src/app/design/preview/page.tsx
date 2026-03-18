@@ -65,17 +65,68 @@ function PreviewRoot({ children }: { children?: React.ReactNode }) {
   );
 }
 
+const SAFE_PREVIEW_CONTAINER: React.ComponentType<any> =
+  (typeof (CRAFT_RESOLVER as Record<string, unknown>).Container === "function"
+    ? ((CRAFT_RESOLVER as Record<string, unknown>).Container as React.ComponentType<any>)
+    : null) ??
+  ((props: any) => React.createElement("div", props, props?.children));
+
+const asComponent = (value: unknown): React.ComponentType<any> =>
+  typeof value === "function" ? (value as React.ComponentType<any>) : SAFE_PREVIEW_CONTAINER;
+
+function withResolverFallback<T extends Record<string, React.ComponentType<any>>>(base: T): T {
+  return new Proxy(base, {
+    get(target, prop, receiver) {
+      const direct = Reflect.get(target, prop, receiver);
+      if (direct) return direct;
+      if (typeof prop !== "string") return direct;
+
+      const normalized = prop.trim().toLowerCase();
+      const resolved =
+        Reflect.get(target, prop.trim(), receiver) ||
+        Reflect.get(target, normalized, receiver) ||
+        Reflect.get(target, normalized.charAt(0).toUpperCase() + normalized.slice(1), receiver);
+
+      return resolved || target.Container || SAFE_PREVIEW_CONTAINER;
+    },
+    has(target, prop) {
+      if (Reflect.has(target, prop)) return true;
+      if (typeof prop !== "string") {
+        return Reflect.has(target, "Container") || Reflect.has(target, "container");
+      }
+
+      const normalized = prop.trim().toLowerCase();
+      if (Reflect.has(target, normalized)) return true;
+
+      const canonical = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+      if (Reflect.has(target, canonical)) return true;
+
+      return Reflect.has(target, "Container") || Reflect.has(target, "container");
+    },
+  }) as T;
+}
+
 // Craft validates resolver membership eagerly; ensure PreviewRoot exists as a real key.
-const PREVIEW_CRAFT_RESOLVER = {
+const PREVIEW_CRAFT_RESOLVER = withResolverFallback({
   ...CRAFT_RESOLVER,
-  PreviewRoot,
-  previewroot: PreviewRoot,
-  PREVIEWROOT: PreviewRoot,
+  BooleanField: asComponent((CRAFT_RESOLVER as Record<string, unknown>).BooleanField),
+  booleanfield: asComponent((CRAFT_RESOLVER as Record<string, unknown>).booleanfield),
+  BOOLEANFIELD: asComponent((CRAFT_RESOLVER as Record<string, unknown>).BOOLEANFIELD),
+  "Boolean Field": asComponent((CRAFT_RESOLVER as Record<string, unknown>)["Boolean Field"]),
+  "boolean field": asComponent((CRAFT_RESOLVER as Record<string, unknown>)["boolean field"]),
+  Checkbox: asComponent((CRAFT_RESOLVER as Record<string, unknown>).Checkbox),
+  checkbox: asComponent((CRAFT_RESOLVER as Record<string, unknown>).checkbox),
+  CheckBox: asComponent((CRAFT_RESOLVER as Record<string, unknown>).CheckBox),
+  Radio: asComponent((CRAFT_RESOLVER as Record<string, unknown>).Radio),
+  radio: asComponent((CRAFT_RESOLVER as Record<string, unknown>).radio),
+  PreviewRoot: asComponent(PreviewRoot),
+  previewroot: asComponent(PreviewRoot),
+  PREVIEWROOT: asComponent(PreviewRoot),
 } as typeof CRAFT_RESOLVER & {
   PreviewRoot: typeof PreviewRoot;
   previewroot: typeof PreviewRoot;
   PREVIEWROOT: typeof PreviewRoot;
-};
+});
 
 function PreviewRenderNode(props: { render: React.ReactElement }) {
   return props.render;
@@ -114,6 +165,7 @@ function canonicalResolvedName(rawName: unknown): string {
   if (lowered.includes("banner")) return "Banner";
   if (lowered.includes("badge")) return "Badge";
   if (lowered.includes("pagination")) return "Pagination";
+  if (lowered.includes("boolean") || lowered.includes("checkbox") || lowered.includes("radio")) return "BooleanField";
   if (lowered.includes("accordion")) return "Accordion";
   if (lowered.includes("viewport")) return "Viewport";
   if (lowered.includes("page")) return "Page";
@@ -234,7 +286,16 @@ function normalizeCraftToStorageShape(raw: string): string {
       root.type &&
       typeof root.type === "object" &&
       typeof root.type.resolvedName === "string";
-    if (alreadyStorage) return raw;
+    if (alreadyStorage) {
+      const sanitized = sanitizeCraftStorageDoc(parsed);
+      for (const node of Object.values(sanitized)) {
+        const canonicalType = canonicalResolvedName(node.type?.resolvedName);
+        node.type = { resolvedName: canonicalType };
+        node.displayName = canonicalResolvedName(node.displayName ?? canonicalType);
+      }
+      const validated = validateCraftFrameDataForPreview(JSON.stringify(sanitized));
+      return validated.valid && validated.data ? validated.data : JSON.stringify(sanitized);
+    }
 
     const result: Record<string, CraftStorageNode> = {};
     for (const [id, value] of Object.entries(parsed)) {
