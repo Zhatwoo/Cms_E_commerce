@@ -197,7 +197,7 @@ function PublicSiteContent() {
         fillViewport
         storeContext={{ products, addToCart }}
       />
-      {products.length > 0 && <CartFab />}
+      <CartFab />
       <CartDrawer />
     </>
   );
