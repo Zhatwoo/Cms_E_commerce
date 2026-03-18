@@ -135,7 +135,7 @@ const frameResponsiveStyles = (
       .frame-responsive-inner iframe,
       .frame-responsive-inner [data-responsive-asset] {
         max-width: 100%;
-        width: 100%;
+        width: auto;
         min-width: 0;
         height: auto;
         object-fit: cover;
@@ -148,6 +148,8 @@ const frameResponsiveStyles = (
         width: 100% !important;
         max-width: 100% !important;
         min-width: 0 !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box !important;
       }
       .frame-responsive-inner.frame-fluid * { box-sizing: border-box; }
       .frame-responsive-inner.frame-fluid > * {
@@ -158,7 +160,6 @@ const frameResponsiveStyles = (
       .frame-responsive-inner.frame-fluid video,
       .frame-responsive-inner.frame-fluid iframe {
         max-width: 100% !important;
-        width: 100% !important;
         min-width: 0 !important;
         height: auto !important;
         display: block !important;
@@ -217,10 +218,32 @@ const frameResponsiveStyles = (
 
       .frame-responsive-inner.frame-fluid [data-fluid-media="true"] {
         object-fit: cover !important;
-        width: 100%;
         height: auto;
         max-width: 100% !important;
         aspect-ratio: var(--media-aspect-ratio, auto);
+      }
+
+      @container (max-width: 1024px) {
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] {
+          flex-wrap: wrap !important;
+          align-items: stretch !important;
+          height: auto !important;
+          min-height: 0 !important;
+        }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="display: flex"][style*="flex-direction: row"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="display:flex"][style*="flex-direction:row"] {
+          flex-wrap: wrap !important;
+          align-items: stretch !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+        }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] > * {
+          min-width: 0 !important;
+          max-width: 100% !important;
+          flex: 0 1 min(320px, 100%) !important;
+        }
       }
 
       .frame-responsive-inner.frame-fluid [data-fluid-space="true"] {
@@ -277,7 +300,6 @@ const frameResponsiveStyles = (
         }
 
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) > * {
-          width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
         }
@@ -292,11 +314,19 @@ const frameResponsiveStyles = (
           height: auto !important;
           min-height: 0 !important;
         }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="display: flex"][style*="flex-direction: row"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="display:flex"][style*="flex-direction:row"] {
+          flex-direction: column !important;
+          align-items: stretch !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+        }
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] > * {
-          width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
-          flex: 1 1 100% !important;
+          flex: 0 1 auto !important;
+          align-self: stretch !important;
         }
 
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="column"],
@@ -348,7 +378,6 @@ const frameResponsiveStyles = (
         }
 
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-media="true"] {
-          width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
           height: auto !important;
@@ -363,7 +392,6 @@ const frameResponsiveStyles = (
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id] {
           max-width: 100% !important;
           min-width: 0 !important;
-          width: 100% !important;
         }
 
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-text="true"] {
@@ -375,16 +403,15 @@ const frameResponsiveStyles = (
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-button="true"],
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) a[data-fluid-space="true"],
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) button[data-fluid-space="true"] {
-          width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
+          align-self: stretch !important;
         }
 
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-media="true"],
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) img,
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) video,
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) iframe {
-          width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
           height: auto !important;
@@ -400,9 +427,9 @@ const frameResponsiveStyles = (
           top: auto !important;
           bottom: auto !important;
           transform: none !important;
-          width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
+          align-self: stretch !important;
         }
 
         /* Auto-reflow positioned elements (e.g. side labels/text) so they stack on mobile */
@@ -415,12 +442,12 @@ const frameResponsiveStyles = (
           right: auto !important;
           top: auto !important;
           bottom: auto !important;
-          width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
           margin-left: 0 !important;
           margin-right: 0 !important;
           transform: none !important;
+          align-self: stretch !important;
           animation: responsive-reflow-in 180ms ease;
         }
       }
@@ -438,10 +465,10 @@ const frameResponsiveStyles = (
           right: auto !important;
           top: auto !important;
           bottom: auto !important;
-          width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
           transform: none !important;
+          align-self: stretch !important;
         }
       }
 
@@ -450,7 +477,6 @@ const frameResponsiveStyles = (
         .frame-responsive-inner.frame-fluid video,
         .frame-responsive-inner.frame-fluid iframe,
         .frame-responsive-inner.frame-fluid [data-responsive-asset] {
-          width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
           object-fit: cover !important;
@@ -3870,7 +3896,8 @@ export function WebPreview({
           margin: fillViewport ? 0 : "0 auto",
           boxShadow: isDesktopMode || fillViewport ? "none" : "0 25px 50px -12px rgba(0,0,0,0.25)",
           borderRadius: isDesktopMode || fillViewport ? 0 : 8,
-          overflow: isDesktopMode ? "hidden" : "visible",
+          overflowX: "hidden",
+          overflowY: isDesktopMode ? "hidden" : "visible",
           transform: pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
           transformOrigin: "center center",
           ...transitionStyle,
