@@ -1451,18 +1451,23 @@ function PreviewTabs({
           );
         })}
       </div>
-      {/* Children here are per-tab content nodes rendered by RenderNode; we simply show/hide via CSS */}
+      {/* Tab content: render actual child nodes from linkedNodes (via linkedSlotMap + childNodeMap) */}
       <div className="tabs-content relative w-full flex-grow min-h-[100px] overflow-hidden">
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId;
+          const slotKey = `tab-content-${tab.id}`;
+          const contentNodeId = linkedSlotMap[slotKey];
+          const contentNode = contentNodeId ? childNodeMap?.[contentNodeId] : undefined;
           return (
             <div
               key={tab.id}
               className={`w-full h-full transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${isActive ? "opacity-100 translate-y-0 relative" : "opacity-0 -translate-y-2 absolute inset-0 pointer-events-none"}`}
             >
-              <div className="w-full h-full min-h-[100px] p-6 flex flex-col text-sm whitespace-pre-wrap text-gray-800 leading-relaxed">
-                {tab.content}
-              </div>
+              {contentNode ?? (
+                <div className="w-full h-full min-h-[100px] p-6 flex flex-col text-sm whitespace-pre-wrap text-gray-800 leading-relaxed">
+                  {tab.content}
+                </div>
+              )}
             </div>
           );
         })}
@@ -1761,7 +1766,9 @@ function RenderNode({
         builderParityMode,
       );
       const mobileOverflowLikely = !builderParityMode && isNarrowPreview && isLikelyOverflowingNarrowViewport(props, viewportWidth);
-      const resolvedContainerHeight = normalizeContainerHeight(normalizedHeight ?? (props.height as string) ?? "240px");
+      const resolvedContainerHeight = builderParityMode
+        ? normalizeContainerHeight(normalizedHeight ?? (props.height as string) ?? "240px")
+        : (normalizedHeight ?? (props.height as string) ?? "auto");
 
       const containerStyle: React.CSSProperties = {
         backgroundColor: props.background as string,

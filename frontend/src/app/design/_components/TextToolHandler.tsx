@@ -210,25 +210,21 @@ export const TextToolHandler = () => {
                         parentPosition === "sticky";
                     const shouldUseAbsolute = forceAbsoluteForClick || parentIsFreeform || (!parentIsFlexOrGrid && parentIsPositioned);
 
-                    const node = queryRef.current.parseFreshNode({
-                        data: {
-                            type: Text,
-                            isCanvas: false,
-                            props: {
-                                text: "",
-                                fontSize: 18,
-                                position: shouldUseAbsolute ? "absolute" : "relative",
-                                left: shouldUseAbsolute ? `${finalLeft}px` : "auto",
-                                top: shouldUseAbsolute ? `${finalTop}px` : "auto",
-                                width: "fit-content",
-                                height: "fit-content",
-                            },
-                            displayName: "Text",
-                        },
-                    }).toNode();
+                    const textElement = (
+                        <Text
+                            text=""
+                            fontSize={18}
+                            position={shouldUseAbsolute ? "absolute" : "relative"}
+                            left={shouldUseAbsolute ? `${finalLeft}px` : "auto"}
+                            top={shouldUseAbsolute ? `${finalTop}px` : "auto"}
+                            width="fit-content"
+                            height="fit-content"
+                        />
+                    );
 
-                    const textId = node.id;
-                    (actionsRef.current as any).add(node, normalizedTargetId);
+                    const tree = queryRef.current.parseReactElement(textElement).toNodeTree();
+                    const textId = tree.rootNodeId;
+                    (actionsRef.current as any).addNodeTree(tree, normalizedTargetId);
 
                     setTimeout(() => {
                         actionsRef.current.selectNode(textId);

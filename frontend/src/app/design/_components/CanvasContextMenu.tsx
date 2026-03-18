@@ -29,30 +29,9 @@ import {
   groupSelection,
   ungroupSelection,
 } from "../_lib/canvasActions";
-
-const isLikelyImageUrl = (value: string): boolean => {
-  const text = value.trim();
-  if (!text) return false;
-  if (text.startsWith("data:image/")) return true;
-  try {
-    const url = new URL(text);
-    const path = url.pathname.toLowerCase();
-    return /\.(png|jpe?g|gif|webp|bmp|svg|avif)(\?.*)?$/.test(path) || url.searchParams.has("imgurl");
-  } catch {
-    return false;
-  }
-};
-
-const blobToDataUrl = (blob: Blob): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") resolve(reader.result);
-      else reject(new Error("Failed to read clipboard image"));
-    };
-    reader.onerror = () => reject(reader.error ?? new Error("Failed to read clipboard image"));
-    reader.readAsDataURL(blob);
-  });
+import { useDesignProject } from "../_context/DesignProjectContext";
+import { uploadMediaApi } from "@/lib/api";
+import { Image } from "../_designComponents/Image/Image";
 
 const PROTECTED = new Set(["Viewport", "ROOT"]);
 
@@ -104,6 +83,7 @@ function Divider() {
  */
 export function CanvasContextMenu() {
   const { actions, query } = useEditor();
+  const { projectId } = useDesignProject();
   const [menu, setMenu] = useState<MenuState>(null);
   const [menuContentReady, setMenuContentReady] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ left: number; top: number } | null>(null);
@@ -282,96 +262,23 @@ export function CanvasContextMenu() {
     close();
   };
 
-
-  const pasteExternalImageAtTarget = (
-    src: string,
-    parentIdOpt?: string,
-    atIndexOpt?: number
-  ) => {
-    const cleanSrc = src.trim();
-    if (!cleanSrc) return;
-
-    const nodeId = `image-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const tree = {
-      rootNodeId: nodeId,
-      nodes: {
-        [nodeId]: {
-          type: { resolvedName: "Image" },
-          isCanvas: false,
-          props: {
-            src: cleanSrc,
-            alt: "Pasted Image",
-            objectFit: "cover",
-            width: "320px",
-            height: "220px",
-            _autoFitInTabs: false,
-          },
-          displayName: "Image",
-          nodes: [],
-          linkedNodes: {},
-          custom: {},
-          hidden: false,
-        },
-      },
-    };
-
-    const addNodeTree = (actions as unknown as {
-      addNodeTree?: (tree: any, parentId?: string, index?: number) => void;
-    }).addNodeTree;
-
-    if (typeof addNodeTree !== "function") return;
-
-    let targetParentId = parentIdOpt;
-    let targetAtIndex = atIndexOpt;
-
-    if (!targetParentId) {
-      const st = query.getState();
-      const root = st.nodes.ROOT;
-      const viewportId = root?.data?.nodes?.[0] as string | undefined;
-      if (viewportId && st.nodes[viewportId]) {
-        const viewportKids = (st.nodes[viewportId]?.data?.nodes as string[]) ?? [];
-        const firstPageId = viewportKids[0];
-        if (firstPageId && st.nodes[firstPageId]) {
-          targetParentId = firstPageId;
-          targetAtIndex = ((st.nodes[firstPageId]?.data?.nodes as string[]) ?? []).length;
-        } else {
-          targetParentId = viewportId;
-          targetAtIndex = 0;
-        }
-      }
-    }
-
-    addNodeTree(tree, targetParentId, targetAtIndex);
-    actions.selectNode(nodeId);
-  };
-
   const handlePasteHere = async () => {
-    let parentIdOpt: string | undefined;
-    let atIndexOpt: number | undefined;
-
-    if (menu.nodeId && state.nodes[menu.nodeId]) {
-      const node = state.nodes[menu.nodeId];
-      const nodeIsCanvas = node?.data?.isCanvas === true;
-      if (nodeIsCanvas) {
-        parentIdOpt = menu.nodeId;
-        atIndexOpt = ((state.nodes[menu.nodeId]?.data?.nodes as string[]) ?? []).length;
-      } else {
+    const clipboard = getClipboard();
+    
+    // 1. Try internal Craft.js clipboard first
+    if (clipboard && clipboard.nodeIds.length > 0) {
+      let parentIdOpt: string | undefined;
+      let atIndexOpt: number | undefined;
+      
+      if (menu.nodeId && state.nodes[menu.nodeId]) {
+        const node = state.nodes[menu.nodeId];
         parentIdOpt = node?.data?.parent as string | undefined;
-        const sibs =
-          parentIdOpt && state.nodes[parentIdOpt]
-            ? ((state.nodes[parentIdOpt]?.data?.nodes as string[]) ?? [])
-            : [];
+        const sibs = parentIdOpt && state.nodes[parentIdOpt] ? (state.nodes[parentIdOpt]?.data?.nodes as string[]) ?? [] : [];
         const idx = sibs.indexOf(menu.nodeId);
         atIndexOpt = idx === -1 ? sibs.length : idx + 1;
-      }
-    } else if (selectedIds.length > 0) {
-      const lastId = selectedIds[selectedIds.length - 1]!;
-      const lastNode = state.nodes[lastId];
-      const lastIsCanvas = lastNode?.data?.isCanvas === true;
-      if (lastIsCanvas) {
-        parentIdOpt = lastId;
-        atIndexOpt = ((state.nodes[lastId]?.data?.nodes as string[]) ?? []).length;
-      } else {
+      } else if (selectedIds.length > 0) {
+        const lastId = selectedIds[selectedIds.length - 1]!;
+        const lastNode = state.nodes[lastId];
         parentIdOpt = lastNode?.data?.parent as string | undefined;
         if (parentIdOpt && state.nodes[parentIdOpt]) {
           const sibs = (state.nodes[parentIdOpt]?.data?.nodes as string[]) ?? [];
@@ -379,43 +286,90 @@ export function CanvasContextMenu() {
           atIndexOpt = lastIndex === -1 ? sibs.length : lastIndex + 1;
         }
       }
-    }
-
-    if (hasClipboard) {
-      pasteClipboard(actions as any, query as any, {
-        parentId: parentIdOpt,
-        atIndex: atIndexOpt,
-      });
+      
+      pasteClipboard(actions as any, query as any, { parentId: parentIdOpt, atIndex: atIndexOpt });
       close();
       return;
     }
 
+    // 2. Try system clipboard (for images)
     try {
-      if (typeof navigator !== "undefined" && navigator.clipboard?.read) {
-        const items = await navigator.clipboard.read();
-        for (const item of items) {
-          const imageType = item.types.find((type) => type.startsWith("image/"));
-          if (!imageType) continue;
-          const blob = await item.getType(imageType);
-          const dataUrl = await blobToDataUrl(blob);
-          pasteExternalImageAtTarget(dataUrl, parentIdOpt, atIndexOpt);
-          close();
-          return;
-        }
-      }
+      const clipboardItems = await navigator.clipboard.read();
+      for (const item of clipboardItems) {
+        for (const type of item.types) {
+          if (type.startsWith("image/")) {
+            const blob = await item.getType(type);
+            const file = new File([blob], "pasted-image.png", { type });
+            
+            let imageUrl: string;
+            if (projectId) {
+              try {
+                const result = await uploadMediaApi(projectId, file, { folder: "images" });
+                imageUrl = result.url;
+              } catch (err) {
+                imageUrl = await new Promise((resolve) => {
+                  const reader = new FileReader();
+                  reader.onload = (e) => resolve(e.target?.result as string);
+                  reader.readAsDataURL(file);
+                });
+              }
+            } else {
+              imageUrl = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target?.result as string);
+                reader.readAsDataURL(file);
+              });
+            }
 
-      if (typeof navigator !== "undefined" && navigator.clipboard?.readText) {
-        const text = (await navigator.clipboard.readText()) || "";
-        if (isLikelyImageUrl(text)) {
-          pasteExternalImageAtTarget(text.trim(), parentIdOpt, atIndexOpt);
-          close();
-          return;
+            // Determine parent
+            let targetParentId = "ROOT";
+            if (menu.nodeId && state.nodes[menu.nodeId]) {
+              const node = state.nodes[menu.nodeId];
+              targetParentId = node?.data?.isCanvas ? menu.nodeId : (node?.data?.parent || "ROOT");
+            } else if (selectedIds.length > 0) {
+              const node = state.nodes[selectedIds[0]];
+              targetParentId = node?.data?.isCanvas ? selectedIds[0] : (node?.data?.parent || "ROOT");
+            }
+
+            // Create node
+            const imageNode = (
+              <Image
+                src={imageUrl}
+                width="320px"
+                height="auto"
+                alt="Pasted Image"
+                position="absolute"
+                top="40px"
+                left="40px"
+              />
+            );
+
+            const nodeTree = query.parseReactElement(imageNode).toNodeTree();
+            const newId = (nodeTree as any).rootNodeId || (nodeTree as any).root;
+            
+            if ((actions as any).addNodeTree) {
+              (actions as any).addNodeTree(nodeTree, targetParentId);
+            } else {
+              (actions as any).add(nodeTree, targetParentId);
+            }
+
+            if (newId) {
+              setTimeout(() => {
+                try {
+                  actions.selectNode(newId);
+                } catch (e) {}
+              }, 100);
+            }
+            
+            close();
+            return;
+          }
         }
       }
-    } catch {
-      // Ignore clipboard permission and unsupported API errors
+    } catch (err) {
+      console.warn("System clipboard paste failed:", err);
     }
-
+    
     close();
   };
   const handlePasteToReplace = () => {
@@ -423,7 +377,8 @@ export function CanvasContextMenu() {
     close();
   };
   const handleBringToFront = () => {
-    if (!hasSelection || !parentId || !actions.move || !allSameParent) return;
+    if (!hasSelection || !parentId || !actions
+      .move || !allSameParent) return;
     // Sort by current sibling index so we preserve document order at the end
     const sorted = [...selectedIds].sort((a, b) => siblings.indexOf(a) - siblings.indexOf(b));
     for (const id of sorted) {
@@ -523,7 +478,7 @@ export function CanvasContextMenu() {
       onClick={(e) => e.stopPropagation()}
     >
       <MenuItem icon={Copy} label="Copy" shortcut="⌘C" onClick={handleCopy} disabled={!hasSelection} />
-      <MenuItem icon={ClipboardPaste} label="Paste here" shortcut="⌘V" onClick={handlePasteHere} disabled={false} />
+      <MenuItem icon={ClipboardPaste} label="Paste here" shortcut="⌘V" onClick={handlePasteHere} />
       <MenuItem icon={Replace} label="Paste to replace" shortcut="⇧⌘R" onClick={handlePasteToReplace} disabled={!singleSelected || !hasClipboard} />
       <Divider />
       <MenuItem icon={ChevronsUp} label="Bring to front" shortcut="]" onClick={handleBringToFront} disabled={!canBringForward} />
