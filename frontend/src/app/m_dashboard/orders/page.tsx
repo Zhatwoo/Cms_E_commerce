@@ -11,18 +11,31 @@ const ORDER_STATUSES: OrderStatus[] = ['Pending', 'Processing', 'Paid', 'Shipped
 const THUMBNAILS = ['/images/template-saas.jpg', '/images/template-fashion.jpg', '/images/template-portfolio.jpg'];
 
 // ─── Payment mode config ─────────────────────────────────────────────────────
-type PaymentMode = 'COD' | 'Bank Transfer';
-const PAYMENT_MODES: PaymentMode[] = ['COD', 'Bank Transfer'];
-
+type PaymentMode = 'COD' | 'Bank Transfer' | 'Stripe' | 'PayPal' | 'GCash' | 'Maya';
 const PAYMENT_ICONS: Record<PaymentMode, { icon: string; bg: string; color: string }> = {
-  COD: { icon: '💵', bg: '#FFCC0022', color: '#FFCC00' },
-  'Bank Transfer': { icon: '🏦', bg: '#6702BF22', color: '#A855F7' },
+  COD:           { icon: '💵', bg: '#FFCC0022', color: '#FFCC00' },
+  'Bank Transfer':{ icon: '🏦', bg: '#6702BF22', color: '#A855F7' },
+  Stripe:        { icon: '💳', bg: '#635BFF22', color: '#635BFF' },
+  PayPal:        { icon: '🅿', bg: '#003087' + '22', color: '#009CDE' },
+  GCash:         { icon: '📱', bg: '#007DFF22', color: '#007DFF' },
+  Maya:          { icon: '💚', bg: '#00C27722', color: '#00C277' },
 };
 
-// Deterministic mock payment mode from order id
-function mockPaymentMode(orderId: string): PaymentMode {
-  const charSum = orderId.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  return PAYMENT_MODES[charSum % PAYMENT_MODES.length];
+// Map the stored payment_method string from the DB to a display PaymentMode
+function resolvePaymentMode(order: ApiPublishedOrder): PaymentMode {
+  const raw = String(
+    (order as any).paymentMethod ||
+    (order as any).payment_method ||
+    ''
+  ).toLowerCase().trim();
+  if (raw === 'stripe') return 'Stripe';
+  if (raw === 'paypal') return 'PayPal';
+  if (raw === 'gcash') return 'GCash';
+  if (raw === 'maya') return 'Maya';
+  if (raw === 'cod') return 'COD';
+  if (raw === 'bank_transfer' || raw === 'bank transfer') return 'Bank Transfer';
+  // Fallback: no payment method stored yet → show COD
+  return 'COD';
 }
 
 type CheckoutTab = 'all' | 'pending' | 'transit' | 'completed';
@@ -464,7 +477,7 @@ export default function OrdersPage() {
 
           {pagedOrders.map((order, idx) => {
             const badge = rowBadge(String(order.status || 'Pending'), colors);
-            const paymentMode = mockPaymentMode(order.id);
+            const paymentMode = resolvePaymentMode(order);
             const isExpanded = expandedOrderId === order.id;
             const isEditing = editingOrderId === order.id;
 
@@ -671,7 +684,7 @@ export default function OrdersPage() {
         <section className="relative z-10 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5">
           {pagedOrders.map((order, idx) => {
             const badge = rowBadge(String(order.status || 'Pending'), colors);
-            const paymentMode = mockPaymentMode(order.id);
+            const paymentMode = resolvePaymentMode(order);
             const paymentCfg = PAYMENT_ICONS[paymentMode];
             const isExpanded = expandedOrderId === order.id;
             const isEditing = editingOrderId === order.id;

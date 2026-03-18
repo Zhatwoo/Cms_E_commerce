@@ -7,6 +7,7 @@ const Domain = require('../models/Domain');
 const StorefrontOrder = require('../models/StorefrontOrder');
 const paymongoService = require('../services/paymongoService');
 const stripeService = require('../services/stripeService');
+const paypalService = require('../services/paypalService');
 
 function normalizeStatus(status) {
   return String(status || '')
@@ -508,7 +509,10 @@ exports.createPaymentIntent = async (req, res) => {
       customId: `${subdomain}:${orderId}`,
     });
 
-    await StorefrontOrder.updatePaymentFields(subdomain, orderId, { paypalOrderId });
+    await StorefrontOrder.updatePaymentFields(subdomain, orderId, {
+      paypalOrderId,
+      paymentMethod: 'paypal',
+    });
     return res.status(200).json({ success: true, redirectUrl: approveUrl });
   } catch (error) {
     const statusCode = /required|invalid|not found/i.test(error.message || '') ? 400 : 500;
@@ -589,7 +593,10 @@ exports.createStripePaymentIntent = async (req, res) => {
       subdomain,
     });
 
-    await StorefrontOrder.updatePaymentFields(subdomain, orderId, { stripePaymentIntentId: paymentIntent.id });
+    await StorefrontOrder.updatePaymentFields(subdomain, orderId, {
+      stripePaymentIntentId: paymentIntent.id,
+      paymentMethod: 'stripe',
+    });
 
     return res.status(200).json({
       success: true,

@@ -23,6 +23,7 @@ router.get('/stripe-public-key', getStripePublicKey);
 router.post('/published/:subdomain', createPublicCheckout);
 router.post('/published/:subdomain/:id/create-payment-intent', createPaymentIntent);
 router.post('/published/:subdomain/:id/create-stripe-payment-intent', createStripePaymentIntent);
+router.get('/published/:subdomain/:id/capture-paypal', capturePayPal);
 router.get('/published/my', protect, getMyPublishedOrders);
 router.put('/published/:subdomain/:id/status', protect, updatePublishedOrderStatus);
 
