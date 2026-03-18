@@ -163,13 +163,13 @@ export function FreeDropPlacementHandler() {
         const parentProps = (parentNode?.data?.props ?? {}) as Record<string, unknown>;
         const parentDisplay = String(parentProps.display ?? "flex").toLowerCase();
         const parentIsFreeform = parentProps.isFreeform === true;
-        const isFlexParent =
+        const parentIsFlexParent =
           parentDisplay === "flex" ||
           parentDisplay === "grid" ||
           parentDisplayName === "Tab Content" ||
           parentDisplayName === "TabContent" ||
           LAYOUT_LIKE_TYPES.has(parentDisplayName);
-        const forceFlowPlacement = parentDisplayName === "Tab Content" || parentDisplayName === "TabContent";
+        const forceFlowPlacement = false;
 
         let left = 0;
         let top = 0;

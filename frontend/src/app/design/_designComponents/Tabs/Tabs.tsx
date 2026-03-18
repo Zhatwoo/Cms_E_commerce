@@ -80,7 +80,8 @@ export const Tabs = ({
   flipHorizontal = false,
   flipVertical = false,
   customClassName = "",
-}: TabsProps) => {
+  children,
+}: TabsProps & { children?: React.ReactNode }) => {
   const {
     id,
     connectors: { connect, drag },
@@ -257,32 +258,37 @@ export const Tabs = ({
 
       {/* Tab Content Areas */}
       <div className="tabs-content relative w-full flex-grow min-h-[100px]">
-        {(() => {
-          const active = tabs.find((t) => t.id === currentActiveTabId) ?? tabs[0];
-          if (!active) return null;
-
-          const computedCanvasId = `tab-content-${active.id}`;
+        {tabs.map((tab) => {
+          const isActive = tab.id === currentActiveTabId;
+          const computedCanvasId = `tab-content-${tab.id}`;
+          
           const legacyCanvasId =
-            typeof (active as any).content === "string" && String((active as any).content).trim()
-              ? String((active as any).content).trim()
+            typeof (tab as any).content === "string" && String((tab as any).content).trim()
+              ? String((tab as any).content).trim()
               : null;
+          
           const linked = linkedNodes ?? {};
           const hasLegacy =
             !!legacyCanvasId &&
             (linked[legacyCanvasId] === legacyCanvasId ||
               Object.values(linked).includes(legacyCanvasId) ||
               Object.keys(linked).includes(legacyCanvasId));
+          
           const canvasId = hasLegacy ? (legacyCanvasId as string) : computedCanvasId;
 
-          // Mount only the active tab panel to avoid overlapping absolute layers
-          // interfering with Craft.js drop hit-testing.
           return (
-            <div className="w-full min-h-[100px] flex flex-col relative">
+            <div 
+              key={tab.id}
+              className="w-full min-h-[100px] flex flex-col relative"
+              style={{ display: isActive ? "flex" : "none" }}
+            >
               <Element id={canvasId} is={TabContent} canvas />
             </div>
           );
-        })()}
+        })}
       </div>
+      {/* Hidden children slot for canvas recognition */}
+      <div style={{ display: "none" }}>{children}</div>
     </div>
   );
 };
@@ -310,10 +316,8 @@ Tabs.craft = {
   props: TabsDefaultProps,
   rules: {
     canDrag: () => true,
-    // Tabs itself should not be a drop target; drop into TabContent canvases instead.
-    canDrop: () => false,
-    canMoveIn: () => false,
   },
+  isCanvas: true,
   related: {
     settings: TabsSettings
   }
