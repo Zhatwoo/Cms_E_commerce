@@ -248,6 +248,14 @@ const frameResponsiveStyles = (
           padding-bottom: clamp(10px, 3cqw, 18px) !important;
         }
 
+        /* Force mobile-first flow: all top-level children stack and fill width. */
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) {
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: stretch !important;
+          gap: clamp(10px, 2.8cqw, 16px) !important;
+        }
+
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) > * {
           width: 100% !important;
           max-width: 100% !important;
@@ -261,12 +269,20 @@ const frameResponsiveStyles = (
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] {
           flex-direction: column !important;
           align-items: stretch !important;
+          height: auto !important;
+          min-height: 0 !important;
         }
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] > * {
           width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
           flex: 1 1 100% !important;
+        }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="column"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-space="true"] {
+          height: auto !important;
+          min-height: 0 !important;
         }
 
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-mobile-font-scale="true"] {
@@ -324,6 +340,51 @@ const frameResponsiveStyles = (
           grid-template-columns: minmax(0, 1fr) !important;
         }
 
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id] {
+          max-width: 100% !important;
+          min-width: 0 !important;
+          width: 100% !important;
+        }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-text="true"] {
+          white-space: pre-wrap !important;
+          overflow-wrap: anywhere !important;
+          word-break: break-word !important;
+        }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-button="true"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) a[data-fluid-space="true"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) button[data-fluid-space="true"] {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+        }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-media="true"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) img,
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) video,
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) iframe {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+          height: auto !important;
+        }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: absolute"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:absolute"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: fixed"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:fixed"] {
+          position: relative !important;
+          left: auto !important;
+          right: auto !important;
+          top: auto !important;
+          bottom: auto !important;
+          transform: none !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+        }
+
         /* Auto-reflow positioned elements (e.g. side labels/text) so they stack on mobile */
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][data-mobile-overflow="true"][style*="position: absolute"],
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][data-mobile-overflow="true"][style*="position:absolute"],
@@ -348,10 +409,10 @@ const frameResponsiveStyles = (
       }
 
       @container (max-width: 520px) {
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="position: absolute"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="position:absolute"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="position: fixed"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="position:fixed"] {
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: absolute"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:absolute"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: fixed"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:fixed"] {
           position: relative !important;
           left: auto !important;
           right: auto !important;
@@ -381,12 +442,14 @@ const frameResponsiveStyles = (
 );
 
 /** Responsive Navigation Component - converts nav bars to hamburger menu on mobile */
-function ResponsiveNav({ children, containerStyle, onClick, className, dataMobileOverflow }: {
+function ResponsiveNav({ children, containerStyle, onClick, className, dataMobileOverflow, nodeId, nodeType }: {
   children: React.ReactNode;
   containerStyle: React.CSSProperties;
   onClick?: () => void;
   className?: string;
   dataMobileOverflow?: "true";
+  nodeId?: string;
+  nodeType?: string;
 }) {
   const [isOpen, setIsOpen] = React.useState(false);
   const navRef = React.useRef<HTMLDivElement>(null);
@@ -409,6 +472,8 @@ function ResponsiveNav({ children, containerStyle, onClick, className, dataMobil
       ref={navRef}
       data-nav-container
       data-fluid-space="true"
+      data-node-id={nodeId}
+      data-node-type={nodeType}
       data-mobile-overflow={dataMobileOverflow}
       className={className}
       style={{ ...containerStyle, position: "relative" }}
@@ -1219,6 +1284,7 @@ function normalizeResponsivePosition(
   if (!isNarrow) return position;
   if (position === "absolute" || position === "fixed") {
     if (isLikelyOverflowingNarrowViewport(props, viewportWidth)) return "relative";
+    return "relative";
   }
   return position;
 }
@@ -1453,23 +1519,22 @@ function PreviewTabs({
       </div>
       {/* Tab content: render actual child nodes from linkedNodes (via linkedSlotMap + childNodeMap) */}
       <div className="tabs-content relative w-full flex-grow min-h-[100px] overflow-hidden">
-        {tabs.map((tab) => {
-          const isActive = tab.id === activeTabId;
-          const fallbackId = `tab-content-${tab.id}`;
+        {(() => {
+          const active = tabs.find((tab) => tab?.id === activeTabId) ?? tabs[0];
+          if (!active) return <span />;
+
+          const fallbackId = `tab-content-${active.id}`;
           const candidateId =
-            typeof tab?.content === "string" && tab.content.trim() ? tab.content.trim() : fallbackId;
+            typeof active?.content === "string" && active.content.trim() ? active.content.trim() : fallbackId;
+          const slotKey = `tab-content-${active.id}`;
+          const linkedContentNodeId = linkedSlotMap[slotKey];
           const contentNodeId =
-            props.nodes && props.nodes[candidateId] ? candidateId : fallbackId;
-          const slotKey = `tab-content-${tab.id}`;
-          const contentNodeId = linkedSlotMap[slotKey];
-          const contentNode = contentNodeId ? childNodeMap?.[contentNodeId] : undefined;
+            linkedContentNodeId ||
+            (props.nodes && props.nodes[candidateId] ? candidateId : fallbackId);
+
           return (
-            <div
-              key={tab.id}
-              className={`w-full h-full transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${isActive ? "opacity-100 translate-y-0 relative" : "opacity-0 -translate-y-2 absolute inset-0 pointer-events-none"}`}
-            >
+            <div className="w-full h-full transition-all duration-300 ease-out opacity-100 translate-y-0 relative">
               <div className="w-full h-full min-h-[100px] p-6 flex flex-col text-sm whitespace-pre-wrap text-gray-800 leading-relaxed">
-                {/* Render tab content canvas as nodes */}
                 {props.nodes && props.nodes[contentNodeId] ? (
                   <RenderNode
                     node={props.nodes[contentNodeId]}
@@ -1497,7 +1562,7 @@ function PreviewTabs({
               </div>
             </div>
           );
-        })}
+        })()}
       </div>
     </div>
   );
@@ -1624,8 +1689,19 @@ function RenderNode({
     return renderedNode;
   });
 
+  const withNodeMeta = (el: React.ReactElement): React.ReactElement => {
+    if (!nodeId) return el;
+    if (typeof el.type !== "string") return el;
+    const current = (el.props ?? {}) as Record<string, unknown>;
+    if (current["data-node-id"]) return el;
+    return React.cloneElement(el as React.ReactElement<Record<string, unknown>>, {
+      "data-node-id": nodeId,
+      "data-node-type": type,
+    });
+  };
+
   const wrap = (el: React.ReactElement) =>
-    wrapWithPrototype(wrapWithAnimation(el, animation), prototype, onPrototypeAction);
+    wrapWithPrototype(wrapWithAnimation(withNodeMeta(el), animation), prototype, onPrototypeAction);
 
   switch (type) {
     case "Container": {
@@ -1668,6 +1744,8 @@ function RenderNode({
         return (
           <div
             id="products"
+            data-node-id={nodeId}
+            data-node-type={type}
             className={((props.customClassName as string) || "").trim() || undefined}
             style={{
               backgroundColor: props.background as string,
@@ -1793,9 +1871,14 @@ function RenderNode({
         builderParityMode,
       );
       const mobileOverflowLikely = !builderParityMode && isNarrowPreview && isLikelyOverflowingNarrowViewport(props, viewportWidth);
+      const shouldClearNarrowOffsets =
+        !builderParityMode &&
+        isNarrowPreview &&
+        ((props.position as React.CSSProperties["position"]) === "absolute" ||
+          (props.position as React.CSSProperties["position"]) === "fixed");
       const resolvedContainerHeight = builderParityMode
         ? normalizeContainerHeight(normalizedHeight ?? (props.height as string) ?? "240px")
-        : (normalizedHeight ?? (props.height as string) ?? "auto");
+        : (isNarrowPreview ? "auto" : (normalizedHeight ?? (props.height as string) ?? "auto"));
 
       const containerStyle: React.CSSProperties = {
         backgroundColor: props.background as string,
@@ -1836,10 +1919,10 @@ function RenderNode({
         opacity: props.opacity as number,
         overflow: props.overflow as string,
         cursor: interactiveClick ? "pointer" : (props.cursor as string),
-        top: props.top as React.CSSProperties["top"],
-        right: props.right as React.CSSProperties["right"],
-        bottom: props.bottom as React.CSSProperties["bottom"],
-        left: props.left as React.CSSProperties["left"],
+        top: shouldClearNarrowOffsets ? undefined : (props.top as React.CSSProperties["top"]),
+        right: shouldClearNarrowOffsets ? undefined : (props.right as React.CSSProperties["right"]),
+        bottom: shouldClearNarrowOffsets ? undefined : (props.bottom as React.CSSProperties["bottom"]),
+        left: shouldClearNarrowOffsets ? undefined : (props.left as React.CSSProperties["left"]),
       };
 
       const containerContent = isNav ? (
@@ -1848,6 +1931,8 @@ function RenderNode({
           onClick={interactiveClick}
           className={((props.customClassName as string) || "").trim() || undefined}
           dataMobileOverflow={mobileOverflowLikely ? "true" : undefined}
+          nodeId={nodeId}
+          nodeType={type}
         >
           {children}
         </ResponsiveNav>
@@ -1998,6 +2083,8 @@ function RenderNode({
           containerStyle={rowStyle}
           onClick={interactiveClick}
           className={((props.customClassName as string) || "").trim() || undefined}
+          nodeId={nodeId}
+          nodeType={type}
         >
           {children}
         </ResponsiveNav>
@@ -2262,6 +2349,7 @@ function RenderNode({
           isNarrowPreview,
           builderParityMode,
         ) || "fit-content";
+      const resolvedBooleanWidth = isNarrowPreview ? "100%" : normalizedWidth;
 
       const m = typeof props.margin === "number" ? props.margin : 0;
       const mt = (props.marginTop ?? m) as number;
@@ -2276,9 +2364,11 @@ function RenderNode({
 
       return wrap(
         <div
+          data-fluid-space="true"
+          data-fluid-text="true"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
-            width: normalizedWidth,
+            width: resolvedBooleanWidth,
             height: (props.height as string) || "fit-content",
             paddingTop: `${pt}px`,
             paddingRight: `${pr}px`,
@@ -2309,11 +2399,14 @@ function RenderNode({
               <label
                 key={opt.id || `opt-${idx}`}
                 style={{
-                  display: "inline-flex",
-                  alignItems: "center",
+                  display: "flex",
+                  alignItems: "flex-start",
                   gap: `${gap}px`,
                   cursor: disabled ? "not-allowed" : "pointer",
+                  width: isNarrowPreview ? "100%" : "auto",
                   maxWidth: "100%",
+                  minWidth: 0,
+                  flexWrap: "nowrap",
                 }}
               >
                 <input
@@ -2322,18 +2415,21 @@ function RenderNode({
                   defaultChecked={checked}
                   readOnly={!enableFormInputs}
                   className="h-4 w-4 accent-brand-blue"
+                  style={{ flexShrink: 0, marginTop: isNarrowPreview ? "2px" : undefined }}
                 />
                 {showLabels && (
                   <span
                     style={{
                       color: labelColor,
-                      fontSize: `${fontSize}px`,
+                      fontSize: fluidFont(fontSize, 12, 3, useFixedPx),
                       fontFamily,
                       fontWeight,
-                      lineHeight: 1.2,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
+                      lineHeight: 1.35,
+                      minWidth: 0,
+                      maxWidth: "100%",
+                      whiteSpace: isNarrowPreview ? "normal" : "nowrap",
+                      overflowWrap: isNarrowPreview ? "anywhere" : "normal",
+                      wordBreak: isNarrowPreview ? "break-word" : "normal",
                     }}
                     title={opt.label || `Option ${idx + 1}`}
                   >
@@ -2569,23 +2665,12 @@ function RenderNode({
             { title: "Item 2", content: "Accordion content" },
           ];
 
-      const LEGACY_LIGHT_HEADER_BG = /^#(f8fbff|ffffff|f1f5f9)$/i;
-      const LEGACY_LIGHT_CONTENT_BG = /^#(ffffff|f8fafc)$/i;
-      const LEGACY_LIGHT_TEXT = /^#(10213f|334155|1e293b)$/i;
-      const LEGACY_LIGHT_BORDER = /^#(d4dfef|e2e8f0)$/i;
-      const orDark = (val: unknown, dark: string, isBg = false, isText = false, isBorder = false) => {
-        const s = String(val ?? "").trim();
-        if (!s) return dark;
-        if (isBg && (LEGACY_LIGHT_HEADER_BG.test(s) || LEGACY_LIGHT_CONTENT_BG.test(s))) return dark;
-        if (isText && LEGACY_LIGHT_TEXT.test(s)) return dark;
-        if (isBorder && LEGACY_LIGHT_BORDER.test(s)) return dark;
-        return s;
-      };
-      const headerBg = orDark(props.headerBg, "#1e1e2e", true, false, false);
-      const headerTextColor = orDark(props.headerTextColor, "#e2e8f0", false, true, false);
-      const contentBg = orDark(props.contentBg, "#12121c", true, false, false);
-      const contentTextColor = orDark(props.contentTextColor, "#a0aec0", false, true, false);
-      const borderColor = orDark(props.borderColor, "#2d2d44", false, false, true);
+      // Respect authored colors from the canvas to keep preview/theme parity.
+      const headerBg = String(props.headerBg ?? "#1e1e2e");
+      const headerTextColor = String(props.headerTextColor ?? "#e2e8f0");
+      const contentBg = String(props.contentBg ?? "#12121c");
+      const contentTextColor = String(props.contentTextColor ?? "#a0aec0");
+      const borderColor = String(props.borderColor ?? "#2d2d44");
       const borderWidth = toNumber(props.borderWidth, 1);
       const headerFontSize = toNumber(props.headerFontSize, 14);
       const contentFontSize = toNumber(props.contentFontSize, 13);
@@ -3275,8 +3360,56 @@ function RenderNode({
       );
     }
 
-    case "Tabs":
-      return wrap(<PreviewTabs props={props} />);
+    case "Tabs": {
+      const tabs = Array.isArray(props.tabs) ? (props.tabs as Array<{ id?: string; content?: unknown }>) : [];
+      const linkedSlotMap: Record<string, string> = {};
+
+      for (const tab of tabs) {
+        const tabId = typeof tab?.id === "string" ? tab.id.trim() : "";
+        if (!tabId) continue;
+
+        const fallbackId = `tab-content-${tabId}`;
+        const candidateId =
+          typeof tab?.content === "string" && tab.content.trim() ? tab.content.trim() : fallbackId;
+        const resolvedId =
+          (nodes[candidateId] ? candidateId : undefined) ||
+          (nodes[fallbackId] ? fallbackId : undefined);
+
+        if (resolvedId) {
+          linkedSlotMap[`tab-content-${tabId}`] = resolvedId;
+        }
+      }
+
+      const previewTabsProps = {
+        ...props,
+        __linkedNodes: linkedSlotMap,
+        nodes,
+        pages,
+        pageIndex,
+        viewportWidth,
+        interactionState,
+        availableTriggerTargets,
+        onToggle,
+        storeContext,
+        onPrototypeAction,
+        mobileBreakpoint,
+        enableFormInputs,
+        builderParityMode,
+        renderAllNodes,
+        preserveAuthoredPositioning,
+        layoutReferenceWidth,
+        layoutReferenceHeight,
+      };
+
+      return wrap(
+        <PreviewTabs
+          props={previewTabsProps}
+          childNodes={children}
+          childNodeIds={childIds}
+          childNodeMap={childNodeMap}
+        />
+      );
+    }
 
     default:
       return <div data-unknown-type={type}>{children}</div>;

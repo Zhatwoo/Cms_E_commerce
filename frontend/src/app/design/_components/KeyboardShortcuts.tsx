@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useEditor, Element } from "@craftjs/core";
 import {
   selectedToIds,

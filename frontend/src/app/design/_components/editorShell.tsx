@@ -2755,6 +2755,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                       <FloatingMobilePreview
                         isOpen={showDualView}
                         onClose={() => setShowDualView(false)}
+                        activePageId={currentPageId}
                         canvasWidth={canvasWidth}
                         canvasHeight={canvasHeight}
                       />

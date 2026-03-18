@@ -11,6 +11,7 @@ import type { BuilderDocument } from "../_types/schema";
 interface FloatingMobilePreviewProps {
   isOpen: boolean;
   onClose: () => void;
+  activePageId?: string | null;
   canvasWidth?: number;
   canvasHeight?: number;
 }
@@ -54,6 +55,7 @@ const DEFAULT_MOBILE_DEVICE = MOBILE_DEVICE_PRESETS[0];
 export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
   isOpen,
   onClose,
+  activePageId,
   canvasWidth,
   canvasHeight,
 }) => {
@@ -117,6 +119,7 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>(DEFAULT_MOBILE_DEVICE.id);
   const [showDeviceDropdown, setShowDeviceDropdown] = useState(false);
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
+  const lastGoodDocRef = useRef<BuilderDocument | null>(null);
 
   const selectedDevice = useMemo(
     () => MOBILE_DEVICE_PRESETS.find((d) => d.id === selectedDeviceId) ?? DEFAULT_MOBILE_DEVICE,
@@ -130,11 +133,25 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
     try {
       const raw = query.serialize();
       const parsed = serializeCraftToClean(raw);
-      return parsed?.pages?.length ? parsed : null;
+      if (parsed?.pages?.length) {
+        lastGoodDocRef.current = parsed;
+        return parsed;
+      }
+      return lastGoodDocRef.current;
     } catch {
-      return null;
+      return lastGoodDocRef.current;
     }
   }, [query, nodes]);
+
+  const previewPages = useMemo<PageInfo[]>(() => {
+    if (liveDoc?.pages?.length) {
+      return liveDoc.pages.map((page, index) => ({
+        id: page.id,
+        name: page.name || (page.props?.pageName as string) || `Page ${index + 1}`,
+      }));
+    }
+    return pages;
+  }, [liveDoc, pages]);
 
   useEffect(() => {
     if (isOpen && positionRef.current.x === 0 && positionRef.current.y === 0) {
@@ -149,17 +166,21 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
+    if (activePageId && previewPages.find((p) => p.id === activePageId)) {
+      setSelectedPageId(activePageId);
+      return;
+    }
     if (selectedPageFromCanvas && pages.find((p) => p.id === selectedPageFromCanvas)) {
       setSelectedPageId(selectedPageFromCanvas);
     }
-  }, [isOpen, selectedPageFromCanvas, pages]);
+  }, [isOpen, activePageId, selectedPageFromCanvas, previewPages, pages]);
 
   useEffect(() => {
     if (!isOpen) return;
-    if (pages.length > 0 && (!selectedPageId || !pages.find((p) => p.id === selectedPageId))) {
-      setSelectedPageId(pages[0].id);
+    if (previewPages.length > 0 && (!selectedPageId || !previewPages.find((p) => p.id === selectedPageId))) {
+      setSelectedPageId(previewPages[0].id);
     }
-  }, [isOpen, pages, selectedPageId]);
+  }, [isOpen, previewPages, selectedPageId]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -250,22 +271,32 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
     return {
       ...liveDoc,
       nodes: liveDoc.nodes,
-      pages: liveDoc.pages.map((page) => ({
-        ...page,
-        props: {
-          ...page.props,
-          width: targetWidth,
-          height: page.props?.height === "auto" ? targetHeight : (page.props?.height ?? targetHeight),
-        },
-      })),
+      pages: liveDoc.pages.map((page, index) => {
+        const slugFromPage = typeof page.slug === "string" ? page.slug.trim() : "";
+        const slugFromProps =
+          typeof page.props?.pageSlug === "string" ? page.props.pageSlug.trim() : "";
+        const safeSlug = slugFromPage || slugFromProps || `page-${index}`;
+
+        return {
+          ...page,
+          slug: safeSlug,
+          props: {
+            ...page.props,
+            pageSlug: safeSlug,
+            width: targetWidth,
+            height: page.props?.height === "auto" ? targetHeight : (page.props?.height ?? targetHeight),
+          },
+        };
+      }),
     };
   }, [liveDoc, previewWidth, previewHeight]);
 
   if (!isOpen) return null;
 
-  const selectedPage = pages.find((p) => p.id === selectedPageId);
+  const selectedPage = previewPages.find((p) => p.id === selectedPageId);
   const selectedPageSlug =
-    liveDoc?.pages.find((p) => p.id === selectedPageId)?.slug ?? liveDoc?.pages[0]?.slug ?? undefined;
+    previewDoc?.pages.find((p) => p.id === selectedPageId)?.slug ?? previewDoc?.pages[0]?.slug ?? undefined;
+  const hasRenderablePreview = Boolean(previewDoc && previewDoc.pages.length > 0);
 
   const frameWidth = previewWidth + 20;
   const viewportWidthSafe = viewportSize.width > 0 ? viewportSize.width : previewWidth + 80;
@@ -324,23 +355,23 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
             <div className="grid grid-cols-1 gap-2">
               <div className="relative">
                 <button
-                  onClick={() => pages.length > 1 && setShowPageDropdown((v) => !v)}
+                  onClick={() => previewPages.length > 1 && setShowPageDropdown((v) => !v)}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-lg bg-brand-medium-dark/50 transition-colors text-sm text-brand-lighter ${
-                    pages.length > 1 ? "hover:bg-brand-medium/30 cursor-pointer" : "cursor-default"
+                    previewPages.length > 1 ? "hover:bg-brand-medium/30 cursor-pointer" : "cursor-default"
                   }`}
                 >
                   <span className="truncate">
-                    {pages.length === 0 ? "No pages found" : selectedPage?.name || "Select Page"}
+                    {previewPages.length === 0 ? "No pages found" : selectedPage?.name || "Select Page"}
                   </span>
-                  {pages.length > 1 && (
+                  {previewPages.length > 1 && (
                     <ChevronDown
                       className={`w-4 h-4 transition-transform ${showPageDropdown ? "rotate-180" : ""}`}
                     />
                   )}
                 </button>
-                {showPageDropdown && pages.length > 1 && (
+                {showPageDropdown && previewPages.length > 1 && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-brand-dark border border-transparent rounded-lg shadow-lg py-1 z-10 max-h-48 overflow-y-auto">
-                    {pages.map((page) => (
+                    {previewPages.map((page) => (
                       <button
                         key={page.id}
                         onClick={() => {
@@ -428,12 +459,12 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
                 </div>
               </div>
 
-              {!previewDoc || !selectedPageSlug ? (
+              {!hasRenderablePreview || !previewDoc ? (
                 <div
                   className="flex items-center justify-center text-neutral-400 text-sm"
                   style={{ width: previewWidth, minHeight: Math.min(300, screenHeight), borderRadius: 20, background: "#ffffff" }}
                 >
-                  {pages.length === 0 ? "Loading pages..." : "Select a page to preview"}
+                  {previewPages.length === 0 ? "Loading pages..." : "Select a page to preview"}
                 </div>
               ) : (
                 <div
@@ -448,9 +479,9 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
                   }}
                 >
                   <WebPreview
-                    key={selectedPageSlug}
+                    key={selectedPageSlug || previewDoc.pages[0]?.slug || "mobile-preview"}
                     doc={previewDoc}
-                    initialPageSlug={selectedPageSlug}
+                    initialPageSlug={selectedPageSlug || previewDoc.pages[0]?.slug}
                     simulatedWidth={previewWidth}
                     mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
                     renderAllNodes
