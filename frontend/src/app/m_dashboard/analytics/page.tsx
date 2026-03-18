@@ -915,11 +915,16 @@ export default function AnalyticsPage() {
 
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}
       <section className="mb-6 text-center">
-        <h1 className="text-[42px] sm:text-[56px] lg:text-[74px] 2xl:text-[82px] font-extrabold leading-[0.98] tracking-tight">
+        <h1 className="text-[42px] sm:text-[56px] lg:text-[74px] 2xl:text-[82px] font-extrabold leading-[1.2] tracking-tight">
           <span className={`block ${theme === 'dark' ? 'text-white' : 'text-[#1E1B4B]'}`}>Analytics</span>
           <span 
             className={`block text-transparent bg-clip-text bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
-            style={{ textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)' }}>
+            style={{ 
+              textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)',
+              paddingBottom: '0.1em',
+              marginBottom: '-0.1em'
+            }}
+          >
             {toTitleCase(activeSectionTab)}
           </span>
         </h1>

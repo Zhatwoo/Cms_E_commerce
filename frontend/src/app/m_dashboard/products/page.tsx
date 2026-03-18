@@ -1098,12 +1098,13 @@ export default function ProductsPage() {
       <section className="max-w-[1090px] mx-auto pt-6 pb-2">
         <div className="text-center">
           <h1
-            className="text-[clamp(34px,5vw,56px)] font-extrabold tracking-[-1.8px] leading-[1.06]"
+            className="text-[clamp(34px,5vw,56px)] font-extrabold tracking-[-1.8px] leading-[1.2]"
             style={{ color: colors.text.primary }}
           >
             My{' '}
             <span
               className={`inline-block bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+              style={{ paddingBottom: '0.1em', marginBottom: '-0.1em' }}
             >
               Products
             </span>

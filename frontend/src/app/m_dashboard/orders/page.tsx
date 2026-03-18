@@ -280,15 +280,17 @@ export default function OrdersPage() {
 
       {/* ── Header ── */}
       <section className="relative z-10 mb-6 sm:mb-7 text-center">
-        <h1 className="text-[38px] max-[390px]:text-[34px] sm:text-5xl md:text-7xl lg:text-[78px] font-extrabold leading-[0.96] tracking-tight">
-          <span className={`block ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}`}>Track Buyer</span>
+        <h1 className="text-[44px] sm:text-[58px] lg:text-[76px] 2xl:text-[84px] font-extrabold leading-[1.15] tracking-tight">
+          <span className={`block ${theme === 'dark' ? 'text-white' : 'text-[#1E1B4B]'}`}>Customer </span>
           <span
-            className="block w-fit mx-auto text-transparent bg-clip-text"
+            className={`block text-transparent bg-clip-text bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
             style={{
               backgroundImage: theme === 'dark'
                 ? 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #ffcc00 100%)'
                 : 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #f5a213 100%)',
-              textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)'
+              textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)',
+              paddingBottom: '0.1em',
+              marginBottom: '-0.1em'
             }}
           >
             Checkouts

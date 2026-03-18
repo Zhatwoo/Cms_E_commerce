@@ -1429,12 +1429,13 @@ export default function InventoryPage() {
               fontWeight: 800,
               margin: 0,
               letterSpacing: -1.8,
-              lineHeight: 1.06,
+              lineHeight: 1.2,
             }}
           >
             <span style={{ color: 'var(--dashboard-light-text, #ffffff)' }}>My </span>
             <span
               className={`inline-block bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+              style={{ paddingBottom: '0.1em', marginBottom: '-0.1em' }}
             >
               Inventory
             </span>
