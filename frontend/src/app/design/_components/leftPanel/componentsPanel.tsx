@@ -4,7 +4,7 @@ import { useEditor, Element } from "@craftjs/core";
 import {
   ChevronLeft, ChevronRight, Box, Layers, Columns, Maximize, Minus,
   AlertCircle, ImageIcon, Star, CheckSquare, ListIcon, Badge,
-  MousePointer2, Type, Layout, ChevronDown, LayoutTemplate, FileCode,
+  RectangleHorizontal, Type, Layout, ChevronDown, LayoutTemplate, FileCode,
   Plus, Search, X, Video as VideoIcon,
 } from "lucide-react";
 import { AssetsPanel } from "./assetsPanel";
@@ -109,7 +109,7 @@ export const ComponentsPanel = () => {
     { label: "Image",     icon: <ImageIcon />,      iconStyle: COMP_STYLES.Image.base,     hoverColor: COMP_STYLES.Image.hoverColor,     element: <Image width="320px" height="220px" /> },
     { label: "Video",     icon: <VideoIcon />,      iconStyle: COMP_STYLES.Video.base,     hoverColor: COMP_STYLES.Video.hoverColor,     element: <Video width="320px" height="220px" /> },
     { label: "Spacer",    icon: <Maximize />,       iconStyle: COMP_STYLES.Spacer.base,    hoverColor: COMP_STYLES.Spacer.hoverColor,    element: <Spacer /> },
-    { label: "Button",    icon: <MousePointer2 />,  iconStyle: COMP_STYLES.Button.base,    hoverColor: COMP_STYLES.Button.hoverColor,    element: <Element is={Button} canvas label="Click me" /> },
+    { label: "Button",    icon: <RectangleHorizontal />, iconStyle: COMP_STYLES.Button.base,    hoverColor: COMP_STYLES.Button.hoverColor,    element: <Element is={Button} canvas label="Click me" /> },
     { label: "Checkbox / Radio", icon: <CheckSquare />, iconStyle: COMP_STYLES["Checkbox / Radio"].base, hoverColor: COMP_STYLES["Checkbox / Radio"].hoverColor, element: <BooleanField label="Option" controlType="checkbox" /> },
     { label: "Pagination",icon: <ListIcon />,       iconStyle: COMP_STYLES.Pagination.base,hoverColor: COMP_STYLES.Pagination.hoverColor,element: <Pagination /> },
     { label: "Rating",    icon: <Star />,           iconStyle: COMP_STYLES.Rating.base,    hoverColor: COMP_STYLES.Rating.hoverColor,    element: <Rating value={2} /> },
