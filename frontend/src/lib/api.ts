@@ -313,6 +313,10 @@ export async function getUnionBankLink(): Promise<{ success: boolean; url: strin
   return apiFetch<{ success: boolean; url: string }>('/api/payments/unionbank/link');
 }
 
+export async function getPayPalLink(): Promise<{ success: boolean; url: string }> {
+  return apiFetch<{ success: boolean; url: string }>('/api/payments/paypal/link');
+}
+
 /** Upload avatar via backend: file is saved in Storage only at Clients/profile_picture/{username}/profile-{uid}. */
 export async function uploadAvatarApi(
   file: File

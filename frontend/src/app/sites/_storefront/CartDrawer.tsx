@@ -92,7 +92,7 @@ export function CartDrawer() {
       city: string;
       postalCode: string;
     },
-    paymentMethod: 'gcash' | 'maya' | 'card' | 'stripe'
+    paymentMethod: 'gcash' | 'maya' | 'card' | 'stripe' | 'paypal'
   ) => {
     if (!subdomain) {
       window.alert('Checkout unavailable: missing subdomain context.');
