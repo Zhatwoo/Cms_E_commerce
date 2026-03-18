@@ -1296,7 +1296,7 @@ export default function ProductsPage() {
                       backgroundColor: colors.bg.card, 
                       borderColor: theme === 'dark' ? '#1F1F51' : colors.border.default,
                       boxShadow: theme === 'dark' ? '0 0 12px rgba(31,31,81,0.4)' : '0 4px 10px rgba(0,0,0,0.03)',
-                      color: theme === 'dark' ? '#FFCE00' : '#8B5CF6'
+                      color: theme === 'dark' ? '#FFCE00' : '#803BED'
                     }}
                     title="Filter products"
                   >
@@ -1349,7 +1349,7 @@ export default function ProductsPage() {
                     backgroundColor: colors.bg.card, 
                     borderColor: theme === 'dark' ? '#1F1F51' : colors.border.default,
                     boxShadow: theme === 'dark' ? '0 0 12px rgba(31,31,81,0.4)' : '0 4px 10px rgba(0,0,0,0.03)',
-                    color: theme === 'dark' ? '#FFCE00' : '#8B5CF6'
+                    color: theme === 'dark' ? '#FFCE00' : '#803BED'
                   }}
                   title={viewMode === 'tile' ? 'Switch to list view' : 'Switch to tile view'}
                 >
@@ -1405,7 +1405,7 @@ export default function ProductsPage() {
                         borderRadius: '24px 24px 0 0',
                        background: theme === 'dark' 
                           ? 'linear-gradient(90deg, #1E1B4B 0%, #312E81 100%)' 
-                          : '#8B5CF6',
+                          : '#803BED',
                         color: '#FFFFFF',
                         fontSize: 10,
                         fontWeight: 800,
@@ -1501,7 +1501,7 @@ export default function ProductsPage() {
                                 }}
                                 onMouseEnter={(e) => {
                                   e.currentTarget.style.backgroundColor = theme === 'dark' ? 'rgba(124,58,237,0.28)' : '#F3E8FF';
-                                  e.currentTarget.style.borderColor = theme === 'dark' ? '#8B5CF6' : '#C084FC';
+                                  e.currentTarget.style.borderColor = theme === 'dark' ? '#803BED' : '#C084FC';
                                   e.currentTarget.style.color = theme === 'dark' ? '#E9D5FF' : '#6D28D9';
                                 }}
                                 onMouseLeave={(e) => {
