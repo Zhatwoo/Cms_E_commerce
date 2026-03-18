@@ -745,6 +745,36 @@ export function ungroupSelection(
     const childIds = (groupNode.data?.nodes as string[]) ?? [];
     if (childIds.length === 0) return [];
 
+    const parentNode = state.nodes[parentId];
+    const parentProps = (parentNode?.data?.props ?? {}) as Record<string, unknown>;
+    const groupProps = (groupNode.data?.props ?? {}) as Record<string, unknown>;
+    const groupLeft = parsePxValue(groupProps.left);
+    const groupTop = parsePxValue(groupProps.top);
+
+    const parentDom = query.node(parentId).get()?.dom ?? null;
+    const parentRect = parentDom?.getBoundingClientRect() ?? null;
+    const parentScale = getRenderedScale(parentDom);
+
+    const childPositions = new Map<string, { left: number; top: number }>();
+    if (parentRect) {
+      childIds.forEach((id) => {
+        const childDom = query.node(id).get()?.dom ?? null;
+        if (childDom) {
+          const rect = childDom.getBoundingClientRect();
+          const left = (rect.left - parentRect.left) / parentScale.scaleX;
+          const top = (rect.top - parentRect.top) / parentScale.scaleY;
+          childPositions.set(id, { left, top });
+          return;
+        }
+
+        const childNode = state.nodes[id];
+        const childProps = (childNode?.data?.props ?? {}) as Record<string, unknown>;
+        const childLeft = parsePxValue(childProps.left);
+        const childTop = parsePxValue(childProps.top);
+        childPositions.set(id, { left: groupLeft + childLeft, top: groupTop + childTop });
+      });
+    }
+
     const parentSiblings = (state.nodes[parentId]?.data?.nodes as string[]) ?? [];
     let insertIndex = parentSiblings.indexOf(groupId);
     if (insertIndex < 0) insertIndex = parentSiblings.length;
@@ -759,6 +789,31 @@ export function ungroupSelection(
       } catch {
         /* skip */
       }
+    }
+
+    if (movedIds.length > 0 && childPositions.size > 0) {
+      actions.setProp(parentId, (props: Record<string, unknown>) => {
+        const parentPosition = String(props.position ?? "static");
+        if (!parentPosition || parentPosition === "static") {
+          props.position = "relative";
+        }
+      });
+
+      movedIds.forEach((id) => {
+        const pos = childPositions.get(id);
+        if (!pos) return;
+        actions.setProp(id, (props: Record<string, unknown>) => {
+          props.position = "absolute";
+          props.left = `${Math.round(pos.left)}px`;
+          props.top = `${Math.round(pos.top)}px`;
+          props.right = "auto";
+          props.bottom = "auto";
+          props.marginTop = 0;
+          props.marginRight = 0;
+          props.marginBottom = 0;
+          props.marginLeft = 0;
+        });
+      });
     }
 
     try {

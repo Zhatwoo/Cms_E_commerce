@@ -4,7 +4,7 @@ import { useEditor, Element } from "@craftjs/core";
 import {
   ChevronLeft, ChevronRight, Box, Layers, Columns, Maximize, Minus,
   AlertCircle, ImageIcon, Star, CheckSquare, ListIcon, Badge,
-  MousePointer2, Type, Layout, ChevronDown, LayoutTemplate, FileCode,
+  RectangleHorizontal, Type, Layout, ChevronDown, LayoutTemplate, FileCode,
   Plus, Search, X, Video as VideoIcon,
 } from "lucide-react";
 import { AssetsPanel } from "./assetsPanel";
@@ -86,7 +86,10 @@ export const ComponentsPanel = () => {
     const maybeCraftComponent = (element.props as { is?: unknown } | undefined)?.is ?? element.type;
     if (FLOW_LAYOUT_COMPONENTS.has(maybeCraftComponent)) return element;
     return React.cloneElement<any>(element as React.ReactElement<any>, {
-      position: "absolute", top: "0px", left: "0px", ...(element.props ?? {}),
+      ...(element.props ?? {}),
+      position: "absolute",
+      top: "0px",
+      left: "0px",
     } as any);
   };
 
@@ -105,11 +108,11 @@ export const ComponentsPanel = () => {
       ),
     },
     { label: "Column",    icon: <Columns />,        iconStyle: COMP_STYLES.Column.base,    hoverColor: COMP_STYLES.Column.hoverColor,    element: <Element is={Column} canvas /> },
-    { label: "Text",      icon: <Type />,           iconStyle: COMP_STYLES.Text.base,      hoverColor: COMP_STYLES.Text.hoverColor,      element: <Text text="" fontSize={18} width="100%" position="relative" /> },
+    { label: "Text",      icon: <Type />,           iconStyle: COMP_STYLES.Text.base,      hoverColor: COMP_STYLES.Text.hoverColor,      element: <Text text="" fontSize={18} width="fit-content" /> },
     { label: "Image",     icon: <ImageIcon />,      iconStyle: COMP_STYLES.Image.base,     hoverColor: COMP_STYLES.Image.hoverColor,     element: <Image width="320px" height="220px" /> },
     { label: "Video",     icon: <VideoIcon />,      iconStyle: COMP_STYLES.Video.base,     hoverColor: COMP_STYLES.Video.hoverColor,     element: <Video width="320px" height="220px" /> },
     { label: "Spacer",    icon: <Maximize />,       iconStyle: COMP_STYLES.Spacer.base,    hoverColor: COMP_STYLES.Spacer.hoverColor,    element: <Spacer /> },
-    { label: "Button",    icon: <MousePointer2 />,  iconStyle: COMP_STYLES.Button.base,    hoverColor: COMP_STYLES.Button.hoverColor,    element: <Element is={Button} canvas label="Click me" /> },
+    { label: "Button",    icon: <RectangleHorizontal />, iconStyle: COMP_STYLES.Button.base,    hoverColor: COMP_STYLES.Button.hoverColor,    element: <Element is={Button} canvas label="Click me" /> },
     { label: "Checkbox / Radio", icon: <CheckSquare />, iconStyle: COMP_STYLES["Checkbox / Radio"].base, hoverColor: COMP_STYLES["Checkbox / Radio"].hoverColor, element: <BooleanField label="Option" controlType="checkbox" /> },
     { label: "Pagination",icon: <ListIcon />,       iconStyle: COMP_STYLES.Pagination.base,hoverColor: COMP_STYLES.Pagination.hoverColor,element: <Pagination /> },
     { label: "Rating",    icon: <Star />,           iconStyle: COMP_STYLES.Rating.base,    hoverColor: COMP_STYLES.Rating.hoverColor,    element: <Rating value={2} /> },

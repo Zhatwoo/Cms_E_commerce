@@ -343,12 +343,13 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
       <div className="relative z-10 mx-auto w-full max-w-none flex flex-col gap-10">
         <div className="flex flex-col items-center text-center gap-8 pt-1">
           <h1
-            className="text-4xl sm:text-6xl lg:text-[76px] font-black leading-[1.06] tracking-tight max-w-5xl [font-family:var(--font-outfit),sans-serif] text-white"
+            className="text-4xl sm:text-6xl lg:text-[76px] font-black leading-[1.2] tracking-tight max-w-5xl [font-family:var(--font-outfit),sans-serif] text-white"
           >
             <span className={`block ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}`}>
               What{' '}
               <span
                 className={`inline-block bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+                style={{ paddingBottom: '0.1em', marginBottom: '-0.1em' }}
               >
                 website
               </span>{' '}
@@ -358,6 +359,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
               you{' '}
               <span
                 className={`inline-block bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+                style={{ paddingBottom: '0.1em', marginBottom: '-0.1em' }}
               >
                 build?
               </span>

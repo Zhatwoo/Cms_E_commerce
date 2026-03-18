@@ -508,6 +508,26 @@ const frameResponsiveStyles = (
         word-break: break-word;
       }
 
+      .frame-responsive-inner [data-smooth="true"] {
+        transition:
+          width 180ms ease,
+          height 180ms ease,
+          padding 180ms ease,
+          margin 180ms ease,
+          transform 180ms ease,
+          opacity 180ms ease,
+          box-shadow 180ms ease,
+          background-color 180ms ease,
+          border-color 180ms ease,
+          color 180ms ease;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .frame-responsive-inner [data-smooth="true"] {
+          transition: none !important;
+        }
+      }
+
       .frame-responsive-inner.frame-fluid [data-fluid-media="true"] {
         object-fit: cover !important;
         width: 100%;
@@ -1548,6 +1568,52 @@ function normalizeLayoutHeightForNarrow(
   return undefined;
 }
 
+function normalizeSpacerDimension(
+  value: unknown,
+  axis: "width" | "height",
+  isNarrow: boolean,
+  builderParityMode?: boolean,
+): string {
+  if (typeof value === "number") {
+    if (!isNarrow || builderParityMode) return `${value}px`;
+    if (axis === "width") return `min(100%, ${Math.max(1, value)}px)`;
+    const max = Math.max(4, value);
+    const min = Math.max(4, Math.round(max * 0.4));
+    return `clamp(${min}px, 5cqw, ${max}px)`;
+  }
+
+  if (typeof value === "string") {
+    const raw = value.trim();
+    if (!raw) return axis === "width" ? "100%" : "20px";
+    if (!isNarrow || builderParityMode) return raw;
+
+    const normalized = raw.toLowerCase();
+    if (normalized === "auto") return raw;
+    if (
+      normalized.endsWith("%") ||
+      normalized.includes("vw") ||
+      normalized.startsWith("min(") ||
+      normalized.startsWith("max(") ||
+      normalized.startsWith("clamp(") ||
+      normalized.startsWith("calc(")
+    ) {
+      return raw;
+    }
+
+    if (normalized.endsWith("px")) {
+      const parsed = Number(normalized.slice(0, -2));
+      if (Number.isFinite(parsed) && parsed > 0) {
+        if (axis === "width") return `min(100%, ${parsed}px)`;
+        const max = Math.max(4, parsed);
+        const min = Math.max(4, Math.round(max * 0.4));
+        return `clamp(${min}px, 5cqw, ${max}px)`;
+      }
+    }
+  }
+
+  return axis === "width" ? "100%" : "20px";
+}
+
 function isNarrowResponsivePreview(
   viewportWidth: number,
   builderParityMode?: boolean,
@@ -1923,15 +1989,12 @@ function RenderNode({
   enableFormInputs,
   builderParityMode,
   renderAllNodes,
-  preserveAuthoredPositioning: _preserveAuthoredPositioning,
-  layoutReferenceWidth: _layoutReferenceWidth,
-  layoutReferenceHeight: _layoutReferenceHeight,
-  parentType,
-  insideTabsContext,
   productBinding,
   preserveAuthoredPositioning,
   layoutReferenceWidth,
   layoutReferenceHeight,
+  parentType,
+  insideTabsContext,
 }: {
   node: CleanNode;
   nodes: Record<string, CleanNode>;
@@ -1954,9 +2017,6 @@ function RenderNode({
   parentType?: ComponentType;
   insideTabsContext?: boolean;
   productBinding?: ProductBinding | null;
-  preserveAuthoredPositioning?: boolean;
-  layoutReferenceWidth?: number;
-  layoutReferenceHeight?: number;
 }): React.ReactElement {
   void preserveAuthoredPositioning;
   void layoutReferenceWidth;
@@ -2988,6 +3048,7 @@ function RenderNode({
           data-fluid-space="true"
           data-fluid-button="true"
           data-fluid-text="true"
+          data-smooth="true"
           data-mobile-font-scale={shouldScaleButtonFont ? "true" : undefined}
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
@@ -3019,6 +3080,7 @@ function RenderNode({
             whiteSpace: isNarrowPreview ? "normal" : "nowrap",
             overflowWrap: isNarrowPreview ? "break-word" : "normal",
             wordBreak: isNarrowPreview ? "break-word" : "keep-all",
+            transition: "background-color 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease, opacity 180ms ease",
             ["--fluid-font-cqw" as any]: "3cqw",
             ["--mobile-source-font-size" as any]: `${rawButtonFontSize}px`,
             ["--fluid-font-max" as any]: `${rawButtonFontSize}px`,
@@ -3355,17 +3417,19 @@ function RenderNode({
         spacerFlipH ? "scaleX(-1)" : null,
         spacerFlipV ? "scaleY(-1)" : null,
       ].filter(Boolean).join(" ") || undefined;
-      const width = normalizeLayoutWidthForNarrow(
-        normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint) || (props.width as string) || "100%",
-        isNarrowPreview,
-        builderParityMode,
-      ) || "100%";
-      const height = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode) || (props.height as string) || "20px";
+      const spacerWidthSource =
+        normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint) ||
+        props.width ||
+        "100%";
+      const spacerHeightSource = props.height ?? "20px";
+      const width = normalizeSpacerDimension(spacerWidthSource, "width", isNarrowPreview, builderParityMode);
+      const height = normalizeSpacerDimension(spacerHeightSource, "height", isNarrowPreview, builderParityMode);
       const bw = toNumber(props.borderWidth, 0);
 
       return wrap(
         <div
           data-fluid-space="true"
+          data-smooth="true"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
             width,
@@ -3373,8 +3437,10 @@ function RenderNode({
             maxWidth: "100%",
             minWidth: 0,
             boxSizing: "border-box",
-            padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
-            margin: `${fluidSpace(mt, 0, 0.35, 1.4)} ${fluidSpace(mr, 0, 0.35, 1.4)} ${fluidSpace(mb, 0, 0.35, 1.4)} ${fluidSpace(ml, 0, 0.35, 1.4)}`,
+            display: "block",
+            flexShrink: 0,
+            padding: `${fluidSpace(pt, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pr, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pb, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pl, 0, 0.45, 2.2, useFixedPx)}`,
+            margin: `${fluidSpace(mt, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mr, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mb, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(ml, 0, 0.35, 1.4, useFixedPx)}`,
             background: (props.background as string) || "transparent",
             borderRadius: px(props.borderRadius),
             border: bw > 0 ? `${bw}px ${(props.borderStyle as string) || "solid"} ${(props.borderColor as string) || "transparent"}` : undefined,
@@ -3414,6 +3480,7 @@ function RenderNode({
         <div
           data-fluid-space="true"
           data-layout="row"
+          data-smooth="true"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
             width: badgeWidth,
@@ -3422,8 +3489,8 @@ function RenderNode({
             minWidth: badgeWidth === "fit-content" ? fluidSpace(pl + pr + 48, 48) : 0,
             boxSizing: "border-box",
             backgroundColor: (props.background as string) || "#16a34a",
-            padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
-            margin: `${fluidSpace(mt, 0, 0.35, 1.4)} ${fluidSpace(mr, 0, 0.35, 1.4)} ${fluidSpace(mb, 0, 0.35, 1.4)} ${fluidSpace(ml, 0, 0.35, 1.4)}`,
+            padding: `${fluidSpace(pt, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pr, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pb, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pl, 0, 0.45, 2.2, useFixedPx)}`,
+            margin: `${fluidSpace(mt, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mr, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mb, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(ml, 0, 0.35, 1.4, useFixedPx)}`,
             borderRadius: px(props.borderRadius),
             ...(badgeStrokePlacement === "outside" && badgeBorderDecl
               ? { border: "none", outline: badgeBorderDecl, outlineOffset: 0 }
@@ -3435,7 +3502,7 @@ function RenderNode({
             flexWrap: (props.flexWrap as React.CSSProperties["flexWrap"]) || "nowrap",
             alignItems: (props.alignItems as React.CSSProperties["alignItems"]) || "center",
             justifyContent: (props.justifyContent as React.CSSProperties["justifyContent"]) || "center",
-            gap: fluidSpace(props.gap, 0, 0.4, 1.8),
+            gap: fluidSpace(props.gap, 0, 0.4, 1.8, useFixedPx),
             overflow: (props.overflow as string) || "hidden",
             boxShadow: props.boxShadow as string,
             opacity: toNumber(props.opacity, 1),
@@ -3511,6 +3578,7 @@ function RenderNode({
         maxWidth: "100%",
         minWidth: 0,
         boxSizing: "border-box",
+        transition: "background-color 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease",
       };
 
       const navButtonStyle: React.CSSProperties = {
@@ -3537,6 +3605,7 @@ function RenderNode({
       return wrap(
         <div
           data-fluid-space="true"
+          data-smooth="true"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
             width,
@@ -3547,9 +3616,9 @@ function RenderNode({
             flexWrap: "wrap",
             alignItems: "center",
             justifyContent,
-            gap: fluidSpace(gapValue, 0, 0.45, 1.8),
-            padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
-            margin: `${fluidSpace(mt, 0, 0.35, 1.4)} ${fluidSpace(mr, 0, 0.35, 1.4)} ${fluidSpace(mb, 0, 0.35, 1.4)} ${fluidSpace(ml, 0, 0.35, 1.4)}`,
+            gap: fluidSpace(gapValue, 0, 0.45, 1.8, useFixedPx),
+            padding: `${fluidSpace(pt, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pr, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pb, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pl, 0, 0.45, 2.2, useFixedPx)}`,
+            margin: `${fluidSpace(mt, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mr, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mb, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(ml, 0, 0.35, 1.4, useFixedPx)}`,
             boxSizing: "border-box",
           }}
         >
@@ -3608,12 +3677,17 @@ function RenderNode({
     case "Divider":
       return wrap(
         <hr
+          data-fluid-space="true"
+          data-smooth="true"
           style={{
             width: normalizeLayoutWidthForNarrow((props.width as string) || "100%", isNarrowPreview, builderParityMode) || "100%",
             border: "none",
-            borderTop: `${props.thickness}px ${props.dividerStyle} ${props.color}`,
-            marginTop: px(props.marginTop),
-            marginBottom: px(props.marginBottom),
+            maxWidth: "100%",
+            minWidth: 0,
+            borderTop: `${toNumber(props.thickness, 1)}px ${(props.dividerStyle as string) || "solid"} ${(props.color as string) || "#4a4a4a"}`,
+            marginTop: fluidSpace(props.marginTop, 0, 0.35, 1.4, useFixedPx),
+            marginBottom: fluidSpace(props.marginBottom, 0, 0.35, 1.4, useFixedPx),
+            opacity: toNumber(props.opacity, 1),
           }}
         />
       );
@@ -3627,10 +3701,16 @@ function RenderNode({
         <div
           data-fluid-space="true"
           data-fluid-icon="true"
+          data-smooth="true"
           onClick={interactiveClick}
           style={{
             ["--fluid-icon-max" as any]: `${iconSize}px`,
             maxWidth: "100%",
+            minWidth: 0,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: interactiveClick ? "pointer" : undefined,
           }}
         >
           <DesignIcon

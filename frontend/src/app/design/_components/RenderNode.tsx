@@ -1,9 +1,67 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNode, useEditor } from "@craftjs/core";
 import ReactDOM from "react-dom";
 import { ResizeOverlay } from "./ResizeOverlay";
 import { useCanvasTool } from "./CanvasToolContext";
 import { useInlineTextEdit } from "./InlineTextEditContext";
+
+function getNodeChildIds(node: Record<string, any> | null | undefined): string[] {
+  if (!node || typeof node !== "object") return [];
+  const data = (node.data ?? {}) as Record<string, unknown>;
+  const fromNodes = (data.nodes ?? node.nodes) as unknown;
+  const nodeIds = Array.isArray(fromNodes) ? (fromNodes as string[]) : [];
+
+  const displayName = String((data.displayName as string | undefined) ?? "").trim();
+  const shouldIncludeLinked = displayName === "Tabs";
+  const fromLinked = shouldIncludeLinked ? ((data.linkedNodes ?? node.linkedNodes) as unknown) : null;
+  const linkedIds =
+    fromLinked && typeof fromLinked === "object"
+      ? Object.values(fromLinked as Record<string, unknown>).filter((v): v is string => typeof v === "string")
+      : [];
+
+  return [...nodeIds, ...linkedIds];
+}
+
+function getNodeBaseName(node: Record<string, any> | null | undefined): string {
+  const data = (node?.data ?? {}) as Record<string, unknown>;
+  const custom = (data.custom ?? {}) as Record<string, unknown>;
+  const raw = String(custom.displayName ?? data.displayName ?? data.name ?? "").trim();
+  return raw || "Node";
+}
+
+function buildNodeNameIndexMap(nodes: Record<string, any>): {
+  baseNameById: Record<string, string>;
+  indexById: Record<string, number>;
+  totalByName: Record<string, number>;
+} {
+  const baseNameById: Record<string, string> = {};
+  const indexById: Record<string, number> = {};
+  const totalByName: Record<string, number> = {};
+  const seen = new Set<string>();
+
+  const visit = (id: string) => {
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    const node = nodes[id] as Record<string, any> | undefined;
+    if (!node) return;
+
+    const baseName = getNodeBaseName(node);
+    baseNameById[id] = baseName;
+    totalByName[baseName] = (totalByName[baseName] ?? 0) + 1;
+    indexById[id] = totalByName[baseName];
+
+    for (const childId of getNodeChildIds(node)) {
+      visit(childId);
+    }
+  };
+
+  visit("ROOT");
+  for (const id of Object.keys(nodes)) {
+    visit(id);
+  }
+
+  return { baseNameById, indexById, totalByName };
+}
 
 export const RenderNode = ({ render }: { render: React.ReactElement }) => {
   const { activeTool } = useCanvasTool();
@@ -22,17 +80,9 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
   }));
   const suppressPassiveHover = name === "Page";
 
-  const { isActive, actions, query, selectedRaw } = useEditor((state, query) => ({
+  const { isActive, actions, query } = useEditor((state, query) => ({
     isActive: query.getEvent('selected').contains(id),
-    selectedRaw: state.events.selected,
   }));
-
-  const selectedToIds = (raw: unknown): string[] => {
-    if (Array.isArray(raw)) return raw.filter((v): v is string => typeof v === "string");
-    if (raw instanceof Set) return Array.from(raw).filter((v): v is string => typeof v === "string");
-    if (raw && typeof raw === "object") return Object.keys(raw as Record<string, unknown>);
-    return [];
-  };
 
   const [isDomHovered, setIsDomHovered] = useState(false);
   const pendingSelectTimerRef = useRef<number | null>(null);
@@ -84,6 +134,19 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
     if (!dom) return;
     if (id === "ROOT" || name === "Viewport") return;
 
+    const findDeepestNodeId = (element: HTMLElement | null): string | null => {
+      if (!element) return null;
+      const selfId = element.getAttribute("data-node-id");
+      if (selfId) return selfId;
+      let current: HTMLElement | null = element;
+      while (current && current !== document.body) {
+        const nodeId = current.getAttribute("data-node-id");
+        if (nodeId) return nodeId;
+        current = current.parentElement;
+      }
+      return null;
+    };
+
     const onMouseDownCapture = (event: MouseEvent) => {
       if (isHandTool) return;
       if (event.button !== 0) return;
@@ -101,6 +164,25 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
         try {
           const nodes = query.getState().nodes;
           const selectableGroupNames = new Set(["Container", "Section", "Row", "Column", "Frame", "Banner", "TabContent", "Tab Content"]);
+          const clickedNodeId = findDeepestNodeId(target);
+          if (clickedNodeId && clickedNodeId !== id) return;
+
+          const clickedNode = nodes[id];
+          const clickedDisplayName = clickedNode?.data?.displayName as string | undefined;
+          const clickedIsCanvas = clickedNode?.data?.isCanvas === true;
+          const clickedIsPageLike = clickedDisplayName === "Page" || clickedDisplayName === "Viewport";
+          const clickedIsGroup = clickedIsCanvas || (clickedDisplayName && selectableGroupNames.has(clickedDisplayName));
+
+          if (clickedIsGroup && !clickedIsPageLike) {
+            if (event.cancelable) event.preventDefault();
+            event.stopPropagation();
+            if (typeof event.stopImmediatePropagation === "function") {
+              event.stopImmediatePropagation();
+            }
+            actions.selectNode(id);
+            return;
+          }
+
           let cursor: string | undefined = id;
           let groupAncestorId: string | null = null;
 
@@ -111,11 +193,7 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
             const displayName = parentNode?.data?.displayName as string | undefined;
             const isCanvas = parentNode?.data?.isCanvas === true;
             const isPageLike = displayName === "Page" || displayName === "Viewport";
-
-            const currentlySelectedIds = selectedToIds(selectedRaw);
-            const isParentAlreadySelected = currentlySelectedIds.includes(parentId);
-
-            if ((isCanvas || (displayName && selectableGroupNames.has(displayName))) && !isPageLike && !isParentAlreadySelected) {
+            if ((isCanvas || (displayName && selectableGroupNames.has(displayName))) && !isPageLike) {
               groupAncestorId = parentId;
               break;
             }
@@ -158,7 +236,7 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
     return () => {
       dom.removeEventListener("mousedown", onMouseDownCapture, true);
     };
-  }, [actions, dom, id, name, isHandTool]);
+  }, [actions, dom, id, name, isHandTool, query]);
 
   const [rect, setRect] = useState<DOMRect | null>(null);
 
@@ -199,6 +277,19 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
   }
 
   const isLabelVisible = !isHandTool && ((isDomHovered && !suppressPassiveHover) || isActive) && dom && rect;
+  const numberedLabel = useMemo(() => {
+    if (!isLabelVisible) return name;
+    try {
+      const nodes = (query.getState().nodes ?? {}) as Record<string, any>;
+      const map = buildNodeNameIndexMap(nodes);
+      const baseName = map.baseNameById[id] || name || "Node";
+      const total = map.totalByName[baseName] ?? 1;
+      const index = map.indexById[id] ?? 1;
+      return total > 1 ? `${baseName} ${index}` : baseName;
+    } catch {
+      return name;
+    }
+  }, [isLabelVisible, query, id, name]);
 
   return (
     <>
@@ -215,7 +306,7 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
               transform: `translate3d(${rect.left}px, ${rect.top - 24}px, 0)`,
             }}
           >
-            {name}
+            {numberedLabel}
           </div>,
           document.body
         )
