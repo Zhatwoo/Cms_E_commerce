@@ -415,14 +415,14 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                 <button
                     type="button"
                     suppressHydrationWarning
-                    className="admin-dashboard-logout mt-auto shrink-0 flex w-full items-center rounded-2xl px-2 py-2"
+                    className={`admin-dashboard-logout mt-auto shrink-0 flex items-center rounded-2xl ${isHovered ? 'w-full px-2 py-2 justify-start' : 'justify-center py-2'}`}
                     aria-label="Log out"
                     title="Log out"
                 >
-                    <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/55">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/55">
                         <LogoutIcon />
                     </span>
-                    <span className={`ml-3 whitespace-nowrap text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
+                    <span className={`admin-dashboard-purple whitespace-nowrap text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'ml-3 opacity-100' : 'opacity-0'}`}>
                         Log out
                     </span>
                 </button>
