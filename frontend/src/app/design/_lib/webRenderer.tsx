@@ -2011,12 +2011,12 @@ function RenderNode({
   enableFormInputs?: boolean;
   builderParityMode?: boolean;
   renderAllNodes?: boolean;
+  productBinding?: ProductBinding | null;
   preserveAuthoredPositioning?: boolean;
   layoutReferenceWidth?: number;
   layoutReferenceHeight?: number;
   parentType?: ComponentType;
   insideTabsContext?: boolean;
-  productBinding?: ProductBinding | null;
 }): React.ReactElement {
   void preserveAuthoredPositioning;
   void layoutReferenceWidth;
