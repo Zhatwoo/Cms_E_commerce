@@ -1224,8 +1224,13 @@ export default function ProductsPage() {
                   <button
                     type="button"
                     onClick={() => setShowStatusFilterMenu((prev) => !prev)}
-                    className="h-10 w-10 rounded-xl border flex items-center justify-center hover:opacity-90"
-                    style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
+                    className="h-[48px] w-[48px] cursor-pointer rounded-2xl border flex items-center justify-center transition-all duration-300 hover:opacity-80"
+                    style={{ 
+                      backgroundColor: colors.bg.card, 
+                      borderColor: theme === 'dark' ? '#1F1F51' : colors.border.default,
+                      boxShadow: theme === 'dark' ? '0 0 12px rgba(31,31,81,0.4)' : '0 4px 10px rgba(0,0,0,0.03)',
+                      color: theme === 'dark' ? '#FFCE00' : '#803BED'
+                    }}
                     title="Filter products"
                   >
                     <img src="/icons/products/Sort%20Amount%20Up.png" alt="Filter" className="h-5 w-5" />
@@ -1265,8 +1270,13 @@ export default function ProductsPage() {
                 <button
                   type="button"
                   onClick={() => setViewMode((prev) => (prev === 'tile' ? 'list' : 'tile'))}
-                  className="h-10 w-10 rounded-xl border flex items-center justify-center hover:opacity-90"
-                  style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
+                  className="h-12 w-12 rounded-2xl border flex items-center justify-center transition-all duration-300 hover:opacity-80 cursor-pointer"
+                  style={{ 
+                    backgroundColor: colors.bg.card, 
+                    borderColor: theme === 'dark' ? '#1F1F51' : colors.border.default,
+                    boxShadow: theme === 'dark' ? '0 0 12px rgba(31,31,81,0.4)' : '0 4px 10px rgba(0,0,0,0.03)',
+                    color: theme === 'dark' ? '#FFCE00' : '#803BED'
+                  }}
                   title={viewMode === 'tile' ? 'Switch to list view' : 'Switch to tile view'}
                 >
                   {viewMode === 'tile' ? (
@@ -1338,11 +1348,14 @@ export default function ProductsPage() {
                         gap: 16,
                         padding: '13px 24px',
                         minWidth: 860,
-                        borderBottom: '1px solid #2D3A90',
-                        background: '#141446',
-                        color: '#8273a8',
-                        fontSize: 11,
-                        letterSpacing: 0.9,
+                        borderRadius: '24px 24px 0 0',
+                       background: theme === 'dark' 
+                          ? 'linear-gradient(90deg, #1E1B4B 0%, #312E81 100%)' 
+                          : '#803BED',
+                        color: '#FFFFFF',
+                        fontSize: 10,
+                        fontWeight: 800,
+                        letterSpacing: '0.15em',
                         textTransform: 'uppercase',
                       }}
                     >
@@ -1405,12 +1418,99 @@ export default function ProductsPage() {
                             ))}
                           </div>
 
-                          <div className="text-white font-semibold">{formatProductPrice(product)}</div>
-
-                          <div>
-                            <span className="text-sm font-semibold" style={{ color: inStock ? '#86efac' : '#fca5a5' }}>
-                              {inStock ? 'In stock' : 'Out of stock'}
-                            </span>
+                            <div className="flex items-center justify-center gap-2" style={{ justifySelf: 'center' }}>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleView(product);
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = theme === 'dark' ? 'rgba(124,58,237,0.28)' : '#F3E8FF';
+                                  e.currentTarget.style.borderColor = theme === 'dark' ? '#803BED' : '#C084FC';
+                                  e.currentTarget.style.color = theme === 'dark' ? '#E9D5FF' : '#6D28D9';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = theme === 'dark' ? 'rgba(124,58,237,0.12)' : '#FFFFFF';
+                                  e.currentTarget.style.borderColor = theme === 'dark' ? '#3A4473' : '#E9E2F8';
+                                  e.currentTarget.style.color = theme === 'dark' ? '#C4B5FD' : '#7C3AED';
+                                }}
+                                className="flex h-9 w-9 items-center justify-center rounded-xl border transition-all hover:-translate-y-0.5"
+                                style={{
+                                  borderColor: theme === 'dark' ? '#3A4473' : '#E9E2F8',
+                                  color: theme === 'dark' ? '#C4B5FD' : '#7C3AED',
+                                  backgroundColor: theme === 'dark' ? 'rgba(124,58,237,0.12)' : '#FFFFFF',
+                                }}
+                                title="View"
+                                aria-label="View product"
+                              >
+                                <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5s8.268 2.943 9.542 7c-1.274 4.057-5.065 7-9.542 7S3.732 16.057 2.458 12Z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7Z" />
+                                </svg>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEdit(product);
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = theme === 'dark' ? 'rgba(245,158,11,0.24)' : '#FEF3C7';
+                                  e.currentTarget.style.borderColor = theme === 'dark' ? '#FBBF24' : '#F59E0B';
+                                  e.currentTarget.style.color = theme === 'dark' ? '#FDE68A' : '#92400E';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = theme === 'dark' ? 'rgba(245,158,11,0.12)' : '#FFFFFF';
+                                  e.currentTarget.style.borderColor = theme === 'dark' ? '#3A4473' : '#E9E2F8';
+                                  e.currentTarget.style.color = theme === 'dark' ? '#FDE68A' : '#B45309';
+                                }}
+                                className="flex h-9 w-9 items-center justify-center rounded-xl border transition-all hover:-translate-y-0.5"
+                                style={{
+                                  borderColor: theme === 'dark' ? '#3A4473' : '#E9E2F8',
+                                  color: theme === 'dark' ? '#FDE68A' : '#B45309',
+                                  backgroundColor: theme === 'dark' ? 'rgba(245,158,11,0.12)' : '#FFFFFF',
+                                }}
+                                title="Edit"
+                                aria-label="Edit product"
+                              >
+                                <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 3.487a2.1 2.1 0 1 1 2.97 2.97L8.62 17.67 4 19l1.33-4.62L16.862 3.487Z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.5 4.85 18.47 7.82" />
+                                </svg>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDelete(product);
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = theme === 'dark' ? 'rgba(190,24,93,0.24)' : '#FFE4E6';
+                                  e.currentTarget.style.borderColor = theme === 'dark' ? 'rgba(251,113,133,0.7)' : '#FB7185';
+                                  e.currentTarget.style.color = '#BE123C';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = theme === 'dark' ? 'rgba(190,24,93,0.12)' : '#FFFFFF';
+                                  e.currentTarget.style.borderColor = theme === 'dark' ? 'rgba(248,113,113,0.35)' : 'rgba(190,24,93,0.15)';
+                                  e.currentTarget.style.color = '#E11D48';
+                                }}
+                                className="flex h-9 w-9 items-center justify-center rounded-xl border transition-all hover:-translate-y-0.5"
+                                style={{
+                                  borderColor: theme === 'dark' ? 'rgba(248,113,113,0.35)' : 'rgba(190,24,93,0.15)',
+                                  color: '#E11D48',
+                                  backgroundColor: theme === 'dark' ? 'rgba(190,24,93,0.12)' : '#FFFFFF',
+                                }}
+                                title="Delete"
+                                aria-label="Delete product"
+                              >
+                                <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7l1 12a1 1 0 0 0 1 .92h4a1 1 0 0 0 1-.92L16 7" />
+                                </svg>
+                              </button>
+                            </div>
                           </div>
 
                           <div data-product-menu-root="true" className="flex justify-center relative">
