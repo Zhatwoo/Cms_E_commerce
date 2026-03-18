@@ -200,6 +200,8 @@ async function updatePaymentFields(subdomain, orderId, fields) {
   if (fields.sourceId != null) updates.payment_source_id = String(fields.sourceId);
   if (fields.invoiceId != null) updates.xendit_invoice_id = String(fields.invoiceId);
   if (fields.paypalOrderId != null) updates.paypal_order_id = String(fields.paypalOrderId);
+  if (fields.paymentMethod != null) updates.payment_method = String(fields.paymentMethod);
+
 
   await ref.update(updates);
   const updated = await ref.get();

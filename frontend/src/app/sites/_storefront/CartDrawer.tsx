@@ -161,7 +161,19 @@ export function CartDrawer() {
         setCheckoutOpen(false);
         closeCart();
         
-        const base = typeof window !== 'undefined' ? window.location.origin : '';
+        // Always use the main app origin (strip subdomain if any) so the proxy doesn't
+        // intercept the redirect and show the storefront instead of the stripe-pay page.
+        let base = typeof window !== 'undefined' ? window.location.origin : '';
+        if (typeof window !== 'undefined') {
+          const hostname = window.location.hostname; // e.g. "eme.localhost"
+          const port = window.location.port ? `:${window.location.port}` : '';
+          // If we're on a subdomain (e.g. eme.localhost), use the root domain instead
+          if (hostname.endsWith('.localhost')) {
+            base = `${window.location.protocol}//localhost${port}`;
+          } else if (process.env.NEXT_PUBLIC_BASE_DOMAIN && hostname.endsWith('.' + process.env.NEXT_PUBLIC_BASE_DOMAIN)) {
+            base = `${window.location.protocol}//${process.env.NEXT_PUBLIC_BASE_DOMAIN}${port}`;
+          }
+        }
         const params = new URLSearchParams({
           order_id: orderId,
           client_secret: stripeRes.clientSecret || '',
