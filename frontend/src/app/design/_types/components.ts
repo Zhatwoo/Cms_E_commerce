@@ -35,6 +35,11 @@ export interface InteractionProps {
   mobileBreakpoint?: number;
 }
 
+export interface ProductBindingProps {
+  productId?: string;
+  productIndex?: number;
+}
+
 // ─── Settings Group Prop Interfaces ──────────────────────────────────────────
 // Each interface below corresponds to a settings group in the right panel.
 
@@ -156,7 +161,7 @@ export interface TypographyProps {
 /** Container component props — combines all layout and visual property groups. */
 export interface ContainerProps
   // extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps, AnimatableProps, InteractableProps {
-  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps, AnimatableProps, InteractionProps {
+  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps, AnimatableProps, InteractionProps, ProductBindingProps {
   children?: ReactNode;
 }
 

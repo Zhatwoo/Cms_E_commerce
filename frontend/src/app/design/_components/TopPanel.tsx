@@ -24,7 +24,7 @@ import { selectedToIds } from "../_lib/canvasActions";
 import { useCollaboration } from "../_context/CollaborationContext";
 import { useDesignProject } from "../_context/DesignProjectContext";
 import { ShareModal } from "./ShareModal";
-import { getStoredUser, getProjectStorage } from "@/lib/api";
+import { getStoredUser, getProjectStorage, isBackendUnavailableError, isQuietAuthError } from "@/lib/api";
 import { DesignTooltip } from "./DesignTooltip";
 import { HardDrive } from "lucide-react";
 
@@ -150,12 +150,8 @@ export const TopPanel: React.FC<TopPanelProps> = ({
         setStorageUsage({ bytes: data.storageBytes, readable: data.storageReadable });
       }
     } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      if (
-        msg.includes("Not authorized") ||
-        msg.includes("no token") ||
-        msg.includes("Backend is unreachable")
-      ) {
+      if (isQuietAuthError(error) || isBackendUnavailableError(error)) {
+        setStorageUsage(null);
         return;
       }
       console.error("Failed to fetch storage usage:", error);

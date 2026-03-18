@@ -39,6 +39,30 @@ export type AuthResponse = {
 
 export type ApiError = { success: false; message: string; error?: string };
 
+export function getApiErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message || '';
+  if (typeof error === 'string') return error;
+  return '';
+}
+
+export function isBackendUnavailableError(error: unknown): boolean {
+  return getApiErrorMessage(error).includes('Backend is unreachable');
+}
+
+export function isAccountDeactivatedError(error: unknown): boolean {
+  const message = getApiErrorMessage(error).toLowerCase();
+  return message.includes('account has been deactivated') || message.includes('your account has been deactivated');
+}
+
+export function isQuietAuthError(error: unknown): boolean {
+  const message = getApiErrorMessage(error).toLowerCase();
+  return (
+    isAccountDeactivatedError(error) ||
+    message.includes('not authorized') ||
+    message.includes('no token')
+  );
+}
+
 /** Token is in HttpOnly cookie only; not readable from JS. */
 export function getToken(): string | null {
   return null;
