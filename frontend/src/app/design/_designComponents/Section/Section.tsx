@@ -64,13 +64,13 @@ export const Section = ({
   contentMaxWidth = "1200px",
   customClassName = "",
   children,
-}: SectionProps) => {
+}: SectionProps = {}) => {
   const {
     id,
     connectors: { connect, drag },
     childCount,
   } = useNode((node) => ({
-    childCount: node.data.nodes.length,
+    childCount: Array.isArray(node.data.nodes) ? node.data.nodes.length : 0,
   }));
 
   const { isSelected } = useEditor((state, query) => ({
@@ -224,40 +224,40 @@ export const Section = ({
       className={`group min-h-[80px] ${customClassName}`}
       style={sectionStyle}
     >
-      {isSelected ? (
+      <div
+        ref={setDragHandleRef}
+        data-section-drag-handle="true"
+        data-canvas-interactive="true"
+        aria-label="Drag section"
+        style={{
+          position: "absolute",
+          top: 8,
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: 28,
+          height: 28,
+          borderRadius: 999,
+          border: "1px solid rgba(59, 130, 246, 0.45)",
+          background: "rgba(255, 255, 255, 0.94)",
+          boxShadow: "0 8px 18px rgba(15, 23, 42, 0.14)",
+          cursor: "grab",
+          zIndex: 3,
+          display: "grid",
+          placeItems: "center",
+          touchAction: "none",
+          opacity: isSelected ? 1 : 0.28,
+        }}
+      >
         <div
-          ref={setDragHandleRef}
-          data-section-drag-handle="true"
-          aria-label="Drag section"
+          aria-hidden="true"
           style={{
-            position: "absolute",
-            top: 8,
-            left: "50%",
-            transform: "translateX(-50%)",
-            width: 28,
-            height: 28,
+            width: 10,
+            height: 10,
             borderRadius: 999,
-            border: "1px solid rgba(59, 130, 246, 0.45)",
-            background: "rgba(255, 255, 255, 0.94)",
-            boxShadow: "0 8px 18px rgba(15, 23, 42, 0.14)",
-            cursor: "grab",
-            zIndex: 3,
-            display: "grid",
-            placeItems: "center",
-            touchAction: "none",
+            background: "#3b82f6",
           }}
-        >
-          <div
-            aria-hidden="true"
-            style={{
-              width: 10,
-              height: 10,
-              borderRadius: 999,
-              background: "#3b82f6",
-            }}
-          />
-        </div>
-      ) : null}
+        />
+      </div>
 
       <div style={contentShellStyle}>
         <div style={contentStyle}>
