@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import React, { useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminSidebar } from '../components/sidebar';
 import { AdminHeader } from '../components/header';
@@ -24,17 +24,20 @@ const SearchIcon = () => (
 );
 
 export default function TemplatesAssetsPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'builtin' | 'user'>('builtin');
-
-  useEffect(() => {
+  const activeTab = useMemo<'builtin' | 'user'>(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'user' || tab === 'builtin') {
-      setActiveTab(tab);
-    }
+    return tab === 'user' ? 'user' : 'builtin';
   }, [searchParams]);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const handleTabChange = (tab: 'builtin' | 'user') => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', tab);
+    router.replace(`/admindashboard/templatesnassets?${params.toString()}`, { scroll: false });
+  };
 
   const builtInTemplates: Template[] = [];
 
@@ -111,7 +114,7 @@ export default function TemplatesAssetsPage() {
               <div className="ml-auto flex gap-1 rounded-xl border border-[rgba(177,59,255,0.29)] bg-[#F5F4FF] p-1">
                 <button
                   type="button"
-                  onClick={() => setActiveTab('builtin')}
+                  onClick={() => handleTabChange('builtin')}
                   className={`rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors ${
                     activeTab === 'builtin'
                       ? 'bg-[#FFCC00] text-[#471396] shadow-sm'
@@ -122,7 +125,7 @@ export default function TemplatesAssetsPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setActiveTab('user')}
+                  onClick={() => handleTabChange('user')}
                   className={`rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors ${
                     activeTab === 'user'
                       ? 'bg-[#FFCC00] text-[#471396] shadow-sm'

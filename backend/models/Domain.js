@@ -35,6 +35,15 @@ async function findByPublishedSubdomain(subdomain) {
   if (!snap.exists) return null;
   const data = docToObject(snap);
   if ((data.status || 'published') !== 'published') return null;
+
+  // publishedContent may be stored as a Firestore map (object) or a JSON string.
+  // Normalize to a plain JS value so the controller can handle it uniformly.
+  let publishedContent = data.publishedContent ?? data.published_content ?? null;
+  if (publishedContent && typeof publishedContent === 'object') {
+    // Re-serialize and parse to strip any Firestore-specific types (Timestamps, etc.)
+    try { publishedContent = JSON.parse(JSON.stringify(publishedContent)); } catch { publishedContent = null; }
+  }
+
   return {
     id: data.domainId,
     projectId: data.projectId,
@@ -42,7 +51,7 @@ async function findByPublishedSubdomain(subdomain) {
     subdomain: normalized,
     projectTitle: data.projectTitle,
     status: data.status,
-    publishedContent: data.publishedContent ?? data.published_content ?? null,
+    publishedContent,
   };
 }
 
@@ -337,6 +346,10 @@ async function findBySubdomain(subdomain) {
       const pathParts = doc.ref.path.split('/');
       const clientIdx = pathParts.indexOf('client');
       const userId = clientIdx >= 0 && clientIdx + 1 < pathParts.length ? pathParts[clientIdx + 1] : data.userId;
+      let publishedContent = data.publishedContent ?? data.published_content ?? null;
+      if (publishedContent && typeof publishedContent === 'object') {
+        try { publishedContent = JSON.parse(JSON.stringify(publishedContent)); } catch { publishedContent = null; }
+      }
       return {
         id: data.id || doc.id,
         projectId: data.projectId,
@@ -344,7 +357,7 @@ async function findBySubdomain(subdomain) {
         subdomain: normalized,
         projectTitle: data.projectTitle,
         status: data.status,
-        publishedContent: data.publishedContent ?? data.published_content ?? null,
+        publishedContent,
       };
     }
   } catch (e) {
@@ -373,7 +386,10 @@ async function findByCustomDomain(domain) {
       const pathParts = doc.ref.path.split('/');
       const clientIdx = pathParts.indexOf('client');
       const userId = clientIdx >= 0 && clientIdx + 1 < pathParts.length ? pathParts[clientIdx + 1] : data.userId;
-
+      let publishedContent = data.publishedContent ?? data.published_content ?? null;
+      if (publishedContent && typeof publishedContent === 'object') {
+        try { publishedContent = JSON.parse(JSON.stringify(publishedContent)); } catch { publishedContent = null; }
+      }
       return {
         id: data.id || doc.id,
         projectId: data.projectId,
@@ -381,7 +397,7 @@ async function findByCustomDomain(domain) {
         subdomain: data.subdomain,
         projectTitle: data.projectTitle,
         status: data.status,
-        publishedContent: data.publishedContent ?? data.published_content ?? null,
+        publishedContent,
       };
     }
   } catch (e) {
