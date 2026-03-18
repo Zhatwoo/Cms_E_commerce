@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Eye, EyeOff } from 'lucide-react';
 import { registerAdmin, setStoredUser } from '@/lib/api';
 
 export default function AdminRegisterPage() {
@@ -12,6 +13,7 @@ export default function AdminRegisterPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,15 +106,24 @@ export default function AdminRegisterPage() {
               <label htmlFor="password" className="block text-sm font-medium text-white/90">
                 Password
               </label>
+              <div className="relative mt-2">
               <input
                 id="password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 autoComplete="new-password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-2 w-full rounded-lg border border-neutral-600 bg-neutral-900/80 px-4 py-3 text-white placeholder:text-neutral-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                className="w-full rounded-lg border border-neutral-600 bg-neutral-900/80 px-4 py-3 pr-12 text-white placeholder:text-neutral-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white transition-colors"
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
               <p className="mt-1.5 text-xs text-white/60">At least 6 characters</p>
             </div>
             <button

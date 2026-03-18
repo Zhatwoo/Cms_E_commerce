@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Eye, EyeOff } from 'lucide-react';
 import { login, register as apiRegister, resendVerificationEmail, setStoredUser } from '@/lib/api';
 
 type AuthMode = 'login' | 'register' | 'check-email';
@@ -26,6 +27,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMessage, setResendMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -239,7 +241,11 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                   </p>
                   <form className="mt-8 space-y-5" onSubmit={handleLogin}>
                     {error && (
-                      <p className="rounded-lg bg-red-500/20 border border-red-500/50 px-3 py-2 text-sm text-red-200">
+                      <p className={`rounded-lg border px-3 py-2 text-sm ${
+                        isDarkMode 
+                          ? 'bg-red-500/20 border-red-500/50 text-red-200' 
+                          : 'bg-red-50 border-red-200 text-red-700'
+                      }`}>
                         {error}
                       </p>
                     )}
@@ -265,19 +271,30 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                       <label htmlFor="login-password" className={`block text-[1.75rem] font-bold leading-none ${isDarkMode ? 'text-white/95' : 'text-[#120533]'}`}>
                         Password
                       </label>
-                      <input
-                        id="login-password"
-                        type="password"
-                        autoComplete="current-password"
-                        placeholder="Password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className={`dark-input mt-3 w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 ${
-                          isDarkMode 
-                            ? 'border-white/25 bg-[#10131d]/85 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:ring-[#8b3dff]/35' 
-                            : 'border-[#c1c1cd] bg-[#f8f8fb] text-[#120533] placeholder:text-[#888899] focus:border-[#8b3dff] focus:ring-[#8b3dff]/35'
-                        }`}
-                      />
+                      <div className="relative mt-3">
+                        <input
+                          id="login-password"
+                          type={showPassword ? 'text' : 'password'}
+                          autoComplete="current-password"
+                          placeholder="Password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className={`dark-input w-full rounded-xl border px-4 py-3 pr-12 focus:outline-none focus:ring-2 ${
+                            isDarkMode 
+                              ? 'border-white/25 bg-[#10131d]/85 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:ring-[#8b3dff]/35' 
+                              : 'border-[#c1c1cd] bg-[#f8f8fb] text-[#120533] placeholder:text-[#888899] focus:border-[#8b3dff] focus:ring-[#8b3dff]/35'
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className={`absolute right-4 top-1/2 -translate-y-1/2 transition-colors ${
+                            isDarkMode ? 'text-white/35 hover:text-white/60' : 'text-[#888899] hover:text-[#120533]'
+                          }`}
+                        >
+                          {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                        </button>
+                      </div>
                       <Link
                         href="/auth/forgotPassword"
                         className="mt-3 inline-block text-sm text-[#b88cff] hover:text-[#cfa8ff]"
@@ -311,7 +328,11 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                   </p>
                   <form className="mt-8 space-y-5" onSubmit={handleRegister}>
                     {error && (
-                      <p className="rounded-lg bg-red-500/20 border border-red-500/50 px-3 py-2 text-sm text-red-200">
+                      <p className={`rounded-lg border px-3 py-2 text-sm ${
+                        isDarkMode 
+                          ? 'bg-red-500/20 border-red-500/50 text-red-200' 
+                          : 'bg-red-50 border-red-200 text-red-700'
+                      }`}>
                         {error}
                       </p>
                     )}
@@ -355,19 +376,30 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                       <label htmlFor="reg-password" className={`block text-sm font-semibold ${isDarkMode ? 'text-white/90' : 'text-[#120533]'}`}>
                         Password
                       </label>
-                      <input
-                        id="reg-password"
-                        type="password"
-                        autoComplete="new-password"
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className={`dark-input mt-2 w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 ${
-                          isDarkMode 
-                            ? 'border-white/25 bg-[#10131d]/85 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:ring-[#8b3dff]/35' 
-                            : 'border-[#c1c1cd] bg-[#f8f8fb] text-[#120533] placeholder:text-[#888899] focus:border-[#8b3dff] focus:ring-[#8b3dff]/35'
-                        }`}
-                      />
+                      <div className="relative mt-2">
+                        <input
+                          id="reg-password"
+                          type={showPassword ? 'text' : 'password'}
+                          autoComplete="new-password"
+                          placeholder="••••••••"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className={`dark-input w-full rounded-xl border px-4 py-3 pr-12 focus:outline-none focus:ring-2 ${
+                            isDarkMode 
+                              ? 'border-white/25 bg-[#10131d]/85 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:ring-[#8b3dff]/35' 
+                              : 'border-[#c1c1cd] bg-[#f8f8fb] text-[#120533] placeholder:text-[#888899] focus:border-[#8b3dff] focus:ring-[#8b3dff]/35'
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className={`absolute right-4 top-1/2 -translate-y-1/2 transition-colors ${
+                            isDarkMode ? 'text-white/35 hover:text-white/60' : 'text-[#888899] hover:text-[#120533]'
+                          }`}
+                        >
+                          {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                        </button>
+                      </div>
                       <p className={`mt-1.5 text-xs ${isDarkMode ? 'text-white/60' : 'text-[#888899]'}`}>At least 6 characters</p>
                     </div>
                     <button
@@ -405,7 +437,11 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                   <p className={`mt-4 text-xs ${isDarkMode ? 'text-white/60' : 'text-[#888899]'}`}>Didn&apos;t get the email? Check your spam folder.</p>
 
                   {resendMessage && (
-                    <p className={`mt-4 text-sm ${resendMessage.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`} role="alert">
+                    <p className={`mt-4 text-sm font-medium ${
+                      resendMessage.type === 'success' 
+                        ? (isDarkMode ? 'text-emerald-400' : 'text-emerald-700')
+                        : (isDarkMode ? 'text-red-400' : 'text-red-700')
+                    }`} role="alert">
                       {resendMessage.text}
                     </p>
                   )}
