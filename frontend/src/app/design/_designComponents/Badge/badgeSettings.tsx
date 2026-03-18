@@ -5,11 +5,22 @@ import { AutoLayoutGroup } from "../../_components/rightPanel/settings/AutoLayou
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
-import type { SetProp } from "../../_types/components";
+import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
+import type { SetProp, TypographyProps } from "../../_types/components";
 import type { BadgeProps } from "./badge";
 
 export const BadgeSettings = () => {
   const {
+    text,
+    fontFamily,
+    fontWeight,
+    fontStyle,
+    fontSize,
+    lineHeight,
+    letterSpacing,
+    textAlign,
+    textTransform,
+    color,
     background,
     paddingLeft,
     paddingRight,
@@ -40,6 +51,16 @@ export const BadgeSettings = () => {
     overflow,
     actions: { setProp },
   } = useNode((node) => ({
+    text: node.data.props.text,
+    fontFamily: node.data.props.fontFamily,
+    fontWeight: node.data.props.fontWeight,
+    fontStyle: node.data.props.fontStyle,
+    fontSize: node.data.props.fontSize,
+    lineHeight: node.data.props.lineHeight,
+    letterSpacing: node.data.props.letterSpacing,
+    textAlign: node.data.props.textAlign,
+    textTransform: node.data.props.textTransform,
+    color: node.data.props.color,
     background: node.data.props.background,
     paddingLeft: node.data.props.paddingLeft,
     paddingRight: node.data.props.paddingRight,
@@ -115,6 +136,33 @@ export const BadgeSettings = () => {
           borderRadius={borderRadius}
           setProp={typedSetProp}
         />
+      </DesignSection>
+
+      <DesignSection title="Text">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-[var(--builder-text)]">Label</label>
+            <input
+              type="text"
+              value={typeof text === "string" ? text : ""}
+              onChange={(e) => typedSetProp((props) => { props.text = e.target.value; })}
+              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
+            />
+          </div>
+
+          <TypographyGroup
+            fontFamily={fontFamily}
+            fontWeight={fontWeight}
+            fontStyle={fontStyle}
+            fontSize={fontSize}
+            lineHeight={lineHeight}
+            letterSpacing={letterSpacing}
+            textAlign={textAlign}
+            textTransform={textTransform}
+            color={color}
+            setProp={typedSetProp as unknown as SetProp<TypographyProps>}
+          />
+        </div>
       </DesignSection>
 
       <DesignSection title="Effects" defaultOpen={false}>

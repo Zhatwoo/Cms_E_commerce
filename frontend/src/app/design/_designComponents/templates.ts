@@ -455,7 +455,7 @@ export const WEB_TEMPLATES: Record<number, WebTemplate> = {
         type: { resolvedName: 'Text' },
         isCanvas: false,
         props: { 
-          text: 'Transform Your Business with AI-Powered Solutions', 
+          text: 'Transform Your Business with Powerful Digital Solutions', 
           fontSize: 56, 
           fontWeight: 'bold', 
           color: '#ffffff',

@@ -173,6 +173,16 @@ const VALIDATOR_RESOLVER: Record<string, React.ComponentType<any>> = {
   tabs: asComponent(Tabs),
   TabContent: asComponent(TabContent),
   tabcontent: asComponent(TabContent),
+  BooleanField: asComponent(BooleanField),
+  booleanfield: asComponent(BooleanField),
+  BOOLEANFIELD: asComponent(BooleanField),
+  "Boolean Field": asComponent(BooleanField),
+  "boolean field": asComponent(BooleanField),
+  Checkbox: asComponent(BooleanField),
+  checkbox: asComponent(BooleanField),
+  CheckBox: asComponent(BooleanField),
+  Radio: asComponent(BooleanField),
+  radio: asComponent(BooleanField),
 };
 
 const VALIDATOR_CANONICAL_NAME_BY_LOWER = new Map<string, string>();
@@ -619,6 +629,74 @@ function prepareFrameData(jsonString: string): { valid: boolean; data?: string }
   // Always run through validator so component type names are canonicalized
   // against resolver keys (e.g. Image/image/Text/text) before Frame mount.
   return validateCraftData(jsonString);
+}
+
+function ensureFrameDataResolverCompatibility(
+  jsonString: string,
+  resolver: Record<string, React.ComponentType<any>>,
+): string {
+  try {
+    const parsed = JSON.parse(jsonString) as Record<string, any>;
+    if (!parsed || typeof parsed !== "object") return jsonString;
+
+    const booleanResolverCandidates = [
+      "BooleanField",
+      "booleanfield",
+      "BOOLEANFIELD",
+      "Boolean Field",
+      "boolean field",
+      "Checkbox",
+      "checkbox",
+      "CheckBox",
+      "Radio",
+      "radio",
+    ];
+
+    const resolvedBooleanType =
+      booleanResolverCandidates.find((name) => name in resolver) ??
+      ("Container" in resolver ? "Container" : "container");
+
+    let changed = false;
+    Object.keys(parsed).forEach((id) => {
+      const node = parsed[id];
+      if (!node || typeof node !== "object") return;
+      const current = typeof node?.type === "string"
+        ? node.type
+        : typeof node?.type?.resolvedName === "string"
+          ? node.type.resolvedName
+          : "";
+      if (!current) return;
+
+      const lowered = current.trim().toLowerCase();
+      if (!(lowered.includes("boolean") || lowered.includes("checkbox") || lowered.includes("radio"))) {
+        return;
+      }
+
+      if (typeof node.type === "string") {
+        if (node.type !== resolvedBooleanType) {
+          node.type = resolvedBooleanType;
+          changed = true;
+        }
+      } else if (node.type && typeof node.type === "object") {
+        if (node.type.resolvedName !== resolvedBooleanType) {
+          node.type.resolvedName = resolvedBooleanType;
+          changed = true;
+        }
+      } else {
+        node.type = { resolvedName: resolvedBooleanType };
+        changed = true;
+      }
+
+      if (node.displayName !== resolvedBooleanType) {
+        node.displayName = resolvedBooleanType;
+        changed = true;
+      }
+    });
+
+    return changed ? JSON.stringify(parsed) : jsonString;
+  } catch {
+    return jsonString;
+  }
 }
 
 // Suppress known @craftjs/core React 19 compatibility warnings.
@@ -2502,6 +2580,20 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     base.TabContent = asComponent(CRAFT_RESOLVER.TabContent ?? TabContent);
     base.tabcontent = asComponent(CRAFT_RESOLVER.tabcontent ?? TabContent);
 
+    // Force BooleanField aliases after all spreads so legacy snapshots always resolve.
+    const booleanFieldComp = asComponent(CRAFT_RESOLVER.BooleanField ?? BooleanField);
+    base.BooleanField = booleanFieldComp;
+    base.booleanfield = booleanFieldComp;
+    base.Booleanfield = booleanFieldComp;
+    base.BOOLEANFIELD = booleanFieldComp;
+    base["Boolean Field"] = booleanFieldComp;
+    base["boolean field"] = booleanFieldComp;
+    base.Checkbox = booleanFieldComp;
+    base.checkbox = booleanFieldComp;
+    base.CheckBox = booleanFieldComp;
+    base.Radio = booleanFieldComp;
+    base.radio = booleanFieldComp;
+
     return withResolverFallback(base);
   }, []);
 
@@ -2511,11 +2603,13 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     try {
       const raw = typeof initialJson === "string" ? initialJson : JSON.stringify(initialJson);
       const validated = validateCraftData(raw);
-      return validated.valid && validated.data ? validated.data : null;
+      return validated.valid && validated.data
+        ? ensureFrameDataResolverCompatibility(validated.data, resolver)
+        : null;
     } catch {
       return null;
     }
-  }, [initialJson]);
+  }, [initialJson, resolver]);
 
   return (
     <div data-web-builder-root className={`h-screen bg-builder-bg text-builder-text overflow-hidden font-sans relative${isDarkMode ? "" : " light"}`}>
@@ -2768,6 +2862,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                       <FloatingMobilePreview
                         isOpen={showDualView}
                         onClose={() => setShowDualView(false)}
+                        activePageId={currentPageId}
                         canvasWidth={canvasWidth}
                         canvasHeight={canvasHeight}
                       />

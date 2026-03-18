@@ -27,7 +27,17 @@ interface CraftRawNode {
 type CraftRawDocument = Record<string, CraftRawNode>;
 
 function getResolvedType(node: CraftRawNode | null | undefined): string {
-  return (node?.type?.resolvedName ?? "").trim();
+  const resolved = (node?.type?.resolvedName ?? "").trim();
+  const display = (node?.displayName ?? "").trim();
+  if (!resolved) return display;
+
+  const generic = resolved.toLowerCase();
+  // Craft may serialize wrapper nodes as "Element" while displayName carries the real component type.
+  if ((generic === "element" || generic === "canvas" || generic === "unknown") && display) {
+    return display;
+  }
+
+  return resolved;
 }
 
 function normalizeComponentType(rawType: unknown): ComponentType {
@@ -87,6 +97,14 @@ function normalizeCraftRaw(parsed: Record<string, unknown>): CraftRawDocument {
     const nodes = (data?.nodes ?? v.nodes) as string[] | undefined;
     const props = (data?.props ?? v.props) as Record<string, unknown> | undefined;
     const linkedNodes = (data?.linkedNodes ?? v.linkedNodes) as Record<string, string> | undefined;
+    const normalizedLinkedNodes: Record<string, string> = {};
+    if (linkedNodes && typeof linkedNodes === "object") {
+      for (const [slot, targetId] of Object.entries(linkedNodes)) {
+        if (typeof targetId === "string" && targetId.trim()) {
+          normalizedLinkedNodes[slot] = targetId;
+        }
+      }
+    }
     result[id] = {
       type: { resolvedName },
       isCanvas: (v.isCanvas as boolean) ?? false,
@@ -96,7 +114,7 @@ function normalizeCraftRaw(parsed: Record<string, unknown>): CraftRawDocument {
       parent: (data?.parent ?? v.parent) as string | undefined,
       hidden: (v.hidden as boolean) ?? false,
       nodes: Array.isArray(nodes) ? nodes : [],
-      linkedNodes: (v.linkedNodes as Record<string, string>) ?? {},
+      linkedNodes: normalizedLinkedNodes,
     };
   }
   return result as CraftRawDocument;
@@ -609,7 +627,10 @@ export function serializeCraftToClean(rawJson: string, files?: CodeFile[]): Buil
     const name = (pageProps.pageName as string) ?? `Page ${index + 1}`;
     const slug = (pageProps.pageSlug as string) ?? `page-${index}`;
 
-    const validChildren = (pageRaw.nodes ?? []).filter((childId) => {
+    const pageLinkedChildIds = pageRaw.linkedNodes
+      ? Object.values(pageRaw.linkedNodes).filter((childId) => typeof childId === "string")
+      : [];
+    const validChildren = [...(pageRaw.nodes ?? []), ...pageLinkedChildIds].filter((childId) => {
       const child = raw[childId];
       return !!child && !isPageOrViewport(child);
     });
@@ -651,12 +672,20 @@ function processChildren(
     // Already processed (shared node)
     if (nodes[id]) continue;
 
-    const type = rawNode.type.resolvedName as ComponentType;
+    const type = normalizeComponentType(getResolvedType(rawNode));
+
+    const linkedChildIds = rawNode.linkedNodes
+      ? Object.values(rawNode.linkedNodes).filter((linkedId) => typeof linkedId === "string")
+      : [];
+    const combinedChildIds = [...(rawNode.nodes ?? []), ...linkedChildIds].filter((childId) => {
+      const child = raw[childId];
+      return !!child && !isPageOrViewport(child);
+    });
 
     nodes[id] = {
       type,
       props: cleanProps(type, rawNode.props),
-      children: rawNode.nodes,
+      children: combinedChildIds,
     };
 
     // Recurse into children

@@ -95,11 +95,7 @@ export const ComponentsPanel = () => {
     { label: "Container", icon: <Layers />,         iconStyle: COMP_STYLES.Container.base, hoverColor: COMP_STYLES.Container.hoverColor, element: <Element is={Container} padding={20} canvas /> },
     { label: "Row",       icon: <Minus />,          iconStyle: COMP_STYLES.Row.base,       hoverColor: COMP_STYLES.Row.hoverColor,       element: <Element is={Row} canvas /> },
     { label: "Banner",    icon: <AlertCircle />,    iconStyle: COMP_STYLES.Banner.base,    hoverColor: COMP_STYLES.Banner.hoverColor,
-      element: (
-        <Element is={Banner} canvas background="#ef4444" height="42px" alignItems="center" justifyContent="center" padding={8}>
-          <Text text="FLASH SALE: Up to 70% off · Use code SAVE70" fontSize={13} fontWeight="700" color="#ffffff" position="relative" />
-        </Element>
-      ),
+      element: <Banner background="#ef4444" height="42px" alignItems="center" justifyContent="center" padding={8} text="FLASH SALE: Up to 70% off - Use code SAVE70" fontSize={13} fontWeight="700" color="#ffffff" textAlign="center" lineHeight={1.2} />,
     },
     { label: "Badge",     icon: <Badge />,          iconStyle: COMP_STYLES.Badge.base,     hoverColor: COMP_STYLES.Badge.hoverColor,
       element: (
@@ -109,7 +105,7 @@ export const ComponentsPanel = () => {
       ),
     },
     { label: "Column",    icon: <Columns />,        iconStyle: COMP_STYLES.Column.base,    hoverColor: COMP_STYLES.Column.hoverColor,    element: <Element is={Column} canvas /> },
-    { label: "Text",      icon: <Type />,           iconStyle: COMP_STYLES.Text.base,      hoverColor: COMP_STYLES.Text.hoverColor,      element: <Text text="" fontSize={18} width="100%" position="relative" /> },
+    { label: "Text",      icon: <Type />,           iconStyle: COMP_STYLES.Text.base,      hoverColor: COMP_STYLES.Text.hoverColor,      element: <Text text="" fontSize={18} width="fit-content" position="relative" /> },
     { label: "Image",     icon: <ImageIcon />,      iconStyle: COMP_STYLES.Image.base,     hoverColor: COMP_STYLES.Image.hoverColor,     element: <Image width="320px" height="220px" /> },
     { label: "Video",     icon: <VideoIcon />,      iconStyle: COMP_STYLES.Video.base,     hoverColor: COMP_STYLES.Video.hoverColor,     element: <Video width="320px" height="220px" /> },
     { label: "Spacer",    icon: <Maximize />,       iconStyle: COMP_STYLES.Spacer.base,    hoverColor: COMP_STYLES.Spacer.hoverColor,    element: <Spacer /> },
