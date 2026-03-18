@@ -1086,6 +1086,8 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
     alignItems: "center",
     justifyContent: "flex-start",
     gap: 0,
+    contentWidth: "constrained",
+    contentMaxWidth: "1200px",
     boxShadow: "none",
     opacity: 1,
     overflow: "visible",
@@ -2430,6 +2432,11 @@ function RenderNode({
         builderParityMode,
       );
       const normalizedHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
+      const sectionContentWidth = (props.contentWidth as string | undefined) === "full" ? "full" : "constrained";
+      const sectionContentMaxWidth =
+        sectionContentWidth === "constrained"
+          ? ((props.contentMaxWidth as string | undefined)?.trim() || "1200px")
+          : "none";
       return wrap(
         <section
           data-fluid-space="true"
@@ -2451,20 +2458,17 @@ function RenderNode({
             width: normalizedWidth ?? (props.width as string),
             maxWidth: isNarrowPreview ? "100%" : undefined,
             minWidth: isNarrowPreview ? 0 : undefined,
-            height: normalizedHeight ?? (props.height as string),
+            minHeight: normalizedHeight && normalizedHeight !== "auto" ? normalizedHeight : undefined,
+            height: normalizedHeight === "auto" ? "auto" : undefined,
             containerType: "inline-size",
+            position: "relative",
             borderRadius: px(props.borderRadius),
             ...(sectionStrokePlacement === "outside" && sectionBorderDecl
               ? { border: "none", outline: sectionBorderDecl, outlineOffset: 0 }
               : sectionBorderDecl
                 ? { border: sectionBorderDecl }
                 : {}),
-            display: "flex",
-            flexDirection: props.flexDirection as React.CSSProperties["flexDirection"],
-            flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
-            alignItems: props.alignItems as string,
-            justifyContent: props.justifyContent as string,
-            gap: fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx),
+            display: "block",
             boxShadow: props.boxShadow as string,
             opacity: props.opacity as number,
             overflow: props.overflow as string,
@@ -2472,7 +2476,38 @@ function RenderNode({
           }}
           onClick={interactiveClick}
         >
-          {children}
+          <div
+            data-section-shell="true"
+            style={{
+              width: "100%",
+              maxWidth: "100%",
+              minWidth: 0,
+              marginLeft: "auto",
+              marginRight: "auto",
+            }}
+          >
+            <div
+              data-section-content="true"
+              data-layout={(props.flexDirection as string) === "row" ? "row" : "column"}
+              style={{
+                width: "100%",
+                maxWidth: sectionContentMaxWidth,
+                minWidth: 0,
+                marginLeft: "auto",
+                marginRight: "auto",
+                boxSizing: "border-box",
+                position: "relative",
+                display: (props.display as React.CSSProperties["display"]) ?? "flex",
+                flexDirection: props.flexDirection as React.CSSProperties["flexDirection"],
+                flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
+                alignItems: props.alignItems as string,
+                justifyContent: props.justifyContent as string,
+                gap: fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx),
+              }}
+            >
+              {children}
+            </div>
+          </div>
         </section>
       );
     }

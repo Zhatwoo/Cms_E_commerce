@@ -1,13 +1,7 @@
 import React from "react";
-import { useNode, useEditor } from "@craftjs/core";
+import { useEditor, useNode } from "@craftjs/core";
 import { SectionSettings } from "./SectionSettings";
-import type { ContainerProps } from "../../_types/components";
-
-function parsePx(value: string | undefined): number | null {
-  if (value == null) return null;
-  const m = String(value).match(/^(-?\d+(?:\.\d+)?)px$/);
-  return m ? parseFloat(m[1]) : null;
-}
+import type { SectionProps } from "../../_types/components";
 
 function fluidSpace(value: number, min = 0): string {
   if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
@@ -16,13 +10,20 @@ function fluidSpace(value: number, min = 0): string {
   return `clamp(${floor}px, ${preferred.toFixed(2)}cqw, ${value}px)`;
 }
 
-/**
- * Section — a full-width page band (hero, content section, footer, etc.)
- * Always stretches to 100% width with vertical (column) flex layout by default.
- */
+function normalizeFlexPos(
+  value: unknown,
+  fallback: "flex-start" | "center" | "flex-end"
+): "flex-start" | "center" | "flex-end" {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw === "start" || raw === "flex-start") return "flex-start";
+  if (raw === "end" || raw === "flex-end") return "flex-end";
+  if (raw === "center") return "center";
+  return fallback;
+}
+
 export const Section = ({
   background = "transparent",
-  padding = 0,
+  padding = 40,
   paddingTop,
   paddingRight,
   paddingBottom,
@@ -50,7 +51,7 @@ export const Section = ({
   justifyContent = "flex-start",
   gap = 0,
   display = "flex",
-  position = "static",
+  position = "relative",
   zIndex = 0,
   top = "auto",
   right: posRight = "auto",
@@ -59,22 +60,11 @@ export const Section = ({
   boxShadow = "none",
   opacity = 1,
   overflow = "visible",
-  rotation = 0,
-  designWidth,
-  designHeight,
+  contentWidth = "constrained",
+  contentMaxWidth = "1200px",
   customClassName = "",
   children,
-}: ContainerProps) => {
-  const normalizeFlexPos = (value: unknown, fallback: "flex-start" | "center" | "flex-end") => {
-    const raw = String(value ?? "").trim().toLowerCase();
-    if (raw === "start" || raw === "flex-start") return "flex-start";
-    if (raw === "end" || raw === "flex-end") return "flex-end";
-    if (raw === "center") return "center";
-    return fallback;
-  };
-  const resolvedAlignItems = normalizeFlexPos(alignItems, "center");
-  const resolvedJustifyContent = normalizeFlexPos(justifyContent, "flex-start");
-
+}: SectionProps) => {
   const {
     id,
     connectors: { connect, drag },
@@ -82,15 +72,15 @@ export const Section = ({
   } = useNode((node) => ({
     childCount: node.data.nodes.length,
   }));
-  const { actions } = useEditor();
-  const isHeaderAsset = /header/i.test(id ?? "");
-  const hasChildren = childCount > 0 || React.Children.count(children) > 0;
 
-  const wPx = parsePx(width);
-  const hPx = parsePx(height);
-  const canScale = false;
-  const scaleX = canScale ? ((typeof wPx === "number" ? wPx : 1) / (designWidth ?? 1)) : 1;
-  const scaleY = canScale ? (typeof hPx === "number" ? hPx : 1) / (designHeight ?? 1) : 1;
+  const { isSelected } = useEditor((state, query) => ({
+    isSelected: query.getEvent("selected").contains(id),
+  }));
+
+  const hasChildren = childCount > 0 || React.Children.count(children) > 0;
+  const isHeaderAsset = /header/i.test(id ?? "");
+  const resolvedAlignItems = normalizeFlexPos(alignItems, "center");
+  const resolvedJustifyContent = normalizeFlexPos(justifyContent, "flex-start");
 
   const p = typeof padding === "number" ? padding : 0;
   const pl = paddingLeft ?? p;
@@ -104,96 +94,187 @@ export const Section = ({
   const mt = marginTop ?? m;
   const mb = marginBottom ?? m;
 
+  const resolvedHeight = String(height ?? "auto").trim() || "auto";
+  const constrainedContent = contentWidth !== "full";
+
+  const setSectionRef = React.useCallback(
+    (element: HTMLElement | null) => {
+      if (element) connect(element);
+    },
+    [connect]
+  );
+
+  const setDragHandleRef = React.useCallback(
+    (element: HTMLDivElement | null) => {
+      if (element) drag(element);
+    },
+    [drag]
+  );
+
+  const sectionStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      backgroundColor: background,
+      backgroundImage: backgroundImage
+        ? backgroundOverlay
+          ? `linear-gradient(${backgroundOverlay}, ${backgroundOverlay}), url(${backgroundImage})`
+          : `url(${backgroundImage})`
+        : undefined,
+      backgroundSize: backgroundImage ? backgroundSize : undefined,
+      backgroundPosition: backgroundImage ? backgroundPosition : undefined,
+      backgroundRepeat: backgroundImage ? backgroundRepeat : undefined,
+      paddingLeft: fluidSpace(pl, 0),
+      paddingRight: fluidSpace(pr, 0),
+      paddingTop: fluidSpace(pt, 0),
+      paddingBottom: fluidSpace(pb, 0),
+      marginLeft: fluidSpace(ml, 0),
+      marginRight: fluidSpace(mr, 0),
+      marginTop: fluidSpace(mt, 0),
+      marginBottom: fluidSpace(mb, 0),
+      width,
+      minHeight: resolvedHeight !== "auto" ? resolvedHeight : undefined,
+      height: resolvedHeight === "auto" ? "auto" : undefined,
+      boxSizing: "border-box",
+      maxWidth: "100%",
+      minWidth: 0,
+      borderRadius: `${borderRadius}px`,
+      ...(strokePlacement === "outside" && borderWidth > 0
+        ? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
+        : { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
+      position: position === "static" ? "relative" : position,
+      zIndex: zIndex !== 0 ? zIndex : undefined,
+      top: position !== "static" ? top : undefined,
+      right: position !== "static" ? posRight : undefined,
+      bottom: position !== "static" ? bottom : undefined,
+      left: position !== "static" ? posLeft : undefined,
+      boxShadow,
+      opacity,
+      overflow,
+      containerType: "inline-size",
+    }),
+    [
+      background,
+      backgroundImage,
+      backgroundOverlay,
+      backgroundPosition,
+      backgroundRepeat,
+      backgroundSize,
+      borderColor,
+      borderRadius,
+      borderStyle,
+      borderWidth,
+      bottom,
+      boxShadow,
+      mb,
+      ml,
+      mr,
+      mt,
+      opacity,
+      overflow,
+      pb,
+      pl,
+      posLeft,
+      posRight,
+      position,
+      pr,
+      pt,
+      resolvedHeight,
+      strokePlacement,
+      top,
+      width,
+      zIndex,
+    ]
+  );
+
+  const contentShellStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      width: "100%",
+      maxWidth: constrainedContent ? contentMaxWidth : "none",
+      marginInline: constrainedContent ? "auto" : undefined,
+      minWidth: 0,
+      position: "relative",
+      boxSizing: "border-box",
+    }),
+    [constrainedContent, contentMaxWidth]
+  );
+
+  const contentStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      width: "100%",
+      minWidth: 0,
+      minHeight: !hasChildren ? "80px" : undefined,
+      position: "relative",
+      boxSizing: "border-box",
+      display,
+      flexDirection,
+      flexWrap,
+      alignItems: resolvedAlignItems,
+      justifyContent: resolvedJustifyContent,
+      gap: fluidSpace(gap, 0),
+    }),
+    [display, flexDirection, flexWrap, gap, hasChildren, resolvedAlignItems, resolvedJustifyContent]
+  );
+
   return (
     <section
       data-node-id={id}
       data-fluid-space="true"
-      {...(isHeaderAsset ? { "data-header": "true" } : {})}
       data-layout={flexDirection === "row" ? "row" : "column"}
-      ref={(ref) => {
-        if (ref) connect(drag(ref));
-      }}
-      className={`min-h-[80px] transition-[outline] duration-150 ${customClassName}`}
-      style={{
-        backgroundColor: background,
-        backgroundImage: backgroundImage
-          ? backgroundOverlay
-            ? `linear-gradient(${backgroundOverlay}, ${backgroundOverlay}), url(${backgroundImage})`
-            : `url(${backgroundImage})`
-          : undefined,
-        backgroundSize: backgroundImage ? backgroundSize : undefined,
-        backgroundPosition: backgroundImage ? backgroundPosition : undefined,
-        backgroundRepeat: backgroundImage ? backgroundRepeat : undefined,
-        paddingLeft: fluidSpace(pl, 0),
-        paddingRight: fluidSpace(pr, 0),
-        paddingTop: fluidSpace(pt, 0),
-        paddingBottom: fluidSpace(pb, 0),
-        marginLeft: fluidSpace(ml, 0),
-        marginRight: fluidSpace(mr, 0),
-        marginTop: fluidSpace(mt, 0),
-        marginBottom: fluidSpace(mb, 0),
-        width,
-        height,
-        boxSizing: "border-box",
-        maxWidth: "100%",
-        minWidth: 0,
-        borderRadius: `${borderRadius}px`,
-        ...(strokePlacement === "outside" && borderWidth > 0
-          ? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
-          : { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
-        display: display ?? "flex",
-        containerType: "inline-size",
-        contain: "layout",
-        position,
-        zIndex: zIndex !== 0 ? zIndex : undefined,
-        top: position !== "static" ? top : undefined,
-        right: position !== "static" ? posRight : undefined,
-        bottom: position !== "static" ? bottom : undefined,
-        left: position !== "static" ? posLeft : undefined,
-        flexDirection,
-        flexWrap,
-        alignItems: resolvedAlignItems,
-        justifyContent: resolvedJustifyContent,
-        gap: fluidSpace(gap, 0),
-        boxShadow,
-        opacity,
-        overflow,
-        transform: rotation ? `rotate(${rotation}deg)` : undefined,
-      }}
+      {...(isHeaderAsset ? { "data-header": "true" } : {})}
+      ref={setSectionRef}
+      className={`group min-h-[80px] ${customClassName}`}
+      style={sectionStyle}
     >
-      {canScale ? (
+      {isSelected ? (
         <div
+          ref={setDragHandleRef}
+          data-section-drag-handle="true"
+          aria-label="Drag section"
           style={{
-            width: designWidth,
-            height: designHeight,
-            transform: `scale(${scaleX}, ${scaleY})`,
-            transformOrigin: "0 0",
-            flexShrink: 0,
-            boxSizing: "border-box",
-            display: "flex",
-            flexDirection,
-            flexWrap,
-            alignItems: resolvedAlignItems,
-            justifyContent: resolvedJustifyContent,
-            gap: fluidSpace(gap, 0),
+            position: "absolute",
+            top: 8,
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: 28,
+            height: 28,
+            borderRadius: 999,
+            border: "1px solid rgba(59, 130, 246, 0.45)",
+            background: "rgba(255, 255, 255, 0.94)",
+            boxShadow: "0 8px 18px rgba(15, 23, 42, 0.14)",
+            cursor: "grab",
+            zIndex: 3,
+            display: "grid",
+            placeItems: "center",
+            touchAction: "none",
           }}
         >
+          <div
+            aria-hidden="true"
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: 999,
+              background: "#3b82f6",
+            }}
+          />
+        </div>
+      ) : null}
+
+      <div style={contentShellStyle}>
+        <div style={contentStyle}>
           {children}
         </div>
-      ) : (
-        children
-      )}
+      </div>
     </section>
   );
 };
 
-export const SectionDefaultProps: Partial<ContainerProps> = {
+export const SectionDefaultProps: Partial<SectionProps> = {
   background: "transparent",
-  padding: 0,
-  paddingTop: 0,
-  paddingRight: 0,
-  paddingBottom: 0,
-  paddingLeft: 0,
+  padding: 40,
+  paddingTop: 40,
+  paddingRight: 24,
+  paddingBottom: 40,
+  paddingLeft: 24,
   margin: 0,
   marginTop: 0,
   marginRight: 0,
@@ -217,7 +298,7 @@ export const SectionDefaultProps: Partial<ContainerProps> = {
   justifyContent: "flex-start",
   gap: 0,
   display: "flex",
-  position: "static",
+  position: "relative",
   zIndex: 0,
   top: "auto",
   right: "auto",
@@ -226,11 +307,16 @@ export const SectionDefaultProps: Partial<ContainerProps> = {
   boxShadow: "none",
   opacity: 1,
   overflow: "visible",
+  contentWidth: "constrained",
+  contentMaxWidth: "1200px",
 };
 
 Section.craft = {
   displayName: "Section",
   props: SectionDefaultProps,
+  rules: {
+    canMoveIn: () => true,
+  },
   related: {
     settings: SectionSettings,
   },
