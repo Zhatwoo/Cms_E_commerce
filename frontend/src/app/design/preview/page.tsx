@@ -13,7 +13,7 @@ import { PREVIEW_MOBILE_BREAKPOINT } from "../_lib/viewportConstants";
 import { CRAFT_RESOLVER } from "../_components/craftResolver";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
-import { getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, getMyDomains, getMe, uploadMediaApi, type Project } from "@/lib/api";
+import { getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, getMyDomains, getMe, uploadMediaApi, listProducts, type Project, type ApiProduct } from "@/lib/api";
 import { getSubdomainSiteUrl } from "@/lib/siteUrls";
 import { getLimits } from "@/lib/subscriptionLimits";
 import html2canvas from "html2canvas";
@@ -435,6 +435,10 @@ function PreviewContent() {
   const [scheduleInfo, setScheduleInfo] = useState<{ scheduledAt: string; subdomain: string | null } | null>(null);
   const [scheduling, setScheduling] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
+  const [previewProducts, setPreviewProducts] = useState<ApiProduct[]>([]);
+  const [previewCart, setPreviewCart] = useState<Array<{ id: string; name: string; price: number; image?: string; quantity: number }>>([]);
+  const [previewCartOpen, setPreviewCartOpen] = useState(false);
+  const [previewLastAddedAt, setPreviewLastAddedAt] = useState(0);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [selectedPreviewPageSlug, setSelectedPreviewPageSlug] = useState<string | undefined>(initialPageSlug);
   const previewRef = useRef<HTMLDivElement | null>(null);
@@ -615,6 +619,34 @@ function PreviewContent() {
     loadProject();
     return () => { active = false; };
   }, [projectId]);
+
+  // Fetch products for the preview store context
+  useEffect(() => {
+    const subdomain = project?.subdomain;
+    if (!subdomain) return;
+    let active = true;
+    listProducts({ subdomain, status: 'active', limit: 100 })
+      .then((res) => { if (active && res.success) setPreviewProducts(res.items); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [project?.subdomain]);
+
+  const previewAddToCart = React.useCallback(
+    (product: { id: string; name: string; price: number; image?: string }) => {
+      setPreviewCart((prev) => {
+        const existing = prev.find((i) => i.id === product.id);
+        if (existing) return prev.map((i) => i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i);
+        return [...prev, { ...product, quantity: 1 }];
+      });
+      setPreviewLastAddedAt(Date.now());
+    },
+    []
+  );
+
+  const previewStoreContext = React.useMemo(
+    () => previewProducts.length > 0 ? { products: previewProducts, addToCart: previewAddToCart } : null,
+    [previewProducts, previewAddToCart]
+  );
 
   // Compute clean document
   const cleanDoc = useMemo(() => {
@@ -1297,6 +1329,7 @@ function PreviewContent() {
                   mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
                   enableFormInputs
                   builderParityMode={useBuilderParityMode}
+                  storeContext={previewStoreContext}
                   simulatedWidth={
                     previewViewport === "desktop"
                       ? (desktopResponsiveViewportWidth ?? 1920)
@@ -1573,6 +1606,78 @@ function PreviewContent() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Preview Cart FAB */}
+      {previewStoreContext && (
+        <>
+          {previewLastAddedAt > 0 && (
+            <div
+              key={previewLastAddedAt}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[200] pointer-events-none rounded-2xl bg-black/70 text-white px-10 py-7 shadow-2xl flex flex-col items-center text-center animate-[fadeIn_0.2s_ease-out]"
+              aria-hidden
+            >
+              <span className="text-lg font-semibold">Added to cart</span>
+              <svg className="w-8 h-8 mt-2 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setPreviewCartOpen(true)}
+            className="fixed bottom-6 right-6 z-[150] flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-3 text-white shadow-lg hover:bg-emerald-600 transition-all"
+            aria-label="Open preview cart"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            {previewCart.reduce((s, i) => s + i.quantity, 0) > 0 && (
+              <span className="text-sm font-semibold">{previewCart.reduce((s, i) => s + i.quantity, 0)}</span>
+            )}
+          </button>
+          {previewCartOpen && (
+            <div className="fixed inset-0 z-[160] flex justify-end" onClick={() => setPreviewCartOpen(false)}>
+              <div className="relative w-full max-w-sm bg-white h-full shadow-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between px-5 py-4 border-b">
+                  <span className="font-semibold text-zinc-900 text-lg">Preview Cart</span>
+                  <button type="button" onClick={() => setPreviewCartOpen(false)} className="text-zinc-400 hover:text-zinc-700">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+                  {previewCart.length === 0 ? (
+                    <p className="text-zinc-500 text-sm text-center mt-8">Your cart is empty.</p>
+                  ) : previewCart.map((item) => (
+                    <div key={item.id} className="flex items-center gap-3">
+                      {item.image && <img src={item.image} alt={item.name} className="w-14 h-14 rounded object-cover border" />}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-zinc-900 text-sm truncate">{item.name}</p>
+                        <p className="text-zinc-500 text-xs">₱{item.price.toFixed(2)} × {item.quantity}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewCart((prev) => prev.filter((i) => i.id !== item.id))}
+                        className="text-zinc-400 hover:text-red-500 text-xs"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                {previewCart.length > 0 && (
+                  <div className="px-5 py-4 border-t">
+                    <div className="flex justify-between text-sm font-semibold text-zinc-900 mb-3">
+                      <span>Total</span>
+                      <span>₱{previewCart.reduce((s, i) => s + i.price * i.quantity, 0).toFixed(2)}</span>
+                    </div>
+                    <p className="text-xs text-zinc-400 text-center">This is a preview — checkout is disabled.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

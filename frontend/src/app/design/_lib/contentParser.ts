@@ -7,6 +7,7 @@ export function parseContentToCleanDoc(content: unknown): BuilderDocument | null
   try {
     let normalized: unknown = content;
 
+    // Unwrap up to 2 levels of JSON string encoding
     for (let i = 0; i < 2; i += 1) {
       if (typeof normalized !== 'string') break;
       const trimmed = normalized.trim();
@@ -18,6 +19,8 @@ export function parseContentToCleanDoc(content: unknown): BuilderDocument | null
       }
     }
 
+    // If it's a plain object with the expected clean doc shape, return it directly.
+    // Use a round-trip through JSON to strip any non-serializable values (Firestore Timestamps, etc.)
     if (
       normalized &&
       typeof normalized === 'object' &&
@@ -25,7 +28,11 @@ export function parseContentToCleanDoc(content: unknown): BuilderDocument | null
       'pages' in normalized &&
       'nodes' in normalized
     ) {
-      return normalized as BuilderDocument;
+      try {
+        return JSON.parse(JSON.stringify(normalized)) as BuilderDocument;
+      } catch {
+        return normalized as BuilderDocument;
+      }
     }
 
     const raw = typeof normalized === 'string' ? normalized : JSON.stringify(normalized);
