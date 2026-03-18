@@ -621,12 +621,8 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                             ) : (
                               <div role="button" tabIndex={0} onClick={() => projectTab === 'active' && openProject(project.id)} className={`${projectTab === 'trash' ? 'cursor-default' : 'cursor-pointer'} ${viewMode === 'list' ? 'flex flex-row items-center w-full h-full' : 'w-full text-left flex flex-col h-full'}`}>
                                 <div className={`${viewMode === 'list' ? 'w-40 h-full border-r border-[#2A2A60] shrink-0' : `${asPage ? 'w-full aspect-video' : 'w-full aspect-[16/10] border-b border-[#2A2A60]'}`} overflow-hidden ${asPage ? (theme === 'dark' ? 'bg-[#0A0A26]' : 'bg-white') : 'bg-[#0A0826]'} ${projectTab === 'trash' ? 'grayscale opacity-75' : ''}`}>
-                                  {/* Project thumbnail: shows a saved screenshot, or auto-generates a draft preview */}
-                                  {project.thumbnail ? (
-                                    <img src={project.thumbnail} alt={project.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                                  ) : (
-                                    <DraftPreviewThumbnail projectId={project.id} borderColor="transparent" bgColor={asPage ? (theme === 'dark' ? '#0A0A26' : '#ffffff') : '#0A0826'} className={`w-full h-full !aspect-auto !rounded-none object-cover ${projectTab !== 'trash' && 'transition-transform duration-700 group-hover:scale-105'}`} />
-                                  )}
+                                  {/* Project thumbnail: live draft preview — always shows current content */}
+                                  <DraftPreviewThumbnail projectId={project.id} borderColor="transparent" bgColor={asPage ? (theme === 'dark' ? '#0A0A26' : '#ffffff') : '#0A0826'} className={`w-full h-full !aspect-auto !rounded-none object-cover ${projectTab !== 'trash' && 'transition-transform duration-700 group-hover:scale-105'}`} />
                                 </div>
                                 <div className={`${viewMode === 'list' ? 'px-6 py-4 flex-1 flex flex-row items-center justify-between min-w-0' : `${asPage ? 'p-6' : 'px-5 py-4'} flex flex-col flex-1`}`}>
                                   {/* Project info: title, status badge (Published/Draft/Shared), and metadata */}

@@ -315,9 +315,6 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   };
 
   const renderProjectPreview = (project: Project | null) => {
-    if (project?.thumbnail) {
-      return <img src={project.thumbnail} alt={project.title || 'Recent'} className="h-full w-full object-cover" loading="lazy" />;
-    }
     if (project?.id) {
       return (
         <DraftPreviewThumbnail
@@ -765,16 +762,12 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                       {/* Content Area */}
                       <div role="button" onClick={() => router.push(`/design?projectId=${project.id}`)}>
                         <div className={`relative w-full aspect-video overflow-hidden ${theme === 'dark' ? 'bg-[#0A0A26]' : 'bg-white'}`}>
-                          {project.thumbnail ? (
-                            <img src={project.thumbnail} alt={project.title} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                          ) : (
-                            <DraftPreviewThumbnail
-                              projectId={project.id}
-                              borderColor="transparent"
-                              bgColor="transparent"
-                              className="w-full h-full aspect-16/10! rounded-none!"
-                            />
-                          )}
+                          <DraftPreviewThumbnail
+                            projectId={project.id}
+                            borderColor="transparent"
+                            bgColor="transparent"
+                            className="w-full h-full aspect-16/10! rounded-none!"
+                          />
                           {/* Subtle Violet Wash on Image */}
                           <div className={`absolute inset-0 opacity-10 ${theme === 'light' ? 'bg-[#8B5CF6]' : 'bg-transparent'}`} />
                         </div>
