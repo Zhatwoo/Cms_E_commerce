@@ -507,7 +507,7 @@ const ProductDetailsModal = ({ product, onClose, colors, onEditProduct }: {
           </div>
         )}
 
-        {/* Brand Action Button */}
+        {/* Brand Action Buttonn */}
         <button
           onClick={() => onEditProduct(product)}
           className="w-full mt-6 py-3 rounded-xl font-bold text-white shadow-lg transition-transform active:scale-[0.98]"
