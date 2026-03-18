@@ -419,6 +419,7 @@ const ProductDetailsModal = ({ product, onClose, colors, onEditProduct }: {
 
   return createPortal(
     <motion.div
+<<<<<<< HEAD
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -435,6 +436,66 @@ const ProductDetailsModal = ({ product, onClose, colors, onEditProduct }: {
           className="w-full max-w-4xl rounded-2xl border overflow-hidden"
           style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
           onClick={(e) => e.stopPropagation()}
+=======
+  initial={{ opacity: 0 }}
+  animate={{ opacity: 1 }}
+  exit={{ opacity: 0 }}
+  className="fixed inset-0 z-[2147483000] flex items-center justify-center p-4 backdrop-blur-sm"
+  style={{ backgroundColor: 'rgba(10, 5, 30, 0.4)' }}
+  onClick={onClose}
+>
+  <motion.div
+    initial={{ scale: 0.98, opacity: 0 }}
+    animate={{ scale: 1, opacity: 1 }}
+    className="w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl border"
+    style={{ 
+      backgroundColor: theme === 'dark' ? '#15093E' : '#FFFFFF',
+      borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : '#E5E7EB',
+      fontFamily: "var(--font-outfit), 'Outfit', sans-serif",
+    }}
+    onClick={(e) => e.stopPropagation()}
+  >
+    {/* Clean Header */}
+    <div className="px-6 py-4 border-b flex items-center justify-between" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : '#F3F4F6' }}>
+      <h2 className="text-lg font-bold" style={{ color: theme === 'dark' ? '#FFFFFF' : '#111827' }}>Product Details</h2>
+      <button onClick={onClose} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    </div>
+
+    <div className="flex flex-col lg:flex-row">
+      {/* Left: Media & Action Sidebar */}
+      <div className="w-full lg:w-[42%] p-6 border-r" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : '#F3F4F6', backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.2)' : '#FAFAFA' }}>
+        <div className="relative aspect-square rounded-xl overflow-hidden border bg-white shadow-inner" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : '#E5E7EB' }}>
+          {hasGallery ? (
+            <img src={gallery[currentImage]} className="w-full h-full object-contain p-4" alt={product.name} />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-xs font-bold uppercase opacity-20">No Image</div>
+          )}
+          
+          {hasGallery && gallery.length > 1 && (
+            <div className="absolute inset-0 flex items-center justify-between px-2">
+              <button onClick={() => setCurrentImage((i) => (i - 1 + gallery.length) % gallery.length)} className="w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth={3} d="M15 19l-7-7 7-7" /></svg></button>
+              <button onClick={() => setCurrentImage((i) => (i + 1) % gallery.length)} className="w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth={3} d="M9 5l7 7-7 7" /></svg></button>
+            </div>
+          )}
+        </div>
+
+        {/* Thumbnail Strip */}
+        {hasGallery && gallery.length > 1 && (
+          <div className="flex gap-2 mt-4 overflow-x-auto pb-2 no-scrollbar">
+            {gallery.map((img, idx) => (
+              <button key={idx} onClick={() => setCurrentImage(idx)} className={`w-14 h-14 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${idx === currentImage ? 'border-[#8B5CF6]' : 'border-transparent opacity-60'}`}><img src={img} className="w-full h-full object-cover" /></button>
+            ))}
+          </div>
+        )}
+
+        {/* Brand Action Buttonn */}
+        <button
+          onClick={() => onEditProduct(product)}
+          className="w-full mt-6 py-3 rounded-xl font-bold text-white shadow-lg transition-transform active:scale-[0.98]"
+          style={{ background: 'linear-gradient(90deg, #7C3AED 0%, #DB2777 100%)' }}
+>>>>>>> aecd7c15d8818302fb3bccf6e526c532fbe31850
         >
           <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: colors.border.faint }}>
             <h2 className="text-lg font-semibold" style={{ color: colors.text.primary }}>Product Details</h2>
