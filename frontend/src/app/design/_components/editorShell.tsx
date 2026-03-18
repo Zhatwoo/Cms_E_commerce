@@ -98,7 +98,7 @@ class FrameErrorBoundary extends React.Component<
       return <DeferredFrame data={EMPTY_FRAME_DATA} />;
     }
 
-    return this.props.children;
+    return this.props?.children ?? null;
   }
 }
 

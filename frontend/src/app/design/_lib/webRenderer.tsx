@@ -584,7 +584,7 @@ function enhanceNavInPreview(innerEl: HTMLElement | null) {
     const menuWrapper = document.createElement("div");
     menuWrapper.className = "nav-menu";
     toDrop.forEach((c) => menuWrapper.appendChild(c));
-    if (menuWrapper.children.length === 0) return false;
+    if (!menuWrapper.children || menuWrapper.children.length === 0) return false;
     container.setAttribute("data-nav-enhanced", "true");
     container.setAttribute("data-nav-container", "true");
     container.append(menuWrapper);
@@ -3789,7 +3789,7 @@ export function WebPreview({
 
   const pageContent = (
     <>
-      {currentPage.children.map((id) => {
+      {(currentPage?.children ?? []).map((id) => {
         const node = doc.nodes[id];
         if (!node) return null;
         const childType = String(node.type || "").toLowerCase();
@@ -4034,7 +4034,7 @@ export function LiveSite({
 
   const pageChildren = (
     <>
-      {currentPage.children.map((id) => {
+      {(currentPage?.children ?? []).map((id) => {
         const node = doc.nodes[id];
         if (!node) return null;
         const childType = String(node.type || "").toLowerCase();
