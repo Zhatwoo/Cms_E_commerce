@@ -1098,12 +1098,13 @@ export default function ProductsPage() {
       <section className="max-w-[1090px] mx-auto pt-6 pb-2">
         <div className="text-center">
           <h1
-            className="text-[clamp(34px,5vw,56px)] font-extrabold tracking-[-1.8px] leading-[1.06]"
+            className="text-[clamp(34px,5vw,56px)] font-extrabold tracking-[-1.8px] leading-[1.2]"
             style={{ color: colors.text.primary }}
           >
             My{' '}
             <span
               className={`inline-block bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+              style={{ paddingBottom: '0.1em', marginBottom: '-0.1em' }}
             >
               Products
             </span>
@@ -1111,10 +1112,14 @@ export default function ProductsPage() {
           <p className="mt-2 text-sm" style={{ color: colors.text.secondary }}>Track stock performance and catalog details.</p>
         </div>
 
-        <div className="m-dashboard-search-shadow mt-6 mb-7 max-w-[860px] mx-auto rounded-2xl border px-5 py-3.5 flex items-center gap-3 bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]">
-          <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0" fill="none" style={{ color: colors.accent.yellow }}>
-            <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="1.8" />
+        <div className={`m-dashboard-search-shadow mt-6 mb-7 max-w-[860px] mx-auto rounded-2xl border px-5 py-3.5 flex items-center gap-3 ${theme === 'dark' ? 'bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]' : 'admin-dashboard-panel-soft border-0'}`}>
+          <svg 
+            viewBox="0 0 20 20" 
+            className={`h-4 w-4 shrink-0 transition-all duration-300 ${theme === 'dark' ? 'text-[#FFCE00] filter-[drop-shadow(0_0_5px_rgba(255,206,0,0.6))]' : 'text-[#8B5CF6]'}`} 
+            fill="none"
+          >
+            <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="2" />
           </svg>
           <input
             type="text"
