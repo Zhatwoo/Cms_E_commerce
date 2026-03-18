@@ -5,7 +5,7 @@ import { useEditor } from "@craftjs/core";
 import { Play } from "lucide-react";
 import gsap from "gsap";
 import { DesignSection } from "./DesignSection";
-import { getInVariants, getOutVariants, getDuringAnimation, getScrollEffectTweenProps } from "../../../_lib/animationEngine";
+import { getInVariants, getOutVariants, getDuringAnimation, getScrollEffectTweenProps, getScrollEffectRange } from "../../../_lib/animationEngine";
 import {
   DEFAULT_ANIMATION,
   ANIMATE_IN_LABELS,
@@ -26,11 +26,11 @@ import type {
 } from "../../../_types/animation";
 
 const selectClass =
-  "w-full bg-brand-medium-dark rounded-md text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none appearance-none cursor-pointer";
-const labelClass = "text-[12px] text-brand-lighter font-base";
-const subLabelClass = "text-[10px] text-brand-light";
-const sliderClass = "w-full accent-brand-light cursor-pointer";
-const checkboxClass = "accent-brand-light cursor-pointer";
+  "w-full bg-[var(--builder-surface-2)] rounded-md text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none appearance-none cursor-pointer";
+const labelClass = "text-[12px] text-[var(--builder-text)] font-base";
+const subLabelClass = "text-[10px] text-[var(--builder-text-muted)]";
+const sliderClass = "w-full accent-[var(--builder-accent)] cursor-pointer";
+const checkboxClass = "accent-[var(--builder-accent)] cursor-pointer";
 
 function getAnimation(props: Record<string, unknown>): AnimationConfig {
   const raw = props.animation as AnimationConfig | undefined;
@@ -277,6 +277,9 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
         restoreScrollIndicatorRef.current = null;
       }
 
+      // Explicitly clear any residual GSAP/Inline styles from previous previews
+      gsap.set(element, { clearProps: "transform,opacity,filter,clip-path" });
+
       const current = animation;
       let webAnimation: Animation | null = null;
 
@@ -341,9 +344,8 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
           ...current.scrollEffect,
           type: nextType,
         };
-        const tweenProps = getScrollEffectTweenProps(scrollConfig);
-        const speedMagnitude = Math.max(0.1, Math.abs(current.scrollEffect.speed || 1));
-        const baseDuration = 0.75;
+        const { from, to } = getScrollEffectRange(scrollConfig);
+        const baseDuration = 0.8;
         const simulatedEase = current.scrollEffect.scrub ? "none" : "power1.inOut";
 
         const restoreIndicator = applyScrollPreviewIndicator(element);
@@ -354,6 +356,7 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
             ease: simulatedEase,
           },
           onComplete: () => {
+            gsap.set(element, { clearProps: "transform,opacity,filter,clip-path" });
             if (restoreScrollIndicatorRef.current) {
               restoreScrollIndicatorRef.current();
               restoreScrollIndicatorRef.current = null;
@@ -363,74 +366,11 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
               scrollPreviewTimelineRef.current = null;
             }
           },
-          onInterrupt: () => {
-            if (restoreScrollIndicatorRef.current) {
-              restoreScrollIndicatorRef.current();
-              restoreScrollIndicatorRef.current = null;
-            }
-          },
         });
 
-        if (nextType === "parallax" || nextType === "horizontalMove") {
-          const axis = (nextType === "horizontalMove" || current.scrollEffect.direction === "horizontal") ? "x" : "y";
-          const delta = Math.max(20, Math.abs(asNumber(tweenProps[axis])));
-          const startValue = current.scrollEffect.speed >= 0 ? delta / 2 : -delta / 2;
-          const endValue = -startValue;
-          timeline.fromTo(
-            element,
-            { [axis]: startValue },
-            { [axis]: endValue, duration: baseDuration }
-          );
-          timeline.to(element, {
-            [axis]: startValue,
-            duration: baseDuration,
-          });
-        } else if (nextType === "fade") {
-          timeline.fromTo(
-            element,
-            { opacity: 0 },
-            { opacity: 1, duration: baseDuration }
-          );
-          timeline.to(element, {
-            opacity: 0,
-            duration: baseDuration,
-          });
-        } else if (nextType === "scale") {
-          const targetScale = Math.max(0.2, Math.abs(asNumber(tweenProps.scale) || (1 + speedMagnitude * 0.5)));
-          timeline.fromTo(
-            element,
-            { scale: targetScale },
-            { scale: 1, duration: baseDuration }
-          );
-          timeline.to(element, {
-            scale: targetScale,
-            duration: baseDuration,
-          });
-        } else if (nextType === "rotate") {
-          const targetRotation = Math.abs(asNumber(tweenProps.rotation) || (speedMagnitude * 180));
-          timeline.fromTo(
-            element,
-            { rotation: targetRotation },
-            { rotation: 0, duration: baseDuration }
-          );
-          timeline.to(element, {
-            rotation: targetRotation,
-            duration: baseDuration,
-          });
-        } else if (nextType === "blur") {
-          const targetFilter = (typeof tweenProps.filter === "string" && tweenProps.filter)
-            ? tweenProps.filter
-            : `blur(${Math.max(1, speedMagnitude * 10)}px)`;
-          timeline.fromTo(
-            element,
-            { filter: targetFilter },
-            { filter: "blur(0px)", duration: baseDuration }
-          );
-          timeline.to(element, {
-            filter: targetFilter,
-            duration: baseDuration,
-          });
-        }
+        // The simulation plays through the full range: Initial -> Final -> Reset to Initial
+        timeline.fromTo(element, from, { ...to, duration: baseDuration });
+        timeline.to(element, { ...from, duration: baseDuration * 0.5 });
 
         scrollPreviewTimelineRef.current = timeline;
         return;
@@ -509,7 +449,7 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
               previewOnCanvas("scrollEffect");
             }
           }}
-          className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-brand-medium/30 bg-brand-medium-dark text-brand-lighter hover:bg-brand-medium/40 hover:border-brand-medium/50 transition-colors"
+          className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-[var(--builder-border)] bg-[var(--builder-surface-2)] text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] hover:border-[var(--builder-border-mid)]/50 transition-colors"
         >
           <Play size={12} strokeWidth={2.2} />
         </button>
@@ -871,7 +811,7 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                       max="100"
                       value={animation.animateDuring.iterationCount as number}
                       onChange={(e) => update("animateDuring.iterationCount", Number(e.target.value))}
-                      className="w-14 bg-brand-medium-dark rounded-md text-xs text-brand-lighter px-2 py-1 focus:outline-none"
+                      className="w-14 bg-[var(--builder-surface-2)] rounded-md text-xs text-[var(--builder-text)] px-2 py-1 focus:outline-none"
                     />
                   )}
                 </div>
@@ -958,6 +898,108 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                       <option value="horizontal">Horizontal</option>
                     </select>
                   </div>
+
+                  {animation.scrollEffect.type === "customMove" && (
+                    <div className="flex flex-col gap-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex justify-between">
+                            <label className={labelClass}>Start X</label>
+                            <input
+                              type="number"
+                              value={animation.scrollEffect.fromX ?? 0}
+                              onChange={(e) => update("scrollEffect.fromX", Number(e.target.value))}
+                              className="w-16 bg-[var(--builder-surface-2)] rounded text-[10px] text-[var(--builder-text)] px-1 py-0.5 focus:outline-none"
+                            />
+                          </div>
+                          <input
+                            type="range"
+                            min="-2000"
+                            max="2000"
+                            step="10"
+                            value={animation.scrollEffect.fromX ?? 0}
+                            onChange={(e) => {
+                              update("scrollEffect.fromX", Number(e.target.value));
+                              schedulePreview("scrollEffect");
+                            }}
+                            className={sliderClass}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex justify-between">
+                            <label className={labelClass}>Start Y</label>
+                            <input
+                              type="number"
+                              value={animation.scrollEffect.fromY ?? 0}
+                              onChange={(e) => update("scrollEffect.fromY", Number(e.target.value))}
+                              className="w-16 bg-[var(--builder-surface-2)] rounded text-[10px] text-[var(--builder-text)] px-1 py-0.5 focus:outline-none"
+                            />
+                          </div>
+                          <input
+                            type="range"
+                            min="-2000"
+                            max="2000"
+                            step="10"
+                            value={animation.scrollEffect.fromY ?? 0}
+                            onChange={(e) => {
+                              update("scrollEffect.fromY", Number(e.target.value));
+                              schedulePreview("scrollEffect");
+                            }}
+                            className={sliderClass}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex justify-between">
+                            <label className={labelClass}>End X</label>
+                            <input
+                              type="number"
+                              value={animation.scrollEffect.toX ?? 0}
+                              onChange={(e) => update("scrollEffect.toX", Number(e.target.value))}
+                              className="w-16 bg-[var(--builder-surface-2)] rounded text-[10px] text-[var(--builder-text)] px-1 py-0.5 focus:outline-none"
+                            />
+                          </div>
+                          <input
+                            type="range"
+                            min="-2000"
+                            max="2000"
+                            step="10"
+                            value={animation.scrollEffect.toX ?? 0}
+                            onChange={(e) => {
+                              update("scrollEffect.toX", Number(e.target.value));
+                              schedulePreview("scrollEffect");
+                            }}
+                            className={sliderClass}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex justify-between">
+                            <label className={labelClass}>End Y</label>
+                            <input
+                              type="number"
+                              value={animation.scrollEffect.toY ?? 0}
+                              onChange={(e) => update("scrollEffect.toY", Number(e.target.value))}
+                              className="w-16 bg-[var(--builder-surface-2)] rounded text-[10px] text-[var(--builder-text)] px-1 py-0.5 focus:outline-none"
+                            />
+                          </div>
+                          <input
+                            type="range"
+                            min="-2000"
+                            max="2000"
+                            step="10"
+                            value={animation.scrollEffect.toY ?? 0}
+                            onChange={(e) => {
+                              update("scrollEffect.toY", Number(e.target.value));
+                              schedulePreview("scrollEffect");
+                            }}
+                            className={sliderClass}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input

@@ -66,7 +66,8 @@ export const Page = ({
         transition: "transform 220ms ease-out",
       }}
     >
-      <div data-page-name-label="true" className="absolute -top-8 left-0 text-brand-lighter font-bold text-2xl opacity-50 select-none min-w-[120px]">
+      <div data-page-name-label="true" className="absolute -top-8 left-0 font-bold text-2xl opacity-60 select-none min-w-[120px]"
+        style={{ color: "var(--builder-text, #EDE9FF)" }}>
         {editing ? (
           <input
             value={editValue}
@@ -75,7 +76,12 @@ export const Page = ({
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
             autoFocus
-            className="bg-brand-dark/90 border border-brand-medium rounded px-2 py-0.5 text-lg text-brand-lighter focus:outline-none focus:border-blue-500 w-full max-w-[240px]"
+            className="rounded px-2 py-0.5 text-lg focus:outline-none w-full max-w-[240px]"
+            style={{
+              background: "var(--builder-surface-2, rgba(30,30,30,0.9))",
+              border: "1px solid var(--builder-border-mid, rgba(138,92,246,0.3))",
+              color: "var(--builder-text, #EDE9FF)",
+            }}
             data-panel="page-name-edit"
           />
         ) : (
@@ -99,7 +105,7 @@ export const Page = ({
 export const PageDefaultProps: Partial<PageProps> = {
   width: "1920px",
   height: "1200px",
-  background: "#E6E6E9",
+  background: "#ffffff",
   pageRotation: 0,
   canvasX: 0,
   canvasY: 0,

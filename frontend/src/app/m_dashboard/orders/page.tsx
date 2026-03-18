@@ -15,8 +15,8 @@ type PaymentMode = 'COD' | 'Bank Transfer';
 const PAYMENT_MODES: PaymentMode[] = ['COD', 'Bank Transfer'];
 
 const PAYMENT_ICONS: Record<PaymentMode, { icon: string; bg: string; color: string }> = {
-  COD:            { icon: '💵', bg: '#FFCC0022', color: '#FFCC00' },
-  'Bank Transfer':{ icon: '🏦', bg: '#6702BF22', color: '#A855F7' },
+  COD: { icon: '💵', bg: '#FFCC0022', color: '#FFCC00' },
+  'Bank Transfer': { icon: '🏦', bg: '#6702BF22', color: '#A855F7' },
 };
 
 // Deterministic mock payment mode from order id
@@ -29,10 +29,10 @@ type CheckoutTab = 'all' | 'pending' | 'transit' | 'completed';
 type ViewMode = 'list' | 'grid';
 
 const CHECKOUT_TABS: { id: CheckoutTab; label: string }[] = [
-  { id: 'all', label: 'ALL CHECKOUTS' },
-  { id: 'pending', label: 'PENDING' },
-  { id: 'transit', label: 'IN TRANSIT' },
-  { id: 'completed', label: 'COMPLETED' },
+  { id: 'all', label: 'All Checkouts' },
+  { id: 'pending', label: 'Pending' },
+  { id: 'transit', label: 'In Transit' },
+  { id: 'completed', label: 'Completed' },
 ];
 
 const ORDER_CATEGORIES = [
@@ -277,10 +277,6 @@ export default function OrdersPage() {
 
   return (
     <div className="dashboard-landing-light relative mx-auto w-full max-w-[1320px] px-0.5 sm:px-1 [font-family:var(--font-outfit),sans-serif]">
-      <div
-        className="pointer-events-none absolute top-24 right-6 h-56 w-56 opacity-20"
-        style={{ background: `radial-gradient(circle at center, ${colors.accent.purple} 0%, transparent 72%)` }}
-      />
 
       {/* ── Header ── */}
       <section className="relative z-10 mb-6 sm:mb-7 text-center">
@@ -289,8 +285,8 @@ export default function OrdersPage() {
           <span
             className="block w-fit mx-auto text-transparent bg-clip-text"
             style={{
-              backgroundImage: theme === 'dark' 
-                ? 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #ffcc00 100%)' 
+              backgroundImage: theme === 'dark'
+                ? 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #ffcc00 100%)'
                 : 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #f5a213 100%)',
               textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)'
             }}
@@ -352,8 +348,12 @@ export default function OrdersPage() {
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="h-12 w-full appearance-none rounded-2xl border pl-6 pr-10 text-[12px] font-semibold leading-none"
-              style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.card, color: colors.text.primary }}
+              className={`h-12 w-full appearance-none rounded-2xl border pl-6 pr-10 text-[12px] font-semibold leading-none ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
+              style={{
+                borderColor: theme === 'dark' ? colors.border.faint : undefined,
+                backgroundColor: theme === 'dark' ? colors.bg.card : undefined,
+                color: colors.text.primary
+              }}
             >
               <option value="all">Category</option>
               {ORDER_CATEGORIES.map((c) => (
@@ -370,7 +370,9 @@ export default function OrdersPage() {
 
         {/* Pagination */}
         <div className="justify-self-center flex items-center gap-1 sm:gap-2 text-xs" style={{ color: colors.text.secondary }}>
-          <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} className="h-6 w-6 sm:h-7 sm:w-7 rounded-full border text-[12px]" style={{ borderColor: colors.border.faint }} aria-label="Previous page">‹</button>
+          <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))}
+            className={`h-6 w-6 sm:h-7 sm:w-7 rounded-full border text-[12px] flex items-center justify-center ${theme === 'dark' ? '' : 'admin-dashboard-panel-soft border-0'}`}
+            style={{ borderColor: colors.border.faint, backgroundColor: theme === 'dark' ? 'transparent' : undefined }} aria-label="Previous page">‹</button>
           {paginationItems.map((item, idx) => {
             if (item === 'ellipsis') return <span key={`ellipsis-${idx}`} className="px-0.5 text-[10px] sm:text-[11px]" style={{ color: colors.text.muted }}>...</span>;
             const val = item as number;
@@ -383,22 +385,37 @@ export default function OrdersPage() {
               </button>
             );
           })}
-          <button type="button" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} className="h-6 w-6 sm:h-7 sm:w-7 rounded-full border text-[12px]" style={{ borderColor: colors.border.faint }} aria-label="Next page">›</button>
+          <button type="button" onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            className={`h-6 w-6 sm:h-7 sm:w-7 rounded-full border text-[12px] flex items-center justify-center ${theme === 'dark' ? '' : 'admin-dashboard-panel-soft border-0'}`}
+            style={{ borderColor: colors.border.faint, backgroundColor: theme === 'dark' ? 'transparent' : undefined }} aria-label="Next page">›</button>
         </div>
 
         {/* View toggle */}
         <div className="justify-self-center md:justify-self-end flex items-center gap-2">
-          {(['list', 'grid'] as ViewMode[]).map((mode) => (
-            <button key={mode} type="button" onClick={() => setViewMode(mode)}
-              className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg border inline-flex items-center justify-center"
-              style={{ borderColor: colors.border.faint, backgroundColor: viewMode === mode ? colors.accent.purple : colors.bg.card, color: colors.text.primary }}
-              aria-label={`${mode} view`}>
-              {mode === 'list'
-                ? <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" strokeLinecap="round" /></svg>
-                : <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><rect x="4" y="4" width="6" height="6" rx="1" /><rect x="14" y="4" width="6" height="6" rx="1" /><rect x="4" y="14" width="6" height="6" rx="1" /><rect x="14" y="14" width="6" height="6" rx="1" /></svg>
-              }
-            </button>
-          ))}
+          {(['list', 'grid'] as ViewMode[]).map((mode) => {
+            const isActive = viewMode === mode;
+            return (
+              <button 
+                key={mode} 
+                type="button" 
+                onClick={() => setViewMode(mode)}
+                className={`h-9 w-9 sm:h-10 sm:w-10 rounded-xl border inline-flex items-center justify-center transition-all duration-300 ${isActive ? 'shadow-md scale-105' : 'hover:scale-105 opacity-70'}`}
+                style={{ 
+                  borderColor: isActive ? 'transparent' : colors.border.faint, 
+                  backgroundColor: isActive 
+                    ? (theme === 'light' ? '#14034A' : colors.accent.purple) 
+                    : (theme === 'light' ? '#FFFFFF' : colors.bg.card), 
+                  color: isActive ? '#FFFFFF' : (theme === 'light' ? '#14034A' : colors.text.primary) 
+                }}
+                aria-label={`${mode} view`}
+              >
+                {mode === 'list'
+                  ? <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" strokeLinecap="round" /></svg>
+                  : <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><rect x="4" y="4" width="6" height="6" rx="1.5" /><rect x="14" y="4" width="6" height="6" rx="1.5" /><rect x="4" y="14" width="6" height="6" rx="1.5" /><rect x="14" y="14" width="6" height="6" rx="1.5" /></svg>
+                }
+              </button>
+            );
+          })}
         </div>
       </section>
 
@@ -415,10 +432,10 @@ export default function OrdersPage() {
            LIST VIEW — now 7 cols including Mode of Payment
            ══════════════════════════════════════════════════════ */
         <section
-          className={`relative z-10 rounded-2xl border overflow-hidden ${theme === 'dark' ? '' : 'bg-white shadow-sm'}`}
+          className={`relative z-10 rounded-2xl border overflow-hidden ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
           style={{
-            borderColor: colors.border.faint,
-            background: theme === 'dark' ? 'linear-gradient(135deg, #110248 0%, #090029 100%)' : undefined,
+            borderColor: theme === 'dark' ? colors.border.faint : undefined,
+            backgroundImage: theme === 'dark' ? 'linear-gradient(135deg, #110248 0%, #090029 100%)' : 'none',
           }}
         >
           {/* Header row */}
@@ -451,9 +468,9 @@ export default function OrdersPage() {
                 className="px-2.5 max-[390px]:px-2 sm:px-4 py-3.5 sm:py-4 border-b transition-colors duration-150"
                 style={{
                   borderColor: colors.border.faint,
-                  background: isExpanded
+                  backgroundColor: isExpanded
                     ? theme === 'dark' ? 'rgba(103,2,191,0.07)' : 'rgba(139,92,246,0.04)'
-                    : undefined,
+                    : 'transparent',
                 }}
               >
                 <div
@@ -478,7 +495,7 @@ export default function OrdersPage() {
                           style={{ borderColor: colors.border.faint }}
                         />
                         {/* subtle shimmer overlay */}
-                        <div className="absolute inset-0 rounded-md" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 60%)' }} />
+                        <div className="absolute inset-0 rounded-md" style={{ backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 60%)' }} />
                       </div>
                       <div className="min-w-0">
                         <p className="text-[10px] font-bold tracking-widest" style={{ color: colors.accent.yellow }}>{orderNumber(order)}</p>
@@ -568,7 +585,7 @@ export default function OrdersPage() {
 
                 {/* ── Expanded details ── */}
                 {isExpanded && (
-                  <div className="mt-4 rounded-xl border p-3 sm:p-4" style={{ borderColor: colors.border.faint, background: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }}>
+                  <div className="mt-4 rounded-xl border p-3 sm:p-4" style={{ borderColor: colors.border.faint, backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }}>
                     <div className="mb-3 flex flex-wrap items-center gap-2">
                       <span className="text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: colors.text.muted }}>Product details</span>
                       {/* Payment mode in details */}
@@ -656,10 +673,10 @@ export default function OrdersPage() {
             return (
               <article
                 key={order.id}
-                className={`rounded-2xl border overflow-hidden transition-all duration-200 ${theme === 'dark' ? '' : 'bg-white shadow-sm'}`}
+                className={`rounded-2xl border overflow-hidden transition-all duration-200 ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
                 style={{
-                  borderColor: isExpanded ? `${colors.accent.purple}66` : colors.border.faint,
-                  background: theme === 'dark' ? 'linear-gradient(135deg, #110248 0%, #0D0035 100%)' : undefined,
+                  borderColor: isExpanded ? `${colors.accent.purple}66` : (theme === 'dark' ? colors.border.faint : undefined),
+                  backgroundImage: theme === 'dark' ? 'linear-gradient(135deg, #110248 0%, #0D0035 100%)' : 'none',
                   boxShadow: isExpanded
                     ? theme === 'dark' ? '0 0 0 1px rgba(103,2,191,0.3), 0 8px 32px rgba(103,2,191,0.15)' : '0 0 0 1px rgba(139,92,246,0.2), 0 8px 24px rgba(139,92,246,0.08)'
                     : undefined,
@@ -674,7 +691,7 @@ export default function OrdersPage() {
                     style={{ display: 'block' }}
                   />
                   {/* gradient scrim */}
-                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(9,0,41,0.6) 0%, transparent 55%)' }} />
+                  <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(to top, rgba(9,0,41,0.6) 0%, transparent 55%)' }} />
                   {/* Status badge — top right */}
                   <span className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-full text-[10px] font-bold shadow"
                     style={{ backgroundColor: badge.bg, color: badge.color, border: `1px solid ${badge.color}33`, backdropFilter: 'blur(6px)' }}>
@@ -709,7 +726,7 @@ export default function OrdersPage() {
                   </div>
 
                   {/* Divider */}
-                  <div className="mt-3 mb-2.5 h-px" style={{ background: `linear-gradient(90deg, ${colors.border.faint} 0%, transparent 100%)` }} />
+                  <div className="mt-3 mb-2.5 h-px" style={{ backgroundImage: `linear-gradient(90deg, ${colors.border.faint} 0%, transparent 100%)` }} />
 
                   {/* Actions */}
                   <div className="grid grid-cols-3 gap-2">

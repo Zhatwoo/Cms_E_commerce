@@ -17,16 +17,16 @@ export function UserAccountSidebar() {
 	const activePath = pathname === "/admindashboard/userAccount" ? "/admindashboard/userAccount/profile" : pathname;
 
 	return (
-		<div className="bg-white rounded-2xl shadow-[0_16px_40px_rgba(15,23,42,0.08)] border border-gray-200 p-4">
+		<div className="admin-dashboard-panel rounded-[26px] border border-[rgba(177,59,255,0.22)] bg-[#F5F4FF] p-5 shadow-[0_10px_26px_rgba(123,78,192,0.15)] md:p-6">
 			<div className="space-y-2 text-sm">
 				{tabs.map((tab) => (
 					<div key={tab.label}>
 						<Link
 							href={tab.href}
-							className={`block w-full text-left px-3 py-2 rounded-lg transition-colors ${
+							className={`block w-full rounded-[18px] px-4 py-3 text-left text-[1.2rem] font-semibold leading-none transition-colors ${
 								activePath === tab.href
-									? "bg-slate-900 text-white"
-									: "text-gray-600 hover:bg-gray-100"
+									? "bg-white/70 text-[#471396] shadow-[0_8px_18px_rgba(123,78,192,0.08)]"
+									: "text-[#471396] hover:bg-white/40"
 							}`}
 						>
 							{tab.label}

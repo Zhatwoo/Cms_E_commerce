@@ -1360,11 +1360,35 @@ function wrapWithPrototype(
   );
 }
 
-function PreviewTabs({ props }: { props: Record<string, any> }) {
+function PreviewTabs({
+  props,
+  childNodes,
+  childNodeIds,
+  childNodeMap,
+}: {
+  props: Record<string, any>;
+  childNodes?: React.ReactNode[];
+  childNodeIds?: string[];
+  childNodeMap?: Record<string, React.ReactNode>;
+}) {
   const tabs = (props.tabs as any[]) || [];
+  const linkedSlotMap = (props.__linkedNodes as Record<string, string>) ?? {};
   const [activeTabId, setActiveTabId] = React.useState(
     props.activeTabId || (tabs[0]?.id || "")
   );
+
+  React.useEffect(() => {
+    const preferred = props.activeTabId || "";
+    const hasPreferred = preferred && tabs.some((t) => t?.id === preferred);
+    if (hasPreferred) {
+      setActiveTabId(preferred);
+      return;
+    }
+    const firstId = tabs[0]?.id || "";
+    if (firstId && firstId !== activeTabId) {
+      setActiveTabId(firstId);
+    }
+  }, [props.activeTabId, tabs, activeTabId]);
 
   const br = (props.borderRadius ?? 0) as number;
   const borderColor = (props.borderColor as string) || "transparent";
@@ -1389,7 +1413,12 @@ function PreviewTabs({ props }: { props: Record<string, any> }) {
         className="tabs-header flex flex-row w-full overflow-x-auto border-b no-scrollbar"
         style={{
           borderColor: borderColor !== "transparent" ? borderColor : "#e5e7eb",
-          justifyContent: props.tabAlignment === "center" ? "center" : props.tabAlignment === "right" ? "flex-end" : "flex-start"
+          justifyContent:
+            props.tabAlignment === "center"
+              ? "center"
+              : props.tabAlignment === "right"
+              ? "flex-end"
+              : "flex-start",
         }}
       >
         {tabs.map((tab) => {
@@ -1422,16 +1451,46 @@ function PreviewTabs({ props }: { props: Record<string, any> }) {
           );
         })}
       </div>
+      {/* Children here are per-tab content nodes rendered by RenderNode; we simply show/hide via CSS */}
       <div className="tabs-content relative w-full flex-grow min-h-[100px] overflow-hidden">
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId;
+          const fallbackId = `tab-content-${tab.id}`;
+          const candidateId =
+            typeof tab?.content === "string" && tab.content.trim() ? tab.content.trim() : fallbackId;
+          const contentNodeId =
+            props.nodes && props.nodes[candidateId] ? candidateId : fallbackId;
           return (
             <div
               key={tab.id}
               className={`w-full h-full transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${isActive ? "opacity-100 translate-y-0 relative" : "opacity-0 -translate-y-2 absolute inset-0 pointer-events-none"}`}
             >
               <div className="w-full h-full min-h-[100px] p-6 flex flex-col text-sm whitespace-pre-wrap text-gray-800 leading-relaxed">
-                {tab.content}
+                {/* Render tab content canvas as nodes */}
+                {props.nodes && props.nodes[contentNodeId] ? (
+                  <RenderNode
+                    node={props.nodes[contentNodeId]}
+                    nodes={props.nodes}
+                    pages={props.pages || []}
+                    pageIndex={props.pageIndex || 0}
+                    viewportWidth={props.viewportWidth || 1200}
+                    interactionState={props.interactionState || {}}
+                    availableTriggerTargets={props.availableTriggerTargets || new Set()}
+                    onToggle={props.onToggle || (() => {})}
+                    storeContext={props.storeContext || null}
+                    nodeId={contentNodeId}
+                    onPrototypeAction={props.onPrototypeAction}
+                    mobileBreakpoint={props.mobileBreakpoint}
+                    enableFormInputs={props.enableFormInputs}
+                    builderParityMode={props.builderParityMode}
+                    renderAllNodes={props.renderAllNodes}
+                    preserveAuthoredPositioning={props.preserveAuthoredPositioning}
+                    layoutReferenceWidth={props.layoutReferenceWidth}
+                    layoutReferenceHeight={props.layoutReferenceHeight}
+                  />
+                ) : (
+                  <span />
+                )}
               </div>
             </div>
           );
@@ -1457,6 +1516,8 @@ function RenderNode({
   enableFormInputs,
   builderParityMode,
   renderAllNodes,
+  parentType,
+  insideTabsContext,
 }: {
   node: CleanNode;
   nodes: Record<string, CleanNode>;
@@ -1473,6 +1534,8 @@ function RenderNode({
   enableFormInputs?: boolean;
   builderParityMode?: boolean;
   renderAllNodes?: boolean;
+  parentType?: ComponentType;
+  insideTabsContext?: boolean;
 }): React.ReactElement {
   // Normalize legacy lowercase node types so published and preview payloads render identically.
   const rawType = node.type as string;
@@ -1496,8 +1559,10 @@ function RenderNode({
     banner: "Banner",
     rating: "Rating",
     tabcontent: "TabContent",
+    "tab-content": "TabContent",
     "tab content": "TabContent",
     importedblock: "ImportedBlock",
+    booleanfield: "BooleanField",
   };
   const type = (normalizedTypeMap[rawType.toLowerCase()] ?? rawType) as ComponentType;
   const props = mergeProps(type, node.props) as Record<string, unknown>;
@@ -1515,11 +1580,13 @@ function RenderNode({
   const interactiveClick = !allowPreviewInput && toggleTarget ? () => onToggle(toggleTarget, triggerAction) : undefined;
   const animation = props.animation as AnimationConfig | undefined;
   const prototype = props.prototype as PrototypeConfig | undefined;
+  const nextInsideTabsContext = Boolean(insideTabsContext || type === "Tabs" || type === "TabContent");
   const childIds = node.children ?? [];
+  const childNodeMap: Record<string, React.ReactNode> = {};
   const children = childIds.map((id) => {
     const n = nodes[id];
     if (!n) return null;
-    return (
+    const renderedNode = (
       <RenderNode
         key={id}
         node={n}
@@ -1537,8 +1604,12 @@ function RenderNode({
         enableFormInputs={enableFormInputs}
         builderParityMode={builderParityMode}
         renderAllNodes={renderAllNodes}
+        parentType={type}
+        insideTabsContext={nextInsideTabsContext}
       />
     );
+    childNodeMap[id] = renderedNode;
+    return renderedNode;
   });
 
   const wrap = (el: React.ReactElement) =>
@@ -2106,6 +2177,18 @@ function RenderNode({
       const imgTransform = [imgRot ? `rotate(${imgRot}deg)` : null, imgFlipH ? "scaleX(-1)" : null, imgFlipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
       const normalizedImageWidth = normalizeLayoutWidthForNarrow(props.width, isNarrowPreview, builderParityMode);
       const normalizedImageHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
+      const isInsideTabs = Boolean(insideTabsContext || parentType === "Tabs" || parentType === "TabContent");
+      const autoFitInTabs = props._autoFitInTabs === true;
+      const rawWidth =
+        isInsideTabs && !autoFitInTabs
+          ? (props.width as string)
+          : (normalizedImageWidth ?? (props.width as string));
+      const rawHeight =
+        isInsideTabs && !autoFitInTabs
+          ? (props.height as string)
+          : (normalizedImageHeight ?? (props.height as string));
+      const resolvedImageWidth = isInsideTabs && autoFitInTabs ? "100%" : rawWidth;
+      const resolvedImageHeight = isInsideTabs && autoFitInTabs ? "auto" : rawHeight;
       const imageWidthPx = parsePixelValue(props.width);
       const imageHeightPx = parsePixelValue(props.height);
       const mediaAspectRatio = imageWidthPx && imageHeightPx ? `${imageWidthPx} / ${imageHeightPx}` : undefined;
@@ -2117,8 +2200,8 @@ function RenderNode({
           data-fluid-media="true"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
-            width: normalizedImageWidth ?? (props.width as string),
-            height: normalizedImageHeight ?? (props.height as string),
+            width: resolvedImageWidth,
+            height: resolvedImageHeight,
             maxWidth: "100%",
             objectFit: ((props.objectFit as React.CSSProperties["objectFit"]) || "cover"),
             aspectRatio: mediaAspectRatio,
@@ -2135,6 +2218,121 @@ function RenderNode({
       );
     }
 
+    case "BooleanField": {
+      const controlType = (props.controlType as string) === "radio" ? "radio" : "checkbox";
+      const disabled = props.disabled === true;
+      const labelColor = (props.labelColor as string) || "#000000";
+      const gap = toNumber(props.gap, 10);
+      const itemGap = toNumber(props.itemGap, 10);
+      const fontSize = toNumber(props.fontSize, 14);
+      const fontFamily = (props.fontFamily as string) || "Outfit";
+      const fontWeight = (props.fontWeight as string) || "500";
+      const showLabels = props.showLabels !== false;
+      const baseOptions = Array.isArray(props.options) && props.options.length > 0
+        ? props.options
+        : [
+            {
+              id: "opt-1",
+              label: (props.label as string) || "Option 1",
+              checked: Boolean(props.checked),
+            },
+            { id: "opt-2", label: "Option 2", checked: false },
+            { id: "opt-3", label: "Option 3", checked: false },
+          ];
+
+      const normalizedWidth =
+        normalizeLayoutWidthForNarrow(
+          normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint) ||
+            (props.width as string) ||
+            "fit-content",
+          isNarrowPreview,
+          builderParityMode,
+        ) || "fit-content";
+
+      const m = typeof props.margin === "number" ? props.margin : 0;
+      const mt = (props.marginTop ?? m) as number;
+      const mb = (props.marginBottom ?? m) as number;
+      const ml = (props.marginLeft ?? m) as number;
+      const mr = (props.marginRight ?? m) as number;
+      const p = typeof props.padding === "number" ? props.padding : 0;
+      const pt = (props.paddingTop ?? p) as number;
+      const pb = (props.paddingBottom ?? p) as number;
+      const pl = (props.paddingLeft ?? p) as number;
+      const pr = (props.paddingRight ?? p) as number;
+
+      return wrap(
+        <div
+          className={((props.customClassName as string) || "").trim() || undefined}
+          style={{
+            width: normalizedWidth,
+            height: (props.height as string) || "fit-content",
+            paddingTop: `${pt}px`,
+            paddingRight: `${pr}px`,
+            paddingBottom: `${pb}px`,
+            paddingLeft: `${pl}px`,
+            marginTop: `${mt}px`,
+            marginRight: `${mr}px`,
+            marginBottom: `${mb}px`,
+            marginLeft: `${ml}px`,
+            opacity: (props.opacity as number) ?? 1,
+            cursor: disabled ? "not-allowed" : "default",
+            userSelect: "none",
+            maxWidth: "100%",
+            boxSizing: "border-box",
+            display: "inline-flex",
+            flexDirection: "column",
+            alignItems: "flex-start",
+            gap: `${itemGap}px`,
+          }}
+        >
+          {baseOptions.map((opt: any, idx: number) => {
+            const checked =
+              controlType === "radio"
+                ? Boolean(opt.checked) && !baseOptions.some((o: any, i: number) => i < idx && o.checked)
+                : Boolean(opt.checked);
+
+            return (
+              <label
+                key={opt.id || `opt-${idx}`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: `${gap}px`,
+                  cursor: disabled ? "not-allowed" : "pointer",
+                  maxWidth: "100%",
+                }}
+              >
+                <input
+                  type={controlType}
+                  disabled={disabled || !enableFormInputs}
+                  defaultChecked={checked}
+                  readOnly={!enableFormInputs}
+                  className="h-4 w-4 accent-brand-blue"
+                />
+                {showLabels && (
+                  <span
+                    style={{
+                      color: labelColor,
+                      fontSize: `${fontSize}px`,
+                      fontFamily,
+                      fontWeight,
+                      lineHeight: 1.2,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                    title={opt.label || `Option ${idx + 1}`}
+                  >
+                    {opt.label || `Option ${idx + 1}`}
+                  </span>
+                )}
+              </label>
+            );
+          })}
+        </div>
+      );
+    }
+
     case "Video": {
       const vidRot = toNumber(props.rotation, 0);
       const vidFlipH = props.flipHorizontal === true;
@@ -2142,6 +2340,13 @@ function RenderNode({
       const vidTransform = [vidRot ? `rotate(${vidRot}deg)` : null, vidFlipH ? "scaleX(-1)" : null, vidFlipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
       const normalizedVideoWidth = normalizeLayoutWidthForNarrow(props.width, isNarrowPreview, builderParityMode);
       const normalizedVideoHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
+      const isInsideTabs = Boolean(insideTabsContext || parentType === "Tabs" || parentType === "TabContent");
+      const resolvedVideoWidth = isInsideTabs
+        ? ((props.width as string) ?? "100%")
+        : (normalizedVideoWidth ?? (props.width as string) ?? "100%");
+      const resolvedVideoHeight = isInsideTabs
+        ? ((props.height as string) ?? "auto")
+        : (normalizedVideoHeight ?? (props.height as string) ?? "auto");
       const videoWidthPx = parsePixelValue(props.width);
       const videoHeightPx = parsePixelValue(props.height);
       const videoAspectRatio = videoWidthPx && videoHeightPx ? `${videoWidthPx} / ${videoHeightPx}` : "16 / 9";
@@ -2154,8 +2359,8 @@ function RenderNode({
             data-fluid-media="true"
             className={((props.customClassName as string) || "").trim() || undefined}
             style={{
-              width: normalizedVideoWidth ?? (props.width as string) ?? "100%",
-              height: normalizedVideoHeight ?? (props.height as string) ?? "auto",
+              width: resolvedVideoWidth,
+              height: resolvedVideoHeight,
               maxWidth: "100%",
               aspectRatio: videoAspectRatio,
               borderRadius: px(props.borderRadius),
@@ -2190,8 +2395,8 @@ function RenderNode({
           data-fluid-media="true"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
-            width: normalizedVideoWidth ?? (props.width as string) ?? "100%",
-            height: normalizedVideoHeight ?? (props.height as string) ?? "auto",
+            width: resolvedVideoWidth,
+            height: resolvedVideoHeight,
             maxWidth: "100%",
             objectFit: ((props.objectFit as React.CSSProperties["objectFit"]) || "cover"),
             aspectRatio: videoAspectRatio,
@@ -2406,6 +2611,10 @@ function RenderNode({
                     padding: "12px 14px",
                     fontSize: `${headerFontSize}px`,
                     fontWeight: 600,
+                    lineHeight: 1.35,
+                    whiteSpace: "normal",
+                    overflowWrap: "anywhere",
+                    wordBreak: "break-word",
                   }}
                 >
                   {String(item?.title ?? `Item ${index + 1}`)}
@@ -2417,9 +2626,14 @@ function RenderNode({
                     padding: "12px 14px",
                     fontSize: `${contentFontSize}px`,
                     lineHeight: 1.6,
+                    whiteSpace: "pre-wrap",
+                    overflowWrap: "anywhere",
+                    wordBreak: "break-word",
                   }}
                 >
-                  <div>{String(item?.content ?? "")}</div>
+                  <div style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", wordBreak: "break-word" }}>
+                    {String(item?.content ?? "")}
+                  </div>
                   {mediaUrl && mediaType === "image" ? (
                     <img src={mediaUrl} alt="accordion media" data-fluid-media="true" style={{ width: "100%", marginTop: 10, borderRadius: 6 }} />
                   ) : null}

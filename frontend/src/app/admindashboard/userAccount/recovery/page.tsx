@@ -66,36 +66,33 @@ export default function RecoveryPage() {
 						initial={{ opacity: 0, y: 14 }}
 						animate={{ opacity: 1, y: 0 }}
 						transition={{ duration: 0.45 }}
-						className="bg-white rounded-2xl shadow-[0_16px_40px_rgba(15,23,42,0.08)] border border-gray-200 p-8"
+						className="admin-dashboard-panel rounded-[32px] border border-[rgba(177,59,255,0.22)] bg-[#F5F4FF] p-8 shadow-[0_10px_26px_rgba(123,78,192,0.15)]"
 					>
 						<motion.div
 							initial={{ opacity: 0, y: 10 }}
 							animate={{ opacity: 1, y: 0 }}
 							transition={{ duration: 0.3 }}
 						>
-							<div className="flex items-center justify-between mb-6">
+							<div className="mb-6">
 								<div>
-									<h2 className="text-xl font-semibold text-gray-900">Recovery Options</h2>
-									<p className="text-sm text-gray-500">Fail-safe access if this account is locked.</p>
+									<h2 className="text-2xl font-semibold text-[#471396]">Recovery Options</h2>
+									<p className="text-sm text-[#8A86A4]">Fail-safe access if this account is locked.</p>
 								</div>
-								{/* <button className="rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-gray-50">
-									Generate backup codes
-								</button> */}
 							</div>
 
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 								<div className="space-y-2">
-									<label htmlFor="recoveryEmail" className="block text-xs text-gray-500">Recovery email</label>
+									<label htmlFor="recoveryEmail" className="block text-xs font-medium text-[#A78BFA]">Recovery email</label>
 									<input
 										id="recoveryEmail"
 										type="email"
 										value={recovery.email}
 										readOnly
-										className="w-full h-11 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-500 shadow-sm focus:outline-none"
+										className="admin-dashboard-panel-soft h-11 w-full rounded-2xl border border-[rgba(177,59,255,0.22)] bg-white/70 px-4 text-sm text-[#8A86A4] outline-none"
 									/>
 								</div>
 								<div className="space-y-2">
-									<label htmlFor="recoveryPhone" className="block text-xs text-gray-500">Recovery phone number</label>
+									<label htmlFor="recoveryPhone" className="block text-xs font-medium text-[#A78BFA]">Recovery phone number</label>
 									<input
 										id="recoveryPhone"
 										type="tel"
@@ -113,10 +110,10 @@ export default function RecoveryPage() {
 										const error = validatePhoneNumber(recovery.phoneNumber);
 										setRecoveryPhoneError(error);
 									}}
-									className={`w-full h-11 rounded-xl border px-3 text-sm text-gray-800 shadow-sm focus:outline-none focus:ring-2 ${
+									className={`admin-dashboard-panel-soft h-11 w-full rounded-2xl border px-4 text-sm outline-none ${
 										recoveryPhoneError
-											? "border-red-500 focus:ring-red-500 bg-red-50"
-											: "border-gray-200 focus:ring-blue-500 bg-white"
+											? "border-red-400 bg-red-50 text-red-700"
+											: "border-[rgba(177,59,255,0.22)] bg-white/80 text-[#471396]"
 									}`}
 								/>
 								{recoveryPhoneError && (
@@ -124,25 +121,25 @@ export default function RecoveryPage() {
 								)}
 								</div>
 								<div className="md:col-span-2 flex flex-wrap items-center justify-between gap-3">
-									<div className="text-xs text-slate-500">Last updated {lastUpdatedRecovery}</div>
+									<div className="text-xs text-[#8A86A4]">Last updated {lastUpdatedRecovery}</div>
 									<button
 										onClick={() => setShowRecoverySaveConfirmation(true)}
 									disabled={!hasRecoveryChanges || !!recoveryPhoneError}
-									className={`px-8 py-2 rounded-full text-sm font-semibold focus:outline-none focus:ring-2 shadow transition-colors ${
+									className={`rounded-xl px-8 py-3 text-sm font-semibold shadow transition-colors ${
 										hasRecoveryChanges && !recoveryPhoneError
-												? "bg-blue-500 text-white hover:bg-blue-600 focus:ring-blue-500"
+												? "bg-[#FFCC00] text-[#232323] hover:opacity-90"
 												: "bg-gray-200 text-gray-500 cursor-not-allowed"
 										}`}
 									>
 										Save Changes
 									</button>
 								</div>
-								<div className="md:col-span-2 flex flex-col md:flex-row md:items-center md:justify-between gap-3 rounded-xl border border-gray-200 p-4">
+								<div className="admin-dashboard-inset-panel md:col-span-2 flex flex-col gap-3 rounded-[28px] border border-[rgba(177,59,255,0.18)] bg-white/40 p-6 md:flex-row md:items-center md:justify-between">
 									<div>
-										<div className="text-sm font-semibold text-gray-900">Reset account access</div>
-										<p className="text-xs text-gray-500">Emergency reset for locked-out scenarios.</p>
+										<div className="text-lg font-semibold text-[#471396]">Reset account access</div>
+										<p className="text-sm text-[#8A86A4]">Emergency reset for locked-out scenarios.</p>
 									</div>
-									<button className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700">
+									<button className="rounded-xl bg-[#FF4343] px-8 py-3 text-sm font-semibold text-white hover:opacity-90">
 										Reset access
 									</button>
 								</div>
@@ -158,22 +155,22 @@ export default function RecoveryPage() {
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
 						exit={{ opacity: 0 }}
-						className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+						className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(215,204,245,0.66)] px-4 backdrop-blur-[4px]"
 					>
 						<motion.div
 							initial={{ y: 12, opacity: 0, scale: 0.98 }}
 							animate={{ y: 0, opacity: 1, scale: 1 }}
 							exit={{ y: 8, opacity: 0, scale: 0.98 }}
 							transition={{ duration: 0.2 }}
-							className="w-full max-w-md rounded-2xl bg-white p-6 shadow-[0_20px_50px_rgba(15,23,42,0.25)]"
+							className="admin-dashboard-panel w-full max-w-md rounded-2xl border border-[rgba(177,59,255,0.22)] bg-[#F5F4FF] p-6 shadow-[0_20px_50px_rgba(123,78,192,0.18)]"
 						>
-							<h3 className="text-lg font-semibold text-gray-900">Confirm changes</h3>
-							<p className="mt-2 text-sm text-gray-500">Save updates to the recovery phone number?</p>
+							<h3 className="text-lg font-semibold text-[#471396]">Confirm changes</h3>
+							<p className="mt-2 text-sm text-[#8A86A4]">Save updates to the recovery phone number?</p>
 							<div className="mt-6 flex items-center justify-end gap-3">
 								<button
 									type="button"
 									onClick={() => setShowRecoverySaveConfirmation(false)}
-									className="rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-gray-50"
+									className="rounded-xl border border-[rgba(177,59,255,0.18)] px-4 py-2 text-sm font-semibold text-[#8A86A4] hover:bg-white/60"
 								>
 									Cancel
 								</button>
@@ -184,7 +181,7 @@ export default function RecoveryPage() {
 										setLastUpdatedRecovery("Just now");
 										setShowRecoverySaveConfirmation(false);
 									}}
-									className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+									className="rounded-xl bg-[#FFCC00] px-4 py-2 text-sm font-semibold text-[#232323] hover:opacity-90"
 								>
 									Confirm
 								</button>

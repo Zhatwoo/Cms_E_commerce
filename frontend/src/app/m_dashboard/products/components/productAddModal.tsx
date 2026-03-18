@@ -1005,6 +1005,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                 maxWidth: 1100,
                 height: 'min(820px, calc(100vh - 48px))',
                 borderRadius: 28,
+                fontFamily: "var(--font-outfit), 'Outfit', sans-serif",
                 background: shellBackground,
                 border: `2px solid ${shellBorder}`,
                 boxShadow: shellShadow,
@@ -1021,226 +1022,196 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                 borderRight: `1px solid ${leftPanelBorder}`,
               }}
             >
-              <div className="px-8 pt-8 pb-4 flex-shrink-0">
-                <p className="text-xs tracking-[0.12em] font-semibold uppercase" style={{ color: labelColor }}>Product Images</p>
-                <div className="mt-1">
-                  <p className="text-[30px] leading-none font-semibold" style={{ color: isLight ? '#2A185B' : '#EAF1FF' }}>
-                    {images.length} of 5 images added
-                  </p>
-                  {variationImageGallery.length > 0 ? (
-                    <p className="text-xs mt-1" style={{ color: labelColor }}>
-                      {variationImageGallery.length} variation {variationImageGallery.length === 1 ? 'image' : 'images'} linked to options
-                    </p>
-                  ) : null}
-                </div>
-              </div>
+              <div className="px-8 pt-8 pb-5 flex-shrink-0">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-[11px] tracking-[0.15em] font-black uppercase opacity-50" style={{ color: labelColor }}>
+          Product Media
+        </p>
+        <h2 className="text-[32px] leading-tight font-black mt-1" style={{ color: isLight ? '#2A185B' : '#EAF1FF' }}>
+          {images.length} <span className="text-sm font-bold opacity-40 uppercase tracking-widest">of 5 slots</span>
+        </h2>
+      </div>
+      
+      {variationImageGallery.length > 0 && (
+        <div className="text-right">
+          <p className="text-[11px] font-black uppercase tracking-widest opacity-40" style={{ color: labelColor }}>
+            Linked
+          </p>
+          <p className="text-sm font-bold" style={{ color: isLight ? '#6A4DA8' : '#9FB3DF' }}>
+            {variationImageGallery.length} Variation {variationImageGallery.length === 1 ? 'Image' : 'Images'}
+          </p>
+        </div>
+      )}
+    </div>
+  </div>
 
-              <div className="px-8 pb-8 flex-1 min-h-0">
-                <div
-                  onDragEnter={() => {
-                    if (thumbDrag !== null) return;
-                    setDragging(true);
-                  }}
-                  onDragLeave={() => {
-                    if (thumbDrag !== null) return;
-                    setDragging(false);
-                  }}
-                  onDragOver={e => {
-                    e.preventDefault();
-                  }}
-                  onDrop={e => {
-                    e.preventDefault();
-                    if (thumbDrag !== null) {
-                      // Prevent treating thumbnail reordering as a fresh file upload.
-                      setThumbDrag(null);
-                      setThumbOver(null);
-                      setDragging(false);
-                      return;
-                    }
-                    setDragging(false);
-                    addFiles(e.dataTransfer.files);
-                  }}
-                  onClick={openFileBrowser}
-                  className="relative h-full rounded-[28px] border-2 border-dashed cursor-pointer transition-colors overflow-hidden"
+  {/* MAIN UPLOAD AREA */}
+  <div className="px-8 pb-6 flex-1 min-h-0 flex flex-col">
+    <div
+      onDragEnter={() => thumbDrag === null && setDragging(true)}
+      onDragLeave={() => thumbDrag === null && setDragging(false)}
+      onDragOver={e => e.preventDefault()}
+      onDrop={e => {
+        e.preventDefault();
+        if (thumbDrag !== null) {
+          setThumbDrag(null);
+          setThumbOver(null);
+          setDragging(false);
+          return;
+        }
+        setDragging(false);
+        addFiles(e.dataTransfer.files);
+      }}
+      onClick={openFileBrowser}
+      className={`relative flex-1 rounded-[32px] border-2 border-dashed cursor-pointer transition-all duration-300 overflow-hidden ${
+        dragging ? 'scale-[0.99] border-solid' : 'scale-100'
+      }`}
+      style={{
+        borderColor: dragging ? (isLight ? '#8B5CF6' : '#7E9CFF') : (isLight ? '#CFC4E5' : '#3A4473'),
+        backgroundColor: dragging 
+          ? (isLight ? '#F3EFFF' : '#2A3459') 
+          : (isLight ? '#F9F7FF' : '#1E2642'),
+      }}
+    >
+      {images.length > 0 ? (
+        <div className="h-full flex flex-col">
+          {/* Main Preview */}
+          <div className="relative flex-1 min-h-0 group">
+            <AnimatePresence mode="wait">
+              <motion.img
+                key={images[slide]?.id}
+                src={images[slide]?.src}
+                alt=""
+                className="absolute inset-0 w-full h-full object-contain p-8"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 1.05 }}
+                transition={{ duration: 0.2 }}
+              />
+            </AnimatePresence>
+
+            {/* Pagination Badge */}
+            <div className="absolute left-6 bottom-6 px-4 py-2 rounded-2xl text-[12px] font-black tracking-widest backdrop-blur-xl border border-white/10" 
+                 style={{ backgroundColor: 'rgba(0,0,0,0.6)', color: '#FFFFFF' }}>
+              {slide + 1} / {images.length}
+            </div>
+
+            {/* Controls */}
+            <div className="absolute right-6 top-6 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              {images.length > 1 && (
+                <div className="flex items-center gap-1.5 mr-2">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); moveSlide(-1); }}
+                    className="w-10 h-10 rounded-xl flex items-center justify-center backdrop-blur-md transition-all hover:scale-110 active:scale-95"
+                    style={{ backgroundColor: 'rgba(0,0,0,0.5)', color: '#FFF' }}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); moveSlide(1); }}
+                    className="w-10 h-10 rounded-xl flex items-center justify-center backdrop-blur-md transition-all hover:scale-110 active:scale-95"
+                    style={{ backgroundColor: 'rgba(0,0,0,0.5)', color: '#FFF' }}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+                  </button>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); removeImage(slide); }}
+                className="w-10 h-10 rounded-xl flex items-center justify-center bg-red-500/80 text-white backdrop-blur-md hover:bg-red-500 transition-all"
+                title="Remove image"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Thumbnails Footer */}
+          <div className="border-t p-4" style={{ borderColor: isLight ? '#E9E2F8' : '#2D385C', backgroundColor: isLight ? '#FFFFFF' : '#1A223B' }}>
+            <div className="flex items-center gap-3 overflow-x-auto pb-2 custom-scrollbar" onClick={(e) => e.stopPropagation()}>
+              {images.map((img, idx) => (
+                <button
+                  key={img.id}
+                  type="button"
+                  draggable
+                  onClick={(e) => { e.stopPropagation(); setSlide(idx); }}
+                  onDragStart={(e) => { e.stopPropagation(); setThumbDrag(idx); }}
+                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setThumbOver(idx); }}
+                  onDrop={(e) => { e.preventDefault(); e.stopPropagation(); dropThumb(idx); }}
+                  className="relative h-16 w-16 rounded-xl border-2 transition-all flex-shrink-0 overflow-hidden"
                   style={{
-                    borderColor: dragging ? (isLight ? '#B8A8E6' : '#7E9CFF') : (isLight ? '#CFC4E5' : '#54658E'),
-                    backgroundColor: isLight ? '#F7F3FF' : '#2E3B63',
+                    borderColor: idx === slide ? (isLight ? '#8B5CF6' : '#4F93FF') : 'transparent',
+                    opacity: thumbDrag === idx ? 0.4 : 1,
+                    boxShadow: idx === slide ? '0 8px 20px -4px rgba(139, 92, 246, 0.3)' : 'none'
                   }}
                 >
-                  {allSlides.length > 0 ? (
-                    <div className="h-full flex flex-col">
-                      <div className="relative flex-1 min-h-0">
-                        <AnimatePresence mode="wait">
-                          <motion.img
-                            key={slide}
-                            src={allSlides[slide]?.src}
-                            alt=""
-                            className="absolute inset-0 w-full h-full object-contain p-6"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.2 }}
-                          />
-                        </AnimatePresence>
-                        <div className="absolute left-4 top-4 px-2.5 py-1 rounded-full text-xs font-semibold" style={{ backgroundColor: 'rgba(0,0,0,0.5)', color: '#FFFFFF' }}>
-                          {`${slide + 1}/${allSlides.length}`}
-                        </div>
-                        {!allSlides[slide]?.isVariant && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeImage(slide);
-                            }}
-                            className="absolute right-4 top-3 w-8 h-8 rounded-full flex items-center justify-center"
-                            style={{ backgroundColor: isLight ? 'rgba(37,17,74,0.65)' : 'rgba(0,0,0,0.5)', color: '#FFFFFF' }}
-                            title="Remove current image"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M6 6l12 12M18 6L6 18" />
-                            </svg>
-                          </button>
-                        )}
-                        {allSlides[slide]?.isVariant && (
-                          <div className="absolute right-4 top-3 px-2 py-1 rounded-full text-[10px] font-semibold" style={{ backgroundColor: 'rgba(120,80,220,0.85)', color: '#FFFFFF' }}>
-                            Variant
-                          </div>
-                        )}
-                        {allSlides.length > 1 && (
-                          <div className="absolute top-3 right-14 flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); moveSlide(-1); }}
-                              className="w-8 h-8 rounded-full flex items-center justify-center"
-                              style={{ backgroundColor: isLight ? 'rgba(81,50,146,0.8)' : 'rgba(16,22,45,0.82)', color: '#DCE7FF' }}
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M15 19l-7-7 7-7" /></svg>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); moveSlide(1); }}
-                              className="w-8 h-8 rounded-full flex items-center justify-center"
-                              style={{ backgroundColor: isLight ? 'rgba(81,50,146,0.8)' : 'rgba(16,22,45,0.82)', color: '#DCE7FF' }}
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M9 5l7 7-7 7" /></svg>
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="border-t px-4 pt-3 pb-3" style={{ borderColor: isLight ? '#D7CDED' : '#3A4473', backgroundColor: isLight ? 'rgba(255,255,255,0.84)' : 'rgba(24,31,57,0.9)' }}>
-                        <div className="flex items-center gap-2 overflow-x-auto pb-2" onClick={(e) => e.stopPropagation()}>
-                          {allSlides.map((item, idx) => {
-                            const isActive = idx === slide;
-                            const isDropTarget = !item.isVariant && thumbOver === idx;
-                            return (
-                              <button
-                                key={item.id}
-                                type="button"
-                                draggable={!item.isVariant}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSlideDir(idx >= slide ? 1 : -1);
-                                  setSlide(idx);
-                                }}
-                                onDragStart={item.isVariant ? undefined : (e) => {
-                                  e.stopPropagation();
-                                  setThumbDrag(idx);
-                                  setThumbOver(idx);
-                                }}
-                                onDragOver={item.isVariant ? undefined : (e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  setThumbOver(idx);
-                                }}
-                                onDrop={item.isVariant ? undefined : (e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  dropThumb(idx);
-                                }}
-                                onDragEnd={item.isVariant ? undefined : () => {
-                                  setThumbDrag(null);
-                                  setThumbOver(null);
-                                }}
-                                className="relative h-14 w-14 rounded-lg border overflow-hidden shrink-0"
-                                style={{
-                                  borderColor: isActive ? '#4F93FF' : isDropTarget ? '#7E9CFF' : (item.isVariant ? 'rgba(180,130,255,0.6)' : '#54658E'),
-                                  boxShadow: isActive ? '0 0 0 2px rgba(79,147,255,0.35)' : 'none',
-                                  opacity: !item.isVariant && thumbDrag === idx ? 0.65 : 1,
-                                }}
-                                title={item.isVariant ? item.label : 'Drag to reorder'}
-                              >
-                                <img src={item.src} alt="" className="w-full h-full object-cover" />
-                                {item.isVariant && (
-                                  <div className="absolute bottom-0 left-0 right-0 text-[8px] text-center font-semibold truncate px-0.5" style={{ backgroundColor: 'rgba(100,60,200,0.82)', color: '#fff' }}>
-                                    VAR
-                                  </div>
-                                )}
-                              </button>
-                            );
-                          })}
-                          {images.length < 5 && (
-                            <button
-                              type="button"
-                              onClick={openFileBrowser}
-                              className="h-14 w-14 rounded-lg border-2 border-dashed shrink-0 flex flex-col items-center justify-center"
-                              style={{ borderColor: isLight ? '#CFC4E5' : '#54658E', color: isLight ? '#6A4DA8' : '#9FB3DF' }}
-                              title="Add image"
-                            >
-                              <span className="text-xl leading-none">+</span>
-                            </button>
-                          )}
-                        </div>
-                        <div className="text-[11px]" style={{ color: labelColor }}>
-                          Drag to reorder - First image is the cover photo
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-center px-10">
-                      <div className="w-20 h-20 rounded-3xl flex items-center justify-center mb-4" style={{ backgroundColor: isLight ? '#D9CCFF' : '#324A82' }}>
-                        <img src="/icons/products/add%20image.png" alt="Add image" className="w-11 h-11 object-contain" />
-                      </div>
-                      <p className="text-[34px] leading-none font-semibold" style={{ color: titleColor }}>Drop images here</p>
-                      <p className="text-base mt-2" style={{ color: subtitleColor }}>or click to browse files</p>
-                      <p className="text-xs mt-10" style={{ color: isLight ? '#8A7AB8' : '#7F93C1' }}>PNG, JPG, WEBP - Up to 5 images - Max 8MB each</p>
-                    </div>
+                  <img src={img.src} alt="" className="w-full h-full object-cover" />
+                  {idx === 0 && (
+                    <div className="absolute top-0 left-0 right-0 bg-black/60 text-[8px] text-white font-black uppercase py-0.5 text-center">Cover</div>
                   )}
-                </div>
-              </div>
+                </button>
+              ))}
+              
+              {images.length < 5 && (
+                <button
+                  type="button"
+                  onClick={openFileBrowser}
+                  className="h-16 w-16 rounded-xl border-2 border-dashed flex items-center justify-center flex-shrink-0 transition-colors"
+                  style={{ borderColor: isLight ? '#CFC4E5' : '#3A4473', color: isLight ? '#6A4DA8' : '#9FB3DF' }}
+                >
+                  <span className="text-2xl">+</span>
+                </button>
+              )}
+            </div>
+            <p className="text-[10px] font-bold uppercase tracking-widest mt-2 opacity-40 text-center" style={{ color: labelColor }}>
+              Drag to reorder photos
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="h-full flex flex-col items-center justify-center text-center px-10">
+          <div className="w-20 h-20 rounded-[28px] flex items-center justify-center mb-6 shadow-xl" style={{ backgroundColor: isLight ? '#EBE4FF' : '#2D385C' }}>
+            <svg className="w-10 h-10" fill="none" stroke={isLight ? '#8B5CF6' : '#7E9CFF'} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h3 className="text-[28px] font-black leading-tight" style={{ color: isLight ? '#2A185B' : '#FFFFFF' }}>Drop images here</h3>
+          <p className="text-sm mt-2 opacity-50" style={{ color: labelColor }}>or click to browse your local files</p>
+          <div className="mt-8 px-4 py-2 rounded-full border border-current opacity-20 text-[10px] font-black uppercase tracking-widest" style={{ color: labelColor }}>
+            PNG, JPG, WEBP • MAX 8MB
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
 
-              {variationImageGallery.length > 0 ? (
-                <div className="px-8 pb-6">
-                  <div className="rounded-2xl border px-3 py-3 space-y-2" style={{ backgroundColor: isLight ? '#F4F0FF' : '#243154', borderColor: isLight ? '#D7CDED' : '#3A4473' }}>
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs tracking-[0.12em] font-semibold uppercase" style={{ color: labelColor }}>Variation Images</p>
-                      <span className="text-[11px]" style={{ color: isLight ? '#7E56C2' : '#BFA6EC' }}>{variationImageGallery.length}</span>
-                    </div>
-                    <div className="flex gap-2 overflow-x-auto pb-1" onClick={(e) => e.stopPropagation()}>
-                      {variationImageGallery.map((item) => (
-                        <div key={item.id} className="w-16 flex-shrink-0">
-                          <div className="h-16 rounded-lg overflow-hidden border" style={{ borderColor: '#4A5A8E' }}>
-                            <img src={item.src} alt={item.label} className="w-full h-full object-cover" />
-                          </div>
-                          <p
-                            className="text-[10px] mt-1 leading-tight"
-                            style={{
-                              color: '#C4D2FF',
-                              display: '-webkit-box',
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical',
-                              overflow: 'hidden',
-                            }}
-                          >
-                            {item.label}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-[10px]" style={{ color: isLight ? '#8A7AB8' : '#7F93C1' }}>Uploaded to Firebase storage with the product.</p>
-                  </div>
-                </div>
-              ) : null}
+  {/* VARIATION GALLERY SECTION */}
+  {variationImageGallery.length > 0 && (
+    <div className="px-8 pb-8">
+      <div className="rounded-[24px] border p-5" style={{ backgroundColor: isLight ? '#F8F6FF' : '#1A223B', borderColor: isLight ? '#E9E2F8' : '#2D385C' }}>
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40" style={{ color: labelColor }}>Variation Assets</p>
+          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/5">{variationImageGallery.length}</span>
+        </div>
+        <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
+          {variationImageGallery.map((item) => (
+            <div key={item.id} className="w-16 flex-shrink-0 group">
+              <div className="h-16 rounded-xl overflow-hidden border transition-transform group-hover:scale-105" style={{ borderColor: isLight ? '#D7CDED' : '#3A4473' }}>
+                <img src={item.src} alt={item.label} className="w-full h-full object-cover" />
+              </div>
+              <p className="text-[9px] mt-2 font-bold leading-tight opacity-60 truncate" style={{ color: isLight ? '#4A3A8E' : '#C4D2FF' }}>
+                {item.label}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )}
 
               <input
                 ref={fileRef}

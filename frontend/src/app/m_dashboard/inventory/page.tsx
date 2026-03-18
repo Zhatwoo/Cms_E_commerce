@@ -37,47 +37,47 @@ import ProductAddModal from '../products/components/productAddModal';
 
 // ─── Design tokens (original — unchanged) ────────────────────────────────────
 const T = {
-  bg:           'radial-gradient(120% 100% at 50% 0%, #24104b 0%, #140836 42%, #0a0624 100%)',
-  card:         'var(--dashboard-light-surface, #141446)',
-  cardBorder:   'var(--dashboard-light-border, #1F1F51)',
-  elevated:     'var(--dashboard-light-surface, #141446)',
-  input:        'var(--dashboard-light-surface, #141446)',
-  inputBorder:  'var(--dashboard-light-border, #1F1F51)',
-  text:         'var(--dashboard-light-text, #ffffff)',
-  textMuted:    'var(--dashboard-light-muted, rgba(219,212,255,0.45))',
-  textSub:      'var(--dashboard-light-muted, rgba(234,229,255,0.72))',
-  accent:       '#a855f7',
-  brandGradient:'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)',
-  green:        '#22c55e',
-  greenBg:      'rgba(34,197,94,0.12)',
-  greenBorder:  'rgba(34,197,94,0.28)',
-  red:          '#ef4444',
-  redBg:        'rgba(239,68,68,0.12)',
-  redBorder:    'rgba(239,68,68,0.28)',
-  yellow:       '#eab308',
-  yellowBg:     'rgba(234,179,8,0.12)',
+  bg: 'radial-gradient(120% 100% at 50% 0%, #24104b 0%, #140836 42%, #0a0624 100%)',
+  card: 'var(--dashboard-light-surface, #141446)',
+  cardBorder: 'var(--dashboard-light-border, #1F1F51)',
+  elevated: 'var(--dashboard-light-surface, #141446)',
+  input: 'var(--dashboard-light-surface, #141446)',
+  inputBorder: 'var(--dashboard-light-border, #1F1F51)',
+  text: 'var(--dashboard-light-text, #ffffff)',
+  textMuted: 'var(--dashboard-light-muted, rgba(219,212,255,0.45))',
+  textSub: 'var(--dashboard-light-muted, rgba(234,229,255,0.72))',
+  accent: '#a855f7',
+  brandGradient: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)',
+  green: '#22c55e',
+  greenBg: 'rgba(34,197,94,0.12)',
+  greenBorder: 'rgba(34,197,94,0.28)',
+  red: '#ef4444',
+  redBg: 'rgba(239,68,68,0.12)',
+  redBorder: 'rgba(239,68,68,0.28)',
+  yellow: '#eab308',
+  yellowBg: 'rgba(234,179,8,0.12)',
   yellowBorder: 'rgba(234,179,8,0.28)',
-  radius:       22,
-  font:         "'DM Sans', 'Segoe UI', sans-serif",
+  radius: 22,
+  font: "'DM Sans', 'Segoe UI', sans-serif",
 };
 
 // ─── CSV helpers (unchanged) ──────────────────────────────────────────────────
-const EXPORT_COLUMNS = ['name','sku','category','onHandStock','reservedStock','lowStockThreshold','status'] as const;
+const EXPORT_COLUMNS = ['name', 'sku', 'category', 'onHandStock', 'reservedStock', 'lowStockThreshold', 'status'] as const;
 
 function escapeCsvValue(val: string | number | undefined | null): string {
   const s = String(val ?? '');
-  if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) return `"${s.replace(/"/g,'""')}"`;
+  if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) return `"${s.replace(/"/g, '""')}"`;
   return s;
 }
 function productsToCsv(items: ApiProduct[]): string {
   const header = EXPORT_COLUMNS.join(',');
   const rows = items.map((p) => {
-    const onHand   = p.onHandStock ?? p.stock ?? 0;
+    const onHand = p.onHandStock ?? p.stock ?? 0;
     const reserved = p.reservedStock ?? 0;
-    const low      = p.lowStockThreshold ?? 5;
-    return [escapeCsvValue(p.name),escapeCsvValue(p.sku),escapeCsvValue(p.category),escapeCsvValue(onHand),escapeCsvValue(reserved),escapeCsvValue(low),escapeCsvValue(p.status)].join(',');
+    const low = p.lowStockThreshold ?? 5;
+    return [escapeCsvValue(p.name), escapeCsvValue(p.sku), escapeCsvValue(p.category), escapeCsvValue(onHand), escapeCsvValue(reserved), escapeCsvValue(low), escapeCsvValue(p.status)].join(',');
   });
-  return [header,...rows].join('\n');
+  return [header, ...rows].join('\n');
 }
 
 function parseCsvLine(line: string): string[] {
@@ -87,14 +87,14 @@ function parseCsvLine(line: string): string[] {
     if (line[i] === '"') {
       let cell = ''; i++;
       while (i < line.length) {
-        if (line[i] === '"') { if (line[i+1]==='"'){cell+='"';i+=2;} else {i++;break;} } else {cell+=line[i];i++;}
+        if (line[i] === '"') { if (line[i + 1] === '"') { cell += '"'; i += 2; } else { i++; break; } } else { cell += line[i]; i++; }
       }
       result.push(cell);
     } else {
       let cell = '';
-      while (i < line.length && line[i] !== ',') {cell+=line[i];i++;}
+      while (i < line.length && line[i] !== ',') { cell += line[i]; i++; }
       result.push(cell.trim());
-      if (line[i]===',') i++;
+      if (line[i] === ',') i++;
     }
   }
   return result;
@@ -103,20 +103,20 @@ function parseCsvLine(line: string): string[] {
 function parseCsvToRows(text: string): ImportInventoryRow[] {
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
   if (lines.length < 2) return [];
-  const headerCols  = parseCsvLine(lines[0]).map((c) => c.trim().toLowerCase().replace(/_/g,''));
-  const skuIdx      = headerCols.findIndex((c) => c === 'sku');
-  const onHandIdx   = headerCols.findIndex((c) => ['onhandstock','stock'].includes(c));
-  const reservedIdx = headerCols.findIndex((c) => ['reservedstock','reserved'].includes(c));
-  const lowIdx      = headerCols.findIndex((c) => ['lowstockthreshold','lowthreshold'].includes(c));
+  const headerCols = parseCsvLine(lines[0]).map((c) => c.trim().toLowerCase().replace(/_/g, ''));
+  const skuIdx = headerCols.findIndex((c) => c === 'sku');
+  const onHandIdx = headerCols.findIndex((c) => ['onhandstock', 'stock'].includes(c));
+  const reservedIdx = headerCols.findIndex((c) => ['reservedstock', 'reserved'].includes(c));
+  const lowIdx = headerCols.findIndex((c) => ['lowstockthreshold', 'lowthreshold'].includes(c));
   const rows: ImportInventoryRow[] = [];
   for (let i = 1; i < lines.length; i++) {
     const cols = parseCsvLine(lines[i]);
-    const sku = skuIdx >= 0 ? (cols[skuIdx]??'').trim() : '';
+    const sku = skuIdx >= 0 ? (cols[skuIdx] ?? '').trim() : '';
     if (!sku) continue;
     const row: ImportInventoryRow = { sku };
-    if (onHandIdx >= 0)   { const v = parseInt(String(cols[onHandIdx]??'0'),10);   if (Number.isFinite(v)) row.onHandStock = Math.max(0,v); }
-    if (reservedIdx >= 0) { const v = parseInt(String(cols[reservedIdx]??'0'),10); if (Number.isFinite(v)) row.reservedStock = Math.max(0,v); }
-    if (lowIdx >= 0)      { const v = parseInt(String(cols[lowIdx]??'5'),10);       if (Number.isFinite(v)) row.lowStockThreshold = Math.max(0,v); }
+    if (onHandIdx >= 0) { const v = parseInt(String(cols[onHandIdx] ?? '0'), 10); if (Number.isFinite(v)) row.onHandStock = Math.max(0, v); }
+    if (reservedIdx >= 0) { const v = parseInt(String(cols[reservedIdx] ?? '0'), 10); if (Number.isFinite(v)) row.reservedStock = Math.max(0, v); }
+    if (lowIdx >= 0) { const v = parseInt(String(cols[lowIdx] ?? '5'), 10); if (Number.isFinite(v)) row.lowStockThreshold = Math.max(0, v); }
     rows.push(row);
   }
   return rows;
@@ -155,7 +155,7 @@ function toDashboardStatus(status?: string): 'active' | 'inactive' | 'draft' {
 }
 
 const RECENT_MOVEMENTS_LIMIT = 5;
-const ALL_MOVEMENTS_LIMIT    = 500;
+const ALL_MOVEMENTS_LIMIT = 500;
 
 function isLocalMovementId(movementId?: string | null): boolean {
   const id = String(movementId || '').trim();
@@ -167,15 +167,15 @@ type VariantGroup = { id: string; name: string; options: Array<{ id: string; nam
 function getVariantGroups(product: ApiProduct): VariantGroup[] {
   return Array.isArray(product.variants)
     ? product.variants
-        .filter((variant) => Array.isArray(variant.options) && variant.options.length > 0)
-        .map((variant) => ({
-          id: String(variant.id || '').trim(),
-          name: String(variant.name || '').trim() || 'Variant',
-          options: variant.options
-            .map((option) => ({ id: String(option.id || '').trim(), name: String(option.name || '').trim() || 'Option' }))
-            .filter((option) => option.id),
-        }))
-        .filter((variant) => variant.id && variant.options.length > 0)
+      .filter((variant) => Array.isArray(variant.options) && variant.options.length > 0)
+      .map((variant) => ({
+        id: String(variant.id || '').trim(),
+        name: String(variant.name || '').trim() || 'Variant',
+        options: variant.options
+          .map((option) => ({ id: String(option.id || '').trim(), name: String(option.name || '').trim() || 'Option' }))
+          .filter((option) => option.id),
+      }))
+      .filter((variant) => variant.id && variant.options.length > 0)
     : [];
 }
 
@@ -272,11 +272,22 @@ function getProductSubcategory(product: ApiProduct): string {
 }
 
 // ─── Shared UI helpers ────────────────────────────────────────────────────────
-const Card = ({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) => (
-  <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: T.radius, ...style }}>
-    {children}
-  </div>
-);
+const Card = ({ children, style, className = '' }: { children: React.ReactNode; style?: React.CSSProperties; className?: string }) => {
+  const { theme } = useTheme();
+  return (
+    <div
+      className={`${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'} ${className}`}
+      style={{
+        backgroundColor: theme === 'dark' ? T.card : undefined,
+        border: theme === 'dark' ? `1px solid ${T.cardBorder}` : undefined,
+        borderRadius: T.radius,
+        ...style
+      }}
+    >
+      {children}
+    </div>
+  );
+};
 
 const GhostBtn = ({
   onClick, disabled, children, title, style,
@@ -296,12 +307,12 @@ const GhostBtn = ({
 // ENHANCED: pill now has a subtle border for better legibility
 const StatusPill = ({ stock, lowThreshold }: { stock: number; lowThreshold: number }) => {
   const outOfStock = stock <= 0;
-  const lowStock   = !outOfStock && stock < lowThreshold;
+  const lowStock = !outOfStock && stock < lowThreshold;
   const { color, bg, border, label } = outOfStock
-    ? { color: T.red,    bg: T.redBg,    border: T.redBorder,    label: 'Out of Stock' }
+    ? { color: T.red, bg: T.redBg, border: T.redBorder, label: 'Out of Stock' }
     : lowStock
-    ? { color: T.yellow, bg: T.yellowBg, border: T.yellowBorder, label: 'Low Stock' }
-    : { color: T.green,  bg: T.greenBg,  border: T.greenBorder,  label: '✦ In Stock' };
+      ? { color: T.yellow, bg: T.yellowBg, border: T.yellowBorder, label: 'Low Stock' }
+      : { color: T.green, bg: T.greenBg, border: T.greenBorder, label: '✦ In Stock' };
   return (
     <span style={{
       background: bg, border: `1px solid ${border}`, color,
@@ -325,8 +336,8 @@ const MovTypeBadge = ({ type }: { type: string }) => {
     kind === 'IN'
       ? { bg: T.greenBg, border: T.greenBorder, color: T.green, label: 'IN' }
       : kind === 'OUT'
-      ? { bg: T.redBg, border: T.redBorder, color: T.red, label: 'OUT' }
-      : { bg: 'rgba(99,102,241,0.16)', border: 'rgba(99,102,241,0.34)', color: '#a5b4fc', label: kind || 'LOG' };
+        ? { bg: T.redBg, border: T.redBorder, color: T.red, label: 'OUT' }
+        : { bg: 'rgba(99,102,241,0.16)', border: 'rgba(99,102,241,0.34)', color: '#a5b4fc', label: kind || 'LOG' };
   return (
     <span style={{
       background: palette.bg,
@@ -341,70 +352,70 @@ const MovTypeBadge = ({ type }: { type: string }) => {
 const ModalBackdrop = ({ onClose, children }: { onClose: () => void; children: React.ReactNode }) => (
   typeof document !== 'undefined'
     ? createPortal(
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
+        onClick={onClose}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 2147483000, display: 'flex',
+          alignItems: 'center', justifyContent: 'center', padding: 16,
+          background: 'rgba(0,0,0,0.6)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+        }}
+      >
         <motion.div
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
-          onClick={onClose}
-          style={{
-            position: 'fixed', inset: 0, zIndex: 2147483000, display: 'flex',
-            alignItems: 'center', justifyContent: 'center', padding: 16,
-            background: 'rgba(0,0,0,0.6)',
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
-          }}
-        >
-          <motion.div
-            initial={{ opacity: 0, y: 18, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 18, scale: 0.98 }} transition={{ type: 'spring', stiffness: 320, damping: 30 }}
-            onClick={(e) => e.stopPropagation()}
-          >{children}</motion.div>
-        </motion.div>,
-        document.body
-      )
+          initial={{ opacity: 0, y: 18, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 18, scale: 0.98 }} transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+          onClick={(e) => e.stopPropagation()}
+        >{children}</motion.div>
+      </motion.div>,
+      document.body
+    )
     : null
 );
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function InventoryPage() {
-  const { theme } = useTheme();
+  const { theme, colors } = useTheme();
   const { selectedProject, loading: projectLoading } = useProject();
   const { showAlert, showConfirm } = useAlert();
   const selectedSubdomain = normalizeSubdomain(selectedProject?.subdomain);
 
   const [showAddModal, setShowAddModal] = useState(false);
-  const [search, setSearch]                       = useState('');
-  const [categoryFilter, setCategoryFilter]       = useState<string>('all');
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [showCategoryFilterMenu, setShowCategoryFilterMenu] = useState(false);
-  const [items, setItems]                         = useState<InventoryRow[]>([]);
-  const [summary, setSummary]                     = useState<InventorySummary | null>(null);
-  const [movements, setMovements]                 = useState<InventoryMovement[]>([]);
-  const [allMovements, setAllMovements]           = useState<InventoryMovement[]>([]);
+  const [items, setItems] = useState<InventoryRow[]>([]);
+  const [summary, setSummary] = useState<InventorySummary | null>(null);
+  const [movements, setMovements] = useState<InventoryMovement[]>([]);
+  const [allMovements, setAllMovements] = useState<InventoryMovement[]>([]);
   const [showAllMovementsModal, setShowAllMovementsModal] = useState(false);
-  const [loadingAllMovements, setLoadingAllMovements]     = useState(false);
-  const [allMovementsError, setAllMovementsError]         = useState<string | null>(null);
-  const [deletingMovementId, setDeletingMovementId]       = useState<string | null>(null);
+  const [loadingAllMovements, setLoadingAllMovements] = useState(false);
+  const [allMovementsError, setAllMovementsError] = useState<string | null>(null);
+  const [deletingMovementId, setDeletingMovementId] = useState<string | null>(null);
   const [deleteConfirmMovement, setDeleteConfirmMovement] = useState<InventoryMovement | null>(null);
-  const [selectedMovementIds, setSelectedMovementIds]     = useState<string[]>([]);
-  const [bulkDeleteMode, setBulkDeleteMode]               = useState<'selected' | 'all' | null>(null);
-  const [bulkDeleteConfirm, setBulkDeleteConfirm]         = useState<{ mode: 'selected' | 'all'; count: number } | null>(null);
-  const [loading, setLoading]                     = useState(true);
-  const [error, setError]                         = useState<string | null>(null);
-  const [adjustingId, setAdjustingId]             = useState<string | null>(null);
-  const [stockModal, setStockModal]               = useState<StockAdjustmentModalState>({
+  const [selectedMovementIds, setSelectedMovementIds] = useState<string[]>([]);
+  const [bulkDeleteMode, setBulkDeleteMode] = useState<'selected' | 'all' | null>(null);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState<{ mode: 'selected' | 'all'; count: number } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [adjustingId, setAdjustingId] = useState<string | null>(null);
+  const [stockModal, setStockModal] = useState<StockAdjustmentModalState>({
     open: false, product: null, movementType: 'IN', quantity: '1',
     notes: getDefaultAdjustmentNote('IN'), error: null,
   });
-  const [editingStockId, setEditingStockId]       = useState<string | null>(null);
+  const [editingStockId, setEditingStockId] = useState<string | null>(null);
   const [editingStockValue, setEditingStockValue] = useState('');
-  const [savingStockId, setSavingStockId]         = useState<string | null>(null);
+  const [savingStockId, setSavingStockId] = useState<string | null>(null);
   const [updatingProductStatusId, setUpdatingProductStatusId] = useState<string | null>(null);
   const [openStatusMenuRowId, setOpenStatusMenuRowId] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [importPopup, setImportPopup] = useState<ImportPopupState>({ open: false, message: '', tone: 'success' });
   const importPopupTimerRef = useRef<number | null>(null);
-  const fileInputRef        = useRef<HTMLInputElement>(null);
-  const inlineSaveLockRef   = useRef<string | null>(null);
-  const categoryMenuRef     = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const inlineSaveLockRef = useRef<string | null>(null);
+  const categoryMenuRef = useRef<HTMLDivElement>(null);
   const localStatusMovementsRef = useRef<InventoryMovement[]>([]);
 
   const movementTimestamp = useCallback((movement: InventoryMovement): number => {
@@ -611,25 +622,25 @@ export default function InventoryPage() {
       showAlert(error instanceof Error ? error.message : 'Failed to save product', 'error');
       return false;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSubdomain, showAlert, showImportPopup]);
 
   const loadData = useCallback(async () => {
-      if (projectLoading) {
-        setLoading(true);
-        return;
-      }
-      setLoading(true); setError(null);
-      if (!selectedSubdomain) {
-        setItems([]);
-        setSummary(null);
-        setMovements([]);
-        setLoading(false);
-        return;
-      }
-      try {
-        const [invRes, summaryRes, movementRes] = await Promise.all([
-          listInventory({ subdomain: selectedSubdomain, limit: 500, search: search || undefined }),
+    if (projectLoading) {
+      setLoading(true);
+      return;
+    }
+    setLoading(true); setError(null);
+    if (!selectedSubdomain) {
+      setItems([]);
+      setSummary(null);
+      setMovements([]);
+      setLoading(false);
+      return;
+    }
+    try {
+      const [invRes, summaryRes, movementRes] = await Promise.all([
+        listInventory({ subdomain: selectedSubdomain, limit: 500, search: search || undefined }),
         getInventorySummary({ subdomain: selectedSubdomain, search: search || undefined }),
         listInventoryMovements({ subdomain: selectedSubdomain, limit: RECENT_MOVEMENTS_LIMIT }),
       ]);
@@ -637,34 +648,34 @@ export default function InventoryPage() {
       setSummary(summaryRes.data || null);
       const serverMovements = Array.isArray(movementRes.items) ? movementRes.items : [];
       setMovements(mergeServerAndLocalStatusMovements(serverMovements, RECENT_MOVEMENTS_LIMIT));
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load inventory');
-      } finally { setLoading(false); }
-    }, [projectLoading, search, selectedSubdomain, mergeServerAndLocalStatusMovements]);
-  
-    useEffect(() => { void loadData(); }, [loadData]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load inventory');
+    } finally { setLoading(false); }
+  }, [projectLoading, search, selectedSubdomain, mergeServerAndLocalStatusMovements]);
+
+  useEffect(() => { void loadData(); }, [loadData]);
 
   const loadAllMovements = useCallback(async () => {
-      if (projectLoading) {
-        setLoadingAllMovements(true);
-        return;
-      }
-      setLoadingAllMovements(true); setAllMovementsError(null);
-      if (!selectedSubdomain) {
-        setAllMovements([]);
-        setLoadingAllMovements(false);
-        return;
-      }
-      try {
-        const res = await listInventoryMovements({ subdomain: selectedSubdomain, limit: ALL_MOVEMENTS_LIMIT });
-        const serverMovements = Array.isArray(res.items) ? res.items : [];
-        setAllMovements(mergeServerAndLocalStatusMovements(serverMovements));
-      } catch (err) {
-        setAllMovementsError(err instanceof Error ? err.message : 'Failed to load movement history');
-      } finally { setLoadingAllMovements(false); }
-    }, [projectLoading, selectedSubdomain, mergeServerAndLocalStatusMovements]);
+    if (projectLoading) {
+      setLoadingAllMovements(true);
+      return;
+    }
+    setLoadingAllMovements(true); setAllMovementsError(null);
+    if (!selectedSubdomain) {
+      setAllMovements([]);
+      setLoadingAllMovements(false);
+      return;
+    }
+    try {
+      const res = await listInventoryMovements({ subdomain: selectedSubdomain, limit: ALL_MOVEMENTS_LIMIT });
+      const serverMovements = Array.isArray(res.items) ? res.items : [];
+      setAllMovements(mergeServerAndLocalStatusMovements(serverMovements));
+    } catch (err) {
+      setAllMovementsError(err instanceof Error ? err.message : 'Failed to load movement history');
+    } finally { setLoadingAllMovements(false); }
+  }, [projectLoading, selectedSubdomain, mergeServerAndLocalStatusMovements]);
 
-  const openAllMovementsModal  = useCallback(() => { setShowAllMovementsModal(true); void loadAllMovements(); }, [loadAllMovements]);
+  const openAllMovementsModal = useCallback(() => { setShowAllMovementsModal(true); void loadAllMovements(); }, [loadAllMovements]);
   const closeAllMovementsModal = useCallback(() => {
     setShowAllMovementsModal(false);
     setSelectedMovementIds([]);
@@ -684,9 +695,9 @@ export default function InventoryPage() {
   }, [allMovements, showAllMovementsModal]);
 
   const getStockNumbers = useCallback((p: InventoryRow) => {
-    const onHand       = Number(p.onHandStock ?? p.stock ?? 0);
-    const reserved     = Number(p.reservedStock ?? 0);
-    const available    = Number(p.availableStock ?? Math.max(0, onHand - reserved));
+    const onHand = Number(p.onHandStock ?? p.stock ?? 0);
+    const reserved = Number(p.reservedStock ?? 0);
+    const available = Number(p.availableStock ?? Math.max(0, onHand - reserved));
     const lowThreshold = Number(p.lowStockThreshold ?? DEFAULT_LOW_STOCK_THRESHOLD);
     return { onHand, reserved, available, lowThreshold };
   }, []);
@@ -1140,7 +1151,7 @@ export default function InventoryPage() {
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = `inventory-export-${new Date().toISOString().slice(0,10)}.csv`; a.click();
+      a.href = url; a.download = `inventory-export-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
       URL.revokeObjectURL(url);
     } catch (err) { window.alert(err instanceof Error ? err.message : 'Export failed'); }
     finally { setExporting(false); }
@@ -1158,7 +1169,7 @@ export default function InventoryPage() {
       const result = await importInventoryCsv({ rows, subdomain: selectedSubdomain || undefined });
       if (result.updated && result.updated > 0) await loadData();
       if (result.errors && result.errors.length > 0) {
-        const s = result.errors.slice(0,2).map((e) => `Row ${e.row} (${e.sku}): ${e.message}`).join(' | ');
+        const s = result.errors.slice(0, 2).map((e) => `Row ${e.row} (${e.sku}): ${e.message}`).join(' | ');
         showImportPopup(`Import completed with errors. ${s}${result.errors.length > 2 ? ` | +${result.errors.length - 2} more` : ''}`, 'error');
       } else { showImportPopup(result.message ?? `Import successful. Updated ${result.updated ?? 0} product(s).`, 'success'); }
     } catch (err) { showImportPopup(err instanceof Error ? `Import failed: ${err.message}` : 'Import failed', 'error'); }
@@ -1167,10 +1178,10 @@ export default function InventoryPage() {
 
   // ─── Config ─────────────────────────────────────────────────────────────────
   const statCards = [
-    { id: 'total', label: 'TOTAL PRODUCTS', icon: <Package size={12} />,      accent: '#86a8ff', value: summary?.totalProducts ?? 0 },
-    { id: 'low',   label: 'LOW STOCK',      icon: <AlertTriangle size={12} />, accent: '#b178ff', value: summary?.lowStock ?? 0 },
-    { id: 'out',   label: 'OUT OF STOCK',   icon: <Filter size={12} />,        accent: '#ff4f8c', value: summary?.outOfStock ?? 0 },
-    { id: 'value', label: 'STOCK VALUE',    icon: <TrendingUp size={12} />,    accent: '#22d3a4', value: stockValueLabel },
+    { id: 'total', label: 'TOTAL PRODUCTS', icon: Package, accent: '#86a8ff', value: summary?.totalProducts ?? 0 },
+    { id: 'low', label: 'LOW STOCK', icon: AlertTriangle, accent: '#b178ff', value: summary?.lowStock ?? 0 },
+    { id: 'out', label: 'OUT OF STOCK', icon: Filter, accent: '#ff4f8c', value: summary?.outOfStock ?? 0 },
+    { id: 'value', label: 'STOCK VALUE', icon: TrendingUp, accent: '#22d3a4', value: stockValueLabel },
   ];
 
   const inputStyle: React.CSSProperties = {
@@ -1251,11 +1262,11 @@ export default function InventoryPage() {
           }}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(135,153,192,0.6)';
-            (e.currentTarget as HTMLDivElement).style.background  = 'rgba(255,255,255,0.03)';
+            (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.03)';
           }}
           onMouseLeave={(e) => {
             (e.currentTarget as HTMLDivElement).style.borderColor = selected ? '#a855f7' : T.cardBorder;
-            (e.currentTarget as HTMLDivElement).style.background  = selected ? 'rgba(168,85,247,0.12)' : T.elevated;
+            (e.currentTarget as HTMLDivElement).style.background = selected ? 'rgba(168,85,247,0.12)' : T.elevated;
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -1427,7 +1438,7 @@ export default function InventoryPage() {
         {/* ── Search bar (original) ───────────────────────────────────────── */}
         <div
           style={{ position: 'relative', maxWidth: 860, margin: '0 auto 28px' }}
-          className="m-dashboard-search-shadow rounded-2xl border px-5 py-3.5 flex items-center gap-3 bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]"
+          className={`m-dashboard-search-shadow rounded-2xl border px-5 py-3.5 flex items-center gap-3 ${theme === 'dark' ? 'bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]' : 'admin-dashboard-panel-soft border-0'}`}
         >
           <svg
             viewBox="0 0 20 20"
@@ -1465,10 +1476,10 @@ export default function InventoryPage() {
                 type="button"
                 onClick={() => setShowCategoryFilterMenu((prev) => !prev)}
                 style={{
-                  background: T.card,
-                  border: `1px solid ${T.cardBorder}`,
+                  backgroundColor: theme === 'dark' ? T.card : undefined,
+                  border: theme === 'dark' ? `1px solid ${T.cardBorder}` : undefined,
                   borderRadius: 14,
-                  color: '#ddd1ff',
+                  color: theme === 'dark' ? '#ddd1ff' : '#475569',
                   fontSize: 13,
                   fontWeight: 600,
                   height: 46,
@@ -1495,11 +1506,12 @@ export default function InventoryPage() {
                     marginTop: 8,
                     width: 224,
                     borderRadius: 12,
-                    border: `1px solid ${T.cardBorder}`,
-                    background: T.card,
+                    border: theme === 'dark' ? `1px solid ${T.cardBorder}` : undefined,
+                    backgroundColor: theme === 'dark' ? T.card : undefined,
                     padding: 8,
                     zIndex: 30,
                   }}
+                  className={theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}
                 >
                   {categoryFilterOptions.map((option, optionIndex) => {
                     const checked = categoryFilter === option.value;
@@ -1556,9 +1568,12 @@ export default function InventoryPage() {
             <button
               type="button" onClick={handleImport} disabled={importing}
               title={importing ? 'Importing…' : 'Import CSV'}
+              className={theme === 'dark' ? '' : 'admin-dashboard-panel-soft border-0'}
               style={{
                 width: 40, height: 40, borderRadius: 12,
-                border: `1px solid ${T.cardBorder}`, color: '#ddd1ff', background: T.card,
+                border: theme === 'dark' ? `1px solid ${T.cardBorder}` : undefined,
+                color: theme === 'dark' ? '#ddd1ff' : '#64748b',
+                backgroundColor: theme === 'dark' ? T.card : undefined,
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 cursor: importing ? 'not-allowed' : 'pointer', opacity: importing ? 0.55 : 1,
               }}
@@ -1566,9 +1581,12 @@ export default function InventoryPage() {
             <button
               type="button" onClick={handleExport} disabled={exporting}
               title={exporting ? 'Exporting…' : 'Export CSV'}
+              className={theme === 'dark' ? '' : 'admin-dashboard-panel-soft border-0'}
               style={{
                 width: 40, height: 40, borderRadius: 12,
-                border: `1px solid ${T.cardBorder}`, color: '#ddd1ff', background: T.card,
+                border: theme === 'dark' ? `1px solid ${T.cardBorder}` : undefined,
+                color: theme === 'dark' ? '#ddd1ff' : '#64748b',
+                backgroundColor: theme === 'dark' ? T.card : undefined,
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 cursor: exporting ? 'not-allowed' : 'pointer', opacity: exporting ? 0.55 : 1,
               }}
@@ -1576,23 +1594,68 @@ export default function InventoryPage() {
           </div>
         </div>
 
-        {/* ── Stat cards (original) ───────────────────────────────────────── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10, marginBottom: 18 }}>
-          {statCards.map((card, i) => (
-            <motion.div
-              key={card.id}
-              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
-              style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: '10px 14px 12px', minHeight: 72 }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
-                <span style={{ color: card.accent, display: 'inline-flex', alignItems: 'center' }}>{card.icon}</span>
-                <span style={{ color: T.textMuted, fontSize: 10, letterSpacing: 0.8 }}>{card.label}</span>
-              </div>
-              <div style={{ color: T.text, fontSize: 24, fontWeight: 700, letterSpacing: -0.8, lineHeight: 1.2 }}>
-                {typeof card.value === 'number' ? String(card.value) : card.value}
-              </div>
-            </motion.div>
-          ))}
+        {/* ── Stat cards (premium UI) ───────────────────────────────────────── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 24 }}>
+          {statCards.map((card, i) => {
+            const Icon = card.icon;
+            return (
+              <motion.div
+                key={card.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.1, ease: [0.23, 1, 0.32, 1] }}
+                className={`relative overflow-hidden rounded-[24px] border transition-all duration-500 hover:shadow-xl ${theme === 'light' ? 'admin-dashboard-panel border-0' : ''}`}
+                style={{
+                  backgroundColor: theme === 'dark' ? T.card : undefined,
+                  borderColor: theme === 'dark' ? `${card.accent}25` : undefined,
+                  minHeight: 100,
+                  padding: '20px 24px',
+                  boxShadow: theme === 'dark' ? '0 4px 20px -12px rgba(0,0,0,0.5)' : '0 4px 20px -12px rgba(0,0,0,0.1)'
+                }}
+              >
+                <div
+                  className="absolute -right-4 -top-4 w-20 h-20 opacity-[0.05] blur-2xl rounded-full"
+                  style={{ backgroundColor: card.accent }}
+                />
+
+                <div className="flex items-center gap-5">
+                  <div
+                    className="flex items-center justify-center shrink-0 w-12 h-12 rounded-2xl"
+                    style={{
+                      backgroundColor: `${card.accent}10`,
+                      border: `1px solid ${card.accent}20`
+                    }}
+                  >
+                    <Icon className="w-6 h-6" style={{ color: card.accent }} />
+                  </div>
+
+                  <div className="flex flex-col">
+                    <span
+                      className="text-[10px] font-black uppercase tracking-[0.2em] mb-1 opacity-60"
+                      style={{
+                        color: T.textMuted,
+                        fontFamily: 'var(--font-outfit), sans-serif',
+                      }}
+                    >
+                      {card.label}
+                    </span>
+                    <div className="flex items-baseline">
+                      <span
+                        className="text-2xl font-black leading-none"
+                        style={{
+                          color: T.text,
+                          letterSpacing: '-1px',
+                          fontFamily: 'var(--font-outfit), sans-serif',
+                        }}
+                      >
+                        {typeof card.value === 'number' ? String(card.value) : card.value}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
 
         {/* ── Product table (original layout + skeleton loading) ───────────── */}
@@ -1891,7 +1954,7 @@ export default function InventoryPage() {
                   style={{ background: 'transparent', border: 'none', color: T.textMuted, cursor: 'pointer', padding: 6, display: 'flex' }}
                 >
                   <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>

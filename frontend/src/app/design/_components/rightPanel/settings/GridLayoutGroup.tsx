@@ -40,7 +40,7 @@ export const GridLayoutGroup = ({
     <div className="flex flex-col gap-4">
       {/* Column Presets */}
       <div className="flex flex-col gap-1">
-        <label className="text-[12px] text-brand-lighter font-base">
+        <label className="text-[12px] text-[var(--builder-text)] font-base">
           Columns
         </label>
         <div className="grid grid-cols-3 gap-1.5">
@@ -53,8 +53,8 @@ export const GridLayoutGroup = ({
                 })
               }
               className={`text-[10px] px-2 py-1.5 rounded-lg transition-all ${gridTemplateColumns === preset.value
-                  ? "bg-brand-light text-brand-dark font-medium"
-                  : "bg-brand-medium-dark text-brand-light hover:bg-brand-medium/40"
+                  ? "bg-[var(--builder-accent)] text-black font-medium"
+                  : "bg-[var(--builder-surface-2)] text-[var(--builder-text-muted)] hover:bg-[var(--builder-surface-3)]"
                 }`}
             >
               {preset.label}
@@ -74,13 +74,13 @@ export const GridLayoutGroup = ({
             if (e.key === "Enter") e.currentTarget.blur();
           }}
           placeholder="e.g. 1fr 2fr 1fr"
-          className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none placeholder:text-brand-medium mt-1"
+          className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none placeholder:text-[var(--builder-text-faint)] mt-1"
         />
       </div>
 
       {/* Template Rows */}
       <div className="flex flex-col gap-1">
-        <label className="text-[12px] text-brand-lighter font-base">Rows</label>
+        <label className="text-[12px] text-[var(--builder-text)] font-base">Rows</label>
         <input
           type="text"
           value={gridTemplateRows}
@@ -93,13 +93,13 @@ export const GridLayoutGroup = ({
             if (e.key === "Enter") e.currentTarget.blur();
           }}
           placeholder="e.g. auto 200px 1fr"
-          className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none placeholder:text-brand-medium"
+          className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none placeholder:text-[var(--builder-text-faint)]"
         />
       </div>
 
       {/* Auto Rows */}
       <div className="flex flex-col gap-1">
-        <label className="text-[12px] text-brand-lighter font-base">
+        <label className="text-[12px] text-[var(--builder-text)] font-base">
           Auto Rows
         </label>
         <input
@@ -114,13 +114,13 @@ export const GridLayoutGroup = ({
             if (e.key === "Enter") e.currentTarget.blur();
           }}
           placeholder="e.g. minmax(100px, auto)"
-          className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none placeholder:text-brand-medium"
+          className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none placeholder:text-[var(--builder-text-faint)]"
         />
       </div>
 
       {/* Auto Flow */}
       <div className="flex flex-col gap-1">
-        <label className="text-[12px] text-brand-lighter font-base">
+        <label className="text-[12px] text-[var(--builder-text)] font-base">
           Auto Flow
         </label>
         <select
@@ -130,13 +130,13 @@ export const GridLayoutGroup = ({
               props.gridAutoFlow = e.target.value as GridProps["gridAutoFlow"];
             })
           }
-          className="w-full bg-brand-medium-dark rounded-lg text-xs text-brand-lighter px-2.5 py-1.5 focus:outline-none appearance-none"
+          className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none appearance-none"
         >
           {AUTO_FLOW_OPTIONS.map((opt) => (
             <option
               key={opt.value}
               value={opt.value}
-              className="text-brand-light bg-brand-dark"
+              className="text-[var(--builder-text-muted)] bg-[var(--builder-surface)]"
             >
               {opt.label}
             </option>
@@ -146,11 +146,11 @@ export const GridLayoutGroup = ({
 
       {/* Gap Controls */}
       <div className="flex flex-col gap-2">
-        <label className="text-[12px] text-brand-lighter font-base">Gap</label>
+        <label className="text-[12px] text-[var(--builder-text)] font-base">Gap</label>
         <div className="grid grid-cols-2 gap-2">
           <div className="flex flex-col gap-1">
-            <span className="text-[10px] text-brand-light">Column</span>
-            <div className="bg-brand-medium-dark px-2.5 rounded-lg">
+            <span className="text-[10px] text-[var(--builder-text-muted)]">Column</span>
+            <div className="bg-[var(--builder-surface-2)] px-2.5 rounded-lg">
               <NumericInput
                 value={effectiveColGap}
                 onChange={(val) =>
@@ -164,8 +164,8 @@ export const GridLayoutGroup = ({
             </div>
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-[10px] text-brand-light">Row</span>
-            <div className="bg-brand-medium-dark px-2.5 rounded-lg">
+            <span className="text-[10px] text-[var(--builder-text-muted)]">Row</span>
+            <div className="bg-[var(--builder-surface-2)] px-2.5 rounded-lg">
               <NumericInput
                 value={effectiveRowGap}
                 onChange={(val) =>

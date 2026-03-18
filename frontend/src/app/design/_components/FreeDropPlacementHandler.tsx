@@ -20,8 +20,8 @@ type DropPoint = {
 type DragSourceKind = "asset" | "component" | "imported" | null;
 
 const MAX_RETRY_FRAMES = 24;
-const LAYOUT_LIKE_TYPES = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame", "Tab Content"]);
-const FLOW_PARENT_DISPLAY_NAMES = new Set(["Section", "Container", "Row", "Column", "Frame", "Tab Content"]);
+const LAYOUT_LIKE_TYPES = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame", "Tab Content", "TabContent"]);
+const FLOW_PARENT_DISPLAY_NAMES = new Set(["Section", "Container", "Row", "Column", "Frame", "Tab Content", "TabContent"]);
 
 function selectedToIds(raw: unknown): string[] {
   if (Array.isArray(raw)) return raw;
@@ -125,7 +125,7 @@ export function FreeDropPlacementHandler() {
       const newIdSet = new Set(newIds);
       const rootNewIds = newIds.filter((id) => {
         const parentId = nodes[id]?.data?.parent;
-        if (!parentId || parentId === "ROOT") return false;
+        if (!parentId) return false;
         return !newIdSet.has(parentId);
       });
 
@@ -133,7 +133,7 @@ export function FreeDropPlacementHandler() {
         ? rootNewIds
         : selectedToIds(state?.events?.selected).filter((id) => {
             const parentId = nodes[id]?.data?.parent;
-            if (!parentId || parentId === "ROOT") return false;
+            if (!parentId) return false;
             return !newIdSet.has(parentId);
           });
 
@@ -152,23 +152,24 @@ export function FreeDropPlacementHandler() {
 
       idsToPlace.forEach((nodeId) => {
         const parentId = nodes[nodeId]?.data?.parent;
-        if (!parentId || parentId === "ROOT") return;
+        if (!parentId) return;
 
         const displayName = nodes[nodeId]?.data?.displayName ?? "";
         const isLayoutLike = LAYOUT_LIKE_TYPES.has(displayName);
         const parentNode = nodes[parentId];
         const parentDisplayName = parentNode?.data?.displayName ?? "";
         const shouldImageFillParent =
-          displayName === "Image" && (parentDisplayName === "Section" || parentDisplayName === "Tab Content");
+          displayName === "Image" && (parentDisplayName === "Section" || parentDisplayName === "Tab Content" || parentDisplayName === "TabContent");
         const parentProps = (parentNode?.data?.props ?? {}) as Record<string, unknown>;
-        const parentDisplay = String(parentProps.display ?? "").toLowerCase();
-        const parentFreeformPref = parentProps.isFreeform;
-        const parentIsFreeform = parentFreeformPref === true;
-        const parentIsFlexParent =
+        const parentDisplay = String(parentProps.display ?? "flex").toLowerCase();
+        const parentIsFreeform = parentProps.isFreeform === true;
+        const isFlexParent =
           parentDisplay === "flex" ||
           parentDisplay === "grid" ||
-          FLOW_PARENT_DISPLAY_NAMES.has(parentDisplayName);
-        const allowFreeformLayout = parentFreeformPref !== false;
+          parentDisplayName === "Tab Content" ||
+          parentDisplayName === "TabContent" ||
+          LAYOUT_LIKE_TYPES.has(parentDisplayName);
+        const forceFlowPlacement = parentDisplayName === "Tab Content" || parentDisplayName === "TabContent";
 
         let left = 0;
         let top = 0;
@@ -286,7 +287,7 @@ export function FreeDropPlacementHandler() {
         });
 
         actions.setProp(nodeId, (props: Record<string, unknown>) => {
-          const shouldUseAbsolute = !isLayoutLike || allowFreeformLayout;
+          const shouldUseAbsolute = !forceFlowPlacement && (!isLayoutLike || allowFreeformLayout);
           if (shouldUseAbsolute) {
             props.position = "absolute";
             props.left = `${left}px`;

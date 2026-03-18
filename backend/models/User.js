@@ -22,6 +22,7 @@ function fromDoc(doc) {
     subscriptionPlan: d.subscription_plan || 'free',
     status: d.status || 'active',
     isActive: d.is_active !== false,
+    paymentMethods: d.payment_methods || [],
     createdAt: d.created_at?.toDate?.()?.toISOString?.() || d.created_at,
     updatedAt: d.updated_at?.toDate?.()?.toISOString?.() || d.updated_at,
   };
@@ -33,6 +34,7 @@ function toFirestore(data) {
     avatar: 'avatar_url', email: 'email', phone: 'phone', bio: 'bio',
     username: 'username', website: 'website', status: 'status', role: 'role',
     isActive: 'is_active', subscriptionPlan: 'subscription_plan',
+    paymentMethods: 'payment_methods'
   };
   const out = {};
   for (const [appKey, dbKey] of Object.entries(map)) {

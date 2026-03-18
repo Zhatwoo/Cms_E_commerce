@@ -88,10 +88,10 @@ const TemplateCard = ({ template, colors, onPreview, onUseTemplate }: {
   onUseTemplate: (t: GalleryTemplate) => void;
 }) => (
   <div
-    className="group relative rounded-2xl border overflow-hidden flex flex-col shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full"
+    className={`group relative rounded-2xl border overflow-hidden flex flex-col shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full ${useTheme().theme === 'light' ? 'admin-dashboard-panel-soft border-0' : ''}`}
     style={{
-      backgroundColor: colors.bg.card,
-      borderColor: colors.border.faint,
+      backgroundColor: useTheme().theme === 'dark' ? colors.bg.card : undefined,
+      borderColor: useTheme().theme === 'dark' ? colors.border.faint : undefined,
     }}
   >
     {/* Thumbnail */}
@@ -209,8 +209,8 @@ const CreateProjectModal = ({
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden"
-        style={{ backgroundColor: colors.bg.card, borderColor: colors.border.default }}
+        className={`relative w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden ${useTheme().theme === 'light' ? 'admin-dashboard-panel border-0' : ''}`}
+        style={{ backgroundColor: useTheme().theme === 'dark' ? colors.bg.card : undefined, borderColor: useTheme().theme === 'dark' ? colors.border.default : undefined }}
       >
         <div className="p-6 border-b" style={{ borderColor: colors.border.faint }}>
           <h3 className="text-xl font-semibold" style={{ color: colors.text.primary }}>Create project</h3>
@@ -303,8 +303,8 @@ const PreviewModal = ({
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-2xl rounded-2xl border shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
-        style={{ backgroundColor: colors.bg.card, borderColor: colors.border.default }}
+        className={`relative w-full max-w-2xl rounded-2xl border shadow-2xl overflow-hidden flex flex-col max-h-[90vh] ${useTheme().theme === 'light' ? 'admin-dashboard-panel border-0' : ''}`}
+        style={{ backgroundColor: useTheme().theme === 'dark' ? colors.bg.card : undefined, borderColor: useTheme().theme === 'dark' ? colors.border.default : undefined }}
       >
         {/* Header */}
         <div className="p-6 border-b flex justify-between items-center shrink-0" style={{ borderColor: colors.border.faint }}>
@@ -697,13 +697,13 @@ export default function WebBuilderPage() {
     <section className="dashboard-landing-light space-y-8 min-h-screen pb-20 max-w-full overflow-x-hidden">
       {/* Header Section */}
       <section
-        className="rounded-2xl border p-5 md:p-6"
+        className={`rounded-2xl border p-5 md:p-6 transition-all duration-300 ${theme === 'light' ? 'admin-dashboard-panel border-0' : ''}`}
         style={{
-          backgroundColor: colors.bg.card,
-          borderColor: colors.border.faint,
+          backgroundColor: theme === 'dark' ? colors.bg.card : undefined,
+          borderColor: theme === 'dark' ? colors.border.faint : undefined,
           boxShadow: theme === 'dark'
             ? 'inset 0 1px 0 rgba(255,255,255,0.06), 0 20px 50px rgba(2,6,23,0.55)'
-            : 'inset 0 1px 0 rgba(255,255,255,0.8), 0 12px 30px rgba(15,23,42,0.12)',
+            : undefined,
         }}
       >
         <div className="relative flex flex-col gap-3">
@@ -755,10 +755,10 @@ export default function WebBuilderPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Blank Design Option */}
         <motion.div
-          className="relative rounded-2xl border overflow-hidden p-8 cursor-pointer group"
+          className={`relative rounded-2xl border overflow-hidden p-8 cursor-pointer group transition-all duration-300 ${theme === 'light' ? 'admin-dashboard-panel border-0' : ''}`}
           style={{
-            backgroundColor: colors.bg.card,
-            borderColor: colors.border.faint,
+            backgroundColor: theme === 'dark' ? colors.bg.card : undefined,
+            borderColor: theme === 'dark' ? colors.border.faint : undefined,
           }}
           whileHover={!creating ? { scale: 1.02, y: -4 } : undefined}
           whileTap={!creating ? { scale: 0.98 } : undefined}
@@ -793,10 +793,10 @@ export default function WebBuilderPage() {
 
         {/* Use Template Option */}
         <motion.div
-          className="relative rounded-2xl border overflow-hidden p-8 cursor-pointer group"
+          className={`relative rounded-2xl border overflow-hidden p-8 cursor-pointer group transition-all duration-300 ${theme === 'light' ? 'admin-dashboard-panel border-0' : ''}`}
           style={{
-            backgroundColor: colors.bg.card,
-            borderColor: colors.border.faint,
+            backgroundColor: theme === 'dark' ? colors.bg.card : undefined,
+            borderColor: theme === 'dark' ? colors.border.faint : undefined,
           }}
           whileHover={{ scale: 1.02, y: -4 }}
           whileTap={{ scale: 0.98 }}

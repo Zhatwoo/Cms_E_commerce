@@ -3,10 +3,11 @@
 import { useEffect, useRef } from "react";
 import { useEditor } from "@craftjs/core";
 import { useCanvasTool } from "./CanvasToolContext";
+import { getSnapGuides, getBoundingRect, Rect, SnapGuide } from "./snapUtils";
 
 const DRAGGING_ATTR = "data-dragging";
 
-type NodesMap = Record<string, { data?: { parent?: string; isCanvas?: boolean; displayName?: string } }>
+type NodesMap = Record<string, { data?: { parent?: string; isCanvas?: boolean; displayName?: string; props?: Record<string, unknown> } }>
 
 const CANVAS_DISPLAY_NAMES = new Set([
   "Page",
@@ -18,6 +19,7 @@ const CANVAS_DISPLAY_NAMES = new Set([
   "Frame",
   "Button",
   "Tab Content",
+  "TabContent",
 ]);
 const EDITOR_DRAGGING_FLAG = "editorDragging";
 const EDITOR_DROP_COMMIT_FLAG = "editorDropCommit";
@@ -25,7 +27,7 @@ const MULTI_DRAG_LOCK_FLAG = "multiDragLock";
 const BOX_SELECTING_FLAG = "boxSelecting";
 const BOX_SELECTING_INTENT_FLAG = "boxSelectingIntent";
 
-const FLOW_LAYOUT_PARENTS = new Set(["Container", "Section", "Row", "Column", "Frame", "Tab Content"]);
+const FLOW_LAYOUT_PARENTS = new Set(["Container", "Section", "Row", "Column", "Frame", "Tab Content", "TabContent"]);
 const FREEFORM_PARENT_DISPLAY_NAMES = new Set(["Page", "Viewport"]);
 const OFFSET_MOVE_TYPES = new Set(["Image", "Text", "Icon", "Button", "Circle", "Square", "Triangle"]);
 
@@ -41,6 +43,7 @@ type DragNodeState = {
   marginLeft: number;
   top: number;
   left: number;
+  startRect: { left: number; top: number; width: number; height: number } | null;
 };
 
 function getEffectiveZoom(el: HTMLElement | null): number {
@@ -76,6 +79,22 @@ function parseNumberOrZero(value: unknown): number {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function getRenderedScale(el: HTMLElement | null): { scaleX: number; scaleY: number } {
+  if (!el) return { scaleX: 1, scaleY: 1 };
+
+  const rect = el.getBoundingClientRect();
+  const baseWidth = el.offsetWidth || el.clientWidth || 0;
+  const baseHeight = el.offsetHeight || el.clientHeight || 0;
+
+  const scaleX = baseWidth > 0 ? rect.width / baseWidth : 1;
+  const scaleY = baseHeight > 0 ? rect.height / baseHeight : 1;
+
+  return {
+    scaleX: Number.isFinite(scaleX) && scaleX > 0.01 ? scaleX : 1,
+    scaleY: Number.isFinite(scaleY) && scaleY > 0.01 ? scaleY : 1,
+  };
 }
 
 function selectedToIds(raw: unknown): string[] {
@@ -145,6 +164,34 @@ function getDropTargetAt(
     if (node.data.displayName && CANVAS_DISPLAY_NAMES.has(node.data.displayName)) return id;
   }
   return null;
+}
+
+function findPageTargetAt(
+  clientX: number,
+  clientY: number,
+  nodes: NodesMap,
+  excludeIds: string[]
+): string | null {
+  const exclude = new Set(excludeIds);
+  const elements = document.elementsFromPoint(clientX, clientY) as HTMLElement[];
+  for (const el of elements) {
+    const withNode = el.closest("[data-node-id]") as HTMLElement | null;
+    if (!withNode) continue;
+    const id = withNode.getAttribute("data-node-id");
+    if (!id || exclude.has(id)) continue;
+    if (String(nodes[id]?.data?.displayName ?? "") === "Page") return id;
+  }
+  const fallback = Object.keys(nodes).find((id) => String(nodes[id]?.data?.displayName ?? "") === "Page");
+  return fallback ?? null;
+}
+
+function isPointerInsideCanvas(clientX: number, clientY: number): boolean {
+  try {
+    const elements = document.elementsFromPoint(clientX, clientY) as HTMLElement[];
+    return elements.some((el) => el.closest?.("[data-canvas-container]"));
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -244,7 +291,9 @@ export const FigmaStyleDragHandler = () => {
   const draggedDomsRef = useRef<HTMLElement[]>([]);
   const dropTargetHighlightRef = useRef<HTMLElement | null>(null);
   const insertIndicatorRef = useRef<HTMLElement | null>(null);
-  const { activeTool } = useCanvasTool();
+  const { activeTool, setSnapGuides } = useCanvasTool();
+  const setSnapGuidesRef = useRef(setSnapGuides);
+  useEffect(() => { setSnapGuidesRef.current = setSnapGuides; }, [setSnapGuides]);
 
 
   const dragRef = useRef<{
@@ -261,6 +310,8 @@ export const FigmaStyleDragHandler = () => {
     clickedWasInSelection: boolean;
     preferMultiDrag: boolean;
     dirty: boolean;
+    targetRects: Rect[];
+    initialSelectionRect: Rect | null;
   } | null>(null);
 
   useEffect(() => {
@@ -273,9 +324,39 @@ export const FigmaStyleDragHandler = () => {
       rafRef.current = 0;
       const d = dragRef.current;
       if (!d || !d.committed || !d.dirty) return;
-      const dx = (d.lastX - d.startX) / d.zoom;
-      const dy = (d.lastY - d.startY) / d.zoom;
-      setDragPreview(draggedDomsRef.current, dx, dy);
+
+      const baseDx = (d.lastX - d.startX) / d.zoom;
+      const baseDy = (d.lastY - d.startY) / d.zoom;
+
+      if (d.initialSelectionRect) {
+        const movingRect: Rect = {
+          ...d.initialSelectionRect,
+          left: d.initialSelectionRect.left + baseDx * d.zoom,
+          top: d.initialSelectionRect.top + baseDy * d.zoom,
+          right: d.initialSelectionRect.right + baseDx * d.zoom,
+          bottom: d.initialSelectionRect.bottom + baseDy * d.zoom,
+          centerX: d.initialSelectionRect.centerX + baseDx * d.zoom,
+          centerY: d.initialSelectionRect.centerY + baseDy * d.zoom,
+        };
+
+        const { snappedX, snappedY, guides } = getSnapGuides(movingRect, d.targetRects);
+
+        let finalDx = baseDx;
+        let finalDy = baseDy;
+
+        if (snappedX !== null) {
+          finalDx = (snappedX - d.initialSelectionRect.left) / d.zoom;
+        }
+        if (snappedY !== null) {
+          finalDy = (snappedY - d.initialSelectionRect.top) / d.zoom;
+        }
+
+        setDragPreview(draggedDomsRef.current, finalDx, finalDy);
+        setSnapGuidesRef.current(guides);
+      } else {
+        setDragPreview(draggedDomsRef.current, baseDx, baseDy);
+      }
+      
       d.dirty = false;
     };
     processDragRef.current = tick;
@@ -364,8 +445,11 @@ export const FigmaStyleDragHandler = () => {
         const currentPosition = (props.position as string | undefined) ?? "static";
         const isAbsoluteLike = currentPosition === "absolute" || currentPosition === "fixed";
 
-        if (!isAbsoluteLike) {
-          props.position = "relative";
+        const parentId = entry.parentId;
+        const parentDisplayName = parentId ? String(queryRef.current.node(parentId).get()?.data?.displayName ?? "") : "";
+        const isFreeformParent = parentDisplayName === "Page" || parentDisplayName === "Viewport";
+
+        if (isFreeformParent) {
           props.top = `${rawTop}px`;
           props.left = `${rawLeft}px`;
           return;
@@ -385,6 +469,16 @@ export const FigmaStyleDragHandler = () => {
 
       const rawMarginTop = Math.round(marginTop + dy);
       const rawMarginLeft = Math.round(marginLeft + dx);
+      const parentId = entry.parentId;
+      const parentDisplayName = parentId ? String(queryRef.current.node(parentId).get()?.data?.displayName ?? "") : "";
+      const isFreeformParent = parentDisplayName === "Page" || parentDisplayName === "Viewport";
+
+      if (isFreeformParent) {
+        props.marginTop = rawMarginTop;
+        props.marginLeft = rawMarginLeft;
+        return;
+      }
+
       const bounds = getMarginBounds(id, marginTop, marginLeft);
 
       if (bounds) {
@@ -425,7 +519,6 @@ export const FigmaStyleDragHandler = () => {
       const exists = (id: string) => !!id && id !== "ROOT" && !!nodesMap[id];
 
       const selectedIdsAtMouseDown = selectedToIds(state.events.selected).filter((id) => id && id !== "ROOT" && !!state.nodes[id]);
-      // Find the most specific (deepest) node-id in the element path
       let nodeIdFromTarget = findDeepestNodeId(target);
       if (!nodeIdFromTarget && target.closest("[data-panel='resize-overlay']") && selectedIdsAtMouseDown.length > 0) {
         nodeIdFromTarget = selectedIdsAtMouseDown[0] ?? null;
@@ -464,6 +557,8 @@ export const FigmaStyleDragHandler = () => {
         preferMultiDrag,
         committed: false,
         dirty: false,
+        targetRects: [],
+        initialSelectionRect: null,
       };
     };
 
@@ -545,7 +640,9 @@ export const FigmaStyleDragHandler = () => {
         }
 
         // If we clicked on a specific node and it's not in the selection, use the clicked node
-        // This prevents dragging parent containers when clicking on child elements
+        // This prevents dragging parent containers when clicking on child elements.
+        // Exception: if a single parent (group) is selected, keep dragging the group when
+        // clicking on its descendants (Figma-like behavior).
         if (d.fallbackNodeId && state.nodes[d.fallbackNodeId]) {
           const clickedNodeId = d.fallbackNodeId;
           const clickedNodeInSelection = ids.includes(clickedNodeId);
@@ -565,9 +662,11 @@ export const FigmaStyleDragHandler = () => {
               return false;
             });
 
-            // If clicked node is a descendant, use the clicked node instead
+            // If clicked node is a descendant, keep group drag when only one item is selected.
             if (isDescendant) {
-              ids = [clickedNodeId];
+              if (ids.length > 1) {
+                ids = [clickedNodeId];
+              }
             }
           } else if (ids.length === 0) {
             // No selection, use clicked node
@@ -624,6 +723,16 @@ export const FigmaStyleDragHandler = () => {
 
           const mode = getMoveModeForNode(id, { nodes: state.nodes as NodesMap });
           const isAbsoluteLike = position === "absolute" || position === "fixed";
+          let startRect: { left: number; top: number; width: number; height: number } | null = null;
+          try {
+            const dom = queryRef.current.node(id).get()?.dom ?? null;
+            if (dom) {
+              const rect = dom.getBoundingClientRect();
+              startRect = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+            }
+          } catch {
+            startRect = null;
+          }
 
           return {
             id,
@@ -634,8 +743,43 @@ export const FigmaStyleDragHandler = () => {
             mode,
             top,
             left,
+            startRect,
           };
         });
+
+        // Gather target rects from all other nodes visible on the canvas
+        const otherNodes = Object.entries(state.nodes)
+          .filter(([id, node]) => id !== "ROOT" && !ids.includes(id) && !!(node as any).data?.displayName)
+          .map(([id]) => queryRef.current.node(id).get()?.dom)
+          .filter((dom): dom is HTMLElement => !!dom && dom.offsetParent !== null);
+        
+        d.targetRects = otherNodes.map(dom => getBoundingRect(dom));
+        // Also add the canvas/viewport boundary as a target
+        const viewpointDom = document.querySelector(".craftjs-renderer") as HTMLElement;
+        if (viewpointDom) {
+            d.targetRects.push(getBoundingRect(viewpointDom));
+        }
+
+        // Calculate initial selection rect
+        let initialRect: Rect | null = null;
+        for (const dom of draggedDomsRef.current) {
+          const r = getBoundingRect(dom);
+          if (!initialRect) {
+            initialRect = { ...r };
+          } else {
+            initialRect.left = Math.min(initialRect.left, r.left);
+            initialRect.top = Math.min(initialRect.top, r.top);
+            initialRect.right = Math.max(initialRect.right, r.right);
+            initialRect.bottom = Math.max(initialRect.bottom, r.bottom);
+          }
+        }
+        if (initialRect) {
+          initialRect.width = initialRect.right - initialRect.left;
+          initialRect.height = initialRect.bottom - initialRect.top;
+          initialRect.centerX = initialRect.left + initialRect.width / 2;
+          initialRect.centerY = initialRect.top + initialRect.height / 2;
+          d.initialSelectionRect = initialRect;
+        }
 
         draggedDomsRef.current = getDraggedDoms(ids, queryRef.current.node);
         setDraggingStyle(draggedDomsRef.current, true);
@@ -676,7 +820,10 @@ export const FigmaStyleDragHandler = () => {
         const currentParentId = nodes[ids[0]]?.data?.parent ?? null;
 
         const doms = getDraggedDoms(ids, queryRef.current.node);
-        const dropTargetId = getDropTargetAt(d.lastX, d.lastY, nodes, ids, doms);
+        let dropTargetId = getDropTargetAt(d.lastX, d.lastY, nodes, ids, doms);
+        if (!dropTargetId && isPointerInsideCanvas(d.lastX, d.lastY)) {
+          dropTargetId = findPageTargetAt(d.lastX, d.lastY, nodes, ids);
+        }
 
         if (
           dropTargetId &&
@@ -685,6 +832,30 @@ export const FigmaStyleDragHandler = () => {
         ) {
           try {
             const insertIndex = computeInsertIndex(dropTargetId, d.lastX, d.lastY, nodes, ids, queryRef.current.node);
+            const dropTargetDom = queryRef.current.node(dropTargetId).get()?.dom ?? null;
+            const dropTargetRect = dropTargetDom?.getBoundingClientRect() ?? null;
+            const { scaleX: dropScaleX, scaleY: dropScaleY } = getRenderedScale(dropTargetDom);
+            const dxScreen = d.lastX - d.startX;
+            const dyScreen = d.lastY - d.startY;
+
+            const dropTargetProps = (nodes[dropTargetId]?.data?.props ?? {}) as Record<string, unknown>;
+            const dropTargetDisplayName = String(nodes[dropTargetId]?.data?.displayName ?? "");
+            const dropTargetDisplay = String(dropTargetProps.display ?? "").toLowerCase();
+            const dropTargetIsFlexOrGrid = dropTargetDisplay === "flex" || dropTargetDisplay === "grid";
+            const dropTargetIsFreeform =
+              dropTargetProps.isFreeform === true ||
+              FREEFORM_PARENT_DISPLAY_NAMES.has(dropTargetDisplayName) ||
+              (!dropTargetIsFlexOrGrid && dropTargetDisplayName === "Page");
+
+            const placementById = new Map<string, { left: number; top: number }>();
+            if (dropTargetRect) {
+              d.nodeMargins.forEach((entry) => {
+                if (!entry.startRect) return;
+                const nextLeft = Math.round((entry.startRect.left + dxScreen - dropTargetRect.left) / dropScaleX);
+                const nextTop = Math.round((entry.startRect.top + dyScreen - dropTargetRect.top) / dropScaleY);
+                placementById.set(entry.id, { left: nextLeft, top: nextTop });
+              });
+            }
 
             ids.forEach((nodeId, i) => {
               actionsRef.current.move(nodeId, dropTargetId, insertIndex + i);
@@ -696,12 +867,24 @@ export const FigmaStyleDragHandler = () => {
               actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
                 props.marginTop = 0;
                 props.marginLeft = 0;
-                props.top = "0px";
-                props.left = "0px";
-                if (modeById.get(id) === "offset") {
-                  const currentPosition = (props.position as string | undefined) ?? "static";
-                  if (currentPosition !== "absolute" && currentPosition !== "fixed") {
-                    props.position = "relative";
+                if (dropTargetIsFreeform) {
+                  const placement = placementById.get(id);
+                  props.position = "absolute";
+                  props.top = `${placement?.top ?? 0}px`;
+                  props.left = `${placement?.left ?? 0}px`;
+                  props.right = "auto";
+                  props.bottom = "auto";
+                } else {
+                  props.top = "0px";
+                  props.left = "0px";
+                  if (modeById.get(id) === "offset") {
+                    const currentPosition = (props.position as string | undefined) ?? "static";
+                    const isAbsoluteLike = currentPosition === "absolute" || currentPosition === "fixed";
+                    if (dropTargetId && nodes[dropTargetId]?.data?.displayName === "Viewport") {
+                      props.position = "absolute";
+                    } else if (!isAbsoluteLike) {
+                      props.position = "relative";
+                    }
                   }
                 }
               });
@@ -720,8 +903,31 @@ export const FigmaStyleDragHandler = () => {
           }
         } else {
           const nodes = queryRef.current?.getState()?.nodes ?? {};
-          const dx = (d.lastX - d.startX) / d.zoom;
-          const dy = (d.lastY - d.startY) / d.zoom;
+          let dx = (d.lastX - d.startX) / d.zoom;
+          let dy = (d.lastY - d.startY) / d.zoom;
+
+          if (d.initialSelectionRect) {
+            const movingRect: Rect = {
+              ...d.initialSelectionRect,
+              left: d.initialSelectionRect.left + dx * d.zoom,
+              top: d.initialSelectionRect.top + dy * d.zoom,
+              right: d.initialSelectionRect.right + dx * d.zoom,
+              bottom: d.initialSelectionRect.bottom + dx * d.zoom,
+              centerX: d.initialSelectionRect.centerX + dx * d.zoom,
+              centerY: d.initialSelectionRect.centerY + dy * d.zoom,
+            };
+
+            const { snappedX, snappedY } = getSnapGuides(movingRect, d.targetRects);
+            if (snappedX !== null) {
+              dx = (snappedX - d.initialSelectionRect.left) / d.zoom;
+            }
+            if (snappedY !== null) {
+              dy = (snappedY - d.initialSelectionRect.top) / d.zoom;
+            }
+          }
+
+          const finalDx = dx;
+          const finalDy = dy;
 
           d.nodeMargins.filter((e) => e.id && nodes[e.id]).forEach((entry) => {
             const { id } = entry;
@@ -741,10 +947,11 @@ export const FigmaStyleDragHandler = () => {
                 if (props.right == null) props.right = "auto";
                 if (props.bottom == null) props.bottom = "auto";
               }
-              applyBoundedMove(entry, dx, dy, props);
+              applyBoundedMove(entry, finalDx, finalDy, props);
             });
           });
         }
+
 
         const validMovedIds = ids.filter((id) => !!queryRef.current?.getState()?.nodes?.[id]);
         if (validMovedIds.length > 1) {
@@ -765,6 +972,7 @@ export const FigmaStyleDragHandler = () => {
       clearDragPreview(draggedDomsRef.current);
       setDraggingStyle(draggedDomsRef.current, false);
       draggedDomsRef.current = [];
+      setSnapGuidesRef.current([]);
       dragRef.current = null;
     };
 

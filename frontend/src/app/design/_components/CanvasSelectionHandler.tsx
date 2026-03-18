@@ -29,6 +29,20 @@ export const CanvasSelectionHandler = () => {
   }, [activeTool, actions]);
 
   useEffect(() => {
+    const findDeepestNodeId = (element: HTMLElement | null): string | null => {
+      if (!element) return null;
+      const selfId = element.getAttribute("data-node-id");
+      if (selfId) return selfId;
+
+      let current: HTMLElement | null = element;
+      while (current && current !== document.body) {
+        const id = current.getAttribute("data-node-id");
+        if (id) return id;
+        current = current.parentElement;
+      }
+      return null;
+    };
+
     const handleMouseDown = (e: MouseEvent) => {
       if (document.body.dataset[MULTI_DRAG_LOCK_FLAG] === "true") return;
 
@@ -47,8 +61,7 @@ export const CanvasSelectionHandler = () => {
       // Ignore clicks inside panel areas (left/right panels, bottom bar)
       if (target.closest("[data-panel]")) return;
 
-      const nodeEl = target.closest("[data-node-id]") as HTMLElement | null;
-      const nodeId = nodeEl?.getAttribute("data-node-id") ?? null;
+      const nodeId = findDeepestNodeId(target);
       const isMulti = e.ctrlKey || e.metaKey;
       const isRange = e.shiftKey;
 
@@ -82,22 +95,24 @@ export const CanvasSelectionHandler = () => {
         lastSelectedNodeIdRef.current = id;
       };
 
-      if (nodeId && exists(nodeId)) {
-        const isAlreadySelected = currentIds.includes(nodeId);
+      const finalNodeId = nodeId && exists(nodeId) ? nodeId : null;
+
+      if (finalNodeId && exists(finalNodeId)) {
+        const isAlreadySelected = currentIds.includes(finalNodeId);
 
         if (!isMulti && !isRange && isAlreadySelected) {
-          updateLastSelected(nodeId);
+          updateLastSelected(finalNodeId);
           return;
         }
 
         if (isRange) {
           const lastId = lastSelectedNodeIdRef.current && exists(lastSelectedNodeIdRef.current) ? lastSelectedNodeIdRef.current : null;
-          if (lastId && lastId !== nodeId) {
-            const parentId = nodesMap[nodeId]?.data?.parent as string | undefined;
+          if (lastId && lastId !== finalNodeId) {
+            const parentId = nodesMap[finalNodeId]?.data?.parent as string | undefined;
             const lastParentId = nodesMap[lastId]?.data?.parent as string | undefined;
             if (parentId && parentId === lastParentId) {
               const siblings = (nodesMap[parentId]?.data?.nodes as string[]) ?? [];
-              const idxClick = siblings.indexOf(nodeId);
+              const idxClick = siblings.indexOf(finalNodeId);
               const idxLast = siblings.indexOf(lastId);
               if (idxClick !== -1 && idxLast !== -1) {
                 const min = Math.min(idxClick, idxLast);
@@ -105,30 +120,30 @@ export const CanvasSelectionHandler = () => {
                 const rangeIds = siblings.slice(min, max + 1).filter(exists);
                 if (rangeIds.length > 0) {
                   safeSelect(rangeIds.length === 1 ? rangeIds[0] : rangeIds);
-                  updateLastSelected(nodeId);
+                  updateLastSelected(finalNodeId);
                   return;
                 }
               }
             }
           }
           // Different parent or no last: replace selection with clicked node
-          safeSelect(nodeId);
-          updateLastSelected(nodeId);
+          safeSelect(finalNodeId);
+          updateLastSelected(finalNodeId);
           return;
         }
         if (isMulti) {
           const next = new Set(currentIds.filter(exists));
-          if (next.has(nodeId)) {
-            next.delete(nodeId);
+          if (next.has(finalNodeId)) {
+            next.delete(finalNodeId);
           } else {
-            next.add(nodeId);
+            next.add(finalNodeId);
           }
           const validIds = Array.from(next).filter(exists);
           safeSelect(validIds.length === 0 ? null : validIds.length === 1 ? validIds[0] : validIds);
-          updateLastSelected(validIds.length > 0 ? (validIds.includes(nodeId) ? nodeId : validIds[validIds.length - 1]!) : null);
+          updateLastSelected(validIds.length > 0 ? (validIds.includes(finalNodeId) ? finalNodeId : validIds[validIds.length - 1]!) : null);
         } else {
-          safeSelect(nodeId);
-          updateLastSelected(nodeId);
+          safeSelect(finalNodeId);
+          updateLastSelected(finalNodeId);
           return;
         }
       }

@@ -29,7 +29,115 @@ const ChevronDownIcon = ({ isOpen }: { isOpen: boolean }) => (
     </svg>
 );
 
-import { adminNavItems } from './adminConfig';
+type NavChild = {
+    id: string;
+    label: string;
+    href: string;
+    match: (pathname: string) => boolean;
+};
+
+type NavItem = {
+    id: string;
+    label: string;
+    href: string;
+    iconSrc: string;
+    iconAlt: string;
+    match: (pathname: string) => boolean;
+    children?: NavChild[];
+};
+
+const navItems: NavItem[] = [
+    {
+        id: 'home',
+        label: 'Home',
+        href: '/admindashboard',
+        iconSrc: '/admin-dashboard/icons/home-icon.png',
+        iconAlt: 'Home',
+        match: (pathname) => pathname === '/admindashboard',
+    },
+    {
+        id: 'analytics',
+        label: 'Analytics',
+        href: '/admindashboard/monitorAnalytics',
+        iconSrc: '/admin-dashboard/icons/analytic-icon.png',
+        iconAlt: 'Analytics',
+        match: (pathname) => pathname.includes('/monitorAnalytics'),
+    },
+    {
+        id: 'management',
+        label: 'Management',
+        href: '/admindashboard/usernweb',
+        iconSrc: '/admin-dashboard/icons/management-icon.png',
+        iconAlt: 'Management',
+        match: (pathname) => pathname.includes('/usernweb'),
+        children: [
+            {
+                id: 'user-management',
+                label: 'User Management',
+                href: '/admindashboard/usernweb?tab=clients',
+                match: (pathname) => pathname.includes('/usernweb'),
+            },
+            {
+                id: 'website-management',
+                label: 'Website Management',
+                href: '/admindashboard/usernweb?tab=domains',
+                match: (pathname) => pathname.includes('/usernweb'),
+            },
+        ],
+    },
+    {
+        id: 'templates',
+        label: 'Templates',
+        href: '/admindashboard/templatesnassets',
+        iconSrc: '/admin-dashboard/icons/templates-icon.svg',
+        iconAlt: 'Templates',
+        match: (pathname) => pathname.includes('/templatesnassets'),
+        children: [
+            {
+                id: 'builtin-templates',
+                label: 'Built-In Templates',
+                href: '/admindashboard/templatesnassets?tab=builtin',
+                match: (pathname) => pathname.includes('/templatesnassets'),
+            },
+            {
+                id: 'user-templates',
+                label: 'User Templates',
+                href: '/admindashboard/templatesnassets?tab=user',
+                match: (pathname) => pathname.includes('/templatesnassets'),
+            },
+        ],
+    },
+    {
+        id: 'monitoring',
+        label: 'Monitoring',
+        href: '/admindashboard/monitoring?tab=websites',
+        iconSrc: '/admin-dashboard/icons/monitoring-icon.png',
+        iconAlt: 'Monitoring',
+        match: (pathname) => pathname.includes('/monitoring'),
+        children: [
+            {
+                id: 'website-monitoring',
+                label: 'Website Monitoring',
+                href: '/admindashboard/monitoring?tab=websites',
+                match: (pathname) => pathname.includes('/monitoring'),
+            },
+            {
+                id: 'product-monitoring',
+                label: 'Product Monitoring',
+                href: '/admindashboard/monitoring?tab=products',
+                match: (pathname) => pathname.includes('/monitoring'),
+            },
+        ],
+    },
+    {
+        id: 'moderation',
+        label: 'Moderation',
+        href: '/admindashboard/moderationCompliance',
+        iconSrc: '/admin-dashboard/icons/moderation-icon.png',
+        iconAlt: 'Moderation',
+        match: (pathname) => pathname.includes('/moderationCompliance'),
+    },
+];
 
 interface AdminSidebarProps {
     mobile?: boolean;
@@ -86,7 +194,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
         };
     }, []);
 
-    const matchedActiveItem = adminNavItems.find(
+    const matchedActiveItem = navItems.find(
         (item) => item.match(pathname) || (item.children?.some((c) => c.match(pathname)) ?? false)
     )?.id;
     const activeItem = forcedActiveItemId ?? matchedActiveItem;
@@ -129,7 +237,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                         </div>
 
                         <nav className="flex-1 space-y-1 overflow-y-auto">
-                            {adminNavItems.map((item) => {
+                            {navItems.map((item) => {
                                 const isActive = activeItem === item.id;
                                 const hasChildren = !!(item.children?.length);
                                 const isOpen = openDropdowns.includes(item.id) || (!!forcedActiveChildId && item.id === activeItem);
@@ -228,7 +336,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                 </div>
 
                 <nav className="mt-[50px] flex min-h-0 w-full flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden">
-                    {adminNavItems.map((item) => {
+                    {navItems.map((item) => {
                         const isActive = activeItem === item.id;
                         const hasChildren = !!(item.children?.length);
                         const isOpen = openDropdowns.includes(item.id) || (!!forcedActiveChildId && item.id === activeItem);
