@@ -660,15 +660,27 @@ body:has(.m-dashboard-shell) {
   animation: landingCursorDrift 3.2s cubic-bezier(0.25, 1, 0.3, 1) infinite;
 }
 
-.dark-input:-webkit-autofill,
-.dark-input:-webkit-autofill:hover,
-.dark-input:-webkit-autofill:focus,
-.dark-input:-webkit-autofill:active {
+.auth-modal-dark .dark-input:-webkit-autofill,
+.auth-modal-dark .dark-input:-webkit-autofill:hover,
+.auth-modal-dark .dark-input:-webkit-autofill:focus,
+.auth-modal-dark .dark-input:-webkit-autofill:active {
   -webkit-text-fill-color: #ffffff !important;
   -webkit-box-shadow: 0 0 0px 1000px rgba(16, 19, 29, 0.98) inset !important;
   box-shadow: 0 0 0px 1000px rgba(16, 19, 29, 0.98) inset !important;
   caret-color: #ffffff;
   border-color: rgba(255, 255, 255, 0.25);
+  transition: background-color 9999s ease-out 0s;
+}
+
+.auth-modal-light .dark-input:-webkit-autofill,
+.auth-modal-light .dark-input:-webkit-autofill:hover,
+.auth-modal-light .dark-input:-webkit-autofill:focus,
+.auth-modal-light .dark-input:-webkit-autofill:active {
+  -webkit-text-fill-color: #120533 !important;
+  -webkit-box-shadow: 0 0 0px 1000px #f8f8fb inset !important;
+  box-shadow: 0 0 0px 1000px #f8f8fb inset !important;
+  caret-color: #120533;
+  border-color: #c1c1cd;
   transition: background-color 9999s ease-out 0s;
 }
 
