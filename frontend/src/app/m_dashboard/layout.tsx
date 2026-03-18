@@ -73,7 +73,12 @@ function DashboardLayoutContent({
 
     if (loading || !user) {
         return (
-            <div className="min-h-screen flex items-center justify-center" style={{ backgroundImage: `linear-gradient(180deg, ${colors.bg.primary} 0%, ${colors.bg.primaryEnd} 100%)`, color: colors.text.primary }}>
+            <div
+                className={`min-h-screen flex items-center justify-center ${theme === 'light' ? 'admin-dashboard-shell' : ''}`}
+                style={theme === 'dark'
+                    ? { background: `linear-gradient(180deg, ${colors.bg.primary} 0%, ${colors.bg.primaryEnd} 100%)`, color: colors.text.primary }
+                    : { color: colors.text.primary }}
+            >
                 <p style={{ color: colors.text.muted }}>Loading...</p>
             </div>
         );

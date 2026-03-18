@@ -22,6 +22,8 @@ import { Badge } from "../_designComponents/Badge/badge";
 import { Pagination } from "../_designComponents/Pagination/Pagination";
 import { Accordion } from "../_designComponents/Accordion/Accordion";
 import { BooleanField } from "../_designComponents/BooleanField/BooleanField";
+import { Tabs } from "../_designComponents/Tabs/Tabs";
+import { TabContent } from "../_designComponents/Tabs/TabContent";
 import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { CanvasPasteHandler } from "./CanvasPasteHandler";
@@ -167,6 +169,20 @@ const VALIDATOR_RESOLVER: Record<string, React.ComponentType<any>> = {
   viewport: asComponent(Viewport),
   Accordion: asComponent(Accordion),
   accordion: asComponent(Accordion),
+  Tabs: asComponent(Tabs),
+  tabs: asComponent(Tabs),
+  TabContent: asComponent(TabContent),
+  tabcontent: asComponent(TabContent),
+  BooleanField: asComponent(BooleanField),
+  booleanfield: asComponent(BooleanField),
+  BOOLEANFIELD: asComponent(BooleanField),
+  "Boolean Field": asComponent(BooleanField),
+  "boolean field": asComponent(BooleanField),
+  Checkbox: asComponent(BooleanField),
+  checkbox: asComponent(BooleanField),
+  CheckBox: asComponent(BooleanField),
+  Radio: asComponent(BooleanField),
+  radio: asComponent(BooleanField),
 };
 
 const VALIDATOR_CANONICAL_NAME_BY_LOWER = new Map<string, string>();
@@ -615,6 +631,74 @@ function prepareFrameData(jsonString: string): { valid: boolean; data?: string }
   return validateCraftData(jsonString);
 }
 
+function ensureFrameDataResolverCompatibility(
+  jsonString: string,
+  resolver: Record<string, React.ComponentType<any>>,
+): string {
+  try {
+    const parsed = JSON.parse(jsonString) as Record<string, any>;
+    if (!parsed || typeof parsed !== "object") return jsonString;
+
+    const booleanResolverCandidates = [
+      "BooleanField",
+      "booleanfield",
+      "BOOLEANFIELD",
+      "Boolean Field",
+      "boolean field",
+      "Checkbox",
+      "checkbox",
+      "CheckBox",
+      "Radio",
+      "radio",
+    ];
+
+    const resolvedBooleanType =
+      booleanResolverCandidates.find((name) => name in resolver) ??
+      ("Container" in resolver ? "Container" : "container");
+
+    let changed = false;
+    Object.keys(parsed).forEach((id) => {
+      const node = parsed[id];
+      if (!node || typeof node !== "object") return;
+      const current = typeof node?.type === "string"
+        ? node.type
+        : typeof node?.type?.resolvedName === "string"
+          ? node.type.resolvedName
+          : "";
+      if (!current) return;
+
+      const lowered = current.trim().toLowerCase();
+      if (!(lowered.includes("boolean") || lowered.includes("checkbox") || lowered.includes("radio"))) {
+        return;
+      }
+
+      if (typeof node.type === "string") {
+        if (node.type !== resolvedBooleanType) {
+          node.type = resolvedBooleanType;
+          changed = true;
+        }
+      } else if (node.type && typeof node.type === "object") {
+        if (node.type.resolvedName !== resolvedBooleanType) {
+          node.type.resolvedName = resolvedBooleanType;
+          changed = true;
+        }
+      } else {
+        node.type = { resolvedName: resolvedBooleanType };
+        changed = true;
+      }
+
+      if (node.displayName !== resolvedBooleanType) {
+        node.displayName = resolvedBooleanType;
+        changed = true;
+      }
+    });
+
+    return changed ? JSON.stringify(parsed) : jsonString;
+  } catch {
+    return jsonString;
+  }
+}
+
 // Suppress known @craftjs/core React 19 compatibility warnings.
 // Safe to remove once craftjs releases a stable React 19 compatible version (0.3.x+).
 if (typeof window !== "undefined") {
@@ -959,7 +1043,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   const lastWheelZoomAtRef = useRef(0);
   const manualCameraControlUntilRef = useRef(0);
   const hasAutoCenteredAfterFrameReadyRef = useRef(false);
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSnapshotRef = useRef<string | null>(null);
   const lastSavedRawRef = useRef<string | null>(null);
   const editorQueryRef = useRef<{ serialize: () => string } | null>(null);
@@ -2292,9 +2376,16 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     try {
       const result = await autoSavePage(snapshot, projectId);
       if (result.success) {
+        if (saveStatusTimerRef.current) {
+          clearTimeout(saveStatusTimerRef.current);
+          saveStatusTimerRef.current = null;
+        }
         setSaveStatus("saved");
         setSaveError(null);
-        setTimeout(() => setSaveStatus("idle"), 1200);
+        saveStatusTimerRef.current = setTimeout(() => {
+          setSaveStatus("idle");
+          saveStatusTimerRef.current = null;
+        }, 1200);
       } else {
         console.warn("Auto-save warning:", result.error);
         setSaveStatus("error");
@@ -2418,7 +2509,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      if (saveStatusTimerRef.current) {
+        clearTimeout(saveStatusTimerRef.current);
+        saveStatusTimerRef.current = null;
+      }
+      if (dbSaveTimerRef.current) {
+        clearTimeout(dbSaveTimerRef.current);
+        dbSaveTimerRef.current = null;
+      }
     };
   }, []); // Stable [] array to prevent mismatch
 
@@ -2489,6 +2587,27 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     base.TEXT = asComponent(Text);
     base.Accordion = asComponent(CRAFT_RESOLVER.Accordion ?? Accordion);
     base.accordion = asComponent(CRAFT_RESOLVER.accordion ?? Accordion);
+
+    // Explicitly ensure Tabs and TabContent are in the resolver
+    base.Tabs = asComponent(CRAFT_RESOLVER.Tabs ?? Tabs);
+    base.tabs = asComponent(CRAFT_RESOLVER.tabs ?? Tabs);
+    base.TabContent = asComponent(CRAFT_RESOLVER.TabContent ?? TabContent);
+    base.tabcontent = asComponent(CRAFT_RESOLVER.tabcontent ?? TabContent);
+
+    // Force BooleanField aliases after all spreads so legacy snapshots always resolve.
+    const booleanFieldComp = asComponent(CRAFT_RESOLVER.BooleanField ?? BooleanField);
+    base.BooleanField = booleanFieldComp;
+    base.booleanfield = booleanFieldComp;
+    base.Booleanfield = booleanFieldComp;
+    base.BOOLEANFIELD = booleanFieldComp;
+    base["Boolean Field"] = booleanFieldComp;
+    base["boolean field"] = booleanFieldComp;
+    base.Checkbox = booleanFieldComp;
+    base.checkbox = booleanFieldComp;
+    base.CheckBox = booleanFieldComp;
+    base.Radio = booleanFieldComp;
+    base.radio = booleanFieldComp;
+
     return withResolverFallback(base);
   }, []);
 
@@ -2498,11 +2617,13 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     try {
       const raw = typeof initialJson === "string" ? initialJson : JSON.stringify(initialJson);
       const validated = validateCraftData(raw);
-      return validated.valid && validated.data ? validated.data : null;
+      return validated.valid && validated.data
+        ? ensureFrameDataResolverCompatibility(validated.data, resolver)
+        : null;
     } catch {
       return null;
     }
-  }, [initialJson]);
+  }, [initialJson, resolver]);
 
   return (
     <div data-web-builder-root className={`h-screen bg-builder-bg text-builder-text overflow-hidden font-sans relative${isDarkMode ? "" : " light"}`}>
@@ -2755,6 +2876,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                       <FloatingMobilePreview
                         isOpen={showDualView}
                         onClose={() => setShowDualView(false)}
+                        activePageId={currentPageId}
                         canvasWidth={canvasWidth}
                         canvasHeight={canvasHeight}
                       />

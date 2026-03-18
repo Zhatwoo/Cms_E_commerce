@@ -100,7 +100,7 @@ export function CommercePlatform({ isDarkMode = false, onAuthClick }: { isDarkMo
         </>
       )}
 
-      <div className="relative z-10 mx-auto max-w-[1100px]">
+      <div className="relative z-10 mx-auto max-w-7xl">
         {/* Section header */}
         <Reveal className="mx-auto max-w-[780px] text-center">
           {/* Eyebrow */}
@@ -254,9 +254,9 @@ export function CommercePlatform({ isDarkMode = false, onAuthClick }: { isDarkMo
               {/* Template chips */}
               <div className="mt-5 grid grid-cols-3 gap-2">
                 {[
-                  { label: 'Research Doc', light: 'bg-[#eaf5ec] text-[#4a7c59] border-[#cce8d4]' },
-                  { label: 'Presentation', light: 'bg-[#fdf6e8] text-[#8a6f3a] border-[#f0ddb0]' },
-                  { label: 'Websites', light: 'bg-[#eaecfb] text-[#5460a0] border-[#cfd3f0]' },
+                  { label: 'Fashion Store', light: 'bg-[#eaf5ec] text-[#4a7c59] border-[#cce8d4]' },
+                  { label: 'Tech Gadgets', light: 'bg-[#fdf6e8] text-[#8a6f3a] border-[#f0ddb0]' },
+                  { label: 'Home Decor', light: 'bg-[#eaecfb] text-[#5460a0] border-[#cfd3f0]' },
                 ].map(({ label, light }) => (
                   <span
                     key={label}
@@ -269,7 +269,7 @@ export function CommercePlatform({ isDarkMode = false, onAuthClick }: { isDarkMo
 
               {/* Mini feature list */}
               <div className="mt-5 flex flex-col gap-2">
-                {['AI-powered layout engine', 'One-click publishing', 'Team collaboration'].map((feat) => (
+                {['Advanced layout engine', 'One-click publishing', 'Team collaboration'].map((feat) => (
                   <div key={feat} className="flex items-center gap-2">
                     <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] font-black ${isDarkMode ? 'bg-[#7c3aed]/30 text-[#a78bfa]' : 'bg-[#ede8ff] text-[#8b3dff]'
                       }`}>✓</span>
@@ -343,7 +343,7 @@ export function CommercePlatform({ isDarkMode = false, onAuthClick }: { isDarkMo
                   }`}
               >
                 <span className={`text-base ${isDarkMode ? 'text-white/30' : 'text-[#c0b8e0]'}`}>⊕</span>
-                <span className={`text-[11px] font-semibold ${descriptionClass}`}>Upload or generate</span>
+                <span className={`text-[11px] font-semibold ${descriptionClass}`}>Upload or manage</span>
               </motion.div>
             </TiltCard>
           </Reveal>

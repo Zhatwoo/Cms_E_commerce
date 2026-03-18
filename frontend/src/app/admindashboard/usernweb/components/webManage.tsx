@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
-import Image from 'next/image';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   getDomainsManagement,
   setClientDomainStatus,
   type WebsiteManagementRow,
 } from '@/lib/api';
+import { useGDriveSelection } from './useGDriveSelection';
 
 const SearchIcon = () => (
   <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -21,7 +21,7 @@ const ChevronDownIcon = () => (
 );
 
 const ExternalLinkIcon = () => (
-  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
   </svg>
 );
@@ -35,9 +35,28 @@ const StorageIcon = () => (
   </svg>
 );
 
-const USER_AVATAR_ICON = '/admin-dashboard/icons/user-avatar-1.png';
-const PADLOCK_ICON = '/admin-dashboard/icons/padlock-1.png';
-const TRASH_BIN_ICON = '/admin-dashboard/icons/trash-bin-1.png';
+const ManageIcon = () => (
+  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.12 17.804A11.953 11.953 0 0112 15.75c2.517 0 4.854.778 6.88 2.104M15 9a3 3 0 11-6 0 3 3 0 016 0z" />
+    <circle cx="12" cy="12" r="9" strokeWidth={2} />
+  </svg>
+);
+
+const LockIcon = () => (
+  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V8a4 4 0 10-8 0v3m-1 0h10a1 1 0 011 1v7a1 1 0 01-1 1H7a1 1 0 01-1-1v-7a1 1 0 011-1z" />
+  </svg>
+);
+
+const TrashIcon = () => (
+  <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M2.5 4.5h11" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M6 2.75h4" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M5 4.5v7.25a1 1 0 001 1h4a1 1 0 001-1V4.5" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M6.75 6.75v3.5" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M9.25 6.75v3.5" />
+  </svg>
+);
 
 function Tooltip({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -323,21 +342,41 @@ interface DomainManagementContentProps {
   onManage: (website: WebsiteManagementRow) => void;
 }
 
+type ActionModalState = {
+  isOpen: boolean;
+  title: string;
+  message: string;
+  confirmText: string;
+  confirmButtonClass: string;
+  action?: () => Promise<void> | void;
+};
+
 function DomainManagementContent({ onManage }: DomainManagementContentProps) {
   const PAGE_SIZE = 20;
+  type SortOption = 'recent' | 'az' | 'za';
   const [websites, setWebsites] = useState<WebsiteManagementRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [stats, setStats] = useState({ total: 0, live: 0, underReview: 0, flagged: 0 });
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [planFilter, setPlanFilter] = useState('');
   const [domainTypeFilter, setDomainTypeFilter] = useState('');
+  const [sortOption, setSortOption] = useState<SortOption>('recent');
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [storageHintRowKey, setStorageHintRowKey] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const sortMenuRef = useRef<HTMLDivElement | null>(null);
+  const [actionModal, setActionModal] = useState<ActionModalState>({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Confirm',
+    confirmButtonClass: 'bg-[#6D28D9] hover:bg-[#5B21B6] text-white',
+  });
+
+  const selection = useGDriveSelection();
 
   useEffect(() => {
     let cancelled = false;
@@ -349,7 +388,6 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
         if (cancelled) return;
         if (res.success) {
           setWebsites(Array.isArray(res.data) ? res.data : []);
-          if (res.stats) setStats(res.stats);
         } else {
           setWebsites([]);
         }
@@ -389,11 +427,36 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
     });
   }, [filtered]);
 
+  const sortedVisibleWebsites = useMemo(() => {
+    const copy = [...visibleWebsites];
+    if (sortOption === 'az') {
+      copy.sort((a, b) => (a.domainName || '').localeCompare((b.domainName || ''), undefined, { sensitivity: 'base' }));
+      return copy;
+    }
+    if (sortOption === 'za') {
+      copy.sort((a, b) => (b.domainName || '').localeCompare((a.domainName || ''), undefined, { sensitivity: 'base' }));
+      return copy;
+    }
+    return copy;
+  }, [visibleWebsites, sortOption]);
+
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, statusFilter, planFilter, domainTypeFilter]);
+  }, [search, statusFilter, planFilter, domainTypeFilter, sortOption]);
 
-  const totalPages = Math.max(1, Math.ceil(visibleWebsites.length / PAGE_SIZE));
+  useEffect(() => {
+    if (!sortMenuOpen) return;
+    const handleOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (sortMenuRef.current && !sortMenuRef.current.contains(target)) {
+        setSortMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [sortMenuOpen]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedVisibleWebsites.length / PAGE_SIZE));
 
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages);
@@ -401,13 +464,30 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
 
   const pagedWebsites = useMemo(() => {
     const start = (currentPage - 1) * PAGE_SIZE;
-    return visibleWebsites.slice(start, start + PAGE_SIZE);
-  }, [visibleWebsites, currentPage]);
+    return sortedVisibleWebsites.slice(start, start + PAGE_SIZE);
+  }, [sortedVisibleWebsites, currentPage]);
+
+  const pagedWebsiteIds = useMemo(() => {
+    return pagedWebsites.map((w) => `${w.userId}::${w.id}`);
+  }, [pagedWebsites]);
 
   const allPageSelected = useMemo(() => {
     if (pagedWebsites.length === 0) return false;
-    return pagedWebsites.every((w) => selectedIds.has(`${w.userId}::${w.id}`));
-  }, [pagedWebsites, selectedIds]);
+    return pagedWebsites.every((w) => selection.selectedIds.has(`${w.userId}::${w.id}`));
+  }, [pagedWebsites, selection.selectedIds]);
+
+  const selectedRows = useMemo(() => {
+    return sortedVisibleWebsites.filter((w) => selection.selectedIds.has(`${w.userId}::${w.id}`));
+  }, [sortedVisibleWebsites, selection.selectedIds]);
+
+  const allVisibleSelected = useMemo(() => {
+    return sortedVisibleWebsites.length > 0 && selectedRows.length === sortedVisibleWebsites.length;
+  }, [sortedVisibleWebsites.length, selectedRows.length]);
+
+  const allSelectedSuspended = useMemo(() => {
+    if (selectedRows.length === 0) return false;
+    return selectedRows.every((w) => (w.status || '').toLowerCase() === 'suspended');
+  }, [selectedRows]);
 
   const pageItems = useMemo(() => {
     const items: Array<number | 'ellipsis'> = [];
@@ -431,28 +511,6 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
     items.push(totalPages);
     return items;
   }, [currentPage, totalPages]);
-
-  const toggleSelectAllOnPage = () => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (allPageSelected) {
-        pagedWebsites.forEach((w) => next.delete(`${w.userId}::${w.id}`));
-      } else {
-        pagedWebsites.forEach((w) => next.add(`${w.userId}::${w.id}`));
-      }
-      return next;
-    });
-  };
-
-  const toggleSelectRow = (w: WebsiteManagementRow) => {
-    const key = `${w.userId}::${w.id}`;
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
 
   const handleToggleSuspend = async (w: WebsiteManagementRow) => {
     setActionLoadingId(w.id);
@@ -497,6 +555,125 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
     }
   };
 
+  const openActionModal = (config: Omit<ActionModalState, 'isOpen'>) => {
+    setActionModal({ isOpen: true, ...config });
+  };
+
+  const closeActionModal = () => {
+    setActionModal((prev) => ({ ...prev, isOpen: false }));
+  };
+
+  const runActionModal = async () => {
+    const action = actionModal.action;
+    closeActionModal();
+    if (action) await action();
+  };
+
+  const confirmToggleSuspend = async (w: WebsiteManagementRow) => {
+    const isSuspended = (w.status || '').toLowerCase() === 'suspended';
+    openActionModal({
+      title: isSuspended ? 'Reactivate website?' : 'Suspend website?',
+      message: isSuspended ? 'This website will be set back to active.' : 'This website will be suspended.',
+      confirmText: isSuspended ? 'Reactivate' : 'Suspend',
+      confirmButtonClass: isSuspended
+        ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+        : 'bg-amber-600 hover:bg-amber-700 text-white',
+      action: async () => {
+        await handleToggleSuspend(w);
+      },
+    });
+  };
+
+  const confirmFlag = async (w: WebsiteManagementRow) => {
+    openActionModal({
+      title: 'Delete/flag website?',
+      message: 'This action cannot be easily undone.',
+      confirmText: 'Delete',
+      confirmButtonClass: 'bg-red-600 hover:bg-red-700 text-white',
+      action: async () => {
+        await handleFlag(w);
+      },
+    });
+  };
+
+  const confirmBulkSuspend = async () => {
+    if (selectedRows.length === 0) return;
+    openActionModal({
+      title: allSelectedSuspended ? 'Reactivate selected websites?' : 'Suspend selected websites?',
+      message: allSelectedSuspended
+        ? `Reactivate ${selectedRows.length} selected website(s).`
+        : `Suspend ${selectedRows.length} selected website(s).`,
+      confirmText: allSelectedSuspended ? 'Reactivate' : 'Suspend',
+      confirmButtonClass: allSelectedSuspended
+        ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+        : 'bg-amber-600 hover:bg-amber-700 text-white',
+      action: async () => {
+        await handleBulkSuspend();
+      },
+    });
+  };
+
+  const confirmBulkDelete = async () => {
+    if (selectedRows.length === 0) return;
+    openActionModal({
+      title: 'Delete selected websites?',
+      message: `Delete/flag ${selectedRows.length} selected website(s)?`,
+      confirmText: 'Delete',
+      confirmButtonClass: 'bg-red-600 hover:bg-red-700 text-white',
+      action: async () => {
+        await handleBulkDelete();
+      },
+    });
+  };
+
+  const handleBulkSuspend = async () => {
+    if (selectedRows.length === 0) return;
+    const shouldUnsuspend = allSelectedSuspended;
+    const nextApiStatus = shouldUnsuspend ? 'published' : 'suspended';
+    const nextUiStatus = shouldUnsuspend ? 'Live' : 'Suspended';
+    let done = 0;
+    let failed = 0;
+    for (const row of selectedRows) {
+      try {
+        const res = await setClientDomainStatus(row.userId, row.id, nextApiStatus);
+        if (res.success) done += 1;
+        else failed += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+
+    setWebsites((prev) => prev.map((row) =>
+      selection.selectedIds.has(`${row.userId}::${row.id}`) ? { ...row, status: nextUiStatus } : row
+    ));
+    selection.clearSelection();
+    const actionLabel = shouldUnsuspend ? 'Unsuspended' : 'Suspended';
+    setToast(failed > 0 ? `${actionLabel} ${done}, failed ${failed}` : `${actionLabel} ${done} website(s)`);
+    setTimeout(() => setToast(null), 2500);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedRows.length === 0) return;
+    let done = 0;
+    let failed = 0;
+    for (const row of selectedRows) {
+      try {
+        const res = await setClientDomainStatus(row.userId, row.id, 'flagged');
+        if (res.success) done += 1;
+        else failed += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+
+    setWebsites((prev) => prev.map((row) =>
+      selection.selectedIds.has(`${row.userId}::${row.id}`) ? { ...row, status: 'Flagged' } : row
+    ));
+    selection.clearSelection();
+    setToast(failed > 0 ? `Deleted ${done}, failed ${failed}` : `Deleted ${done} website(s)`);
+    setTimeout(() => setToast(null), 2500);
+  };
+
   return (
     <>
       {toast && (
@@ -507,6 +684,29 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
 
       {error && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>
+      )}
+
+      {actionModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" role="dialog" aria-modal="true">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">{actionModal.title}</h3>
+            <p className="text-gray-600 text-sm mb-6">{actionModal.message}</p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={closeActionModal}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={runActionModal}
+                className={`px-4 py-2 rounded-lg font-medium ${actionModal.confirmButtonClass}`}
+              >
+                {actionModal.confirmText}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Stats */}
@@ -577,13 +777,51 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                 </select>
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#9A62D8]"><ChevronDownIcon /></div>
               </div>
+              <div className="relative" ref={sortMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setSortMenuOpen((v) => !v)}
+                  className="h-11 w-11 inline-flex items-center justify-center rounded-[12px] border border-[#E2C7FF] bg-white text-[#A855F7] shadow-[0_2px_8px_rgba(177,59,255,0.12)] hover:bg-[#F8F2FF]"
+                  aria-label="Sort websites"
+                  title="Sort"
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 6h12M4 12h16M10 18h10" />
+                  </svg>
+                </button>
+                {sortMenuOpen && (
+                  <div className="absolute left-0 top-12 z-40 w-44 rounded-xl border border-[#E2C7FF] bg-white shadow-[0_10px_24px_rgba(177,59,255,0.2)] p-1.5">
+                    <button
+                      type="button"
+                      onClick={() => { setSortOption('recent'); setSortMenuOpen(false); }}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-sm ${sortOption === 'recent' ? 'bg-[#F3E8FF] text-[#6D28D9] font-semibold' : 'text-[#6F657E] hover:bg-[#F8F2FF]'}`}
+                    >
+                      Recently
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setSortOption('az'); setSortMenuOpen(false); }}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-sm ${sortOption === 'az' ? 'bg-[#F3E8FF] text-[#6D28D9] font-semibold' : 'text-[#6F657E] hover:bg-[#F8F2FF]'}`}
+                    >
+                      Alphabetical A-Z
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setSortOption('za'); setSortMenuOpen(false); }}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-sm ${sortOption === 'za' ? 'bg-[#F3E8FF] text-[#6D28D9] font-semibold' : 'text-[#6F657E] hover:bg-[#F8F2FF]'}`}
+                    >
+                      Alphabetical Z-A
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="inline-flex items-center gap-1.5 justify-center">
               <button
                 type="button"
                 onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1 || loading || visibleWebsites.length === 0}
+                disabled={currentPage === 1 || loading || sortedVisibleWebsites.length === 0}
                 className="px-2 py-1.5 text-sm rounded-md border border-transparent text-[#B13BFF] hover:bg-[#F1E6FF] disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {'<<'}
@@ -591,7 +829,7 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
               <button
                 type="button"
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1 || loading || visibleWebsites.length === 0}
+                disabled={currentPage === 1 || loading || sortedVisibleWebsites.length === 0}
                 className="px-2 py-1.5 text-sm rounded-md border border-transparent text-[#B13BFF] hover:bg-[#F1E6FF] disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {'<'}
@@ -604,7 +842,7 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                     key={`top-${item}`}
                     type="button"
                     onClick={() => setCurrentPage(item)}
-                    disabled={loading || visibleWebsites.length === 0}
+                    disabled={loading || sortedVisibleWebsites.length === 0}
                     className={`min-w-8 px-2 py-1.5 text-sm rounded-md border transition-colors ${
                       currentPage === item
                         ? 'bg-[#FFCC00] text-[#47266D] border-[#FFCC00] font-semibold'
@@ -618,7 +856,7 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
               <button
                 type="button"
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages || loading || visibleWebsites.length === 0}
+                disabled={currentPage === totalPages || loading || sortedVisibleWebsites.length === 0}
                 className="px-2 py-1.5 text-sm rounded-md border border-transparent text-[#B13BFF] hover:bg-[#F1E6FF] disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {'>'}
@@ -626,7 +864,7 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
               <button
                 type="button"
                 onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage === totalPages || loading || visibleWebsites.length === 0}
+                disabled={currentPage === totalPages || loading || sortedVisibleWebsites.length === 0}
                 className="px-2 py-1.5 text-sm rounded-md border border-transparent text-[#B13BFF] hover:bg-[#F1E6FF] disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {'>>'}
@@ -646,32 +884,75 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
               </div>
             </div>
           </div>
+
+          {selectedRows.length > 0 && (
+            <div className="mt-4 flex items-center gap-3 border-t border-[#EBDDFF] pt-3">
+              <span className="text-sm font-medium text-[#6F657E]">{selectedRows.length} selected</span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (allVisibleSelected) {
+                    selection.clearSelection();
+                  } else {
+                    selection.selectAll(sortedVisibleWebsites.map((w) => `${w.userId}::${w.id}`));
+                  }
+                }}
+                className="px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100"
+              >
+                {allVisibleSelected ? 'Unselect All' : 'Select All'}
+              </button>
+              {selectedRows.length === 1 ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={confirmBulkSuspend}
+                    className="px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100"
+                  >
+                    {allSelectedSuspended ? 'Unsuspend' : 'Suspend'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmBulkDelete}
+                    className="px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100"
+                  >
+                    Delete
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={confirmBulkDelete}
+                  className="px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100"
+                >
+                  Delete
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => selection.clearSelection()}
+                className="text-sm text-[#7E4FB4] hover:text-[#5D2CA7]"
+              >
+                Clear
+              </button>
+            </div>
+          )}
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] table-fixed">
+        <div className="max-h-[62vh] overflow-x-auto overflow-y-auto">
+          <table className="w-full min-w-[900px] table-fixed border-collapse">
             <thead>
               <tr className="border-b border-[rgba(177,59,255,0.2)]">
-                <th className="w-12 px-3 py-4 text-left">
-                  <input
-                    type="checkbox"
-                    checked={allPageSelected}
-                    onChange={toggleSelectAllOnPage}
-                    aria-label="Select all rows"
-                    className="h-5 w-5 rounded-none border-2 border-[#B13BFF] bg-transparent accent-[#B13BFF]"
-                  />
-                </th>
-                <th className="w-[28%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Domain</th>
-                <th className="w-[25%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Owner</th>
-                <th className="w-[20%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Status</th>
-                <th className="w-[17%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Plan</th>
-                <th className="w-[10%] px-3 py-4 text-right text-[1.2rem] font-semibold text-[#462596]">Actions</th>
+                <th className="w-[27%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Domain</th>
+                <th className="w-[23%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Owner</th>
+                <th className="w-[18%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Status</th>
+                <th className="w-[16%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Plan</th>
+                <th className="w-[14%] px-3 py-4 text-right text-[1.2rem] font-semibold text-[#462596]">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-500">Loading…</td></tr>
-              ) : visibleWebsites.length > 0 ? (
+                <tr><td colSpan={5} className="px-4 py-12 text-center text-gray-500">Loading…</td></tr>
+              ) : sortedVisibleWebsites.length > 0 ? (
                 pagedWebsites.map((w) => {
                   const viewUrl = getViewWebsiteUrl(w.domainName);
                   const key = `${w.userId}::${w.id}`;
@@ -679,17 +960,29 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                   const storage = getWebsiteStorage(w);
                   const statusText = (w.status || '').toLowerCase();
                   const isActive = statusText === 'live' || statusText === 'published';
+                  const isSelected = selection.selectedIds.has(key);
                   return (
-                    <tr key={key} className="border-b border-[rgba(177,59,255,0.1)] hover:bg-white/35 transition-colors">
-                      <td className="px-3 py-4">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(key)}
-                          onChange={() => toggleSelectRow(w)}
-                          aria-label={`Select ${w.domainName}`}
-                          className="h-5 w-5 rounded-none border-2 border-[#B13BFF] bg-transparent accent-[#B13BFF]"
-                        />
-                      </td>
+                    <tr
+                      key={key}
+                      className={`select-none cursor-pointer transition-all duration-200 rounded-lg ${
+                        isSelected
+                          ? 'bg-gradient-to-r from-[#E8D9FF] to-[#F0E5FF] border-2 border-[#D0B4FF] shadow-md hover:shadow-lg hover:from-[#E0CAFF] hover:to-[#E8D9FF]'
+                          : 'border-b border-[rgba(177,59,255,0.1)] hover:bg-white/35'
+                      }`}
+                      onClick={(e) => {
+                        (e as React.MouseEvent).preventDefault?.();
+                        selection.handleRowClick(key, (e as React.MouseEvent).shiftKey, pagedWebsiteIds);
+                      }}
+                      onMouseDown={(e) => {
+                        (e as React.MouseEvent).preventDefault?.();
+                        selection.handleRowMouseDown(key);
+                      }}
+                      onMouseEnter={() => selection.handleRowMouseEnter(key, pagedWebsiteIds)}
+                      onMouseUp={() => selection.handleRowMouseUp()}
+                      onMouseLeave={() => {
+                        if (!selection.isDragging) selection.handleRowMouseUp();
+                      }}
+                    >
                       <td className="px-3 py-4 text-[1rem] font-semibold text-[#26155E]">{w.domainName}</td>
                       <td className="px-3 py-4 text-[0.92rem] text-[#B2AEBF] font-medium">{w.owner}</td>
                       <td className="px-3 py-4 text-[1rem]"><span className={`font-semibold ${isActive ? 'text-[#00C438]' : 'text-[#FF0000]'}`}>{isActive ? 'Active' : 'Inactive'}</span></td>
@@ -737,36 +1030,36 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                         </div>
                       </td>
                       <td className="px-3 py-4 text-right">
-                        <div className="inline-flex items-center gap-2 justify-end text-[#5A2AA8]">
+                        <div className="inline-flex items-center gap-3 justify-end text-[#5A2AA8]">
                           <Tooltip label="Manage website details">
                             <button
                               type="button"
                               onClick={() => onManage(w)}
-                              className="p-1 hover:text-[#3D1C87] transition-colors"
+                              className="p-1.5 hover:text-[#3D1C87] transition-colors"
                               aria-label="Manage website"
                             >
-                              <Image src={USER_AVATAR_ICON} alt="Manage website" width={18} height={18} className="object-contain" />
+                              <ManageIcon />
                             </button>
                           </Tooltip>
                           <Tooltip label={(w.status || '').toLowerCase() === 'suspended' ? 'Reactivate website' : 'Suspend website'}>
                             <button
                               type="button"
-                              onClick={() => handleToggleSuspend(w)}
+                              onClick={() => confirmToggleSuspend(w)}
                               disabled={busy}
-                              className="p-1 hover:text-[#3D1C87] disabled:opacity-50 transition-colors"
+                              className="p-1.5 hover:text-[#3D1C87] disabled:opacity-50 transition-colors"
                               aria-label="Toggle website suspension"
                             >
-                              <Image src={PADLOCK_ICON} alt="Toggle suspension" width={18} height={18} className="object-contain" />
+                              <LockIcon />
                             </button>
                           </Tooltip>
                           <button
                             type="button"
-                            onClick={() => handleFlag(w)}
+                            onClick={() => confirmFlag(w)}
                             disabled={busy}
-                            className="p-1 text-[#FF0000] hover:text-[#CC0000] disabled:opacity-50 transition-colors"
+                            className="p-1.5 text-[#FF0000] hover:text-[#CC0000] disabled:opacity-50 transition-colors"
                             aria-label="Flag website"
                           >
-                            <Image src={TRASH_BIN_ICON} alt="Flag website" width={18} height={18} className="object-contain" />
+                            <TrashIcon />
                           </button>
                           {viewUrl !== '#' && (
                             <Tooltip label="Open website in new tab">
@@ -774,10 +1067,10 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                                 href={viewUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="p-1 hover:text-[#3D1C87] transition-colors"
+                                className="p-1.5 hover:text-[#3D1C87] transition-colors"
                                 aria-label="Open website"
                               >
-                                <ExternalLinkIcon />
+                                <span className="inline-flex h-6 w-6 items-center justify-center"><ExternalLinkIcon /></span>
                               </a>
                             </Tooltip>
                           )}
@@ -787,7 +1080,7 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                   );
                 })
               ) : (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-500">No websites found matching your search.</td></tr>
+                <tr><td colSpan={5} className="px-4 py-12 text-center text-gray-500">No websites found matching your search.</td></tr>
               )}
             </tbody>
           </table>
@@ -799,7 +1092,7 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
               <button
                 type="button"
                 onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1 || loading || visibleWebsites.length === 0}
+                disabled={currentPage === 1 || loading || sortedVisibleWebsites.length === 0}
                 className="px-2 py-1.5 text-sm rounded-md border border-transparent text-[#B13BFF] hover:bg-[#F1E6FF] disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {'<<'}
@@ -807,7 +1100,7 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
               <button
                 type="button"
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1 || loading || visibleWebsites.length === 0}
+                disabled={currentPage === 1 || loading || sortedVisibleWebsites.length === 0}
                 className="px-2 py-1.5 text-sm rounded-md border border-transparent text-[#B13BFF] hover:bg-[#F1E6FF] disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {'<'}
@@ -820,7 +1113,7 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                     key={`bottom-${item}`}
                     type="button"
                     onClick={() => setCurrentPage(item)}
-                    disabled={loading || visibleWebsites.length === 0}
+                    disabled={loading || sortedVisibleWebsites.length === 0}
                     className={`min-w-8 px-2 py-1.5 text-sm rounded-md border transition-colors ${
                       currentPage === item
                         ? 'bg-[#FFCC00] text-[#47266D] border-[#FFCC00] font-semibold'
@@ -834,7 +1127,7 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
               <button
                 type="button"
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages || loading || visibleWebsites.length === 0}
+                disabled={currentPage === totalPages || loading || sortedVisibleWebsites.length === 0}
                 className="px-2 py-1.5 text-sm rounded-md border border-transparent text-[#B13BFF] hover:bg-[#F1E6FF] disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {'>'}
@@ -842,7 +1135,7 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
               <button
                 type="button"
                 onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage === totalPages || loading || visibleWebsites.length === 0}
+                disabled={currentPage === totalPages || loading || sortedVisibleWebsites.length === 0}
                 className="px-2 py-1.5 text-sm rounded-md border border-transparent text-[#B13BFF] hover:bg-[#F1E6FF] disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {'>>'}

@@ -251,16 +251,38 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
 
+  const allSlides = useMemo(() => {
+    const variantSlides: Array<{ id: string; src: string; isVariant: true; label: string }> = [];
+    const seen = new Set<string>();
+    fd.variants.forEach((variant) => {
+      variant.options.forEach((option) => {
+        const src = String(option.image || '').trim();
+        if (!src || seen.has(src)) return;
+        seen.add(src);
+        variantSlides.push({
+          id: `${variant.id}:${option.id}`,
+          src,
+          isVariant: true,
+          label: `${variant.name || 'Variant'} \u2022 ${option.name || 'Option'}`.trim(),
+        });
+      });
+    });
+    return [
+      ...images.map(img => ({ id: img.id, src: img.src, isVariant: false as const, label: '' })),
+      ...variantSlides,
+    ];
+  }, [images, fd.variants]);
+
   // Auto-advance slider
   useEffect(() => {
-    if (images.length <= 1) return;
-    const t = setInterval(() => setSlide(i => (i + 1) % images.length), 3500);
+    if (allSlides.length <= 1) return;
+    const t = setInterval(() => setSlide(i => (i + 1) % allSlides.length), 3500);
     return () => clearInterval(t);
-  }, [images.length]);
+  }, [allSlides.length]);
 
   useEffect(() => {
-    if (slide >= images.length && images.length > 0) setSlide(images.length - 1);
-  }, [images.length, slide]);
+    if (slide >= allSlides.length && allSlides.length > 0) setSlide(allSlides.length - 1);
+  }, [allSlides.length, slide]);
 
   // Image helpers
   const addFiles = (files: FileList | null) => {
@@ -292,9 +314,9 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
   };
 
   const moveSlide = (dir: 1 | -1) => {
-    if (images.length <= 1) return;
+    if (allSlides.length <= 1) return;
     setSlideDir(dir);
-    setSlide((current) => (current + dir + images.length) % images.length);
+    setSlide((current) => (current + dir + allSlides.length) % allSlides.length);
   };
 
   const addImageToGallery = (src: string) => {
@@ -803,16 +825,16 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
   const labelColor = isLight ? '#5B4B8A' : '#9FB3DF';
   const sectionDividerColor = isLight ? '#D7CDED' : '#3A4473';
   const sectionCardBorder = isLight ? '#D2C7EA' : '#3140A6';
-  const sectionCardBg = isLight ? '#F7F3FF' : '#0F145A';
+  const sectionCardBg = isLight ? 'rgba(249, 247, 255, 0.92)' : '#0F145A';
   const nestedCardBorder = isLight ? '#DCCFF1' : '#3A4473';
-  const nestedCardBg = isLight ? '#FFFFFF' : '#121A63';
+  const nestedCardBg = isLight ? 'rgba(255, 255, 255, 0.72)' : '#121A63';
   const sectionTitleColor = isLight ? '#4F3C85' : '#DCE7FF';
   const sectionSubtextColor = isLight ? '#7C6AA8' : '#9FB3DF';
   const actionButtonBg = isLight ? '#EDE6FF' : '#24327A';
   const actionButtonText = isLight ? '#5B3EA3' : '#DCE7FF';
   const iCls = 'w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/40 transition-all';
   const iSt = isLight
-    ? { backgroundColor: '#FFFFFF', borderColor: '#CFC4E5', color: '#120533' }
+    ? { backgroundColor: 'rgba(249, 247, 255, 0.92)', borderColor: '#CFC4E5', color: '#120533' }
     : { backgroundColor: '#191A69', borderColor: '#3140A6', color: '#FFFFFF' };
   const lCls = 'block text-xs tracking-[0.12em] font-semibold uppercase mb-2';
 

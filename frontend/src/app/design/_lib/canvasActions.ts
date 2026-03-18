@@ -444,6 +444,105 @@ export function pasteClipboard(
   }
 }
 
+/** Paste an external image source (url/data-url) as an Image node. */
+export function pasteExternalImage(
+  actions: EditorActions,
+  query: EditorQuery,
+  src: string,
+  options?: { parentId?: string; atIndex?: number }
+): string | null {
+  if (typeof src !== "string" || src.trim().length === 0) return null;
+
+  try {
+    const state = query.getState();
+    const fallback = resolvePasteTargetForExternal(state);
+    const parentId = options?.parentId ?? fallback.parentId;
+    const atIndex = options?.atIndex ?? fallback.atIndex;
+    if (!parentId || !state.nodes[parentId]) return null;
+
+    const nodeId = `image-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const tree = {
+      rootNodeId: nodeId,
+      nodes: {
+        [nodeId]: {
+          type: { resolvedName: "Image" },
+          isCanvas: false,
+          props: {
+            src: src.trim(),
+            alt: "Pasted Image",
+            objectFit: "cover",
+            width: "320px",
+            height: "220px",
+            _autoFitInTabs: false,
+          },
+          displayName: "Image",
+          nodes: [],
+          linkedNodes: {},
+          custom: {},
+          hidden: false,
+        },
+      },
+    };
+
+    const addNodeTree = (actions as unknown as {
+      addNodeTree?: (tree: any, parentId?: string, index?: number) => void;
+    }).addNodeTree;
+
+    if (typeof addNodeTree !== "function") return null;
+    addNodeTree(tree, parentId, atIndex);
+    actions.selectNode(nodeId);
+    return nodeId;
+  } catch (e) {
+    console.warn("pasteExternalImage failed:", e);
+    return null;
+  }
+}
+
+function resolvePasteTargetForExternal(state: { nodes: Record<string, any>; events?: { selected?: unknown } }): {
+  parentId?: string;
+  atIndex?: number;
+} {
+  const selectedIds = selectedToIds(state.events?.selected);
+  let parentId: string | undefined;
+  let atIndex: number | undefined;
+
+  if (selectedIds.length > 0) {
+    const firstId = selectedIds[0];
+    const lastId = selectedIds[selectedIds.length - 1];
+    const firstNode = state.nodes[firstId];
+    const lastNode = state.nodes[lastId];
+    parentId = firstNode?.data?.parent as string | undefined;
+    if (parentId && state.nodes[parentId]) {
+      const siblings = (state.nodes[parentId]?.data?.nodes as string[]) ?? [];
+      const lastIndex = siblings.indexOf(lastId);
+      atIndex = lastIndex === -1 ? siblings.length : lastIndex + 1;
+    }
+  }
+
+  if (!parentId || !state.nodes[parentId]) {
+    const root = state.nodes.ROOT;
+    const viewportId = root?.data?.nodes?.[0] as string | undefined;
+    if (viewportId && state.nodes[viewportId]) {
+      const viewportKids = (state.nodes[viewportId]?.data?.nodes as string[]) ?? [];
+      const firstPageId = viewportKids[0];
+      if (firstPageId && state.nodes[firstPageId]) {
+        const pageKids = (state.nodes[firstPageId]?.data?.nodes as string[]) ?? [];
+        const firstContainerId = pageKids[0];
+        parentId = firstContainerId && state.nodes[firstContainerId] ? firstContainerId : firstPageId;
+        atIndex =
+          parentId === firstPageId
+            ? 0
+            : ((state.nodes[parentId]?.data?.nodes as string[]) ?? []).length;
+      } else {
+        parentId = viewportId;
+        atIndex = 0;
+      }
+    }
+  }
+
+  return { parentId, atIndex };
+}
+
 // ─── Group / Ungroup (Figma-style) ──────────────────────────────────────────
 
 const UNGROUPABLE_TYPES = new Set([
@@ -646,6 +745,36 @@ export function ungroupSelection(
     const childIds = (groupNode.data?.nodes as string[]) ?? [];
     if (childIds.length === 0) return [];
 
+    const parentNode = state.nodes[parentId];
+    const parentProps = (parentNode?.data?.props ?? {}) as Record<string, unknown>;
+    const groupProps = (groupNode.data?.props ?? {}) as Record<string, unknown>;
+    const groupLeft = parsePxValue(groupProps.left);
+    const groupTop = parsePxValue(groupProps.top);
+
+    const parentDom = query.node(parentId).get()?.dom ?? null;
+    const parentRect = parentDom?.getBoundingClientRect() ?? null;
+    const parentScale = getRenderedScale(parentDom);
+
+    const childPositions = new Map<string, { left: number; top: number }>();
+    if (parentRect) {
+      childIds.forEach((id) => {
+        const childDom = query.node(id).get()?.dom ?? null;
+        if (childDom) {
+          const rect = childDom.getBoundingClientRect();
+          const left = (rect.left - parentRect.left) / parentScale.scaleX;
+          const top = (rect.top - parentRect.top) / parentScale.scaleY;
+          childPositions.set(id, { left, top });
+          return;
+        }
+
+        const childNode = state.nodes[id];
+        const childProps = (childNode?.data?.props ?? {}) as Record<string, unknown>;
+        const childLeft = parsePxValue(childProps.left);
+        const childTop = parsePxValue(childProps.top);
+        childPositions.set(id, { left: groupLeft + childLeft, top: groupTop + childTop });
+      });
+    }
+
     const parentSiblings = (state.nodes[parentId]?.data?.nodes as string[]) ?? [];
     let insertIndex = parentSiblings.indexOf(groupId);
     if (insertIndex < 0) insertIndex = parentSiblings.length;
@@ -660,6 +789,31 @@ export function ungroupSelection(
       } catch {
         /* skip */
       }
+    }
+
+    if (movedIds.length > 0 && childPositions.size > 0) {
+      actions.setProp(parentId, (props: Record<string, unknown>) => {
+        const parentPosition = String(props.position ?? "static");
+        if (!parentPosition || parentPosition === "static") {
+          props.position = "relative";
+        }
+      });
+
+      movedIds.forEach((id) => {
+        const pos = childPositions.get(id);
+        if (!pos) return;
+        actions.setProp(id, (props: Record<string, unknown>) => {
+          props.position = "absolute";
+          props.left = `${Math.round(pos.left)}px`;
+          props.top = `${Math.round(pos.top)}px`;
+          props.right = "auto";
+          props.bottom = "auto";
+          props.marginTop = 0;
+          props.marginRight = 0;
+          props.marginBottom = 0;
+          props.marginLeft = 0;
+        });
+      });
     }
 
     try {

@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useCollaboration } from "./CollaborationContext";
 import { useDesignProject } from "./DesignProjectContext";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, getApiErrorMessage, isBackendUnavailableError, isQuietAuthError } from "@/lib/api";
 
 export interface Comment {
     id: string;
@@ -43,11 +43,6 @@ export const CommentsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const [isCommentMode, setCommentMode] = useState(false);
     const [loading, setLoading] = useState(true);
 
-    const isBackendUnavailableError = (error: unknown): boolean => {
-        if (!(error instanceof Error)) return false;
-        return error.message.includes("Backend is unreachable");
-    };
-
     const fetchComments = useCallback(async (retries = 3) => {
         if (!projectId) return;
         try {
@@ -56,14 +51,18 @@ export const CommentsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             if (res.success) {
                 setComments(res.comments);
             }
-        } catch (error: any) {
-            if (error?.message === "Access denied" && retries > 0) {
+        } catch (error: unknown) {
+            const message = getApiErrorMessage(error);
+            if (message === "Access denied" && retries > 0) {
                 // Retry after 1 second — backend collab entry may not be ready yet
                 setTimeout(() => fetchComments(retries - 1), 1000);
             } else if (isBackendUnavailableError(error)) {
                 // Backend may be intentionally offline during frontend-only work.
                 setComments([]);
-            } else if (error?.message !== "Access denied") {
+            } else if (isQuietAuthError(error)) {
+                setComments([]);
+                setActiveCommentId(null);
+            } else if (message !== "Access denied") {
                 console.error("[Comments] Fetch failed:", error);
             }
         } finally {
@@ -122,7 +121,7 @@ export const CommentsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 socket?.emit("collab:comment_added", { comment: newComment });
             }
         } catch (error) {
-            if (!isBackendUnavailableError(error)) {
+            if (!isBackendUnavailableError(error) && !isQuietAuthError(error)) {
                 console.error("[Comments] Add failed:", error);
             }
         }
@@ -140,9 +139,9 @@ export const CommentsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 setComments(prev => prev.map(c => c.id === id ? { ...c, resolved } : c));
                 socket?.emit("collab:comment_resolved", { id, resolved });
             }
-        } catch (error: any) {
-            if (!isBackendUnavailableError(error)) {
-                console.error("[Comments] Resolve failed:", error.message || error);
+        } catch (error: unknown) {
+            if (!isBackendUnavailableError(error) && !isQuietAuthError(error)) {
+                console.error("[Comments] Resolve failed:", getApiErrorMessage(error) || error);
             }
         }
     };
@@ -158,9 +157,9 @@ export const CommentsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 setComments(prev => prev.filter(c => c.id !== id));
                 socket?.emit("collab:comment_deleted", { id });
             }
-        } catch (error: any) {
-            if (!isBackendUnavailableError(error)) {
-                console.error("[Comments] Delete failed:", error.message || error);
+        } catch (error: unknown) {
+            if (!isBackendUnavailableError(error) && !isQuietAuthError(error)) {
+                console.error("[Comments] Delete failed:", getApiErrorMessage(error) || error);
             }
         }
     };

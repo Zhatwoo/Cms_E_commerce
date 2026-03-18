@@ -53,7 +53,13 @@ exports.getBySubdomain = async (req, res) => {
 
     // Serve the published snapshot with migration for old default template text
     const raw = domain.publishedContent ?? null;
-    const content = raw ? migrateContent(raw) : null;
+    // Normalize: if content is a string, parse it to an object so the frontend
+    // always receives a plain object (handles both string and map storage formats)
+    let parsedRaw = raw;
+    if (typeof raw === 'string') {
+      try { parsedRaw = JSON.parse(raw); } catch { parsedRaw = raw; }
+    }
+    const content = parsedRaw ? migrateContent(parsedRaw) : null;
     res.status(200).json({
       success: true,
       data: { content },

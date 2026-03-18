@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../components/context/theme-context';
-import { getMe, updateProfile, type User, getUnionBankLink } from '@/lib/api';
+import { getMe, updateProfile, type User, getUnionBankLink, getPayPalLink } from '@/lib/api';
 import { 
     Bell, 
     Shield, 
@@ -70,7 +70,49 @@ export default function SettingsPage() {
         setIsAddCardModalOpen(false);
     };
 
+    const handleLinkPayPal = async () => {
+        const email = window.prompt('Pakilagay ang iyong PayPal email address para sa pagtanggap ng bayad:');
+        if (!email) return;
+
+        // Simple validation
+        if (!email.includes('@') || email.length < 5) {
+            alert('Mali ang format ng email. Pakisubukan muli.');
+            return;
+        }
+
+        setIsLinking(true);
+        try {
+            const newMethod = {
+                id: `paypal_${Date.now()}`,
+                type: 'paypal',
+                email: email.trim(),
+                linkedAt: new Date().toISOString()
+            };
+
+            // Siguraduhing walang duplicate na paypal entry
+            const otherMethods = paymentMethods.filter(m => m.type !== 'paypal');
+            const updatedMethods = [...otherMethods, newMethod];
+
+            const response = await updateProfile({ paymentMethods: updatedMethods });
+            if (response && response.success && response.user) {
+                setPaymentMethods(response.user.paymentMethods || []);
+                // Success feedback na premium ang dating
+                console.log('✅ PayPal linked manually:', email);
+                // Optional: Pwede ring mag-reload o gumamit ng custom success toast kung mayroon
+            } else {
+                alert('Hindi ma-save ang PayPal email. Pakisubukan muli.');
+            }
+        } catch (error) {
+            console.error('Failed to link PayPal manually:', error);
+            alert('Nagkaroon ng problema sa pag-save. Pakisubukan muli.');
+        } finally {
+            setIsLinking(false);
+        }
+    };
+
     const handleLinkUnionBank = async () => {
+        console.log('UnionBank link clicked');
+        if (isLinking) return;
         setIsLinking(true);
         try {
             const res = await getUnionBankLink();
@@ -88,16 +130,35 @@ export default function SettingsPage() {
     };
 
     const handleRemoveCard = async (id: string) => {
-        if (!window.confirm('Are you sure you want to remove this card?')) return;
+        console.log('🗑️ handleRemoveCard triggered for id:', id);
+        if (!window.confirm('Sigurado ka bang nais mong tanggalin ang payment method na ito?')) {
+            console.log('❌ Removal cancelled by user');
+            return;
+        }
         
         setRemovingCardId(id);
+        console.log('🔄 Current paymentMethods:', paymentMethods);
+        
         try {
             const updatedMethods = paymentMethods.filter(card => card.id !== id);
-            await updateProfile({ paymentMethods: updatedMethods });
+            console.log('✅ Filtered methods:', updatedMethods);
+            
+            // Optimistically update local state
             setPaymentMethods(updatedMethods);
+            
+            const response = await updateProfile({ paymentMethods: updatedMethods });
+            console.log('📡 updateProfile response:', response);
+            
+            if (!response.success) {
+                // If failed, revert to original methods
+                console.error('❌ Failed to update profile on backend');
+                setPaymentMethods(paymentMethods);
+                alert('Hindi matanggal ang card. Pakisubukan muli.');
+            }
         } catch (error) {
-            console.error('Failed to remove card:', error);
-            alert('Failed to remove card. Please try again.');
+            console.error('❌ Failed to remove card error:', error);
+            // Revert state if possible or reload
+            alert('Nagkaroon ng problema. Pakisubukan muli.');
         } finally {
             setRemovingCardId(null);
         }
@@ -566,22 +627,30 @@ export default function SettingsPage() {
                                                             style={{ backgroundColor: colors.bg.elevated, borderColor: colors.border.faint }}
                                                         >
                                                             <div className="flex items-center gap-3">
-                                                                <div className="w-12 h-8 rounded bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold text-xs">
-                                                                    {card.type.toUpperCase()}
+                                                                <div 
+                                                                    className="w-12 h-8 rounded flex items-center justify-center text-white font-bold text-xs"
+                                                                    style={{ 
+                                                                        background: card.type === 'paypal' ? '#003087' : card.type === 'unionbank' ? '#fd6412' : 'linear-gradient(to bottom right, #2563eb, #9333ea)'
+                                                                    }}
+                                                                >
+                                                                    {card.type === 'paypal' ? 'PP' : card.type === 'unionbank' ? 'UB' : card.type.toUpperCase()}
                                                                 </div>
                                                                 <div>
                                                                     <p className="font-medium text-sm" style={{ color: colors.text.primary }}>
-                                                                        •••• •••• •••• {card.last4}
+                                                                        {card.type === 'paypal' ? (card.email || 'PayPal Account') : `•••• •••• •••• ${card.last4}`}
                                                                     </p>
                                                                     <p className="text-xs" style={{ color: colors.text.muted }}>
-                                                                        Expires {card.expMonth}/{card.expYear}
+                                                                        {card.type === 'paypal' ? `Linked on ${new Date(card.linkedAt).toLocaleDateString()}` : `Expires ${card.expMonth}/${card.expYear}`}
                                                                     </p>
                                                                 </div>
                                                             </div>
                                                             <button 
-                                                                onClick={() => handleRemoveCard(card.id)}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleRemoveCard(card.id);
+                                                                }}
                                                                 disabled={removingCardId === card.id}
-                                                                className="p-2 rounded-lg border hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50"
+                                                                className="relative z-50 p-2 rounded-lg border hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50 cursor-pointer"
                                                                 style={{ borderColor: colors.border.faint, color: colors.text.secondary }}
                                                                 title="Remove Card"
                                                                 id={`remove-card-${card.id}`}
@@ -607,30 +676,6 @@ export default function SettingsPage() {
                                                         )}
                                                         Add New Card
                                                     </button>
-                                                    
-                                                    <div className="pt-2">
-                                                        <button 
-                                                            onClick={handleLinkUnionBank}
-                                                            disabled={isLinking}
-                                                            className="w-full flex items-center justify-between p-4 rounded-xl border transition-all hover:border-blue-500 hover:bg-blue-50/10 group"
-                                                            style={{ backgroundColor: colors.bg.elevated, borderColor: colors.border.faint }}
-                                                        >
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-12 h-8 rounded bg-white border border-zinc-200 flex items-center justify-center p-1 overflow-hidden">
-                                                                    <div className="w-full h-full flex items-center justify-center bg-[#fd6412] rounded-sm">
-                                                                        <span className="text-[10px] font-black text-white tracking-tighter">UPay</span>
-                                                                    </div>
-                                                                </div>
-                                                                <div className="text-left">
-                                                                    <p className="font-semibold text-sm" style={{ color: colors.text.primary }}>UPay (UnionBank)</p>
-                                                                    <p className="text-[10px]" style={{ color: colors.text.muted }}>Direct bank and e-wallet payments via UPay</p>
-                                                                </div>
-                                                            </div>
-                                                            <div className="flex items-center gap-2 text-blue-600 font-medium text-xs group-hover:translate-x-1 transition-transform">
-                                                                Link Account <ChevronRight className="w-3 h-3" />
-                                                            </div>
-                                                        </button>
-                                                    </div>
                                                 </>
                                             ) : (
                                                 <div 
@@ -659,6 +704,58 @@ export default function SettingsPage() {
                                                     </button>
                                                 </div>
                                             )}
+
+                                            <div className="pt-2">
+                                                <button 
+                                                    type="button"
+                                                    onClick={handleLinkUnionBank}
+                                                    disabled={isLinking}
+                                                    className="w-full flex items-center justify-between p-4 rounded-xl border transition-all hover:border-blue-500 hover:bg-blue-50/10 group disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-[0.98]"
+                                                    style={{ backgroundColor: colors.bg.elevated, borderColor: colors.border.faint }}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-12 h-8 rounded bg-white border border-zinc-200 flex items-center justify-center p-1 overflow-hidden">
+                                                            <div className="w-full h-full flex items-center justify-center bg-[#fd6412] rounded-sm">
+                                                                <span className="text-[10px] font-black text-white tracking-tighter">UPay</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-left">
+                                                            <p className="font-semibold text-sm" style={{ color: colors.text.primary }}>UPay (UnionBank)</p>
+                                                            <p className="text-[10px]" style={{ color: colors.text.muted }}>Direct bank and e-wallet payments via UPay</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 text-blue-600 font-medium text-xs group-hover:translate-x-1 transition-transform">
+                                                        {paymentMethods.some(m => m.type === 'unionbank') ? 'Connected' : 'Link Account'} <ChevronRight className="w-3 h-3" />
+                                                    </div>
+                                                </button>
+                                            </div>
+
+                                            <div className="pt-2">
+                                                <button 
+                                                    type="button"
+                                                    onClick={handleLinkPayPal}
+                                                    disabled={isLinking}
+                                                    className="w-full flex items-center justify-between p-4 rounded-xl border transition-all hover:border-blue-600 hover:bg-blue-50/10 group disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-[0.98]"
+                                                    style={{ backgroundColor: colors.bg.elevated, borderColor: colors.border.faint }}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-12 h-8 rounded bg-white border border-zinc-200 flex items-center justify-center p-1 overflow-hidden">
+                                                            <div className="w-full h-full flex items-center justify-center bg-[#003087] rounded-sm">
+                                                                <span className="text-[10px] font-black text-white tracking-tighter">PayPal</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-left">
+                                                            <p className="font-semibold text-sm" style={{ color: colors.text.primary }}>PayPal</p>
+                                                            <p className="text-[10px]" style={{ color: colors.text.muted }}>International credit cards and PayPal balance</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 text-blue-600 font-medium text-xs group-hover:translate-x-1 transition-transform">
+                                                        {paymentMethods.some(m => m.type === 'paypal') 
+                                                            ? `Connected (${paymentMethods.find(m => m.type === 'paypal')?.email})` 
+                                                            : 'Connect'} <ChevronRight className="w-3 h-3" />
+                                                    </div>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
 

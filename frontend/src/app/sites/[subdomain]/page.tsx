@@ -12,6 +12,7 @@ import { apiFetch } from '@/lib/api';
 import { StorefrontProvider, useStorefront } from '@/app/sites/_storefront/StorefrontContext';
 import { CartDrawer } from '@/app/sites/_storefront/CartDrawer';
 import type { StorefrontProduct } from '@/app/sites/_storefront/StorefrontProducts';
+import { StorefrontRenderBoundary } from '@/app/sites/_storefront/StorefrontRenderBoundary';
 
 function CartFab() {
   const { cartCount, openCart, lastAddedAt } = useStorefront();
@@ -187,19 +188,21 @@ function PublicSiteContent() {
   }
 
   return (
-    <>
-      <WebPreview
-        doc={doc}
-        pageIndex={0}
-        mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
-        enableFormInputs
-        builderParityMode={true}
-        fillViewport
-        storeContext={{ products, addToCart }}
-      />
-      {products.length > 0 && <CartFab />}
-      <CartDrawer />
-    </>
+    <StorefrontRenderBoundary>
+      <>
+        <WebPreview
+          doc={doc}
+          pageIndex={0}
+          mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
+          enableFormInputs
+          builderParityMode={true}
+          fillViewport
+          storeContext={{ products, addToCart }}
+        />
+        <CartFab />
+        <CartDrawer />
+      </>
+    </StorefrontRenderBoundary>
   );
 }
 

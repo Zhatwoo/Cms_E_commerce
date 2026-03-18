@@ -406,9 +406,9 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                           <div className="absolute inset-0 bg-[#8B5CF6] blur-md opacity-20 scale-150 rounded-full" />
                         )}
                         <svg
-                          className={`h-4 w-4 shrink-0 relative z-10 ${theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#8B5CF6]'}`}
-                          fill="none"
                           viewBox="0 0 20 20"
+                          className={`h-4 w-4 shrink-0 relative z-10 transition-all duration-300 ${theme === 'dark' ? 'text-[#FFCE00] filter-[drop-shadow(0_0_5px_rgba(255,206,0,0.6))]' : 'text-[#8B5CF6]'}`}
+                          fill="none"
                         >
                           <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                           <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="2" />
@@ -506,7 +506,7 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                   {/* Project list: shows a loading spinner, empty state, or the grid/list of project cards */}
                   {loading && projectTab === 'active' ? (
                     <div className="flex flex-col items-center justify-center py-12 gap-3"><div className="w-6 h-6 border-2 border-[#FFCE00] border-t-transparent rounded-full animate-spin" /><p className="text-sm text-[#8A8FC4]">Loading projects…</p></div>
-                  ) : projectTab === 'active' && filteredProjects.length === 0 ? (
+                  ) : projectTab === 'active' && filteredProjects.length === 0 && !asPage ? (
                     <div className="flex flex-col items-center justify-center py-12 gap-4 text-center">
                       <svg className={`w-10 h-10 ${theme === 'dark' ? 'text-[#3A3A7A]' : 'text-[#8B5CF6]/40'}`} fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
                       <p className={`text-sm ${theme === 'dark' ? 'text-[#8A8FC4]' : 'text-[#120533]/70'}`}>{searchQuery ? 'No projects match your search.' : 'No projects yet. Create your first one!'}</p>
@@ -539,22 +539,26 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                           type="button"
                           onClick={() => setView('create')}
                           className={`
-                            group relative flex flex-col items-center justify-center gap-5
-                            w-full min-h-60 p-5 rounded-[32px] border transition-all duration-500 hover:-translate-y-1
+                            group relative flex flex-col overflow-hidden
+                            w-full rounded-[32px] border transition-all duration-500 hover:-translate-y-1
                             ${theme === 'dark'
                               ? 'bg-[#15093E] border-[#272261] shadow-[0_20px_40px_rgba(0,0,0,0.3)]'
                               : 'admin-dashboard-panel border-0'}
                           `}
                         >
-                          <div className={`absolute top-6 right-6 transition-opacity duration-500 group-hover:opacity-100 opacity-20 ${theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#8B5CF6]'}`}>
+                          <div className={`absolute top-6 right-6 transition-opacity duration-500 group-hover:opacity-100 opacity-20 z-10 ${theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#8B5CF6]'}`}>
                             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 0V14M0 7H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
                           </div>
-                          <div className={`h-18 w-18 rounded-[24px] flex items-center justify-center transition-all duration-500 shadow-lg group-hover:scale-110 ${theme === 'dark' ? 'bg-[#FFCE00] text-[#11134D] shadow-[0_0_30px_rgba(255,206,0,0.2)]' : 'bg-gradient-to-r from-[#9333ea] to-[#ec4899] text-white shadow-[0_8px_24px_rgba(217,70,239,0.4)]'}`}>
-                            <svg className="w-9 h-9" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m7-7H5" /></svg>
+                          <div className="w-full aspect-video flex items-center justify-center relative">
+                            <div className={`h-18 w-18 rounded-[24px] flex items-center justify-center transition-all duration-500 shadow-lg group-hover:scale-110 ${theme === 'dark' ? 'bg-[#FFCE00] text-[#11134D] shadow-[0_0_30px_rgba(255,206,0,0.2)]' : 'bg-gradient-to-r from-[#9333ea] to-[#ec4899] text-white shadow-[0_8px_24px_rgba(217,70,239,0.4)]'}`}>
+                              <svg className="w-9 h-9" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m7-7H5" /></svg>
+                            </div>
                           </div>
-                          <div className="flex flex-col items-center gap-1">
+                          <div className="p-6 flex flex-col items-center gap-1">
                             <span className={`text-xl font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}`}>New Project</span>
                             <span className={`h-1 w-8 rounded-full transition-all duration-500 scale-x-0 group-hover:scale-x-100 ${theme === 'dark' ? 'bg-[#FFCE00]' : 'bg-[#8B5CF6]'}`} />
+                            {/* Spacer to simulate the metadata line in project cards for perfect height matching */}
+                            <div className="h-5" /> 
                           </div>
                         </button>
                       )}
@@ -617,12 +621,8 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                             ) : (
                               <div role="button" tabIndex={0} onClick={() => projectTab === 'active' && openProject(project.id)} className={`${projectTab === 'trash' ? 'cursor-default' : 'cursor-pointer'} ${viewMode === 'list' ? 'flex flex-row items-center w-full h-full' : 'w-full text-left flex flex-col h-full'}`}>
                                 <div className={`${viewMode === 'list' ? 'w-40 h-full border-r border-[#2A2A60] shrink-0' : `${asPage ? 'w-full aspect-video' : 'w-full aspect-[16/10] border-b border-[#2A2A60]'}`} overflow-hidden ${asPage ? (theme === 'dark' ? 'bg-[#0A0A26]' : 'bg-white') : 'bg-[#0A0826]'} ${projectTab === 'trash' ? 'grayscale opacity-75' : ''}`}>
-                                  {/* Project thumbnail: shows a saved screenshot, or auto-generates a draft preview */}
-                                  {project.thumbnail ? (
-                                    <img src={project.thumbnail} alt={project.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                                  ) : (
-                                    <DraftPreviewThumbnail projectId={project.id} borderColor="transparent" bgColor={asPage ? (theme === 'dark' ? '#0A0A26' : '#ffffff') : '#0A0826'} className={`w-full h-full !aspect-auto !rounded-none object-cover ${projectTab !== 'trash' && 'transition-transform duration-700 group-hover:scale-105'}`} />
-                                  )}
+                                  {/* Project thumbnail: live draft preview — always shows current content */}
+                                  <DraftPreviewThumbnail projectId={project.id} borderColor="transparent" bgColor={asPage ? (theme === 'dark' ? '#0A0A26' : '#ffffff') : '#0A0826'} className={`w-full h-full !aspect-auto !rounded-none object-cover ${projectTab !== 'trash' && 'transition-transform duration-700 group-hover:scale-105'}`} />
                                 </div>
                                 <div className={`${viewMode === 'list' ? 'px-6 py-4 flex-1 flex flex-row items-center justify-between min-w-0' : `${asPage ? 'p-6' : 'px-5 py-4'} flex flex-col flex-1`}`}>
                                   {/* Project info: title, status badge (Published/Draft/Shared), and metadata */}
