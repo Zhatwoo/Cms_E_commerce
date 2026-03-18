@@ -76,6 +76,7 @@ export type ComponentType =
   | "Tabs"
   | "TabContent"
   | "Banner"
+  | "BooleanField"
   | "Rating"
   | "Accordion"
   | "ImportedBlock";
