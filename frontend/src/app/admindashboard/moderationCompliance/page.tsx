@@ -6,23 +6,25 @@ import { AdminSidebar } from '../components/sidebar';
 import { AdminHeader } from '../components/header';
 
 const ChevronRightIcon = () => (
-	<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+	<svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
 	</svg>
 );
 
-// Modal Component
-interface ModalProps {
+const SearchIcon = () => (
+	<svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M21 21l-4.35-4.35m1.35-5.15a7 7 0 11-14 0 7 7 0 0114 0z" />
+	</svg>
+);
+
+interface DismissModalProps {
 	isOpen: boolean;
 	onClose: () => void;
 	onConfirm: () => void;
-	title: string;
-	description: string;
-	confirmText: string;
-	confirmColor: 'green' | 'red';
+	site: string;
 }
 
-const ConfirmModal: React.FC<ModalProps> = ({ isOpen, onClose, onConfirm, title, description, confirmText, confirmColor }) => {
+const DismissModal: React.FC<DismissModalProps> = ({ isOpen, onClose, onConfirm, site }) => {
 	if (!isOpen) return null;
 
 	return (
@@ -31,43 +33,44 @@ const ConfirmModal: React.FC<ModalProps> = ({ isOpen, onClose, onConfirm, title,
 				initial={{ opacity: 0 }}
 				animate={{ opacity: 1 }}
 				exit={{ opacity: 0 }}
-				className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+				className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(215,204,245,0.66)] p-4 backdrop-blur-[4px]"
 				onClick={onClose}
 			>
 				<motion.div
-					initial={{ scale: 0.95, opacity: 0 }}
+					initial={{ scale: 0.97, opacity: 0 }}
 					animate={{ scale: 1, opacity: 1 }}
-					exit={{ scale: 0.95, opacity: 0 }}
-					transition={{ type: 'spring', duration: 0.3 }}
-					className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
+					exit={{ scale: 0.97, opacity: 0 }}
+					transition={{ duration: 0.22 }}
+					className="admin-dashboard-panel w-full max-w-[560px] rounded-xl border border-[rgba(177,59,255,0.26)] bg-[#F5F4FF]"
 					onClick={(e) => e.stopPropagation()}
 				>
-					<h3 className="text-xl font-bold text-gray-900 mb-2">{title}</h3>
-					<p className="text-gray-600 mb-6">{description}</p>
-					<div className="flex gap-3 justify-end">
-						<motion.button
-							whileHover={{ scale: 1.02 }}
-							whileTap={{ scale: 0.98 }}
-							onClick={onClose}
-							className="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
-						>
-							Cancel
-						</motion.button>
-						<motion.button
-							whileHover={{ scale: 1.02 }}
-							whileTap={{ scale: 0.98 }}
-							onClick={() => {
-								onConfirm();
-								onClose();
-							}}
-							className={`px-5 py-2.5 rounded-xl font-semibold text-white shadow-lg transition-colors ${
-								confirmColor === 'green'
-									? 'bg-emerald-500 hover:bg-emerald-600'
-									: 'bg-red-500 hover:bg-red-600'
-							}`}
-						>
-							{confirmText}
-						</motion.button>
+					<div className="border-b border-[rgba(177,59,255,0.28)] px-8 py-6">
+						<h3 className="text-2xl font-semibold text-[#471396]">Dismiss Report</h3>
+					</div>
+					<div className="space-y-6 px-8 py-6">
+						<p className="text-base leading-7 text-[#471396]">
+							Are you sure you want to dismiss this report for {site}? The
+							report will be archived and no action will be taken.
+						</p>
+						<div className="flex items-center justify-end gap-6">
+							<button
+								type="button"
+								onClick={onClose}
+								className="text-base font-semibold text-[#9A99AF]"
+							>
+								Cancel
+							</button>
+							<button
+								type="button"
+								onClick={() => {
+									onConfirm();
+									onClose();
+								}}
+								className="rounded-2xl bg-[#FF4343] px-10 py-3 text-base font-semibold text-white transition-opacity hover:opacity-90"
+							>
+								Dismiss
+							</button>
+						</div>
 					</div>
 				</motion.div>
 			</motion.div>
@@ -75,26 +78,20 @@ const ConfirmModal: React.FC<ModalProps> = ({ isOpen, onClose, onConfirm, title,
 	);
 };
 
-// Details Modal Component
 interface DetailsModalProps {
 	isOpen: boolean;
 	onClose: () => void;
-	type: 'review' | 'report';
 	data: {
 		site: string;
-		status?: string;
-		submittedBy?: string;
-		submittedDate?: string;
-		category?: string;
-		description?: string;
 		violationType?: string;
 		priority?: string;
 		reportedBy?: string;
 		reportDate?: string;
+		description?: string;
 	};
 }
 
-const DetailsModal: React.FC<DetailsModalProps> = ({ isOpen, onClose, type, data }) => {
+const DetailsModal: React.FC<DetailsModalProps> = ({ isOpen, onClose, data }) => {
 	if (!isOpen) return null;
 
 	return (
@@ -103,112 +100,67 @@ const DetailsModal: React.FC<DetailsModalProps> = ({ isOpen, onClose, type, data
 				initial={{ opacity: 0 }}
 				animate={{ opacity: 1 }}
 				exit={{ opacity: 0 }}
-				className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+				className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(215,204,245,0.66)] p-4 backdrop-blur-[4px]"
 				onClick={onClose}
 			>
 				<motion.div
-					initial={{ scale: 0.95, opacity: 0 }}
+					initial={{ scale: 0.97, opacity: 0 }}
 					animate={{ scale: 1, opacity: 1 }}
-					exit={{ scale: 0.95, opacity: 0 }}
-					transition={{ type: 'spring', duration: 0.3 }}
-					className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto"
+					exit={{ scale: 0.97, opacity: 0 }}
+					transition={{ duration: 0.22 }}
+					className="admin-dashboard-panel w-full max-w-[820px] rounded-xl border border-[rgba(177,59,255,0.26)] bg-[#F5F4FF]"
 					onClick={(e) => e.stopPropagation()}
 				>
-					<div className="sticky top-0 bg-white border-b border-gray-200 p-6">
-						<div className="flex items-center justify-between">
-							<h3 className="text-2xl font-bold text-gray-900">
-								{type === 'review' ? 'Website Review Details' : 'Report Details'}
-							</h3>
+					<div className="border-b border-[rgba(177,59,255,0.28)] px-8 py-6">
+						<h3 className="text-2xl font-semibold text-[#471396]">Report Details</h3>
+					</div>
+
+					<div className="space-y-6 px-8 py-7">
+						<div>
+							<p className="text-sm font-medium text-[#8A86A4]">Website</p>
+							<p className="mt-1 text-2xl font-semibold leading-tight text-[#471396]">{data.site}</p>
+						</div>
+
+						<div className="grid grid-cols-2 gap-8">
+							<div>
+								<p className="text-sm font-medium text-[#8A86A4]">Violation Type</p>
+								<p className="mt-1 text-xl font-semibold text-[#471396]">{data.violationType || 'Copyright Violation'}</p>
+							</div>
+							<div>
+								<p className="text-sm font-medium text-[#8A86A4]">Priority</p>
+								<p className="mt-1 text-xl font-semibold uppercase tracking-[0.3em] text-[#FF4343]">{data.priority || 'HIGH'}</p>
+							</div>
+						</div>
+
+						<div className="grid grid-cols-2 gap-8">
+							<div>
+								<p className="text-sm font-medium text-[#8A86A4]">Reported By</p>
+								<p className="mt-1 text-xl font-semibold text-[#471396]">{data.reportedBy || 'report@cms.com'}</p>
+							</div>
+							<div>
+								<p className="text-sm font-medium text-[#8A86A4]">Report Date</p>
+								<p className="mt-1 text-xl font-semibold text-[#471396]">{data.reportDate || 'January 28, 2026'}</p>
+							</div>
+						</div>
+
+						<div>
+							<p className="text-sm font-medium text-[#8A86A4]">Report Details</p>
+							<p className="mt-2 max-w-[96%] text-base leading-7 text-[#471396]">
+								{data.description || 'This website has been reported for copyright violation. The content appears to contain unauthorized use of copyrighted material without proper licensing or attribution.'}
+							</p>
+						</div>
+					</div>
+
+					<div className="px-8 pb-8">
+						<div className="flex justify-center">
 							<button
+								type="button"
 								onClick={onClose}
-								aria-label="Close details"
-								className="text-gray-400 hover:text-gray-600 transition-colors"
+								className="rounded-2xl bg-[#FFCC00] px-10 py-3 text-base font-semibold text-[#1F1F1F] transition-opacity hover:opacity-90"
 							>
-								<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-								</svg>
+								Close
 							</button>
 						</div>
-					</div>
-
-					<div className="p-6 space-y-4">
-						<div className="bg-slate-50 rounded-xl p-4">
-							<div className="text-sm font-semibold text-slate-500 mb-1">Website</div>
-							<div className="text-lg font-bold text-gray-900">{data.site}</div>
-						</div>
-
-						{type === 'review' && (
-							<>
-								<div className="grid grid-cols-2 gap-4">
-									<div className="bg-slate-50 rounded-xl p-4">
-										<div className="text-sm font-semibold text-slate-500 mb-1">Status</div>
-										<div className="font-semibold text-gray-900">{data.status || 'Pending'}</div>
-									</div>
-									<div className="bg-slate-50 rounded-xl p-4">
-										<div className="text-sm font-semibold text-slate-500 mb-1">Submitted Date</div>
-										<div className="font-semibold text-gray-900">{data.submittedDate || 'Feb 10, 2026'}</div>
-									</div>
-								</div>
-
-								<div className="bg-slate-50 rounded-xl p-4">
-									<div className="text-sm font-semibold text-slate-500 mb-1">Submitted By</div>
-									<div className="font-semibold text-gray-900">{data.submittedBy || 'user@example.com'}</div>
-								</div>
-
-								<div className="bg-slate-50 rounded-xl p-4">
-									<div className="text-sm font-semibold text-slate-500 mb-2">Description</div>
-									<div className="text-gray-700">
-										{data.description || 'This website is pending review for content moderation and compliance verification.'}
-									</div>
-								</div>
-							</>
-						)}
-
-						{type === 'report' && (
-							<>
-								<div className="grid grid-cols-2 gap-4">
-									<div className="bg-slate-50 rounded-xl p-4">
-										<div className="text-sm font-semibold text-slate-500 mb-1">Violation Type</div>
-										<div className="font-semibold text-gray-900">{data.violationType || 'Copyright Violation'}</div>
-									</div>
-									<div className="bg-slate-50 rounded-xl p-4">
-										<div className="text-sm font-semibold text-slate-500 mb-1">Priority</div>
-										<div className="font-semibold text-red-600 uppercase text-sm tracking-wider">
-											{data.priority || 'High'}
-										</div>
-									</div>
-								</div>
-
-								<div className="grid grid-cols-2 gap-4">
-									<div className="bg-slate-50 rounded-xl p-4">
-										<div className="text-sm font-semibold text-slate-500 mb-1">Reported By</div>
-										<div className="font-semibold text-gray-900">{data.reportedBy || 'reporter@example.com'}</div>
-									</div>
-									<div className="bg-slate-50 rounded-xl p-4">
-										<div className="text-sm font-semibold text-slate-500 mb-1">Report Date</div>
-										<div className="font-semibold text-gray-900">{data.reportDate || 'Feb 11, 2026'}</div>
-									</div>
-								</div>
-
-								<div className="bg-slate-50 rounded-xl p-4">
-									<div className="text-sm font-semibold text-slate-500 mb-2">Report Details</div>
-									<div className="text-gray-700">
-										{data.description || 'This website has been reported for copyright violation. The content appears to contain unauthorized use of copyrighted material without proper licensing or attribution.'}
-									</div>
-								</div>
-							</>
-						)}
-					</div>
-
-					<div className="sticky bottom-0 bg-white border-t border-gray-200 p-6">
-						<motion.button
-							whileHover={{ scale: 1.02 }}
-							whileTap={{ scale: 0.98 }}
-							onClick={onClose}
-							className="w-full bg-slate-900 text-white py-3 rounded-xl font-semibold hover:bg-slate-800 transition-colors"
-						>
-							Close
-						</motion.button>
 					</div>
 				</motion.div>
 			</motion.div>
@@ -217,70 +169,48 @@ const DetailsModal: React.FC<DetailsModalProps> = ({ isOpen, onClose, type, data
 };
 
 function ModerationComplianceBoard() {
-	const [tab, setTab] = useState("reports");
+	const [tab, setTab] = useState<'reports' | 'records'>('reports');
 	const [searchQuery, setSearchQuery] = useState('');
-	const [isFlagged, setIsFlagged] = useState(false);
-	
-	// Modal states
-	const [showApproveModal, setShowApproveModal] = useState(false);
-	const [showRemoveModal, setShowRemoveModal] = useState(false);
 	const [showDismissModal, setShowDismissModal] = useState(false);
 	const [showDetailsModal, setShowDetailsModal] = useState(false);
-	const [currentItem, setCurrentItem] = useState({ site: 'example-site.com', type: 'review' as 'review' | 'report' });
+	const [currentSite, setCurrentSite] = useState('example-site.com');
 
-	const tabLabel = tab === "webreviews" ? "Web Reviews" : tab === "reports" ? "Reports" : "Records";
+	const tabLabel = tab === 'reports' ? 'Reports' : 'Records';
+
 	const filteredLabel = searchQuery.trim() ? `Results for "${searchQuery.trim()}"` : tabLabel;
 
-	const handleApprove = () => {
-		console.log('Approved:', currentItem.site);
-		// Add your approval logic here
-	};
-
-	const handleRemove = () => {
-		console.log('Removed:', currentItem.site);
-		// Add your removal logic here
-	};
-
-	const handleDismiss = () => {
-		console.log('Dismissed:', currentItem.site);
-		// Add your dismiss logic here
-	};
-
-	const handleView = (site: string, type: 'review' | 'report') => {
-		setCurrentItem({ site, type });
-		setShowDetailsModal(true);
-	};
-
 	const stats = useMemo(() => {
-		if (tab === 'webreviews') {
-			return [
-				{ label: 'Pending', value: '24', tone: 'amber' },
-				{ label: 'Flagged', value: '11', tone: 'rose' },
-				{ label: 'Reviewed', value: '312', tone: 'emerald' },
-			];
-		}
 		if (tab === 'reports') {
 			return [
-				{ label: 'New Reports', value: '8', tone: 'amber' },
-				{ label: 'High Priority', value: '3', tone: 'rose' },
-				{ label: 'Resolved', value: '67', tone: 'emerald' },
+				{ label: 'NEW REPORTS', value: '56' },
+				{ label: 'HIGH PRIORITY', value: '7' },
+				{ label: 'RESOLVED', value: '10' },
 			];
 		}
 		return [
-			{ label: 'Removals', value: '19', tone: 'rose' },
-			{ label: 'Restored', value: '5', tone: 'emerald' },
-			{ label: 'Audited', value: '142', tone: 'blue' },
+			{ label: 'REMOVALS', value: '56' },
+			{ label: 'RESTORED', value: '7' },
+			{ label: 'AUDITED', value: '10' },
 		];
 	}, [tab]);
 
+	const handleView = (site: string) => {
+		setCurrentSite(site);
+		setShowDetailsModal(true);
+	};
+
+	const handleDismiss = () => {
+		console.log('Dismissed:', currentSite);
+	};
+
 	return (
-		<motion.div 
+		<motion.div
 			initial={{ opacity: 0, y: 20 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ duration: 0.5 }}
 			className="space-y-6"
 		>
-			<motion.div 
+			<motion.div
 				initial={{ opacity: 0 }}
 				animate={{ opacity: 1 }}
 				transition={{ delay: 0.2 }}
@@ -288,11 +218,11 @@ function ModerationComplianceBoard() {
 			>
 				<div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
 					<div>
-						<h1 className="text-3xl font-bold text-gray-900 mb-1">Moderation & Compliance</h1>
-						<div className="flex items-center gap-2 text-sm text-slate-500 mt-1">
+						<h1 className="mb-1 text-3xl font-bold text-[#B13BFF] sm:text-4xl">Moderation &amp; Compliance</h1>
+						<div className="mt-1 flex items-center gap-2 text-sm text-[#A78BFA]">
 							<span>Moderation & Compliance</span>
 							<ChevronRightIcon />
-							<span className="text-slate-700">{tabLabel}</span>
+							<span className="font-semibold text-[#8A78FF]">{tabLabel}</span>
 						</div>
 					</div>
 					<motion.div
@@ -301,13 +231,13 @@ function ModerationComplianceBoard() {
 						transition={{ delay: 0.3 }}
 						className="flex items-center gap-3"
 					>
-						<div className="px-3 py-1 rounded-full bg-slate-900 text-white text-xs font-semibold">Auto-review on</div>
-						<div className="px-3 py-1 rounded-full border border-slate-200 text-xs text-slate-500">Last sync 2 min ago</div>
+						<div className="rounded-full bg-[#FFCC00] px-3 py-1 text-xs font-semibold text-[#232323]">Auto-review on</div>
+						<div className="rounded-full border border-[rgba(138,134,164,0.5)] px-3 py-1 text-xs text-[#8A86A4]">Last sync 2 min ago</div>
 					</motion.div>
 				</div>
 			</motion.div>
 
-			<motion.div 
+			<motion.div
 				initial={{ opacity: 0, y: 10 }}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ delay: 0.3 }}
@@ -317,171 +247,72 @@ function ModerationComplianceBoard() {
 					initial={{ opacity: 0, y: 8 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ delay: 0.32 }}
-					className="grid grid-cols-1 sm:grid-cols-3 gap-3"
+					className="grid grid-cols-1 gap-4 sm:grid-cols-3"
 				>
 					{stats.map((item) => (
 						<motion.div
 							key={item.label}
-							className={`rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)]`}
+							className="admin-dashboard-panel rounded-[28px] border border-[rgba(177,59,255,0.23)] bg-[#F5F4FF] p-6 shadow-[0_8px_20px_rgba(123,78,192,0.14)]"
 							whileHover={{ y: -3, scale: 1.01 }}
 							transition={{ type: 'spring', stiffness: 260, damping: 22 }}
 						>
-							<div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{item.label}</div>
-							<div className="mt-2 text-3xl font-semibold text-slate-900">{item.value}</div>
-							<div
-								className={`mt-3 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
-									item.tone === 'amber'
-										? 'bg-amber-100 text-amber-700'
-										: item.tone === 'rose'
-										? 'bg-rose-100 text-rose-700'
-										: item.tone === 'emerald'
-										? 'bg-emerald-100 text-emerald-700'
-										: 'bg-blue-100 text-blue-700'
-								}`}
-							>
-								Live
-							</div>
+							<div className="text-6xl font-bold leading-none text-[#FFCC00]">{item.value}</div>
+							<div className="mt-3 text-sm font-semibold uppercase text-[#471396]">{item.label}</div>
+							<div className="mt-1 text-xs text-[#8A86A4]">Live</div>
 						</motion.div>
 					))}
 				</motion.div>
 
-				<div className="relative">
-					<svg className="absolute left-3 top-3 w-5 h-5 text-gray-500 pointer-events-none" viewBox="0 0 24 24" fill="none">
-						<path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-						<circle cx="11" cy="11" r="6" stroke="currentColor" strokeWidth="1.5" />
-					</svg>
+				<div className="flex flex-wrap items-center gap-3">
+					<div className="flex gap-1 rounded-xl border border-[rgba(177,59,255,0.29)] bg-[#F5F4FF] p-1">
+						<button
+							onClick={() => setTab('reports')}
+							className={`min-w-[132px] rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors ${
+								tab === 'reports'
+									? 'bg-[#FFCC00] text-[#471396] shadow-sm'
+									: 'text-[#66607E] hover:text-[#471396]'
+							}`}
+						>
+							Reports
+						</button>
+						<button
+							onClick={() => setTab('records')}
+							className={`min-w-[132px] rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors ${
+								tab === 'records'
+									? 'bg-[#FFCC00] text-[#471396] shadow-sm'
+									: 'text-[#66607E] hover:text-[#471396]'
+							}`}
+						>
+							Records
+						</button>
+					</div>
+
+					<button
+						type="button"
+						className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#FFCC00] text-[#471396] shadow-sm"
+						aria-label="Search"
+					>
+						<SearchIcon />
+					</button>
+
 					<input
 						aria-label="Search websites"
-						placeholder="Search websites..."
+						placeholder="Search websites"
 						value={searchQuery}
 						onChange={(event) => setSearchQuery(event.target.value)}
-						className="w-full bg-white border border-gray-200 rounded-2xl py-3 pl-10 pr-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+						className="admin-dashboard-panel-soft h-12 min-w-[17rem] flex-1 rounded-2xl border border-[rgba(177,59,255,0.29)] bg-[#F5F4FF] px-4 text-sm font-medium text-[#471396] outline-none placeholder:text-[#82788F]"
 					/>
 				</div>
 
-				<motion.div 
+				<motion.div
 					initial={{ opacity: 0, scale: 0.98 }}
 					animate={{ opacity: 1, scale: 1 }}
 					transition={{ delay: 0.4 }}
-					className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-[0_16px_40px_rgba(15,23,42,0.08)]"
+					className="admin-dashboard-panel overflow-hidden rounded-[32px] border border-[rgba(177,59,255,0.24)] bg-[#F5F4FF] p-8 shadow-[0_10px_26px_rgba(123,78,192,0.15)]"
 				>
-					<div className="border-b border-gray-200 bg-slate-50/70">
-						<div className="flex flex-wrap gap-6 px-6 pt-6">
-							{/* <button
-								onClick={() => setTab("webreviews")}
-								className={`pb-4 px-1 text-sm font-semibold border-b-2 transition-colors ${
-									tab === "webreviews"
-										? "border-blue-600 text-blue-600"
-										: "border-transparent text-gray-600 hover:text-gray-900"
-								}`}
-							>
-								Web Reviews
-							</button> */}
-							<button
-								onClick={() => setTab("reports")}
-								className={`pb-4 px-1 text-sm font-semibold border-b-2 transition-colors ${
-									tab === "reports"
-										? "border-blue-600 text-blue-600"
-										: "border-transparent text-gray-600 hover:text-gray-900"
-								}`}
-							>
-								Reports
-							</button>
-							<button
-								onClick={() => setTab("records")}
-								className={`pb-4 px-1 text-sm font-semibold border-b-2 transition-colors ${
-									tab === "records"
-										? "border-blue-600 text-blue-600"
-										: "border-transparent text-gray-600 hover:text-gray-900"
-								}`}
-							>
-								Records
-							</button>
-						</div>
-					</div>
-
-					<div className="p-6 min-h-[360px] bg-white">
+					<div className="min-h-[350px]">
 						<AnimatePresence mode="wait">
-						{/* {tab === "webreviews" && (
-							<motion.div
-								key="webreviews"
-								initial={{ opacity: 0, x: -20 }}
-								animate={{ opacity: 1, x: 0 }}
-								exit={{ opacity: 0, x: 20 }}
-								transition={{ duration: 0.3 }}
-							>
-								<h3 className="text-lg font-semibold mb-2 text-gray-900">Pending / Flagged Websites</h3>
-								<div className="text-sm text-slate-500 mb-6">{filteredLabel}</div>
-
-								<motion.div 
-									initial={{ opacity: 0, y: 10 }}
-									animate={{ opacity: 1, y: 0 }}
-									transition={{ delay: 0.1 }}
-									className="border border-gray-200 rounded-2xl p-5 shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
-								>
-									<div className="flex items-center justify-between">
-										<div className="flex items-center gap-4">
-											<motion.button
-												type="button"
-												aria-pressed={isFlagged}
-												aria-label={isFlagged ? 'Unflag website' : 'Flag website'}
-												onClick={() => setIsFlagged((prev) => !prev)}
-												whileHover={{ scale: 1.05 }}
-												whileTap={{ scale: 0.95 }}
-												className={`relative w-11 h-11 rounded-xl flex items-center justify-center transition-colors border ${
-													isFlagged
-														? 'bg-red-100 text-red-600 border-red-200 shadow-sm z-10'
-														: 'bg-transparent text-slate-400 border-slate-200 hover:bg-red-50 hover:text-red-600'
-												}`}
-											>
-												<svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-													<path d="M5 3h2v18H5V3zm2 0h10l-2 4 2 4H7V3z" />
-												</svg>
-											</motion.button>
-											<div>
-												<div className="font-semibold text-gray-900 mb-1">example-site.com</div>
-												<div className="text-sm text-gray-400">Pending</div>
-											</div>
-										</div>
-
-										<div className="flex items-center gap-3">
-										<motion.button 
-											whileHover={{ scale: 1.05 }}
-											whileTap={{ scale: 0.95 }}
-											onClick={() => {
-												setCurrentItem({ site: 'example-site.com', type: 'review' });
-												setShowApproveModal(true);
-											}}
-											className="bg-emerald-500 text-white px-6 py-2 rounded-full text-sm font-semibold shadow hover:bg-emerald-600 transition-colors"
-										>
-											Approve
-										</motion.button>
-										<motion.button 
-											whileHover={{ scale: 1.05 }}
-											whileTap={{ scale: 0.95 }}
-											onClick={() => handleView('example-site.com', 'review')}
-											className="bg-blue-500 text-white px-6 py-2 rounded-full text-sm font-semibold shadow hover:bg-blue-600 transition-colors"
-										>
-											View
-										</motion.button>
-										<motion.button 
-											whileHover={{ scale: 1.05 }}
-											whileTap={{ scale: 0.95 }}
-											onClick={() => {
-												setCurrentItem({ site: 'example-site.com', type: 'review' });
-												setShowRemoveModal(true);
-											}}
-											className="bg-red-500 text-white px-6 py-2 rounded-full text-sm font-semibold shadow hover:bg-red-600 transition-colors"
-										>
-											Remove
-										</motion.button>
-										</div>
-									</div>
-								</motion.div>
-							</motion.div>
-						)} */}
-
-						{tab === "reports" && (
+							{tab === 'reports' && (
 							<motion.div
 								key="reports"
 								initial={{ opacity: 0, x: -20 }}
@@ -489,49 +320,43 @@ function ModerationComplianceBoard() {
 								exit={{ opacity: 0, x: 20 }}
 								transition={{ duration: 0.3 }}
 							>
-								<h3 className="text-lg font-semibold mb-2 text-gray-900">Reports</h3>
-								<div className="text-sm text-slate-500 mb-6">{filteredLabel}</div>
+								<h3 className="mb-6 text-2xl font-semibold text-[#471396]">Reports</h3>
+								<div className="mb-6 text-sm text-[#8A86A4]">{filteredLabel}</div>
 
-								<motion.div 
-									initial={{ opacity: 0, y: 10 }}
-									animate={{ opacity: 1, y: 0 }}
-									transition={{ delay: 0.1 }}
-									className="border border-gray-200 rounded-2xl p-6 shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
-								>
-									<div className="flex items-center justify-between">
-										<div className="space-y-1">
-											<div className="font-semibold text-gray-900">example-site.com</div>
-											<div className="text-sm text-gray-400">Copyright Violation</div>
-											<div className="text-xs font-semibold text-red-600 uppercase tracking-[0.2em]">High</div>
-										</div>
-
-										<div className="flex items-center gap-3">
-										<motion.button 
-											whileHover={{ scale: 1.05 }}
-											whileTap={{ scale: 0.95 }}
-											onClick={() => handleView('example-site.com', 'report')}
-											className="bg-blue-500 text-white px-6 py-2 rounded-full text-sm font-semibold shadow hover:bg-blue-600 transition-colors"
-										>
-											View
-										</motion.button>
-										<motion.button 
-											whileHover={{ scale: 1.05 }}
-											whileTap={{ scale: 0.95 }}
-											onClick={() => {
-												setCurrentItem({ site: 'example-site.com', type: 'report' });
-												setShowDismissModal(true);
-											}}
-											className="bg-red-500 text-white px-6 py-2 rounded-full text-sm font-semibold shadow hover:bg-red-600 transition-colors"
-										>
-											Dismiss
-										</motion.button>
+								<div className="admin-dashboard-inset-panel flex items-center justify-between rounded-none border border-[rgba(177,59,255,0.16)] bg-white/42 px-6 py-5">
+									<div className="flex items-center gap-5">
+										<div className="h-20 w-[4px] rounded-full bg-[#FFCC00]" />
+										<div>
+											<p className="text-2xl font-semibold text-[#471396]">example-site.com</p>
+											<p className="text-base text-[#8A86A4]">Copyright Violation</p>
+											<p className="mt-1 text-sm font-semibold uppercase tracking-[0.35em] text-[#FF4343]">HIGH</p>
 										</div>
 									</div>
-								</motion.div>
-							</motion.div>
-						)}
 
-						{tab === "records" && (
+									<div className="flex items-center gap-5">
+										<button
+											type="button"
+											onClick={() => handleView('example-site.com')}
+											className="text-lg font-medium text-[#471396]"
+										>
+											View
+										</button>
+										<button
+											type="button"
+											onClick={() => {
+												setCurrentSite('example-site.com');
+												setShowDismissModal(true);
+											}}
+											className="rounded-xl bg-[#FF4343] px-6 py-2.5 text-base font-semibold text-white"
+										>
+											Dismiss
+										</button>
+									</div>
+								</div>
+							</motion.div>
+							)}
+
+							{tab === 'records' && (
 							<motion.div
 								key="records"
 								initial={{ opacity: 0, x: -20 }}
@@ -539,95 +364,72 @@ function ModerationComplianceBoard() {
 								exit={{ opacity: 0, x: 20 }}
 								transition={{ duration: 0.3 }}
 							>
-								<h3 className="text-lg font-semibold mb-2 text-gray-900">Records</h3>
-								<div className="text-sm text-slate-500 mb-6">{filteredLabel}</div>
+								<h3 className="mb-6 text-2xl font-semibold text-[#471396]">Records</h3>
+								<div className="mb-6 text-sm text-[#8A86A4]">{filteredLabel}</div>
 
-								<motion.div 
-									initial={{ opacity: 0, y: 10 }}
-									animate={{ opacity: 1, y: 0 }}
-									transition={{ delay: 0.1 }}
-									className="border border-gray-200 rounded-2xl p-6 shadow-[0_12px_30px_rgba(15,23,42,0.06)]"
-								>
-									<div className="space-y-1">
-										<div className="font-semibold text-gray-900">example-site.com</div>
-										<div className="text-sm text-gray-400">Action: Removed</div>
-										<div className="text-sm text-gray-400">By: Admin user on 0000-00-00</div>
+								<div className="admin-dashboard-inset-panel rounded-none border border-[rgba(177,59,255,0.16)] bg-white/42 px-6 py-5">
+									<div className="flex items-center gap-5">
+										<div className="h-20 w-[4px] rounded-full bg-[#FFCC00]" />
+										<div>
+											<p className="text-2xl font-semibold text-[#471396]">example-site.com</p>
+											<p className="text-base text-[#8A86A4]">Action: Removed</p>
+											<p className="text-base text-[#8A86A4]">By: Admin user on 2026-01-28</p>
+										</div>
 									</div>
-								</motion.div>
+								</div>
 							</motion.div>
-						)}
+							)}
 						</AnimatePresence>
 					</div>
 				</motion.div>
 			</motion.div>
 
-			{/* Modals */}
-			<ConfirmModal
-				isOpen={showApproveModal}
-				onClose={() => setShowApproveModal(false)}
-				onConfirm={handleApprove}
-				title="Approve Website"
-				description={`Are you sure you want to approve ${currentItem.site}? This website will be published and accessible to users.`}
-				confirmText="Approve"
-				confirmColor="green"
-			/>
-
-			<ConfirmModal
-				isOpen={showRemoveModal}
-				onClose={() => setShowRemoveModal(false)}
-				onConfirm={handleRemove}
-				title="Remove Website"
-				description={`Are you sure you want to remove ${currentItem.site}? This action cannot be undone and the website will be permanently deleted.`}
-				confirmText="Remove"
-				confirmColor="red"
-			/>
-
-			<ConfirmModal
+			<DismissModal
 				isOpen={showDismissModal}
 				onClose={() => setShowDismissModal(false)}
 				onConfirm={handleDismiss}
-				title="Dismiss Report"
-				description={`Are you sure you want to dismiss this report for ${currentItem.site}? The report will be archived and no action will be taken.`}
-				confirmText="Dismiss"
-				confirmColor="red"
+				site={currentSite}
 			/>
 
 			<DetailsModal
 				isOpen={showDetailsModal}
 				onClose={() => setShowDetailsModal(false)}
-				type={currentItem.type}
-				data={{ site: currentItem.site }}
+				data={{
+					site: currentSite,
+					violationType: 'Copyright Violation',
+					priority: 'HIGH',
+					reportedBy: 'report@cms.com',
+					reportDate: 'January 28, 2026',
+					description: 'This website has been reported for copyright violation. The content appears to contain unauthorized use of copyrighted material without proper licensing or attribution.',
+				}}
 			/>
 		</motion.div>
 	);
 }
 
 export default function ModerationCompliancePage() {
-    const [sidebarOpen, setSidebarOpen] = useState(false);
+	const [sidebarOpen, setSidebarOpen] = useState(false);
 
-    return (
-        <div className="min-h-screen bg-gray-100 flex">
-            {/* Desktop Sidebar */}
-            <AdminSidebar />
+	return (
+		<div className="admin-dashboard-shell flex h-screen overflow-hidden" suppressHydrationWarning>
+			<AdminSidebar forcedActiveItemId="moderation" />
 
-            {/* Mobile Sidebar */}
-            <AnimatePresence>
-                {sidebarOpen && (
-                    <div className="lg:hidden">
-                        <AdminSidebar mobile onClose={() => setSidebarOpen(false)} />
-                    </div>
-                )}
-            </AnimatePresence>
+			<AnimatePresence>
+				{sidebarOpen && (
+					<div className="lg:hidden">
+						<AdminSidebar mobile onClose={() => setSidebarOpen(false)} forcedActiveItemId="moderation" />
+					</div>
+				)}
+			</AnimatePresence>
 
-            {/* Main Content */}
-            <div className="flex-1 flex flex-col min-h-screen">
-                <AdminHeader />
-                <div className="flex-1 p-8 bg-gray-100 overflow-auto">
-                    <ModerationComplianceBoard />
-                </div>
-            </div>
-        </div>
-    );
+			<div className="flex min-h-0 flex-1 flex-col">
+				<AdminHeader onMenuClick={() => setSidebarOpen(true)} />
+				<main className="flex-1 min-h-0 overflow-y-auto">
+					<div className="p-8">
+						<ModerationComplianceBoard />
+					</div>
+				</main>
+			</div>
+		</div>
+	);
 }
-
-//Improved version with better animations and more polished UI.

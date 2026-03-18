@@ -4,6 +4,7 @@ function getStripeClient() {
   if (stripeClient) return stripeClient;
   const secretKey = String(process.env.STRIPE_SECRET_KEY || '').trim();
   if (!secretKey) return null;
+  console.log(`[Stripe] Initializing with key: ${secretKey.substring(0, 7)}... (Length: ${secretKey.length})`);
   stripeClient = require('stripe')(secretKey);
   return stripeClient;
 }
@@ -66,8 +67,31 @@ function constructEvent(rawBody, sig) {
   return stripe.webhooks.constructEvent(rawBody, sig, endpointSecret);
 }
 
+/**
+ * Create a Stripe Setup Intent for saving payment methods
+ * @param {Object} opts
+ * @param {string} opts.userId
+ * @returns {Promise<Object>}
+ */
+async function createSetupIntent({ userId }) {
+  try {
+    const stripe = requireStripeClient();
+    const setupIntent = await stripe.setupIntents.create({
+      metadata: {
+        user_id: String(userId),
+      },
+      payment_method_types: ['card'],
+    });
+    return setupIntent;
+  } catch (error) {
+    console.error('Stripe Setup Intent Error:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   createPaymentIntent,
+  createSetupIntent,
   constructEvent,
   getPublicKey: () => (process.env.STRIPE_PUBLIC_KEY || '').trim(),
 };

@@ -16,17 +16,17 @@ export const DesignSection = ({
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
-    <div className="flex flex-col border-b border-brand-medium-light last:border-b-0 pb-2">
+    <div className="flex flex-col border-b border-[var(--builder-border-mid)] last:border-b-0 pb-2">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center justify-between py-2 group cursor-pointer"
       >
-        <span className="text-xs font-semibold text-brand-light uppercase tracking-wider group-hover:text-brand-lighter transition-colors">
+        <span className="text-xs font-semibold text-[var(--builder-text-muted)] uppercase tracking-wider group-hover:text-[var(--builder-text)] transition-colors">
           {title}
         </span>
         <ChevronDown
           size={14}
-          className={`text-brand-light group-hover:text-brand-lighter transition-transform duration-200 ${isOpen ? "rotate-0" : "-rotate-90"
+          className={`text-[var(--builder-text-muted)] group-hover:text-[var(--builder-text)] transition-transform duration-200 ${isOpen ? "rotate-0" : "-rotate-90"
             }`}
         />
       </button>

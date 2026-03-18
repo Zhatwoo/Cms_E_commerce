@@ -9,11 +9,11 @@ type MoveMode = "absolute" | "page-canvas";
 const MOVE_THRESHOLD_PX = 6;
 const MAX_RETRY_FRAMES = 20;
 const MAX_COLUMNS_PER_ROW = 5;
-const FLOW_LAYOUT_TYPES = new Set(["Row", "Section", "Container", "Viewport", "Tab Content"]);
-const FLOW_PARENT_DISPLAY_NAMES = new Set(["Section", "Container", "Row", "Column", "Frame", "Tab Content"]);
+const FLOW_LAYOUT_TYPES = new Set(["Row", "Section", "Container", "Viewport", "Tab Content", "TabContent"]);
+const FLOW_PARENT_DISPLAY_NAMES = new Set(["Section", "Container", "Row", "Column", "Frame", "Tab Content", "TabContent"]);
 const FREEFORM_PARENT_DISPLAY_NAMES = new Set(["Page", "Viewport"]);
-const HORIZONTAL_COLUMN_PARENTS = new Set(["Row", "Section", "Container", "Column", "Tab Content"]);
-const DROP_TARGET_CANVAS_TYPES = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame", "Tab Content"]);
+const HORIZONTAL_COLUMN_PARENTS = new Set(["Row", "Section", "Container", "Column", "Tab Content", "TabContent"]);
+const DROP_TARGET_CANVAS_TYPES = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame", "Tab Content", "TabContent"]);
 const BLOCKED_DROP_TYPES = new Set(["Accordion"]);
 
 function isPanelSource(target: EventTarget | null): boolean {
@@ -208,7 +208,7 @@ export function PanelDropFreePlacementHandler() {
           const node = (query.getState()?.nodes ?? {})[id] as { data?: { isCanvas?: boolean; displayName?: string } } | undefined;
           const displayName = node?.data?.displayName;
           const isCanvas = node?.data?.isCanvas === true;
-          if (!forcedDropTargetId && (isCanvas || (displayName && DROP_TARGET_CANVAS_TYPES.has(displayName)) || displayName === "Tab Content")) {
+          if (!forcedDropTargetId && (isCanvas || (displayName && DROP_TARGET_CANVAS_TYPES.has(displayName)) || displayName === "Tab Content" || displayName === "TabContent")) {
             forcedDropTargetId = id;
             break;
           }
@@ -346,8 +346,10 @@ export function PanelDropFreePlacementHandler() {
             parentFreeformPref === true ||
             (!parentIsFlexParent && !!parentDisplayName && FREEFORM_PARENT_DISPLAY_NAMES.has(parentDisplayName));
           const allowFreeformLayout = parentFreeformPref !== false;
+          const forceFlowPlacement =
+            parentDisplayName === "Tab Content" || parentDisplayName === "TabContent";
           const shouldImageFillParent =
-            displayName === "Image" && (parentDisplayName === "Section" || parentDisplayName === "Tab Content");
+            displayName === "Image" && (parentDisplayName === "Section" || parentDisplayName === "Tab Content" || parentDisplayName === "TabContent");
           if (displayName === "Column") {
             if (parentDisplayName && HORIZONTAL_COLUMN_PARENTS.has(parentDisplayName)) {
               actions.setProp(parentId, (props: Record<string, unknown>) => {
@@ -393,6 +395,28 @@ export function PanelDropFreePlacementHandler() {
             });
           } else {
             actions.setProp(nodeId, (props: Record<string, unknown>) => {
+              // Tab panels should keep normal flow; don't apply pixel offsets that can push nodes outside.
+              if (forceFlowPlacement || !allowFreeformLayout) {
+                props.position = "relative";
+                props.left = "auto";
+                props.top = "auto";
+                props.right = "auto";
+                props.bottom = "auto";
+                props.marginTop = 0;
+                props.marginLeft = 0;
+
+                if (shouldImageFillParent) {
+                  props.width = "100%";
+                  props.height = "100%";
+                  props.maxWidth = "100%";
+                  props.maxHeight = "100%";
+                  props.minWidth = 0;
+                  props.minHeight = 0;
+                  if (!props.objectFit) props.objectFit = "cover";
+                }
+                return;
+              }
+
               const currentLeft = parsePxOrNumber(props.left);
               const currentTop = parsePxOrNumber(props.top);
               const nextLeft = Math.round(currentLeft + (finalLeft - (nodeRect.left - parentRect.left)));

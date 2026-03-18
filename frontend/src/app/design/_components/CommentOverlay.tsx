@@ -81,7 +81,7 @@ export const CommentOverlay: React.FC<{ scale?: number }> = ({ scale = 1 }) => {
         >
             {/* The Hint - only show if no clickPos yet */}
             {!clickPos && (
-                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-none px-4 py-2 bg-[#1A1A1A] text-white text-xs rounded-full shadow-2xl border border-white/10 animate-in fade-in slide-in-from-bottom-2 duration-300 backdrop-blur-md">
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-none px-4 py-2 bg-[#1A1A1A] text-white text-xs rounded-full shadow-2xl border border-transparent animate-in fade-in slide-in-from-bottom-2 duration-300 backdrop-blur-md">
                     <span className="flex items-center gap-2 font-medium">
                         <MessageSquare className="w-3.5 h-3.5 text-blue-400" />
                         Click anywhere to add a comment
@@ -120,7 +120,7 @@ export const CommentOverlay: React.FC<{ scale?: number }> = ({ scale = 1 }) => {
                                     setClickPos(null);
                                 }
                             }}
-                            className={`w-full bg-white/15 border border-white/20 rounded-xl p-3 text-sm text-white placeholder:text-white/50 focus:outline-none focus:border-white/50 transition-all font-medium resize-none h-24 mb-3 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`w-full bg-white/15 border border-transparent rounded-xl p-3 text-sm text-white placeholder:text-white/50 focus:outline-none focus:border-transparent transition-all font-medium resize-none h-24 mb-3 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                         />
                         <div className="flex items-center justify-between pl-1">
                             <span className="text-[10px] text-white/60 font-bold uppercase tracking-widest">

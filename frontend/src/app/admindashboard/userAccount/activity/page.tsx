@@ -6,7 +6,9 @@ import { UserAccountShell } from "../page";
 import { UserAccountSidebar } from "../components/ua_sidebar";
 
 export default function ActivityPage() {
-	const activityItems: { id: number; action: string; target: string; time: string; status: string }[] = [];
+	const activityItems = [
+		{ id: 1, title: "example-site.com", action: "Action: Removed", meta: "By: Admin user on 2026-01-28" },
+	];
 
 	return (
 		<UserAccountShell activePath="Activity">
@@ -20,48 +22,31 @@ export default function ActivityPage() {
 						initial={{ opacity: 0, y: 14 }}
 						animate={{ opacity: 1, y: 0 }}
 						transition={{ duration: 0.45 }}
-						className="bg-white rounded-2xl shadow-[0_16px_40px_rgba(15,23,42,0.08)] border border-gray-200 p-8"
+						className="admin-dashboard-panel rounded-[32px] border border-[rgba(177,59,255,0.22)] bg-[#F5F4FF] p-8 shadow-[0_10px_26px_rgba(123,78,192,0.15)]"
 					>
 						<motion.div
 							initial={{ opacity: 0, y: 10 }}
 							animate={{ opacity: 1, y: 0 }}
 							transition={{ duration: 0.3 }}
 						>
-							<div className="flex items-center justify-between mb-6">
-								<div>
-									<h2 className="text-xl font-semibold text-gray-900">Recent Activity</h2>
-									<p className="text-sm text-gray-500">Audit trail for this admin account.</p>
-								</div>
-								{/* <button className="rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-gray-50">
-									Export Log
-								</button> */}
+							<div className="mb-6">
+								<h2 className="text-2xl font-semibold text-[#471396]">Recent Activity</h2>
+								<p className="text-sm text-[#8A86A4]">Audit trail for this admin account</p>
 							</div>
 
 							<div className="space-y-3">
-								{activityItems.length > 0 ? (
-									activityItems.map((item) => (
-										<div key={item.id} className="rounded-xl border border-gray-200 p-4 flex flex-col md:flex-row md:items-center gap-3">
-											<div className="flex-1">
-												<div className="text-sm font-semibold text-gray-900">{item.action}</div>
-												<div className="text-xs text-gray-500">{item.target}</div>
+								{activityItems.map((item) => (
+									<div key={item.id} className="admin-dashboard-inset-panel rounded-none border border-[rgba(177,59,255,0.16)] bg-white/42 px-6 py-5">
+										<div className="flex items-center gap-5">
+											<div className="h-20 w-[4px] rounded-full bg-[#FFCC00]" />
+											<div>
+												<p className="text-2xl font-semibold text-[#471396]">{item.title}</p>
+												<p className="text-sm text-[#8A86A4]">{item.action}</p>
+												<p className="text-sm text-[#8A86A4]">{item.meta}</p>
 											</div>
-											<div className="text-xs text-gray-500 md:w-40 md:text-right">{item.time}</div>
-											<span
-												className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-													item.status === "Success"
-														? "bg-emerald-50 text-emerald-700"
-														: "bg-amber-50 text-amber-700"
-												}`}
-											>
-												{item.status}
-											</span>
 										</div>
-									))
-								) : (
-									<div className="rounded-xl border border-gray-200 p-4 text-sm text-gray-500">
-										No recent activity yet.
 									</div>
-								)}
+								))}
 							</div>
 						</motion.div>
 					</motion.div>

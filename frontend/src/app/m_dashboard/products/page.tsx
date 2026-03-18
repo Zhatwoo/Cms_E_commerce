@@ -225,8 +225,8 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
     normalizedStatus === 'inactive'
       ? { color: '#fca5a5', backgroundColor: 'rgba(153,27,27,0.72)', borderColor: 'rgba(248,113,113,0.75)' }
       : normalizedStatus === 'active'
-      ? { color: '#86efac', backgroundColor: 'rgba(20,83,45,0.72)', borderColor: 'rgba(74,222,128,0.75)' }
-      : { color: '#c4b5fd', backgroundColor: 'rgba(76,29,149,0.62)', borderColor: 'rgba(167,139,250,0.7)' };
+        ? { color: '#86efac', backgroundColor: 'rgba(20,83,45,0.72)', borderColor: 'rgba(74,222,128,0.75)' }
+        : { color: '#c4b5fd', backgroundColor: 'rgba(76,29,149,0.62)', borderColor: 'rgba(167,139,250,0.7)' };
 
   useEffect(() => {
     setSelectedOptions(getInitialVariantSelection(product));
@@ -1127,7 +1127,7 @@ export default function ProductsPage() {
           </div>
           <input
             type="text"
-            placeholder="Search templates, designs, or actions"
+            placeholder="Search products by name or SKU"
             value={searchTerm}
             onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
             className={`w-full bg-transparent outline-none text-sm font-medium ${theme === 'dark' ? 'text-white placeholder:text-[#6F70A8]' : 'text-[#120533] placeholder:text-[#120533]/30'}`}

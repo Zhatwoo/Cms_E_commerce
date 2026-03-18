@@ -84,31 +84,31 @@ export const ButtonSettings = () => {
         <div className="flex flex-col gap-3">
           {/* Label */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter">Label</label>
+            <label className="text-[10px] text-[var(--builder-text)]">Label</label>
             <input
               type="text"
               value={label}
               onChange={(e) => typedSetProp((props) => { props.label = e.target.value; })}
-              className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-2 focus:outline-none focus:border-brand-light"
+              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
             />
           </div>
 
           {/* Link URL */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter">Link URL</label>
+            <label className="text-[10px] text-[var(--builder-text)]">Link URL</label>
             <input
               type="text"
               value={link}
               onChange={(e) => typedSetProp((props) => { props.link = e.target.value; })}
               placeholder="https://..."
-              className="w-full bg-brand-black border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-2 focus:outline-none focus:border-brand-light"
+              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
             />
           </div>
 
           {/* Variant */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter">Variant</label>
-            <div className="grid grid-cols-5 gap-1 bg-brand-dark/30 p-1 rounded-lg border border-brand-medium/20">
+            <label className="text-[10px] text-[var(--builder-text)]">Variant</label>
+            <div className="grid grid-cols-5 gap-1 bg-[var(--builder-surface-2)] p-1 rounded-lg border border-[var(--builder-border)]">
               {(["primary", "secondary", "outline", "ghost", "cta"] as const).map((v) => (
                 <button
                   key={v}
@@ -125,8 +125,8 @@ export const ButtonSettings = () => {
                     }
                   })}
                   className={`text-[10px] py-1.5 rounded capitalize transition-colors ${variant === v
-                    ? "bg-brand-medium/50 text-brand-lighter"
-                    : "text-brand-light hover:text-brand-lighter"
+                    ? "bg-[var(--builder-accent)] text-black"
+                    : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
                     }`}
                 >
                   {v}
@@ -142,14 +142,14 @@ export const ButtonSettings = () => {
           {/* Colors */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter">Background</label>
+              <label className="text-[10px] text-[var(--builder-text)]">Background</label>
               <ColorPicker
                 value={backgroundColor || "#3b82f6"}
                 onChange={(val) => typedSetProp((props) => { props.backgroundColor = val; })}
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter">Text Color</label>
+              <label className="text-[10px] text-[var(--builder-text)]">Text Color</label>
               <ColorPicker
                 value={textColor || "#ffffff"}
                 onChange={(val) => typedSetProp((props) => { props.textColor = val; })}
@@ -160,7 +160,7 @@ export const ButtonSettings = () => {
           {/* Border & Radius */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter">Radius</label>
+              <label className="text-[10px] text-[var(--builder-text)]">Radius</label>
               <NumericInput
                 value={borderRadius ?? 8}
                 onChange={(val) => typedSetProp((props) => { props.borderRadius = val; })}
@@ -169,7 +169,7 @@ export const ButtonSettings = () => {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter">Border Width</label>
+              <label className="text-[10px] text-[var(--builder-text)]">Border Width</label>
               <NumericInput
                 value={borderWidth ?? 0}
                 onChange={(val) => typedSetProp((props) => { props.borderWidth = val; })}
@@ -182,7 +182,7 @@ export const ButtonSettings = () => {
           {/* Typography */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter">Font Size</label>
+              <label className="text-[10px] text-[var(--builder-text)]">Font Size</label>
               <NumericInput
                 value={fontSize ?? 14}
                 onChange={(val) => typedSetProp((props) => { props.fontSize = val; })}
@@ -191,11 +191,11 @@ export const ButtonSettings = () => {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-brand-lighter">Weight</label>
+              <label className="text-[10px] text-[var(--builder-text)]">Weight</label>
               <select
                 value={fontWeight}
                 onChange={(e) => typedSetProp((props) => { props.fontWeight = e.target.value; })}
-                className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none"
+                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
               >
                 <option value="400">Regular</option>
                 <option value="500">Medium</option>
@@ -206,11 +206,11 @@ export const ButtonSettings = () => {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter">Font</label>
+            <label className="text-[10px] text-[var(--builder-text)]">Font</label>
             <select
               value={fontFamily || "Outfit"}
               onChange={(e) => typedSetProp((props) => { props.fontFamily = e.target.value; })}
-              className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none"
+              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
             >
               {FONT_OPTIONS.map((font) => (
                 <option key={font} value={font}>{font}</option>
