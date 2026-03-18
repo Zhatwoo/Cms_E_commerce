@@ -8,6 +8,7 @@ import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePos
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
+import { ProductBindingGroup } from "../../_components/rightPanel/settings/ProductBindingGroup";
 import type { ContainerProps, SetProp } from "../../_types/components";
 
 export const ContainerSettings = () => {
@@ -26,6 +27,7 @@ export const ContainerSettings = () => {
     position, display, zIndex, top, right, bottom, left, editorVisibility,
     boxShadow, opacity, overflow, cursor,
     rotation, flipHorizontal, flipVertical,
+    productId,
     toggleTarget, triggerAction, collapsibleKey, defaultOpen, defaultOpenMobile, defaultOpenDesktop, showOn, mobileBreakpoint,
     actions: { setProp }
   } = useNode(node => ({
@@ -81,6 +83,7 @@ export const ContainerSettings = () => {
     rotation: node.data.props.rotation,
     flipHorizontal: node.data.props.flipHorizontal,
     flipVertical: node.data.props.flipVertical,
+    productId: node.data.props.productId,
     toggleTarget: node.data.props.toggleTarget,
     triggerAction: node.data.props.triggerAction,
     collapsibleKey: node.data.props.collapsibleKey,
@@ -177,6 +180,18 @@ export const ContainerSettings = () => {
           radiusBottomRight={radiusBottomRight}
           radiusBottomLeft={radiusBottomLeft}
           setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Product Binding" defaultOpen={false}>
+        <ProductBindingGroup
+          productId={productId}
+          onChange={(nextProductId) =>
+            typedSetProp((props) => {
+              props.productId = nextProductId;
+              props.productIndex = undefined;
+            })
+          }
         />
       </DesignSection>
 

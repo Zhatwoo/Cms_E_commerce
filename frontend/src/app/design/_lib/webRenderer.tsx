@@ -15,6 +15,23 @@ export type StoreContext = {
   addToCart: (product: { id: string; name: string; price: number; image?: string }) => void;
 };
 
+type StoreProduct = StoreContext["products"][number];
+
+type ProductBindingField = "name" | "price" | "description" | "image" | "addToCart";
+
+type ProductBinding = {
+  rootNodeId: string;
+  product: StoreProduct;
+  productIndex: number;
+  roles: {
+    imageNodeId: string | null;
+    nameNodeId: string | null;
+    priceNodeId: string | null;
+    descriptionNodeId: string | null;
+    buttonNodeIds: Set<string>;
+  };
+};
+
 function hasAddToCartButton(nodeId: string, nodes: Record<string, CleanNode>): boolean {
   const node = nodes[nodeId];
   if (!node) return false;
@@ -24,6 +41,302 @@ function hasAddToCartButton(nodeId: string, nodes: Record<string, CleanNode>): b
   }
   const childIds = node.children ?? [];
   return childIds.some((id) => hasAddToCartButton(id, nodes));
+}
+
+function looksLikeAddToCartLabel(label: string): boolean {
+  return label.trim().toLowerCase().includes("add to cart");
+}
+
+function normalizeStoreProductField(value: unknown): ProductBindingField | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized === "name" || normalized === "title" || normalized === "product-name" || normalized === "productname") return "name";
+  if (normalized === "price" || normalized === "product-price" || normalized === "productprice") return "price";
+  if (normalized === "description" || normalized === "details" || normalized === "product-description" || normalized === "productdescription") return "description";
+  if (normalized === "image" || normalized === "product-image" || normalized === "productimage") return "image";
+  if (normalized === "addtocart" || normalized === "add-to-cart" || normalized === "cart" || normalized === "cta") return "addToCart";
+  return null;
+}
+
+function getExplicitProductField(props: Record<string, unknown>): ProductBindingField | null {
+  return (
+    normalizeStoreProductField(props.productField) ||
+    normalizeStoreProductField(props.storeField) ||
+    normalizeStoreProductField(props.bindingField) ||
+    normalizeStoreProductField(props.contentRole)
+  );
+}
+
+function collectSubtreeNodeIds(rootNodeId: string, nodes: Record<string, CleanNode>): string[] {
+  const ordered: string[] = [];
+  const queue: string[] = [rootNodeId];
+  const seen = new Set<string>();
+
+  while (queue.length > 0) {
+    const currentId = queue.shift();
+    if (!currentId || seen.has(currentId)) continue;
+    seen.add(currentId);
+    const current = nodes[currentId];
+    if (!current) continue;
+    ordered.push(currentId);
+    for (const childId of current.children ?? []) {
+      queue.push(childId);
+    }
+  }
+
+  return ordered;
+}
+
+function looksLikePriceText(text: string): boolean {
+  const normalized = text.trim().toLowerCase();
+  return /(php|₱|p\s?\d|price)/i.test(normalized) || /\d[\d,]*(\.\d{1,2})?/.test(normalized);
+}
+
+function looksLikeBadgeText(text: string): boolean {
+  const normalized = text.trim();
+  if (!normalized) return false;
+  const lower = normalized.toLowerCase();
+  if (/(off|sale|new arrival|best seller|editor'?s pick|limited|promo)/i.test(lower)) return true;
+  return normalized.length <= 24 && normalized === normalized.toUpperCase();
+}
+
+function toFontWeightScore(value: unknown): number {
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+    if (value.toLowerCase() === "bold") return 700;
+    if (value.toLowerCase() === "semibold") return 600;
+  }
+  return 400;
+}
+
+function analyzeProductCardTemplate(rootNodeId: string, nodes: Record<string, CleanNode>): ProductBinding["roles"] {
+  const subtreeIds = collectSubtreeNodeIds(rootNodeId, nodes);
+  const textCandidates: Array<{
+    id: string;
+    text: string;
+    fontSize: number;
+    fontWeight: number;
+    explicitField: ProductBindingField | null;
+  }> = [];
+  const imageCandidates: Array<{ id: string; explicitField: ProductBindingField | null }> = [];
+  const buttonNodeIds = new Set<string>();
+
+  for (const id of subtreeIds) {
+    const current = nodes[id];
+    if (!current) continue;
+    const currentType = String(current.type || "").toLowerCase();
+    const currentProps = (current.props ?? {}) as Record<string, unknown>;
+    const explicitField = getExplicitProductField(currentProps);
+
+    if (currentType === "image") {
+      imageCandidates.push({ id, explicitField });
+      continue;
+    }
+
+    if (currentType === "button") {
+      const label = String(currentProps.label ?? "").trim();
+      if (explicitField === "addToCart" || looksLikeAddToCartLabel(label)) {
+        buttonNodeIds.add(id);
+      }
+      continue;
+    }
+
+    if (currentType === "text") {
+      const text = String(currentProps.text ?? "").trim();
+      if (!text) continue;
+      textCandidates.push({
+        id,
+        text,
+        fontSize: parsePixelValue(currentProps.fontSize) ?? toNumber(currentProps.fontSize, 16),
+        fontWeight: toFontWeightScore(currentProps.fontWeight),
+        explicitField,
+      });
+    }
+  }
+
+  const imageNodeId =
+    imageCandidates.find((candidate) => candidate.explicitField === "image")?.id ??
+    imageCandidates[0]?.id ??
+    null;
+
+  const priceNodeId =
+    textCandidates
+      .map((candidate) => {
+        let score = 0;
+        if (candidate.explicitField === "price") score += 1000;
+        if (looksLikePriceText(candidate.text)) score += 180;
+        score += Math.min(50, candidate.fontWeight / 20);
+        if (candidate.fontSize >= 14 && candidate.fontSize <= 28) score += 20;
+        return { id: candidate.id, score };
+      })
+      .sort((a, b) => b.score - a.score)[0]?.score > 0
+      ? textCandidates
+          .map((candidate) => {
+            let score = 0;
+            if (candidate.explicitField === "price") score += 1000;
+            if (looksLikePriceText(candidate.text)) score += 180;
+            score += Math.min(50, candidate.fontWeight / 20);
+            if (candidate.fontSize >= 14 && candidate.fontSize <= 28) score += 20;
+            return { id: candidate.id, score };
+          })
+          .sort((a, b) => b.score - a.score)[0]?.id ?? null
+      : null;
+
+  const remainingTextCandidates = textCandidates.filter((candidate) => candidate.id !== priceNodeId);
+
+  const nameNodeId =
+    remainingTextCandidates
+      .map((candidate) => {
+        let score = 0;
+        const lower = candidate.text.toLowerCase();
+        if (candidate.explicitField === "name") score += 1000;
+        if (/product name|luminous glow serum|rose toner mist|nourish face cream/i.test(lower)) score += 180;
+        if (!looksLikeBadgeText(candidate.text) && !looksLikePriceText(candidate.text)) score += 60;
+        if (candidate.fontWeight >= 600) score += 35;
+        if (candidate.fontSize >= 12 && candidate.fontSize <= 24) score += 25;
+        if (candidate.text.length <= 40) score += 10;
+        if (looksLikeBadgeText(candidate.text)) score -= 150;
+        return { id: candidate.id, score };
+      })
+      .sort((a, b) => b.score - a.score)[0]?.score > 0
+      ? remainingTextCandidates
+          .map((candidate) => {
+            let score = 0;
+            const lower = candidate.text.toLowerCase();
+            if (candidate.explicitField === "name") score += 1000;
+            if (/product name|luminous glow serum|rose toner mist|nourish face cream/i.test(lower)) score += 180;
+            if (!looksLikeBadgeText(candidate.text) && !looksLikePriceText(candidate.text)) score += 60;
+            if (candidate.fontWeight >= 600) score += 35;
+            if (candidate.fontSize >= 12 && candidate.fontSize <= 24) score += 25;
+            if (candidate.text.length <= 40) score += 10;
+            if (looksLikeBadgeText(candidate.text)) score -= 150;
+            return { id: candidate.id, score };
+          })
+          .sort((a, b) => b.score - a.score)[0]?.id ?? null
+      : null;
+
+  const descriptionNodeId =
+    remainingTextCandidates
+      .filter((candidate) => candidate.id !== nameNodeId)
+      .map((candidate) => {
+        let score = 0;
+        const lower = candidate.text.toLowerCase();
+        if (candidate.explicitField === "description") score += 1000;
+        if (/[·-]/.test(candidate.text) || /\bml\b|vitamin|hydrating|brightening|sensitive/i.test(lower)) score += 160;
+        if (candidate.text.length >= 24) score += 60;
+        if (candidate.fontSize <= 14) score += 25;
+        if (looksLikePriceText(candidate.text) || looksLikeBadgeText(candidate.text)) score -= 200;
+        return { id: candidate.id, score };
+      })
+      .sort((a, b) => b.score - a.score)[0]?.score > 0
+      ? remainingTextCandidates
+          .filter((candidate) => candidate.id !== nameNodeId)
+          .map((candidate) => {
+            let score = 0;
+            const lower = candidate.text.toLowerCase();
+            if (candidate.explicitField === "description") score += 1000;
+            if (/[·-]/.test(candidate.text) || /\bml\b|vitamin|hydrating|brightening|sensitive/i.test(lower)) score += 160;
+            if (candidate.text.length >= 24) score += 60;
+            if (candidate.fontSize <= 14) score += 25;
+            if (looksLikePriceText(candidate.text) || looksLikeBadgeText(candidate.text)) score -= 200;
+            return { id: candidate.id, score };
+          })
+          .sort((a, b) => b.score - a.score)[0]?.id ?? null
+      : null;
+
+  return {
+    imageNodeId,
+    nameNodeId,
+    priceNodeId,
+    descriptionNodeId,
+    buttonNodeIds,
+  };
+}
+
+function resolveExplicitProduct(
+  props: Record<string, unknown>,
+  storeContext: StoreContext,
+): StoreProduct | null {
+  const explicitId =
+    [props.productId, props.boundProductId, props.storeProductId, props.product_id]
+      .find((value) => typeof value === "string" && value.trim()) as string | undefined;
+  if (explicitId) {
+    const normalized = explicitId.trim().toLowerCase();
+    const matched =
+      storeContext.products.find((product) => String(product.id).trim().toLowerCase() === normalized) ??
+      storeContext.products.find((product) => String((product as { slug?: string }).slug ?? "").trim().toLowerCase() === normalized);
+    if (matched) return matched;
+  }
+
+  const explicitIndex = toNumber(props.productIndex, NaN);
+  if (Number.isFinite(explicitIndex) && explicitIndex >= 0) {
+    return storeContext.products[Math.min(storeContext.products.length - 1, Math.floor(explicitIndex))] ?? null;
+  }
+
+  return null;
+}
+
+function hasExplicitProductReference(props: Record<string, unknown>): boolean {
+  const explicitId = [props.productId, props.boundProductId, props.storeProductId, props.product_id]
+    .some((value) => typeof value === "string" && value.trim());
+  if (explicitId) return true;
+
+  const explicitIndex = toNumber(props.productIndex, NaN);
+  return Number.isFinite(explicitIndex) && explicitIndex >= 0;
+}
+
+function createProductBinding(
+  rootNodeId: string,
+  fallbackProductIndex: number,
+  nodes: Record<string, CleanNode>,
+  storeContext: StoreContext,
+): ProductBinding | null {
+  const rootNode = nodes[rootNodeId];
+  if (!rootNode || storeContext.products.length === 0) return null;
+  const rootProps = (rootNode.props ?? {}) as Record<string, unknown>;
+  const explicit = resolveExplicitProduct(rootProps, storeContext);
+  if (hasExplicitProductReference(rootProps) && !explicit) {
+    return null;
+  }
+  const product =
+    explicit ??
+    storeContext.products[Math.min(storeContext.products.length - 1, Math.max(0, fallbackProductIndex))] ??
+    null;
+  if (!product) return null;
+  const resolvedProductIndex = storeContext.products.findIndex((candidate) => candidate.id === product.id);
+
+  return {
+    rootNodeId,
+    product,
+    productIndex: resolvedProductIndex >= 0 ? resolvedProductIndex : fallbackProductIndex,
+    roles: analyzeProductCardTemplate(rootNodeId, nodes),
+  };
+}
+
+function resolveProductFieldForNode(
+  nodeId: string | undefined,
+  type: ComponentType,
+  props: Record<string, unknown>,
+  productBinding?: ProductBinding | null,
+): ProductBindingField | null {
+  if (!productBinding || !nodeId) return null;
+  const explicitField = getExplicitProductField(props);
+  if (explicitField) return explicitField;
+  if (type === "Image" && productBinding.roles.imageNodeId === nodeId) return "image";
+  if (type === "Button" && productBinding.roles.buttonNodeIds.has(nodeId)) return "addToCart";
+  if (type === "Text") {
+    if (productBinding.roles.priceNodeId === nodeId) return "price";
+    if (productBinding.roles.nameNodeId === nodeId) return "name";
+    if (productBinding.roles.descriptionNodeId === nodeId) return "description";
+  }
+  return null;
+}
+
+function formatStorePrice(price: number): string {
+  return `PHP ${price.toFixed(2)}`;
 }
 
 /** Default links for common nav/CTA labels so the storefront viewport is functional without editing each button. */
@@ -1676,6 +1989,7 @@ function RenderNode({
   enableFormInputs,
   builderParityMode,
   renderAllNodes,
+  productBinding,
   preserveAuthoredPositioning,
   layoutReferenceWidth,
   layoutReferenceHeight,
@@ -1697,6 +2011,7 @@ function RenderNode({
   enableFormInputs?: boolean;
   builderParityMode?: boolean;
   renderAllNodes?: boolean;
+  productBinding?: ProductBinding | null;
   preserveAuthoredPositioning?: boolean;
   layoutReferenceWidth?: number;
   layoutReferenceHeight?: number;
@@ -1707,7 +2022,7 @@ function RenderNode({
   void layoutReferenceWidth;
   void layoutReferenceHeight;
   // Normalize legacy lowercase node types so published and preview payloads render identically.
-  const rawType = node.type as string;
+  const rawType = typeof node.type === "string" && node.type.trim() ? node.type : "Container";
   const normalizedTypeMap: Record<string, ComponentType> = {
     text: "Text",
     container: "Container",
@@ -1752,12 +2067,30 @@ function RenderNode({
   const nextInsideTabsContext = Boolean(insideTabsContext || type === "Tabs" || type === "TabContent");
   const childIds = node.children ?? [];
   const childNodeMap: Record<string, React.ReactNode> = {};
-  const children = childIds.map((id) => {
+  const directProductTemplateIds =
+    storeContext && !productBinding
+      ? childIds.filter((id) => {
+          const childNode = nodes[id];
+          return Boolean(childNode) &&
+            String(childNode?.type ?? "").trim().toLowerCase() === "container" &&
+            hasAddToCartButton(id, nodes);
+        })
+      : [];
+  const productTemplateIdSet = new Set(directProductTemplateIds);
+  const hasExplicitTemplateBinding = directProductTemplateIds.some((id) =>
+    hasExplicitProductReference((nodes[id]?.props ?? {}) as Record<string, unknown>)
+  );
+
+  const renderChildNode = (
+    id: string,
+    childProductBinding?: ProductBinding | null,
+    renderKey?: string,
+  ) => {
     const n = nodes[id];
     if (!n) return null;
     const renderedNode = (
       <RenderNode
-        key={id}
+        key={renderKey ?? id}
         node={n}
         nodes={nodes}
         pages={pages}
@@ -1775,11 +2108,36 @@ function RenderNode({
         renderAllNodes={renderAllNodes}
         parentType={type}
         insideTabsContext={nextInsideTabsContext}
+        productBinding={childProductBinding ?? productBinding}
       />
     );
     childNodeMap[id] = renderedNode;
     return renderedNode;
-  });
+  };
+
+  const children = directProductTemplateIds.length > 0
+    ? childIds.flatMap((id) => {
+        if (!productTemplateIdSet.has(id)) {
+          const rendered = renderChildNode(id);
+          return rendered ? [rendered] : [];
+        }
+        if (hasExplicitTemplateBinding) {
+          const fallbackProductIndex = Math.max(0, directProductTemplateIds.indexOf(id));
+          const binding = createProductBinding(id, fallbackProductIndex, nodes, storeContext!);
+          const rendered = renderChildNode(id, binding);
+          return rendered ? [rendered] : [];
+        }
+        if (id !== directProductTemplateIds[0]) return [];
+
+        return storeContext!.products.map((_, productIndex) => {
+          const templateId = directProductTemplateIds[
+            Math.min(productIndex, directProductTemplateIds.length - 1)
+          ] ?? directProductTemplateIds[0];
+          const binding = createProductBinding(templateId, productIndex, nodes, storeContext!);
+          return renderChildNode(templateId, binding, `${templateId}::product-${productIndex}`);
+        });
+      })
+    : childIds.map((id) => renderChildNode(id));
 
   const withNodeMeta = (el: React.ReactElement): React.ReactElement => {
     if (!nodeId) return el;
@@ -1806,7 +2164,9 @@ function RenderNode({
         (props.display as React.CSSProperties["display"] | undefined) ?? "block";
       const isProductSlot =
         storeContext &&
+        !productBinding &&
         storeContext.products.length > 0 &&
+        directProductTemplateIds.length === 0 &&
         hasAddToCartButton(nodeId ?? "", nodes);
       if (isProductSlot) {
         // Product slots skip animation wrapping for simplicity
@@ -2267,7 +2627,16 @@ function RenderNode({
       const pb = (props.paddingBottom ?? p) as number;
       const pl = (props.paddingLeft ?? p) as number;
       const pr = (props.paddingRight ?? p) as number;
-      const textContent = (props.text != null && props.text !== "") ? String(props.text) : ((DEFAULTS["Text"]?.text as string) ?? "Edit me!");
+      const fallbackTextContent = (props.text != null && props.text !== "") ? String(props.text) : ((DEFAULTS["Text"]?.text as string) ?? "Edit me!");
+      const resolvedProductField = resolveProductFieldForNode(nodeId, type, props, productBinding);
+      const textContent =
+        resolvedProductField === "name" && productBinding?.product.name
+          ? productBinding.product.name
+          : resolvedProductField === "price"
+            ? formatStorePrice(typeof productBinding?.product.price === "number" ? productBinding.product.price : 0)
+            : resolvedProductField === "description" && productBinding?.product.description
+              ? productBinding.product.description
+              : fallbackTextContent;
       const normalizedTextWidth = normalizeLayoutWidthForNarrow(props.width, isNarrowPreview, builderParityMode);
       const normalizedTextHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
       const rawTextFontSize = parsePixelValue(props.fontSize) ?? toNumber(props.fontSize, toNumber(DEFAULTS["Text"]?.fontSize, 16));
@@ -2364,6 +2733,11 @@ function RenderNode({
     }
 
     case "Image": {
+      const resolvedProductField = resolveProductFieldForNode(nodeId, type, props, productBinding);
+      const productImageUrl =
+        resolvedProductField === "image"
+          ? productBinding?.product.images?.[0]
+          : undefined;
       const imgRot = toNumber(props.rotation, 0);
       const imgFlipH = props.flipHorizontal === true;
       const imgFlipV = props.flipVertical === true;
@@ -2387,8 +2761,8 @@ function RenderNode({
       const mediaAspectRatio = imageWidthPx && imageHeightPx ? `${imageWidthPx} / ${imageHeightPx}` : undefined;
       return wrap(
         <img
-          src={(props.src as string) || "https://placehold.co/600x400?text=Photo"}
-          alt={(props.alt as string) || "Image"}
+          src={productImageUrl || (props.src as string) || "https://placehold.co/600x400?text=Photo"}
+          alt={(resolvedProductField === "image" ? productBinding?.product.name : undefined) || (props.alt as string) || "Image"}
           data-fluid-space="true"
           data-fluid-media="true"
           className={((props.customClassName as string) || "").trim() || undefined}
@@ -2656,6 +3030,8 @@ function RenderNode({
       const mb = (props.marginBottom ?? m) as number;
       const ml = (props.marginLeft ?? m) as number;
       const labelStr = (props.label as string) ?? "Button";
+      const resolvedProductField = resolveProductFieldForNode(nodeId, type, props, productBinding);
+      const boundAddToCart = resolvedProductField === "addToCart" && productBinding && storeContext;
       const explicitLink = (props.link as string) || "";
       const link =
         explicitLink ||
@@ -2716,6 +3092,32 @@ function RenderNode({
       );
       if (interactiveClick) {
         return wrapWithAnimation(content, animation);
+      }
+      if (boundAddToCart) {
+        return wrap(
+          <button
+            type="button"
+            data-fluid-space="true"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              storeContext.addToCart({
+                id: productBinding.product.id,
+                name: productBinding.product.name,
+                price: typeof productBinding.product.price === "number" ? productBinding.product.price : 0,
+                image: productBinding.product.images?.[0],
+              });
+            }}
+            style={{
+              all: "unset",
+              display: isPercentWidth || isNarrowPreview ? "block" : "inline-block",
+              width: isPercentWidth || isNarrowPreview ? width : undefined,
+              cursor: "pointer",
+            }}
+          >
+            {content}
+          </button>
+        );
       }
       if (internalTargetSlug && onPrototypeAction) {
         return wrap(
@@ -3675,7 +4077,18 @@ export function WebPreview({
   /** When true, render all nodes regardless of responsive visibility/collapsible rules. */
   renderAllNodes?: boolean;
 }): React.ReactElement {
-  const safePages = doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page));
+  const safePages = React.useMemo(
+    () => (Array.isArray(doc?.pages)
+      ? doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page))
+      : []),
+    [doc]
+  );
+  const safeNodes = React.useMemo(
+    () => (doc?.nodes && typeof doc.nodes === "object"
+      ? (doc.nodes as Record<string, CleanNode>)
+      : {}),
+    [doc]
+  );
   const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
   const initialPage = safePages[pageIndex] ?? safePages[0];
   const [currentPageSlug, setCurrentPageSlug] = useState(initialPageSlug ?? getPageSlug(initialPage, pageIndex) ?? firstSlug);
@@ -3731,18 +4144,7 @@ export function WebPreview({
     [currentPageSlug, history, pageMeta]
   );
 
-  if (!currentPage) {
-    const hasPages = safePages.length > 0;
-    return (
-      <div style={{ padding: 24, color: "#666", textAlign: "center", maxWidth: 360 }}>
-        {hasPages
-          ? "No page to display."
-          : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
-      </div>
-    );
-  }
-
-  const pageProps = mergeProps("Page", currentPage.props) as Record<string, unknown>;
+  const pageProps = mergeProps("Page", currentPage?.props ?? {}) as Record<string, unknown>;
   const width = (pageProps.width as string) || "1920px";
   const background = (pageProps.background as string) || "#ffffff";
   const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
@@ -3768,14 +4170,14 @@ export function WebPreview({
   const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
   const availableTriggerTargets = React.useMemo(() => {
     const targets = new Set<string>();
-    for (const node of Object.values(doc.nodes)) {
+    for (const node of Object.values(safeNodes)) {
       const target = node?.props?.toggleTarget;
       if (typeof target === "string" && target.trim()) {
         targets.add(target.trim());
       }
     }
     return targets;
-  }, [doc.nodes]);
+  }, [safeNodes]);
   const handleToggle = React.useCallback((target: string, action: "toggle" | "open" | "close") => {
     setInteractionState((prev) => {
       const current = prev[target] ?? false;
@@ -3787,10 +4189,21 @@ export function WebPreview({
     });
   }, []);
 
+  if (!currentPage) {
+    const hasPages = safePages.length > 0;
+    return (
+      <div style={{ padding: 24, color: "#666", textAlign: "center", maxWidth: 360 }}>
+        {hasPages
+          ? "No page to display."
+          : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
+      </div>
+    );
+  }
+
   const pageContent = (
     <>
-      {currentPage.children.map((id) => {
-        const node = doc.nodes[id];
+      {(Array.isArray(currentPage.children) ? currentPage.children : []).map((id) => {
+        const node = safeNodes[id];
         if (!node) return null;
         const childType = String(node.type || "").toLowerCase();
         if (childType === "page") return null;
@@ -3798,7 +4211,7 @@ export function WebPreview({
           <RenderNode
             key={id}
             node={node}
-            nodes={doc.nodes}
+            nodes={safeNodes}
             pages={pageMeta}
             pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
             viewportWidth={viewportWidth}
@@ -3921,7 +4334,18 @@ export function LiveSite({
   mobileBreakpoint?: number;
   enableFormInputs?: boolean;
 }): React.ReactElement {
-  const safePages = doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page));
+  const safePages = React.useMemo(
+    () => (Array.isArray(doc?.pages)
+      ? doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page))
+      : []),
+    [doc]
+  );
+  const safeNodes = React.useMemo(
+    () => (doc?.nodes && typeof doc.nodes === "object"
+      ? (doc.nodes as Record<string, CleanNode>)
+      : {}),
+    [doc]
+  );
   const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
   const initialPage = safePages[pageIndex] ?? safePages[0];
   const [currentPageSlug, setCurrentPageSlug] = React.useState(
@@ -3941,18 +4365,7 @@ export function LiveSite({
     [safePages]
   );
 
-  if (!currentPage) {
-    const hasPages = safePages.length > 0;
-    return (
-      <div style={{ padding: 24, color: "#666", textAlign: "center", maxWidth: 360 }}>
-        {hasPages
-          ? "No page to display."
-          : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
-      </div>
-    );
-  }
-
-  const pageProps = mergeProps("Page", currentPage.props) as Record<string, unknown>;
+  const pageProps = mergeProps("Page", currentPage?.props ?? {}) as Record<string, unknown>;
   const width = (pageProps.width as string) || "1920px";
   const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
   const background = (pageProps.background as string) || "#ffffff";
@@ -3976,14 +4389,14 @@ export function LiveSite({
   const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
   const availableTriggerTargets = React.useMemo(() => {
     const targets = new Set<string>();
-    for (const node of Object.values(doc.nodes)) {
+    for (const node of Object.values(safeNodes)) {
       const target = node?.props?.toggleTarget;
       if (typeof target === "string" && target.trim()) {
         targets.add(target.trim());
       }
     }
     return targets;
-  }, [doc.nodes]);
+  }, [safeNodes]);
   const handleToggle = React.useCallback((target: string, action: "toggle" | "open" | "close") => {
     setInteractionState((prev) => {
       const current = prev[target] ?? false;
@@ -4032,10 +4445,21 @@ export function LiveSite({
     }
   }, [currentPageSlug, history, pageMeta]);
 
+  if (!currentPage) {
+    const hasPages = safePages.length > 0;
+    return (
+      <div style={{ padding: 24, color: "#666", textAlign: "center", maxWidth: 360 }}>
+        {hasPages
+          ? "No page to display."
+          : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
+      </div>
+    );
+  }
+
   const pageChildren = (
     <>
-      {currentPage.children.map((id) => {
-        const node = doc.nodes[id];
+      {(Array.isArray(currentPage.children) ? currentPage.children : []).map((id) => {
+        const node = safeNodes[id];
         if (!node) return null;
         const childType = String(node.type || "").toLowerCase();
         if (childType === "page") return null;
@@ -4043,7 +4467,7 @@ export function LiveSite({
           <RenderNode
             key={id}
             node={node}
-            nodes={doc.nodes}
+            nodes={safeNodes}
             pages={pageMeta}
             pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
             viewportWidth={viewportWidth}
