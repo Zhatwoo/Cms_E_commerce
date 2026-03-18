@@ -244,9 +244,8 @@ export function Hero({ isDarkMode = false, onAuthClick }: { isDarkMode?: boolean
           transition={{ duration: 0.75, delay: 0.06, ease: [0.16, 1, 0.3, 1] }}
           className="mt-6 text-[clamp(2.6rem,7.8vw,5.5rem)] font-black leading-[1.1] tracking-tight"
         >
-          Your Store,
-          <br className="lg:hidden" /> {/* Force break on everything except large desktops */}
-          <span className="inline-flex items-baseline lg:ml-4">
+          <span className="block">Your Store,</span>
+          <span className="inline-flex items-baseline">
             <span className={`bg-clip-text text-transparent bg-gradient-to-r ${isDarkMode ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}>
               {typedText}
             </span>
